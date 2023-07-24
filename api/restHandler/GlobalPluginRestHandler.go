@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -91,6 +92,7 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 			return
 		}
 	}
+	stageType := r.URL.Query().Get("stage")
 	if appId > 0 { //check rbac for app, being used for ci pipeline
 		app, err := handler.pipelineBuilder.GetApp(appId)
 		if err != nil {
@@ -127,11 +129,21 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 			return
 		}
 	}
-	plugins, err := handler.globalPluginService.ListAllPlugins()
-	if err != nil {
-		handler.logger.Errorw("error in getting plugin list", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+	var plugins []*plugin.PluginListComponentDto
+	if stageType == repository.CD_STAGE_TYPE {
+		plugins, err = handler.globalPluginService.ListAllPlugins(repository.CD)
+		if err != nil {
+			handler.logger.Errorw("error in getting cd plugin list", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		plugins, err = handler.globalPluginService.ListAllPlugins(repository.CI)
+		if err != nil {
+			handler.logger.Errorw("error in getting ci plugin list", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 	common.WriteJsonResp(w, nil, plugins, http.StatusOK)
 }

@@ -10,7 +10,9 @@ import (
 )
 
 type GlobalPolicyRepository interface {
-	GetDbConnection() *pg.DB
+	GetDbTransaction() (*pg.Tx, error)
+	CommitTransaction(tx *pg.Tx) error
+	RollBackTransaction(tx *pg.Tx) error
 	GetById(id int) (*GlobalPolicy, error)
 	GetEnabledPoliciesByIds(ids []int) ([]*GlobalPolicy, error)
 	GetByName(name string) (*GlobalPolicy, error)
@@ -56,14 +58,23 @@ func (globalPolicy *GlobalPolicy) GetGlobalPolicyDto() (*bean.GlobalPolicyDto, e
 	return &bean.GlobalPolicyDto{
 		Id:                    globalPolicy.Id,
 		Name:                  globalPolicy.Name,
+		PolicyOf:              bean.GlobalPolicyType(globalPolicy.PolicyOf),
+		PolicyVersion:         bean.GlobalPolicyVersion(globalPolicy.Version),
 		Description:           globalPolicy.Description,
 		Enabled:               globalPolicy.Enabled,
 		GlobalPolicyDetailDto: policyDetailDto,
 	}, nil
 }
 
-func (repo *GlobalPolicyRepositoryImpl) GetDbConnection() *pg.DB {
-	return repo.dbConnection
+func (repo *GlobalPolicyRepositoryImpl) GetDbTransaction() (*pg.Tx, error) {
+	return repo.dbConnection.Begin()
+}
+
+func (repo *GlobalPolicyRepositoryImpl) CommitTransaction(tx *pg.Tx) error {
+	return tx.Commit()
+}
+func (repo *GlobalPolicyRepositoryImpl) RollBackTransaction(tx *pg.Tx) error {
+	return tx.Rollback()
 }
 
 func (repo *GlobalPolicyRepositoryImpl) GetById(id int) (*GlobalPolicy, error) {

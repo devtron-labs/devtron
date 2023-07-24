@@ -143,36 +143,6 @@ func (impl *GlobalPolicyServiceImpl) DeleteGlobalPolicy(policyId int, userId int
 	return nil
 }
 
-func (impl *GlobalPolicyServiceImpl) deleteGlobalPolicyAndSearchableFields(policyId int, userId int32) error {
-	//initiating transaction
-	dbConnection := impl.globalPolicyRepository.GetDbConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		impl.logger.Errorw("error in initiating transaction", "err", err)
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	//mark global policy entry deleted
-	err = impl.globalPolicyRepository.MarkDeletedById(policyId, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in marking global policy entry deleted", "err", err, "policyId", policyId)
-		return err
-	}
-	//deleting global policy searchable field entries deleted
-	err = impl.globalPolicySearchableFieldRepository.DeleteByPolicyId(policyId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in deleting searchable fields entry by global policy id", "err", err, "globalPolicyId", policyId)
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction", "err", err)
-		return err
-	}
-	return nil
-}
-
 func (impl *GlobalPolicyServiceImpl) GetPolicyOffendingPipelinesWfTree(policyId int) (*bean.PolicyOffendingPipelineWfTreeObject, error) {
 	//get all policies
 	globalPolicy, err := impl.globalPolicyRepository.GetById(policyId)
@@ -184,176 +154,9 @@ func (impl *GlobalPolicyServiceImpl) GetPolicyOffendingPipelinesWfTree(policyId 
 		PolicyId: policyId,
 	}
 	if globalPolicy.Enabled { //getting workflows only when policy is enabled, because disabled policies are not enforced and would not be having any offending pipelines
-		var globalPolicyDetailDto bean.GlobalPolicyDetailDto
-		err = json.Unmarshal([]byte(globalPolicy.PolicyJson), &globalPolicyDetailDto)
+		wfComponents, err := impl.getOffendingPipelineWfComponents(globalPolicy)
 		if err != nil {
-			impl.logger.Errorw("error in un-marshaling global policy json", "err", err, "policyJson", globalPolicy.PolicyJson)
-			return nil, err
-		}
-		allProjects, allClusters, branchList, isAnyEnvSelectorPresent, isProductionEnvFlag,
-			projectAppNameMap, clusterEnvNameMap := getAllAppEnvBranchDetailsFromGlobalPolicyDetail(&globalPolicyDetailDto)
-		var ciPipelineProjectAppNameObjs []*pipelineConfig.CiPipelineAppProject
-		if len(allProjects) > 0 {
-			ciPipelineProjectAppNameObjs, err = impl.ciPipelineRepository.GetAllCIAppAndProjectByProjectNames(allProjects)
-			if err != nil {
-				impl.logger.Errorw("error in getting all ci pipelines by project names", "err", err)
-				return nil, err
-			}
-			if len(ciPipelineProjectAppNameObjs) == 0 {
-				//no pipelines found in given projects, no possible offending pipelines
-				return offendingPipelineWfTree, nil
-			}
-		}
-		//getting pipelines to be filtered for project and app names
-		ciPipelinesToBeFiltered := getFilteredCiPipelinesByProjectAppObjs(ciPipelineProjectAppNameObjs, projectAppNameMap)
-
-		if isAnyEnvSelectorPresent {
-			var ciPipelineClusterEnvNameObjs []*pipelineConfig.CiPipelineEnvCluster
-			if isProductionEnvFlag {
-				ciPipelineClusterEnvNameObjs, err = impl.ciPipelineRepository.GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPipelinesToBeFiltered)
-				if err != nil {
-					impl.logger.Errorw("error in getting all ci pipelines by cluster names", "err", err)
-					return nil, err
-				}
-			} else if len(allClusters) > 0 {
-				ciPipelineClusterEnvNameObjs, err = impl.ciPipelineRepository.GetAllCIsClusterAndEnvByCDClusterNames(allClusters, ciPipelinesToBeFiltered)
-				if err != nil {
-					impl.logger.Errorw("error in getting all ci pipelines by cluster names", "err", err)
-					return nil, err
-				}
-			}
-			//resetting filter pipelines, now will be updating on basis of cluster match
-			ciPipelinesToBeFiltered = nil
-
-			//getting pipelines to be filtered for project and app names
-			ciPipelinesToBeFiltered = getFilteredCiPipelinesByClusterAndEnvObjs(ciPipelineClusterEnvNameObjs, isProductionEnvFlag, clusterEnvNameMap)
-
-			if len(ciPipelinesToBeFiltered) == 0 {
-				//no pipelines found in given environment selector, no possible offending pipelines
-				return offendingPipelineWfTree, nil
-			}
-		}
-
-		var ciPipelinesForConfiguredPlugins []int
-		ciPipelineParentChildMap := make(map[int][]int) //map of parent ciPipelineId and (all linked ones + self)
-		ciPipelineMaterialMap := make(map[int][]*pipelineConfig.CiPipelineMaterial)
-		if len(branchList) != 0 {
-			var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
-			if len(ciPipelinesToBeFiltered) > 0 {
-				ciPipelineMaterials, err = impl.ciPipelineMaterialRepository.GetByCiPipelineIdsExceptUnsetRegexBranch(ciPipelinesToBeFiltered)
-				if err != nil {
-					impl.logger.Errorw("error in GetByCiPipelineIdsExceptUnsetRegexBranch", "err", err, "ciPipelineIds", ciPipelinesToBeFiltered)
-					return nil, err
-				}
-			} else {
-				ciPipelineMaterials, err = impl.ciPipelineMaterialRepository.GetAllExceptUnsetRegexBranch()
-				if err != nil {
-					impl.logger.Errorw("error in GetAllExceptUnsetRegexBranch", "err", err)
-					return nil, err
-				}
-			}
-			ciPipelinesFinalMap := make(map[int]bool, len(ciPipelineMaterials))
-			for _, ciPipelineMaterial := range ciPipelineMaterials {
-				ciPipelineId := ciPipelineMaterial.CiPipelineId
-				parentCiPipelineId := ciPipelineMaterial.ParentCiPipeline
-				ciPipelineMaterialMap[ciPipelineId] = append(ciPipelineMaterialMap[ciPipelineId], ciPipelineMaterial)
-				pipelineTobeUsedToFetchConfiguredPlugins := 0
-				if parentCiPipelineId != 0 {
-					pipelineTobeUsedToFetchConfiguredPlugins = parentCiPipelineId
-				} else {
-					pipelineTobeUsedToFetchConfiguredPlugins = ciPipelineId
-				}
-				if _, ok := ciPipelinesFinalMap[pipelineTobeUsedToFetchConfiguredPlugins]; !ok {
-					for _, branch := range branchList {
-						isBranchMatched, err := isBranchValueMatched(branch, ciPipelineMaterial.Value)
-						if err != nil {
-							impl.logger.Errorw("error in checking if branch value matched or not", "err", err, "branch", branch, "branchValue", ciPipelineMaterial.Value)
-							return nil, err
-						}
-						if isBranchMatched {
-							ciPipelinesFinalMap[pipelineTobeUsedToFetchConfiguredPlugins] = true
-							ciPipelinesForConfiguredPlugins = append(ciPipelinesForConfiguredPlugins, pipelineTobeUsedToFetchConfiguredPlugins)
-							ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins] =
-								append(ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins], ciPipelineId)
-
-						}
-					}
-				} else {
-					//adding request ci pipeline again to this because it might be possible
-					//that we have entry of parent ci pipeline through one linked, but we need to append this ciPipeline too (might be linked) too
-					ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins] =
-						append(ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins], ciPipelineId)
-				}
-			}
-		} else {
-			ciPipelinesForConfiguredPlugins = ciPipelinesToBeFiltered
-			if len(ciPipelinesForConfiguredPlugins) > 0 { //getting all materials by ci pipeline Ids
-				ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(ciPipelinesForConfiguredPlugins)
-				if err != nil {
-					impl.logger.Errorw("error in getting ciPipeline material by ciPipelineIds", "err", err, "ciPipelineIds", ciPipelinesForConfiguredPlugins)
-					return nil, err
-				}
-
-				for _, ciPipelineMaterial := range ciPipelineMaterials {
-					ciPipelineId := ciPipelineMaterial.CiPipelineId
-					ciPipelineMaterialMap[ciPipelineId] = append(ciPipelineMaterialMap[ciPipelineId], ciPipelineMaterial)
-				}
-			}
-		}
-		var configuredPlugins []*repository2.PipelineStageStep
-		if len(ciPipelinesForConfiguredPlugins) > 0 {
-			configuredPlugins, err = impl.pipelineStageRepository.GetConfiguredPluginsForCIPipelines(ciPipelinesForConfiguredPlugins)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error, GetConfiguredPluginsForCIPipelines", "err", err, "ciPipelineIds", ciPipelinesForConfiguredPlugins)
-				return nil, err
-			}
-		}
-		//map of {ciPipelineId: map of {pluginIdStage : bool} }
-		ciPipelineConfiguredPluginMap := make(map[int]map[string]bool)
-		for _, configuredPlugin := range configuredPlugins {
-			ciPipelineId := configuredPlugin.PipelineStage.CiPipelineId
-			pluginIdStr := fmt.Sprintf("%d", configuredPlugin.RefPluginId)
-			var pluginConfiguredInStage bean.PluginApplyStage
-			switch configuredPlugin.PipelineStage.Type {
-			case repository2.PIPELINE_STAGE_TYPE_PRE_CI:
-				pluginConfiguredInStage = bean.PLUGIN_APPLY_STAGE_PRE_CI
-			case repository2.PIPELINE_STAGE_TYPE_POST_CI:
-				pluginConfiguredInStage = bean.PLUGIN_APPLY_STAGE_POST_CI
-			}
-			pluginIdApplyStage := getSlashSeparatedString(pluginIdStr, pluginConfiguredInStage.ToString())
-			pluginIdPreOrPostCiStage := getSlashSeparatedString(pluginIdStr, bean.PLUGIN_APPLY_STAGE_PRE_OR_POST_CI.ToString())
-			if _, ok := ciPipelineConfiguredPluginMap[ciPipelineId]; !ok {
-				ciPipelineConfiguredPluginMap[ciPipelineId] = make(map[string]bool)
-			}
-			ciPipelineConfiguredPluginMap[ciPipelineId][pluginIdApplyStage] = true
-			ciPipelineConfiguredPluginMap[ciPipelineId][pluginIdPreOrPostCiStage] = true
-
-		}
-
-		offendingCiPipelineIds := make([]int, 0, len(ciPipelineConfiguredPluginMap))
-		for _, ciPipelineId := range ciPipelinesForConfiguredPlugins {
-			if configuredPluginMap, ok := ciPipelineConfiguredPluginMap[ciPipelineId]; ok {
-				for _, mandatoryPlugin := range globalPolicyDetailDto.Definitions {
-					data := mandatoryPlugin.Data
-					pluginIdStr := fmt.Sprintf("%d", data.PluginId)
-					pluginApplyStage := data.ApplyToStage
-					pluginIdApplyStage := getSlashSeparatedString(pluginIdStr, pluginApplyStage.ToString())
-
-					if _, ok2 := configuredPluginMap[pluginIdApplyStage]; !ok2 {
-						//all linked and self pipeline id fetch for this ci pipeline id
-						selfAndAllLinkedPipelineIds := ciPipelineParentChildMap[ciPipelineId]
-						offendingCiPipelineIds = append(offendingCiPipelineIds, selfAndAllLinkedPipelineIds...)
-						break
-					}
-				}
-			} else {
-				offendingCiPipelineIds = append(offendingCiPipelineIds, ciPipelineId)
-			}
-		}
-
-		wfComponents, err := impl.findAllWorkflowsComponentDetailsForCiPipelineIds(offendingCiPipelineIds, ciPipelineMaterialMap)
-		if err != nil {
-			impl.logger.Errorw("error, findAllWorkflowsComponentDetailsForCiPipelineIds", "err", err, "ciPipelineIds", offendingCiPipelineIds)
+			impl.logger.Errorw("error, getOffendingPipelineWfComponents", "err", err, "globalPolicy", globalPolicy)
 			return nil, err
 		}
 		offendingPipelineWfTree.Workflows = wfComponents
@@ -400,127 +203,26 @@ func (impl *GlobalPolicyServiceImpl) GetBlockageStateForACIPipelineTrigger(ciPip
 		impl.logger.Errorw("error, GetConfiguredPluginsForCIPipelines", "err", err, "ciPipelineId", ciPipelineIdToGetBlockageState)
 		return isOffendingMandatoryPlugin, isCIPipelineTriggerBlocked, nil, err
 	}
-	configuredPluginMap := make(map[string]bool)
-	for _, configuredPlugin := range configuredPlugins {
-		pluginIdStr := fmt.Sprintf("%d", configuredPlugin.RefPluginId)
-		var pluginConfiguredInStage bean.PluginApplyStage
-		switch configuredPlugin.PipelineStage.Type {
-		case repository2.PIPELINE_STAGE_TYPE_PRE_CI:
-			pluginConfiguredInStage = bean.PLUGIN_APPLY_STAGE_PRE_CI
-		case repository2.PIPELINE_STAGE_TYPE_POST_CI:
-			pluginConfiguredInStage = bean.PLUGIN_APPLY_STAGE_POST_CI
-		}
-		pluginIdApplyStage := getSlashSeparatedString(pluginIdStr, pluginConfiguredInStage.ToString())
-		pluginIdPreOrPostCiStage := getSlashSeparatedString(pluginIdStr, bean.PLUGIN_APPLY_STAGE_PRE_OR_POST_CI.ToString())
-		configuredPluginMap[pluginIdApplyStage] = true
-		configuredPluginMap[pluginIdPreOrPostCiStage] = true
-	}
-
+	configuredPluginMap := getConfiguredPluginMap(configuredPlugins)
 	var blockageStateFinal *bean.ConsequenceDto
-	for _, mandatoryPlugin := range definitions {
-		data := mandatoryPlugin.Data
-		pluginIdStr := fmt.Sprintf("%d", data.PluginId)
-		applyToStage := data.ApplyToStage
-		pluginIdApplyStage := getSlashSeparatedString(pluginIdStr, applyToStage.ToString())
-		if _, ok := configuredPluginMap[pluginIdApplyStage]; !ok {
-			blockageState := mandatoryPluginsBlockageState[pluginIdApplyStage]
-			if blockageStateFinal == nil {
-				blockageStateFinal = blockageState
-			} else {
-				if sev := blockageStateFinal.GetSeverity(blockageState); sev == bean.SEVERITY_MORE_SEVERE {
-					blockageStateFinal = blockageState
-				}
-			}
-			//mandatory plugin not found in configured plugin, marking block state as true
-			isOffendingMandatoryPlugin = true
-			isBlockingConsequence := checkIfConsequenceIsBlocking(blockageState)
-			if isBlockingConsequence {
-				isCIPipelineTriggerBlocked = true
-			}
-		}
-	}
+	isOffendingMandatoryPlugin, isCIPipelineTriggerBlocked, blockageStateFinal =
+		getBlockageStateDetails(definitions, configuredPluginMap, mandatoryPluginsBlockageState)
+
 	return isOffendingMandatoryPlugin, isCIPipelineTriggerBlocked, blockageStateFinal, nil
 }
 
 func (impl *GlobalPolicyServiceImpl) GetMandatoryPluginsForACiPipeline(ciPipelineId, appId int, branchValues []string,
 	toOnlyGetBlockedStatePolicies bool) (*bean.MandatoryPluginDto, map[string]*bean.ConsequenceDto, error) {
-	var ciPipelineAppProjectObjs []*pipelineConfig.CiPipelineAppProject
-	var err error
-	if ciPipelineId != 0 {
-		//getting all linked ci pipelines and ciPipelineId along with appName and projectName
-		ciPipelineAppProjectObjs, err = impl.ciPipelineRepository.GetAppAndProjectNameForParentAndAllLinkedCI(ciPipelineId)
-		if err != nil {
-			impl.logger.Errorw("error in getting appName and projectName of parent and all linked ci", "err", err, "ciPipelineId", ciPipelineId)
-			return nil, nil, err
-		}
-		if len(ciPipelineAppProjectObjs) == 0 {
-			//at least 1 obj is expected of the given ci pipeline
-			return nil, nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "bad request, ci pipeline not found"}
-		}
-	} else if appId != 0 { //ciPipeline is zero(ciPipeline create request), assuming ciPipelineId as zero and moving ahead
-		app, err := impl.appRepository.FindAppAndProjectByAppId(appId)
-		if err != nil {
-			impl.logger.Errorw("error in getting app by id", "err", err, "appId", appId)
-			return nil, nil, err
-		}
-		ciPipelineAppProjectObjs = []*pipelineConfig.CiPipelineAppProject{
-			{
-				CiPipelineId: 0,
-				AppName:      app.AppName,
-				ProjectName:  app.Team.Name,
-			},
-		}
-	} else {
-		return nil, nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "bad request, need ciPipelineId or appId"}
+	ciPipelineAppProjectObjs, err := impl.getCiPipelineAppProjectObjs(ciPipelineId, appId)
+	if err != nil {
+		impl.logger.Errorw("error, getCiPipelineAppProjectObjs", "err", err, "ciPipelineId", ciPipelineId, "appId", appId)
+		return nil, nil, err
 	}
-	allCiPipelineIds := make([]int, 0, len(ciPipelineAppProjectObjs))
-	ciPipelineIdNameMap := make(map[int]string, len(ciPipelineAppProjectObjs))
-	allProjectAppNames := make([]string, 0, len(ciPipelineAppProjectObjs))
-	projectMap := make(map[string]bool, len(ciPipelineAppProjectObjs))
-	ciPipelineIdProjectAppNameMap := make(map[int]*bean.PluginSourceCiPipelineAppDetailDto, len(ciPipelineAppProjectObjs))
-
-	for _, ciPipelineAppProjectObj := range ciPipelineAppProjectObjs {
-		ciPipelineIdInObj := ciPipelineAppProjectObj.CiPipelineId
-		allCiPipelineIds = append(allCiPipelineIds, ciPipelineIdInObj)
-		projectName := ciPipelineAppProjectObj.ProjectName
-		appName := ciPipelineAppProjectObj.AppName
-		ciPipelineIdNameMap[ciPipelineIdInObj] = ciPipelineAppProjectObj.CiPipelineName
-		projectAppName := getSlashSeparatedString(projectName, appName)
-		allProjectAppNames = append(allProjectAppNames, projectAppName)
-		projectMap[projectName] = true
-		ciPipelineIdProjectAppNameMap[ciPipelineIdInObj] = getCIPipelineAppDetailDto(projectName, appName)
-	}
-	var ciPipelineEnvClusterObjs []*pipelineConfig.CiPipelineEnvCluster
-	if len(allCiPipelineIds) > 0 {
-		//getting all envName and clusterName of all linked and parent ci
-		ciPipelineEnvClusterObjs, err = impl.ciPipelineRepository.GetAllCDsEnvAndClusterNameByCiPipelineIds(allCiPipelineIds)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting envName and clusterName by ciPipelineIds", "err", err, "ciPipelineIds", allCiPipelineIds)
-			return nil, nil, err
-		}
-	}
-	haveAnyProductionEnv := false
-	//map of ciPipelineId with all productionEnv present in that ciPipeline's workflow
-	ciPipelineIdProductionEnvDetailMap := make(map[int][]*bean.PluginSourceCiPipelineEnvDetailDto)
-	ciPipelineIdEnvDetailMap := make(map[int][]*bean.PluginSourceCiPipelineEnvDetailDto)
-	allClusterEnvNames := make([]string, 0, len(ciPipelineEnvClusterObjs))
-	clusterMap := make(map[string]bool, len(ciPipelineEnvClusterObjs))
-	for _, ciPipelineEnvClusterObj := range ciPipelineEnvClusterObjs {
-		ciPipelineIdInObj := ciPipelineEnvClusterObj.CiPipelineId
-		clusterName := ciPipelineEnvClusterObj.ClusterName
-		envName := ciPipelineEnvClusterObj.EnvName
-		clusterMap[clusterName] = true
-		envDetailDto := getCIPipelineEnvDetailDto(clusterName, envName)
-		if ciPipelineEnvClusterObj.IsProductionEnv {
-			haveAnyProductionEnv = true //setting flag for having at least one production env to true to filter global policies query using this
-			ciPipelineIdProductionEnvDetailMap[ciPipelineIdInObj] = append(ciPipelineIdProductionEnvDetailMap[ciPipelineIdInObj],
-				envDetailDto)
-		}
-		ciPipelineIdEnvDetailMap[ciPipelineIdInObj] = append(ciPipelineIdEnvDetailMap[ciPipelineIdInObj], envDetailDto)
-		clusterEnvName := getSlashSeparatedString(clusterName, envName)
-		allClusterEnvNames = append(allClusterEnvNames, clusterEnvName)
-	}
-
+	allCiPipelineIds, ciPipelineIdNameMap, allProjectAppNames, projectMap, ciPipelineIdProjectAppNameMap :=
+		getAppProjectDetailsFromCiPipelineProjectAppObjs(ciPipelineAppProjectObjs)
+	ciPipelineEnvClusterObjs, err := impl.getCiPipelineEnvClusterObjs(allCiPipelineIds)
+	haveAnyProductionEnv, ciPipelineIdProductionEnvDetailMap, ciPipelineIdEnvDetailMap, allClusterEnvNames, clusterMap :=
+		getEnvClusterDetailsFromCIPipelineEnvClusterObjs(ciPipelineEnvClusterObjs)
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	//getting searchable keyId and value map for filtering all searchable fields in db
 	searchableKeyIdValueMapWhereOrGroup, searchableKeyIdValueMapWhereAndGroup := getSearchableKeyIdValueMapForFilter(allProjectAppNames, allClusterEnvNames, branchValues,
@@ -531,7 +233,7 @@ func (impl *GlobalPolicyServiceImpl) GetMandatoryPluginsForACiPipeline(ciPipelin
 		impl.logger.Errorw("error in getting searchable fields", "err", err)
 		return nil, nil, err
 	}
-	globalPolicyIds, err := impl.getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldModels, projectMap, clusterMap, branchValues)
+	globalPolicyIds, err := getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldModels, projectMap, clusterMap, branchValues, impl.devtronResourceService.GetAllSearchableKeyIdNameMap())
 	if err != nil {
 		impl.logger.Errorw("error, getFilteredGlobalPolicyIdsFromSearchableFields", "err", err, "searchableFieldModels", searchableFieldModels)
 		return nil, nil, err
@@ -545,11 +247,72 @@ func (impl *GlobalPolicyServiceImpl) GetMandatoryPluginsForACiPipeline(ciPipelin
 		}
 	}
 	//map of "pluginId/pluginApplyStage" and its sources
+	mandatoryPluginDefinitionMap, mandatoryPluginBlockageMap, err := impl.getMandatoryPluginDefinitionAndBlockageMaps(globalPolicies, toOnlyGetBlockedStatePolicies,
+		allCiPipelineIds, ciPipelineId, ciPipelineIdProjectAppNameMap, ciPipelineIdEnvDetailMap, ciPipelineIdProductionEnvDetailMap, branchValues, ciPipelineIdNameMap)
+	if err != nil {
+		impl.logger.Errorw("error, getMandatoryPluginDefinitionAndBlockageMaps", "err", err, "globalPolicies", globalPolicies)
+		return nil, nil, err
+	}
+
+	mandatoryPluginsDefinitions := make([]*bean.MandatoryPluginDefinitionDto, 0)
+	for pluginIdStage, definitionSources := range mandatoryPluginDefinitionMap {
+		mandatoryPluginDefinition, err := getMandatoryPluginDefinition(pluginIdStage, definitionSources)
+		if err != nil {
+			impl.logger.Errorw("error, getMandatoryPluginDefinition", "err", err)
+			return nil, nil, err
+		}
+		mandatoryPluginsDefinitions = append(mandatoryPluginsDefinitions, mandatoryPluginDefinition)
+	}
+	mandatoryPlugins := &bean.MandatoryPluginDto{
+		Definitions: mandatoryPluginsDefinitions,
+	}
+	return mandatoryPlugins, mandatoryPluginBlockageMap, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) deleteGlobalPolicyAndSearchableFields(policyId int, userId int32) error {
+	tx, err := impl.globalPolicyRepository.GetDbTransaction()
+	if err != nil {
+		impl.logger.Errorw("error in initiating transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer func() {
+		err = impl.globalPolicyRepository.RollBackTransaction(tx)
+		if err != nil {
+			impl.logger.Errorw("error in rolling back transaction", "err", err)
+		}
+	}()
+	//mark global policy entry deleted
+	err = impl.globalPolicyRepository.MarkDeletedById(policyId, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking global policy entry deleted", "err", err, "policyId", policyId)
+		return err
+	}
+	//deleting global policy searchable field entries deleted
+	err = impl.globalPolicySearchableFieldRepository.DeleteByPolicyId(policyId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting searchable fields entry by global policy id", "err", err, "globalPolicyId", policyId)
+		return err
+	}
+	err = impl.globalPolicyRepository.CommitTransaction(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getMandatoryPluginDefinitionAndBlockageMaps(globalPolicies []*repository.GlobalPolicy, toOnlyGetBlockedStatePolicies bool,
+	allCiPipelineIds []int, ciPipelineId int, ciPipelineIdProjectAppNameMap map[int]*bean.PluginSourceCiPipelineAppDetailDto,
+	ciPipelineIdEnvDetailMap, ciPipelineIdProductionEnvDetailMap map[int][]*bean.PluginSourceCiPipelineEnvDetailDto,
+	branchValues []string, ciPipelineIdNameMap map[int]string) (map[string][]*bean.DefinitionSourceDto,
+	map[string]*bean.ConsequenceDto, error) {
+	//map of "pluginId/pluginApplyStage" and its sources
 	mandatoryPluginDefinitionMap := make(map[string][]*bean.DefinitionSourceDto)
 	mandatoryPluginBlockageMap := make(map[string]*bean.ConsequenceDto)
 	for _, globalPolicy := range globalPolicies {
 		var globalPolicyDetailDto bean.GlobalPolicyDetailDto
-		err = json.Unmarshal([]byte(globalPolicy.PolicyJson), &globalPolicyDetailDto)
+		err := json.Unmarshal([]byte(globalPolicy.PolicyJson), &globalPolicyDetailDto)
 		if err != nil {
 			impl.logger.Errorw("error in un-marshaling global policy json", "err", err, "policyJson", globalPolicy.PolicyJson)
 			return nil, nil, err
@@ -576,19 +339,232 @@ func (impl *GlobalPolicyServiceImpl) GetMandatoryPluginsForACiPipeline(ciPipelin
 			updateMandatoryPluginDefinitionMap(pluginIdApplyStageMap, mandatoryPluginDefinitionMap, definitionSourceDtos)
 		}
 	}
-	mandatoryPluginsDefinitions := make([]*bean.MandatoryPluginDefinitionDto, 0)
-	for pluginIdStage, definitionSources := range mandatoryPluginDefinitionMap {
-		mandatoryPluginDefinition, err := getMandatoryPluginDefinition(pluginIdStage, definitionSources)
-		if err != nil {
-			impl.logger.Errorw("error, getMandatoryPluginDefinition", "err", err)
-			return nil, nil, err
+	return mandatoryPluginDefinitionMap, mandatoryPluginBlockageMap, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getOffendingPipelineWfComponents(globalPolicy *repository.GlobalPolicy) ([]*bean.WorkflowTreeComponentDto, error) {
+	var globalPolicyDetailDto bean.GlobalPolicyDetailDto
+	err := json.Unmarshal([]byte(globalPolicy.PolicyJson), &globalPolicyDetailDto)
+	if err != nil {
+		impl.logger.Errorw("error in un-marshaling global policy json", "err", err, "policyJson", globalPolicy.PolicyJson)
+		return nil, err
+	}
+	ciPipelinesForConfiguredPlugins, ciPipelineParentChildMap, ciPipelineMaterialMap, err :=
+		impl.getCIPipelinesForConfiguredPlugins(globalPolicyDetailDto)
+	if err != nil {
+		impl.logger.Errorw("error, getCIPipelinesForConfiguredPlugins", "err", err, "globalPolicyDetailDto", globalPolicyDetailDto)
+		return nil, err
+	}
+
+	var configuredPlugins []*repository2.PipelineStageStep
+	if len(ciPipelinesForConfiguredPlugins) > 0 {
+		configuredPlugins, err = impl.pipelineStageRepository.GetConfiguredPluginsForCIPipelines(ciPipelinesForConfiguredPlugins)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error, GetConfiguredPluginsForCIPipelines", "err", err, "ciPipelineIds", ciPipelinesForConfiguredPlugins)
+			return nil, err
 		}
-		mandatoryPluginsDefinitions = append(mandatoryPluginsDefinitions, mandatoryPluginDefinition)
 	}
-	mandatoryPlugins := &bean.MandatoryPluginDto{
-		Definitions: mandatoryPluginsDefinitions,
+	ciPipelineConfiguredPluginMap := getCIPipelineConfiguredPluginMap(configuredPlugins)
+	offendingCiPipelineIds := getOffendingCIPipelineIds(ciPipelinesForConfiguredPlugins, ciPipelineConfiguredPluginMap,
+		globalPolicyDetailDto, ciPipelineParentChildMap)
+	wfComponents, err := impl.findAllWorkflowsComponentDetailsForCiPipelineIds(offendingCiPipelineIds, ciPipelineMaterialMap)
+	if err != nil {
+		impl.logger.Errorw("error, findAllWorkflowsComponentDetailsForCiPipelineIds", "err", err, "ciPipelineIds", offendingCiPipelineIds)
+		return nil, err
 	}
-	return mandatoryPlugins, mandatoryPluginBlockageMap, nil
+	return wfComponents, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getCiPipelineAppProjectObjs(ciPipelineId, appId int) ([]*pipelineConfig.CiPipelineAppProject, error) {
+	var ciPipelineAppProjectObjs []*pipelineConfig.CiPipelineAppProject
+	var err error
+	if ciPipelineId != 0 {
+		//getting all linked ci pipelines and ciPipelineId along with appName and projectName
+		ciPipelineAppProjectObjs, err = impl.ciPipelineRepository.GetAppAndProjectNameForParentAndAllLinkedCI(ciPipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in getting appName and projectName of parent and all linked ci", "err", err, "ciPipelineId", ciPipelineId)
+			return nil, err
+		}
+		if len(ciPipelineAppProjectObjs) == 0 {
+			//at least 1 obj is expected of the given ci pipeline
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "bad request, ci pipeline not found"}
+		}
+	} else if appId != 0 { //ciPipeline is zero(ciPipeline create request), assuming ciPipelineId as zero and moving ahead
+		appObj, err := impl.appRepository.FindAppAndProjectByAppId(appId)
+		if err != nil {
+			impl.logger.Errorw("error in getting app by id", "err", err, "appId", appId)
+			return nil, err
+		}
+		ciPipelineAppProjectObjs = []*pipelineConfig.CiPipelineAppProject{
+			{
+				CiPipelineId: 0,
+				AppName:      appObj.AppName,
+				ProjectName:  appObj.Team.Name,
+			},
+		}
+	} else {
+		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "bad request, need ciPipelineId or appId"}
+	}
+	return ciPipelineAppProjectObjs, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getCiPipelineEnvClusterObjs(allCiPipelineIds []int) ([]*pipelineConfig.CiPipelineEnvCluster, error) {
+	var ciPipelineEnvClusterObjs []*pipelineConfig.CiPipelineEnvCluster
+	var err error
+	if len(allCiPipelineIds) > 0 {
+		//getting all envName and clusterName of all linked and parent ci
+		ciPipelineEnvClusterObjs, err = impl.ciPipelineRepository.GetAllCDsEnvAndClusterNameByCiPipelineIds(allCiPipelineIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting envName and clusterName by ciPipelineIds", "err", err, "ciPipelineIds", allCiPipelineIds)
+			return nil, err
+		}
+	}
+	return ciPipelineEnvClusterObjs, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getCIPipelinesForConfiguredPlugins(globalPolicyDetailDto bean.GlobalPolicyDetailDto) ([]int,
+	map[int][]int, map[int][]*pipelineConfig.CiPipelineMaterial, error) {
+	allProjects, allClusters, branchList, isProductionEnvFlag, isAnyEnvSelectorPresent,
+		projectAppNameMap, clusterEnvNameMap := getAllAppEnvBranchDetailsFromGlobalPolicyDetail(&globalPolicyDetailDto)
+	var ciPipelineProjectAppNameObjs []*pipelineConfig.CiPipelineAppProject
+	var err error
+	if len(allProjects) > 0 {
+		ciPipelineProjectAppNameObjs, err = impl.ciPipelineRepository.GetAllCIAppAndProjectByProjectNames(allProjects)
+		if err != nil {
+			impl.logger.Errorw("error in getting all ci pipelines by project names", "err", err)
+			return nil, nil, nil, err
+		}
+		if len(ciPipelineProjectAppNameObjs) == 0 {
+			//no pipelines found in given projects, no possible offending pipelines
+			return nil, nil, nil, nil
+		}
+	}
+
+	//getting pipelines to be filtered for project and app names
+	ciPipelinesToBeFiltered := getFilteredCiPipelinesByProjectAppObjs(ciPipelineProjectAppNameObjs, projectAppNameMap)
+	if isAnyEnvSelectorPresent {
+		ciPipelinesToBeFiltered, err = impl.getFilteredCIPipelinesForEnvSelector(ciPipelinesToBeFiltered, isProductionEnvFlag,
+			allClusters, clusterEnvNameMap)
+		if err != nil {
+			impl.logger.Errorw("error, getFilteredCIPipelinesForEnvSelector", "err", err, "ciPipelinesToBeFiltered", ciPipelinesToBeFiltered)
+			return nil, nil, nil, err
+		}
+		if len(ciPipelinesToBeFiltered) == 0 {
+			//no pipelines found in given environment selector, no possible offending pipelines
+			return nil, nil, nil, nil
+		}
+	}
+	var ciPipelinesForConfiguredPlugins []int
+	ciPipelineParentChildMap := make(map[int][]int) //map of parent ciPipelineId and (all linked ones + self)
+	ciPipelineMaterialMap := make(map[int][]*pipelineConfig.CiPipelineMaterial)
+	if len(branchList) != 0 {
+		ciPipelinesForConfiguredPlugins, ciPipelineParentChildMap, ciPipelineMaterialMap, err =
+			impl.getCIPipelinesForConfiguredPluginsForBranchSelector(ciPipelinesToBeFiltered, branchList)
+		if err != nil {
+			impl.logger.Errorw("error, getCIPipelinesForConfiguredPluginsForBranchSelector", "ciPipelinesToBeFiltered", ciPipelinesToBeFiltered)
+			return nil, nil, nil, err
+		}
+	} else {
+		ciPipelinesForConfiguredPlugins = ciPipelinesToBeFiltered
+		if len(ciPipelinesForConfiguredPlugins) > 0 { //getting all materials by ci pipeline Ids
+			ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(ciPipelinesForConfiguredPlugins)
+			if err != nil {
+				impl.logger.Errorw("error in getting ciPipeline material by ciPipelineIds", "err", err, "ciPipelineIds", ciPipelinesForConfiguredPlugins)
+				return nil, nil, nil, err
+			}
+
+			for _, ciPipelineMaterial := range ciPipelineMaterials {
+				ciPipelineId := ciPipelineMaterial.CiPipelineId
+				ciPipelineMaterialMap[ciPipelineId] = append(ciPipelineMaterialMap[ciPipelineId], ciPipelineMaterial)
+			}
+		}
+	}
+	return ciPipelinesForConfiguredPlugins, ciPipelineParentChildMap, ciPipelineMaterialMap, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getFilteredCIPipelinesForEnvSelector(ciPipelinesToBeFiltered []int, isProductionEnvFlag bool,
+	allClusters []string, clusterEnvNameMap map[string]bool) ([]int, error) {
+	var ciPipelineClusterEnvNameObjs []*pipelineConfig.CiPipelineEnvCluster
+	var err error
+	if isProductionEnvFlag {
+		ciPipelineClusterEnvNameObjs, err = impl.ciPipelineRepository.GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPipelinesToBeFiltered)
+		if err != nil {
+			impl.logger.Errorw("error in getting all ci pipelines by cluster names", "err", err)
+			return nil, err
+		}
+	} else if len(allClusters) > 0 {
+		ciPipelineClusterEnvNameObjs, err = impl.ciPipelineRepository.GetAllCIsClusterAndEnvByCDClusterNames(allClusters, ciPipelinesToBeFiltered)
+		if err != nil {
+			impl.logger.Errorw("error in getting all ci pipelines by cluster names", "err", err)
+			return nil, err
+		}
+	}
+	//resetting filter pipelines, now will be updating on basis of cluster match
+	ciPipelinesToBeFiltered = nil
+
+	//getting pipelines to be filtered for project and app names
+	ciPipelinesToBeFiltered = getFilteredCiPipelinesByClusterAndEnvObjs(ciPipelineClusterEnvNameObjs, isProductionEnvFlag, clusterEnvNameMap)
+
+	return ciPipelinesToBeFiltered, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getCIPipelinesForConfiguredPluginsForBranchSelector(ciPipelinesToBeFiltered []int, branchList []*bean.BranchDto) ([]int,
+	map[int][]int, map[int][]*pipelineConfig.CiPipelineMaterial, error) {
+	ciPipelineMaterials, err := impl.getCIPipelineMaterialsByFilteredCIPipelineIds(ciPipelinesToBeFiltered)
+	if err != nil {
+		impl.logger.Errorw("error, getCIPipelineMaterialsByFilteredCIPipelineIds", "err", err, "ciPipelinesToBeFiltered", ciPipelinesToBeFiltered)
+		return nil, nil, nil, err
+	}
+	var ciPipelinesForConfiguredPlugins []int
+	ciPipelineParentChildMap := make(map[int][]int) //map of parent ciPipelineId and (all linked ones + self)
+	ciPipelineMaterialMap := make(map[int][]*pipelineConfig.CiPipelineMaterial)
+	ciPipelinesFinalMap := make(map[int]bool, len(ciPipelineMaterials))
+	for _, ciPipelineMaterial := range ciPipelineMaterials {
+		ciPipelineId := ciPipelineMaterial.CiPipelineId
+		ciPipelineMaterialMap[ciPipelineId] = append(ciPipelineMaterialMap[ciPipelineId], ciPipelineMaterial)
+		pipelineTobeUsedToFetchConfiguredPlugins := getPipelineTobeUsedToFetchConfiguredPlugins(ciPipelineMaterial)
+		if _, ok := ciPipelinesFinalMap[pipelineTobeUsedToFetchConfiguredPlugins]; !ok {
+			for _, branch := range branchList {
+				isBranchMatched, err := isBranchValueMatched(branch, ciPipelineMaterial.Value)
+				if err != nil {
+					impl.logger.Errorw("error in checking if branch value matched or not", "err", err, "branch", branch, "branchValue", ciPipelineMaterial.Value)
+					return nil, nil, nil, err
+				}
+				if isBranchMatched {
+					ciPipelinesFinalMap[pipelineTobeUsedToFetchConfiguredPlugins] = true
+					ciPipelinesForConfiguredPlugins = append(ciPipelinesForConfiguredPlugins, pipelineTobeUsedToFetchConfiguredPlugins)
+					ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins] =
+						append(ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins], ciPipelineId)
+					break
+				}
+			}
+		} else {
+			//adding request ci pipeline again to this because it might be possible
+			//that we have entry of parent ci pipeline through one linked, but we need to append this ciPipeline too (might be linked) too
+			ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins] =
+				append(ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins], ciPipelineId)
+		}
+	}
+	return ciPipelinesForConfiguredPlugins, ciPipelineParentChildMap, ciPipelineMaterialMap, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getCIPipelineMaterialsByFilteredCIPipelineIds(ciPipelinesToBeFiltered []int) ([]*pipelineConfig.CiPipelineMaterial, error) {
+	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
+	var err error
+	if len(ciPipelinesToBeFiltered) > 0 {
+		ciPipelineMaterials, err = impl.ciPipelineMaterialRepository.GetByCiPipelineIdsExceptUnsetRegexBranch(ciPipelinesToBeFiltered)
+		if err != nil {
+			impl.logger.Errorw("error in GetByCiPipelineIdsExceptUnsetRegexBranch", "err", err, "ciPipelineIds", ciPipelinesToBeFiltered)
+			return nil, err
+		}
+	} else {
+		ciPipelineMaterials, err = impl.ciPipelineMaterialRepository.GetAllExceptUnsetRegexBranch()
+		if err != nil {
+			impl.logger.Errorw("error in GetAllExceptUnsetRegexBranch", "err", err)
+			return nil, err
+		}
+	}
+	return ciPipelineMaterials, nil
 }
 
 func (impl *GlobalPolicyServiceImpl) createOrUpdateGlobalPolicyInDb(policy *bean.GlobalPolicyDto) error {
@@ -609,7 +585,7 @@ func (impl *GlobalPolicyServiceImpl) createOrUpdateGlobalPolicyInDb(policy *bean
 		impl.logger.Errorw("error in marshaling globalPolicyDetailDto", "err", err, "policyId", policy.Id)
 		return err
 	}
-	globalPolicyModel := globalPolicyDbAdapter(policy, string(policyDetailJson), nil)
+	globalPolicyModel := globalPolicyDbAdapter(policy, string(policyDetailJson), oldEntry)
 	var historyAction bean3.HistoryOfAction
 	if policy.Id == 0 {
 		//create entry
@@ -640,14 +616,18 @@ func (impl *GlobalPolicyServiceImpl) createOrUpdateGlobalPolicyInDb(policy *bean
 
 func (impl *GlobalPolicyServiceImpl) createGlobalPolicySearchableFieldsInDbIfNeeded(policy *bean.GlobalPolicyDto) error {
 	//initiating transaction
-	dbConnection := impl.globalPolicyRepository.GetDbConnection()
-	tx, err := dbConnection.Begin()
+	tx, err := impl.globalPolicyRepository.GetDbTransaction()
 	if err != nil {
 		impl.logger.Errorw("error in initiating transaction", "err", err)
 		return err
 	}
 	// Rollback tx on error.
-	defer tx.Rollback()
+	defer func() {
+		err = impl.globalPolicyRepository.RollBackTransaction(tx)
+		if err != nil {
+			impl.logger.Errorw("error in rolling back transaction", "err", err)
+		}
+	}()
 	//first deleting old searchable entries, doing so even if policy is disabled to free indexes
 	err = impl.globalPolicySearchableFieldRepository.DeleteByPolicyId(policy.Id, tx)
 	if err != nil {
@@ -666,7 +646,7 @@ func (impl *GlobalPolicyServiceImpl) createGlobalPolicySearchableFieldsInDbIfNee
 		}
 	}
 	//committing transaction
-	err = tx.Commit()
+	err = impl.globalPolicyRepository.CommitTransaction(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction", "err", err)
 		return err
@@ -723,6 +703,85 @@ func (impl *GlobalPolicyServiceImpl) getSearchableKeyIdValueEntriesFromConsequen
 			searchableKeyId, consequence.Action.ToString(), false, policy.UserId, bean.GLOBAL_POLICY_COMPONENT_CONSEQUENCE))
 	}
 	return searchableFieldEntries
+}
+
+func (impl *GlobalPolicyServiceImpl) findAllWorkflowsComponentDetailsForCiPipelineIds(ciPipelineIds []int,
+	ciPipelineMaterialMap map[int][]*pipelineConfig.CiPipelineMaterial) ([]*bean.WorkflowTreeComponentDto, error) {
+	var appWorkflowMappings []*appWorkflow.AppWorkflowMapping
+	var err error
+	if len(ciPipelineIds) > 0 {
+		appWorkflowMappings, err = impl.appWorkflowRepository.FindMappingsOfWfWithSpecificCIPipelineIds(ciPipelineIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting appWorkflowMappings by ciPipeline Ids", "err", err, "ciPipelineIds", ciPipelineIds)
+			return nil, err
+		}
+	}
+	wfComponentDetails, wfIdAndComponentDtoIndexMap, appIds, cdPipelineIds := getWfComponentDetailsAndMap(appWorkflowMappings)
+	appIdGitMaterialMap, err := impl.getAppIdGitMaterialMap(appIds)
+	if err != nil {
+		impl.logger.Errorw("error, getAppIdGitMaterialMap", "err", err, "appIds", appIds)
+		return nil, err
+
+	}
+	var ciPipelines []*pipelineConfig.CiPipeline
+	if len(ciPipelineIds) > 0 { //getting all ciPipelines by ids
+		ciPipelines, err = impl.ciPipelineRepository.FindByIdsIn(ciPipelineIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting ciPipelines by ids", "err", err, "ids", ciPipelineIds)
+			return nil, err
+		}
+	}
+
+	ciPipelineIdNameMap := make(map[int]string, len(ciPipelines))
+	for _, ciPipeline := range ciPipelines {
+		ciPipelineIdNameMap[ciPipeline.Id] = ciPipeline.Name
+	}
+	var cdPipelines []*pipelineConfig.Pipeline
+	if len(cdPipelineIds) > 0 { //getting all cdPipelines by ids
+		cdPipelines, err = impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting cdPipelines by ids", "err", err, "ids", cdPipelineIds)
+			return nil, err
+		}
+	}
+	cdPipelineIdNameMap := make(map[int]string, len(cdPipelines))
+	for _, cdPipeline := range cdPipelines {
+		cdPipelineIdNameMap[cdPipeline.Id] = cdPipeline.Environment.Name
+	}
+	return getUpdatedWfComponentDetailsWithCIAndCDInfo(appWorkflowMappings, wfIdAndComponentDtoIndexMap, appIdGitMaterialMap,
+		wfComponentDetails, ciPipelineMaterialMap, ciPipelineIdNameMap, cdPipelineIdNameMap), nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getGlobalPolicyDtos(globalPolicies []*repository.GlobalPolicy) ([]*bean.GlobalPolicyDto, error) {
+	globalPolicyDtos := make([]*bean.GlobalPolicyDto, 0, len(globalPolicies))
+	for _, globalPolicy := range globalPolicies {
+		globalPolicyDto, err := globalPolicy.GetGlobalPolicyDto()
+		if err != nil {
+			impl.logger.Errorw("error in getting globalPolicyDto", "err", err, "policyId", globalPolicy.Id)
+			return nil, err
+		}
+		globalPolicyDtos = append(globalPolicyDtos, globalPolicyDto)
+	}
+	return globalPolicyDtos, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getAppIdGitMaterialMap(appIds []int) (map[int][]*bean.Material, error) {
+	appIdGitMaterialMap := make(map[int][]*bean.Material)
+	if len(appIds) > 0 {
+		gitMaterials, err := impl.gitMaterialRepository.FindByAppIds(appIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching git materials by appIds", "err", err, "appIds", appIds)
+			return nil, err
+		}
+		for _, gitMaterial := range gitMaterials {
+			material := &bean.Material{
+				GitMaterialId: gitMaterial.Id,
+				MaterialName:  gitMaterial.Name[strings.Index(gitMaterial.Name, "-")+1:],
+			}
+			appIdGitMaterialMap[gitMaterial.AppId] = append(appIdGitMaterialMap[gitMaterial.AppId], material)
+		}
+	}
+	return appIdGitMaterialMap, nil
 }
 
 func (impl *GlobalPolicyServiceImpl) getSearchableKeyIdValueEntriesForASelectorAttribute(policy *bean.GlobalPolicyDto,
@@ -802,12 +861,223 @@ func (impl *GlobalPolicyServiceImpl) getSearchableKeyIdValueEntriesForASelectorA
 			searchableFieldEntries = append(searchableFieldEntries,
 				globalPolicySearchableFieldDbAdapter(policyId, searchableKeyId, branchObj.Value, isRegexTypeBranchBool, userId, bean.GLOBAL_POLICY_COMPONENT_SELECTOR))
 		}
-
 	default:
 		impl.logger.Errorw("invalid attribute found, getSearchableKeyIdValueEntriesForASelectorAttribute", "policy", policy)
 		return nil
 	}
 	return searchableFieldEntries
+}
+
+func (impl *GlobalPolicyServiceImpl) getDefinitionSourceDtos(globalPolicyDetailDto bean.GlobalPolicyDetailDto, allCiPipelineIds []int,
+	ciPipelineId int, ciPipelineIdProjectAppNameMap map[int]*bean.PluginSourceCiPipelineAppDetailDto,
+	ciPipelineIdEnvDetailMap, ciPipelineIdProductionEnvDetailMap map[int][]*bean.PluginSourceCiPipelineEnvDetailDto,
+	branchValues []string, globalPolicyName string, ciPipelineIdNameMap map[int]string) ([]*bean.DefinitionSourceDto, error) {
+	branchList := globalPolicyDetailDto.Selectors.BranchList
+	matchedBranchList, err := impl.getMatchedBranchList(branchList, branchValues)
+	if err != nil {
+		impl.logger.Errorw("error, getMatchedBranchList", "err", err, "branchList", branchList, "branchValues", branchValues)
+		return nil, err
+	}
+	if len(branchList) > 0 && len(matchedBranchList) == 0 {
+		//we have some branch configured in policy, but we have got no matches so skipping this policy
+		return nil, nil
+	}
+	selectors := &bean.SelectorDto{}
+	if globalPolicyDetailDto.Selectors != nil {
+		selectors = globalPolicyDetailDto.Selectors
+	}
+	var projectAppList []*bean.ProjectAppDto
+	var clusterEnvList []*bean.ClusterEnvDto
+	var allProductionEnvsFlag bool
+	if selectors != nil && selectors.ApplicationSelector != nil {
+		projectAppList = globalPolicyDetailDto.Selectors.ApplicationSelector
+	}
+	if selectors != nil && selectors.EnvironmentSelector != nil {
+		allProductionEnvsFlag = globalPolicyDetailDto.Selectors.EnvironmentSelector.AllProductionEnvironments
+		if selectors.EnvironmentSelector.ClusterEnvList != nil {
+			clusterEnvList = globalPolicyDetailDto.Selectors.EnvironmentSelector.ClusterEnvList
+		}
+	}
+	needToCheckAppSelector := len(projectAppList) != 0
+	needToCheckEnvSelector := allProductionEnvsFlag || (len(clusterEnvList) != 0)
+
+	appSelectorMap := getAppSelectorMap(projectAppList)
+	envSelectorMap := getEnvSelectorMap(clusterEnvList)
+	var definitionSourceDtos []*bean.DefinitionSourceDto
+	for _, ciPipelineIdInObj := range allCiPipelineIds {
+		definitionSourceDtosForCI := getDefinitionSourceDtosForACIPipeline(ciPipelineIdInObj, ciPipelineId, matchedBranchList,
+			ciPipelineIdNameMap, globalPolicyName, ciPipelineIdProjectAppNameMap, needToCheckAppSelector, needToCheckEnvSelector,
+			allProductionEnvsFlag, appSelectorMap, envSelectorMap, ciPipelineIdProductionEnvDetailMap, ciPipelineIdEnvDetailMap)
+		if definitionSourceDtosForCI != nil {
+			definitionSourceDtos = append(definitionSourceDtos, definitionSourceDtosForCI...)
+		}
+	}
+	return definitionSourceDtos, nil
+}
+
+func (impl *GlobalPolicyServiceImpl) getMatchedBranchList(branchList []*bean.BranchDto, branchValues []string) ([]string, error) {
+	matchedBranchList := make([]string, 0, len(branchList)*len(branchValues))
+	for _, branch := range branchList {
+		for _, branchValue := range branchValues {
+			isBranchMatched, err := isBranchValueMatched(branch, branchValue)
+			if err != nil {
+				impl.logger.Errorw("error in checking if branch value matched or not", "err", err, "branch", branch, "branchValue", branchValue)
+				return nil, err
+			}
+			if isBranchMatched {
+				matchedBranchList = append(matchedBranchList, branchValue)
+			}
+		}
+	}
+	return matchedBranchList, nil
+}
+
+func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*repository.GlobalPolicySearchableField,
+	projectMap, clusterMap map[string]bool, branchValues []string, searchableKeyIdNameMap map[int]bean2.DevtronResourceSearchableKeyName) ([]int, error) {
+	globalPolicyIds := make([]int, 0)
+	globalPolicyIdsMap := make(map[int]bool)
+	var err error
+	for _, searchableFieldsModel := range searchableFieldsModels {
+		searchableKeyName := searchableKeyIdNameMap[searchableFieldsModel.SearchableKeyId]
+		globalPolicyId := searchableFieldsModel.GlobalPolicyId
+		if _, ok := globalPolicyIdsMap[globalPolicyId]; ok {
+			//policy already present, no need to process further
+			continue
+		} else {
+			globalPolicyIdsMap[globalPolicyId] = true
+		}
+		value := searchableFieldsModel.Value
+		vals := strings.Split(value, "/")
+		if searchableFieldsModel.IsRegex {
+			switch searchableKeyName {
+			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_APP_NAME:
+				//checking if project for this needed by us or not (we always keep project value, so if it matches then probably this is an entry for all apps)
+				if len(vals) > 0 {
+					if projectMap[vals[0]] {
+						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
+					}
+				}
+			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ENV_NAME:
+				//checking if cluster for this needed by us or not (we always keep cluster value, so if it matches then probably this is an entry for all envs)
+				if len(vals) > 0 {
+					if clusterMap[vals[0]] {
+						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
+					}
+				}
+			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_BRANCH:
+				isAnyBranchMatched := false
+				for _, branchValue := range branchValues {
+					if len(branchValue) != 0 {
+						isAnyBranchMatched, err = regexp.MatchString(value, branchValue)
+						if err != nil {
+							return nil, err
+						}
+					} else {
+						isAnyBranchMatched = true
+					}
+					if isAnyBranchMatched {
+						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
+						break
+					}
+				}
+			}
+		} else {
+			//add global policy id directly
+			globalPolicyIds = append(globalPolicyIds, globalPolicyId)
+		}
+	}
+	return globalPolicyIds, nil
+}
+
+func getDefinitionSourceDtosForACIPipeline(ciPipelineIdInObj, ciPipelineId int, matchedBranchList []string, ciPipelineIdNameMap map[int]string,
+	globalPolicyName string, ciPipelineIdProjectAppNameMap map[int]*bean.PluginSourceCiPipelineAppDetailDto,
+	needToCheckAppSelector, needToCheckEnvSelector, allProductionEnvsFlag bool, appSelectorMap, envSelectorMap map[string]bool,
+	ciPipelineIdProductionEnvDetailMap, ciPipelineIdEnvDetailMap map[int][]*bean.PluginSourceCiPipelineEnvDetailDto) []*bean.DefinitionSourceDto {
+	toContinue := false
+	isLinkedCi := ciPipelineIdInObj != ciPipelineId
+	definitionSourceAppName := ""
+	definitionSourceProjectName := ""
+	appProjectDto := ciPipelineIdProjectAppNameMap[ciPipelineIdInObj]
+	projectName := appProjectDto.ProjectName
+	appName := appProjectDto.AppName
+	if needToCheckAppSelector {
+		definitionSourceProjectName, definitionSourceAppName, toContinue = checkAppSelectorAndGetDefinitionSourceInfo(appSelectorMap, projectName, appName)
+		if toContinue { // app is not matched and needed to be matched, skipping this policy
+			return nil
+		}
+	}
+	definitionSourceTemplate := bean.DefinitionSourceDto{
+		ProjectName:           definitionSourceProjectName,
+		AppName:               definitionSourceAppName,
+		BranchNames:           matchedBranchList,
+		IsDueToLinkedPipeline: isLinkedCi,
+		CiPipelineName:        ciPipelineIdNameMap[ciPipelineIdInObj],
+		PolicyName:            globalPolicyName,
+	}
+	if needToCheckEnvSelector {
+		definitionSourceTemplateForEnvs := checkEnvSelectorAndGetDefinitionSourceInfo(allProductionEnvsFlag, envSelectorMap,
+			ciPipelineIdProductionEnvDetailMap, ciPipelineIdEnvDetailMap, ciPipelineIdInObj, definitionSourceTemplate)
+		if len(definitionSourceTemplateForEnvs) > 0 {
+			return definitionSourceTemplateForEnvs
+		} else { //no env matched but needed to be matched, skipping this policy
+			return nil
+		}
+	} else { //environment is not needed to be checked in policy, then only enforce on basis of app/branch
+		return []*bean.DefinitionSourceDto{&definitionSourceTemplate}
+	}
+}
+
+func getUpdatedWfComponentDetailsWithCIAndCDInfo(appWorkflowMappings []*appWorkflow.AppWorkflowMapping,
+	wfIdAndComponentDtoIndexMap map[int]int, appIdGitMaterialMap map[int][]*bean.Material,
+	wfComponentDetails []*bean.WorkflowTreeComponentDto, ciPipelineMaterialMap map[int][]*pipelineConfig.CiPipelineMaterial,
+	ciPipelineIdNameMap, cdPipelineIdNameMap map[int]string) []*bean.WorkflowTreeComponentDto {
+	for _, appWfMapping := range appWorkflowMappings {
+		if index, ok := wfIdAndComponentDtoIndexMap[appWfMapping.AppWorkflowId]; ok {
+			wfComponentDetails[index].GitMaterials = appIdGitMaterialMap[appWfMapping.AppWorkflow.AppId]
+
+			if appWfMapping.Type == appWorkflow.CIPIPELINE {
+				ciPipelineId := appWfMapping.ComponentId
+				//getting all materials from map for this ci pipeline
+				ciPipelineMaterials := ciPipelineMaterialMap[ciPipelineId]
+				wfComponentDetails[index].CiPipelineId = ciPipelineId
+				wfComponentDetails[index].CiMaterials = ciPipelineMaterials
+				if name, ok1 := ciPipelineIdNameMap[ciPipelineId]; ok1 {
+					wfComponentDetails[index].CiPipelineName = name
+				}
+			} else if appWfMapping.Type == appWorkflow.CDPIPELINE {
+				if envName, ok1 := cdPipelineIdNameMap[appWfMapping.ComponentId]; ok1 {
+					wfComponentDetails[index].CdPipelines = append(wfComponentDetails[index].CdPipelines, envName)
+				}
+			}
+		}
+	}
+	return wfComponentDetails
+}
+
+func getWfComponentDetailsAndMap(appWorkflowMappings []*appWorkflow.AppWorkflowMapping) ([]*bean.WorkflowTreeComponentDto,
+	map[int]int, []int, []int) {
+	var wfComponentDetails []*bean.WorkflowTreeComponentDto
+	wfIdAndComponentDtoIndexMap := make(map[int]int)
+	var cdPipelineIds []int
+	var appIds []int
+	for _, appWfMapping := range appWorkflowMappings {
+		appId := appWfMapping.AppWorkflow.AppId
+		appIds = append(appIds, appId)
+		if appWfMapping.Type == appWorkflow.CDPIPELINE {
+			cdPipelineIds = append(cdPipelineIds, appWfMapping.ComponentId)
+		}
+		appWorkflowId := appWfMapping.AppWorkflowId
+		if _, ok := wfIdAndComponentDtoIndexMap[appWorkflowId]; !ok {
+			wfComponentDetail := &bean.WorkflowTreeComponentDto{
+				Id:    appWorkflowId,
+				AppId: appId,
+				Name:  appWfMapping.AppWorkflow.Name,
+			}
+			wfComponentDetails = append(wfComponentDetails, wfComponentDetail)
+			wfIdAndComponentDtoIndexMap[appWorkflowId] = len(wfComponentDetails) - 1 //index of wfComponentDetail's latest addition
+		}
+	}
+	return wfComponentDetails, wfIdAndComponentDtoIndexMap, appIds, cdPipelineIds
 }
 
 func globalPolicyDbAdapter(policyDto *bean.GlobalPolicyDto, policyDetailJson string, oldEntry *repository.GlobalPolicy) *repository.GlobalPolicy {
@@ -851,6 +1121,164 @@ func globalPolicySearchableFieldDbAdapter(policyId, searchableKeyId int, value s
 	}
 }
 
+func getAppProjectDetailsFromCiPipelineProjectAppObjs(ciPipelineAppProjectObjs []*pipelineConfig.CiPipelineAppProject) ([]int, map[int]string,
+	[]string, map[string]bool, map[int]*bean.PluginSourceCiPipelineAppDetailDto) {
+	allCiPipelineIds := make([]int, 0, len(ciPipelineAppProjectObjs))
+	ciPipelineIdNameMap := make(map[int]string, len(ciPipelineAppProjectObjs))
+	allProjectAppNames := make([]string, 0, len(ciPipelineAppProjectObjs))
+	projectMap := make(map[string]bool, len(ciPipelineAppProjectObjs))
+	ciPipelineIdProjectAppNameMap := make(map[int]*bean.PluginSourceCiPipelineAppDetailDto, len(ciPipelineAppProjectObjs))
+
+	for _, ciPipelineAppProjectObj := range ciPipelineAppProjectObjs {
+		ciPipelineIdInObj := ciPipelineAppProjectObj.CiPipelineId
+		allCiPipelineIds = append(allCiPipelineIds, ciPipelineIdInObj)
+		projectName := ciPipelineAppProjectObj.ProjectName
+		appName := ciPipelineAppProjectObj.AppName
+		ciPipelineIdNameMap[ciPipelineIdInObj] = ciPipelineAppProjectObj.CiPipelineName
+		projectAppName := getSlashSeparatedString(projectName, appName)
+		allProjectAppNames = append(allProjectAppNames, projectAppName)
+		projectMap[projectName] = true
+		ciPipelineIdProjectAppNameMap[ciPipelineIdInObj] = getCIPipelineAppDetailDto(projectName, appName)
+	}
+	return allCiPipelineIds, ciPipelineIdNameMap, allProjectAppNames, projectMap, ciPipelineIdProjectAppNameMap
+}
+
+func getEnvClusterDetailsFromCIPipelineEnvClusterObjs(ciPipelineEnvClusterObjs []*pipelineConfig.CiPipelineEnvCluster) (bool,
+	map[int][]*bean.PluginSourceCiPipelineEnvDetailDto, map[int][]*bean.PluginSourceCiPipelineEnvDetailDto, []string, map[string]bool) {
+	haveAnyProductionEnv := false
+	//map of ciPipelineId with all productionEnv present in that ciPipeline's workflow
+	ciPipelineIdProductionEnvDetailMap := make(map[int][]*bean.PluginSourceCiPipelineEnvDetailDto)
+	ciPipelineIdEnvDetailMap := make(map[int][]*bean.PluginSourceCiPipelineEnvDetailDto)
+	allClusterEnvNames := make([]string, 0, len(ciPipelineEnvClusterObjs))
+	clusterMap := make(map[string]bool, len(ciPipelineEnvClusterObjs))
+	for _, ciPipelineEnvClusterObj := range ciPipelineEnvClusterObjs {
+		ciPipelineIdInObj := ciPipelineEnvClusterObj.CiPipelineId
+		clusterName := ciPipelineEnvClusterObj.ClusterName
+		envName := ciPipelineEnvClusterObj.EnvName
+		clusterMap[clusterName] = true
+		envDetailDto := getCIPipelineEnvDetailDto(clusterName, envName)
+		if ciPipelineEnvClusterObj.IsProductionEnv {
+			haveAnyProductionEnv = true //setting flag for having at least one production env to true to filter global policies query using this
+			ciPipelineIdProductionEnvDetailMap[ciPipelineIdInObj] = append(ciPipelineIdProductionEnvDetailMap[ciPipelineIdInObj],
+				envDetailDto)
+		}
+		ciPipelineIdEnvDetailMap[ciPipelineIdInObj] = append(ciPipelineIdEnvDetailMap[ciPipelineIdInObj], envDetailDto)
+		clusterEnvName := getSlashSeparatedString(clusterName, envName)
+		allClusterEnvNames = append(allClusterEnvNames, clusterEnvName)
+	}
+	return haveAnyProductionEnv, ciPipelineIdProductionEnvDetailMap, ciPipelineIdEnvDetailMap, allClusterEnvNames, clusterMap
+}
+
+func getBlockageStateDetails(definitions []*bean.MandatoryPluginDefinitionDto, configuredPluginMap map[string]bool,
+	mandatoryPluginsBlockageState map[string]*bean.ConsequenceDto) (bool, bool, *bean.ConsequenceDto) {
+	isOffendingMandatoryPlugin := false
+	isCIPipelineTriggerBlocked := false
+	var blockageStateFinal *bean.ConsequenceDto
+	for _, mandatoryPlugin := range definitions {
+		data := mandatoryPlugin.Data
+		pluginIdStr := fmt.Sprintf("%d", data.PluginId)
+		applyToStage := data.ApplyToStage
+		pluginIdApplyStage := getSlashSeparatedString(pluginIdStr, applyToStage.ToString())
+		if _, ok := configuredPluginMap[pluginIdApplyStage]; !ok {
+			blockageState := mandatoryPluginsBlockageState[pluginIdApplyStage]
+			if blockageStateFinal == nil {
+				blockageStateFinal = blockageState
+			} else {
+				if sev := blockageStateFinal.GetSeverity(blockageState); sev == bean.SEVERITY_MORE_SEVERE {
+					blockageStateFinal = blockageState
+				}
+			}
+			//mandatory plugin not found in configured plugin, marking block state as true
+			isOffendingMandatoryPlugin = true
+			isBlockingConsequence := checkIfConsequenceIsBlocking(blockageState)
+			if isBlockingConsequence {
+				isCIPipelineTriggerBlocked = true
+			}
+		}
+	}
+	return isOffendingMandatoryPlugin, isCIPipelineTriggerBlocked, blockageStateFinal
+}
+
+func getConfiguredPluginMap(configuredPlugins []*repository2.PipelineStageStep) map[string]bool {
+	configuredPluginMap := make(map[string]bool)
+	for _, configuredPlugin := range configuredPlugins {
+		pluginIdStr := fmt.Sprintf("%d", configuredPlugin.RefPluginId)
+		var pluginConfiguredInStage bean.PluginApplyStage
+		switch configuredPlugin.PipelineStage.Type {
+		case repository2.PIPELINE_STAGE_TYPE_PRE_CI:
+			pluginConfiguredInStage = bean.PLUGIN_APPLY_STAGE_PRE_CI
+		case repository2.PIPELINE_STAGE_TYPE_POST_CI:
+			pluginConfiguredInStage = bean.PLUGIN_APPLY_STAGE_POST_CI
+		}
+		pluginIdApplyStage := getSlashSeparatedString(pluginIdStr, pluginConfiguredInStage.ToString())
+		pluginIdPreOrPostCiStage := getSlashSeparatedString(pluginIdStr, bean.PLUGIN_APPLY_STAGE_PRE_OR_POST_CI.ToString())
+		configuredPluginMap[pluginIdApplyStage] = true
+		configuredPluginMap[pluginIdPreOrPostCiStage] = true
+	}
+	return configuredPluginMap
+}
+
+func getOffendingCIPipelineIds(ciPipelinesForConfiguredPlugins []int, ciPipelineConfiguredPluginMap map[int]map[string]bool,
+	globalPolicyDetailDto bean.GlobalPolicyDetailDto, ciPipelineParentChildMap map[int][]int) []int {
+	offendingCiPipelineIds := make([]int, 0, len(ciPipelineConfiguredPluginMap))
+	for _, ciPipelineId := range ciPipelinesForConfiguredPlugins {
+		if configuredPluginMap, ok := ciPipelineConfiguredPluginMap[ciPipelineId]; ok {
+			for _, mandatoryPlugin := range globalPolicyDetailDto.Definitions {
+				data := mandatoryPlugin.Data
+				pluginIdStr := fmt.Sprintf("%d", data.PluginId)
+				pluginApplyStage := data.ApplyToStage
+				pluginIdApplyStage := getSlashSeparatedString(pluginIdStr, pluginApplyStage.ToString())
+
+				if _, ok2 := configuredPluginMap[pluginIdApplyStage]; !ok2 {
+					//all linked and self pipeline id fetch for this ci pipeline id
+					selfAndAllLinkedPipelineIds := ciPipelineParentChildMap[ciPipelineId]
+					offendingCiPipelineIds = append(offendingCiPipelineIds, selfAndAllLinkedPipelineIds...)
+					break
+				}
+			}
+		} else {
+			offendingCiPipelineIds = append(offendingCiPipelineIds, ciPipelineId)
+		}
+	}
+	return offendingCiPipelineIds
+}
+
+func getCIPipelineConfiguredPluginMap(configuredPlugins []*repository2.PipelineStageStep) map[int]map[string]bool {
+	//map of {ciPipelineId: map of {pluginIdStage : bool} }
+	ciPipelineConfiguredPluginMap := make(map[int]map[string]bool)
+	for _, configuredPlugin := range configuredPlugins {
+		ciPipelineId := configuredPlugin.PipelineStage.CiPipelineId
+		pluginIdStr := fmt.Sprintf("%d", configuredPlugin.RefPluginId)
+		var pluginConfiguredInStage bean.PluginApplyStage
+		switch configuredPlugin.PipelineStage.Type {
+		case repository2.PIPELINE_STAGE_TYPE_PRE_CI:
+			pluginConfiguredInStage = bean.PLUGIN_APPLY_STAGE_PRE_CI
+		case repository2.PIPELINE_STAGE_TYPE_POST_CI:
+			pluginConfiguredInStage = bean.PLUGIN_APPLY_STAGE_POST_CI
+		}
+		pluginIdApplyStage := getSlashSeparatedString(pluginIdStr, pluginConfiguredInStage.ToString())
+		pluginIdPreOrPostCiStage := getSlashSeparatedString(pluginIdStr, bean.PLUGIN_APPLY_STAGE_PRE_OR_POST_CI.ToString())
+		if _, ok := ciPipelineConfiguredPluginMap[ciPipelineId]; !ok {
+			ciPipelineConfiguredPluginMap[ciPipelineId] = make(map[string]bool)
+		}
+		ciPipelineConfiguredPluginMap[ciPipelineId][pluginIdApplyStage] = true
+		ciPipelineConfiguredPluginMap[ciPipelineId][pluginIdPreOrPostCiStage] = true
+	}
+	return ciPipelineConfiguredPluginMap
+}
+
+func getPipelineTobeUsedToFetchConfiguredPlugins(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial) int {
+	ciPipelineId := ciPipelineMaterial.CiPipelineId
+	parentCiPipelineId := ciPipelineMaterial.ParentCiPipeline
+	pipelineTobeUsedToFetchConfiguredPlugins := 0
+	if parentCiPipelineId != 0 {
+		pipelineTobeUsedToFetchConfiguredPlugins = parentCiPipelineId
+	} else {
+		pipelineTobeUsedToFetchConfiguredPlugins = ciPipelineId
+	}
+	return pipelineTobeUsedToFetchConfiguredPlugins
+}
+
 func getCIPipelineAppDetailDto(projectName, appName string) *bean.PluginSourceCiPipelineAppDetailDto {
 	return &bean.PluginSourceCiPipelineAppDetailDto{
 		ProjectName: projectName,
@@ -891,19 +1319,16 @@ func getSearchableKeyIdValueMapForFilter(allProjectAppNames, allClusterEnvNames,
 		envSearchableId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ENV_NAME]
 		searchableKeyIdValueMapWhereOrGroup[envSearchableId] = allClusterEnvNames
 	}
-
 	if haveAnyProductionEnv {
 		//for production env
 		productionEnvSearchableId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_IS_ALL_PRODUCTION_ENV]
 		searchableKeyIdValueMapWhereOrGroup[productionEnvSearchableId] = []string{bean.TRUE_STRING}
 	}
-
 	if len(branchValues) > 0 {
 		//for branch
 		branchSearchableId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_BRANCH]
 		searchableKeyIdValueMapWhereOrGroup[branchSearchableId] = branchValues
 	}
-
 	if toOnlyGetBlockedStatePolicies {
 		//setting blocking actions in filter map
 		ciPipelineTriggerActionSearchableId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_TRIGGER_ACTION]
@@ -911,63 +1336,6 @@ func getSearchableKeyIdValueMapForFilter(allProjectAppNames, allClusterEnvNames,
 			bean.CONSEQUENCE_ACTION_ALLOW_UNTIL_TIME.ToString()}
 	}
 	return searchableKeyIdValueMapWhereOrGroup, searchableKeyIdValueMapWhereAndGroup
-}
-
-func (impl *GlobalPolicyServiceImpl) getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*repository.GlobalPolicySearchableField,
-	projectMap, clusterMap map[string]bool, branchValues []string) ([]int, error) {
-	searchableKeyIdNameMap := impl.devtronResourceService.GetAllSearchableKeyIdNameMap()
-	globalPolicyIds := make([]int, 0)
-	globalPolicyIdsMap := make(map[int]bool)
-	var err error
-	for _, searchableFieldsModel := range searchableFieldsModels {
-		searchableKeyName := searchableKeyIdNameMap[searchableFieldsModel.SearchableKeyId]
-		globalPolicyId := searchableFieldsModel.GlobalPolicyId
-		if _, ok := globalPolicyIdsMap[globalPolicyId]; ok {
-			//policy already present, no need to process further
-			continue
-		}
-		value := searchableFieldsModel.Value
-		vals := strings.Split(value, "/")
-		if searchableFieldsModel.IsRegex {
-			switch searchableKeyName {
-			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_APP_NAME:
-				//checking if project for this needed by us or not (we always keep project value, so if it matches then probably this is an entry for all apps)
-				if len(vals) > 0 {
-					if projectMap[vals[0]] {
-						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
-					}
-				}
-			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ENV_NAME:
-				//checking if cluster for this needed by us or not (we always keep cluster value, so if it matches then probably this is an entry for all envs)
-				if len(vals) > 0 {
-					if clusterMap[vals[0]] {
-						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
-					}
-				}
-			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_BRANCH:
-				isAnyBranchMatched := false
-				for _, branchValue := range branchValues {
-					if len(branchValue) != 0 {
-						isAnyBranchMatched, err = regexp.MatchString(value, branchValue)
-						if err != nil {
-							impl.logger.Errorw("error in matching branch regex", "err", err, "regexExpr", value, "valueToBeMatched", branchValue)
-							return nil, err
-						}
-					} else {
-						isAnyBranchMatched = true
-					}
-					if isAnyBranchMatched {
-						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
-						break
-					}
-				}
-			}
-		} else {
-			//add global policy id directly
-			globalPolicyIds = append(globalPolicyIds, globalPolicyId)
-		}
-	}
-	return globalPolicyIds, nil
 }
 
 func getPluginIdApplyStageAndPluginBlockageMaps(definitions []*bean.DefinitionDto, consequence *bean.ConsequenceDto,
@@ -992,30 +1360,18 @@ func getPluginIdApplyStageAndPluginBlockageMaps(definitions []*bean.DefinitionDt
 	return pluginIdApplyStageMap
 }
 
-func (impl *GlobalPolicyServiceImpl) getMatchedBranchList(branchList []*bean.BranchDto, branchValues []string) ([]string, error) {
-	matchedBranchList := make([]string, 0, len(branchList)*len(branchValues))
-	for _, branch := range branchList {
-		for _, branchValue := range branchValues {
-			isBranchMatched, err := isBranchValueMatched(branch, branchValue)
-			if err != nil {
-				impl.logger.Errorw("error in checking if branch value matched or not", "err", err, "branch", branch, "branchValue", branchValue)
-				return nil, err
-			}
-			if isBranchMatched {
-				matchedBranchList = append(matchedBranchList, branchValue)
-			}
-		}
-	}
-	return matchedBranchList, nil
-}
 func isBranchValueMatched(branch *bean.BranchDto, branchValue string) (bool, error) {
 	isBranchMatched := false
 	var err error
 	if len(branchValue) != 0 {
 		if branch.BranchValueType == bean2.VALUE_TYPE_REGEX {
-			isBranchMatched, err = regexp.MatchString(branch.Value, branchValue)
-			if err != nil {
-				return isBranchMatched, err
+			if len(branch.Value) != 0 {
+				isBranchMatched, err = regexp.MatchString(branch.Value, branchValue)
+				if err != nil {
+					return isBranchMatched, err
+				}
+			} else {
+				return isBranchMatched, fmt.Errorf("invalid branch regex, is empty")
 			}
 		} else {
 			if branch.Value == branchValue {
@@ -1023,7 +1379,7 @@ func isBranchValueMatched(branch *bean.BranchDto, branchValue string) (bool, err
 			}
 		}
 	} else {
-		isBranchMatched = true
+		return isBranchMatched, fmt.Errorf("invalid branch value, is empty")
 	}
 	return isBranchMatched, nil
 }
@@ -1117,83 +1473,11 @@ func checkEnvSelectorAndGetDefinitionSourceInfo(allProductionEnvsFlag bool, envS
 	return definitionSourceTemplateForEnvs
 }
 
-func (impl *GlobalPolicyServiceImpl) getDefinitionSourceDtos(globalPolicyDetailDto bean.GlobalPolicyDetailDto, allCiPipelineIds []int,
-	ciPipelineId int, ciPipelineIdProjectAppNameMap map[int]*bean.PluginSourceCiPipelineAppDetailDto,
-	ciPipelineIdEnvDetailMap, ciPipelineIdProductionEnvDetailMap map[int][]*bean.PluginSourceCiPipelineEnvDetailDto,
-	branchValues []string, globalPolicyName string, ciPipelineIdNameMap map[int]string) ([]*bean.DefinitionSourceDto, error) {
-	branchList := globalPolicyDetailDto.Selectors.BranchList
-	matchedBranchList, err := impl.getMatchedBranchList(branchList, branchValues)
-	if err != nil {
-		impl.logger.Errorw("error, getMatchedBranchList", "err", err, "branchList", branchList, "branchValues", branchValues)
-		return nil, err
-	}
-
-	if len(branchList) > 0 && len(matchedBranchList) == 0 {
-		//we have some branch configured in policy, but we have got no matches so skipping this policy
-		return nil, nil
-	}
-	selectors := &bean.SelectorDto{}
-	if globalPolicyDetailDto.Selectors != nil {
-		selectors = globalPolicyDetailDto.Selectors
-	}
-	var projectAppList []*bean.ProjectAppDto
-	var clusterEnvList []*bean.ClusterEnvDto
-	var allProductionEnvsFlag bool
-	if selectors != nil && selectors.ApplicationSelector != nil {
-		projectAppList = globalPolicyDetailDto.Selectors.ApplicationSelector
-	}
-	if selectors != nil && selectors.EnvironmentSelector != nil {
-		allProductionEnvsFlag = globalPolicyDetailDto.Selectors.EnvironmentSelector.AllProductionEnvironments
-		if selectors.EnvironmentSelector.ClusterEnvList != nil {
-			clusterEnvList = globalPolicyDetailDto.Selectors.EnvironmentSelector.ClusterEnvList
-		}
-	}
-	needToCheckAppSelector := len(projectAppList) != 0
-	needToCheckEnvSelector := allProductionEnvsFlag || (len(clusterEnvList) != 0)
-
-	appSelectorMap := getAppSelectorMap(projectAppList)
-	envSelectorMap := getEnvSelectorMap(clusterEnvList)
-	var definitionSourceDtos []*bean.DefinitionSourceDto
-	toContinue := false
-	for _, ciPipelineIdInObj := range allCiPipelineIds {
-		isLinkedCi := ciPipelineIdInObj != ciPipelineId
-		definitionSourceAppName := ""
-		definitionSourceProjectName := ""
-		appProjectDto := ciPipelineIdProjectAppNameMap[ciPipelineIdInObj]
-		projectName := appProjectDto.ProjectName
-		appName := appProjectDto.AppName
-		if needToCheckAppSelector {
-			definitionSourceProjectName, definitionSourceAppName, toContinue = checkAppSelectorAndGetDefinitionSourceInfo(appSelectorMap, projectName, appName)
-			if toContinue { // app is not matched and needed to be matched, skipping this policy
-				continue
-			}
-		}
-		definitionSourceTemplate := bean.DefinitionSourceDto{
-			ProjectName:           definitionSourceProjectName,
-			AppName:               definitionSourceAppName,
-			BranchNames:           matchedBranchList,
-			IsDueToLinkedPipeline: isLinkedCi,
-			CiPipelineName:        ciPipelineIdNameMap[ciPipelineIdInObj],
-			PolicyName:            globalPolicyName,
-		}
-
-		if needToCheckEnvSelector {
-			definitionSourceTemplateForEnvs := checkEnvSelectorAndGetDefinitionSourceInfo(allProductionEnvsFlag, envSelectorMap,
-				ciPipelineIdProductionEnvDetailMap, ciPipelineIdEnvDetailMap, ciPipelineIdInObj, definitionSourceTemplate)
-			if len(definitionSourceTemplateForEnvs) > 0 {
-				definitionSourceDtos = append(definitionSourceDtos, definitionSourceTemplateForEnvs...)
-			} else { //no env matched but needed to be matched, skipping this policy
-				continue
-			}
-		} else { //environment is not needed to be checked in policy, then only enforce on basis of app/branch
-			definitionSourceDtos = append(definitionSourceDtos, &definitionSourceTemplate)
-		}
-	}
-	return definitionSourceDtos, nil
-}
-
 func getMandatoryPluginDefinition(pluginIdStage string, definitionSources []*bean.DefinitionSourceDto) (*bean.MandatoryPluginDefinitionDto, error) {
 	vals := strings.Split(pluginIdStage, "/")
+	if len(vals) != 2 {
+		return nil, fmt.Errorf("invalid pluginIdStage found : %s", pluginIdStage)
+	}
 	pluginId, err := strconv.Atoi(vals[0])
 	if err != nil {
 		return nil, err
@@ -1286,116 +1570,6 @@ func getAllAppEnvBranchDetailsFromGlobalPolicyDetail(globalPolicyDetail *bean.Gl
 	return allProjects, allClusters, branchList, isProductionEnvFlag, isAnyEnvSelectorPresent, projectAppNamePolicyIdsMap, clusterEnvNamePolicyIdsMap
 }
 
-func (impl *GlobalPolicyServiceImpl) findAllWorkflowsComponentDetailsForCiPipelineIds(ciPipelineIds []int,
-	ciPipelineMaterialMap map[int][]*pipelineConfig.CiPipelineMaterial) ([]*bean.WorkflowTreeComponentDto, error) {
-	var appWorkflowMappings []*appWorkflow.AppWorkflowMapping
-	var err error
-	if len(ciPipelineIds) > 0 {
-		appWorkflowMappings, err = impl.appWorkflowRepository.FindMappingsOfWfWithSpecificCIPipelineIds(ciPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error in getting appWorkflowMappings by ciPipeline Ids", "err", err, "ciPipelineIds", ciPipelineIds)
-			return nil, err
-		}
-	}
-	var wfComponentDetails []*bean.WorkflowTreeComponentDto
-	wfIdAndComponentDtoIndexMap := make(map[int]int)
-	var cdPipelineIds []int
-	var appIds []int
-	for _, appWfMapping := range appWorkflowMappings {
-		appId := appWfMapping.AppWorkflow.AppId
-		appIds = append(appIds, appId)
-		if appWfMapping.Type == appWorkflow.CDPIPELINE {
-			cdPipelineIds = append(cdPipelineIds, appWfMapping.ComponentId)
-		}
-		appWorkflowId := appWfMapping.AppWorkflowId
-		if _, ok := wfIdAndComponentDtoIndexMap[appWorkflowId]; !ok {
-			wfComponentDetail := &bean.WorkflowTreeComponentDto{
-				Id:    appWorkflowId,
-				AppId: appId,
-				Name:  appWfMapping.AppWorkflow.Name,
-			}
-			wfComponentDetails = append(wfComponentDetails, wfComponentDetail)
-			wfIdAndComponentDtoIndexMap[appWorkflowId] = len(wfComponentDetails) - 1 //index of whComponentDetail latest addition
-		}
-	}
-	appIdGitMaterialMap := make(map[int][]*bean.Material)
-	if len(appIds) > 0 {
-		gitMaterials, err := impl.gitMaterialRepository.FindByAppIds(appIds)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching git materials by appIds", "err", err, "appIds", appIds)
-			return nil, err
-		}
-		for _, g := range gitMaterials {
-			material := &bean.Material{
-				GitMaterialId: g.Id,
-				MaterialName:  g.Name[strings.Index(g.Name, "-")+1:],
-			}
-			appIdGitMaterialMap[g.AppId] = append(appIdGitMaterialMap[g.AppId], material)
-		}
-	}
-
-	var ciPipelines []*pipelineConfig.CiPipeline
-	if len(ciPipelineIds) > 0 { //getting all ciPipelines by ids
-		ciPipelines, err = impl.ciPipelineRepository.FindByIdsIn(ciPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error in getting ciPipelines by ids", "err", err, "ids", ciPipelineIds)
-			return nil, err
-		}
-	}
-	ciPipelineIdNameMap := make(map[int]string, len(ciPipelines))
-	for _, ciPipeline := range ciPipelines {
-		ciPipelineIdNameMap[ciPipeline.Id] = ciPipeline.Name
-	}
-	var cdPipelines []*pipelineConfig.Pipeline
-	//getting all ciPipelines by appId
-	if len(cdPipelineIds) > 0 {
-		cdPipelines, err = impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error in getting cdPipelines by ids", "err", err, "ids", cdPipelineIds)
-			return nil, err
-		}
-	}
-	cdPipelineIdNameMap := make(map[int]string, len(cdPipelines))
-	for _, cdPipeline := range cdPipelines {
-		cdPipelineIdNameMap[cdPipeline.Id] = cdPipeline.Environment.Name
-	}
-
-	for _, appWfMapping := range appWorkflowMappings {
-		if index, ok := wfIdAndComponentDtoIndexMap[appWfMapping.AppWorkflowId]; ok {
-			wfComponentDetails[index].GitMaterials = appIdGitMaterialMap[appWfMapping.AppWorkflow.AppId]
-
-			if appWfMapping.Type == appWorkflow.CIPIPELINE {
-				ciPipelineId := appWfMapping.ComponentId
-				//getting all materials from map for this ci pipeline
-				ciPipelineMaterials := ciPipelineMaterialMap[ciPipelineId]
-				wfComponentDetails[index].CiPipelineId = ciPipelineId
-				wfComponentDetails[index].CiMaterials = ciPipelineMaterials
-				if name, ok1 := ciPipelineIdNameMap[ciPipelineId]; ok1 {
-					wfComponentDetails[index].CiPipelineName = name
-				}
-			} else if appWfMapping.Type == appWorkflow.CDPIPELINE {
-				if envName, ok1 := cdPipelineIdNameMap[appWfMapping.ComponentId]; ok1 {
-					wfComponentDetails[index].CdPipelines = append(wfComponentDetails[index].CdPipelines, envName)
-				}
-			}
-		}
-	}
-	return wfComponentDetails, nil
-}
-
-func (impl *GlobalPolicyServiceImpl) getGlobalPolicyDtos(globalPolicies []*repository.GlobalPolicy) ([]*bean.GlobalPolicyDto, error) {
-	globalPolicyDtos := make([]*bean.GlobalPolicyDto, 0, len(globalPolicies))
-	for _, globalPolicy := range globalPolicies {
-		globalPolicyDto, err := globalPolicy.GetGlobalPolicyDto()
-		if err != nil {
-			impl.logger.Errorw("error in getting globalPolicyDto", "err", err, "policyId", globalPolicy.Id)
-			return nil, err
-		}
-		globalPolicyDtos = append(globalPolicyDtos, globalPolicyDto)
-	}
-	return globalPolicyDtos, nil
-}
-
 func getFilteredCiPipelinesByProjectAppObjs(ciPipelineProjectAppNameObjs []*pipelineConfig.CiPipelineAppProject,
 	projectAppNameMap map[string]bool) []int {
 	ciPipelinesToBeFiltered := make([]int, 0, len(ciPipelineProjectAppNameObjs))
@@ -1416,7 +1590,7 @@ func getFilteredCiPipelinesByClusterAndEnvObjs(ciPipelineClusterEnvNameObjs []*p
 	for _, ciPipelineClusterEnvNameObj := range ciPipelineClusterEnvNameObjs {
 		clusterEnvName := getSlashSeparatedString(ciPipelineClusterEnvNameObj.ClusterName, ciPipelineClusterEnvNameObj.EnvName)
 		clusterAllEnv := getSlashSeparatedString(ciPipelineClusterEnvNameObj.ClusterName, bean.POLICY_ALL_OBJECTS_PLACEHOLDER)
-		isEntryMatched := (ciPipelineClusterEnvNameObj.IsProductionEnv == isProductionEnvFlag) || clusterEnvNameMap[clusterEnvName] || clusterEnvNameMap[clusterAllEnv]
+		isEntryMatched := (ciPipelineClusterEnvNameObj.IsProductionEnv && isProductionEnvFlag) || clusterEnvNameMap[clusterEnvName] || clusterEnvNameMap[clusterAllEnv]
 		if isEntryMatched {
 			ciPipelinesToBeFiltered = append(ciPipelinesToBeFiltered, ciPipelineClusterEnvNameObj.CiPipelineId)
 		}

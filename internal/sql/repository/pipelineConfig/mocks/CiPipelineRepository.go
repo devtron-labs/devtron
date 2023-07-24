@@ -385,6 +385,32 @@ func (_m *CiPipelineRepository) FindByParentCiPipelineIds(parentCiPipelineIds []
 	return r0, r1
 }
 
+// FindCiEnvMappingByCiPipelineId provides a mock function with given fields: ciPipelineId
+func (_m *CiPipelineRepository) FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*pipelineConfig.CiEnvMapping, error) {
+	ret := _m.Called(ciPipelineId)
+
+	var r0 *pipelineConfig.CiEnvMapping
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) (*pipelineConfig.CiEnvMapping, error)); ok {
+		return rf(ciPipelineId)
+	}
+	if rf, ok := ret.Get(0).(func(int) *pipelineConfig.CiEnvMapping); ok {
+		r0 = rf(ciPipelineId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pipelineConfig.CiEnvMapping)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(ciPipelineId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindCiPipelineConfigsByIds provides a mock function with given fields: ids
 func (_m *CiPipelineRepository) FindCiPipelineConfigsByIds(ids []int) ([]*pipelineConfig.CiPipeline, error) {
 	ret := _m.Called(ids)
@@ -888,6 +914,20 @@ func (_m *CiPipelineRepository) Save(pipeline *pipelineConfig.CiPipeline, tx *pg
 	return r0
 }
 
+// SaveCiEnvMapping provides a mock function with given fields: cienvmapping, tx
+func (_m *CiPipelineRepository) SaveCiEnvMapping(cienvmapping *pipelineConfig.CiEnvMapping, tx *pg.Tx) error {
+	ret := _m.Called(cienvmapping, tx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*pipelineConfig.CiEnvMapping, *pg.Tx) error); ok {
+		r0 = rf(cienvmapping, tx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SaveCiPipelineScript provides a mock function with given fields: ciPipelineScript, tx
 func (_m *CiPipelineRepository) SaveCiPipelineScript(ciPipelineScript *pipelineConfig.CiPipelineScript, tx *pg.Tx) error {
 	ret := _m.Called(ciPipelineScript, tx)
@@ -935,6 +975,20 @@ func (_m *CiPipelineRepository) Update(pipeline *pipelineConfig.CiPipeline, tx *
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*pipelineConfig.CiPipeline, *pg.Tx) error); ok {
 		r0 = rf(pipeline, tx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateCiEnvMapping provides a mock function with given fields: cienvmapping, tx
+func (_m *CiPipelineRepository) UpdateCiEnvMapping(cienvmapping *pipelineConfig.CiEnvMapping, tx *pg.Tx) error {
+	ret := _m.Called(cienvmapping, tx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*pipelineConfig.CiEnvMapping, *pg.Tx) error); ok {
+		r0 = rf(cienvmapping, tx)
 	} else {
 		r0 = ret.Error(0)
 	}

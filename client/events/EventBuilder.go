@@ -109,18 +109,12 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		event.Payload = payload
 	}
 	var emailIDs []string
-	wfrForApprovalData, err := impl.cdWorkflowRepository.FindLatestWfrByAppIdAndEnvironmentId(event.AppId, event.EnvId)
-	if err != nil {
-		impl.logger.Errorw("error in getting wfr by appId and envId", "err", err, "appId", wfrForApprovalData, "envId", event.EnvId)
-	}
-	var deploymentUserData []*pipelineConfig.DeploymentApprovalUserData
-	if wfrForApprovalData != nil && wfrForApprovalData.DeploymentApprovalRequest != nil {
-		deploymentUserData, err = impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfrForApprovalData.DeploymentApprovalRequest.Id)
+
+	if wfr != nil && wfr.DeploymentApprovalRequestId >= 0 {
+		deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId)
 		if err != nil {
-			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "wfrForApprovalData.DeploymentApprovalRequest.Id", wfrForApprovalData.DeploymentApprovalRequest.Id)
+			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "deploymentApprovalRequestId", wfr.DeploymentApprovalRequestId)
 		}
-	}
-	if wfrForApprovalData != nil {
 		if deploymentUserData != nil {
 			userIDs := []int32{}
 			for _, userData := range deploymentUserData {
@@ -137,8 +131,9 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 		}
 	}
+
 	payload.ApprovedByEmail = emailIDs
-	if wfr != nil {
+	if wfr != nil && wfr.WorkflowType != bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
@@ -147,7 +142,6 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.DockerImageUrl = wfr.CdWorkflow.CiArtifact.Image
 		event.UserId = int(wfr.TriggeredBy)
 		event.Payload = payload
-		payload.ApprovedByEmail = emailIDs
 		event.CdWorkflowRunnerId = wfr.Id
 		event.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 	} else if pipelineOverrideId > 0 {

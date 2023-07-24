@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -12,6 +13,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	module2 "github.com/devtron-labs/devtron/pkg/module"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
@@ -364,7 +366,12 @@ func (impl *TelemetryEventClientImpl) EnqueueGenericPostHogEvent(ucid string, ev
 			impl.PosthogClient.Client = client
 		}
 	}
-	if impl.PosthogClient.Client != nil {
+	var environmentData commonService.EnvironmentVariableList
+	err := env.Parse(&environmentData)
+	if err != nil {
+		impl.logger.Errorw("Error in parsing environment data")
+	}
+	if impl.PosthogClient.Client != nil && !environmentData.IsAirGapEnvironment {
 		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
 			Event:      eventType,

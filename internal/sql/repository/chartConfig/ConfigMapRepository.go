@@ -20,7 +20,9 @@ package chartConfig
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
+	"time"
 )
 
 type ConfigMapRepository interface {
@@ -101,10 +103,14 @@ type ConfigMapEnvModel struct {
 	EnvironmentId int      `sql:"environment_id,notnull"`
 	ConfigMapData string   `sql:"config_map_data"`
 	SecretData    string   `sql:"secret_data"`
+	Deleted       bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
 func (impl ConfigMapRepositoryImpl) CreateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {
+	currentTime := time.Now()
+	model.CreatedOn = currentTime
+	model.UpdatedOn = currentTime
 	err := impl.dbConnection.Insert(model)
 	if err != nil {
 		impl.Logger.Errorw("err on config map ", "err;", err)
@@ -125,6 +131,7 @@ func (impl ConfigMapRepositoryImpl) GetAllEnvLevel() ([]ConfigMapEnvModel, error
 }
 
 func (impl ConfigMapRepositoryImpl) UpdateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {
+	model.UpdatedOn = time.Now()
 	err := impl.dbConnection.Update(model)
 	if err != nil {
 		impl.Logger.Errorw("err on config map ", "err;", err)
@@ -141,7 +148,12 @@ func (impl ConfigMapRepositoryImpl) GetByAppIdAndEnvIdEnvLevel(appId int, envId 
 
 func (impl ConfigMapRepositoryImpl) GetEnvLevelByAppId(appId int) ([]*ConfigMapEnvModel, error) {
 	var models []*ConfigMapEnvModel
-	err := impl.dbConnection.Model(&models).Where("app_id = ?", appId).Select()
+	err := impl.dbConnection.Model(&models).
+		Where("app_id = ?", appId).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.WhereOr("deleted = ? ", false).WhereOr("deleted IS NULL")
+			return query, nil
+		}).Select()
 	if err != nil {
 		impl.Logger.Errorw("err in getting cm/cs env level", "err", err)
 		return models, err

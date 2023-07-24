@@ -120,6 +120,8 @@ type CiPipeline struct {
 	IsOffendingMandatoryPlugin *bool                  `json:"isOffendingMandatoryPlugin,omitempty"`
 	IsCITriggerBlocked         *bool                  `json:"isCITriggerBlocked,omitempty"`
 	CiBlockState               *bean2.ConsequenceDto  `json:"ciBlockState,omitempty"`
+	EnvironmentId              int                    `json:"environmentId,omitempty"`
+	LastTriggeredEnvId         int                    `json:"lastTriggeredEnvId"`
 }
 
 type DockerConfigOverride struct {
@@ -221,6 +223,8 @@ type CiPatchRequest struct {
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
+	IsJob         bool        `json:"-"`
+	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 }
 
 type CiRegexPatchRequest struct {
@@ -272,6 +276,7 @@ type CiTriggerRequest struct {
 	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
 	TriggeredBy        int32                `json:"triggeredBy"`
 	InvalidateCache    bool                 `json:"invalidateCache"`
+	EnvironmentId      int                  `json:"environmentId"`
 }
 
 type CiTrigger struct {
@@ -313,6 +318,7 @@ type CiConfigRequest struct {
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 	IsJob             bool                    `json:"-"`
 	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
+	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
 }
 
 type CiPipelineMinResponse struct {
@@ -515,6 +521,13 @@ type CDPipelineConfigObject struct {
 	EnvironmentIdentifier         string                                 `json:"-" `
 	IsVirtualEnvironment          bool                                   `json:"isVirtualEnvironment"`
 	HelmPackageName               string                                 `json:"helmPackageName"`
+	ChartName                     string                                 `json:"chartName"`
+	ChartBaseVersion              string                                 `json:"chartBaseVersion"`
+	ContainerRegistryName         string                                 `json:"containerRegistryName"`
+	RepoName                      string                                 `json:"repoName"`
+	ManifestStorageType           string                                 `json:"manifestStorageType"`
+	PreDeployStage                *bean.PipelineStageDto                 `json:"preDeployStage,omitempty"`
+	PostDeployStage               *bean.PipelineStageDto                 `json:"postDeployStage,omitempty"`
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -628,10 +641,10 @@ type CdPipelineTrigger struct {
 type DeploymentType = string
 
 const (
-	Helm                    DeploymentType = "helm"
-	ArgoCd                  DeploymentType = "argo_cd"
-	ManifestDownload        DeploymentType = "manifest_download"
-	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
+	Helm             DeploymentType = "helm"
+	ArgoCd           DeploymentType = "argo_cd"
+	ManifestDownload DeploymentType = "manifest_download"
+	ManifestPush     DeploymentType = "manifest_push"
 )
 
 func IsAcdApp(deploymentType string) bool {
@@ -640,14 +653,6 @@ func IsAcdApp(deploymentType string) bool {
 
 func IsHelmApp(deploymentType string) bool {
 	return deploymentType == Helm
-}
-
-func IsManifestDownload(deploymentType string) bool {
-	return deploymentType == ManifestDownload
-}
-
-func IsGitOpsWithoutDeployment(deploymentType string) bool {
-	return deploymentType == GitOpsWithoutDeployment
 }
 
 type Status string
@@ -828,6 +833,21 @@ type ExampleValueDto struct {
 	Errors []ErrorDto `json:"errors,omitempty"`
 	Result string     `json:"result,omitempty"`
 	Status string     `json:"status,omitempty"`
+}
+
+type ManifestStorage = string
+
+const (
+	ManifestStorageGit         ManifestStorage = "git"
+	ManifestStorageOCIHelmRepo ManifestStorage = "helm_repo"
+)
+
+func IsGitStorage(storageType string) bool {
+	return storageType == ManifestStorageGit
+}
+
+func IsHelmStorage(storageType string) bool {
+	return storageType == ManifestStorageOCIHelmRepo
 }
 
 const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"

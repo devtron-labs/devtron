@@ -111,9 +111,9 @@ func (impl ImageTaggingServiceImpl) GetImageTaggingServiceConfig() ImageTaggingS
 }
 
 // GetTagsData returns the following fields in reponse Object
-//ImageReleaseTags -> this will get the tags of the artifact,
-//AppReleaseTags -> all the tags of the given appId,
-//imageComment -> comment of the given artifactId,
+// ImageReleaseTags -> this will get the tags of the artifact,
+// AppReleaseTags -> all the tags of the given appId,
+// imageComment -> comment of the given artifactId,
 // ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipeline's
 func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*ImageTaggingResponseDTO, error) {
 	resp := &ImageTaggingResponseDTO{}
