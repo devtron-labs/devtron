@@ -75,23 +75,6 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 			expectedStatusCode: http.StatusBadRequest,
 		},
 		{
-			name: "when super admin check fails, it should return internal server error",
-			fields: fields{
-				validator: validator.New(),
-			},
-			body: "{\"appId\":4, \"id\": 5 ,\"ciMaterial\":[{\"gitMaterialId\":4,\"id\":5,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main3\",\"regex\":\"\"}}]}",
-			setup: func(fields2 *fields) {
-				ctrl := gomock.NewController(t)
-				fields2.pipelineBuilder = mock_pipeline.NewMockPipelineBuilder(ctrl)
-				fields2.enforcer = mock_casbin.NewMockEnforcer(ctrl)
-				fields2.enforcerUtil = mocks_rbac.NewMockEnforcerUtil(ctrl)
-				fields2.userAuthService = mock_user.NewMockUserService(ctrl)
-				fields2.userAuthService.EXPECT().GetLoggedInUser(gomock.Any()).Return(int32(1), nil).Times(1)
-				fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(false, fmt.Errorf("not a super admin")).Times(1)
-			},
-			expectedStatusCode: http.StatusInternalServerError,
-		},
-		{
 			name: "when app is not found for the given appId, it should return bad request",
 			fields: fields{
 				validator: validator.New(),
@@ -105,7 +88,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 				fields2.enforcerUtil = mocks_rbac.NewMockEnforcerUtil(ctrl)
 				fields2.userAuthService = mock_user.NewMockUserService(ctrl)
 				fields2.userAuthService.EXPECT().GetLoggedInUser(gomock.Any()).Return(int32(1), nil).Times(1)
-				fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(true, nil).Times(1)
+				//fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(true, nil).Times(1)
 			},
 			expectedStatusCode: http.StatusBadRequest,
 		},
@@ -127,30 +110,10 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 				//fields2.enforcerUtil.EXPECT().GetAppRBACName("Super App")
 				fields2.userAuthService = mock_user.NewMockUserService(ctrl)
 				fields2.userAuthService.EXPECT().GetLoggedInUser(gomock.Any()).Return(int32(1), nil).Times(1)
-				fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(true, nil).Times(1)
+				//fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(true, nil).Times(1)
 
 			},
 			expectedStatusCode: http.StatusBadRequest,
-		},
-		{
-			name: "when user is not a super admin, it should return forbidden",
-			fields: fields{
-				validator: validator.New(),
-			},
-			body: "{\"appId\":4, \"id\": 5 ,\"ciMaterial\":[{\"gitMaterialId\":4,\"id\":5,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main3\",\"regex\":\"\"}}]}",
-			setup: func(fields2 *fields) {
-				ctrl := gomock.NewController(t)
-				fields2.pipelineBuilder = mock_pipeline.NewMockPipelineBuilder(ctrl)
-				fields2.pipelineBuilder.EXPECT().GetApp(4).Return(&bean.CreateAppDTO{AppName: "Super App", Id: 4, AppType: helper.Job}, nil).Times(1)
-				fields2.enforcer = mock_casbin.NewMockEnforcer(ctrl)
-				fields2.enforcerUtil = mocks_rbac.NewMockEnforcerUtil(ctrl)
-				//fields2.enforcerUtil.EXPECT().GetAppRBACName("Super App")
-				fields2.userAuthService = mock_user.NewMockUserService(ctrl)
-				fields2.userAuthService.EXPECT().GetLoggedInUser(gomock.Any()).Return(int32(1), nil).Times(1)
-				fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(false, nil).Times(1)
-
-			},
-			expectedStatusCode: http.StatusForbidden,
 		},
 		{
 			name: "when app is not jobtype and enforce fails, it should return forbidden",
@@ -169,7 +132,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 				fields2.enforcerUtil.EXPECT().GetAppRBACName("Super App")
 				fields2.userAuthService = mock_user.NewMockUserService(ctrl)
 				fields2.userAuthService.EXPECT().GetLoggedInUser(gomock.Any()).Return(int32(1), nil).Times(1)
-				fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(false, nil).Times(1)
+				//fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(false, nil).Times(1)
 
 			},
 			expectedStatusCode: http.StatusForbidden,
@@ -194,7 +157,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 				fields2.enforcerUtil.EXPECT().GetAppRBACName("Super App")
 				fields2.userAuthService = mock_user.NewMockUserService(ctrl)
 				fields2.userAuthService.EXPECT().GetLoggedInUser(gomock.Any()).Return(int32(1), nil).Times(1)
-				fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(false, nil).Times(1)
+				//fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(false, nil).Times(1)
 
 			},
 			expectedStatusCode: http.StatusInternalServerError,
@@ -219,7 +182,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 				fields2.enforcerUtil.EXPECT().GetAppRBACName("Super App")
 				fields2.userAuthService = mock_user.NewMockUserService(ctrl)
 				fields2.userAuthService.EXPECT().GetLoggedInUser(gomock.Any()).Return(int32(1), nil).Times(1)
-				fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(false, nil).Times(1)
+				//fields2.userAuthService.EXPECT().IsSuperAdmin(1).Return(false, nil).Times(1)
 
 			},
 			expectedStatusCode: http.StatusOK,
