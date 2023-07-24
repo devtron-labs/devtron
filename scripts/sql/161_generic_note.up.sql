@@ -9,4 +9,4 @@ AlTER TABLE cluster_note_history DROP CONSTRAINT cluster_note_history_cluster_no
 ALTER TABLE cluster_note_history RENAME to generic_note_history;
 ALTER TABLE generic_note_history ADD CONSTRAINT generic_note_history_generic_note_id_fkey
     FOREIGN KEY(note_id)
-    REFERENCES public.generic_note(id);
+    REFERENCES public.generic_note(id) ON DELETE CASCADE;
