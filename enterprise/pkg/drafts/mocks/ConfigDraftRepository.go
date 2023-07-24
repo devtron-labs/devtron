@@ -116,6 +116,29 @@ func (_m *ConfigDraftRepository) GetDraftMetadataById(draftId int) (*drafts.Draf
 	return r0, r1
 }
 
+// GetDraftMetadataForAppAndEnv provides a mock function with given fields: appId, envIds
+func (_m *ConfigDraftRepository) GetDraftMetadataForAppAndEnv(appId int, envIds []int) ([]*drafts.DraftDto, error) {
+	ret := _m.Called(appId, envIds)
+
+	var r0 []*drafts.DraftDto
+	if rf, ok := ret.Get(0).(func(int, []int) []*drafts.DraftDto); ok {
+		r0 = rf(appId, envIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*drafts.DraftDto)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int, []int) error); ok {
+		r1 = rf(appId, envIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDraftVersionById provides a mock function with given fields: draftVersionId
 func (_m *ConfigDraftRepository) GetDraftVersionById(draftVersionId int) (*drafts.DraftVersion, error) {
 	ret := _m.Called(draftVersionId)

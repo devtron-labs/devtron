@@ -26,7 +26,6 @@ type ConfigDraftService interface {
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
 	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
 	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
-	GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
@@ -70,7 +69,6 @@ func (impl *ConfigDraftServiceImpl) OnStateChange(appId int, envId int, state pr
 }
 
 func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
-	//check for existing draft in nonTerminal state, if present then throw error
 	return impl.configDraftRepository.CreateConfigDraft(request)
 }
 
@@ -82,12 +80,12 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 	}
 	lastDraftVersionId := request.LastDraftVersionId
 	if latestDraftVersion > lastDraftVersionId {
-		return 0, errors.New("last-version-outdated")
+		return 0, errors.New(LastVersionOutdated)
 	}
 
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
-		draftVersionDto := request.GetDraftVersion(currentTime)
+		draftVersionDto := request.GetDraftVersionDto(currentTime)
 		draftVersionId, err := impl.configDraftRepository.SaveDraftVersion(draftVersionDto)
 		if err != nil {
 			return 0, err
@@ -246,21 +244,13 @@ func (impl *ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*Co
 	return draftResponse, nil
 }
 
-func (impl *ConfigDraftServiceImpl) GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error) {
-	draftVersionDto, err := impl.configDraftRepository.GetDraftVersionById(draftVersionId)
-	if err != nil {
-		return nil, err
-	}
-	return draftVersionDto.ConvertToConfigDraft(), nil
-}
-
 func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int, userId int32) error {
 	deletedCount, err := impl.configDraftRepository.DeleteComment(draftId, draftCommentId, userId)
 	if err != nil {
 		return err
 	}
 	if deletedCount == 0 {
-		return errors.New("failed to delete comment")
+		return errors.New(FailedToDeleteComment)
 	}
 	return nil
 }

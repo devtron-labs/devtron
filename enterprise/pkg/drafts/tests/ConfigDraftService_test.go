@@ -4,30 +4,35 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts/mocks"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	mocks4 "github.com/devtron-labs/devtron/enterprise/pkg/protect/mocks"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	mocks6 "github.com/devtron-labs/devtron/internal/sql/repository/app/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	mocks3 "github.com/devtron-labs/devtron/pkg/chart/mocks"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	mocks7 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	mocks2 "github.com/devtron-labs/devtron/pkg/pipeline/mocks"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	mocks5 "github.com/devtron-labs/devtron/pkg/user/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 	"testing"
+	"time"
 )
 
 func TestConfigDraftService(t *testing.T) {
 	sugardLogger, err := util.NewSugardLogger()
 	assert.Nil(t, err)
 	t.Run("approval request with outdated version id", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 1
 		userId := int32(1)
@@ -37,7 +42,7 @@ func TestConfigDraftService(t *testing.T) {
 		assert.Error(t, err, drafts.LastVersionOutdated)
 	})
 	t.Run("approval request for draft in terminal state", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 1
 		userId := int32(1)
@@ -49,7 +54,7 @@ func TestConfigDraftService(t *testing.T) {
 		assert.Error(t, err, drafts.DraftAlreadyInTerminalState)
 	})
 	t.Run("approval request for draft in init state", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 1
 		userId := int32(1)
@@ -62,7 +67,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for self contributed draft", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 1
 		userId := int32(1)
@@ -76,7 +81,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for cm draft with add action at base level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, configMapService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, configMapService, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 1
 		userId := int32(1)
@@ -106,7 +111,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for cm draft with update action at Env level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, configMapService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, configMapService, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 1
 		userId := int32(1)
@@ -138,7 +143,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for cm draft with delete action at Base level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, configMapService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, configMapService, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -161,7 +166,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for cm draft with delete action at env level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, configMapService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, configMapService, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -184,7 +189,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for CS draft with add action at base level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, configMapService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, configMapService, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -215,7 +220,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for CS draft with update action at Env level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, configMapService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, configMapService, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -247,7 +252,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for CS draft with delete action at Base level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, configMapService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, configMapService, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -270,7 +275,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for CS draft with delete action at env level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, configMapService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, configMapService, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -293,7 +298,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for deployment template with UPDATE action at BASE level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, chartService, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, chartService, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -322,7 +327,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for deployment template with UPDATE action at BASE level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, chartService, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, chartService, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -351,7 +356,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for deployment template with UPDATE action at BASE level with invalid template", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, chartService, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, chartService, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -373,7 +378,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for deployment template with ADD action at ENV Level with outdated template", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, chartService, _ := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, chartService, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -395,7 +400,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for deployment template with ADD action at ENV Level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, chartService, propertiesConfigService := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, chartService, propertiesConfigService, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -423,7 +428,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for deployment template with ADD action at ENV Level with no-chart exist error", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, chartService, propertiesConfigService := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, chartService, propertiesConfigService, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -462,7 +467,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for deployment template with UPDATE action at ENV Level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, chartService, propertiesConfigService := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, chartService, propertiesConfigService, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -490,7 +495,7 @@ func TestConfigDraftService(t *testing.T) {
 	})
 
 	t.Run("approval request for deployment template with DELETE action at ENV Level", func(t *testing.T) {
-		configDraftRepository, configDraftServiceImpl, _, _, propertiesConfigService := getMockedConfigDraftServices(t, sugardLogger)
+		configDraftRepository, configDraftServiceImpl, _, _, propertiesConfigService, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
 		draftVersionId := 2
 		userId := int32(3)
@@ -510,6 +515,368 @@ func TestConfigDraftService(t *testing.T) {
 		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Nil(t, err)
 	})
+
+	t.Run("add draft version with outdated last version id", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		lastDraftVersionId := 2
+		request := drafts.ConfigDraftVersionRequest{
+			DraftId:            draftId,
+			LastDraftVersionId: lastDraftVersionId,
+		}
+		configDraftRepository.On("GetLatestDraftVersionId", draftId).Return(3, nil)
+		draftVersionId, err := configDraftServiceImpl.AddDraftVersion(request)
+		assert.Zero(t, draftVersionId)
+		assert.Error(t, err, drafts.LastVersionOutdated)
+	})
+
+	t.Run("add draft version with data only", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		lastDraftVersionId := 2
+		toBeVersionId := lastDraftVersionId + 1
+		userId := int32(4)
+		request := drafts.ConfigDraftVersionRequest{
+			DraftId:            draftId,
+			LastDraftVersionId: lastDraftVersionId,
+			Data:               "random-data",
+			UserId:             userId,
+		}
+		configDraftRepository.On("GetLatestDraftVersionId", draftId).Return(lastDraftVersionId, nil)
+		configDraftRepository.On("SaveDraftVersion", mock.AnythingOfType("*drafts.DraftVersion")).Return(func(draftVersionDto *drafts.DraftVersion) int {
+			assert.NotNil(t, draftVersionDto)
+			assert.Equal(t, draftId, draftVersionDto.DraftsId)
+			assert.Equal(t, userId, draftVersionDto.UserId)
+			assert.Equal(t, request.Data, draftVersionDto.Data)
+			return toBeVersionId
+		}, nil)
+		latestDraftVersionId, err := configDraftServiceImpl.AddDraftVersion(request)
+		assert.NoError(t, err)
+		assert.Equal(t, toBeVersionId, latestDraftVersionId)
+	})
+
+	t.Run("add draft version with comment only and also propose changes", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		lastDraftVersionId := 2
+		userId := int32(4)
+		request := drafts.ConfigDraftVersionRequest{
+			DraftId:            draftId,
+			LastDraftVersionId: lastDraftVersionId,
+			Data:               "",
+			UserComment:        "user-comment",
+			UserId:             userId,
+			ChangeProposed:     true,
+		}
+		configDraftRepository.On("GetLatestDraftVersionId", draftId).Return(lastDraftVersionId, nil)
+		configDraftRepository.On("SaveDraftVersionComment", mock.AnythingOfType("*drafts.DraftVersionComment")).Return(func(versionComment *drafts.DraftVersionComment) error {
+			assert.NotNil(t, versionComment)
+			assert.Equal(t, lastDraftVersionId, versionComment.DraftVersionId)
+			assert.Equal(t, draftId, versionComment.DraftId)
+			assert.Equal(t, draftId, versionComment.DraftId)
+			assert.Equal(t, request.UserComment, versionComment.Comment)
+			assert.True(t, versionComment.Active)
+			assert.Equal(t, userId, versionComment.CreatedBy)
+			assert.Equal(t, userId, versionComment.UpdatedBy)
+			return nil
+		})
+		configDraftRepository.On("UpdateDraftState", draftId, drafts.AwaitApprovalDraftState, userId).Return(nil)
+		latestDraftVersionId, err := configDraftServiceImpl.AddDraftVersion(request)
+		assert.NoError(t, err)
+		assert.Equal(t, lastDraftVersionId, latestDraftVersionId)
+	})
+
+	t.Run("get draft comments", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, userService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftComments, userIds := getSampleComments(draftId)
+		userInfos := getSampleUserInfos(userIds)
+		configDraftRepository.On("GetDraftVersionComments", draftId).Return(draftComments, nil)
+		userService.On("GetByIds", userIds).Return(userInfos, nil)
+		commentsResponse, err := configDraftServiceImpl.GetDraftComments(draftId)
+		assert.NoError(t, err)
+		assert.Equal(t, draftId, commentsResponse.DraftId)
+		verifyUserComments(t, draftComments, commentsResponse.DraftVersionComments, userInfos)
+	})
+
+	t.Run("get draft version metadata", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, userService, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftVersionDtos, userIds := getSampleDraftVersionMetadata(draftId)
+		userInfos := getSampleUserInfos(userIds)
+		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return(draftVersionDtos, nil)
+		userService.On("GetByIds", userIds).Return(userInfos, nil)
+		metadataResponse, err := configDraftServiceImpl.GetDraftVersionMetadata(draftId)
+		assert.NoError(t, err)
+		assert.Equal(t, draftId, metadataResponse.DraftId)
+		verifyVersionMetadata(t, draftVersionDtos, metadataResponse.DraftVersions, userInfos)
+	})
+
+	t.Run("get draft by id", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, userService, appRepo, envRepo := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		appId := 2
+		envId := 3
+		draftVersionId := 4
+		mockedDraftMetadataArray, userIds := getSampleDraftVersionMetadata(draftId)
+		userId := userIds[0]
+		resourceType := drafts.CMDraftResource
+		draftState := drafts.AwaitApprovalDraftState
+		draftVersionData := "sample-cm"
+		draftVersion := &drafts.DraftVersion{
+			Draft: &drafts.DraftDto{
+				Id:           draftId,
+				AppId:        appId,
+				EnvId:        envId,
+				ResourceName: "resource-name",
+				Resource:     resourceType,
+				DraftState:   draftState,
+			},
+			Id:       draftVersionId,
+			DraftsId: draftId,
+			Action:   drafts.AddResourceAction,
+			Data:     draftVersionData,
+			UserId:   userId,
+		}
+		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftVersion, nil)
+		appName := "appName"
+		appRepo.On("FindById", appId).Return(&app.App{Id: appId, AppName: appName}, nil)
+		environmentIdentifier := "env-identifier"
+		envRepo.On("FindById", envId).Return(&repository.Environment{Id: envId, EnvironmentIdentifier: environmentIdentifier}, nil)
+		sampleEmailIds := getSampleEmailIds()
+		userService.On("GetConfigApprovalUsersByEnv", appName, environmentIdentifier).Return(sampleEmailIds, nil)
+		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return(mockedDraftMetadataArray, nil)
+		draftResponse, err := configDraftServiceImpl.GetDraftById(draftId, userId)
+		assert.NoError(t, err)
+		assert.Equal(t, draftId, draftResponse.DraftId)
+		assert.Equal(t, appId, draftResponse.AppId)
+		assert.Equal(t, envId, draftResponse.EnvId)
+		assert.Equal(t, resourceType, draftResponse.Resource)
+		assert.Equal(t, draftState, draftResponse.DraftState)
+		assert.Equal(t, draftVersionId, draftResponse.DraftVersionId)
+		assert.Equal(t, draftVersionData, draftResponse.Data)
+		assert.False(t, *draftResponse.CanApprove)
+		assert.Equal(t, sampleEmailIds, draftResponse.Approvers)
+	})
+
+	t.Run("get draft count", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		appId := 1
+		envIds := []int{2, 3}
+		draftDtos, draftCount := getSampleDraftDtos(appId, envIds)
+		configDraftRepository.On("GetDraftMetadataForAppAndEnv", appId, envIds).Return(draftDtos, nil)
+		draftsCountResponse, err := configDraftServiceImpl.GetDraftsCount(appId, envIds)
+		assert.NoError(t, err)
+		assert.Equal(t, len(envIds), len(draftsCountResponse))
+		for _, draftCountResponse := range draftsCountResponse {
+			assert.Equal(t, appId, draftCountResponse.AppId)
+			assert.Equal(t, draftCount, draftCountResponse.DraftsCount)
+		}
+	})
+
+	t.Run("update draft state", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftVersionId := 2
+		userId := int32(3)
+		toUpdateDraftState := drafts.AwaitApprovalDraftState
+		draftLatestVersion := &drafts.DraftVersion{Id: draftVersionId}
+		draftDto := &drafts.DraftDto{DraftState: drafts.InitDraftState}
+		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
+		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
+		configDraftRepository.On("UpdateDraftState", draftId, toUpdateDraftState, userId).Return(nil)
+		latestDraftVersion, err := configDraftServiceImpl.UpdateDraftState(draftId, draftVersionId, toUpdateDraftState, userId)
+		assert.NoError(t, err)
+		assert.Equal(t, draftLatestVersion, latestDraftVersion)
+	})
+
+	t.Run("get Drafts of particular resource", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		appId := 1
+		envId := 2
+		userId := int32(3)
+		resourceType := drafts.CMDraftResource
+		mockedDraftDtos := getSampleDraftDtosForResource(appId, envId, resourceType)
+		configDraftRepository.On("GetDraftMetadata", appId, envId, resourceType).Return(mockedDraftDtos, nil)
+		appConfigDrafts, err := configDraftServiceImpl.GetDrafts(appId, envId, resourceType, userId)
+		assert.NoError(t, err)
+		verifyAppConfigDrafts(t, mockedDraftDtos, appConfigDrafts)
+	})
+
+	t.Run("delete comment with failure case", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftCommentId := 2
+		userId := int32(3)
+		configDraftRepository.On("DeleteComment", draftId, draftCommentId, userId).Return(0, nil)
+		err := configDraftServiceImpl.DeleteComment(draftId, draftCommentId, userId)
+		assert.Error(t, err, drafts.FailedToDeleteComment)
+	})
+
+	t.Run("delete comment", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftCommentId := 2
+		userId := int32(3)
+		configDraftRepository.On("DeleteComment", draftId, draftCommentId, userId).Return(1, nil)
+		err := configDraftServiceImpl.DeleteComment(draftId, draftCommentId, userId)
+		assert.NoError(t, err)
+	})
+
+	t.Run("config draft state change", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		appId := 1
+		envId := 2
+		protectionState := protect.DisabledProtectionState
+		userId := int32(3)
+		configDraftRepository.On("DiscardDrafts", appId, envId, userId).Return(nil)
+		configDraftServiceImpl.OnStateChange(appId, envId, protectionState, userId)
+		configDraftRepository.AssertCalled(t, "DiscardDrafts", appId, envId, userId)
+	})
+}
+
+func verifyAppConfigDrafts(t *testing.T, mockedDraftDtos []*drafts.DraftDto, appConfigDrafts []drafts.AppConfigDraft) {
+	for index, appConfigDraft := range appConfigDrafts {
+		mockedDraftDto := mockedDraftDtos[index]
+		assert.Equal(t, mockedDraftDto.Id, appConfigDraft.DraftId)
+		assert.Equal(t, mockedDraftDto.Resource, appConfigDraft.Resource)
+		assert.Equal(t, mockedDraftDto.ResourceName, appConfigDraft.ResourceName)
+		assert.Equal(t, mockedDraftDto.DraftState, appConfigDraft.DraftState)
+	}
+}
+
+func getSampleDraftDtosForResource(appId int, envId int, resourceType drafts.DraftResourceType) []*drafts.DraftDto {
+	var draftDtos []*drafts.DraftDto
+	sampleDraftDtos, _ := getSampleDraftDtos(appId, []int{envId})
+	for _, sampleDraftDto := range sampleDraftDtos {
+		if sampleDraftDto.Resource == resourceType {
+			draftDtos = append(draftDtos, sampleDraftDto)
+		}
+	}
+	return draftDtos
+}
+
+func getSampleDraftDtos(appId int, envIds []int) ([]*drafts.DraftDto, int) {
+	var sampleDrafts []*drafts.DraftDto
+	for index, envId := range envIds {
+		sampleDrafts = append(sampleDrafts, &drafts.DraftDto{
+			AppId:        appId,
+			EnvId:        envId,
+			Resource:     drafts.CMDraftResource,
+			ResourceName: fmt.Sprintf("cm-%d-resource-name", index),
+			DraftState:   drafts.InitDraftState,
+		})
+		sampleDrafts = append(sampleDrafts, &drafts.DraftDto{
+			AppId:        appId,
+			EnvId:        envId,
+			Resource:     drafts.CSDraftResource,
+			ResourceName: fmt.Sprintf("cs-%d-resource-name", index),
+			DraftState:   drafts.AwaitApprovalDraftState,
+		})
+	}
+	return sampleDrafts, 2
+}
+
+func getSampleEmailIds() []string {
+	var sampleEmailIds []string
+	for i := 0; i < 10; i++ {
+		sampleEmailIds = append(sampleEmailIds, fmt.Sprintf("%d@gmail.com", i))
+	}
+	return sampleEmailIds
+}
+
+func verifyVersionMetadata(t *testing.T, mockedVersionDtos []*drafts.DraftVersion, responseVersionMetadataArray []*drafts.DraftVersionMetadata, userInfos []bean2.UserInfo) {
+	userInfoMap := getUserInfoMap(userInfos)
+	mockedVersionDtoMap := make(map[int]*drafts.DraftVersion)
+	for _, mockedVersionDto := range mockedVersionDtos {
+		mockedVersionDtoMap[mockedVersionDto.Id] = mockedVersionDto
+	}
+	for _, responseVersionMetadata := range responseVersionMetadataArray {
+		draftVersionId := responseVersionMetadata.DraftVersionId
+		mockedVersion := mockedVersionDtoMap[draftVersionId]
+		userId := mockedVersion.UserId
+		assert.Equal(t, userId, responseVersionMetadata.UserId)
+		assert.Equal(t, userInfoMap[userId].EmailId, responseVersionMetadata.UserEmail)
+		assert.Equal(t, mockedVersion.CreatedOn, responseVersionMetadata.ActivityTime)
+	}
+}
+
+func getSampleDraftVersionMetadata(draftId int) ([]*drafts.DraftVersion, []int32) {
+	var draftVersionMetadataList []*drafts.DraftVersion
+	var userIds []int32
+	for i := 0; i < 10; i++ {
+		userId := int32(i)
+		userIds = append(userIds, userId)
+		draftVersionMetadata := &drafts.DraftVersion{
+			Id:        i,
+			UserId:    userId,
+			CreatedOn: time.Now(),
+			DraftsId:  draftId,
+		}
+		draftVersionMetadataList = append(draftVersionMetadataList, draftVersionMetadata)
+	}
+	return draftVersionMetadataList, userIds
+}
+
+func verifyUserComments(t *testing.T, mockedComments []*drafts.DraftVersionComment, responseComments []drafts.DraftVersionCommentBean, userInfos []bean2.UserInfo) {
+	assert.Equal(t, len(mockedComments), len(responseComments))
+	userInfoMap := getUserInfoMap(userInfos)
+	commentIdMap := make(map[int]*drafts.DraftVersionComment)
+	for _, mockedComment := range mockedComments {
+		commentIdMap[mockedComment.Id] = mockedComment
+	}
+	for _, responseComment := range responseComments {
+		userComments := responseComment.UserComments
+		for _, userComment := range userComments {
+			draftVersionComment := commentIdMap[userComment.CommentId]
+			verifyDraftVersionComment(t, draftVersionComment, userComment, userInfoMap[userComment.UserId])
+		}
+	}
+}
+
+func getUserInfoMap(userInfos []bean2.UserInfo) map[int32]bean2.UserInfo {
+	userInfoMap := make(map[int32]bean2.UserInfo)
+	for _, userInfo := range userInfos {
+		userInfoMap[userInfo.Id] = userInfo
+	}
+	return userInfoMap
+}
+
+func verifyDraftVersionComment(t *testing.T, mockedComment *drafts.DraftVersionComment, responseComment drafts.UserCommentMetadata, userInfo bean2.UserInfo) {
+	assert.Equal(t, mockedComment.Id, responseComment.CommentId)
+	assert.Equal(t, mockedComment.Comment, responseComment.Comment)
+	assert.Equal(t, mockedComment.CreatedBy, responseComment.UserId)
+	assert.Equal(t, userInfo.EmailId, responseComment.UserEmail)
+}
+
+func getSampleUserInfos(userIds []int32) []bean2.UserInfo {
+	var userInfos []bean2.UserInfo
+	for _, userId := range userIds {
+		userInfos = append(userInfos, bean2.UserInfo{Id: userId, EmailId: fmt.Sprintf("%d@gmail.com", userId)})
+	}
+	return userInfos
+}
+
+func getSampleComments(draftId int) ([]*drafts.DraftVersionComment, []int32) {
+	var draftComments []*drafts.DraftVersionComment
+	var userIds []int32
+	for i := 0; i < 10; i++ {
+		userId := int32(i)
+		draftVersionComment := &drafts.DraftVersionComment{
+			Id:             i,
+			DraftId:        draftId,
+			DraftVersionId: i,
+			Comment:        fmt.Sprintf("random-comment-%d", i),
+			Active:         true,
+			AuditLog: sql.AuditLog{
+				CreatedBy: userId,
+				UpdatedBy: userId,
+			},
+		}
+		draftComments = append(draftComments, draftVersionComment)
+		userIds = append(userIds, userId)
+	}
+	return draftComments, userIds
 }
 
 func getEnvDT(t *testing.T) (string, *bean.EnvironmentProperties) {
@@ -546,7 +913,7 @@ func getSampleCMCS(appId, envId, resourceId int, name string, isCM bool) (bean.C
 	return configDataRequest, string(configDataRequestJson)
 }
 
-func getMockedConfigDraftServices(t *testing.T, sugardLogger *zap.SugaredLogger) (*mocks.ConfigDraftRepository, *drafts.ConfigDraftServiceImpl, *mocks2.ConfigMapService, *mocks3.ChartService, *mocks2.PropertiesConfigService) {
+func getMockedConfigDraftServices(t *testing.T, sugardLogger *zap.SugaredLogger) (*mocks.ConfigDraftRepository, *drafts.ConfigDraftServiceImpl, *mocks2.ConfigMapService, *mocks3.ChartService, *mocks2.PropertiesConfigService, *mocks5.UserService, *mocks6.AppRepository, *mocks7.EnvironmentRepository) {
 	configDraftRepository := mocks.NewConfigDraftRepository(t)
 	configMapService := mocks2.NewConfigMapService(t)
 	chartService := mocks3.NewChartService(t)
@@ -557,5 +924,5 @@ func getMockedConfigDraftServices(t *testing.T, sugardLogger *zap.SugaredLogger)
 	environmentRepository := mocks7.NewEnvironmentRepository(t)
 	resourceProtectionService.On("RegisterListener", mock.AnythingOfType("*drafts.ConfigDraftServiceImpl")).Return()
 	configDraftServiceImpl := drafts.NewConfigDraftServiceImpl(sugardLogger, configDraftRepository, configMapService, chartService, propertiesConfigService, resourceProtectionService, userService, appRepository, environmentRepository)
-	return configDraftRepository, configDraftServiceImpl, configMapService, chartService, propertiesConfigService
+	return configDraftRepository, configDraftServiceImpl, configMapService, chartService, propertiesConfigService, userService, appRepository, environmentRepository
 }

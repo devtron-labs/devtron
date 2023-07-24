@@ -8,6 +8,7 @@ const (
 	ApprovalRequestNotRaised    = "approval-request-not-raised"
 	UserContributedToDraft      = "user-committed-to-draft"
 	TemplateOutdated            = "template-outdated"
+	FailedToDeleteComment       = "failed to delete comment"
 )
 
 type DraftResourceType uint8
@@ -124,7 +125,7 @@ type ConfigDraftVersionRequest struct {
 	UserId             int32          `json:"-"`
 }
 
-func (request ConfigDraftVersionRequest) GetDraftVersion(currentTime time.Time) *DraftVersion {
+func (request ConfigDraftVersionRequest) GetDraftVersionDto(currentTime time.Time) *DraftVersion {
 	draftVersionDto := &DraftVersion{}
 	draftVersionDto.DraftsId = request.DraftId
 	draftVersionDto.Data = request.Data
