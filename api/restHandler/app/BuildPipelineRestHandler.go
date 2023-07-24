@@ -251,11 +251,6 @@ func (handler PipelineConfigRestHandlerImpl) parseBranchChangeRequest(w http.Res
 }
 
 func (handler PipelineConfigRestHandlerImpl) authorizeSourceChangeRequest(w http.ResponseWriter, userId int32, patchRequest *bean.CiPipeline, token string) error {
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "failed to check if user is super admin", http.StatusInternalServerError)
-		return err
-	}
 	handler.Logger.Debugw("update request ", "req", patchRequest)
 	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
 	if err != nil {
@@ -263,16 +258,18 @@ func (handler PipelineConfigRestHandlerImpl) authorizeSourceChangeRequest(w http
 		return err
 	}
 
-	var ok bool
-	if app.AppType == helper.Job {
-		ok = isSuperAdmin
-	} else {
-		resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-		ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+	if app.AppType != helper.CustomApp {
+		err = fmt.Errorf("only custom apps supported")
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return err
 	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+
 	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return fmt.Errorf("unauthorized user")
+		err = fmt.Errorf("unauthorized user")
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return err
 	}
 	patchRequest.Name = app.AppName
 	err = handler.validator.Struct(patchRequest)
