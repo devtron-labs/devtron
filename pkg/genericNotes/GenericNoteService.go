@@ -95,20 +95,30 @@ func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote,
 
 func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error) {
 	tx, err := impl.genericNoteRepository.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting db transaction", "err", err)
-		return nil, err
-	}
 	defer func() {
 		err = impl.genericNoteRepository.RollbackTx(tx)
 		if err != nil {
 			impl.logger.Debugw("error in rolling back transaction", "err", err, "request", req, "userId", userId)
 		}
 	}()
+
+	if err != nil {
+		impl.logger.Errorw("error in starting db transaction", "err", err)
+		return nil, err
+	}
+
 	model, err := impl.genericNoteRepository.FindByIdentifier(req.Identifier, req.IdentifierType)
 	if err != nil && err == pg.ErrNoRows {
 		impl.logger.Debugw("id not found to update generic_note, saving new entry", "req", req, "userId", userId)
-		return impl.Save(tx, req, userId)
+		res, err := impl.Save(tx, req, userId)
+		if err == nil {
+			err = impl.genericNoteRepository.CommitTx(tx)
+			if err != nil {
+				impl.logger.Errorw("error in committing db transaction", "err", err)
+				return nil, err
+			}
+		}
+		return res, err
 	}
 
 	// update the cluster description with new data

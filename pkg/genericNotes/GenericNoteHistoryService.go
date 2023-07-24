@@ -51,7 +51,7 @@ func NewClusterNoteHistoryServiceImpl(repositoryHistory repository.GenericNoteHi
 }
 
 func (impl *GenericNoteHistoryServiceImpl) Save(tx *pg.Tx, bean *GenericNoteHistoryBean, userId int32) (*GenericNoteHistoryBean, error) {
-	clusterAudit := &repository.ClusterNoteHistory{
+	clusterAudit := &repository.GenericNoteHistory{
 		NoteId:      bean.NoteId,
 		Description: bean.Description,
 	}

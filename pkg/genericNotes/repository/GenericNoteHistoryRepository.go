@@ -23,8 +23,8 @@ import (
 	"go.uber.org/zap"
 )
 
-type ClusterNoteHistory struct {
-	tableName   struct{} `sql:"cluster_note_history" pg:",discard_unknown_columns"`
+type GenericNoteHistory struct {
+	tableName   struct{} `sql:"generic_note_history" pg:",discard_unknown_columns"`
 	Id          int      `sql:"id,pk"`
 	NoteId      int      `sql:"note_id"`
 	Description string   `sql:"description"`
@@ -32,8 +32,8 @@ type ClusterNoteHistory struct {
 }
 
 type GenericNoteHistoryRepository interface {
-	SaveHistory(tx *pg.Tx, model *ClusterNoteHistory) error
-	FindHistoryByNoteId(id []int) ([]ClusterNoteHistory, error)
+	SaveHistory(tx *pg.Tx, model *GenericNoteHistory) error
+	FindHistoryByNoteId(id []int) ([]GenericNoteHistory, error)
 }
 
 func NewGenericNoteHistoryRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *GenericNoteHistoryRepositoryImpl {
@@ -48,12 +48,12 @@ type GenericNoteHistoryRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func (impl GenericNoteHistoryRepositoryImpl) SaveHistory(tx *pg.Tx, model *ClusterNoteHistory) error {
+func (impl GenericNoteHistoryRepositoryImpl) SaveHistory(tx *pg.Tx, model *GenericNoteHistory) error {
 	return tx.Insert(model)
 }
 
-func (impl GenericNoteHistoryRepositoryImpl) FindHistoryByNoteId(id []int) ([]ClusterNoteHistory, error) {
-	var clusterNoteHistories []ClusterNoteHistory
+func (impl GenericNoteHistoryRepositoryImpl) FindHistoryByNoteId(id []int) ([]GenericNoteHistory, error) {
+	var clusterNoteHistories []GenericNoteHistory
 	err := impl.dbConnection.
 		Model(&clusterNoteHistories).
 		Where("note_id =?", id).
