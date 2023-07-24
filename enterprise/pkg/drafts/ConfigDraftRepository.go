@@ -17,6 +17,7 @@ type ConfigDraftRepository interface {
 	GetDraftVersionsMetadata(draftId int) ([]*DraftVersion, error)
 	GetDraftVersionComments(draftId int) ([]*DraftVersionComment, error)
 	GetLatestConfigDraft(draftId int) (*DraftVersion, error)
+	GetDraftMetadataForAppAndEnv(appId int, envIds []int) ([]*DraftDto, error)
 	GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftDto, error)
 	GetDraftVersionById(draftVersionId int) (*DraftVersion, error)
 	DeleteComment(draftId int, draftCommentId int, userId int32) (int, error)
@@ -157,6 +158,18 @@ func (repo *ConfigDraftRepositoryImpl) GetLatestConfigDraft(draftId int) (*Draft
 		return nil, err
 	}
 	return draftVersion, nil
+}
+
+func (repo *ConfigDraftRepositoryImpl) GetDraftMetadataForAppAndEnv(appId int, envIds []int) ([]*DraftDto, error) {
+	var draftMetadataDtos []*DraftDto
+	err := repo.dbConnection.Model(&draftMetadataDtos).Where("app_id = ?", appId).Where("env_id in (?)", pg.In(envIds)).
+		Where("draft_state in (?)", pg.In(GetNonTerminalDraftStates())).Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error occurred while fetching draft metadata", "appId", appId, "envIds", envIds, "err", err)
+	} else {
+		err = nil //ignoring noRows Error
+	}
+	return draftMetadataDtos, err
 }
 
 func (repo *ConfigDraftRepositoryImpl) GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftDto, error) {

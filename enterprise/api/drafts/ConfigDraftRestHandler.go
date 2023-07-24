@@ -24,7 +24,7 @@ type ConfigDraftRestHandler interface {
 	ApproveDraft(w http.ResponseWriter, r *http.Request)
 	DeleteUserComment(w http.ResponseWriter, r *http.Request)
 	UpdateDraftState(w http.ResponseWriter, r *http.Request)
-	//TODO add draft state change request
+	GetDraftsCount(w http.ResponseWriter, r *http.Request)
 }
 
 type ConfigDraftRestHandlerImpl struct {
@@ -199,6 +199,41 @@ func (impl *ConfigDraftRestHandlerImpl) GetAppDrafts(w http.ResponseWriter, r *h
 	configDrafts, err := impl.configDraftService.GetDrafts(appId, envId, drafts.DraftResourceType(resourceType), userId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching draft comments", "err", err, "appId", appId, "envId", envId, "resourceType", resourceType)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, configDrafts, http.StatusOK)
+}
+
+func (impl *ConfigDraftRestHandlerImpl) GetDraftsCount(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	appId, err := common.ExtractIntQueryParam(w, r, "appId")
+	if err != nil {
+		return
+	}
+	envIds, err := common.ExtractIntArrayQueryParam(w, r, "envIds")
+	if err != nil {
+		return
+	}
+
+	//RBAC Starts
+	token := r.Header.Get("token")
+	object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC Ends
+
+	configDrafts, err := impl.configDraftService.GetDraftsCount(appId, envIds)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching draft count", "err", err, "appId", appId, "envIds", envIds)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

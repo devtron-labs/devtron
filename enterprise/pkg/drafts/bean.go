@@ -108,6 +108,12 @@ type ConfigDraftResponse struct {
 	CanApprove     *bool      `json:"canApprove,omitempty"`
 }
 
+type DraftCountResponse struct {
+	AppId       int `json:"appId"`
+	EnvId       int `json:"envId"`
+	DraftsCount int `json:"draftsCount"`
+}
+
 type ConfigDraftVersionRequest struct {
 	DraftId            int            `json:"draftId" validate:"number,required"`
 	LastDraftVersionId int            `json:"lastDraftVersionId" validate:"number,required"`

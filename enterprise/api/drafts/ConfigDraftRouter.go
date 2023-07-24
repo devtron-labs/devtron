@@ -28,6 +28,10 @@ func (router *ConfigDraftRouterImpl) InitConfigDraftRouter(configRouter *mux.Rou
 		Queries("envId", "{envId}").
 		Queries("resourceType", "{resourceType}").
 		Methods("GET")
+	configRouter.Path("/app/count").HandlerFunc(router.configDraftRestHandler.GetDraftsCount).
+		Queries("appId", "{appId}").
+		Queries("envIds", "{envIds}").
+		Methods("GET")
 	configRouter.Path("/{draftId}").HandlerFunc(router.configDraftRestHandler.GetDraftById).Methods("GET")
 	configRouter.Path("/version").HandlerFunc(router.configDraftRestHandler.AddDraftVersion).Methods("PUT")
 	configRouter.Path("/version/{draftId}").HandlerFunc(router.configDraftRestHandler.GetDraftVersionMetadata).Methods("GET")

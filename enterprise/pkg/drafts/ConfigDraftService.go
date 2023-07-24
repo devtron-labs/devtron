@@ -29,6 +29,7 @@ type ConfigDraftService interface {
 	GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
+	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
 }
 
 type ConfigDraftServiceImpl struct {
@@ -513,5 +514,25 @@ func (impl *ConfigDraftServiceImpl) checkUserContributedToDraft(draftId int, use
 	}
 	return false, nil
 }
+
+func (impl *ConfigDraftServiceImpl) GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error) {
+	var draftCountResponse []*DraftCountResponse
+	draftDtos, err := impl.configDraftRepository.GetDraftMetadataForAppAndEnv(appId, envIds)
+	if err != nil {
+		return draftCountResponse, err
+	}
+	draftCountMap := make(map[int]int, len(draftDtos))
+	for _, draftDto := range draftDtos {
+		envId := draftDto.EnvId
+		count := draftCountMap[envId]
+		count++
+		draftCountMap[envId] = count
+	}
+	for envId, count := range draftCountMap {
+		draftCountResponse = append(draftCountResponse, &DraftCountResponse{AppId: appId, EnvId: envId, DraftsCount: count})
+	}
+	return draftCountResponse, nil
+}
+
 
 
