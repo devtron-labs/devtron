@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -45,7 +44,7 @@ type AppRestHandler interface {
 	UpdateApp(w http.ResponseWriter, r *http.Request)
 	UpdateProjectForApps(w http.ResponseWriter, r *http.Request)
 	GetAppListByTeamIds(w http.ResponseWriter, r *http.Request)
-	UpdateClusterNote(w http.ResponseWriter, r *http.Request)
+	UpdateAppDescription(w http.ResponseWriter, r *http.Request)
 }
 
 type AppRestHandlerImpl struct {
@@ -345,7 +344,7 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, err, projectWiseApps, http.StatusOK)
 }
 
-func (handler AppRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *http.Request) {
+func (handler AppRestHandlerImpl) UpdateAppDescription(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -381,17 +380,7 @@ func (handler AppRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *ht
 
 	// RBAC enforcer ends
 
-	//TODO: handle this logic in service layer
 	clusterNoteResponseBean, err := handler.genericNoteService.Update(&bean, userId)
-	if err == pg.ErrNoRows {
-		clusterNoteResponseBean, err = handler.genericNoteService.Save(&bean, userId)
-		if err != nil {
-			handler.logger.Errorw("service err, Save", "error", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	}
-
 	if err != nil {
 		handler.logger.Errorw("cluster note service err, Update", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

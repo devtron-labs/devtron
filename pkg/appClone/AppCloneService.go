@@ -107,6 +107,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		}
 		return nil, err
 	}
+	//TODO: get description from generic note service
 	//create new app
 	cloneReq := &CloneRequest{
 		RefAppId:    createReq.TemplateId,

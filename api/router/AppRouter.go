@@ -58,5 +58,5 @@ func (router AppRouterImpl) InitAppRouter(appRouter *mux.Router) {
 
 	appRouter.Path("/description/note").
 		Methods("PUT").
-		HandlerFunc(router.handler.UpdateClusterNote)
+		HandlerFunc(router.handler.UpdateAppDescription)
 }

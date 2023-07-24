@@ -56,7 +56,7 @@ func (impl ClusterDescriptionRepositoryImpl) FindByClusterIdWithClusterDetails(c
 	query := "SELECT cl.id AS cluster_id, cl.cluster_name AS cluster_name, cl.created_on AS cluster_created_on, cl.created_by AS cluster_created_by, cln.id AS note_id, cln.description, cln.created_by, cln.created_on, cln.updated_by, cln.updated_on FROM" +
 		" cluster cl LEFT JOIN" +
 		" cluster_note cln " +
-		" ON cl.id=cln.identifier AND cln.identifier_type = 0" +
+		" ON cl.id=cln.identifier AND cln.identifier_type = 0" + //0 is identifier type for cluster description
 		" WHERE cl.id=%d AND cl.active=true " +
 		" LIMIT 1 OFFSET 0;"
 	query = fmt.Sprintf(query, clusterId)

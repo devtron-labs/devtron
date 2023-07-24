@@ -28,8 +28,8 @@ import (
 )
 
 type GenericNoteService interface {
-	Save(bean *repository.GenericNote, userId int32) (*repository.GenericNote, error)
-	Update(bean *repository.GenericNote, userId int32) (*repository.GenericNote, error)
+	Save(bean *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error)
+	Update(bean *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error)
 	GetGenericNotesForAppIds(appIds []int) (map[int]*bean.GenericNoteResponseBean, error)
 }
 
@@ -50,24 +50,23 @@ func NewClusterNoteServiceImpl(genericNoteRepository repository.GenericNoteRepos
 	return genericNoteService
 }
 
-// TODO: This should return genericNote response bean
-func (impl *GenericNoteServiceImpl) Save(bean *repository.GenericNote, userId int32) (*repository.GenericNote, error) {
-	existingModel, err := impl.genericNoteRepository.FindByClusterId(bean.Identifier)
+func (impl *GenericNoteServiceImpl) Save(req *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error) {
+	existingModel, err := impl.genericNoteRepository.FindByIdentifier(req.Identifier, req.IdentifierType)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
 		return nil, err
 	}
 	if existingModel.Id > 0 {
-		impl.logger.Errorw("error on fetching cluster, duplicate", "id", bean.Identifier)
+		impl.logger.Errorw("error on fetching cluster, duplicate", "id", req.Identifier)
 		return nil, fmt.Errorf("cluster note already exists")
 	}
 
-	bean.CreatedBy = userId
-	bean.UpdatedBy = userId
-	bean.CreatedOn = time.Now()
-	bean.UpdatedOn = time.Now()
+	req.CreatedBy = userId
+	req.UpdatedBy = userId
+	req.CreatedOn = time.Now()
+	req.UpdatedOn = time.Now()
 
-	err = impl.genericNoteRepository.Save(bean)
+	err = impl.genericNoteRepository.Save(req)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster note in db", "err", err)
 		return nil, err
@@ -75,28 +74,34 @@ func (impl *GenericNoteServiceImpl) Save(bean *repository.GenericNote, userId in
 
 	// audit the existing description to cluster audit history
 	clusterAudit := &GenericNoteHistoryBean{
-		NoteId:      bean.Id,
-		Description: bean.Description,
-		CreatedOn:   bean.CreatedOn,
-		CreatedBy:   bean.CreatedBy,
+		NoteId:      req.Id,
+		Description: req.Description,
+		CreatedOn:   req.CreatedOn,
+		CreatedBy:   req.CreatedBy,
 	}
 	_, _ = impl.genericNoteHistoryService.Save(clusterAudit, userId)
-	return bean, err
-}
-
-// TODO: this should return response bean
-func (impl *GenericNoteServiceImpl) Update(bean *repository.GenericNote, userId int32) (*repository.GenericNote, error) {
-	model, err := impl.genericNoteRepository.FindByClusterId(bean.Identifier)
+	user, err := impl.userRepository.GetById(req.UpdatedBy)
 	if err != nil {
-		impl.logger.Error(err)
 		return nil, err
 	}
-	if model.Id == 0 {
-		impl.logger.Errorw("error on fetching cluster note, not found", "id", bean.Id)
-		return nil, fmt.Errorf("cluster note not found")
+
+	return &bean.GenericNoteResponseBean{
+		Id:          req.Id,
+		Description: req.Description,
+		UpdatedBy:   user.EmailId,
+		UpdatedOn:   req.UpdatedOn,
+	}, err
+}
+
+func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error) {
+	model, err := impl.genericNoteRepository.FindByIdentifier(req.Identifier, req.IdentifierType)
+	if err != nil && err == pg.ErrNoRows {
+		impl.logger.Debugw("id not found to update generic_note, saving new entry", "req", req, "userId", userId)
+		return impl.Save(req, userId)
 	}
+
 	// update the cluster description with new data
-	model.Description = bean.Description
+	model.Description = req.Description
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
 
@@ -113,19 +118,59 @@ func (impl *GenericNoteServiceImpl) Update(bean *repository.GenericNote, userId 
 		CreatedBy:   model.CreatedBy,
 	}
 	_, _ = impl.genericNoteHistoryService.Save(clusterAudit, userId)
-	return model, err
+
+	user, err := impl.userRepository.GetById(model.UpdatedBy)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bean.GenericNoteResponseBean{
+		Id:          model.Id,
+		Description: model.Description,
+		UpdatedBy:   user.EmailId,
+		UpdatedOn:   model.UpdatedOn,
+	}, err
 }
 
 func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[int]*bean.GenericNoteResponseBean, error) {
 	appIdsToNoteMap := make(map[int]*bean.GenericNoteResponseBean)
+	//get notes saved in generic note table
 	notes, err := impl.genericNoteRepository.GetGenericNotesForAppIds(appIds)
 	if err != nil {
 		return appIdsToNoteMap, err
 	}
+
+	for _, note := range notes {
+		appIdsToNoteMap[note.Identifier] = &bean.GenericNoteResponseBean{
+			Id:          note.Id,
+			Description: note.Description,
+			UpdatedOn:   note.UpdatedOn,
+		}
+	}
+
+	//filter the apps/jobs for which description is not found in generic note table
+	notesNotFoundAppIds := make([]int, 0)
+	for _, appId := range appIds {
+		if _, ok := appIdsToNoteMap[appId]; !ok {
+			notesNotFoundAppIds = append(notesNotFoundAppIds, appId)
+		}
+	}
+
+	//get the description from the app table for the above notesNotFoundAppIds
+	descriptions, err := impl.genericNoteRepository.GetDescriptionFromAppIds(notesNotFoundAppIds)
+	if err != nil {
+		return appIdsToNoteMap, err
+	}
+
+	//get the users Email Ids for all the users
 	usersMap := make(map[int32]string)
-	userIds := make([]int32, 0, len(notes))
+	userIds := make([]int32, 0, len(appIds))
 	for _, note := range notes {
 		userIds = append(userIds, note.UpdatedBy)
+	}
+
+	for _, desc := range descriptions {
+		userIds = append(userIds, desc.UpdatedBy)
 	}
 
 	users, err := impl.userRepository.GetByIds(userIds)
@@ -137,20 +182,18 @@ func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[
 		usersMap[user.Id] = user.EmailId
 	}
 
-	for _, note := range notes {
-		appIdsToNoteMap[note.Identifier] = &bean.GenericNoteResponseBean{
-			Id:          note.Id,
-			Description: note.Description,
-			UpdatedBy:   usersMap[note.UpdatedBy],
-			UpdatedOn:   note.UpdatedOn,
+	//set the email ids in the response objects
+	for _, desc := range descriptions {
+		appIdsToNoteMap[desc.Identifier] = &bean.GenericNoteResponseBean{
+			Id:          desc.Id,
+			Description: desc.Description,
+			UpdatedBy:   usersMap[desc.UpdatedBy],
+			UpdatedOn:   desc.UpdatedOn,
 		}
 	}
 
-	notesNotFoundAppIds := make([]int, 0)
-	for _, appId := range appIds {
-		if _, ok := appIdsToNoteMap[appId]; !ok {
-			notesNotFoundAppIds = append(notesNotFoundAppIds, appId)
-		}
+	for _, note := range notes {
+		appIdsToNoteMap[note.Identifier].UpdatedBy = usersMap[note.UpdatedBy]
 	}
 
 	return appIdsToNoteMap, nil

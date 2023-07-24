@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"net/http"
@@ -482,32 +481,9 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 	}
 	// RBAC enforcer ends
 
-	_, err = impl.clusterNoteService.Update(&bean, userId)
-	if err == pg.ErrNoRows {
-		_, err = impl.clusterNoteService.Save(&bean, userId)
-		if err != nil {
-			impl.logger.Errorw("service err, Save", "error", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	}
-	if err != nil {
-		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	userInfo, err := impl.userService.GetById(bean.UpdatedBy)
-	if err != nil {
-		impl.logger.Errorw("user service err, FindById", "err", err, "userId", bean.UpdatedBy)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	clusterNoteResponseBean := &bean2.GenericNoteResponseBean{
-		Id:          bean.Id,
-		Description: bean.Description,
-		UpdatedOn:   bean.UpdatedOn,
-		UpdatedBy:   userInfo.EmailId,
-	}
+	bean.IdentifierType = repository.ClusterType
+	clusterNoteResponseBean, err := impl.clusterNoteService.Update(&bean, userId)
+
 	if err != nil {
 		impl.logger.Errorw("cluster note service err, Update", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

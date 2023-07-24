@@ -43,6 +43,7 @@ type GenericNoteRepository interface {
 	Save(model *GenericNote) error
 	FindByClusterId(id int) (*GenericNote, error)
 	FindByAppId(id int) (*GenericNote, error)
+	FindByIdentifier(identifier int, identifierType NoteType) (*GenericNote, error)
 	Update(model *GenericNote) error
 	GetGenericNotesForAppIds(appIds []int) ([]*GenericNote, error)
 	GetDescriptionFromAppIds(appIds []int) ([]*GenericNote, error)
@@ -65,14 +66,7 @@ func (impl GenericNoteRepositoryImpl) Save(model *GenericNote) error {
 }
 
 func (impl GenericNoteRepositoryImpl) FindByClusterId(id int) (*GenericNote, error) {
-	clusterNote := &GenericNote{}
-	err := impl.dbConnection.
-		Model(clusterNote).
-		Where("identifier =?", id).
-		Where("identifier_type =?", ClusterType).
-		Limit(1).
-		Select()
-	return clusterNote, err
+	return impl.FindByIdentifier(id, ClusterType)
 }
 
 func (impl GenericNoteRepositoryImpl) Update(model *GenericNote) error {
@@ -80,11 +74,15 @@ func (impl GenericNoteRepositoryImpl) Update(model *GenericNote) error {
 }
 
 func (impl GenericNoteRepositoryImpl) FindByAppId(id int) (*GenericNote, error) {
+	return impl.FindByIdentifier(id, AppType)
+}
+
+func (impl GenericNoteRepositoryImpl) FindByIdentifier(identifier int, identifierType NoteType) (*GenericNote, error) {
 	clusterNote := &GenericNote{}
 	err := impl.dbConnection.
 		Model(clusterNote).
-		Where("identifier =?", id).
-		Where("identifier_type =?", AppType).
+		Where("identifier =?", identifier).
+		Where("identifier_type =?", identifier).
 		Limit(1).
 		Select()
 	return clusterNote, err
