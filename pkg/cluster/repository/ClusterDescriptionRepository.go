@@ -53,10 +53,10 @@ type ClusterDescriptionRepositoryImpl struct {
 
 func (impl ClusterDescriptionRepositoryImpl) FindByClusterIdWithClusterDetails(clusterId int) (*ClusterDescription, error) {
 	clusterDescription := &ClusterDescription{}
-	query := "SELECT cl.id AS cluster_id, cl.cluster_name AS cluster_name, cl.created_on AS cluster_created_on, cl.created_by AS cluster_created_by, cln.id AS note_id, cln.description, cln.created_by, cln.created_on, cln.updated_by, cln.updated_on FROM" +
+	query := "SELECT cl.id AS cluster_id, cl.cluster_name AS cluster_name, cl.created_on AS cluster_created_on, cl.created_by AS cluster_created_by, gn.id AS note_id, gn.description, gn.created_by, gn.created_on, gn.updated_by, gn.updated_on FROM" +
 		" cluster cl LEFT JOIN" +
-		" cluster_note cln " +
-		" ON cl.id=cln.identifier AND cln.identifier_type = 0" + //0 is identifier type for cluster description
+		" generic_note gn " +
+		" ON cl.id=gn.identifier AND gn.identifier_type = 0" + //0 is identifier type for cluster description
 		" WHERE cl.id=%d AND cl.active=true " +
 		" LIMIT 1 OFFSET 0;"
 	query = fmt.Sprintf(query, clusterId)

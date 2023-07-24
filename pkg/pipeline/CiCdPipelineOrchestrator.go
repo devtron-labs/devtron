@@ -877,17 +877,20 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		return nil, err
 	}
 
-	descriptionObj := repository3.GenericNote{
-		Description:    createRequest.Description.Description,
-		IdentifierType: repository3.AppType,
-		Identifier:     app.Id,
+	if createRequest.Description != nil && createRequest.Description.Description != "" {
+		descriptionObj := repository3.GenericNote{
+			Description:    createRequest.Description.Description,
+			IdentifierType: repository3.AppType,
+			Identifier:     app.Id,
+		}
+		note, err := impl.genericNoteService.Save(&descriptionObj, createRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in saving description", "err", err, "descriptionObj", descriptionObj, "userId", createRequest.UserId)
+			return nil, err
+		}
+		createRequest.Description = note
 	}
-	note, err := impl.genericNoteService.Save(&descriptionObj, createRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in saving description", "err", err, "descriptionObj", descriptionObj, "userId", createRequest.UserId)
-		return nil, err
-	}
-	createRequest.Description = *note
+
 	// create labels and tags with app
 	if app.Active && len(createRequest.AppLabels) > 0 {
 		for _, label := range createRequest.AppLabels {

@@ -81,12 +81,12 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 }
 
 type CloneRequest struct {
-	RefAppId    int                           `json:"refAppId"`
-	Name        string                        `json:"name"`
-	ProjectId   int                           `json:"projectId"`
-	AppLabels   []*bean.Label                 `json:"labels,omitempty" validate:"dive"`
-	Description bean2.GenericNoteResponseBean `json:"description"`
-	AppType     helper.AppType                `json:"appType"`
+	RefAppId    int                            `json:"refAppId"`
+	Name        string                         `json:"name"`
+	ProjectId   int                            `json:"projectId"`
+	AppLabels   []*bean.Label                  `json:"labels,omitempty" validate:"dive"`
+	Description *bean2.GenericNoteResponseBean `json:"description"`
+	AppType     helper.AppType                 `json:"appType"`
 }
 
 func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
