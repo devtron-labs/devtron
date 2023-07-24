@@ -40,3 +40,8 @@ type RotatePodRequest struct {
 	ClusterId int                      `json:"clusterId"`
 	Resources []k8s.ResourceIdentifier `json:"resources"`
 }
+type PodContainerList struct {
+	Containers          []string
+	InitContainers      []string
+	EphemeralContainers []string
+}

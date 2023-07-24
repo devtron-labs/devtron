@@ -1,0 +1,109 @@
+openapi: 3.0.0
+info:
+  title: Orchestrator K8s API
+  version: 1.0.0
+paths:
+  /orchestrator/k8s/resources/ephemeralContainers:
+    post:
+      summary: Create Ephemeral Container
+      parameters:
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EphemeralContainerRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PodContainerList"
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+    delete:
+      summary: Delete Ephemeral Container
+      parameters:
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EphemeralContainerRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PodContainerList"
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+
+components:
+  schemas:
+    EphemeralContainerRequest:
+      type: object
+      properties:
+        basicData:
+          $ref: "#/components/schemas/EphemeralContainerBasicData"
+        advancedData:
+          $ref: "#/components/schemas/EphemeralContainerAdvancedData"
+        namespace:
+          type: string
+        clusterId:
+          type: integer
+        podName:
+          type: string
+        userId:
+          type: integer
+      required:
+        - namespace
+        - clusterId
+        - podName
+    EphemeralContainerBasicData:
+      type: object
+      properties:
+        containerName:
+          type: string
+        targetContainerName:
+          type: string
+        image:
+          type: string
+      required:
+        - containerName
+        - targetContainerName
+        - image
+    EphemeralContainerAdvancedData:
+      type: object
+      properties:
+        manifest:
+          type: string
+    PodContainerList:
+      type: object
+      properties:
+        containers:
+          type: array
+          items:
+            type: string
+        initContainers:
+          type: array
+          items:
+            type: string
+        ephemeralContainers:
+          type: array
+          items:
+            type: string

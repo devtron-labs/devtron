@@ -10,6 +10,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
@@ -23,6 +24,7 @@ import (
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -44,6 +46,8 @@ type K8sApplicationRestHandler interface {
 	GetResourceList(w http.ResponseWriter, r *http.Request)
 	ApplyResources(w http.ResponseWriter, r *http.Request)
 	RotatePod(w http.ResponseWriter, r *http.Request)
+	CreateEphemeralContainer(w http.ResponseWriter, r *http.Request)
+	DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -52,6 +56,7 @@ type K8sApplicationRestHandlerImpl struct {
 	pump                   connector.Pump
 	terminalSessionHandler terminal.TerminalSessionHandler
 	enforcer               casbin.Enforcer
+	validator              *validator.Validate
 	enforcerUtil           rbac.EnforcerUtil
 	enforcerUtilHelm       rbac.EnforcerUtilHelm
 	helmAppService         client.HelmAppService
@@ -59,13 +64,14 @@ type K8sApplicationRestHandlerImpl struct {
 	k8sCommonService       k8s.K8sCommonService
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService) *K8sApplicationRestHandlerImpl {
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
 		pump:                   pump,
 		terminalSessionHandler: terminalSessionHandler,
 		enforcer:               enforcer,
+		validator:              validator,
 		enforcerUtilHelm:       enforcerUtilHelm,
 		enforcerUtil:           enforcerUtil,
 		helmAppService:         helmAppService,
@@ -675,6 +681,11 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 
 func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	request, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -708,7 +719,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		common.WriteJsonResp(w, errors.New("can not get terminal session as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
-
+	request.UserId = userId
 	status, message, err := handler.terminalSessionHandler.GetTerminalSession(request)
 	common.WriteJsonResp(w, err, message, status)
 }
@@ -826,4 +837,129 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string
 func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool {
 	k8sRequest := request.K8sRequest
 	return handler.verifyRbacForResource(token, clusterName, k8sRequest.ResourceIdentifier, casbinAction)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request cluster.EphemeralContainerRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if err = handler.validator.Struct(request); err != nil || (request.BasicData == nil && request.AdvancedData == nil) {
+		if err != nil {
+			err = errors.New("invalid request payload")
+		}
+		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//rbac applied in below function
+	resourceRequestBean := handler.handleEphemeralRBAC(request.PodName, request.Namespace, w, r)
+	if resourceRequestBean == nil {
+		return
+	}
+	if resourceRequestBean.ClusterId != request.ClusterId {
+		common.WriteJsonResp(w, errors.New("clusterId mismatch in param and request body"), nil, http.StatusBadRequest)
+		return
+	}
+	request.UserId = userId
+	err = handler.k8sApplicationService.CreatePodEphemeralContainers(&request)
+	if err != nil {
+		handler.logger.Errorw("error occurred in creating ephemeral container", "err", err, "requestPayload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, request.BasicData.ContainerName, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request cluster.EphemeralContainerRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if err = handler.validator.Struct(request); err != nil || request.BasicData == nil {
+		if err != nil {
+			err = errors.New("invalid request payload")
+		}
+		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//rbac applied in below function
+	resourceRequestBean := handler.handleEphemeralRBAC(request.PodName, request.Namespace, w, r)
+	if resourceRequestBean == nil {
+		return
+	}
+	if resourceRequestBean.ClusterId != request.ClusterId {
+		common.WriteJsonResp(w, errors.New("clusterId mismatch in param and request body"), nil, http.StatusBadRequest)
+		return
+	}
+	request.UserId = userId
+	_, err = handler.k8sApplicationService.TerminatePodEphemeralContainer(request)
+	if err != nil {
+		handler.logger.Errorw("error occurred in terminating ephemeral container", "err", err, "requestPayload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, request.BasicData.ContainerName, http.StatusOK)
+
+}
+
+func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, namespace string, w http.ResponseWriter, r *http.Request) *k8s.ResourceRequestBean {
+	token := r.Header.Get("token")
+	_, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return resourceRequestBean
+	}
+	if resourceRequestBean.AppIdentifier != nil {
+		// RBAC enforcer applying For Helm App
+		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+
+		if !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return resourceRequestBean
+		}
+		//RBAC enforcer Ends
+	} else if resourceRequestBean.DevtronAppIdentifier != nil {
+		// RBAC enforcer applying For Devtron App
+		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(resourceRequestBean.DevtronAppIdentifier.AppId, resourceRequestBean.DevtronAppIdentifier.EnvId)
+		if !handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject) {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return resourceRequestBean
+		}
+		//RBAC enforcer Ends
+	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 {
+		//RBAC enforcer applying for Resource Browser
+		resourceRequestBean.K8sRequest.ResourceIdentifier.Name = podName
+		resourceRequestBean.K8sRequest.ResourceIdentifier.Namespace = namespace
+		if !handler.handleRbac(r, w, *resourceRequestBean, token, casbin.ActionUpdate) {
+			return resourceRequestBean
+		}
+		//RBAC enforcer Ends
+	} else {
+		common.WriteJsonResp(w, errors.New("can not create/terminate ephemeral containers as target cluster is not provided"), nil, http.StatusBadRequest)
+		return resourceRequestBean
+	}
+	return resourceRequestBean
 }

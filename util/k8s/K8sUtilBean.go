@@ -9,8 +9,9 @@ import (
 )
 
 type ClusterResourceListMap struct {
-	Headers []string                 `json:"headers"`
-	Data    []map[string]interface{} `json:"data"`
+	Headers       []string                 `json:"headers"`
+	Data          []map[string]interface{} `json:"data"`
+	ServerVersion string                   `json:"serverVersion"`
 }
 
 type EventsResponse struct {

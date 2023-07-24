@@ -27,6 +27,7 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	bean2 "github.com/devtron-labs/devtron/api/restHandler/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -42,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -105,6 +107,7 @@ type AppListingRestHandlerImpl struct {
 	installedAppRepository            repository.InstalledAppRepository
 	environmentClusterMappingsService cluster.EnvironmentService
 	cfg                               *bean.Config
+	k8sApplicationService             application3.K8sApplicationService
 }
 
 type AppStatus struct {
@@ -134,6 +137,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
 	environmentClusterMappingsService cluster.EnvironmentService,
+	k8sApplicationService application3.K8sApplicationService,
 ) *AppListingRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
@@ -164,6 +168,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		installedAppRepository:            installedAppRepository,
 		environmentClusterMappingsService: environmentClusterMappingsService,
 		cfg:                               cfg,
+		k8sApplicationService:             k8sApplicationService,
 	}
 	return appListingHandler
 }
@@ -1511,6 +1516,17 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
 		resp, err := handler.application.ResourceTree(ctx, query)
+		//we currently add appId and envId as labels for devtron apps deployed via acd
+		label := fmt.Sprintf("appId=%v,envId=%v", cdPipeline.AppId, cdPipeline.EnvironmentId)
+		pods, err := handler.k8sApplicationService.GetPodListByLabel(cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, label)
+		if err != nil {
+			handler.logger.Errorw("error in getting pods by label", "err", err, "clusterId", cdPipeline.Environment.ClusterId, "namespace", cdPipeline.Environment.Namespace, "label", label)
+			return resourceTree, err
+		}
+		ephemeralContainersMap := bean2.ExtractEphemeralContainers(pods)
+		for _, metaData := range resp.PodMetadata {
+			metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
+		}
 		elapsed := time.Since(start)
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
@@ -1584,6 +1600,12 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 	} else {
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
+	}
+	version, err := handler.k8sCommonService.GetK8sServerVersion(cdPipeline.Environment.ClusterId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", cdPipeline.Environment.ClusterId, "err", err)
+	} else {
+		resourceTree["serverVersion"] = version.String()
 	}
 	return resourceTree, nil
 }

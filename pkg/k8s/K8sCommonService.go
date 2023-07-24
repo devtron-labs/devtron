@@ -16,6 +16,9 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/kubernetes"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"strconv"
 	"strings"
@@ -34,6 +37,8 @@ type K8sCommonService interface {
 	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
+	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error)
+	GetK8sServerVersion(clusterId int) (*version.Info, error)
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -412,4 +417,40 @@ func (impl *K8sCommonServiceImpl) getUrls(manifest *k8s.ManifestResponse) bean3.
 	}
 	res.Urls = urls
 	return res
+}
+
+func (impl *K8sCommonServiceImpl) GetK8sServerVersion(clusterId int) (*version.Info, error) {
+	clientSet, _, err := impl.GetCoreClientByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	k8sVersion, err := impl.K8sUtil.GetK8sServerVersion(clientSet)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	return k8sVersion, err
+}
+func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error) {
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", clusterId, "err", err)
+		return nil, nil, err
+	}
+
+	clusterConfig := clusterBean.GetClusterConfig()
+	v1Client, err := impl.K8sUtil.GetClient(&clusterConfig)
+	if err != nil {
+		//not logging clusterConfig as it contains sensitive data
+		impl.logger.Errorw("error occurred in getting v1Client with cluster config", "err", err, "clusterId", clusterId)
+		return nil, nil, err
+	}
+	clientSet, err := impl.K8sUtil.GetClientSet(&clusterConfig)
+	if err != nil {
+		//not logging clusterConfig as it contains sensitive data
+		impl.logger.Errorw("error occurred in getting clientSet with cluster config", "err", err, "clusterId", clusterId)
+		return nil, v1Client, err
+	}
+	return clientSet, v1Client, nil
 }

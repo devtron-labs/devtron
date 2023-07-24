@@ -3,26 +3,32 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	util2 "github.com/devtron-labs/devtron/util"
 	k8s2 "github.com/devtron-labs/devtron/util/k8s"
 	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"io"
+	corev1 "k8s.io/api/core/v1"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/rest"
 	"net/http"
 	"strconv"
@@ -42,29 +48,42 @@ type K8sApplicationService interface {
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *k8s2.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s2.ApplyResourcesResponse, error)
+	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
+	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
+	GetPodContainersList(clusterId int, namespace, podName string) (*k8s.PodContainerList, error)
+	GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error)
 }
 type K8sApplicationServiceImpl struct {
-	logger                    *zap.SugaredLogger
-	clusterService            cluster.ClusterService
-	pump                      connector.Pump
-	helmAppService            client.HelmAppService
-	K8sUtil                   *k8s2.K8sUtil
-	aCDAuthConfig             *util3.ACDAuthConfig
-	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService
-	k8sCommonService          k8s.K8sCommonService
+	logger                       *zap.SugaredLogger
+	clusterService               cluster.ClusterService
+	pump                         connector.Pump
+	helmAppService               client.HelmAppService
+	K8sUtil                      *k8s2.K8sUtil
+	aCDAuthConfig                *util3.ACDAuthConfig
+	K8sResourceHistoryService    kubernetesResourceAuditLogs.K8sResourceHistoryService
+	k8sCommonService             k8s.K8sCommonService
+	terminalSession              terminal.TerminalSessionHandler
+	ephemeralContainerService    cluster.EphemeralContainerService
+	ephemeralContainerRepository repository.EphemeralContainersRepository
 }
 
-func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, k8sCommonService k8s.K8sCommonService) *K8sApplicationServiceImpl {
+func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
+	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
+	ephemeralContainerService cluster.EphemeralContainerService,
+	ephemeralContainerRepository repository.EphemeralContainersRepository) *K8sApplicationServiceImpl {
 
 	return &K8sApplicationServiceImpl{
-		logger:                    Logger,
-		clusterService:            clusterService,
-		pump:                      pump,
-		helmAppService:            helmAppService,
-		K8sUtil:                   K8sUtil,
-		aCDAuthConfig:             aCDAuthConfig,
-		K8sResourceHistoryService: K8sResourceHistoryService,
-		k8sCommonService:          k8sCommonService,
+		logger:                       Logger,
+		clusterService:               clusterService,
+		pump:                         pump,
+		helmAppService:               helmAppService,
+		K8sUtil:                      K8sUtil,
+		aCDAuthConfig:                aCDAuthConfig,
+		K8sResourceHistoryService:    K8sResourceHistoryService,
+		k8sCommonService:             k8sCommonService,
+		terminalSession:              terminalSession,
+		ephemeralContainerService:    ephemeralContainerService,
+		ephemeralContainerRepository: ephemeralContainerRepository,
 	}
 }
 
@@ -370,7 +389,7 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 
 				//finding the container name in ephemeral containers
 				for _, ephemeralContainer := range pod.EphemeralContainers {
-					if ephemeralContainer == requestContainerName {
+					if ephemeralContainer.Name == requestContainerName {
 						return true
 					}
 				}
@@ -525,6 +544,13 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
 	}
+	k8sServerVersion, err := impl.k8sCommonService.GetK8sServerVersion(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
+		//return nil, err
+	} else {
+		resourceList.ServerVersion = k8sServerVersion.String()
+	}
 	return resourceList, nil
 }
 
@@ -628,4 +654,240 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Con
 	}
 
 	return isUpdateResource, nil
+}
+func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error {
+
+	clientSet, v1Client, err := impl.k8sCommonService.GetCoreClientByClusterId(req.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
+		return err
+	}
+	compatible, err := impl.K8sUtil.K8sServerVersionCheckForEphemeralContainers(clientSet)
+	if err != nil {
+		impl.logger.Errorw("error in checking kubernetes server version compatability for ephemeral containers", "clusterId", req.ClusterId, "err", err)
+		return err
+	}
+	if !compatible {
+		return errors.New("This feature is supported on and above Kubernetes v1.23 only.")
+	}
+	pod, err := impl.K8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
+	if err != nil {
+		impl.logger.Errorw("error in getting pod", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "err", err)
+		return err
+	}
+
+	podJS, err := json.Marshal(pod)
+	if err != nil {
+		impl.logger.Errorw("error occurred in unMarshaling pod object", "podObject", pod, "err", err)
+		return fmt.Errorf("error creating JSON for pod: %v", err)
+	}
+	debugPod, debugContainer, err := impl.generateDebugContainer(pod, *req)
+	if err != nil {
+		impl.logger.Errorw("error in generateDebugContainer", "request", req, "err", err)
+		return err
+	}
+
+	debugJS, err := json.Marshal(debugPod)
+	if err != nil {
+		impl.logger.Errorw("error occurred in unMarshaling debugPod object", "debugPod", debugPod, "err", err)
+		return fmt.Errorf("error creating JSON for pod: %v", err)
+	}
+
+	patch, err := strategicpatch.CreateTwoWayMergePatch(podJS, debugJS, pod)
+	if err != nil {
+		impl.logger.Errorw("error occurred in CreateTwoWayMergePatch", "podJS", podJS, "debugJS", debugJS, "pod", pod, "err", err)
+		return fmt.Errorf("error creating patch to add debug container: %v", err)
+	}
+
+	_, err = v1Client.Pods(req.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}, "ephemeralcontainers")
+	if err != nil {
+		if serr, ok := err.(*errors2.StatusError); ok && serr.Status().Reason == metav1.StatusReasonNotFound && serr.ErrStatus.Details.Name == "" {
+			impl.logger.Errorw("error occurred while creating ephemeral containers", "err", err, "reason", "ephemeral containers are disabled for this cluster")
+			return fmt.Errorf("ephemeral containers are disabled for this cluster (error from kubernetes server: %q)", err)
+		}
+		if runtime.IsNotRegisteredError(err) {
+			patch, err := json.Marshal([]map[string]interface{}{{
+				"op":    "add",
+				"path":  "/ephemeralContainers/-",
+				"value": debugContainer,
+			}})
+			if err != nil {
+				impl.logger.Errorw("error occured while trying to create epehemral containers with legacy API", "err", err)
+				return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
+			}
+			//try with legacy API
+			result := v1Client.RESTClient().Patch(types.JSONPatchType).
+				Namespace(pod.Namespace).
+				Resource("pods").
+				Name(pod.Name).
+				SubResource("ephemeralcontainers").
+				Body(patch).
+				Do(context.Background())
+			return result.Error()
+		}
+		return err
+	}
+
+	if err == nil {
+		debugContainerJs, err := json.Marshal(debugContainer)
+		if err != nil {
+			impl.logger.Errorw("error occurred in unMarshaling debugContainer object", "debugContainerJs", debugContainer, "err", err)
+			return fmt.Errorf("error creating JSON for pod: %v", err)
+		}
+		req.AdvancedData = &cluster.EphemeralContainerAdvancedData{
+			Manifest: string(debugContainerJs),
+		}
+		req.BasicData = &cluster.EphemeralContainerBasicData{
+			ContainerName:       debugContainer.Name,
+			TargetContainerName: debugContainer.TargetContainerName,
+			Image:               debugContainer.Image,
+		}
+		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(*req, repository.ActionCreate)
+		if err != nil {
+			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+			return err
+		}
+		return nil
+	}
+
+	impl.logger.Errorw("error in creating ephemeral containers ", "err", err, "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "ephemeralContainerSpec", debugContainer)
+	return err
+}
+
+func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, req cluster.EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
+	copied := pod.DeepCopy()
+	ephemeralContainer := &corev1.EphemeralContainer{}
+	if req.AdvancedData != nil {
+		err := json.Unmarshal([]byte(req.AdvancedData.Manifest), ephemeralContainer)
+		if err != nil {
+			impl.logger.Errorw("error occurred in unMarshaling advanced ephemeral data", "err", err, "advancedData", req.AdvancedData.Manifest)
+			return copied, ephemeralContainer, err
+		}
+		if ephemeralContainer.TargetContainerName == "" || ephemeralContainer.Name == "" || ephemeralContainer.Image == "" {
+			return copied, ephemeralContainer, errors.New("containerName,targetContainerName and image cannot be empty")
+		}
+		if len(ephemeralContainer.Command) > 0 {
+			return copied, ephemeralContainer, errors.New("Command field is not supported, please remove command and try again")
+		}
+	} else {
+		ephemeralContainer = &corev1.EphemeralContainer{
+			EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+				Name:                     req.BasicData.ContainerName,
+				Env:                      nil,
+				Image:                    req.BasicData.Image,
+				ImagePullPolicy:          corev1.PullIfNotPresent,
+				Stdin:                    true,
+				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
+				TTY:                      true,
+			},
+			TargetContainerName: req.BasicData.TargetContainerName,
+		}
+	}
+	ephemeralContainer.Name = ephemeralContainer.Name + "-" + util2.Generate(5)
+	scriptCreateCommand := fmt.Sprintf("echo 'while true; do sleep 600; done;' > %s-devtron.sh", ephemeralContainer.Name)
+	scriptRunCommand := fmt.Sprintf("sh %s-devtron.sh", ephemeralContainer.Name)
+	ephemeralContainer.Command = []string{"sh", "-c", scriptCreateCommand + " && " + scriptRunCommand}
+	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ephemeralContainer)
+	ephemeralContainer = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
+	return copied, ephemeralContainer, nil
+
+}
+
+func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error) {
+	terminalReq := &terminal.TerminalSessionRequest{
+		PodName:       req.PodName,
+		ClusterId:     req.ClusterId,
+		Namespace:     req.Namespace,
+		ContainerName: req.BasicData.ContainerName,
+	}
+	container, err := impl.ephemeralContainerRepository.FindContainerByName(terminalReq.ClusterId, terminalReq.Namespace, terminalReq.PodName, terminalReq.ContainerName)
+	if err != nil {
+		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "ClusterId", terminalReq.ClusterId, "Namespace", terminalReq.Namespace, "PodName", terminalReq.PodName, "ContainerName", terminalReq.ContainerName)
+		return false, err
+	}
+	if container == nil {
+		return false, errors.New("externally created ephemeral containers cannot be removed")
+	}
+	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s-devtron' -o)", terminalReq.ContainerName)
+	cmds := []string{"sh", "-c", containerKillCommand}
+	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
+	if err != nil {
+		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmds, "podName", req.PodName, "namespace", req.Namespace)
+		return false, err
+	}
+	errBufString := errBuf.String()
+	if errBufString != "" {
+		impl.logger.Errorw("error response on executing commands ", "err", errBufString, "commands", cmds, "podName", req.Namespace, "namespace", req.Namespace)
+		return false, err
+	}
+
+	if err == nil {
+
+		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
+		if err != nil {
+			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+			return true, err
+		}
+
+	}
+
+	return true, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, namespace, podName string) (*k8s.PodContainerList, error) {
+	_, v1Client, err := impl.k8sCommonService.GetCoreClientByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	pod, err := impl.K8sUtil.GetPodByName(namespace, podName, v1Client)
+	if err != nil {
+		impl.logger.Errorw("error in getting pod", "clusterId", clusterId, "namespace", namespace, "podName", podName, "err", err)
+		return nil, err
+	}
+	ephemeralContainerStatusMap := make(map[string]bool)
+	for _, c := range pod.Status.EphemeralContainerStatuses {
+		//c.state contains three states running,waiting and terminated
+		// at any point of time only one state will be there
+		if c.State.Running != nil {
+			ephemeralContainerStatusMap[c.Name] = true
+		}
+	}
+	containers := make([]string, len(pod.Spec.Containers))
+	initContainers := make([]string, len(pod.Spec.InitContainers))
+	ephemeralContainers := make([]string, 0, len(pod.Spec.EphemeralContainers))
+
+	for i, c := range pod.Spec.Containers {
+		containers[i] = c.Name
+	}
+
+	for _, ec := range pod.Spec.EphemeralContainers {
+		if _, ok := ephemeralContainerStatusMap[ec.Name]; ok {
+			ephemeralContainers = append(ephemeralContainers, ec.Name)
+		}
+	}
+
+	for i, ic := range pod.Spec.InitContainers {
+		initContainers[i] = ic.Name
+	}
+
+	return &k8s.PodContainerList{
+		Containers:          containers,
+		EphemeralContainers: ephemeralContainers,
+		InitContainers:      initContainers,
+	}, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error) {
+	clientSet, _, err := impl.k8sCommonService.GetCoreClientByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	pods, err := impl.K8sUtil.GetPodListByLabel(namespace, label, clientSet)
+	if err != nil {
+		impl.logger.Errorw("error in getting pods list", "clusterId", clusterId, "namespace", namespace, "label", label, "err", err)
+		return nil, err
+	}
+	return pods, err
 }
