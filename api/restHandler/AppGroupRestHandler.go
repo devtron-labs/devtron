@@ -257,12 +257,6 @@ func (handler AppGroupRestHandlerImpl) CheckAppGroupPermissions(w http.ResponseW
 		return
 	}
 	request.EnvironmentId = envId
-	err = handler.validator.Struct(request)
-	if err != nil {
-		handler.logger.Errorw("validation error", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	handler.logger.Infow("request payload, CreateAppGroup", "payload", request)
 	request.CheckAuthBatch = handler.checkAuthBatch
 	request.EmailId = emailId
