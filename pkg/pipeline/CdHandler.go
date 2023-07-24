@@ -1670,7 +1670,11 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
 			return err
 		}
-		impl.performNotificationApprovalAction(approvalActionRequest, userId)
+		err = impl.performNotificationApprovalAction(approvalActionRequest, userId)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while performing notification approval action", "approvalActionRequest", approvalActionRequest, "userId", userId, "err", err)
+			return err
+		}
 
 	} else {
 		// fetch if cd wf runner is present then user cannot cancel the request, as deployment has been triggered already
@@ -1694,18 +1698,19 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 	return nil
 }
 
-func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean2.UserApprovalActionRequest, userId int32) {
+func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean2.UserApprovalActionRequest, userId int32) error {
 	eventType := util2.Approval
 	pipeline, err := impl.pipelineRepository.FindById(approvalActionRequest.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
-		return
+		return err
 	}
 	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, "")
 	event = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.Logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+		return evtErr
 	}
-
+	return nil
 }

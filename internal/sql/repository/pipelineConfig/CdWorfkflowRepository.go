@@ -381,12 +381,13 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
+	searchStringFinal := "%" + searchString + "%"
 	err := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
-		Where("cd_workflow__ci_artifact.image LIKE ?", "%"+searchString+"%").
+		Where("cd_workflow__ci_artifact.image LIKE ?", searchStringFinal).
 		Order("cd_workflow_runner.id DESC").
 		Limit(limit).
 		Select()
