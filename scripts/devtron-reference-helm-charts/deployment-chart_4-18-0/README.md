@@ -793,7 +793,7 @@ Here,
 
 here is an example,
 ```yaml
-winterSolider:
+winterSoldier:
   apiVersion: pincher.devtron.ai/v1alpha1 
   enabled: true
   annotations: {}
