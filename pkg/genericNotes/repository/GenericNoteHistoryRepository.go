@@ -32,7 +32,7 @@ type ClusterNoteHistory struct {
 }
 
 type GenericNoteHistoryRepository interface {
-	SaveHistory(model *ClusterNoteHistory) error
+	SaveHistory(tx *pg.Tx, model *ClusterNoteHistory) error
 	FindHistoryByNoteId(id []int) ([]ClusterNoteHistory, error)
 }
 
@@ -48,8 +48,8 @@ type GenericNoteHistoryRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func (impl GenericNoteHistoryRepositoryImpl) SaveHistory(model *ClusterNoteHistory) error {
-	return impl.dbConnection.Insert(model)
+func (impl GenericNoteHistoryRepositoryImpl) SaveHistory(tx *pg.Tx, model *ClusterNoteHistory) error {
+	return tx.Insert(model)
 }
 
 func (impl GenericNoteHistoryRepositoryImpl) FindHistoryByNoteId(id []int) ([]ClusterNoteHistory, error) {

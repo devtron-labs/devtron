@@ -883,7 +883,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 			IdentifierType: repository3.AppType,
 			Identifier:     app.Id,
 		}
-		note, err := impl.genericNoteService.Save(&descriptionObj, createRequest.UserId)
+		note, err := impl.genericNoteService.Save(tx, &descriptionObj, createRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in saving description", "err", err, "descriptionObj", descriptionObj, "userId", createRequest.UserId)
 			return nil, err

@@ -19,6 +19,7 @@ package genericNotes
 
 import (
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
+	"github.com/go-pg/pg"
 	"time"
 
 	"go.uber.org/zap"
@@ -33,7 +34,7 @@ type GenericNoteHistoryBean struct {
 }
 
 type GenericNoteHistoryService interface {
-	Save(bean *GenericNoteHistoryBean, userId int32) (*GenericNoteHistoryBean, error)
+	Save(tx *pg.Tx, bean *GenericNoteHistoryBean, userId int32) (*GenericNoteHistoryBean, error)
 }
 
 type GenericNoteHistoryServiceImpl struct {
@@ -49,7 +50,7 @@ func NewClusterNoteHistoryServiceImpl(repositoryHistory repository.GenericNoteHi
 	return clusterNoteHistoryService
 }
 
-func (impl *GenericNoteHistoryServiceImpl) Save(bean *GenericNoteHistoryBean, userId int32) (*GenericNoteHistoryBean, error) {
+func (impl *GenericNoteHistoryServiceImpl) Save(tx *pg.Tx, bean *GenericNoteHistoryBean, userId int32) (*GenericNoteHistoryBean, error) {
 	clusterAudit := &repository.ClusterNoteHistory{
 		NoteId:      bean.NoteId,
 		Description: bean.Description,
@@ -58,7 +59,7 @@ func (impl *GenericNoteHistoryServiceImpl) Save(bean *GenericNoteHistoryBean, us
 	clusterAudit.CreatedOn = bean.CreatedOn
 	clusterAudit.UpdatedBy = userId
 	clusterAudit.UpdatedOn = time.Now()
-	err := impl.genericNoteHistoryRepository.SaveHistory(clusterAudit)
+	err := impl.genericNoteHistoryRepository.SaveHistory(tx, clusterAudit)
 	if err != nil {
 		impl.logger.Errorw("cluster note history save failed in db", "id", bean.NoteId)
 		return nil, err

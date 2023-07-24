@@ -40,11 +40,13 @@ type GenericNote struct {
 }
 
 type GenericNoteRepository interface {
-	Save(model *GenericNote) error
+	//transaction util funcs
+	sql.TransactionWrapper
+	Save(tx *pg.Tx, model *GenericNote) error
 	FindByClusterId(id int) (*GenericNote, error)
 	FindByAppId(id int) (*GenericNote, error)
 	FindByIdentifier(identifier int, identifierType NoteType) (*GenericNote, error)
-	Update(model *GenericNote) error
+	Update(tx *pg.Tx, model *GenericNote) error
 	GetGenericNotesForAppIds(appIds []int) ([]*GenericNote, error)
 	GetDescriptionFromAppIds(appIds []int) ([]*GenericNote, error)
 }
@@ -57,20 +59,21 @@ func NewGenericNoteRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger
 }
 
 type GenericNoteRepositoryImpl struct {
+	*sql.TransactionUtilImpl
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
 
-func (impl GenericNoteRepositoryImpl) Save(model *GenericNote) error {
-	return impl.dbConnection.Insert(model)
+func (impl GenericNoteRepositoryImpl) Save(tx *pg.Tx, model *GenericNote) error {
+	return tx.Insert(model)
 }
 
 func (impl GenericNoteRepositoryImpl) FindByClusterId(id int) (*GenericNote, error) {
 	return impl.FindByIdentifier(id, ClusterType)
 }
 
-func (impl GenericNoteRepositoryImpl) Update(model *GenericNote) error {
-	return impl.dbConnection.Update(model)
+func (impl GenericNoteRepositoryImpl) Update(tx *pg.Tx, model *GenericNote) error {
+	return tx.Update(model)
 }
 
 func (impl GenericNoteRepositoryImpl) FindByAppId(id int) (*GenericNote, error) {

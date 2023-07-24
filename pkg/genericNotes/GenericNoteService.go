@@ -28,7 +28,7 @@ import (
 )
 
 type GenericNoteService interface {
-	Save(bean *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error)
+	Save(tx *pg.Tx, bean *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error)
 	Update(bean *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error)
 	GetGenericNotesForAppIds(appIds []int) (map[int]*bean.GenericNoteResponseBean, error)
 }
@@ -50,7 +50,7 @@ func NewClusterNoteServiceImpl(genericNoteRepository repository.GenericNoteRepos
 	return genericNoteService
 }
 
-func (impl *GenericNoteServiceImpl) Save(req *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error) {
+func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error) {
 	existingModel, err := impl.genericNoteRepository.FindByIdentifier(req.Identifier, req.IdentifierType)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
@@ -66,7 +66,7 @@ func (impl *GenericNoteServiceImpl) Save(req *repository.GenericNote, userId int
 	req.CreatedOn = time.Now()
 	req.UpdatedOn = time.Now()
 
-	err = impl.genericNoteRepository.Save(req)
+	err = impl.genericNoteRepository.Save(tx, req)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster note in db", "err", err)
 		return nil, err
@@ -79,7 +79,7 @@ func (impl *GenericNoteServiceImpl) Save(req *repository.GenericNote, userId int
 		CreatedOn:   req.CreatedOn,
 		CreatedBy:   req.CreatedBy,
 	}
-	_, _ = impl.genericNoteHistoryService.Save(clusterAudit, userId)
+	_, _ = impl.genericNoteHistoryService.Save(tx, clusterAudit, userId)
 	user, err := impl.userRepository.GetById(req.UpdatedBy)
 	if err != nil {
 		return nil, err
@@ -94,10 +94,21 @@ func (impl *GenericNoteServiceImpl) Save(req *repository.GenericNote, userId int
 }
 
 func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error) {
+	tx, err := impl.genericNoteRepository.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting db transaction", "err", err)
+		return nil, err
+	}
+	defer func() {
+		err = impl.genericNoteRepository.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Debugw("error in rolling back transaction", "err", err, "request", req, "userId", userId)
+		}
+	}()
 	model, err := impl.genericNoteRepository.FindByIdentifier(req.Identifier, req.IdentifierType)
 	if err != nil && err == pg.ErrNoRows {
 		impl.logger.Debugw("id not found to update generic_note, saving new entry", "req", req, "userId", userId)
-		return impl.Save(req, userId)
+		return impl.Save(tx, req, userId)
 	}
 
 	// update the cluster description with new data
@@ -105,7 +116,7 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
 
-	err = impl.genericNoteRepository.Update(model)
+	err = impl.genericNoteRepository.Update(tx, model)
 	if err != nil {
 		return nil, err
 	}
@@ -117,13 +128,18 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 		CreatedOn:   model.CreatedOn,
 		CreatedBy:   model.CreatedBy,
 	}
-	_, _ = impl.genericNoteHistoryService.Save(clusterAudit, userId)
+	_, _ = impl.genericNoteHistoryService.Save(tx, clusterAudit, userId)
 
 	user, err := impl.userRepository.GetById(model.UpdatedBy)
 	if err != nil {
 		return nil, err
 	}
 
+	err = impl.genericNoteRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing db transaction", "err", err)
+		return nil, err
+	}
 	return &bean.GenericNoteResponseBean{
 		Id:          model.Id,
 		Description: model.Description,
