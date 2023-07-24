@@ -257,8 +257,12 @@ func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, 
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)
 		return nil, err, nil
 	}
-	clusterConfig := cluster.GetClusterConfig()
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
+	clusterConfig, err := cluster.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", cluster.Id)
+		return nil, err, nil
+	}
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("Error in getting rest config", "err", err, "clusterId", clusterId)
 		return restConfig, err, nil
@@ -439,14 +443,18 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 		return nil, nil, err
 	}
 
-	clusterConfig := clusterBean.GetClusterConfig()
-	v1Client, err := impl.K8sUtil.GetClient(&clusterConfig)
+	clusterConfig, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return nil, nil, err
+	}
+	v1Client, err := impl.K8sUtil.GetClient(clusterConfig)
 	if err != nil {
 		//not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting v1Client with cluster config", "err", err, "clusterId", clusterId)
 		return nil, nil, err
 	}
-	clientSet, err := impl.K8sUtil.GetClientSet(&clusterConfig)
+	_, _, clientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		//not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting clientSet with cluster config", "err", err, "clusterId", clusterId)

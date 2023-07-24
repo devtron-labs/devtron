@@ -221,7 +221,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +421,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	if err != nil {
 		return err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		return err
 	}

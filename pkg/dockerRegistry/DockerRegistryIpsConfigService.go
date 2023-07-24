@@ -221,7 +221,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
 		return err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config", "clusterId", clusterId, "error", err)
 		return err

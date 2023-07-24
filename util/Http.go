@@ -1,4 +1,4 @@
-package k8s
+package util
 
 import (
 	"net/http"

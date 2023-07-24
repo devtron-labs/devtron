@@ -301,8 +301,12 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx co
 }
 
 func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
-	clusterConfig := cluster.GetClusterConfig()
-	return impl.K8sUtil.GetK8sConfigAndClients(&clusterConfig)
+	clusterConfig, err := cluster.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", cluster.Id)
+		return nil, nil, nil, err
+	}
+	return impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 }
 func (impl *K8sCapacityServiceImpl) getNodeGroupAndTaints(node *corev1.Node) (string, []*bean.LabelAnnotationTaintObject) {
 

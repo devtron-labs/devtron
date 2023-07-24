@@ -255,7 +255,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		if err != nil {
 			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 			userMsg := "failed to update on cluster via ACD"
-			if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
+			if strings.Contains(err.Error(), k8s.DefaultClusterUrl) {
 				userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
 			}
 			err = &util.ApiError{

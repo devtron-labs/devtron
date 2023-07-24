@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/util"
 	"io"
 	v13 "k8s.io/api/policy/v1"
 	v1beta12 "k8s.io/api/policy/v1beta1"
@@ -100,8 +101,8 @@ func (impl K8sUtil) GetRestConfigByCluster(configMap *ClusterConfig) (*rest.Conf
 	bearerToken := configMap.BearerToken
 	var restConfig *rest.Config
 	var err error
-	if configMap.ClusterName == DefaultCluster && len(bearerToken) == 0 {
-		restConfig, err = impl.GetK8sClusterRestConfig()
+	if configMap.Host == DefaultClusterUrl && len(bearerToken) == 0 {
+		restConfig, err = impl.GetK8sInClusterRestConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
 			return nil, err
@@ -137,46 +138,9 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	return v12Client, err
 }
 
-func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clientset, error) {
-	cfg, err := impl.GetRestConfigByCluster(clusterConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
-		return nil, err
-	}
-	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
-	if err != nil {
-		impl.logger.Errorw("error in getting http client for default cluster", "err", err)
-		return nil, err
-	}
-	kubernetesClient, err := kubernetes.NewForConfigAndClient(cfg, httpClient)
-	if err != nil {
-		impl.logger.Errorw("error in getting kubernetes Client for default cluster", "err", err)
-		return nil, err
-	}
-	return kubernetesClient, err
-}
-
-func (impl K8sUtil) getKubeConfig(devMode client.LocalDevMode) (*rest.Config, error) {
-	if devMode {
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config", "err", err)
-			return nil, err
-		}
-		return restConfig, nil
-	} else {
-		restConfig, err := rest.InClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config", "err", err)
-			return nil, err
-		}
-		return restConfig, nil
-	}
-}
-
 func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
-	config, err := impl.getKubeConfig(impl.runTimeConfig.LocalDevMode)
+	config, err := impl.GetK8sInClusterRestConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting config", "err", err)
 		return nil, err
@@ -196,12 +160,10 @@ func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 }
 
 func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
-	var config *rest.Config
-	var err error
-	if impl.runTimeConfig.LocalDevMode {
-		config, err = clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
-	} else {
-		config, err = rest.InClusterConfig()
+	config, err := impl.GetK8sInClusterRestConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting config", "err", err)
+		return nil, err
 	}
 	if err != nil {
 		impl.logger.Errorw("error fetching cluster config", "error", err)
@@ -240,14 +202,11 @@ func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discov
 }
 
 func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error) {
-	var config *rest.Config
-	var err error
-	if impl.runTimeConfig.LocalDevMode {
-		config, err = clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
-	} else {
-		config, err = rest.InClusterConfig()
+	config, err := impl.GetK8sInClusterRestConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting config", "err", err)
+		return nil, err
 	}
-
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
@@ -459,7 +418,7 @@ func (impl K8sUtil) DeleteSecret(namespace string, name string, client *v12.Core
 }
 
 func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {
-	clientSet, err := impl.GetClientSet(clusterConfig)
+	_, _, clientSet, err := impl.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, DeleteJob", "err", err)
 		return err
@@ -481,6 +440,44 @@ func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *Clus
 	}
 
 	return nil
+}
+
+func (impl K8sUtil) GetK8sInClusterConfigAndClients() (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
+	restConfig, err := impl.GetK8sInClusterRestConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config for in cluster", "err", err)
+		return nil, nil, nil, err
+	}
+	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s http client set by rest config for in cluster", "err", err)
+		return nil, nil, nil, err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config for in cluster", "err", err)
+		return nil, nil, nil, err
+	}
+	return restConfig, k8sHttpClient, k8sClientSet, nil
+}
+
+func (impl K8sUtil) GetK8sInClusterConfigAndDynamicClients() (*rest.Config, *http.Client, dynamic.Interface, error) {
+	restConfig, err := impl.GetK8sInClusterRestConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config for in cluster", "err", err)
+		return nil, nil, nil, err
+	}
+	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s http client set by rest config for in cluster", "err", err)
+		return nil, nil, nil, err
+	}
+	dynamicClientSet, err := dynamic.NewForConfigAndClient(restConfig, k8sHttpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config for in cluster", "err", err)
+		return nil, nil, nil, err
+	}
+	return restConfig, k8sHttpClient, dynamicClientSet, nil
 }
 
 func (impl K8sUtil) GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
@@ -527,7 +524,7 @@ func (impl K8sUtil) GetLiveZCall(path string, k8sClientSet *kubernetes.Clientset
 }
 
 func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *ClusterConfig, job *batchV1.Job) error {
-	clientSet, err := impl.GetClientSet(clusterConfig)
+	_, _, clientSet, err := impl.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, CreateJob", "err", err)
 	}
@@ -555,7 +552,7 @@ func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *Clus
 // DeletePod delete pods with label job-name
 
 func (impl K8sUtil) DeletePodByLabel(namespace string, labels string, clusterConfig *ClusterConfig) error {
-	clientSet, err := impl.GetClientSet(clusterConfig)
+	_, _, clientSet, err := impl.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, DeletePod", "err", err)
 		return err
@@ -660,12 +657,12 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(ctx context.Context, namespac
 	}
 }
 
-func (impl K8sUtil) GetK8sClusterRestConfig() (*rest.Config, error) {
+func (impl K8sUtil) GetK8sInClusterRestConfig() (*rest.Config, error) {
 	impl.logger.Debug("getting k8s rest config")
 	if impl.runTimeConfig.LocalDevMode {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
 		if err != nil {
-			impl.logger.Errorw("Error while building kubernetes cluster rest config", "error", err)
+			impl.logger.Errorw("Error while building config from flags", "error", err)
 			return nil, err
 		}
 		return restConfig, nil
@@ -1221,7 +1218,7 @@ func (impl K8sUtil) GetResourceIfWithAcceptHeader(restConfig *rest.Config, group
 		if wt != nil {
 			rt = wt(rt)
 		}
-		return &HeaderAdder{
+		return &util2.HeaderAdder{
 			Rt: rt,
 		}
 	}
@@ -1467,29 +1464,6 @@ func (impl *K8sUtil) DecodeGroupKindversion(data string) (*schema.GroupVersionKi
 		return nil, err
 	}
 	return groupVersionKind, err
-}
-
-func (impl *K8sUtil) GetInClusterConfig(localDevMode bool) (*restclient.Config, error) {
-	if localDevMode {
-		usr, err := user.Current()
-		if err != nil {
-			impl.logger.Errorw("Error while getting user current env details", "error", err)
-		}
-		kubeconfig := flag.String("build-informer", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			impl.logger.Errorw("Error while building config from flags", "error", err)
-			return nil, err
-		}
-		return restConfig, err
-	}
-	clusterConfig, err := rest.InClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in fetch default cluster config", "err", err)
-		return nil, err
-	}
-	return clusterConfig, err
 }
 
 func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {

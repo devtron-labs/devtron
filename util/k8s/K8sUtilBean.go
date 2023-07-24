@@ -61,7 +61,7 @@ var KindVsChildrenGvk = map[string][]schema.GroupVersionKind{
 }
 
 const (
-	DefaultCluster           = "default_cluster"
+	DefaultClusterUrl        = "https://kubernetes.default.svc"
 	BearerToken              = "bearer_token"
 	CertificateAuthorityData = "cert_auth_data"
 	CertData                 = "cert_data"

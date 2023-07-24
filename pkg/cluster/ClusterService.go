@@ -112,16 +112,32 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	return bean
 }
 
-func (bean ClusterBean) GetClusterConfig() k8s.ClusterConfig {
-	return k8s.ClusterConfig{
-		ClusterName:           bean.ClusterName,
-		Host:                  bean.ServerUrl,
-		BearerToken:           bean.Config[k8s.BearerToken],
-		InsecureSkipTLSVerify: bean.InsecureSkipTLSVerify,
-		KeyData:               bean.Config[k8s.TlsKey],
-		CertData:              bean.Config[k8s.CertData],
-		CAData:                bean.Config[k8s.CertificateAuthorityData],
+func (bean ClusterBean) GetClusterConfig() (*k8s.ClusterConfig, error) {
+	clusterConfig := &k8s.ClusterConfig{}
+	host := bean.ServerUrl
+	configMap := bean.Config
+	bearerToken := configMap[k8s.BearerToken]
+	if bean.Id == 1 && bean.ClusterName == DEFAULT_CLUSTER {
+		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
+			log.Println("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
+			return clusterConfig, err
+		} else {
+			content, err := ioutil.ReadFile(TokenFilePath)
+			if err != nil {
+				log.Println("error on reading file", "err", err)
+				return clusterConfig, err
+			}
+			bearerToken = string(content)
+		}
 	}
+	clusterCfg := &k8s.ClusterConfig{Host: host, BearerToken: bearerToken}
+	clusterCfg.InsecureSkipTLSVerify = bean.InsecureSkipTLSVerify
+	if bean.InsecureSkipTLSVerify == false {
+		clusterCfg.KeyData = configMap[k8s.TlsKey]
+		clusterCfg.CertData = configMap[k8s.CertData]
+		clusterCfg.CAData = configMap[k8s.CertificateAuthorityData]
+	}
+	return clusterConfig, nil
 }
 
 type UserInfo struct {
@@ -170,7 +186,6 @@ type ClusterService interface {
 
 	FindAllForAutoComplete() ([]ClusterBean, error)
 	CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error)
-	GetClusterConfig(cluster *ClusterBean) (*k8s.ClusterConfig, error)
 	GetAllClusterNamespaces() map[string][]string
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
@@ -206,34 +221,6 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	}
 	go clusterService.buildInformer()
 	return clusterService
-}
-
-func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*k8s.ClusterConfig, error) {
-	host := cluster.ServerUrl
-	configMap := cluster.Config
-	bearerToken := configMap[k8s.BearerToken]
-	if cluster.Id == 1 && cluster.ClusterName == k8s.DefaultCluster {
-		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
-			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
-			return nil, err
-		} else {
-			content, err := ioutil.ReadFile(TokenFilePath)
-			if err != nil {
-				impl.logger.Errorw("error on reading file", "err", err)
-				return nil, err
-			}
-			bearerToken = string(content)
-		}
-	}
-	clusterCfg := &k8s.ClusterConfig{Host: host, BearerToken: bearerToken}
-	clusterCfg.InsecureSkipTLSVerify = cluster.InsecureSkipTLSVerify
-	if cluster.InsecureSkipTLSVerify == false {
-		clusterCfg.KeyData = configMap[k8s.TlsKey]
-		clusterCfg.CertData = configMap[k8s.CertData]
-		clusterCfg.CAData = configMap[k8s.CertificateAuthorityData]
-	}
-
-	return clusterCfg, nil
 }
 
 func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster {
@@ -286,7 +273,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 
 	model := impl.ConvertClusterBeanToCluster(bean, userId)
 
-	cfg, err := impl.GetClusterConfig(bean)
+	cfg, err := bean.GetClusterConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +455,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 
 	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
-		if bean.ClusterName == "default_cluster" {
+		if bean.ClusterName == DEFAULT_CLUSTER {
 			impl.logger.Errorw("default_cluster is reserved by the system and cannot be updated, default_cluster", "name", bean.ClusterName)
 			return nil, fmt.Errorf("default_cluster is reserved by the system and cannot be updated")
 		}
@@ -505,7 +492,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	model.UpdatedOn = time.Now()
 
 	if model.K8sVersion == "" {
-		cfg, err := impl.GetClusterConfig(bean)
+		cfg, err := bean.GetClusterConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -670,7 +657,7 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 }
 
 func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
-	clusterConfig, err := impl.GetClusterConfig(cluster)
+	clusterConfig, err := cluster.GetClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config ", "err", "err", "clusterId", cluster.Id)
 		return err
@@ -830,8 +817,12 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 		wg.Add(1)
 		go func(idx int, cluster *ClusterBean) {
 			defer wg.Done()
-			clusterConfig := cluster.GetClusterConfig()
-			_, _, k8sClientSet, err := impl.K8sUtil.GetK8sConfigAndClients(&clusterConfig)
+			clusterConfig, err := cluster.GetClusterConfig()
+			if err != nil {
+				impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", cluster.Id)
+				return
+			}
+			_, _, k8sClientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 			if err != nil {
 				mutex.Lock()
 				respMap[cluster.Id] = err
@@ -944,7 +935,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			clusterBeanObject.ErrorInConnecting = "cluster name missing from kubeconfig"
 		}
 
-		if clusterBeanObject.ClusterName == "default_cluster" {
+		if clusterBeanObject.ClusterName == DEFAULT_CLUSTER {
 			clusterBeanObject.ErrorInConnecting = "default_cluster is reserved by the system and cannot be updated"
 		}
 

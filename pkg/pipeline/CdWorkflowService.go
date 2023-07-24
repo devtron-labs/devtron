@@ -127,9 +127,10 @@ type CdWorkflowRequest struct {
 const PRE = "PRE"
 const POST = "POST"
 
-func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, cdConfig *CdConfig, appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor ArgoWorkflowExecutor, k8sUtil *k8s.K8sUtil) *CdWorkflowServiceImpl {
-	return &CdWorkflowServiceImpl{Logger: Logger,
-		config:               cdConfig.ClusterConfig,
+func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, cdConfig *CdConfig,
+	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor ArgoWorkflowExecutor,
+	k8sUtil *k8s.K8sUtil) (*CdWorkflowServiceImpl, error) {
+	cdWorkflowService := &CdWorkflowServiceImpl{Logger: Logger,
 		cdConfig:             cdConfig,
 		appService:           appService,
 		envRepository:        envRepository,
@@ -137,6 +138,13 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repositor
 		argoWorkflowExecutor: argoWorkflowExecutor,
 		k8sUtil:              k8sUtil,
 	}
+	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
+	if err != nil {
+		Logger.Errorw("error in getting in cluster rest config", "err", err)
+		return nil, err
+	}
+	cdWorkflowService.config = restConfig
+	return cdWorkflowService, nil
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {

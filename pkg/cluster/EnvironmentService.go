@@ -170,7 +170,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return mappings, err
 	}
 	if len(model.Namespace) > 0 {
-		cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+		cfg, err := clusterBean.GetClusterConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +313,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 
 	//namespace create if not exist
 	if len(model.Namespace) > 0 {
-		cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+		cfg, err := clusterBean.GetClusterConfig()
 		if err != nil {
 			return nil, err
 		}

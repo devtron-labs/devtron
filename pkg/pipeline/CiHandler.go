@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -648,22 +649,20 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		Namespace: ciWorkflow.Namespace,
 	}
 	isExt := false
-	clusterConfig := k8s.ClusterConfig{}
+	clusterConfig := &k8s.ClusterConfig{}
 	if ciWorkflow.EnvironmentId != 0 {
 		env, err := impl.envRepository.FindById(ciWorkflow.EnvironmentId)
 		if err != nil {
 			return nil, nil, err
 		}
-		configMap := env.Cluster.Config
-		clusterConfig = k8s.ClusterConfig{
-			Host:                  env.Cluster.ServerUrl,
-			BearerToken:           configMap[k8s.BearerToken],
-			InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+		var clusterBean cluster.ClusterBean
+		if env != nil && env.Cluster != nil {
+			clusterBean = cluster.GetClusterBean(*env.Cluster)
 		}
-		if env.Cluster.InsecureSkipTlsVerify == false {
-			clusterConfig.KeyData = configMap[k8s.TlsKey]
-			clusterConfig.CertData = configMap[k8s.CertData]
-			clusterConfig.CAData = configMap[k8s.CertificateAuthorityData]
+		clusterConfig, err = clusterBean.GetClusterConfig()
+		if err != nil {
+			impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+			return nil, nil, err
 		}
 		isExt = true
 	}

@@ -29,7 +29,6 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"log"
@@ -116,18 +115,9 @@ func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
 
 func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 	impl.logger.Debug("building informer cache to listen on installer object")
-	clusterConfig, err := impl.K8sUtil.GetK8sClusterRestConfig()
+	_, _, clusterDynamicClient, err := impl.K8sUtil.GetK8sInClusterConfigAndDynamicClients()
 	if err != nil {
 		log.Fatalln("not able to get k8s cluster rest config.", "error", err)
-	}
-
-	k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(clusterConfig)
-	if err != nil {
-		log.Fatalln("not able to get k8s http client from rest config.", "error", err)
-	}
-	clusterClient, err := dynamic.NewForConfigAndClient(clusterConfig, k8sHttpClient)
-	if err != nil {
-		log.Fatalln("not able to get config from rest config.", "error", err)
 	}
 
 	installerResource := schema.GroupVersionResource{
@@ -136,7 +126,7 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 		Resource: impl.serverEnvConfig.InstallerCrdObjectResource,
 	}
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
-		clusterClient, time.Minute, impl.serverEnvConfig.InstallerCrdNamespace, nil)
+		clusterDynamicClient, time.Minute, impl.serverEnvConfig.InstallerCrdNamespace, nil)
 	informer := factory.ForResource(installerResource).Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{

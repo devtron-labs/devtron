@@ -168,7 +168,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +405,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	if err != nil {
 		return err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		return err
 	}
@@ -677,7 +677,7 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual() error {
 		return err
 	}
 
-	defaultClusterConfig, err := impl.clusterService.GetClusterConfig(defaultClusterBean)
+	defaultClusterConfig, err := defaultClusterBean.GetClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", "err", err)
 		return err
@@ -937,7 +937,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartSecret(secretName string) err
 	if err != nil {
 		return err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		return err
 	}

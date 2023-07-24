@@ -9,7 +9,6 @@ const (
 	EVENT_K8S_KIND    = "Event"
 	LIST_VERB         = "list"
 	Delete            = "delete"
-	DEFAULT_CLUSTER   = "default_cluster"
 )
 
 const (

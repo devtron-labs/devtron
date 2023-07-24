@@ -40,6 +40,7 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -535,25 +536,22 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		impl.Logger.Errorw("could not fetch stage env", "err", err)
 		return 0, err
 	}
-	configMap := env.Cluster.Config
-	clusterConfig := k8s.ClusterConfig{
-		Host:                  env.Cluster.ServerUrl,
-		BearerToken:           configMap[k8s.BearerToken],
-		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	var clusterBean cluster.ClusterBean
+	if env != nil && env.Cluster != nil {
+		clusterBean = cluster.GetClusterBean(*env.Cluster)
 	}
-	if env.Cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = configMap[k8s.TlsKey]
-		clusterConfig.CertData = configMap[k8s.CertData]
-		clusterConfig.CAData = configMap[k8s.CertificateAuthorityData]
+	clusterConfig, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return 0, err
 	}
-
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
 	} else if workflowRunner.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
-	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(&clusterConfig)
+	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
 		return 0, err
@@ -838,16 +836,14 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		impl.Logger.Errorw("error while fetching cd pipeline", "err", err)
 		return nil, nil, err
 	}
-	configMap := env.Cluster.Config
-	clusterConfig := k8s.ClusterConfig{
-		Host:                  env.Cluster.ServerUrl,
-		BearerToken:           configMap[k8s.BearerToken],
-		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	var clusterBean cluster.ClusterBean
+	if env != nil && env.Cluster != nil {
+		clusterBean = cluster.GetClusterBean(*env.Cluster)
 	}
-	if env.Cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = configMap[k8s.TlsKey]
-		clusterConfig.CertData = configMap[k8s.CertData]
-		clusterConfig.CAData = configMap[k8s.CertificateAuthorityData]
+	clusterConfig, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return nil, nil, err
 	}
 	var isExtCluster bool
 	if cdWorkflow.WorkflowType == PRE {
@@ -858,7 +854,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
 }
 
-func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig k8s.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,
