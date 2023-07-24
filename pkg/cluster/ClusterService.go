@@ -303,7 +303,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		impl.SyncNsInformer(bean)
 	}
 	impl.logger.Info("saving secret for cluster informer")
-	k8sClient, err := impl.K8sUtil.GetConfigAndClientInCluster()
+	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s Client in cluster", "err", err, "clusterName", bean.ClusterName)
 		return bean, nil
@@ -522,7 +522,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		impl.SyncNsInformer(bean)
 	}
 	impl.logger.Infow("saving secret for cluster informer")
-	k8sClient, err := impl.K8sUtil.GetConfigAndClientInCluster()
+	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
 		return bean, nil
 	}
@@ -645,7 +645,7 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
 	}
-	k8sClient, err := impl.K8sUtil.GetConfigAndClientInCluster()
+	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", bean.ClusterName)
 		return nil

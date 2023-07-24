@@ -173,7 +173,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		return nil, err
 	}
 
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	if err != nil {
 		return nil, err
 	}
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +409,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	if err != nil {
 		return err
 	}
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err
 	}
@@ -941,7 +941,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartSecret(secretName string) err
 	if err != nil {
 		return err
 	}
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err
 	}

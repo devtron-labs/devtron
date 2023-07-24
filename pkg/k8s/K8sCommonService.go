@@ -448,7 +448,7 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
 		return nil, nil, err
 	}
-	v1Client, err := impl.K8sUtil.GetClient(clusterConfig)
+	v1Client, err := impl.K8sUtil.GetCoreV1Client(clusterConfig)
 	if err != nil {
 		//not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting v1Client with cluster config", "err", err, "clusterId", clusterId)

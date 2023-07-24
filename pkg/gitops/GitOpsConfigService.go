@@ -226,7 +226,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		return nil, err
 	}
 
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +426,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		return err
 	}
 
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err
 	}

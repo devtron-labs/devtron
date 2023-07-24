@@ -119,23 +119,13 @@ func (impl K8sUtil) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*restc
 	return restConfig, nil
 }
 
-func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
+func (impl K8sUtil) GetCoreV1Client(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
 	cfg, err := impl.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
 		return nil, err
 	}
-	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
-	if err != nil {
-		impl.logger.Errorw("error in overriding k8s http client", "err", err)
-		return nil, err
-	}
-	v12Client, err := v12.NewForConfigAndClient(cfg, httpClient)
-	if err != nil {
-		impl.logger.Errorw("error in get getting v12 client", "err", err)
-		return nil, err
-	}
-	return v12Client, err
+	return impl.GetCoreV1ClientByRestConfig(cfg)
 }
 
 func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
@@ -157,29 +147,6 @@ func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 		return nil, err
 	}
 	return clientset, err
-}
-
-func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
-	config, err := impl.GetK8sInClusterRestConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting config", "err", err)
-		return nil, err
-	}
-	if err != nil {
-		impl.logger.Errorw("error fetching cluster config", "error", err)
-		return nil, err
-	}
-	httpClient, err := OverrideK8sHttpClientWithTracer(config)
-	if err != nil {
-		impl.logger.Errorw("error in getting http client for default cluster", "err", err)
-		return nil, err
-	}
-	v12Client, err := v12.NewForConfigAndClient(config, httpClient)
-	if err != nil {
-		impl.logger.Errorw("error creating k8s client", "error", err)
-		return nil, err
-	}
-	return v12Client, err
 }
 
 func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
@@ -225,7 +192,7 @@ func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient
 }
 
 func (impl K8sUtil) CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error) {
-	v12Client, err := impl.GetClient(clusterConfig)
+	v12Client, err := impl.GetCoreV1Client(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return err
@@ -306,7 +273,7 @@ func (impl K8sUtil) UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *
 }
 
 func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error) {
-	k8sClient, err := impl.GetClient(clusterConfig)
+	k8sClient, err := impl.GetCoreV1Client(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err)
 		return nil, err
@@ -327,7 +294,7 @@ func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfi
 }
 
 func (impl K8sUtil) PatchConfigMapJsonType(namespace string, clusterConfig *ClusterConfig, name string, data interface{}, path string) (*v1.ConfigMap, error) {
-	v12Client, err := impl.GetClient(clusterConfig)
+	v12Client, err := impl.GetCoreV1Client(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting v12 client ", "err", err, "namespace", namespace, "name", name)
 		return nil, err
@@ -389,13 +356,12 @@ func (impl K8sUtil) CreateSecret(namespace string, data map[string][]byte, secre
 	if len(secretType) > 0 {
 		secret.Type = secretType
 	}
-	secret, err := client.Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
-	if err != nil {
-		impl.logger.Errorw("error in creating secret", "err", err, "namespace", namespace)
-		return nil, err
-	} else {
-		return secret, nil
-	}
+	return impl.CreateSecretData(namespace, secret, client)
+}
+
+func (impl K8sUtil) CreateSecretData(namespace string, secret *v1.Secret, v1Client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret, err := v1Client.Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
+	return secret, err
 }
 
 func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
@@ -448,12 +414,7 @@ func (impl K8sUtil) GetK8sInClusterConfigAndClients() (*rest.Config, *http.Clien
 		impl.logger.Errorw("error in getting rest config for in cluster", "err", err)
 		return nil, nil, nil, err
 	}
-	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting k8s http client set by rest config for in cluster", "err", err)
-		return nil, nil, nil, err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+	k8sHttpClient, k8sClientSet, err := impl.GetK8sConfigAndClientsByRestConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting client set by rest config for in cluster", "err", err)
 		return nil, nil, nil, err
@@ -486,17 +447,26 @@ func (impl K8sUtil) GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.
 		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
 		return nil, nil, nil, err
 	}
-	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting k8s http client set by rest config", "err", err, "clusterName", clusterConfig.ClusterName)
-		return nil, nil, nil, err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+	k8sHttpClient, k8sClientSet, err := impl.GetK8sConfigAndClientsByRestConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting client set by rest config", "err", err, "clusterName", clusterConfig.ClusterName)
 		return nil, nil, nil, err
 	}
 	return restConfig, k8sHttpClient, k8sClientSet, nil
+}
+
+func (impl K8sUtil) GetK8sConfigAndClientsByRestConfig(restConfig *rest.Config) (*http.Client, *kubernetes.Clientset, error) {
+	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s http client set by rest config", "err", err)
+		return nil, nil, err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err)
+		return nil, nil, err
+	}
+	return k8sHttpClient, k8sClientSet, nil
 }
 
 func (impl K8sUtil) DiscoveryClientGetLiveZCall(cluster *ClusterConfig) ([]byte, error) {
@@ -627,7 +597,7 @@ func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) (*v1.NamespaceList,
 func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) (*v12.CoreV1Client, error) {
 	bearerToken := token[BearerToken]
 	clusterCfg := &ClusterConfig{Host: serverUrl, BearerToken: bearerToken}
-	v12Client, err := impl.GetClient(clusterCfg)
+	v12Client, err := impl.GetCoreV1Client(clusterCfg)
 	if err != nil {
 		impl.logger.Errorw("error in k8s client", "error", err)
 		return nil, err
@@ -900,13 +870,17 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 	return k8sServerVersion, err
 }
 
-func (impl K8sUtil) GetConfigAndClientInCluster() (*v12.CoreV1Client, error) {
+func (impl K8sUtil) GetCoreV1ClientInCluster() (*v12.CoreV1Client, error) {
 	restConfig := &rest.Config{}
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
 		impl.logger.Error("Error in creating config for default cluster", "err", err)
 		return nil, err
 	}
+	return impl.GetCoreV1ClientByRestConfig(restConfig)
+}
+
+func (impl K8sUtil) GetCoreV1ClientByRestConfig(restConfig *rest.Config) (*v12.CoreV1Client, error) {
 	httpClientFor, err := rest.HTTPClientFor(restConfig)
 	if err != nil {
 		impl.logger.Error("error occurred while overriding k8s client", "reason", err)
@@ -919,6 +893,7 @@ func (impl K8sUtil) GetConfigAndClientInCluster() (*v12.CoreV1Client, error) {
 	}
 	return k8sClient, err
 }
+
 func (impl K8sUtil) GetNodesList(ctx context.Context, k8sClientSet *kubernetes.Clientset) (*v1.NodeList, error) {
 	nodeList, err := k8sClientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {

@@ -539,7 +539,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
 		return err
 	}
-	v1Client, err := impl.k8sUtil.GetClient(clusterConfig)
+	v1Client, err := impl.k8sUtil.GetCoreV1Client(clusterConfig)
 	pod, err := impl.k8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "err", err)
