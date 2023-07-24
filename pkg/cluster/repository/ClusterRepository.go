@@ -21,7 +21,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"k8s.io/client-go/rest"
 )
 
 const (
@@ -78,26 +77,6 @@ func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *C
 type ClusterRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
-}
-
-func (cluster Cluster) GetClusterConfig() *rest.Config {
-	configMap := cluster.Config
-	bearerToken := configMap[BearerToken]
-	config := &rest.Config{
-		Host:        cluster.ServerUrl,
-		BearerToken: bearerToken,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: cluster.InsecureSkipTlsVerify,
-		},
-	}
-
-	if cluster.InsecureSkipTlsVerify == false {
-		config.KeyData = []byte(configMap[TlsKey])
-		config.CertData = []byte(configMap[CertData])
-		config.CAData = []byte(configMap[CertificateAuthorityData])
-	}
-
-	return config
 }
 
 func (impl ClusterRepositoryImpl) Save(model *Cluster) error {

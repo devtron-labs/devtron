@@ -1,4 +1,4 @@
-package k8s
+package capacity
 
 import (
 	"github.com/gorilla/mux"

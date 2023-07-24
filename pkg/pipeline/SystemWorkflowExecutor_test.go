@@ -7,6 +7,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/batch/v1"
 	v12 "k8s.io/api/core/v1"
@@ -27,7 +28,7 @@ func TestSystemWorkflowExecute(t *testing.T) {
 	assert.Nil(t, err)
 	runtimeConfig, err := client.GetRuntimeConfig()
 	assert.Nil(t, err)
-	k8sUtil := util.NewK8sUtil(logger, runtimeConfig)
+	k8sUtil := k8s.NewK8sUtil(logger, runtimeConfig)
 	workflowExecutorImpl := NewSystemWorkflowExecutorImpl(logger, k8sUtil)
 
 	t.Run("validate not configured blob storage", func(t *testing.T) {

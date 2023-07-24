@@ -50,6 +50,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.opentelemetry.io/otel"
 
@@ -230,8 +231,8 @@ type PipelineBuilderImpl struct {
 	appGroupService                                 appGroup2.AppGroupService
 	globalPolicyService                             globalPolicy.GlobalPolicyService
 	chartDeploymentService                          util.ChartDeploymentService
+	K8sUtil                                         *util4.K8sUtil
 	manifestPushConfigRepository                    repository3.ManifestPushConfigRepository
-	K8sUtil                                         *util.K8sUtil
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
 	imageTaggingService                             ImageTaggingService
@@ -289,7 +290,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	chartDeploymentService util.ChartDeploymentService,
 	globalPolicyService globalPolicy.GlobalPolicyService,
 	manifestPushConfigRepository repository3.ManifestPushConfigRepository,
-	K8sUtil *util.K8sUtil,
+	K8sUtil *util4.K8sUtil,
 	attributesRepository repository.AttributesRepository,
 	imageTaggingService ImageTaggingService) *PipelineBuilderImpl {
 
@@ -1812,20 +1813,6 @@ func (impl PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest 
 
 	envPipelineMap := make(map[int]string)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-
-		if isVirtualEnvironment, ok := virtualEnvironmentMap[pipeline.EnvironmentId]; ok {
-			if isVirtualEnvironment {
-				if util.IsAcdApp(pipeline.DeploymentAppType) || util.IsHelmApp(pipeline.DeploymentAppType) {
-					err := &util.ApiError{
-						HttpStatusCode:  http.StatusBadRequest,
-						InternalMessage: "cd-pipelines of type argocd or helm cannot be created for virtual environment",
-						UserMessage:     "cd-pipelines of type argocd or helm cannot be created for virtual environment",
-					}
-					return false, err
-				}
-			}
-		}
-
 		if envPipelineMap[pipeline.EnvironmentId] != "" {
 			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,

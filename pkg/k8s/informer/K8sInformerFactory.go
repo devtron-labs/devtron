@@ -1,10 +1,7 @@
 package informer
 
 import (
-	"flag"
-	"github.com/devtron-labs/devtron/internal/util"
-	"os/user"
-	"path/filepath"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"sync"
 	"time"
 
@@ -13,10 +10,7 @@ import (
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func NewGlobalMapClusterNamespace() map[string]map[string]bool {
@@ -30,6 +24,7 @@ type K8sInformerFactoryImpl struct {
 	mutex                     sync.Mutex
 	informerStopper           map[string]chan struct{}
 	runtimeConfig             *client.RuntimeConfig
+	k8sUtil                   *k8s.K8sUtil
 }
 
 type K8sInformerFactory interface {
@@ -38,11 +33,12 @@ type K8sInformerFactory interface {
 	CleanNamespaceInformer(clusterName string)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig, k8sUtil *k8s.K8sUtil) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,
 		runtimeConfig:             runtimeConfig,
+		k8sUtil:                   k8sUtil,
 	}
 	informerFactory.informerStopper = make(map[string]chan struct{})
 	return informerFactory
@@ -67,57 +63,27 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 }
 
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
-	var restConfig *rest.Config
 	for _, info := range clusterInfo {
-		if info.ClusterName == "default_cluster" {
-			if impl.runtimeConfig.LocalDevMode {
-				usr, err := user.Current()
-				if err != nil {
-					impl.logger.Errorw("Error while getting user current env details", "error", err)
-				}
-				kubeconfig := flag.String("build-informer", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-				flag.Parse()
-				restConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
-				if err != nil {
-					impl.logger.Errorw("Error while building config from flags", "error", err)
-				}
-			} else {
-				clusterConfig, err := rest.InClusterConfig()
-				if err != nil {
-					impl.logger.Errorw("error in fetch default cluster config", "err", err, "servername", restConfig.ServerName)
-					continue
-				}
-				restConfig = clusterConfig
-			}
-
-			impl.buildInformerAndNamespaceList(info.ClusterName, restConfig, &impl.mutex)
-		} else {
-			c := &rest.Config{
-				Host:        info.ServerUrl,
-				BearerToken: info.BearerToken,
-				TLSClientConfig: rest.TLSClientConfig{
-					Insecure: info.InsecureSkipTLSVerify,
-					KeyData:  []byte(info.KeyData),
-					CertData: []byte(info.CertData),
-					CAData:   []byte(info.CAData),
-				},
-			}
-			impl.buildInformerAndNamespaceList(info.ClusterName, c, &impl.mutex)
+		clusterConfig := &k8s.ClusterConfig{
+			ClusterName:           info.ClusterName,
+			BearerToken:           info.BearerToken,
+			Host:                  info.ServerUrl,
+			InsecureSkipTLSVerify: info.InsecureSkipTLSVerify,
+			KeyData:               info.KeyData,
+			CertData:              info.CertData,
+			CAData:                info.CAData,
 		}
+		impl.buildInformerAndNamespaceList(info.ClusterName, clusterConfig, &impl.mutex)
 	}
 	return
 }
 
-func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]bool {
+func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, clusterConfig *k8s.ClusterConfig, mutex *sync.Mutex) map[string]map[string]bool {
 	allNamespaces := make(map[string]bool)
 	impl.globalMapClusterNamespace[clusterName] = allNamespaces
-	httpClient, err := util.OverrideK8sHttpClientWithTracer(config)
+	_, _, clusterClient, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
-		return impl.globalMapClusterNamespace
-	}
-	clusterClient, err := kubernetes.NewForConfigAndClient(config, httpClient)
-	if err != nil {
-		impl.logger.Errorw("error in create k8s config", "err", err)
+		impl.logger.Errorw("error in getting k8s clientset", "err", err, "clusterName", clusterConfig.ClusterName)
 		return impl.globalMapClusterNamespace
 	}
 	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(clusterClient, time.Minute)

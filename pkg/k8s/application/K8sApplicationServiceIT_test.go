@@ -1,4 +1,4 @@
-package k8s
+package application
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/terminal"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -277,7 +278,7 @@ func getRestConfigAndK8sRequestObj(k8sApplicationService *K8sApplicationServiceI
 	}
 
 	k8sRequest := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
+		k8s.ResourceIdentifier: application.ResourceIdentifier{
 			Namespace: testNamespace,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   groupVersionKind.Group,
