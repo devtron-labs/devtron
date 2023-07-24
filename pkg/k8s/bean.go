@@ -6,6 +6,16 @@ import (
 	"github.com/devtron-labs/devtron/util/k8s"
 )
 
+const (
+	Service = "Service"
+	Ingress = "Ingress"
+)
+
+const (
+	Group   = "group"
+	Version = "version"
+)
+
 type ResourceRequestBean struct {
 	AppId                string                     `json:"appId"`
 	AppType              int                        `json:"appType,omitempty"`        // 0: DevtronApp, 1: HelmApp

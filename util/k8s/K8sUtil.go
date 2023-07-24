@@ -946,8 +946,8 @@ func (impl K8sUtil) GetServerVersionFromDiscoveryClient(k8sClientSet *kubernetes
 	}
 	return serverVersion, err
 }
-func (impl K8sUtil) GetPodsListForAllNamespaces(ctx context.Context, k8sClientSet *kubernetes.Clientset) (*v1.PodList, error) {
-	podList, err := k8sClientSet.CoreV1().Pods(v1.NamespaceAll).List(ctx, metav1.ListOptions{})
+func (impl K8sUtil) GetPodsListForNamespace(ctx context.Context, k8sClientSet *kubernetes.Clientset, namespace string) (*v1.PodList, error) {
+	podList, err := k8sClientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting pos list for namespace", "err", err)
 		return nil, err
@@ -1057,11 +1057,11 @@ func (impl K8sUtil) CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Cli
 	return k8sClientSet, err
 }
 
-func (impl K8sUtil) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error {
+func (impl K8sUtil) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error {
 	//using livez path as healthz path is deprecated
 	path := LiveZ
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
-	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
+	log.Println("received response for cluster livez status", "response", string(response), "err", err)
 	if err != nil {
 		if _, ok := err.(*url.Error); ok {
 			err = fmt.Errorf("Incorrect server url : %v", err)

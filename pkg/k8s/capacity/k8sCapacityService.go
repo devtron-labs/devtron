@@ -175,7 +175,7 @@ func (impl *K8sCapacityServiceImpl) updateMetricsData(ctx context.Context, metri
 	//getting metrics clientSet by rest config
 
 	//empty namespace: get pods for all namespaces
-	podList, err := impl.K8sUtil.GetPodsListForAllNamespaces(ctx, k8sClientSet)
+	podList, err := impl.K8sUtil.GetPodsListForNamespace(ctx, k8sClientSet, bean.NamespaceAll)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return err
@@ -235,7 +235,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 		return nil, err
 	}
 	//empty namespace: get pods for all namespaces
-	podList, err := impl.K8sUtil.GetPodsListForAllNamespaces(ctx, k8sClientSet)
+	podList, err := impl.K8sUtil.GetPodsListForNamespace(ctx, k8sClientSet, bean.NamespaceAll)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return nil, err
@@ -281,7 +281,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx co
 		return nil, err
 	}
 	//empty namespace: get pods for all namespaces
-	podList, err := impl.K8sUtil.GetPodsListForAllNamespaces(ctx, k8sClientSet)
+	podList, err := impl.K8sUtil.GetPodsListForNamespace(ctx, k8sClientSet, bean.NamespaceAll)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return nil, err

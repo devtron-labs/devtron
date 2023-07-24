@@ -185,9 +185,9 @@ func (impl *K8sCommonServiceImpl) FilterServiceAndIngress(ctx context.Context, r
 		if appId == "" {
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}
-		if strings.Compare(kind, "Service") == 0 || strings.Compare(kind, "Ingress") == 0 {
-			group := impl.extractResourceValue(resourceItem, "group")
-			version := impl.extractResourceValue(resourceItem, "version")
+		if strings.Compare(kind, Service) == 0 || strings.Compare(kind, Ingress) == 0 {
+			group := impl.extractResourceValue(resourceItem, Group)
+			version := impl.extractResourceValue(resourceItem, Version)
 			req := ResourceRequestBean{
 				AppId:     appId,
 				ClusterId: appDetail.ClusterId,

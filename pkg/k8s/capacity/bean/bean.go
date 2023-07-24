@@ -23,6 +23,8 @@ const (
 	Gigabyte            = 1000 * 1000 * 1000
 )
 
+const NamespaceAll string = ""
+
 // below const set is used for pod filters
 const (
 	daemonSetFatal       = "DaemonSet-managed Pods (use --ignore-daemonsets to ignore)"

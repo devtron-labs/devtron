@@ -529,7 +529,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 		ClusterReachable: true,
 		ClusterName:      clusterBean.ClusterName,
 	}
-	err = impl.k8sUtil.FetchConnectionStatusForCluster(k8sClientSet, clusterBean.Id)
+	err = impl.k8sUtil.FetchConnectionStatusForCluster(k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in fetching connection status fo cluster", "err", err, "clusterId", clusterBean.Id)
 		responseObj.ClusterReachable = false

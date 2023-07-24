@@ -318,6 +318,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	impl.logger.Info("saving secret for cluster informer")
 	k8sClient, err := impl.K8sUtil.GetConfigAndClientInCluster()
 	if err != nil {
+		impl.logger.Errorw("error in getting k8s Client in cluster", "err", err, "clusterName", bean.ClusterName)
 		return bean, nil
 	}
 	//creating cluster secret, this secret will be read informer in kubelink to know that a new cluster has been added
