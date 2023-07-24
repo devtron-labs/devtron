@@ -333,7 +333,7 @@ func InitializeApp() (*App, error) {
 	}
 	pipelineStatusTimelineRepositoryImpl := pipelineConfig.NewPipelineStatusTimelineRepositoryImpl(db, sugaredLogger)
 	appLabelRepositoryImpl := pipelineConfig.NewAppLabelRepositoryImpl(db)
-	genericNoteRepositoryImpl := repository8.NewGenericNoteRepositoryImpl(db, sugaredLogger)
+	genericNoteRepositoryImpl := repository8.NewGenericNoteRepositoryImpl(db)
 	genericNoteHistoryRepositoryImpl := repository8.NewGenericNoteHistoryRepositoryImpl(db, sugaredLogger)
 	genericNoteHistoryServiceImpl := genericNotes.NewClusterNoteHistoryServiceImpl(genericNoteHistoryRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewClusterNoteServiceImpl(genericNoteRepositoryImpl, genericNoteHistoryServiceImpl, userRepositoryImpl, sugaredLogger)

@@ -23,7 +23,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"go.uber.org/zap"
 )
 
 type NoteType int
@@ -52,11 +51,10 @@ type GenericNoteRepository interface {
 	GetDescriptionFromAppIds(appIds []int) ([]*GenericNote, error)
 }
 
-func NewGenericNoteRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *GenericNoteRepositoryImpl {
+func NewGenericNoteRepositoryImpl(dbConnection *pg.DB) *GenericNoteRepositoryImpl {
 	TransactionUtilImpl := sql.NewTransactionUtilImpl(dbConnection)
 	return &GenericNoteRepositoryImpl{
 		dbConnection:        dbConnection,
-		logger:              logger,
 		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
@@ -64,7 +62,6 @@ func NewGenericNoteRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger
 type GenericNoteRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
 }
 
 func (impl GenericNoteRepositoryImpl) Save(tx *pg.Tx, model *GenericNote) error {
