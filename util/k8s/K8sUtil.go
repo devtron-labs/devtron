@@ -97,23 +97,23 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
 }
 
-func (impl K8sUtil) GetRestConfigByCluster(configMap *ClusterConfig) (*rest.Config, error) {
-	bearerToken := configMap.BearerToken
+func (impl K8sUtil) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*restclient.Config, error) {
+	bearerToken := clusterConfig.BearerToken
 	var restConfig *rest.Config
 	var err error
-	if configMap.Host == DefaultClusterUrl && len(bearerToken) == 0 {
+	if clusterConfig.Host == DefaultClusterUrl && len(bearerToken) == 0 {
 		restConfig, err = impl.GetK8sInClusterRestConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
 			return nil, err
 		}
 	} else {
-		restConfig = &rest.Config{Host: configMap.Host, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: configMap.InsecureSkipTLSVerify}}
-		if configMap.InsecureSkipTLSVerify == false {
+		restConfig = &rest.Config{Host: clusterConfig.Host, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: clusterConfig.InsecureSkipTLSVerify}}
+		if clusterConfig.InsecureSkipTLSVerify == false {
 			restConfig.TLSClientConfig.ServerName = restConfig.ServerName
-			restConfig.TLSClientConfig.KeyData = []byte(configMap.KeyData)
-			restConfig.TLSClientConfig.CertData = []byte(configMap.CertData)
-			restConfig.TLSClientConfig.CAData = []byte(configMap.CAData)
+			restConfig.TLSClientConfig.KeyData = []byte(clusterConfig.KeyData)
+			restConfig.TLSClientConfig.CertData = []byte(clusterConfig.CertData)
+			restConfig.TLSClientConfig.CAData = []byte(clusterConfig.CAData)
 		}
 	}
 	return restConfig, nil
