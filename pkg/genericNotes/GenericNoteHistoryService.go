@@ -55,8 +55,8 @@ func (impl *GenericNoteHistoryServiceImpl) Save(tx *pg.Tx, bean *GenericNoteHist
 		NoteId:      bean.NoteId,
 		Description: bean.Description,
 	}
-	clusterAudit.CreatedBy = bean.CreatedBy
-	clusterAudit.CreatedOn = bean.CreatedOn
+	clusterAudit.CreatedBy = userId
+	clusterAudit.CreatedOn = time.Now()
 	clusterAudit.UpdatedBy = userId
 	clusterAudit.UpdatedOn = time.Now()
 	err := impl.genericNoteHistoryRepository.SaveHistory(tx, clusterAudit)

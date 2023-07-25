@@ -76,8 +76,6 @@ func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote,
 	clusterAudit := &GenericNoteHistoryBean{
 		NoteId:      req.Id,
 		Description: req.Description,
-		CreatedOn:   req.CreatedOn,
-		CreatedBy:   req.CreatedBy,
 	}
 	_, err = impl.genericNoteHistoryService.Save(tx, clusterAudit, userId)
 	if err != nil {
@@ -141,8 +139,6 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 	clusterAudit := &GenericNoteHistoryBean{
 		NoteId:      model.Id,
 		Description: model.Description,
-		CreatedOn:   model.CreatedOn,
-		CreatedBy:   model.CreatedBy,
 	}
 	_, err = impl.genericNoteHistoryService.Save(tx, clusterAudit, userId)
 	if err != nil {
