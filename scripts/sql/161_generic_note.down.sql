@@ -11,7 +11,7 @@ AlTER TABLE cluster_note ADD CONSTRAINT cluster_note_cluster_id_fkey
       REFERENCES public.cluster(id);
 
 ALTER TABLE generic_note_history RENAME to cluster_note_history;
-ALTER TABLE cluster_note_history DROP CONSTRAINT generic_note_history_generic_note_id_fkey
+ALTER TABLE cluster_note_history DROP CONSTRAINT generic_note_history_generic_note_id_fkey;
 ALTER TABLE cluster_note_history ADD CONSTRAINT cluster_note_history_cluster_note_id_fkey
     FOREIGN KEY(note_id)
         REFERENCES public.cluster_note(id);
