@@ -43,7 +43,7 @@ type DevtronAppBuildRestHandler interface {
 	GetExternalCi(w http.ResponseWriter, r *http.Request)
 	GetExternalCiById(w http.ResponseWriter, r *http.Request)
 	PatchCiPipelines(w http.ResponseWriter, r *http.Request)
-	PatchCiMaterialSource(w http.ResponseWriter, r *http.Request)
+	PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request)
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
@@ -231,47 +231,42 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) parseBranchChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiPipeline, int32, error) {
+func (handler PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialPatchRequest, int32, error) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return nil, 0, err
 	}
-
-	var patchRequest bean.CiPipeline
+	var patchRequest bean.CiMaterialPatchRequest
 	err = decoder.Decode(&patchRequest)
 
 	if err != nil {
-		handler.Logger.Errorw("request err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
+		handler.Logger.Errorw("request err, PatchCiPipeline", "err", err, "PatchCiPipeline", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, 0, err
 	}
 	return &patchRequest, userId, nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) authorizeSourceChangeRequest(w http.ResponseWriter, userId int32, patchRequest *bean.CiPipeline, token string) error {
+func (handler PipelineConfigRestHandlerImpl) authorizeCiSourceChangeRequest(w http.ResponseWriter, patchRequest *bean.CiMaterialPatchRequest, token string) error {
 	handler.Logger.Debugw("update request ", "req", patchRequest)
 	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return err
 	}
-
 	if app.AppType != helper.CustomApp {
 		err = fmt.Errorf("only custom apps supported")
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return err
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
-
-	if !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
 		err = fmt.Errorf("unauthorized user")
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return err
 	}
-	patchRequest.Name = app.AppName
 	err = handler.validator.Struct(patchRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err", "err", err)
@@ -281,17 +276,18 @@ func (handler PipelineConfigRestHandlerImpl) authorizeSourceChangeRequest(w http
 	return nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSource(w http.ResponseWriter, r *http.Request) {
-	patchRequest, userId, err := handler.parseBranchChangeRequest(w, r)
+func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request) {
+	patchRequest, userId, err := handler.parseSourceChangeRequest(w, r)
 	if err != nil {
 		handler.Logger.Errorw("Parse error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
 		return
 	}
 	token := r.Header.Get("token")
-	if err = handler.authorizeSourceChangeRequest(w, userId, patchRequest, token); err != nil {
+	if err = handler.authorizeCiSourceChangeRequest(w, patchRequest, token); err != nil {
 		handler.Logger.Errorw("Authorization error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
 		return
 	}
+
 	createResp, err := handler.pipelineBuilder.PatchCiMaterialSource(patchRequest, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)

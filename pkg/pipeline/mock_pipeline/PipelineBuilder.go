@@ -786,10 +786,10 @@ func (mr *MockPipelineBuilderMockRecorder) PatchCdPipelines(cdPipelines, ctx int
 }
 
 // PatchCiMaterialSource mocks base method.
-func (m *MockPipelineBuilder) PatchCiMaterialSource(ciPipeline *bean0.CiPipeline, userId int32) (*bean0.CiPipeline, error) {
+func (m *MockPipelineBuilder) PatchCiMaterialSource(ciPipeline *bean0.CiMaterialPatchRequest, userId int32) (*bean0.CiMaterialPatchRequest, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PatchCiMaterialSource", ciPipeline, userId)
-	ret0, _ := ret[0].(*bean0.CiPipeline)
+	ret0, _ := ret[0].(*bean0.CiMaterialPatchRequest)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

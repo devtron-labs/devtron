@@ -10,7 +10,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -18,12 +17,10 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"testing"
-	"time"
 )
 
 var (
@@ -159,25 +156,6 @@ func InitClusterNoteService() {
 	ciCdPipelineOrchestrator = NewCiCdPipelineOrchestrator(appRepository, logger, materialRepository, pipelineRepository, ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService, appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService, pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService, dockerArtifactStoreRepository, configMapService)
 }
 
-func TestPatchCiMaterialSourceWhenOldPipelineIsNotFoundItShouldReturnError(t *testing.T) {
-	//ctrl := gomock.NewController(t)
-	pipeline := &bean.CiPipeline{Id: 1}
-	userId := int32(10)
-
-	mockedCiPipelineRepository := mocks.NewCiPipelineRepository(t)
-	mockedCiPipelineRepository.On("FindById", pipeline.Id).Return(nil, fmt.Errorf("dsfsdf"))
-	//mockedCiPipelineMaterialRepository := &mocks.MockCiPipelineMaterialRepository{}
-	//mockedGitSensor := &mock_gitSensor.MockClient{}
-	impl := CiCdPipelineOrchestratorImpl{
-		ciPipelineRepository: mockedCiPipelineRepository,
-		//ciPipelineMaterialRepository: mockedCiPipelineMaterialRepository,
-		//GitSensorClient:              mockedGitSensor,
-	}
-	res, err := impl.PatchCiMaterialSource(pipeline, userId)
-	assert.Error(t, err)
-	assert.Nil(t, res)
-}
-
 //	func TestPatchCiMaterialSourceWhenOldPipelineExistsAndSaveUpdatedMaterialFailsItShouldReturnError(t *testing.T) {
 //		//ctrl := gomock.NewController(t)
 //		userId := int32(10)
@@ -227,150 +205,3 @@ func TestPatchCiMaterialSourceWhenOldPipelineIsNotFoundItShouldReturnError(t *te
 //		assert.Error(t, err)
 //		assert.Nil(t, res)
 //	}
-func Test_mapCiMaterialToPipelineMaterial(t *testing.T) {
-	t1 := time.Now()
-	t2 := time.Now()
-	type args struct {
-		ciPipeline  *bean.CiPipeline
-		userId      int32
-		oldPipeline *pipelineConfig.CiPipeline
-	}
-	tests := []struct {
-		name string
-		args args
-		want []*pipelineConfig.CiPipelineMaterial
-	}{
-		{
-			name: "It should return []*pipelineConfig.CiPipelineMaterial with only source changed",
-			args: args{
-				ciPipeline: &bean.CiPipeline{
-					AppId: 0,
-					CiMaterial: []*bean.CiMaterial{
-						{
-							Source: &bean.SourceTypeConfig{
-								Type:  "QWERTY",
-								Value: "masterrrrr",
-								Regex: "A@$%DS",
-							},
-							Id:            2,
-							GitMaterialId: 2,
-						},
-					},
-					Id: 2,
-				},
-				userId: 1,
-				oldPipeline: &pipelineConfig.CiPipeline{
-					Id:                       1,
-					AppId:                    2,
-					App:                      nil,
-					CiTemplateId:             3,
-					DockerArgs:               "abc",
-					Name:                     "def",
-					Version:                  "234",
-					Active:                   true,
-					Deleted:                  false,
-					IsManual:                 true,
-					IsExternal:               false,
-					ParentCiPipeline:         0,
-					ScanEnabled:              false,
-					IsDockerConfigOverridden: false,
-					AuditLog: sql.AuditLog{
-						CreatedOn: t1,
-						CreatedBy: 2,
-						UpdatedOn: t2,
-						UpdatedBy: 1,
-					},
-					CiPipelineMaterials: []*pipelineConfig.CiPipelineMaterial{
-						{
-							Id:            2,
-							GitMaterialId: 2,
-							CiPipelineId:  2,
-							Path:          "",
-							CheckoutPath:  "",
-							Type:          "ABC",
-							Value:         "DEF",
-							ScmId:         "",
-							ScmName:       "",
-							ScmVersion:    "",
-							Active:        false,
-							Regex:         "A$%",
-							GitTag:        "",
-							CiPipeline:    nil,
-							GitMaterial:   nil,
-							AuditLog: sql.AuditLog{
-								CreatedOn: t1,
-								CreatedBy: 2,
-								UpdatedOn: t1,
-								UpdatedBy: 2,
-							},
-						},
-						{
-							Id:            3,
-							GitMaterialId: 2,
-							CiPipelineId:  2,
-							Path:          "",
-							CheckoutPath:  "",
-							Type:          "ABC123",
-							Value:         "main",
-							ScmId:         "",
-							ScmName:       "",
-							ScmVersion:    "",
-							Active:        false,
-							Regex:         "A$%a3e2",
-							GitTag:        "sdf",
-							CiPipeline:    nil,
-							GitMaterial:   nil,
-							AuditLog: sql.AuditLog{
-								CreatedOn: t1,
-								CreatedBy: 2,
-								UpdatedOn: t1,
-								UpdatedBy: 2,
-							},
-						},
-					},
-					CiTemplate: nil,
-				},
-			},
-			want: []*pipelineConfig.CiPipelineMaterial{
-				{
-					Id:            2,
-					GitMaterialId: 2,
-					CiPipelineId:  2,
-					Path:          "",
-					CheckoutPath:  "",
-					Type:          "QWERTY",
-					Value:         "masterrrrr",
-					Regex:         "A@$%DS",
-					ScmId:         "",
-					ScmName:       "",
-					ScmVersion:    "",
-					Active:        false,
-					GitTag:        "",
-					CiPipeline:    nil,
-					GitMaterial:   nil,
-					AuditLog: sql.AuditLog{
-						CreatedOn: t1,
-						CreatedBy: 2,
-						UpdatedOn: t2,
-						UpdatedBy: 1,
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			res := mapCiMaterialToPipelineMaterial(tt.args.ciPipeline, tt.args.userId, tt.args.oldPipeline)
-			assert.Equal(t, len(res), 1)
-			assert.Equal(t, tt.want[0].Id, res[0].Id)
-			assert.Equal(t, tt.want[0].GitMaterialId, res[0].GitMaterialId)
-			assert.Equal(t, tt.want[0].CiPipelineId, res[0].CiPipelineId)
-			assert.Equal(t, tt.want[0].Type, res[0].Type)
-			assert.Equal(t, tt.want[0].Value, res[0].Value)
-			assert.Equal(t, tt.want[0].Regex, res[0].Regex)
-			assert.Equal(t, tt.want[0].AuditLog.CreatedBy, res[0].AuditLog.CreatedBy)
-			assert.Equal(t, tt.want[0].AuditLog.CreatedOn, res[0].AuditLog.CreatedOn)
-			assert.Equal(t, tt.want[0].AuditLog.UpdatedBy, res[0].AuditLog.UpdatedBy)
-		})
-	}
-}

@@ -47,7 +47,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 			fields: fields{
 				validator: validator.New(),
 			},
-			body: "{\"appId\":4, \"id\": 5 ,\"ci--Material\":[{\"gitMaterialId\":4,\"id\":5,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main3\",\"regex\":\"\"}}]}",
+			body: "{\"appId\":2, \"environmentId\": 1 ,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main10\",\"regex\":\"\"}}",
 			setup: func(fields2 *fields) {
 				ctrl := gomock.NewController(t)
 				fields2.pipelineBuilder = mock_pipeline.NewMockPipelineBuilder(ctrl)
@@ -142,7 +142,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 			fields: fields{
 				validator: validator.New(),
 			},
-			body: "{\"appId\":4, \"id\": 5 ,\"ciMaterial\":[{\"gitMaterialId\":4,\"id\":5,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main3\",\"regex\":\"\"}}]}",
+			body: "{\"appId\":4, \"environmentId\": 1 ,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main10\",\"regex\":\"\"}}",
 			setup: func(fields2 *fields) {
 				_ = fields2.validator.RegisterValidation("name-component", func(fl validator.FieldLevel) bool {
 					return true
@@ -167,7 +167,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 			fields: fields{
 				validator: validator.New(),
 			},
-			body: "{\"appId\":4, \"id\": 5 ,\"ciMaterial\":[{\"gitMaterialId\":4,\"id\":5,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main3\",\"regex\":\"\"}}]}",
+			body: "{\"appId\":4, \"environmentId\": 1 ,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main10\",\"regex\":\"\"}}",
 			setup: func(fields2 *fields) {
 				_ = fields2.validator.RegisterValidation("name-component", func(fl validator.FieldLevel) bool {
 					return true
@@ -175,7 +175,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 				ctrl := gomock.NewController(t)
 				fields2.pipelineBuilder = mock_pipeline.NewMockPipelineBuilder(ctrl)
 				fields2.pipelineBuilder.EXPECT().GetApp(4).Return(&bean.CreateAppDTO{AppName: "Super App", Id: 4, AppType: helper.CustomApp}, nil).Times(1)
-				fields2.pipelineBuilder.EXPECT().PatchCiMaterialSource(gomock.Any(), int32(1)).Return(&bean.CiPipeline{Id: 1}, nil)
+				fields2.pipelineBuilder.EXPECT().PatchCiMaterialSource(gomock.Any(), int32(1)).Return(&bean.CiMaterialPatchRequest{AppId: 2}, nil)
 				fields2.enforcer = mock_casbin.NewMockEnforcer(ctrl)
 				fields2.enforcer.EXPECT().Enforce(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(true).Times(1)
 				fields2.enforcerUtil = mocks_rbac.NewMockEnforcerUtil(ctrl)
@@ -206,7 +206,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 			}
 			req.Header.Set("Content-Type", "application/json")
 			rr := httptest.NewRecorder()
-			h := http.HandlerFunc(handler.PatchCiMaterialSource)
+			h := http.HandlerFunc(handler.PatchCiMaterialSourceWithAppIdAndEnvironmentId)
 			h.ServeHTTP(rr, req)
 			assert.Equal(t, rr.Code, tt.expectedStatusCode)
 		})
