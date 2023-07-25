@@ -20,7 +20,6 @@ package repository
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"go.uber.org/zap"
 )
 
 type GenericNoteHistory struct {
@@ -36,16 +35,14 @@ type GenericNoteHistoryRepository interface {
 	FindHistoryByNoteId(id []int) ([]GenericNoteHistory, error)
 }
 
-func NewGenericNoteHistoryRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *GenericNoteHistoryRepositoryImpl {
+func NewGenericNoteHistoryRepositoryImpl(dbConnection *pg.DB) *GenericNoteHistoryRepositoryImpl {
 	return &GenericNoteHistoryRepositoryImpl{
 		dbConnection: dbConnection,
-		logger:       logger,
 	}
 }
 
 type GenericNoteHistoryRepositoryImpl struct {
 	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
 }
 
 func (impl GenericNoteHistoryRepositoryImpl) SaveHistory(tx *pg.Tx, model *GenericNoteHistory) error {
