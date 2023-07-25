@@ -183,7 +183,7 @@ func InitializeApp() (*App, error) {
 	userRestHandlerImpl := user2.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enforcerImpl, roleGroupServiceImpl, userCommonServiceImpl)
 	userRouterImpl := user2.NewUserRouterImpl(userRestHandlerImpl)
 	genericNoteRepositoryImpl := repository5.NewGenericNoteRepositoryImpl(db)
-	genericNoteHistoryRepositoryImpl := repository5.NewGenericNoteHistoryRepositoryImpl(db, sugaredLogger)
+	genericNoteHistoryRepositoryImpl := repository5.NewGenericNoteHistoryRepositoryImpl(db)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteRepositoryImpl, genericNoteHistoryServiceImpl, userRepositoryImpl, sugaredLogger)
 	clusterDescriptionRepositoryImpl := repository2.NewClusterDescriptionRepositoryImpl(db, sugaredLogger)
