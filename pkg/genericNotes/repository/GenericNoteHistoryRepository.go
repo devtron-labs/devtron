@@ -31,17 +31,21 @@ type GenericNoteHistory struct {
 }
 
 type GenericNoteHistoryRepository interface {
+	sql.TransactionWrapper
 	SaveHistory(tx *pg.Tx, model *GenericNoteHistory) error
 	FindHistoryByNoteId(id []int) ([]GenericNoteHistory, error)
 }
 
 func NewGenericNoteHistoryRepositoryImpl(dbConnection *pg.DB) *GenericNoteHistoryRepositoryImpl {
+	TransactionUtilImpl := sql.NewTransactionUtilImpl(dbConnection)
 	return &GenericNoteHistoryRepositoryImpl{
-		dbConnection: dbConnection,
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
 type GenericNoteHistoryRepositoryImpl struct {
+	*sql.TransactionUtilImpl
 	dbConnection *pg.DB
 }
 
