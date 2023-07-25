@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"net/http"
 	"net/url"
 	"sort"
@@ -376,6 +375,7 @@ const (
 	environmentIdKey         string = "environmentId"
 	environmentNameKey       string = "environmentName"
 	environmentIdentifierKey string = "environmentIdentifier"
+	SearchString                    = ""
 )
 
 func formatDate(t time.Time, layout string) string {
@@ -2616,7 +2616,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY", bulkAction.SearchString, false)
+		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY", SearchString, false)
 
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
