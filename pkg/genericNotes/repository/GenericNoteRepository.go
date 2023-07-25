@@ -93,6 +93,9 @@ func (impl GenericNoteRepositoryImpl) FindByIdentifier(identifier int, identifie
 
 func (impl GenericNoteRepositoryImpl) GetGenericNotesForAppIds(appIds []int) ([]*GenericNote, error) {
 	notes := make([]*GenericNote, 0)
+	if len(appIds) == 0 {
+		return notes, nil
+	}
 	err := impl.dbConnection.
 		Model(&notes).
 		Where("identifier IN (?)", pg.In(appIds)).

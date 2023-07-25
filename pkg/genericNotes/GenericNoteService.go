@@ -53,7 +53,7 @@ func NewClusterNoteServiceImpl(genericNoteRepository repository.GenericNoteRepos
 func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error) {
 	existingModel, err := impl.genericNoteRepository.FindByIdentifier(req.Identifier, req.IdentifierType)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Error(err)
+		impl.logger.Error("error in finding generic note by identifier and identifier type", "err", err, "identifier", req.Identifier, "identifierType", req.IdentifierType)
 		return nil, err
 	}
 	if existingModel.Id > 0 {
@@ -86,6 +86,7 @@ func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote,
 	}
 	user, err := impl.userRepository.GetById(req.UpdatedBy)
 	if err != nil {
+		impl.logger.Errorw("error in finding user by id", "userId", req.UpdatedBy, "err", err)
 		return nil, err
 	}
 
@@ -132,6 +133,7 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 
 	err = impl.genericNoteRepository.Update(tx, model)
 	if err != nil {
+		impl.logger.Errorw("error occurred in genericNote update in transaction", "updateObject", model, "err", err)
 		return nil, err
 	}
 
@@ -149,12 +151,13 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 	}
 	user, err := impl.userRepository.GetById(model.UpdatedBy)
 	if err != nil {
+		impl.logger.Errorw("error in finding user by id", "userId", model.UpdatedBy, "err", err)
 		return nil, err
 	}
 
 	err = impl.genericNoteRepository.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing db transaction", "err", err)
+		impl.logger.Errorw("error in committing db transaction in genericNote service", "err", err)
 		return nil, err
 	}
 	return &bean.GenericNoteResponseBean{
@@ -170,6 +173,7 @@ func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[
 	//get notes saved in generic note table
 	notes, err := impl.genericNoteRepository.GetGenericNotesForAppIds(appIds)
 	if err != nil {
+		impl.logger.Errorw("error in getting generic notes for the given appIds from db", "err", err, "appIds", appIds)
 		return appIdsToNoteMap, err
 	}
 
@@ -192,6 +196,7 @@ func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[
 	//get the description from the app table for the above notesNotFoundAppIds
 	descriptions, err := impl.genericNoteRepository.GetDescriptionFromAppIds(notesNotFoundAppIds)
 	if err != nil {
+		impl.logger.Errorw("error in getting app.description for the given appIds from db", "err", err, "appIds", appIds)
 		return appIdsToNoteMap, err
 	}
 
@@ -208,6 +213,7 @@ func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[
 
 	users, err := impl.userRepository.GetByIds(userIds)
 	if err != nil {
+		impl.logger.Errorw("error in finding users by userIds", "userIds", userIds, "err", err)
 		return appIdsToNoteMap, err
 	}
 
