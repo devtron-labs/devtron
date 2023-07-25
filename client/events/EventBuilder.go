@@ -336,8 +336,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	if lastColonIndex != -1 && lastColonIndex < len(payload.DockerImageUrl)-1 {
 		dockerImageTag = payload.DockerImageUrl[lastColonIndex+1:]
 	}
-	payload.ImageApprovalLink = fmt.Sprintf("/dashboard/app/%d/trigger?approval-node&imageTag=%s", event.AppId, dockerImageTag)
-
+	payload.ImageApprovalLink = fmt.Sprintf("/dashboard/app/%d/trigger?approval-node=%d&imageTag=%s", event.AppId, cdPipeline.Id, dockerImageTag)
 	for _, emailId := range approvalActionRequest.ApprovalNotificationConfig.EmailIds {
 		provider := &notifier.Provider{
 			//Rule:      "",
