@@ -17,4 +17,5 @@ type ChartProviderRequestDto struct {
 	IsOCIRegistry bool   `json:"isOCIRegistry"`
 	Active        bool   `json:"active,omitempty"`
 	UserId        int32  `json:"-"`
+	ChartRepoId   int    `json:"-"`
 }

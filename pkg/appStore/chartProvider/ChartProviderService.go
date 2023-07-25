@@ -20,6 +20,7 @@ package chartProvider
 import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -36,14 +37,16 @@ type ChartProviderService interface {
 type ChartProviderServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	repoRepository              chartRepoRepository.ChartRepoRepository
+	chartRepositoryService      chartRepo.ChartRepositoryService
 	registryRepository          dockerRegistryRepository.DockerArtifactStoreRepository
 	ociRegistryConfigRepository dockerRegistryRepository.OCIRegistryConfigRepository
 }
 
-func NewChartProviderServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, registryRepository dockerRegistryRepository.DockerArtifactStoreRepository, ociRegistryConfigRepository dockerRegistryRepository.OCIRegistryConfigRepository) *ChartProviderServiceImpl {
+func NewChartProviderServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, chartRepositoryService chartRepo.ChartRepositoryService, registryRepository dockerRegistryRepository.DockerArtifactStoreRepository, ociRegistryConfigRepository dockerRegistryRepository.OCIRegistryConfigRepository) *ChartProviderServiceImpl {
 	return &ChartProviderServiceImpl{
 		logger:                      logger,
 		repoRepository:              repoRepository,
+		chartRepositoryService:      chartRepositoryService,
 		registryRepository:          registryRepository,
 		ociRegistryConfigRepository: ociRegistryConfigRepository,
 	}
@@ -57,6 +60,8 @@ func (impl *ChartProviderServiceImpl) GetChartProviderList() ([]*ChartProviderRe
 		return nil, err
 	}
 	for _, model := range store {
+
+		//TODO: refactor
 		if model.OCIRegistryConfig == nil ||
 			len(model.OCIRegistryConfig) != 1 ||
 			model.OCIRegistryConfig[0].RepositoryType != dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART {
@@ -101,12 +106,7 @@ func (impl *ChartProviderServiceImpl) ToggleChartProvider(request *ChartProvider
 	// Rollback tx on error.
 	defer tx.Rollback()
 	if !request.IsOCIRegistry {
-		chartRepoId, err := strconv.Atoi(request.Id)
-		if err != nil {
-			impl.logger.Errorw("request err, ToggleChartProvider", "err", err, "ChartRepoId", request.Id)
-			return err
-		}
-		chartRepo, err := impl.repoRepository.FindById(chartRepoId)
+		chartRepo, err := impl.repoRepository.FindById(request.ChartRepoId)
 		if err != nil {
 			return err
 		}
@@ -155,5 +155,13 @@ func (impl *ChartProviderServiceImpl) ToggleChartProvider(request *ChartProvider
 }
 
 func (impl *ChartProviderServiceImpl) SyncChartProvider(request *ChartProviderRequestDto) error {
+	chartProviderConfig := &chartRepo.ChartProviderConfig{
+		ChartProviderId: request.Id,
+		IsOCIRegistry:   request.IsOCIRegistry,
+	}
+	err := impl.chartRepositoryService.TriggerChartSyncManual(chartProviderConfig)
+	if err != nil {
+		return err
+	}
 	return nil
 }

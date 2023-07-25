@@ -26,6 +26,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"strconv"
 )
 
 type ChartProviderRestHandler interface {
@@ -107,6 +108,12 @@ func (handler *ChartProviderRestHandlerImpl) ToggleChartProvider(w http.Response
 	}
 	//RBAC ends
 	request.UserId = userId
+	err = ValidateRequestObjectForChartRepoId(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, ToggleChartProvider", "err", err, "ChartRepoId", request.Id)
+		common.WriteJsonResp(w, err, "Invalid ChartRepoId", http.StatusBadRequest)
+		return
+	}
 	err = handler.chartProviderService.ToggleChartProvider(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, ToggleChartProvider", "err", err, "userId", userId)
@@ -146,6 +153,12 @@ func (handler *ChartProviderRestHandlerImpl) SyncChartProvider(w http.ResponseWr
 	}
 	//RBAC ends
 	request.UserId = userId
+	err = ValidateRequestObjectForChartRepoId(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, ToggleChartProvider", "err", err, "ChartRepoId", request.Id)
+		common.WriteJsonResp(w, err, "Invalid ChartRepoId", http.StatusBadRequest)
+		return
+	}
 	err = handler.chartProviderService.SyncChartProvider(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, SyncChartProvider", "err", err, "userId", userId)
@@ -153,4 +166,15 @@ func (handler *ChartProviderRestHandlerImpl) SyncChartProvider(w http.ResponseWr
 		return
 	}
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
+}
+
+func ValidateRequestObjectForChartRepoId(request *chartProvider.ChartProviderRequestDto) error {
+	if !request.IsOCIRegistry {
+		chartRepoId, err := strconv.Atoi(request.Id)
+		if err != nil || chartRepoId <= 0 {
+			return err
+		}
+		request.ChartRepoId = chartRepoId
+	}
+	return nil
 }
