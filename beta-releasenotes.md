@@ -12,6 +12,7 @@
 - feat: enhancement app workflow clone, added specific deployment clone in workflow (#3645)
 - Feature: Run Devtron Jobs in application environment (#3572)
 ## Documentation
+- docs: added devtron release note in summary.md (#3681)
 - docs: Updated readme for 4.18 chart for winter soldier. (#3673)
 ## Others
 - task: Updated chart version for v0.6.19 (#3639)
