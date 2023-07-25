@@ -16,9 +16,9 @@ import (
 	"testing"
 )
 
-var appId1, appId2 = 1, 2
+var testAppId1, testAppId2 = 1, 2
 var userId1, userId2 int32 = 1, 2
-var testAppIds = []int{appId1, appId2}
+var testAppIds = []int{testAppId1, testAppId2}
 var testUserIds = []int32{userId1, userId2}
 
 var testUsers = []repository.UserModel{
@@ -42,7 +42,7 @@ func TestSave(t *testing.T) {
 
 	t.Run("Test Error Case, error in FindByIdentifier method", func(tt *testing.T) {
 		req := &repository3.GenericNote{
-			Identifier:     appId1,
+			Identifier:     testAppId1,
 			IdentifierType: repository3.AppType,
 			Description:    "test-description",
 		}
@@ -132,15 +132,11 @@ func TestSave(t *testing.T) {
 	})
 }
 
-func TestUpdate(t *testing.T) {
-
-}
-
 func TestGetGenericNotesForAppIds(t *testing.T) {
 
 	genericNoteResp := &repository3.GenericNote{
 		Id:             1,
-		Identifier:     appId1,
+		Identifier:     testAppId1,
 		IdentifierType: repository3.AppType,
 		Description:    "test-response-1",
 		AuditLog: sql.AuditLog{
@@ -150,7 +146,7 @@ func TestGetGenericNotesForAppIds(t *testing.T) {
 
 	descriptionResp := &repository3.GenericNote{
 		Id:             0,
-		Identifier:     appId2,
+		Identifier:     testAppId2,
 		IdentifierType: repository3.AppType,
 		Description:    "app-description-2",
 		AuditLog: sql.AuditLog{
@@ -178,7 +174,7 @@ func TestGetGenericNotesForAppIds(t *testing.T) {
 		mockedNoteRepo.On("GetGenericNotesForAppIds", mock.AnythingOfType("[]int")).Return(getGenericNotesForAppIdsResp, nil)
 		mockedNoteRepo.On("GetDescriptionFromAppIds", mock.AnythingOfType("[]int")).Return(nil, testErr)
 		resp, err := genericNoteSvc.GetGenericNotesForAppIds(testAppIds)
-		noteRespBean := resp[appId1]
+		noteRespBean := resp[testAppId1]
 		assert.NotNil(tt, resp)
 		assert.Equal(tt, 1, len(resp))
 		assert.NotNil(tt, noteRespBean)
@@ -201,7 +197,7 @@ func TestGetGenericNotesForAppIds(t *testing.T) {
 		assert.NotNil(tt, err)
 		assert.Equal(tt, testErr, err)
 
-		noteRespBean := resp[appId1]
+		noteRespBean := resp[testAppId1]
 		assert.NotNil(tt, noteRespBean)
 		assert.Equal(tt, genericNoteResp.Id, noteRespBean.Id)
 		assert.Equal(tt, genericNoteResp.Description, noteRespBean.Description)
@@ -220,13 +216,13 @@ func TestGetGenericNotesForAppIds(t *testing.T) {
 		assert.Equal(tt, 2, len(resp))
 		assert.Nil(tt, err)
 
-		noteRespBean := resp[appId1]
+		noteRespBean := resp[testAppId1]
 		assert.NotNil(tt, noteRespBean)
 		assert.Equal(tt, genericNoteResp.Id, noteRespBean.Id)
 		assert.Equal(tt, genericNoteResp.Description, noteRespBean.Description)
 		assert.Equal(tt, testUsers[0].EmailId, noteRespBean.UpdatedBy)
 
-		descriptionRespBean := resp[appId2]
+		descriptionRespBean := resp[testAppId2]
 		assert.NotNil(tt, descriptionRespBean)
 		assert.Equal(tt, descriptionResp.Id, descriptionRespBean.Id)
 		assert.Equal(tt, descriptionResp.Description, descriptionRespBean.Description)
