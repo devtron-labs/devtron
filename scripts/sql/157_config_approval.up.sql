@@ -3,6 +3,13 @@ INSERT INTO rbac_policy_resource_detail ("resource", "policy_resource_value", "a
                                          "created_by", "updated_on", "updated_by")
 VALUES ('config', '{ "value": "config", "indexKeyMap": {}}', ARRAY['approve'],'{"value": "%/%/%","indexKeyMap": {"0": "TeamObj","2": "EnvObj","4": "AppObj"}}', ARRAY['apps/devtron-app'],'f','now()', '1', 'now()', '1');
 
+
+INSERT INTO rbac_role_resource_detail ("resource", "role_resource_key", "role_resource_update_key",
+                                       "eligible_entity_access_types", "deleted", "created_on", "created_by",
+                                       "updated_on", "updated_by")
+VALUES ('approver', 'Approver', 'Approver', ARRAY ['apps/devtron-app'], false, now(), 1, now(), 1);
+
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_default_rbac_role_data;
 
 CREATE TABLE IF NOT EXISTS "public"."default_rbac_role_data"
@@ -17,7 +24,6 @@ CREATE TABLE IF NOT EXISTS "public"."default_rbac_role_data"
     "enabled"           boolean      NOT NULL,
     PRIMARY KEY ("id")
 );
-
 
 INSERT INTO "public"."default_rbac_role_data" ( "role","default_role_data", "created_on", "created_by", "updated_on", "updated_by","enabled")
 VALUES ('configApprover', '{
@@ -40,7 +46,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_resource_protection;
 CREATE TABLE IF NOT EXISTS "public"."resource_protection"
 (
     "id"                int NOT NULL DEFAULT nextval('id_seq_resource_protection'::regclass),
-    "app_id"            int NOT NULL,
+    "app_id"            int NOT NULL, /* add foreign key constraint */
     "env_id"            int NOT NULL,
     resource            int NOT NULL,
     protection_state    int NOT NULL,
@@ -70,7 +76,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_draft;
 CREATE TABLE IF NOT EXISTS "public"."draft"
 (
     id                int     NOT NULL DEFAULT nextval('id_seq_draft'::regclass),
-    app_id            int     NOT NULL,
+    app_id            int     NOT NULL, /* add foreign key constraint */
     env_id            int     NOT NULL,
     resource          int     NOT NULL,
     resource_name     varchar(300)     NOT NULL,
