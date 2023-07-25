@@ -120,7 +120,8 @@ func (impl GenericNoteRepositoryImpl) GetDescriptionFromAppIds(appIds []int) ([]
 	for _, app := range apps {
 		note := &GenericNote{}
 		note.Id = 0
-		note.Identifier = int(AppType)
+		note.IdentifierType = AppType
+		note.Identifier = app.Id
 		note.Description = app.Description
 		note.UpdatedOn = app.UpdatedOn
 		note.UpdatedBy = app.UpdatedBy
