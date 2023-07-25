@@ -27,7 +27,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/k8s"
 	errors1 "github.com/juju/errors"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -37,7 +36,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"sync"
 	"time"
 
@@ -120,23 +118,9 @@ type PrometheusAuth struct {
 }
 
 func (bean ClusterBean) GetClusterConfig() (*k8s.ClusterConfig, error) {
-	clusterConfig := &k8s.ClusterConfig{}
 	host := bean.ServerUrl
 	configMap := bean.Config
 	bearerToken := configMap[k8s.BearerToken]
-	if bean.Id == 1 && bean.ClusterName == DEFAULT_CLUSTER {
-		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
-			log.Println("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
-			return clusterConfig, err
-		} else {
-			content, err := ioutil.ReadFile(TokenFilePath)
-			if err != nil {
-				log.Println("error on reading file", "err", err)
-				return clusterConfig, err
-			}
-			bearerToken = string(content)
-		}
-	}
 	clusterCfg := &k8s.ClusterConfig{Host: host, BearerToken: bearerToken}
 	clusterCfg.InsecureSkipTLSVerify = bean.InsecureSkipTLSVerify
 	if bean.InsecureSkipTLSVerify == false {
@@ -144,7 +128,7 @@ func (bean ClusterBean) GetClusterConfig() (*k8s.ClusterConfig, error) {
 		clusterCfg.CertData = configMap[k8s.CertData]
 		clusterCfg.CAData = configMap[k8s.CertificateAuthorityData]
 	}
-	return clusterConfig, nil
+	return clusterCfg, nil
 }
 
 type UserInfo struct {
