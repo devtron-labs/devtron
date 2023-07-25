@@ -42,7 +42,7 @@ type GenericNoteHistoryServiceImpl struct {
 	logger                       *zap.SugaredLogger
 }
 
-func NewClusterNoteHistoryServiceImpl(repositoryHistory repository.GenericNoteHistoryRepository, logger *zap.SugaredLogger) *GenericNoteHistoryServiceImpl {
+func NewGenericNoteHistoryServiceImpl(repositoryHistory repository.GenericNoteHistoryRepository, logger *zap.SugaredLogger) *GenericNoteHistoryServiceImpl {
 	clusterNoteHistoryService := &GenericNoteHistoryServiceImpl{
 		genericNoteHistoryRepository: repositoryHistory,
 		logger:                       logger,
