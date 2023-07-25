@@ -799,6 +799,10 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		impl.logger.Debugw("updating request chart env config and pipeline config - making configs latest", "chartId", templateRequest.Id)
 
 		impl.logger.Debug("updating all other charts which are not latest but may be set previous true, setting previous=false")
+
+		if currentLatestChart.ChartRefId != templateRequest.ChartRefId && !CheckCompatibility(currentLatestChart.ChartRefId, templateRequest.ChartRefId) {
+			return nil, fmt.Errorf("charts are not compatible")
+		}
 		//step 3
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindNoLatestChartForAppByAppId")
 		noLatestCharts, err := impl.chartRepository.FindNoLatestChartForAppByAppId(templateRequest.AppId)
@@ -846,6 +850,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	template.Previous = false
 	template.IsBasicViewLocked = templateRequest.IsBasicViewLocked
 	template.CurrentViewEditor = templateRequest.CurrentViewEditor
+	template.ChartRefId = templateRequest.ChartRefId
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.Update.requestTemplate")
 	err = impl.chartRepository.Update(template)
 	span.End()
