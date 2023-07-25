@@ -2,19 +2,22 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
+	"k8s.io/utils/strings/slices"
 	"net/http"
 	"strconv"
 )
 
 type DevtronAppAutoCompleteRestHandler interface {
 	GitListAutocomplete(w http.ResponseWriter, r *http.Request)
-	DockerListAutocomplete(w http.ResponseWriter, r *http.Request)
+	RegistriesListAutocomplete(w http.ResponseWriter, r *http.Request)
 	TeamListAutocomplete(w http.ResponseWriter, r *http.Request)
 	EnvironmentListAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetAppListForAutocomplete(w http.ResponseWriter, r *http.Request)
@@ -126,7 +129,12 @@ func (handler PipelineConfigRestHandlerImpl) EnvironmentListAutocomplete(w http.
 		return
 	}
 	//RBAC
-	result, err := handler.envService.GetEnvironmentListForAutocomplete()
+	showDeploymentOptionsParam := false
+	param := r.URL.Query().Get("showDeploymentOptions")
+	if param != "" {
+		showDeploymentOptionsParam, _ = strconv.ParseBool(param)
+	}
+	result, err := handler.envService.GetEnvironmentListForAutocomplete(showDeploymentOptionsParam)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvironmentListAutocomplete", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -161,7 +169,7 @@ func (handler PipelineConfigRestHandlerImpl) GitListAutocomplete(w http.Response
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) RegistriesListAutocomplete(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -169,6 +177,24 @@ func (handler PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	storageType := v.Get("storageType")
+	if storageType == "" {
+		storageType = repository.OCI_REGISRTY_REPO_TYPE_CONTAINER
+	}
+	if !slices.Contains(repository.OCI_REGISRTY_REPO_TYPE_LIST, storageType) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid query parameters"), nil, http.StatusBadRequest)
+		return
+	}
+	storageAction := v.Get("storageAction")
+	if storageAction == "" {
+		storageAction = repository.STORAGE_ACTION_TYPE_PUSH
+	}
+	if !(storageAction == repository.STORAGE_ACTION_TYPE_PULL || storageAction == repository.STORAGE_ACTION_TYPE_PUSH) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid query parameters"), nil, http.StatusBadRequest)
+		return
+	}
+
 	handler.Logger.Infow("request payload, DockerListAutocomplete", "appId", appId)
 	//RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
@@ -177,13 +203,13 @@ func (handler PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.Respo
 		return
 	}
 	//RBAC
-	res, err := handler.dockerRegistryConfig.ListAllActive()
+	registryConfigs, err := handler.dockerRegistryConfig.ListAllActive()
 	if err != nil {
 		handler.Logger.Errorw("service err, DockerListAutocomplete", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
+	res := handler.dockerRegistryConfig.FilterRegistryBeanListBasedOnStorageTypeAndAction(registryConfigs, storageType, storageAction, repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 

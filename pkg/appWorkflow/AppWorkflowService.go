@@ -102,6 +102,14 @@ type WorkflowComponentNamesDto struct {
 	CdPipelines    []string `json:"cdPipelines"`
 }
 
+type WorkflowCloneRequest struct {
+	WorkflowName  string `json:"workflowName,omitempty"`
+	AppId         int    `json:"appId,omitempty"`
+	EnvironmentId int    `json:"environmentId,omitempty"`
+	WorkflowId    int    `json:"workflowId,omitempty"`
+	UserId        int32  `json:"-"`
+}
+
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService) *AppWorkflowServiceImpl {
@@ -187,13 +195,19 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]AppWorkflowDto
 func (impl AppWorkflowServiceImpl) FindAppWorkflowById(Id int, appId int) (AppWorkflowDto, error) {
 	appWorkflow, err := impl.appWorkflowRepository.FindByIdAndAppId(Id, appId)
 	if err != nil {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("err", "error", err)
 		return AppWorkflowDto{}, err
 	}
+	wfrIdVsMappings, err := impl.FindAllAppWorkflowMapping([]int{appWorkflow.Id})
+	if err != nil {
+		return AppWorkflowDto{}, err
+	}
+
 	appWorkflowDto := &AppWorkflowDto{
-		AppId: appWorkflow.AppId,
-		Id:    appWorkflow.Id,
-		Name:  appWorkflow.Name,
+		AppId:                 appWorkflow.AppId,
+		Id:                    appWorkflow.Id,
+		Name:                  appWorkflow.Name,
+		AppWorkflowMappingDto: wfrIdVsMappings[appWorkflow.Id],
 	}
 	return *appWorkflowDto, err
 }
@@ -427,10 +441,16 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowByName(name string, appId int)
 		impl.Logger.Errorw("err", err)
 		return AppWorkflowDto{}, err
 	}
+	wfrIdVsMappings, err := impl.FindAllAppWorkflowMapping([]int{appWorkflow.Id})
+	if err != nil {
+		return AppWorkflowDto{}, err
+	}
+
 	appWorkflowDto := &AppWorkflowDto{
-		AppId: appWorkflow.AppId,
-		Id:    appWorkflow.Id,
-		Name:  appWorkflow.Name,
+		AppId:                 appWorkflow.AppId,
+		Id:                    appWorkflow.Id,
+		Name:                  appWorkflow.Name,
+		AppWorkflowMappingDto: wfrIdVsMappings[appWorkflow.Id],
 	}
 	return *appWorkflowDto, err
 }

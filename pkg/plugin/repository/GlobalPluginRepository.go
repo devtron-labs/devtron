@@ -44,6 +44,13 @@ const (
 	PLUGIN_VARIABLE_FORMAT_TYPE_DATE    PluginStepVariableFormatType = "DATE"
 )
 
+const (
+	CI            = 0
+	CD            = 1
+	CI_CD         = 2
+	CD_STAGE_TYPE = "cd"
+)
+
 type PluginMetadata struct {
 	tableName   struct{}   `sql:"plugin_metadata" pg:",discard_unknown_columns"`
 	Id          int        `sql:"id,pk"`
@@ -140,6 +147,7 @@ type PluginStepVariable struct {
 	ReferenceVariableName     string                       `sql:"reference_variable_name"`
 	Deleted                   bool                         `sql:"deleted,notnull"`
 	sql.AuditLog
+	PluginMetadataId int `sql:"-"`
 }
 
 type PluginStepCondition struct {
@@ -154,8 +162,16 @@ type PluginStepCondition struct {
 	sql.AuditLog
 }
 
+type PluginStageMapping struct {
+	tableName struct{} `sql:"plugin_stage_mapping" pg:",discard_unknown_columns"`
+	Id        int      `sql:"id,pk"`
+	PluginId  int      `sql:"plugin_id"`
+	StageType int      `sql:"stage_type"`
+	sql.AuditLog
+}
+
 type GlobalPluginRepository interface {
-	GetMetaDataForAllPlugins() ([]*PluginMetadata, error)
+	GetMetaDataForAllPlugins(stageType int) ([]*PluginMetadata, error)
 	GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error)
 	GetAllPluginTags() ([]*PluginTag, error)
 	GetAllPluginTagRelations() ([]*PluginTagRelation, error)
@@ -166,6 +182,7 @@ type GlobalPluginRepository interface {
 	GetStepsByPluginIds(pluginIds []int) ([]*PluginStep, error)
 	GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginStepVariableType) ([]*PluginStepVariable, error)
 	GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error)
+	GetExposedVariablesForAllPlugins() ([]*PluginStepVariable, error)
 	GetConditionsByStepId(stepId int) ([]*PluginStepCondition, error)
 }
 
@@ -181,10 +198,13 @@ type GlobalPluginRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMetadata, error) {
+func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins(stageType int) ([]*PluginMetadata, error) {
 	var plugins []*PluginMetadata
 	err := impl.dbConnection.Model(&plugins).
-		Where("deleted = ?", false).Select()
+		Join("INNER JOIN plugin_stage_mapping psm on psm.plugin_id=plugin_metadata.id").
+		Where("plugin_metadata.deleted = ?", false).
+		Where("psm.stage_type= 2 or psm.stage_type= ?", stageType).
+		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all plugins", "err", err)
 		return nil, err
@@ -317,6 +337,21 @@ func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginId(pluginId i
 		Where("pm.id = ?", pluginId).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting exposed variables by pluginId", "err", err, "pluginId", pluginId)
+		return nil, err
+	}
+	return pluginVariables, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesForAllPlugins() ([]*PluginStepVariable, error) {
+	var pluginVariables []*PluginStepVariable
+	query := `SELECT psv.*, pm.id as plugin_metadata_id from plugin_step_variable psv 
+    				INNER JOIN plugin_step ps on ps.id = psv.plugin_step_id
+    				INNER JOIN plugin_metadata pm on pm.id = ps.plugin_id 
+    				WHERE psv.deleted = ? and psv.is_exposed = ? and
+    				ps.deleted = ? and pm.deleted = ?;`
+	_, err := impl.dbConnection.Query(&pluginVariables, query, false, true, false, false)
+	if err != nil {
+		impl.logger.Errorw("err in getting exposed variables for all plugins", "err", err)
 		return nil, err
 	}
 	return pluginVariables, nil

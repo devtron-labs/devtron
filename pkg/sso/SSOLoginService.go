@@ -20,15 +20,16 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
+	"sigs.k8s.io/yaml"
 )
 
 type SSOLoginService interface {
@@ -47,20 +48,15 @@ type SSOLoginServiceImpl struct {
 	userAuthOidcHelper  auth.UserAuthOidcHelper
 }
 
-type Configs struct {
-	Issuer        string   `json:"issuer"`
-	ClientID      string   `json:"clientID"`
-	ClientSecret  string   `json:"clientSecret"`
-	RedirectURI   string   `json:"redirectURI"`
-	HostedDomains []string `json:"hostedDomains"`
+type Config struct {
+	Id     string                 `json:"id"`
+	Type   string                 `json:"type"`
+	Name   string                 `json:"name"`
+	Config map[string]interface{} `json:"config"`
 }
 
-type Config struct {
-	Id     string  `json:"id"`
-	Type   string  `json:"type"`
-	Name   string  `json:"name"`
-	Config Configs `json:"config"`
-}
+const ClientID = "clientID"
+const ClientSecret = "clientSecret"
 
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
@@ -178,15 +174,23 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	configString := string(configDataByte)
 	var configData Config
 	err = json.Unmarshal([]byte(configString), &configData)
+	if err != nil {
+		impl.logger.Errorw("error while Unmarshalling configString", "error", err)
+		return nil, err
+	}
 	var modelConfigData Config
 	err = json.Unmarshal([]byte(model.Config), &modelConfigData)
-	if configData.Config.ClientID == "" {
-		configData.Config.ClientID = modelConfigData.Config.ClientID
+	if err != nil {
+		impl.logger.Errorw("error while Unmarshalling model's config", "error", err)
+		return nil, err
 	}
-	if configData.Config.ClientSecret == "" {
-		configData.Config.ClientSecret = modelConfigData.Config.ClientSecret
+	updateSecretFromBase(&configData, &modelConfigData, ClientID)
+	updateSecretFromBase(&configData, &modelConfigData, ClientSecret)
+	newConfigString, err := json.Marshal(configData)
+	if err != nil {
+		impl.logger.Errorw("error while Marshaling configData", "error", err)
+		return nil, err
 	}
-	newConfigString, _ := json.Marshal(configData)
 	updatedConfig := string(newConfigString)
 	model.Label = request.Label
 	model.Url = request.Url
@@ -352,9 +356,17 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	}
 	var configData Config
 	err = json.Unmarshal([]byte(model.Config), &configData)
-	configData.Config.ClientID = ""
-	configData.Config.ClientSecret = ""
-	configString, _ := json.Marshal(configData)
+	if err != nil {
+		impl.logger.Errorw("error while Unmarshalling model's config", "error", err)
+		return nil, err
+	}
+	secureCredentialValue(&configData, ClientID)
+	secureCredentialValue(&configData, ClientSecret)
+	configString, err := json.Marshal(configData)
+	if err != nil {
+		impl.logger.Errorw("error while Marshaling configData", "error", err)
+		return nil, err
+	}
 	var config json.RawMessage
 	err = json.Unmarshal(configString, &config)
 	if err != nil {
@@ -370,4 +382,16 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
+}
+
+func updateSecretFromBase(configData *Config, baseConfigData *Config, key string) {
+	if configData.Config[key] == "" && baseConfigData.Config[key] != nil {
+		configData.Config[key] = baseConfigData.Config[key]
+	}
+}
+
+func secureCredentialValue(configData *Config, credentialKey string) {
+	if configData.Config[credentialKey] != nil {
+		configData.Config[credentialKey] = ""
+	}
 }

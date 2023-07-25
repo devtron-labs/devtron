@@ -35,6 +35,7 @@ type DockerBuildConfig struct {
 	LanguageFramework  string            `json:"languageFramework,omitempty"`
 	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
 	BuildContext       string            `json:"buildContext,omitempty"`
+	UseBuildx          bool              `json:"useBuildx"`
 }
 
 type BuildPackConfig struct {
