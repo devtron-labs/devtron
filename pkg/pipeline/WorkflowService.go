@@ -248,21 +248,10 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 	impl.Logger.Debugw("workflowRequest ---->", "workflowJson", string(workflowJson))
 
-	var wfClient v1alpha12.WorkflowInterface
+	wfClient, err := impl.getWfClient(env, workflowRequest.Namespace, workflowRequest.IsExtRun)
 
-	if isJob && env != nil && env.Id != 0 {
-		workflowRequest.EnvironmentId = env.Id
-		wfClient, err = impl.getRuntimeEnvClientInstance(env)
-		if err != nil {
-			impl.Logger.Errorw("cannot build wf client", "err", err)
-			return nil, err
-		}
-	} else {
-		wfClient, err = impl.getClientInstance(workflowRequest.Namespace)
-		if err != nil {
-			impl.Logger.Errorw("cannot build wf client", "err", err)
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	privileged := true
@@ -341,7 +330,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		Name: CI_WORKFLOW_NAME,
 		Container: &v12.Container{
 			Env:   containerEnvVariables,
-			Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
+			Image: workflowRequest.CiImage, //TODO need to check whether trigger buildX image or normal image
 			SecurityContext: &v12.SecurityContext{
 				Privileged: &privileged,
 			},
@@ -655,30 +644,24 @@ func processSecrets(impl *WorkflowServiceImpl, entryPoint *string, secrets *bean
 	secretsMapping := make(map[string]string)
 	*entryPoint = CI_WORKFLOW_WITH_STAGES
 	for i, s := range secrets.Secrets {
-		var datamap map[string][]byte
+		var datamap map[string]string
 		if err := json.Unmarshal(s.Data, &datamap); err != nil {
 			impl.Logger.Errorw("error while unmarshal data", "err", err)
 			return secretsMapping, err
 		}
 		ownerDelete := true
-		secretObject := v12.Secret{
-			TypeMeta: v1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: v1.ObjectMeta{
-				Name: s.Name,
-				OwnerReferences: []v1.OwnerReference{{
-					APIVersion:         "argoproj.io/v1alpha1",
-					Kind:               "Workflow",
-					Name:               "{{workflow.name}}",
-					UID:                "{{workflow.uid}}",
-					BlockOwnerDeletion: &ownerDelete,
-				}},
-			},
+		configMapSecretDto := ConfigMapSecretDto{
+			Name: s.Name,
 			Data: datamap,
-			Type: "Opaque",
+			OwnerRef: v1.OwnerReference{
+				APIVersion:         "argoproj.io/v1alpha1",
+				Kind:               "Workflow",
+				Name:               "{{workflow.name}}",
+				UID:                "{{workflow.uid}}",
+				BlockOwnerDeletion: &ownerDelete,
+			},
 		}
+		secretObject := GetSecretBody(configMapSecretDto)
 		secretJson, err := json.Marshal(secretObject)
 		if err != nil {
 			impl.Logger.Errorw("error in building json", "err", err)
@@ -707,23 +690,18 @@ func processConfigMap(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson
 			return configsMapping, err
 		}
 		ownerDelete := true
-		cmBody := v12.ConfigMap{
-			TypeMeta: v1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "v1",
-			},
-			ObjectMeta: v1.ObjectMeta{
-				Name: cm.Name,
-				OwnerReferences: []v1.OwnerReference{{
-					APIVersion:         "argoproj.io/v1alpha1",
-					Kind:               "Workflow",
-					Name:               "{{workflow.name}}",
-					UID:                "{{workflow.uid}}",
-					BlockOwnerDeletion: &ownerDelete,
-				}},
-			},
+		configMapSecretDto := ConfigMapSecretDto{
+			Name: cm.Name,
 			Data: dataMap,
+			OwnerRef: v1.OwnerReference{
+				APIVersion:         "argoproj.io/v1alpha1",
+				Kind:               "Workflow",
+				Name:               "{{workflow.name}}",
+				UID:                "{{workflow.uid}}",
+				BlockOwnerDeletion: &ownerDelete,
+			},
 		}
+		cmBody := GetConfigMapBody(configMapSecretDto)
 		cmJson, err := json.Marshal(cmBody)
 		if err != nil {
 			impl.Logger.Errorw("error in building json", "err", err)
@@ -778,20 +756,10 @@ func (impl *WorkflowServiceImpl) getClientInstance(namespace string) (v1alpha12.
 
 func (impl *WorkflowServiceImpl) GetWorkflow(name string, namespace string, isExt bool, environment *repository2.Environment) (*v1alpha1.Workflow, error) {
 	impl.Logger.Debug("getting wf", name)
-	var wfClient v1alpha12.WorkflowInterface
-	var err error
-	if isExt {
-		wfClient, err = impl.getRuntimeEnvClientInstance(environment)
-		if err != nil {
-			impl.Logger.Errorw("cannot build wf client", "err", err)
-			return nil, err
-		}
-	} else {
-		wfClient, err = impl.getClientInstance(namespace)
-		if err != nil {
-			impl.Logger.Errorw("cannot build wf client", "err", err)
-			return nil, err
-		}
+	wfClient, err := impl.getWfClient(environment, namespace, isExt)
+
+	if err != nil {
+		return nil, err
 	}
 
 	workflow, err := wfClient.Get(context.Background(), name, v1.GetOptions{})
@@ -800,23 +768,11 @@ func (impl *WorkflowServiceImpl) GetWorkflow(name string, namespace string, isEx
 
 func (impl *WorkflowServiceImpl) TerminateWorkflow(name string, namespace string, isExt bool, environment *repository2.Environment) error {
 	impl.Logger.Debugw("terminating wf", "name", name)
-	var wfClient v1alpha12.WorkflowInterface
-	var err error
-	if isExt {
-		wfClient, err = impl.getRuntimeEnvClientInstance(environment)
-		if err != nil {
-			impl.Logger.Errorw("cannot build wf client", "err", err)
-			return err
-		}
-	} else {
-		wfClient, err = impl.getClientInstance(namespace)
-		if err != nil {
-			impl.Logger.Errorw("cannot build wf client", "err", err)
-			return err
-		}
 
+	wfClient, err := impl.getWfClient(environment, namespace, isExt)
+	if err != nil {
+		return err
 	}
-
 	err = util.TerminateWorkflow(context.Background(), wfClient, name)
 	return err
 }
@@ -863,4 +819,23 @@ func (impl *WorkflowServiceImpl) checkErr(err error) {
 	if err != nil {
 		impl.Logger.Errorw("error", "error:", err)
 	}
+}
+
+func (impl *WorkflowServiceImpl) getWfClient(environment *repository2.Environment, namespace string, isExt bool) (v1alpha12.WorkflowInterface, error) {
+	var wfClient v1alpha12.WorkflowInterface
+	var err error
+	if isExt {
+		wfClient, err = impl.getRuntimeEnvClientInstance(environment)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return nil, err
+		}
+	} else {
+		wfClient, err = impl.getClientInstance(namespace)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return nil, err
+		}
+	}
+	return wfClient, nil
 }
