@@ -23,6 +23,8 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/util"
 	"net/http"
 	"os/user"
 	"path/filepath"
@@ -54,6 +56,7 @@ type K8sUtil struct {
 	logger        *zap.SugaredLogger
 	runTimeConfig *client.RuntimeConfig
 	kubeconfig    *string
+	k8sUtilConfig *util.K8sUtilConfig
 }
 
 type ClusterConfig struct {
@@ -83,7 +86,13 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	}
 
 	flag.Parse()
-	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
+
+	cfg := &util.K8sUtilConfig{}
+	err = env.Parse(cfg)
+	if err != nil {
+		logger.Infow("error occurred while parsing K8sUtilConfig,so setting K8sUtilConfig to default values", "err", err)
+	}
+	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, k8sUtilConfig: cfg}
 }
 
 func (impl K8sUtil) GetRestConfigByCluster(configMap *ClusterConfig) (*rest.Config, error) {
@@ -467,6 +476,16 @@ func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *Clus
 
 const Running = "Running"
 
+func (impl K8sUtil) GetPodListByLabel(namespace, label string, clientSet *kubernetes.Clientset) ([]v1.Pod, error) {
+	pods := clientSet.CoreV1().Pods(namespace)
+	podList, err := pods.List(context.Background(), metav1.ListOptions{LabelSelector: label})
+	if err != nil {
+		impl.logger.Errorw("get pod err, DeletePod", "err", err)
+		return nil, err
+	}
+	return podList.Items, nil
+}
+
 func (impl K8sUtil) DeletePodByLabel(namespace string, labels string, clusterConfig *ClusterConfig) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
@@ -633,7 +652,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				if namespaced && index == 1 {
 					headers = append(headers, K8sClusterResourceNamespaceKey)
 				}
-				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") {
+				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") || (kind == "Pod") {
 					columnIndexes[index] = columnName
 					headers = append(headers, columnName)
 				}
@@ -814,4 +833,30 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 		return nil, err
 	}
 	return k8sServerVersion, err
+}
+
+func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
+	k8sServerVersion, err := impl.GetK8sServerVersion(clientSet)
+	if err != nil || k8sServerVersion == nil {
+		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
+		return false, err
+	}
+	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
+	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
+	ephemeralRegex := impl.k8sUtilConfig.EphemeralServerVersionRegex
+	matched, err := util.MatchRegex(ephemeralRegex, k8sServerVersion.String())
+	if err != nil {
+		impl.logger.Errorw("error in matching ephemeral containers support version regex with k8sServerVersion", "err", err, "EphemeralServerVersionRegex", ephemeralRegex)
+		return false, err
+	}
+	return matched, nil
+}
+
+func (impl K8sUtil) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*version.Info, error) {
+	k8sServerVersion, err := clientSet.DiscoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+	return k8sServerVersion, nil
 }

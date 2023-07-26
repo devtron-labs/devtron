@@ -98,11 +98,12 @@ type ResourceTreeResponse struct {
 }
 
 type PodMetadata struct {
-	Name           string    `json:"name"`
-	UID            string    `json:"uid"`
-	Containers     []*string `json:"containers"`
-	InitContainers []*string `json:"initContainers"`
-	IsNew          bool      `json:"isNew"`
+	Name                string                         `json:"name"`
+	UID                 string                         `json:"uid"`
+	Containers          []*string                      `json:"containers"`
+	InitContainers      []*string                      `json:"initContainers"`
+	IsNew               bool                           `json:"isNew"`
+	EphemeralContainers []*util.EphemeralContainerData `json:"ephemeralContainers"`
 }
 
 type Manifests struct {
