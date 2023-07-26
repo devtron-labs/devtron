@@ -355,6 +355,27 @@ func TestConfigDraftService(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("approval request for deployment template with UPDATE action at BASE level with invalid json template", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftVersionId := 2
+		userId := int32(3)
+		draftVersionUserId := userId + 1
+		appId := 5
+		envId := protect.BASE_CONFIG_ENV_ID
+		resourceName := "Base-DT"
+		//sampleDeploymentTemplate, templateRequest := getSampleDT(t)
+		draftDto := &drafts.DraftDto{AppId: appId, EnvId: envId, ResourceName: resourceName, DraftState: drafts.AwaitApprovalDraftState, Resource: drafts.DeploymentTemplateResource}
+		invalidJson := "{\"}"
+		draftLatestVersion := &drafts.DraftVersion{Id: draftVersionId, UserId: draftVersionUserId, Data: invalidJson, Action: drafts.UpdateResourceAction}
+		draftLatestVersion.Draft = draftDto
+		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
+		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
+		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
+		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		assert.NotNil(t, err)
+	})
+
 	t.Run("approval request for deployment template with UPDATE action at BASE level with invalid template", func(t *testing.T) {
 		configDraftRepository, configDraftServiceImpl, _, chartService, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
@@ -377,6 +398,29 @@ func TestConfigDraftService(t *testing.T) {
 		assert.Error(t, err, drafts.TemplateOutdated)
 	})
 
+	t.Run("approval request for deployment template with UPDATE action at BASE level with error occurred during template validation", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, chartService, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftVersionId := 2
+		userId := int32(3)
+		draftVersionUserId := userId + 1
+		appId := 5
+		envId := protect.BASE_CONFIG_ENV_ID
+		resourceName := "Base-DT"
+		sampleDeploymentTemplate, templateRequest := getSampleDT(t)
+		draftDto := &drafts.DraftDto{AppId: appId, EnvId: envId, ResourceName: resourceName, DraftState: drafts.AwaitApprovalDraftState, Resource: drafts.DeploymentTemplateResource}
+		draftLatestVersion := &drafts.DraftVersion{Id: draftVersionId, UserId: draftVersionUserId, Data: sampleDeploymentTemplate, Action: drafts.UpdateResourceAction}
+		draftLatestVersion.Draft = draftDto
+		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
+		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
+		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
+		ctx := context.Background()
+		validationErrorMsg := "error during validating template"
+		chartService.On("DeploymentTemplateValidate", ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId).Return(false, errors.New(validationErrorMsg))
+		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		assert.Error(t, err, validationErrorMsg)
+	})
+
 	t.Run("approval request for deployment template with ADD action at ENV Level with outdated template", func(t *testing.T) {
 		configDraftRepository, configDraftServiceImpl, _, chartService, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
@@ -397,6 +441,49 @@ func TestConfigDraftService(t *testing.T) {
 		chartService.On("DeploymentTemplateValidate", ctx, environmentProperties.EnvOverrideValues, environmentProperties.ChartRefId).Return(false, nil)
 		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, drafts.TemplateOutdated)
+	})
+
+	t.Run("approval request for deployment template with ADD action at ENV Level with error occurred during template validation", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, chartService, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftVersionId := 2
+		userId := int32(3)
+		draftVersionUserId := userId + 1
+		appId := 5
+		envId := 6
+		resourceName := "Base-DT"
+		envPropsJson, environmentProperties := getEnvDT(t)
+		draftDto := &drafts.DraftDto{AppId: appId, EnvId: envId, ResourceName: resourceName, DraftState: drafts.AwaitApprovalDraftState, Resource: drafts.DeploymentTemplateResource}
+		draftLatestVersion := &drafts.DraftVersion{Id: draftVersionId, UserId: draftVersionUserId, Data: envPropsJson, Action: drafts.AddResourceAction}
+		draftLatestVersion.Draft = draftDto
+		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
+		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
+		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
+		ctx := context.Background()
+		validateErrMsg := "error during template validation"
+		chartService.On("DeploymentTemplateValidate", ctx, environmentProperties.EnvOverrideValues, environmentProperties.ChartRefId).Return(false, errors.New(validateErrMsg))
+		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		assert.Error(t, err, validateErrMsg)
+	})
+
+	t.Run("approval request for deployment template with ADD action at ENV Level with invalid json", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftVersionId := 2
+		userId := int32(3)
+		draftVersionUserId := userId + 1
+		appId := 5
+		envId := 6
+		resourceName := "Base-DT"
+		draftDto := &drafts.DraftDto{AppId: appId, EnvId: envId, ResourceName: resourceName, DraftState: drafts.AwaitApprovalDraftState, Resource: drafts.DeploymentTemplateResource}
+		invalidJson := "{\"}"
+		draftLatestVersion := &drafts.DraftVersion{Id: draftVersionId, UserId: draftVersionUserId, Data: invalidJson, Action: drafts.AddResourceAction}
+		draftLatestVersion.Draft = draftDto
+		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
+		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
+		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
+		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		assert.NotNil(t, err)
 	})
 
 	t.Run("approval request for deployment template with ADD action at ENV Level", func(t *testing.T) {
@@ -516,6 +603,28 @@ func TestConfigDraftService(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
+	t.Run("approval request for deployment template with error occurred during DELETE action at ENV Level", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, propertiesConfigService, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftVersionId := 2
+		userId := int32(3)
+		draftVersionUserId := userId + 1
+		appIdVal := 5
+		envId := 6
+		resourceName := "Base-DT"
+		//envPropsJson, environmentProperties := getEnvDT(t)
+		draftDto := &drafts.DraftDto{AppId: appIdVal, EnvId: envId, ResourceName: resourceName, DraftState: drafts.AwaitApprovalDraftState, Resource: drafts.DeploymentTemplateResource}
+		draftLatestVersion := &drafts.DraftVersion{Id: draftVersionId, UserId: draftVersionUserId, Data: "{\"id\":1}", Action: drafts.DeleteResourceAction}
+		draftLatestVersion.Draft = draftDto
+		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
+		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
+		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
+		errMsg := "failed to reset props"
+		propertiesConfigService.On("ResetEnvironmentProperties", 1).Return(false, errors.New(errMsg))
+		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		assert.Error(t, err, errMsg)
+	})
+
 	t.Run("add draft version with outdated last version id", func(t *testing.T) {
 		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
@@ -612,6 +721,20 @@ func TestConfigDraftService(t *testing.T) {
 		verifyVersionMetadata(t, draftVersionDtos, metadataResponse.DraftVersions, userInfos)
 	})
 
+	t.Run("get draft version metadata with error cases", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		//draftVersionDtos, userIds := getSampleDraftVersionMetadata(draftId)
+		//userInfos := getSampleUserInfos(userIds)
+		errorMsg := "error from db"
+		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{}, errors.New(errorMsg))
+		//userService.On("GetByIds", userIds).Return(userInfos, nil)
+		metadataResponse, err := configDraftServiceImpl.GetDraftVersionMetadata(draftId)
+		assert.Error(t, err, errorMsg)
+		assert.Nil(t, metadataResponse)
+		//verifyVersionMetadata(t, draftVersionDtos, metadataResponse.DraftVersions, userInfos)
+	})
+
 	t.Run("get draft by id", func(t *testing.T) {
 		configDraftRepository, configDraftServiceImpl, _, _, _, userService, appRepo, envRepo := getMockedConfigDraftServices(t, sugardLogger)
 		draftId := 1
@@ -690,6 +813,40 @@ func TestConfigDraftService(t *testing.T) {
 		assert.Equal(t, draftLatestVersion, latestDraftVersion)
 	})
 
+	t.Run("error handling cases while updating draft state", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftVersionId := 2
+		userId := int32(3)
+		toUpdateDraftState := drafts.AwaitApprovalDraftState
+		//draftLatestVersion := &drafts.DraftVersion{Id: draftVersionId}
+		//draftDto := &drafts.DraftDto{DraftState: drafts.InitDraftState}
+		errMsg := "no data found"
+		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(nil, errors.New(errMsg))
+		//configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
+		//configDraftRepository.On("UpdateDraftState", draftId, toUpdateDraftState, userId).Return(nil)
+		latestDraftVersion, err := configDraftServiceImpl.UpdateDraftState(draftId, draftVersionId, toUpdateDraftState, userId)
+		assert.Error(t, err, errMsg)
+		assert.Nil(t, nil, latestDraftVersion)
+	})
+
+	t.Run("error handling cases while updating draft state", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		draftId := 1
+		draftVersionId := 2
+		userId := int32(3)
+		toUpdateDraftState := drafts.AwaitApprovalDraftState
+		draftLatestVersion := &drafts.DraftVersion{Id: draftVersionId}
+		draftDto := &drafts.DraftDto{DraftState: drafts.InitDraftState}
+		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
+		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
+		errMsg := "error from db"
+		configDraftRepository.On("UpdateDraftState", draftId, toUpdateDraftState, userId).Return(errors.New(errMsg))
+		latestDraftVersion, err := configDraftServiceImpl.UpdateDraftState(draftId, draftVersionId, toUpdateDraftState, userId)
+		assert.Error(t, err, errMsg)
+		assert.Equal(t, draftLatestVersion, latestDraftVersion)
+	})
+
 	t.Run("get Drafts of particular resource", func(t *testing.T) {
 		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
 		appId := 1
@@ -732,6 +889,35 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("DiscardDrafts", appId, envId, userId).Return(nil)
 		configDraftServiceImpl.OnStateChange(appId, envId, protectionState, userId)
 		configDraftRepository.AssertCalled(t, "DiscardDrafts", appId, envId, userId)
+	})
+
+	t.Run("create draft cases", func(t *testing.T) {
+		configDraftRepository, configDraftServiceImpl, _, _, _, _, _, _ := getMockedConfigDraftServices(t, sugardLogger)
+		mockedRequest := drafts.ConfigDraftRequest{
+			AppId:          1,
+			EnvId:          2,
+			Resource:       drafts.CSDraftResource,
+			ResourceName:   "resource-name",
+			Action:         drafts.AddResourceAction,
+			Data:           "draft-data",
+			UserComment:    "userComment",
+			ChangeProposed: true,
+			UserId:         3,
+		}
+		mockedConfigDraftResponse := &drafts.ConfigDraftResponse{}
+		mockedConfigDraftResponse.ConfigDraftRequest = mockedRequest
+		configDraftRepository.On("CreateConfigDraft", mock.AnythingOfType("drafts.ConfigDraftRequest")).Return(func(request drafts.ConfigDraftRequest) *drafts.ConfigDraftResponse {
+			assert.Equal(t, mockedRequest.AppId, request.AppId)
+			assert.Equal(t, mockedRequest.EnvId, request.EnvId)
+			assert.Equal(t, mockedRequest.Resource, request.Resource)
+			assert.Equal(t, mockedRequest.ResourceName, request.ResourceName)
+			assert.Equal(t, mockedRequest.Action, request.Action)
+			assert.Equal(t, mockedRequest.Data, request.Data)
+			return mockedConfigDraftResponse
+		}, nil)
+		configDraftResponse, err := configDraftServiceImpl.CreateDraft(mockedRequest)
+		assert.Nil(t, err)
+		assert.Equal(t, mockedConfigDraftResponse, configDraftResponse)
 	})
 }
 

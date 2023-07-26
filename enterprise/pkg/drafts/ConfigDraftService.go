@@ -85,6 +85,7 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
+		//TODO KB: if any edit is being made and draft is in Await_Approval state, ideally we should change state to Init unless changeProposed flag is true
 		draftVersionDto := request.GetDraftVersionDto(currentTime)
 		draftVersionId, err := impl.configDraftRepository.SaveDraftVersion(draftVersionDto)
 		if err != nil {
@@ -397,7 +398,7 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 			impl.logger.Errorw("error occurred while deleting env level Deployment template", "id", id, "err", err)
 		}
 	}
-	return nil
+	return err
 }
 
 func (impl *ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) error {
@@ -405,16 +406,9 @@ func (impl *ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
 			err = impl.createMissingChart(ctx, appId, envId, envConfigProperties, userId)
-			if err != nil {
-				return err
+			if err == nil {
+				_, err = impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
 			}
-			_, err = impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
-			if err != nil {
-				impl.logger.Errorw("service err, EnvConfigOverrideCreate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
-				return err
-			}
-		} else {
-			return err
 		}
 	}
 	return err
@@ -435,9 +429,8 @@ func (impl *ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appI
 	_, err := impl.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("service err, EnvConfigOverrideCreate from draft", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
-		return err
 	}
-	return nil
+	return err
 }
 
 func (impl *ConfigDraftServiceImpl) updateWithUserMetadata(versions []*DraftVersionMetadata) error {
