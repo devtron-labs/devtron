@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const EphemeralServerVersionRegex = "v[1-9]\\.[2-9][3-9].*"
+const EphemeralServerVersionRegex = "v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*"
 
 func CheckIfValidLabel(labelKey string, labelValue string) error {
 	labelKey = strings.TrimSpace(labelKey)
