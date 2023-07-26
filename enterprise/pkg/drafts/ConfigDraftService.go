@@ -196,11 +196,9 @@ func (impl *ConfigDraftServiceImpl) GetDraftComments(draftId int) (*DraftVersion
 		if userInfo, found := userMetadataMap[userComment.UserId]; found {
 			userComment.UserEmail = userInfo.EmailId
 		}
-		commentMetadataArray, ok := draftVersionVsComments[draftVersionId]
+		commentMetadataArray := draftVersionVsComments[draftVersionId]
 		commentMetadataArray = append(commentMetadataArray, userComment)
-		if !ok {
-			draftVersionVsComments[draftVersionId] = commentMetadataArray
-		}
+		draftVersionVsComments[draftVersionId] = commentMetadataArray
 	}
 	var draftVersionComments []DraftVersionCommentBean
 	for draftVersionId, userComments := range draftVersionVsComments {
