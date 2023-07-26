@@ -44,7 +44,7 @@ func TestMatchRegex(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid regex, text match with regex",
+			name: "Valid regex, text not matching with regex",
 			args: args{
 				exp:  EphemeralServerVersionRegex,
 				text: "v1.3",
