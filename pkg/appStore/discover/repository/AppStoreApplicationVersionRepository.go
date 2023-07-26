@@ -86,6 +86,7 @@ func (impl AppStoreApplicationVersionRepositoryImpl) GetChartInfoById(id int) (*
 	return &appStoreWithVersion, err
 }
 
+// FindAll is not being used. instead FindWithFilter is being used for chart listing
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindAll() ([]appStoreBean.AppStoreWithVersion, error) {
 	var appStoreWithVersion []appStoreBean.AppStoreWithVersion
 	queryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name" +
@@ -199,8 +200,11 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindByIds(ids []int) ([]*Ap
 	}
 	err := impl.dbConnection.
 		Model(&appStoreApplicationVersions).
-		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo").
+		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo", "AppStore.DockerArtifactStore").
 		Where("app_store_application_version.id in (?)", pg.In(ids)).
+		Join("INNER JOIN app_store aps on app_store_application_version.app_store_id = aps.id").
+		Join("LEFT JOIN chart_repo ch on aps.chart_repo_id = ch.id").
+		Join("LEFT JOIN docker_artifact_store das on aps.docker_artifact_store_id = das.id").
 		Select()
 	return appStoreApplicationVersions, err
 }

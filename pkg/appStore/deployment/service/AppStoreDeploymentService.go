@@ -370,7 +370,10 @@ func (impl *AppStoreDeploymentServiceImpl) IsChartRepoActive(appStoreVersionId i
 		impl.logger.Errorw("fetching error", "err", err)
 		return false, err
 	}
-	return appStoreAppVersion.AppStore.ChartRepo.Active, nil
+	if appStoreAppVersion.AppStore.ChartRepo != nil {
+		return appStoreAppVersion.AppStore.ChartRepo.Active, nil
+	}
+	return false, nil
 }
 
 func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {

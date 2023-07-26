@@ -26,20 +26,20 @@ type ChartProviderRouter interface {
 }
 
 type ChartProviderRouterImpl struct {
-	appStoreRestHandler ChartProviderRestHandler
+	chartProviderRestHandler ChartProviderRestHandler
 }
 
-func NewChartProviderRouterImpl(appStoreRestHandler ChartProviderRestHandler) *ChartProviderRouterImpl {
+func NewChartProviderRouterImpl(chartProviderRestHandler ChartProviderRestHandler) *ChartProviderRouterImpl {
 	return &ChartProviderRouterImpl{
-		appStoreRestHandler: appStoreRestHandler,
+		chartProviderRestHandler: chartProviderRestHandler,
 	}
 }
 
 func (router ChartProviderRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/list").
-		HandlerFunc(router.appStoreRestHandler.GetChartProviderList).Methods("GET")
+		HandlerFunc(router.chartProviderRestHandler.GetChartProviderList).Methods("GET")
 	configRouter.Path("/update").
-		HandlerFunc(router.appStoreRestHandler.ToggleChartProvider).Methods("POST")
+		HandlerFunc(router.chartProviderRestHandler.ToggleChartProvider).Methods("POST")
 	configRouter.Path("/sync-chart").
-		HandlerFunc(router.appStoreRestHandler.SyncChartProvider).Methods("POST")
+		HandlerFunc(router.chartProviderRestHandler.SyncChartProvider).Methods("POST")
 }

@@ -25,7 +25,7 @@ import (
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
-	"github.com/devtron-labs/devtron/api/appStore/ChartProvider"
+	chartProvider "github.com/devtron-labs/devtron/api/appStore/ChartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -82,7 +82,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	chartProviderService "github.com/devtron-labs/devtron/pkg/appStore/chartProvider"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
@@ -136,6 +135,7 @@ func InitializeApp() (*App, error) {
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
+		chartProvider.AppStoreChartProviderExtWireSet,
 		appStoreValues.AppStoreValuesWireSet,
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
@@ -221,14 +221,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline.CiCdPipelineOrchestratorImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
-
-		chartProviderService.NewChartProviderServiceImpl,
-		wire.Bind(new(chartProviderService.ChartProviderService), new(*chartProviderService.ChartProviderServiceImpl)),
-		chartProvider.NewChartProviderRestHandlerImpl,
-		wire.Bind(new(chartProvider.ChartProviderRestHandler), new(*chartProvider.ChartProviderRestHandlerImpl)),
-		chartProvider.NewChartProviderRouterImpl,
-		wire.Bind(new(chartProvider.ChartProviderRouter), new(*chartProvider.ChartProviderRouterImpl)),
-
 		router.NewMigrateDbRouterImpl,
 		wire.Bind(new(router.MigrateDbRouter), new(*router.MigrateDbRouterImpl)),
 		restHandler.NewMigrateDbRestHandlerImpl,
