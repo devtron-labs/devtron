@@ -28,9 +28,7 @@ func TestSave(t *testing.T) {
 		resp, err := noteHistoryService.Save(tx, testInput, testUserId)
 		assert.Nil(tt, err)
 		assert.NotNil(tt, resp)
-		if resp == nil {
-			assert.Fail(tt, "nil response from save, expecting non nil response ")
-		}
+		assert.NotEmpty(tt, resp, "nil response from save, expecting non nil response ")
 		assert.Equal(tt, testInput.NoteId, resp.NoteId)
 		assert.Equal(tt, testInput.Description, resp.Description)
 	})
@@ -44,9 +42,7 @@ func TestSave(t *testing.T) {
 		resp, err := noteHistoryService.Save(tx, testInput, testUserId)
 		assert.Nil(tt, resp)
 		assert.NotNil(tt, err)
-		if err != nil {
-			assert.Equal(tt, expectedError, err)
-		}
+		assert.Equal(tt, expectedError, err)
 	})
 
 }

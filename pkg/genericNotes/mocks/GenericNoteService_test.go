@@ -40,16 +40,21 @@ func TestSave(t *testing.T) {
 		assert.Equal(tt, testErr, err.Error())
 	}
 
+	req := &repository3.GenericNote{
+		Identifier:     testAppId1,
+		IdentifierType: repository3.AppType,
+		Description:    "test-description",
+		AuditLog: sql.AuditLog{
+			UpdatedBy: userId1,
+		},
+	}
+
 	t.Run("Test Error Case, error in FindByIdentifier method", func(tt *testing.T) {
-		req := &repository3.GenericNote{
-			Identifier:     testAppId1,
-			IdentifierType: repository3.AppType,
-			Description:    "test-description",
-		}
+
 		genericNoteSvc, mockedNoteRepo, _, _ := initGenericNoteService(tt)
 		tx := &pg.Tx{}
 		testErr := "FindByIdentifier error"
-		mockedNoteRepo.On("FindByIdentifier", mock.AnythingOfType("int"), mock.AnythingOfType("repository.NoteType")).Return(nil, errors.New(testErr))
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(nil, errors.New(testErr))
 
 		resp, err := genericNoteSvc.Save(tx, req, userId1)
 		testErrorAssertions(tt, resp, testErr, err)
@@ -60,9 +65,7 @@ func TestSave(t *testing.T) {
 		genericNoteSvc, mockedNoteRepo, _, _ := initGenericNoteService(tt)
 		tx := &pg.Tx{}
 		clusterNoteNotFoundError := "cluster note already exists"
-
-		mockedNoteRepo.On("FindByIdentifier", mock.AnythingOfType("int"), mock.AnythingOfType("repository.NoteType")).Return(&repository3.GenericNote{Id: 1}, nil)
-		req := &repository3.GenericNote{}
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(&repository3.GenericNote{Id: 1}, nil)
 		resp, err := genericNoteSvc.Save(tx, req, userId1)
 		testErrorAssertions(tt, resp, clusterNoteNotFoundError, err)
 	})
@@ -71,9 +74,9 @@ func TestSave(t *testing.T) {
 		genericNoteSvc, mockedNoteRepo, _, _ := initGenericNoteService(tt)
 		tx := &pg.Tx{}
 		testErr := "GenericNote Save error"
-		mockedNoteRepo.On("FindByIdentifier", mock.AnythingOfType("int"), mock.AnythingOfType("repository.NoteType")).Return(&repository3.GenericNote{}, nil)
-		mockedNoteRepo.On("Save", tx, mock.AnythingOfType("*repository.GenericNote")).Return(errors.New(testErr))
-		req := &repository3.GenericNote{}
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(&repository3.GenericNote{}, nil)
+		mockedNoteRepo.On("Save", tx, req).Return(errors.New(testErr))
+
 		resp, err := genericNoteSvc.Save(tx, req, userId1)
 		testErrorAssertions(tt, resp, testErr, err)
 	})
@@ -81,10 +84,10 @@ func TestSave(t *testing.T) {
 	t.Run("Test Error Case, error in saving genericNote history audit", func(tt *testing.T) {
 		genericNoteSvc, mockedNoteRepo, mockedHistorySvc, _ := initGenericNoteService(tt)
 		tx := &pg.Tx{}
-		req := &repository3.GenericNote{}
+
 		testErr := "saving genericNote history audit error"
-		mockedNoteRepo.On("FindByIdentifier", mock.AnythingOfType("int"), mock.AnythingOfType("repository.NoteType")).Return(&repository3.GenericNote{}, nil)
-		mockedNoteRepo.On("Save", tx, mock.AnythingOfType("*repository.GenericNote")).Return(nil)
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(&repository3.GenericNote{}, nil)
+		mockedNoteRepo.On("Save", tx, req).Return(nil)
 		mockedHistorySvc.On("Save", tx, mock.AnythingOfType("*genericNotes.GenericNoteHistoryBean"), mock.AnythingOfType("int32")).Return(nil, errors.New(testErr))
 		resp, err := genericNoteSvc.Save(tx, req, userId1)
 		testErrorAssertions(tt, resp, testErr, err)
@@ -93,15 +96,11 @@ func TestSave(t *testing.T) {
 	t.Run("Test Error Case, error in getting user by Id", func(tt *testing.T) {
 		genericNoteSvc, mockedNoteRepo, mockedHistorySvc, mockedUserRepo := initGenericNoteService(t)
 		tx := &pg.Tx{}
-		mockedNoteRepo.On("FindByIdentifier", mock.AnythingOfType("int"), mock.AnythingOfType("repository.NoteType")).Return(&repository3.GenericNote{}, nil)
-		mockedNoteRepo.On("Save", tx, mock.AnythingOfType("*repository.GenericNote")).Return(nil)
+
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(&repository3.GenericNote{}, nil)
+		mockedNoteRepo.On("Save", tx, req).Return(nil)
 		mockedHistorySvc.On("Save", tx, mock.AnythingOfType("*genericNotes.GenericNoteHistoryBean"), mock.AnythingOfType("int32")).Return(nil, nil)
-		req := &repository3.GenericNote{
-			Description: "test description",
-			AuditLog: sql.AuditLog{
-				UpdatedBy: userId1,
-			},
-		}
+
 		testErr := "GetUserById error"
 		mockedUserRepo.On("GetById", req.UpdatedBy).Return(nil, errors.New(testErr))
 		resp, err := genericNoteSvc.Save(tx, req, userId1)
@@ -111,16 +110,10 @@ func TestSave(t *testing.T) {
 	t.Run("Test Success Case", func(tt *testing.T) {
 		genericNoteSvc, mockedNoteRepo, mockedHistorySvc, mockedUserRepo := initGenericNoteService(t)
 		tx := &pg.Tx{}
-		mockedNoteRepo.On("FindByIdentifier", mock.AnythingOfType("int"), mock.AnythingOfType("repository.NoteType")).Return(&repository3.GenericNote{}, nil)
-		mockedNoteRepo.On("Save", tx, mock.AnythingOfType("*repository.GenericNote")).Return(nil)
-		mockedHistorySvc.On("Save", tx, mock.AnythingOfType("*genericNotes.GenericNoteHistoryBean"), mock.AnythingOfType("int32")).Return(nil, nil)
-		req := &repository3.GenericNote{
 
-			Description: "test description",
-			AuditLog: sql.AuditLog{
-				UpdatedBy: userId1,
-			},
-		}
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(&repository3.GenericNote{}, nil)
+		mockedNoteRepo.On("Save", tx, req).Return(nil)
+		mockedHistorySvc.On("Save", tx, mock.AnythingOfType("*genericNotes.GenericNoteHistoryBean"), mock.AnythingOfType("int32")).Return(nil, nil)
 
 		testUser := testUsers[0]
 		mockedUserRepo.On("GetById", req.UpdatedBy).Return(&testUser, nil)

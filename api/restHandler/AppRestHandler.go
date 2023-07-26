@@ -360,7 +360,7 @@ func (handler AppRestHandlerImpl) UpdateAppDescription(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.logger.Infow("request payload, Update", "payload", bean)
+	handler.logger.Debugw("request payload, Update", "payload", bean)
 	err = handler.validator.Struct(bean)
 	if err != nil {
 		handler.logger.Errorw("validate err, Update", "error", err, "payload", bean)
@@ -380,11 +380,11 @@ func (handler AppRestHandlerImpl) UpdateAppDescription(w http.ResponseWriter, r 
 
 	// RBAC enforcer ends
 
-	clusterNoteResponseBean, err := handler.genericNoteService.Update(&bean, userId)
+	genericNoteResponseBean, err := handler.genericNoteService.Update(&bean, userId)
 	if err != nil {
 		handler.logger.Errorw("cluster note service err, Update", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, clusterNoteResponseBean, http.StatusOK)
+	common.WriteJsonResp(w, err, genericNoteResponseBean, http.StatusOK)
 }
