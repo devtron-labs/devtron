@@ -5,6 +5,7 @@
 - fix: optimized fetch deployment status timeline api (#3653)
 - fix: critical vulnerabilities in dependencies (#3632)
 ## Enhancements
+- feat: Bulk deployemnt with appName and EnvName (#3644)
 - feat: Ephemeral containers (#3618)
 - feat: flag for node (#3654)
 - feat: plugin and step support in pre post cd (#3563)
