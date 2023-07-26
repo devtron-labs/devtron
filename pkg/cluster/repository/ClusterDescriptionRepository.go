@@ -19,6 +19,7 @@ package repository
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -56,10 +57,10 @@ func (impl ClusterDescriptionRepositoryImpl) FindByClusterIdWithClusterDetails(c
 	query := "SELECT cl.id AS cluster_id, cl.cluster_name AS cluster_name, cl.created_on AS cluster_created_on, cl.created_by AS cluster_created_by, gn.id AS note_id, gn.description, gn.created_by, gn.created_on, gn.updated_by, gn.updated_on FROM" +
 		" cluster cl LEFT JOIN" +
 		" generic_note gn " +
-		" ON cl.id=gn.identifier AND gn.identifier_type = 0" + //0 is identifier type for cluster description
+		" ON cl.id=gn.identifier AND gn.identifier_type = %d" + //0 is identifier type for cluster description
 		" WHERE cl.id=%d AND cl.active=true " +
 		" LIMIT 1 OFFSET 0;"
-	query = fmt.Sprintf(query, clusterId)
+	query = fmt.Sprintf(query, clusterId, repository.AppType)
 	_, err := impl.dbConnection.Query(clusterDescription, query)
 	return clusterDescription, err
 }
