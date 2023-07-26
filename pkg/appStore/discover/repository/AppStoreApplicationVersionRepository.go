@@ -104,7 +104,7 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 	if updateAction == QUERY_COLUMN_UPDATE {
 		if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
 			query = query + " ch.name as chart_name, das.id as docker_artifact_store_id"
-		} else if len(filter.RegistryId) > 0 {
+		} else if len(filter.ChartRepoId) > 0 {
 			query = query + " das.id as docker_artifact_store_id"
 		} else if len(filter.RegistryId) > 0 {
 			query = query + " ch.name as chart_name"
