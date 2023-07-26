@@ -837,7 +837,7 @@ func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kuber
 	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
 	matched, err := util.MatchRegex(util.EphemeralServerVersionRegex, k8sServerVersion.String())
 	if err != nil {
-		impl.logger.Errorw("error in compiling regex to match k8sVersion for ephemeral containers support", "err", err, "EphemeralServerVersionRegex", util.EphemeralServerVersionRegex)
+		impl.logger.Errorw("error in matching ephemeral containers support version regex with k8sServerVersion", "err", err, "EphemeralServerVersionRegex", util.EphemeralServerVersionRegex)
 		return false, err
 	}
 	return matched, nil
