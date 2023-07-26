@@ -26,7 +26,7 @@ import (
 	"net/http"
 	"os/user"
 	"path/filepath"
-	"strconv"
+	"regexp"
 	"strings"
 	"time"
 
@@ -72,6 +72,7 @@ const BearerToken = "bearer_token"
 const CertificateAuthorityData = "cert_auth_data"
 const CertData = "cert_data"
 const TlsKey = "tls_key"
+const EphemeralServerVersionRegex = "v[1-9]\\.[2-9][3-9].+"
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
 	usr, err := user.Current()
@@ -833,17 +834,19 @@ func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kuber
 		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
 		return false, err
 	}
-	majorVersion, minorVersion, err := impl.extractMajorAndMinorVersion(k8sServerVersion)
-	if err != nil {
-		impl.logger.Errorw("error occurred in extracting k8s Major and Minor server version values", "err", err, "k8sServerVersion", k8sServerVersion)
-		return false, err
-	}
 	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
 	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
-	if majorVersion < 1 || (majorVersion == 1 && minorVersion < 23) {
-		return false, nil
+	exp, err := regexp.Compile(EphemeralServerVersionRegex)
+	if err != nil {
+		impl.logger.Errorw("error in compiling regex to match k8sVersion for ephemeral containers support", "err", err, "EphemeralServerVersionRegex", EphemeralServerVersionRegex)
+		return false, err
 	}
-	return true, nil
+
+	matched := false
+	if k8sServerVersion != nil {
+		matched = exp.Match([]byte(k8sServerVersion.String()))
+	}
+	return matched, nil
 }
 
 func (impl K8sUtil) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*version.Info, error) {
@@ -853,18 +856,4 @@ func (impl K8sUtil) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*versi
 		return nil, err
 	}
 	return k8sServerVersion, nil
-}
-
-func (impl K8sUtil) extractMajorAndMinorVersion(k8sServerVersion *version.Info) (int, int, error) {
-	majorVersion, err := strconv.Atoi(k8sServerVersion.Major)
-	if err != nil {
-		impl.logger.Errorw("error occurred in converting k8sServerVersion.Major version value to integer", "err", err, "k8sServerVersion.Major", k8sServerVersion.Major)
-		return 0, 0, err
-	}
-	minorVersion, err := strconv.Atoi(k8sServerVersion.Minor)
-	if err != nil {
-		impl.logger.Errorw("error occurred in converting k8sServerVersion.Minor version value to integer", "err", err, "k8sServerVersion.Minor", k8sServerVersion.Minor)
-		return majorVersion, 0, err
-	}
-	return majorVersion, minorVersion, nil
 }
