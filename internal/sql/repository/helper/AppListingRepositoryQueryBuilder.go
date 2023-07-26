@@ -288,9 +288,26 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 		whereCondition = whereCondition + "and dga.deployment_group_id = " + strconv.Itoa(appListingFilter.DeploymentGroupId) + " "
 	}
 	//add app-status filter here
+	var appStatusWithoutNotDeployed []string
+	var isNotDeployedFilter bool
 	if len(appListingFilter.AppStatuses) > 0 {
-		appStatuses := util.ProcessAppStatuses(appListingFilter.AppStatuses)
-		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
+		for _, status := range appListingFilter.AppStatuses {
+			if status == "NOT DEPLOYED" {
+				isNotDeployedFilter = true
+			} else {
+				appStatusWithoutNotDeployed = append(appStatusWithoutNotDeployed, status)
+			}
+		}
+	}
+	appStatuses := util.ProcessAppStatuses(appStatusWithoutNotDeployed)
+	if isNotDeployedFilter {
+		whereCondition = whereCondition + " and (p.deployment_app_created=false and p.deployment_app_type != 'manifest_download' or a.id NOT IN (SELECT app_id from pipeline) "
+		if len(appStatuses) > 0 {
+			whereCondition = whereCondition + " or aps.status IN (" + appStatuses + ") "
+		}
+		whereCondition = whereCondition + ") "
+	} else if len(appStatuses) > 0 {
+		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ")"
 	}
 
 	if len(appListingFilter.AppIds) > 0 {

@@ -20,16 +20,15 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"sigs.k8s.io/yaml"
+	"time"
 )
 
 type SSOLoginService interface {

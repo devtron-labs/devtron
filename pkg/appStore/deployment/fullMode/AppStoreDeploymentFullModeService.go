@@ -21,10 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path"
-	"regexp"
-	"time"
-
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -40,6 +36,9 @@ import (
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
+	"path"
+	"regexp"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
@@ -47,10 +46,10 @@ import (
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
-	"sigs.k8s.io/yaml"
 )
 
 const (
