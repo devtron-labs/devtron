@@ -18,6 +18,7 @@
 package appStoreDiscoverRepository
 
 import (
+	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -46,4 +47,5 @@ type AppStore struct {
 	CreatedOn             time.Time `sql:"created_on"`
 	UpdatedOn             time.Time `sql:"updated_on"`
 	ChartRepo             *chartRepoRepository.ChartRepo
+	DockerArtifactStore   *dockerArtifactStoreRegistry.DockerArtifactStore
 }
