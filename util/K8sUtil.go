@@ -5,8 +5,11 @@ import (
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"regexp"
 	"strings"
 )
+
+const EphemeralServerVersionRegex = "v[1-9]\\.[2-9][3-9].+"
 
 func CheckIfValidLabel(labelKey string, labelValue string) error {
 	labelKey = strings.TrimSpace(labelKey)
@@ -69,4 +72,13 @@ func isExternalEphemeralContainer(cmds []string, name string) bool {
 		}
 	}
 	return isExternal
+}
+
+func MatchRegex(exp string, text string) (bool, error) {
+	rExp, err := regexp.Compile(exp)
+	if err != nil {
+		return false, err
+	}
+	matched := rExp.Match([]byte(text))
+	return matched, nil
 }

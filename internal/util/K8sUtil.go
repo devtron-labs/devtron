@@ -23,10 +23,10 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"net/http"
 	"os/user"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -72,7 +72,6 @@ const BearerToken = "bearer_token"
 const CertificateAuthorityData = "cert_auth_data"
 const CertData = "cert_data"
 const TlsKey = "tls_key"
-const EphemeralServerVersionRegex = "v[1-9]\\.[2-9][3-9].+"
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
 	usr, err := user.Current()
@@ -830,21 +829,16 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 
 func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
 	k8sServerVersion, err := impl.GetK8sServerVersion(clientSet)
-	if err != nil {
+	if err != nil || k8sServerVersion == nil {
 		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
 		return false, err
 	}
 	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
 	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
-	exp, err := regexp.Compile(EphemeralServerVersionRegex)
+	matched, err := util.MatchRegex(util.EphemeralServerVersionRegex, k8sServerVersion.String())
 	if err != nil {
-		impl.logger.Errorw("error in compiling regex to match k8sVersion for ephemeral containers support", "err", err, "EphemeralServerVersionRegex", EphemeralServerVersionRegex)
+		impl.logger.Errorw("error in compiling regex to match k8sVersion for ephemeral containers support", "err", err, "EphemeralServerVersionRegex", util.EphemeralServerVersionRegex)
 		return false, err
-	}
-
-	matched := false
-	if k8sServerVersion != nil {
-		matched = exp.Match([]byte(k8sServerVersion.String()))
 	}
 	return matched, nil
 }
