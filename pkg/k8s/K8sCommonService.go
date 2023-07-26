@@ -7,7 +7,6 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
@@ -28,7 +27,6 @@ import (
 
 type K8sCommonService interface {
 	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
-	CreateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	DeleteResource(ctx context.Context, request *ResourceRequestBean, userId int32) (resp *k8s.ManifestResponse, err error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
@@ -43,7 +41,6 @@ type K8sCommonService interface {
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	K8sUtil                     *k8s.K8sUtil
-	helmAppService              client.HelmAppService
 	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
@@ -53,7 +50,7 @@ type K8sApplicationServiceConfig struct {
 	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
 }
 
-func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, helmAppService client.HelmAppService, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, clusterService cluster.ClusterService) *K8sCommonServiceImpl {
+func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, clusterService cluster.ClusterService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -62,7 +59,6 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, h
 	return &K8sCommonServiceImpl{
 		logger:                      Logger,
 		K8sUtil:                     k8sUtils,
-		helmAppService:              helmAppService,
 		K8sResourceHistoryService:   K8sResourceHistoryService,
 		clusterService:              clusterService,
 		K8sApplicationServiceConfig: cfg,
@@ -81,39 +77,6 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 	resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
-		return nil, err
-	}
-	return resp, nil
-}
-
-func (impl *K8sCommonServiceImpl) CreateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
-	resourceIdentifier := &openapi.ResourceIdentifier{
-		Name:      &request.K8sRequest.ResourceIdentifier.Name,
-		Namespace: &request.K8sRequest.ResourceIdentifier.Namespace,
-		Group:     &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group,
-		Version:   &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Version,
-		Kind:      &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind,
-	}
-	manifestRes, err := impl.helmAppService.GetDesiredManifest(ctx, request.AppIdentifier, resourceIdentifier)
-	if err != nil {
-		impl.logger.Errorw("error in getting desired manifest for validation", "err", err)
-		return nil, err
-	}
-	manifest, manifestOk := manifestRes.GetManifestOk()
-	if manifestOk == false || len(*manifest) == 0 {
-		impl.logger.Debugw("invalid request, desired manifest not found", "err", err)
-		return nil, fmt.Errorf("no manifest found for this request")
-	}
-
-	//getting rest config by clusterId
-	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
-		return nil, err
-	}
-	resp, err := impl.K8sUtil.CreateResources(ctx, restConfig, *manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, request.K8sRequest.ResourceIdentifier.Namespace)
-	if err != nil {
-		impl.logger.Errorw("error in creating resource", "err", err, "request", request)
 		return nil, err
 	}
 	return resp, nil

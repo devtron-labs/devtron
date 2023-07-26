@@ -313,7 +313,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		return
 	}
 	//RBAC enforcer Ends
-	resource, err := handler.k8sCommonService.CreateResource(r.Context(), &request)
+	resource, err := handler.k8sApplicationService.RecreateResource(r.Context(), &request)
 	if err != nil {
 		handler.logger.Errorw("error in creating resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)

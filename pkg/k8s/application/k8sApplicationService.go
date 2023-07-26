@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -52,6 +53,7 @@ type K8sApplicationService interface {
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
 	GetPodContainersList(clusterId int, namespace, podName string) (*k8s.PodContainerList, error)
 	GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error)
+	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s2.ManifestResponse, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                       *zap.SugaredLogger
@@ -890,4 +892,37 @@ func (impl *K8sApplicationServiceImpl) GetPodListByLabel(clusterId int, namespac
 		return nil, err
 	}
 	return pods, err
+}
+
+func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s2.ManifestResponse, error) {
+	resourceIdentifier := &openapi.ResourceIdentifier{
+		Name:      &request.K8sRequest.ResourceIdentifier.Name,
+		Namespace: &request.K8sRequest.ResourceIdentifier.Namespace,
+		Group:     &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group,
+		Version:   &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Version,
+		Kind:      &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind,
+	}
+	manifestRes, err := impl.helmAppService.GetDesiredManifest(ctx, request.AppIdentifier, resourceIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting desired manifest for validation", "err", err)
+		return nil, err
+	}
+	manifest, manifestOk := manifestRes.GetManifestOk()
+	if manifestOk == false || len(*manifest) == 0 {
+		impl.logger.Debugw("invalid request, desired manifest not found", "err", err)
+		return nil, fmt.Errorf("no manifest found for this request")
+	}
+
+	//getting rest config by clusterId
+	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.K8sUtil.CreateResources(ctx, restConfig, *manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, request.K8sRequest.ResourceIdentifier.Namespace)
+	if err != nil {
+		impl.logger.Errorw("error in creating resource", "err", err, "request", request)
+		return nil, err
+	}
+	return resp, nil
 }
