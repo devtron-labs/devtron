@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"net/http"
 	"strconv"
@@ -57,6 +59,7 @@ type K8sApplicationService interface {
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
 }
+
 type K8sApplicationServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	clusterService               cluster.ClusterService
@@ -69,13 +72,19 @@ type K8sApplicationServiceImpl struct {
 	terminalSession              terminal.TerminalSessionHandler
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
+	ephemeralContainerConfig     *EphemeralContainerConfig
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
-	ephemeralContainerRepository repository.EphemeralContainersRepository) *K8sApplicationServiceImpl {
-
+	ephemeralContainerRepository repository.EphemeralContainersRepository) (*K8sApplicationServiceImpl, error) {
+	ephemeralContainerConfig := &EphemeralContainerConfig{}
+	err := env.Parse(ephemeralContainerConfig)
+	if err != nil {
+		Logger.Errorw("error in parsing EphemeralContainerConfig from env", "err", err)
+		return nil, err
+	}
 	return &K8sApplicationServiceImpl{
 		logger:                       Logger,
 		clusterService:               clusterService,
@@ -88,7 +97,12 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		terminalSession:              terminalSession,
 		ephemeralContainerService:    ephemeralContainerService,
 		ephemeralContainerRepository: ephemeralContainerRepository,
-	}
+		ephemeralContainerConfig:     ephemeralContainerConfig,
+	}, nil
+}
+
+type EphemeralContainerConfig struct {
+	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*"`
 }
 
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
@@ -666,7 +680,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
 		return err
 	}
-	compatible, err := impl.K8sUtil.K8sServerVersionCheckForEphemeralContainers(clientSet)
+	compatible, err := impl.K8sServerVersionCheckForEphemeralContainers(clientSet)
 	if err != nil {
 		impl.logger.Errorw("error in checking kubernetes server version compatability for ephemeral containers", "clusterId", req.ClusterId, "err", err)
 		return err
@@ -1023,4 +1037,29 @@ func getUrls(manifest *k8s2.ManifestResponse) bean3.Response {
 	}
 	res.Urls = urls
 	return res
+}
+
+func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
+	k8sServerVersion, err := impl.K8sUtil.GetK8sServerVersion(clientSet)
+	if err != nil || k8sServerVersion == nil {
+		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
+		return false, err
+	}
+	majorVersion, minorVersion, err := impl.K8sUtil.ExtractK8sServerMajorAndMinorVersion(k8sServerVersion)
+	if err != nil {
+		impl.logger.Errorw("error occurred in extracting k8s Major and Minor server version values", "err", err, "k8sServerVersion", k8sServerVersion)
+		return false, err
+	}
+	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
+	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
+	if majorVersion < 1 || (majorVersion == 1 && minorVersion < 23) {
+		return false, nil
+	}
+	ephemeralRegex := impl.ephemeralContainerConfig.EphemeralServerVersionRegex
+	matched, err := util2.MatchRegexExpression(ephemeralRegex, k8sServerVersion.String())
+	if err != nil {
+		impl.logger.Errorw("error in matching ephemeral containers support version regex with k8sServerVersion", "err", err, "EphemeralServerVersionRegex", ephemeralRegex)
+		return false, err
+	}
+	return matched, nil
 }
