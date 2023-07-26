@@ -23,10 +23,11 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/util"
 	"net/http"
 	"os/user"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -55,6 +56,7 @@ type K8sUtil struct {
 	logger        *zap.SugaredLogger
 	runTimeConfig *client.RuntimeConfig
 	kubeconfig    *string
+	k8sUtilConfig *util.K8sUtilConfig
 }
 
 type ClusterConfig struct {
@@ -84,7 +86,13 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	}
 
 	flag.Parse()
-	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
+
+	cfg := &util.K8sUtilConfig{}
+	err = env.Parse(cfg)
+	if err != nil {
+		logger.Infow("error occurred while parsing K8sUtilConfig,so setting K8sUtilConfig to default values", "err", err)
+	}
+	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, k8sUtilConfig: cfg}
 }
 
 func (impl K8sUtil) GetRestConfigByCluster(configMap *ClusterConfig) (*rest.Config, error) {
@@ -829,21 +837,19 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 
 func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
 	k8sServerVersion, err := impl.GetK8sServerVersion(clientSet)
-	if err != nil {
+	if err != nil || k8sServerVersion == nil {
 		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
-		return false, err
-	}
-	majorVersion, minorVersion, err := impl.extractMajorAndMinorVersion(k8sServerVersion)
-	if err != nil {
-		impl.logger.Errorw("error occurred in extracting k8s Major and Minor server version values", "err", err, "k8sServerVersion", k8sServerVersion)
 		return false, err
 	}
 	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
 	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
-	if majorVersion < 1 || (majorVersion == 1 && minorVersion < 23) {
-		return false, nil
+	ephemeralRegex := impl.k8sUtilConfig.EphemeralServerVersionRegex
+	matched, err := util.MatchRegex(ephemeralRegex, k8sServerVersion.String())
+	if err != nil {
+		impl.logger.Errorw("error in matching ephemeral containers support version regex with k8sServerVersion", "err", err, "EphemeralServerVersionRegex", ephemeralRegex)
+		return false, err
 	}
-	return true, nil
+	return matched, nil
 }
 
 func (impl K8sUtil) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*version.Info, error) {
@@ -853,18 +859,4 @@ func (impl K8sUtil) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*versi
 		return nil, err
 	}
 	return k8sServerVersion, nil
-}
-
-func (impl K8sUtil) extractMajorAndMinorVersion(k8sServerVersion *version.Info) (int, int, error) {
-	majorVersion, err := strconv.Atoi(k8sServerVersion.Major)
-	if err != nil {
-		impl.logger.Errorw("error occurred in converting k8sServerVersion.Major version value to integer", "err", err, "k8sServerVersion.Major", k8sServerVersion.Major)
-		return 0, 0, err
-	}
-	minorVersion, err := strconv.Atoi(k8sServerVersion.Minor)
-	if err != nil {
-		impl.logger.Errorw("error occurred in converting k8sServerVersion.Minor version value to integer", "err", err, "k8sServerVersion.Minor", k8sServerVersion.Minor)
-		return majorVersion, 0, err
-	}
-	return majorVersion, minorVersion, nil
 }
