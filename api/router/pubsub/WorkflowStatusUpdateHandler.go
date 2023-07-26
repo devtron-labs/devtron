@@ -19,9 +19,8 @@ package pubsub
 
 import (
 	"encoding/json"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"

@@ -48,4 +48,6 @@ func (router AttributesRouterImpl) InitAttributesRouter(attributesRouter *mux.Ro
 		HandlerFunc(router.attributesRestHandler.GetAttributesById).Methods("GET")
 	attributesRouter.Path("/active/list").
 		HandlerFunc(router.attributesRestHandler.GetAttributesActiveList).Methods("GET")
+	attributesRouter.Path("/create/deploymentConfig").
+		HandlerFunc(router.attributesRestHandler.AddDeploymentEnforcementConfig).Methods("POST")
 }

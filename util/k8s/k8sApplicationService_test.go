@@ -22,9 +22,9 @@ import (
 
 var manifest = `{
 		"kind":"Service",
-        "metadata":{
-            "name":"test-service"
-        },
+       "metadata":{
+           "name":"test-service"
+       },
 		"spec": {
 			"ingressClassName": "nginx",
 			"rules": [
@@ -194,7 +194,7 @@ func Test_GetManifestsInBatch(t *testing.T) {
 		clusterService = NewClusterServiceMock{}
 		impl           = NewK8sApplicationServiceImpl(
 			nil, clusterService, nil, k8sCS, nil,
-			nil, nil)
+			nil, nil, nil, nil, nil)
 	)
 	n := 10
 	kinds := []string{"Service", "Ingress", "Random", "Invalid"}
@@ -248,7 +248,7 @@ type test struct {
 func Test_getUrls(t *testing.T) {
 	impl := NewK8sApplicationServiceImpl(
 		nil, nil, nil, nil, nil,
-		nil, nil)
+		nil, nil, nil, nil, nil)
 	tests := make([]test, 3)
 	tests[0] = test{
 		inp: generateTestManifest("Service"),

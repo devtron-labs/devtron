@@ -75,6 +75,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	repository9 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -245,6 +246,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dockerRegistryRepository.DockerArtifactStoreRepository), new(*dockerRegistryRepository.DockerArtifactStoreRepositoryImpl)),
 		dockerRegistryRepository.NewDockerRegistryIpsConfigRepositoryImpl,
 		wire.Bind(new(dockerRegistryRepository.DockerRegistryIpsConfigRepository), new(*dockerRegistryRepository.DockerRegistryIpsConfigRepositoryImpl)),
+		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
+		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		util.NewChartDeploymentServiceImpl,
@@ -365,7 +368,10 @@ func InitializeApp() (*App, error) {
 		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		//session.NewK8sClient,
-
+		repository9.NewImageTaggingRepositoryImpl,
+		wire.Bind(new(repository9.ImageTaggingRepository), new(*repository9.ImageTaggingRepositoryImpl)),
+		pipeline.NewImageTaggingServiceImpl,
+		wire.Bind(new(pipeline.ImageTaggingService), new(*pipeline.ImageTaggingServiceImpl)),
 		util.NewK8sUtil,
 		argocdServer.NewVersionServiceImpl,
 		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
@@ -643,8 +649,8 @@ func InitializeApp() (*App, error) {
 
 		router.NewCommonRouterImpl,
 		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
-		restHandler.NewCommonRestHanlderImpl,
-		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
+		restHandler.NewCommonRestHandlerImpl,
+		wire.Bind(new(restHandler.CommonRestHandler), new(*restHandler.CommonRestHandlerImpl)),
 
 		util.NewGitCliUtil,
 
@@ -867,6 +873,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
 		pipeline.NewArgoWorkflowExecutorImpl,
 		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
+		repository5.NewManifestPushConfigRepository,
+		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
+		app.NewGitOpsManifestPushServiceImpl,
+		wire.Bind(new(app.GitOpsPushService), new(*app.GitOpsManifestPushServiceImpl)),
 		pipeline.NewSystemWorkflowExecutorImpl,
 		wire.Bind(new(pipeline.SystemWorkflowExecutor), new(*pipeline.SystemWorkflowExecutorImpl)),
 
@@ -875,6 +885,8 @@ func InitializeApp() (*App, error) {
 
 		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
 		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+		app.NewHelmRepoPushServiceImpl,
+		wire.Bind(new(app.HelmRepoPushService), new(*app.HelmRepoPushServiceImpl)),
 	)
 	return &App{}, nil
 }

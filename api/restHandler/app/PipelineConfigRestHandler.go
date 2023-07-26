@@ -90,6 +90,7 @@ type PipelineConfigRestHandler interface {
 	DevtronAppDeploymentHistoryRestHandler
 	DevtronAppPrePostDeploymentRestHandler
 	DevtronAppDeploymentConfigRestHandler
+	ImageTaggingRestHandler
 	PipelineNameSuggestion(w http.ResponseWriter, r *http.Request)
 }
 
@@ -110,17 +111,18 @@ type PipelineConfigRestHandlerImpl struct {
 	gitSensorClient              gitSensor.Client
 	pipelineRepository           pipelineConfig.PipelineRepository
 	appWorkflowService           appWorkflow.AppWorkflowService
-	enforcerUtil              rbac.EnforcerUtil
-	envService                request.EnvironmentService
-	gitRegistryConfig         pipeline.GitRegistryConfig
-	dockerRegistryConfig      pipeline.DockerRegistryConfig
-	cdHandler                 pipeline.CdHandler
-	appCloneService           appClone.AppCloneService
-	materialRepository        pipelineConfig.MaterialRepository
-	policyService             security2.PolicyService
-	scanResultRepository      security.ImageScanResultRepository
-	gitProviderRepo           repository.GitProviderRepository
-	argoUserService           argo.ArgoUserService
+	enforcerUtil                 rbac.EnforcerUtil
+	envService                   request.EnvironmentService
+	gitRegistryConfig            pipeline.GitRegistryConfig
+	dockerRegistryConfig         pipeline.DockerRegistryConfig
+	cdHandler                    pipeline.CdHandler
+	appCloneService              appClone.AppCloneService
+	materialRepository           pipelineConfig.MaterialRepository
+	policyService                security2.PolicyService
+	scanResultRepository         security.ImageScanResultRepository
+	gitProviderRepo              repository.GitProviderRepository
+	argoUserService              argo.ArgoUserService
+	imageTaggingService          pipeline.ImageTaggingService
 	resourceProtectionService protect.ResourceProtectionService
 }
 
@@ -144,7 +146,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	resourceProtectionService protect.ResourceProtectionService) *PipelineConfigRestHandlerImpl {
+	imageTaggingService pipeline.ImageTaggingService, resourceProtectionService protect.ResourceProtectionService) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -173,6 +175,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		gitProviderRepo:              gitProviderRepo,
 		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
+		imageTaggingService:          imageTaggingService,
 		resourceProtectionService:    resourceProtectionService,
 	}
 }

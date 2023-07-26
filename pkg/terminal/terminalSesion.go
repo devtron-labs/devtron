@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
@@ -311,6 +312,7 @@ type TerminalSessionRequest struct {
 	AppId         int
 	//ClusterId is optional
 	ClusterId int
+	UserId    int32
 }
 
 const CommandExecutionFailed = "Failed to Execute Command"
@@ -357,20 +359,25 @@ type TerminalSessionHandler interface {
 	ValidateSession(sessionId string) bool
 	ValidateShell(req *TerminalSessionRequest) (bool, error)
 	AutoSelectShell(req *TerminalSessionRequest) (string, error)
+	RunCmdInRemotePod(req *TerminalSessionRequest, cmds []string) (*bytes.Buffer, *bytes.Buffer, error)
 }
 
 type TerminalSessionHandlerImpl struct {
-	environmentService cluster.EnvironmentService
-	clusterService     cluster.ClusterService
-	logger             *zap.SugaredLogger
+	environmentService        cluster.EnvironmentService
+	clusterService            cluster.ClusterService
+	logger                    *zap.SugaredLogger
+	k8sUtil                   *util.K8sUtil
+	ephemeralContainerService cluster.EphemeralContainerService
 }
 
 func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
-	logger *zap.SugaredLogger) *TerminalSessionHandlerImpl {
+	logger *zap.SugaredLogger, k8sUtil *util.K8sUtil, ephemeralContainerService cluster.EphemeralContainerService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
-		environmentService: environmentService,
-		clusterService:     clusterService,
-		logger:             logger,
+		environmentService:        environmentService,
+		clusterService:            clusterService,
+		logger:                    logger,
+		k8sUtil:                   k8sUtil,
+		ephemeralContainerService: ephemeralContainerService,
 	}
 }
 
@@ -408,6 +415,14 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 		sizeChan: make(chan remotecommand.TerminalSize),
 	})
 	config, client, err := impl.getClientConfig(req)
+
+	go func() {
+		err := impl.saveEphemeralContainerTerminalAccessAudit(req)
+		if err != nil {
+			impl.logger.Errorw("error in saving ephemeral container terminal access audit,so skipping auditing", "err", err)
+		}
+	}()
+
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return http.StatusInternalServerError, nil, err
@@ -434,19 +449,11 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	} else {
 		return nil, nil, fmt.Errorf("not able to find cluster-config")
 	}
-	config, err := impl.clusterService.GetClusterConfig(clusterBean)
+	clusterConfig := clusterBean.GetClusterConfig()
+	cfg, err := impl.k8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in config", "err", err)
 		return nil, nil, err
-	}
-	cfg := &rest.Config{}
-	cfg.Host = config.Host
-	cfg.BearerToken = config.BearerToken
-	cfg.Insecure = config.InsecureSkipTLSVerify
-	if config.InsecureSkipTLSVerify == false {
-		cfg.KeyData = []byte(config.KeyData)
-		cfg.CertData = []byte(config.CertData)
-		cfg.CAData = []byte(config.CAData)
 	}
 
 	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
@@ -479,26 +486,11 @@ func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequ
 }
 func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionRequest) (bool, error) {
 	impl.logger.Infow("Inside ValidateShell method in TerminalSessionHandlerImpl", "shellName", req.Shell, "podName", req.PodName, "nameSpace", req.Namespace)
-	config, client, err := impl.getClientConfig(req)
-	if err != nil {
-		impl.logger.Errorw("error in fetching config", "err", err, "clusterId", req.ClusterId)
-		return false, err
-	}
+
 	cmd := fmt.Sprintf("/bin/%s", req.Shell)
 	cmdArray := []string{cmd}
-	impl.logger.Infow("reached getExecutor method call")
-	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false, false)
-	if err != nil {
-		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err, "config", config, "request", req)
-		return false, err
-	}
-	buf := &bytes.Buffer{}
-	errBuf := &bytes.Buffer{}
 
-	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
-		Stdout: buf,
-		Stderr: errBuf,
-	})
+	buf, errBuf, err := impl.RunCmdInRemotePod(req, cmdArray)
 	if err != nil {
 		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
 		return false, getErrorMsg(err.Error())
@@ -517,4 +509,76 @@ func getErrorMsg(err string) error {
 		return errors1.New(PodNotFound)
 	}
 	return errors1.New(CommandExecutionFailed)
+}
+
+func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRequest, cmds []string) (*bytes.Buffer, *bytes.Buffer, error) {
+	config, client, err := impl.getClientConfig(req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching config", "err", err)
+		return nil, nil, err
+	}
+	impl.logger.Debug("reached getExecutor method call")
+	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmds, false, false)
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err)
+		return nil, nil, err
+	}
+	buf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+	impl.logger.Debug("reached execWithStreamOptions method call")
+	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
+		Stdout: buf,
+		Stderr: errBuf,
+	})
+	return buf, errBuf, err
+}
+
+func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
+	clusterBean, err := impl.clusterService.FindById(req.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
+		return err
+	}
+	clusterConfig := clusterBean.GetClusterConfig()
+	v1Client, err := impl.k8sUtil.GetClient(&clusterConfig)
+	pod, err := impl.k8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
+	if err != nil {
+		impl.logger.Errorw("error in getting pod", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "err", err)
+		return err
+	}
+	var ephemeralContainer *v1.EphemeralContainer
+	for _, ec := range pod.Spec.EphemeralContainers {
+		if ec.Name == req.ContainerName {
+			ephemeralContainer = &ec
+			break
+		}
+	}
+	if ephemeralContainer == nil {
+		impl.logger.Infow("terminal session requested for non ephemeral container,so not auditing the terminal access", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName)
+		return nil
+	}
+	ephemeralContainerJson, err := json.Marshal(ephemeralContainer)
+	if err != nil {
+		impl.logger.Errorw("error occurred while marshaling ephemeralContainer object", "err", err, "ephemeralContainer", ephemeralContainer)
+		return err
+	}
+	ephemeralReq := cluster.EphemeralContainerRequest{
+		PodName:   req.PodName,
+		Namespace: req.Namespace,
+		ClusterId: req.ClusterId,
+		BasicData: &cluster.EphemeralContainerBasicData{
+			ContainerName:       req.ContainerName,
+			TargetContainerName: ephemeralContainer.TargetContainerName,
+			Image:               ephemeralContainer.Image,
+		},
+		AdvancedData: &cluster.EphemeralContainerAdvancedData{
+			Manifest: string(ephemeralContainerJson),
+		},
+		UserId: req.UserId,
+	}
+	err = impl.ephemeralContainerService.AuditEphemeralContainerAction(ephemeralReq, repository.ActionAccessed)
+	if err != nil {
+		impl.logger.Errorw("error occurred while requesting ephemeral container terminal access audit", "err", err, "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName)
+	}
+	return err
 }
