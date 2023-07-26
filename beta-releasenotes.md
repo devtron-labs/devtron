@@ -1,4 +1,5 @@
 ## Bugs
+- fix: matching k8s version using regex for ephemeral container feature support (#3688)
 - fix: auto deploy fix for migrated pre/post cd steps where inly one is configured (#3677)
 - fix: blob storage upload failed due to USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW flag (#3667)
 - fix: Pod for in-cluster not getting scheduled because of node affinity selector. (#3663)
