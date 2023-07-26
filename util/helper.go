@@ -305,3 +305,11 @@ type HpaResourceRequest struct {
 	Version         string
 	Kind            string
 }
+
+func ConvertStringSliceToMap(inputs []string) map[string]bool {
+	m := make(map[string]bool, len(inputs))
+	for _, input := range inputs {
+		m[input] = true
+	}
+	return m
+}

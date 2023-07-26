@@ -1457,7 +1457,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
 	validRequests := make([]k8s.ResourceRequestBean, 0)
-	validRequests = handler.k8sCommonService.FilterServiceAndIngress(r.Context(), resourceTree, validRequests, appDetail, "")
+	validRequests = handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, appDetail, "", []string{k8s.ServiceKind, k8s.IngressKind})
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for", "appId", appIdParam, "envId", envIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
@@ -1469,7 +1469,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	result := handler.k8sCommonService.GetUrlsByBatch(r.Context(), resp)
+	result := handler.k8sApplicationService.GetUrlsByBatchForIngress(r.Context(), resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 

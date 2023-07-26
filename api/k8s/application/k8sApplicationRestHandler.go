@@ -270,7 +270,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("unmarshal error of resource tree response"), nil, http.StatusInternalServerError)
 		return
 	}
-	validRequests = handler.k8sCommonService.FilterServiceAndIngress(r.Context(), resourceTreeInf, validRequests, k8sAppDetail, clusterIdString)
+	validRequests = handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTreeInf, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.IngressKind})
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for this app", "appId", clusterIdString)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
@@ -283,7 +283,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	result := handler.k8sCommonService.GetUrlsByBatch(r.Context(), resp)
+	result := handler.k8sApplicationService.GetUrlsByBatchForIngress(r.Context(), resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
@@ -500,7 +500,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		return
 	}
 
-	resource, err := handler.k8sCommonService.DeleteResource(r.Context(), &request, userId)
+	resource, err := handler.k8sApplicationService.DeleteResourceWithAudit(r.Context(), &request, userId)
 	if err != nil {
 		handler.logger.Errorw("error in deleting resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)

@@ -9,7 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
-	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -20,7 +20,6 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -28,12 +27,11 @@ import (
 type K8sCommonService interface {
 	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
-	DeleteResource(ctx context.Context, request *ResourceRequestBean, userId int32) (resp *k8s.ManifestResponse, err error)
+	DeleteResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
-	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
-	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
+	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
@@ -41,7 +39,6 @@ type K8sCommonService interface {
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	K8sUtil                     *k8s.K8sUtil
-	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 }
@@ -50,7 +47,8 @@ type K8sApplicationServiceConfig struct {
 	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
 }
 
-func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, clusterService cluster.ClusterService) *K8sCommonServiceImpl {
+func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil,
+	clusterService cluster.ClusterService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -59,7 +57,6 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, K
 	return &K8sCommonServiceImpl{
 		logger:                      Logger,
 		K8sUtil:                     k8sUtils,
-		K8sResourceHistoryService:   K8sResourceHistoryService,
 		clusterService:              clusterService,
 		K8sApplicationServiceConfig: cfg,
 	}
@@ -99,7 +96,7 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 	return resp, nil
 }
 
-func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean, userId int32) (*k8s.ManifestResponse, error) {
+func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
@@ -112,12 +109,6 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 	if err != nil {
 		impl.logger.Errorw("error in deleting resource", "err", err, "clusterId", clusterId)
 		return nil, err
-	}
-	if request.AppIdentifier != nil {
-		saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, request.K8sRequest, userId, bean3.Delete)
-		if saveAuditLogsErr != nil {
-			impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
-		}
 	}
 	return resp, nil
 }
@@ -140,7 +131,9 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 
 }
 
-func (impl *K8sCommonServiceImpl) FilterServiceAndIngress(ctx context.Context, resourceTree map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean {
+func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{},
+	validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean {
+	kindsToBeFilteredMap := util.ConvertStringSliceToMap(kindsToBeFiltered)
 	noOfNodes := len(resourceTree["nodes"].([]interface{}))
 	resourceNodeItemss := resourceTree["nodes"].([]interface{})
 	for i := 0; i < noOfNodes; i++ {
@@ -153,7 +146,7 @@ func (impl *K8sCommonServiceImpl) FilterServiceAndIngress(ctx context.Context, r
 		if appId == "" {
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}
-		if strings.Compare(kind, Service) == 0 || strings.Compare(kind, Ingress) == 0 {
+		if kindsToBeFilteredMap[kind] {
 			group := impl.extractResourceValue(resourceItem, Group)
 			version := impl.extractResourceValue(resourceItem, Version)
 			req := ResourceRequestBean{
@@ -178,19 +171,6 @@ func (impl *K8sCommonServiceImpl) FilterServiceAndIngress(ctx context.Context, r
 		}
 	}
 	return validRequests
-}
-
-func (impl *K8sCommonServiceImpl) GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{} {
-	result := make([]interface{}, 0)
-	for _, res := range resp {
-		err := res.Err
-		if err != nil {
-			continue
-		}
-		urlRes := impl.getUrls(res.ManifestResponse)
-		result = append(result, urlRes)
-	}
-	return result
 }
 
 func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, requests []ResourceRequestBean) ([]BatchResourceResponse, error) {
@@ -317,73 +297,6 @@ func (impl *K8sCommonServiceImpl) extractResourceValue(resourceItem map[string]i
 		return resourceItem[resourceName].(string)
 	}
 	return ""
-}
-
-func (impl *K8sCommonServiceImpl) getUrls(manifest *k8s.ManifestResponse) bean3.Response {
-	var res bean3.Response
-	kind := manifest.Manifest.Object["kind"]
-	if _, ok := manifest.Manifest.Object["metadata"]; ok {
-		metadata := manifest.Manifest.Object["metadata"].(map[string]interface{})
-		if metadata != nil {
-			name := metadata["name"]
-			if name != nil {
-				res.Name = name.(string)
-			}
-		}
-	}
-
-	if kind != nil {
-		res.Kind = kind.(string)
-	}
-	res.PointsTo = ""
-	urls := make([]string, 0)
-	if res.Kind == "Ingress" {
-		if manifest.Manifest.Object["spec"] != nil {
-			spec := manifest.Manifest.Object["spec"].(map[string]interface{})
-			if spec["rules"] != nil {
-				rules := spec["rules"].([]interface{})
-				for _, rule := range rules {
-					ruleMap := rule.(map[string]interface{})
-					url := ""
-					if ruleMap["host"] != nil {
-						url = ruleMap["host"].(string)
-					}
-					var httpPaths []interface{}
-					if ruleMap["http"] != nil && ruleMap["http"].(map[string]interface{})["paths"] != nil {
-						httpPaths = ruleMap["http"].(map[string]interface{})["paths"].([]interface{})
-					} else {
-						continue
-					}
-					for _, httpPath := range httpPaths {
-						path := httpPath.(map[string]interface{})["path"]
-						if path != nil {
-							url = url + path.(string)
-						}
-						urls = append(urls, url)
-					}
-				}
-			}
-		}
-	}
-
-	if manifest.Manifest.Object["status"] != nil {
-		status := manifest.Manifest.Object["status"].(map[string]interface{})
-		if status["loadBalancer"] != nil {
-			loadBalancer := status["loadBalancer"].(map[string]interface{})
-			if loadBalancer["ingress"] != nil {
-				ingressArray := loadBalancer["ingress"].([]interface{})
-				if len(ingressArray) > 0 {
-					if hostname, ok := ingressArray[0].(map[string]interface{})["hostname"]; ok {
-						res.PointsTo = hostname.(string)
-					} else if ip, ok := ingressArray[0].(map[string]interface{})["ip"]; ok {
-						res.PointsTo = ip.(string)
-					}
-				}
-			}
-		}
-	}
-	res.Urls = urls
-	return res
 }
 
 func (impl *K8sCommonServiceImpl) GetK8sServerVersion(clusterId int) (*version.Info, error) {
