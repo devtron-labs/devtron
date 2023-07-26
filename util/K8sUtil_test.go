@@ -2,10 +2,14 @@ package util
 
 import (
 	"fmt"
+	"github.com/caarlos0/env"
 	"testing"
 )
 
 func TestMatchRegex(t *testing.T) {
+	cfg := &K8sUtilConfig{}
+	env.Parse(cfg)
+	ephemeralRegex := cfg.EphemeralServerVersionRegex
 	type args struct {
 		exp  string
 		text string
@@ -28,7 +32,7 @@ func TestMatchRegex(t *testing.T) {
 		{
 			name: "Valid regex,text not matching with regex",
 			args: args{
-				exp:  EphemeralServerVersionRegex,
+				exp:  ephemeralRegex,
 				text: "v1.03+",
 			},
 			want:    false,
@@ -37,7 +41,7 @@ func TestMatchRegex(t *testing.T) {
 		{
 			name: "Valid regex,text not matching with regex",
 			args: args{
-				exp:  EphemeralServerVersionRegex,
+				exp:  ephemeralRegex,
 				text: "v1.22+",
 			},
 			want:    false,
@@ -46,7 +50,7 @@ func TestMatchRegex(t *testing.T) {
 		{
 			name: "Valid regex, text not matching with regex",
 			args: args{
-				exp:  EphemeralServerVersionRegex,
+				exp:  ephemeralRegex,
 				text: "v1.3",
 			},
 			want:    false,
@@ -55,7 +59,7 @@ func TestMatchRegex(t *testing.T) {
 		{
 			name: "Valid regex, text match with regex",
 			args: args{
-				exp:  EphemeralServerVersionRegex,
+				exp:  ephemeralRegex,
 				text: "v1.23+",
 			},
 			want:    true,
@@ -64,7 +68,7 @@ func TestMatchRegex(t *testing.T) {
 		{
 			name: "Valid regex, text match with regex",
 			args: args{
-				exp:  EphemeralServerVersionRegex,
+				exp:  ephemeralRegex,
 				text: "v1.26.6",
 			},
 			want:    true,
@@ -73,7 +77,7 @@ func TestMatchRegex(t *testing.T) {
 		{
 			name: "Valid regex, text match with regex",
 			args: args{
-				exp:  EphemeralServerVersionRegex,
+				exp:  ephemeralRegex,
 				text: "v1.26",
 			},
 			want:    true,
@@ -82,7 +86,7 @@ func TestMatchRegex(t *testing.T) {
 		{
 			name: "Valid regex, text match with regex",
 			args: args{
-				exp:  EphemeralServerVersionRegex,
+				exp:  ephemeralRegex,
 				text: "v1.30",
 			},
 			want:    true,

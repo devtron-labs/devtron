@@ -23,6 +23,7 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/util"
 	"net/http"
 	"os/user"
@@ -55,6 +56,7 @@ type K8sUtil struct {
 	logger        *zap.SugaredLogger
 	runTimeConfig *client.RuntimeConfig
 	kubeconfig    *string
+	k8sUtilConfig *util.K8sUtilConfig
 }
 
 type ClusterConfig struct {
@@ -84,7 +86,13 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	}
 
 	flag.Parse()
-	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
+
+	cfg := &util.K8sUtilConfig{}
+	err = env.Parse(cfg)
+	if err != nil {
+		logger.Infow("error occurred while parsing K8sUtilConfig,so setting K8sUtilConfig to default values", "err", err)
+	}
+	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, k8sUtilConfig: cfg}
 }
 
 func (impl K8sUtil) GetRestConfigByCluster(configMap *ClusterConfig) (*rest.Config, error) {
@@ -835,9 +843,10 @@ func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kuber
 	}
 	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
 	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
-	matched, err := util.MatchRegex(util.EphemeralServerVersionRegex, k8sServerVersion.String())
+	ephemeralRegex := impl.k8sUtilConfig.EphemeralServerVersionRegex
+	matched, err := util.MatchRegex(ephemeralRegex, k8sServerVersion.String())
 	if err != nil {
-		impl.logger.Errorw("error in matching ephemeral containers support version regex with k8sServerVersion", "err", err, "EphemeralServerVersionRegex", util.EphemeralServerVersionRegex)
+		impl.logger.Errorw("error in matching ephemeral containers support version regex with k8sServerVersion", "err", err, "EphemeralServerVersionRegex", ephemeralRegex)
 		return false, err
 	}
 	return matched, nil
