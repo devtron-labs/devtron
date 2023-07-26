@@ -73,3 +73,17 @@ type BulkPatchFilter struct {
 	AppNameExcludes string `json:"appNameExcludes,omitempty"`
 	EnvId           int    `json:"envId,omitempty"`
 }
+
+type JobEnvOverrideResponse struct {
+	Id              int    `json:"id"`
+	AppId           int    `json:"appId"`
+	EnvironmentId   int    `json:"environmentId,omitempty"`
+	EnvironmentName string `json:"environmentName,omitempty"`
+}
+
+type CreateJobEnvOverridePayload struct {
+	AppId  int   `json:"appId"`
+	EnvId  int   `json:"envId"`
+	UserId int32 `json:"-"`
+}
+

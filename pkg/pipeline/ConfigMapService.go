@@ -48,19 +48,6 @@ type ConfigMapRequest struct {
 	UserId        int32           `json:"-"`
 }
 
-type JobEnvOverrideResponse struct {
-	Id              int    `json:"id"`
-	AppId           int    `json:"appId"`
-	EnvironmentId   int    `json:"environmentId,omitempty"`
-	EnvironmentName string `json:"environmentName,omitempty"`
-}
-
-type CreateJobEnvOverridePayload struct {
-	AppId  int   `json:"appId"`
-	EnvId  int   `json:"envId"`
-	UserId int32 `json:"-"`
-}
-
 const (
 	KubernetesSecret  string = "KubernetesSecret"
 	AWSSecretsManager string = "AWSSecretsManager"
@@ -101,9 +88,9 @@ type ConfigMapService interface {
 	ConfigSecretGlobalBulkPatch(bulkPatchRequest *bean.BulkPatchRequest) (*bean.BulkPatchRequest, error)
 	ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *bean.BulkPatchRequest) (*bean.BulkPatchRequest, error)
 
-	ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error)
-	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error)
-	ConfigSecretEnvironmentGet(appId int) ([]JobEnvOverrideResponse, error)
+	ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *bean.CreateJobEnvOverridePayload) (*bean.CreateJobEnvOverridePayload, error)
+	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *bean.CreateJobEnvOverridePayload) (*bean.CreateJobEnvOverridePayload, error)
+	ConfigSecretEnvironmentGet(appId int) ([]bean.JobEnvOverrideResponse, error)
 	ConfigSecretEnvironmentClone(appId int, cloneAppId int, userId int32) ([]chartConfig.ConfigMapEnvModel, error)
 }
 
@@ -1737,7 +1724,7 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *bean.BulkPat
 	return bulkPatchRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *bean.CreateJobEnvOverridePayload) (*bean.CreateJobEnvOverridePayload, error) {
 	configMap, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(createJobEnvOverrideRequest.AppId, createJobEnvOverrideRequest.EnvId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -1778,7 +1765,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverr
 
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *bean.CreateJobEnvOverridePayload) (*bean.CreateJobEnvOverridePayload, error) {
 	configMap, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(createJobEnvOverrideRequest.AppId, createJobEnvOverrideRequest.EnvId)
 	if pg.ErrNoRows == err {
 		impl.logger.Warnw("Environment override in this environment doesn't exits", "appId", createJobEnvOverrideRequest.AppId, "envId", createJobEnvOverrideRequest.EnvId)
@@ -1800,7 +1787,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverr
 	return createJobEnvOverrideRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnvOverrideResponse, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]bean.JobEnvOverrideResponse, error) {
 	configMap, err := impl.configMapRepository.GetEnvLevelByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching envConfig from db", "error", err)
@@ -1810,7 +1797,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnv
 	for _, cm := range configMap {
 		envIds = append(envIds, &cm.EnvironmentId)
 	}
-	var jobEnvOverrideResponse []JobEnvOverrideResponse
+	var jobEnvOverrideResponse []bean.JobEnvOverrideResponse
 
 	if len(envIds) == 0 {
 		return jobEnvOverrideResponse, nil
@@ -1830,7 +1817,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnv
 	}
 
 	for _, cm := range configMap {
-		jobEnvOverride := JobEnvOverrideResponse{
+		jobEnvOverride := bean.JobEnvOverrideResponse{
 			EnvironmentId:   cm.EnvironmentId,
 			AppId:           cm.AppId,
 			Id:              cm.Id,

@@ -777,7 +777,7 @@ func (handler ConfigMapRestHandlerImpl) AddEnvironmentToJob(w http.ResponseWrite
 	}
 	//AUTH
 
-	var envOverrideRequest pipeline.CreateJobEnvOverridePayload
+	var envOverrideRequest bean2.CreateJobEnvOverridePayload
 	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, AddEvironmentToJob", "err", err, "payload", envOverrideRequest)
@@ -815,7 +815,7 @@ func (handler ConfigMapRestHandlerImpl) RemoveEnvironmentFromJob(w http.Response
 	}
 	//AUTH
 
-	var envOverrideRequest pipeline.CreateJobEnvOverridePayload
+	var envOverrideRequest bean2.CreateJobEnvOverridePayload
 	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, RemoveEnvironmentFromJob", "err", err, "payload", envOverrideRequest)
