@@ -6,6 +6,7 @@
 - fix: optimized fetch deployment status timeline api (#3653)
 - fix: critical vulnerabilities in dependencies (#3632)
 ## Enhancements
+- feat: description for apps and jobs (#3668)
 - Enhancement: Kubernetes api refactoring (#3635)
 - feat: Patch source of ci material api (#3661)
 - feat: Bulk deployemnt with appName and EnvName (#3644)
