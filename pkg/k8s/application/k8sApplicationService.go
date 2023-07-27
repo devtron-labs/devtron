@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -29,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"net/http"
 	"strconv"
@@ -52,7 +55,11 @@ type K8sApplicationService interface {
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
 	GetPodContainersList(clusterId int, namespace, podName string) (*k8s.PodContainerList, error)
 	GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error)
+	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s2.ManifestResponse, error)
+	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error)
+	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
 }
+
 type K8sApplicationServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	clusterService               cluster.ClusterService
@@ -65,13 +72,19 @@ type K8sApplicationServiceImpl struct {
 	terminalSession              terminal.TerminalSessionHandler
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
+	ephemeralContainerConfig     *EphemeralContainerConfig
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
-	ephemeralContainerRepository repository.EphemeralContainersRepository) *K8sApplicationServiceImpl {
-
+	ephemeralContainerRepository repository.EphemeralContainersRepository) (*K8sApplicationServiceImpl, error) {
+	ephemeralContainerConfig := &EphemeralContainerConfig{}
+	err := env.Parse(ephemeralContainerConfig)
+	if err != nil {
+		Logger.Errorw("error in parsing EphemeralContainerConfig from env", "err", err)
+		return nil, err
+	}
 	return &K8sApplicationServiceImpl{
 		logger:                       Logger,
 		clusterService:               clusterService,
@@ -84,7 +97,12 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		terminalSession:              terminalSession,
 		ephemeralContainerService:    ephemeralContainerService,
 		ephemeralContainerRepository: ephemeralContainerRepository,
-	}
+		ephemeralContainerConfig:     ephemeralContainerConfig,
+	}, nil
+}
+
+type EphemeralContainerConfig struct {
+	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*"`
 }
 
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
@@ -662,7 +680,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
 		return err
 	}
-	compatible, err := impl.K8sUtil.K8sServerVersionCheckForEphemeralContainers(clientSet)
+	compatible, err := impl.K8sServerVersionCheckForEphemeralContainers(clientSet)
 	if err != nil {
 		impl.logger.Errorw("error in checking kubernetes server version compatability for ephemeral containers", "clusterId", req.ClusterId, "err", err)
 		return err
@@ -890,4 +908,158 @@ func (impl *K8sApplicationServiceImpl) GetPodListByLabel(clusterId int, namespac
 		return nil, err
 	}
 	return pods, err
+}
+
+func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s2.ManifestResponse, error) {
+	resourceIdentifier := &openapi.ResourceIdentifier{
+		Name:      &request.K8sRequest.ResourceIdentifier.Name,
+		Namespace: &request.K8sRequest.ResourceIdentifier.Namespace,
+		Group:     &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group,
+		Version:   &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Version,
+		Kind:      &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind,
+	}
+	manifestRes, err := impl.helmAppService.GetDesiredManifest(ctx, request.AppIdentifier, resourceIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting desired manifest for validation", "err", err)
+		return nil, err
+	}
+	manifest, manifestOk := manifestRes.GetManifestOk()
+	if manifestOk == false || len(*manifest) == 0 {
+		impl.logger.Debugw("invalid request, desired manifest not found", "err", err)
+		return nil, fmt.Errorf("no manifest found for this request")
+	}
+
+	//getting rest config by clusterId
+	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.K8sUtil.CreateResources(ctx, restConfig, *manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, request.K8sRequest.ResourceIdentifier.Namespace)
+	if err != nil {
+		impl.logger.Errorw("error in creating resource", "err", err, "request", request)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error) {
+	resp, err := impl.k8sCommonService.DeleteResource(ctx, request)
+	if err != nil {
+		impl.logger.Errorw("error in deleting resource", "err", err)
+		return nil, err
+	}
+	if request.AppIdentifier != nil {
+		saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, request.K8sRequest, userId, bean3.Delete)
+		if saveAuditLogsErr != nil {
+			impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
+		}
+	}
+
+	return resp, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{} {
+	result := make([]interface{}, 0)
+	for _, res := range resp {
+		err := res.Err
+		if err != nil {
+			continue
+		}
+		urlRes := getUrls(res.ManifestResponse)
+		result = append(result, urlRes)
+	}
+	return result
+}
+
+func getUrls(manifest *k8s2.ManifestResponse) bean3.Response {
+	var res bean3.Response
+	kind := manifest.Manifest.Object["kind"]
+	if _, ok := manifest.Manifest.Object["metadata"]; ok {
+		metadata := manifest.Manifest.Object["metadata"].(map[string]interface{})
+		if metadata != nil {
+			name := metadata["name"]
+			if name != nil {
+				res.Name = name.(string)
+			}
+		}
+	}
+
+	if kind != nil {
+		res.Kind = kind.(string)
+	}
+	res.PointsTo = ""
+	urls := make([]string, 0)
+	if res.Kind == k8s.IngressKind {
+		if manifest.Manifest.Object["spec"] != nil {
+			spec := manifest.Manifest.Object["spec"].(map[string]interface{})
+			if spec["rules"] != nil {
+				rules := spec["rules"].([]interface{})
+				for _, rule := range rules {
+					ruleMap := rule.(map[string]interface{})
+					url := ""
+					if ruleMap["host"] != nil {
+						url = ruleMap["host"].(string)
+					}
+					var httpPaths []interface{}
+					if ruleMap["http"] != nil && ruleMap["http"].(map[string]interface{})["paths"] != nil {
+						httpPaths = ruleMap["http"].(map[string]interface{})["paths"].([]interface{})
+					} else {
+						continue
+					}
+					for _, httpPath := range httpPaths {
+						path := httpPath.(map[string]interface{})["path"]
+						if path != nil {
+							url = url + path.(string)
+						}
+						urls = append(urls, url)
+					}
+				}
+			}
+		}
+	}
+
+	if manifest.Manifest.Object["status"] != nil {
+		status := manifest.Manifest.Object["status"].(map[string]interface{})
+		if status["loadBalancer"] != nil {
+			loadBalancer := status["loadBalancer"].(map[string]interface{})
+			if loadBalancer["ingress"] != nil {
+				ingressArray := loadBalancer["ingress"].([]interface{})
+				if len(ingressArray) > 0 {
+					if hostname, ok := ingressArray[0].(map[string]interface{})["hostname"]; ok {
+						res.PointsTo = hostname.(string)
+					} else if ip, ok := ingressArray[0].(map[string]interface{})["ip"]; ok {
+						res.PointsTo = ip.(string)
+					}
+				}
+			}
+		}
+	}
+	res.Urls = urls
+	return res
+}
+
+func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
+	k8sServerVersion, err := impl.K8sUtil.GetK8sServerVersion(clientSet)
+	if err != nil || k8sServerVersion == nil {
+		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
+		return false, err
+	}
+	majorVersion, minorVersion, err := impl.K8sUtil.ExtractK8sServerMajorAndMinorVersion(k8sServerVersion)
+	if err != nil {
+		impl.logger.Errorw("error occurred in extracting k8s Major and Minor server version values", "err", err, "k8sServerVersion", k8sServerVersion)
+		return false, err
+	}
+	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
+	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
+	if majorVersion < 1 || (majorVersion == 1 && minorVersion < 23) {
+		return false, nil
+	}
+	ephemeralRegex := impl.ephemeralContainerConfig.EphemeralServerVersionRegex
+	matched, err := util2.MatchRegexExpression(ephemeralRegex, k8sServerVersion.String())
+	if err != nil {
+		impl.logger.Errorw("error in matching ephemeral containers support version regex with k8sServerVersion", "err", err, "EphemeralServerVersionRegex", ephemeralRegex)
+		return false, err
+	}
+	return matched, nil
 }

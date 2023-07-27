@@ -7,10 +7,10 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -21,21 +21,19 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
 
 type K8sCommonService interface {
 	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
-	CreateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
-	DeleteResource(ctx context.Context, request *ResourceRequestBean, userId int32) (resp *k8s.ManifestResponse, err error)
+	DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
-	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
+	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
@@ -86,39 +84,6 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 	return resp, nil
 }
 
-func (impl *K8sCommonServiceImpl) CreateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
-	resourceIdentifier := &openapi.ResourceIdentifier{
-		Name:      &request.K8sRequest.ResourceIdentifier.Name,
-		Namespace: &request.K8sRequest.ResourceIdentifier.Namespace,
-		Group:     &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group,
-		Version:   &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Version,
-		Kind:      &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind,
-	}
-	manifestRes, err := impl.helmAppService.GetDesiredManifest(ctx, request.AppIdentifier, resourceIdentifier)
-	if err != nil {
-		impl.logger.Errorw("error in getting desired manifest for validation", "err", err)
-		return nil, err
-	}
-	manifest, manifestOk := manifestRes.GetManifestOk()
-	if manifestOk == false || len(*manifest) == 0 {
-		impl.logger.Debugw("invalid request, desired manifest not found", "err", err)
-		return nil, fmt.Errorf("no manifest found for this request")
-	}
-
-	//getting rest config by clusterId
-	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
-		return nil, err
-	}
-	resp, err := impl.K8sUtil.CreateResources(ctx, restConfig, *manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, request.K8sRequest.ResourceIdentifier.Namespace)
-	if err != nil {
-		impl.logger.Errorw("error in creating resource", "err", err, "request", request)
-		return nil, err
-	}
-	return resp, nil
-}
-
 func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
@@ -136,7 +101,7 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 	return resp, nil
 }
 
-func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean, userId int32) (*k8s.ManifestResponse, error) {
+func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
@@ -150,12 +115,12 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 		impl.logger.Errorw("error in deleting resource", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
-	if request.AppIdentifier != nil {
-		saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, request.K8sRequest, userId, bean3.Delete)
-		if saveAuditLogsErr != nil {
-			impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
-		}
-	}
+	//if request.AppIdentifier != nil {
+	//	saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, request.K8sRequest, userId, bean3.Delete)
+	//	if saveAuditLogsErr != nil {
+	//		impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
+	//	}
+	//}
 	return resp, nil
 }
 
@@ -177,7 +142,9 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 
 }
 
-func (impl *K8sCommonServiceImpl) FilterServiceAndIngress(ctx context.Context, resourceTree map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean {
+func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{},
+	validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean {
+	kindsToBeFilteredMap := util.ConvertStringSliceToMap(kindsToBeFiltered)
 	noOfNodes := len(resourceTree["nodes"].([]interface{}))
 	resourceNodeItemss := resourceTree["nodes"].([]interface{})
 	for i := 0; i < noOfNodes; i++ {
@@ -190,7 +157,7 @@ func (impl *K8sCommonServiceImpl) FilterServiceAndIngress(ctx context.Context, r
 		if appId == "" {
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}
-		if strings.Compare(kind, Service) == 0 || strings.Compare(kind, Ingress) == 0 {
+		if kindsToBeFilteredMap[kind] {
 			group := impl.extractResourceValue(resourceItem, Group)
 			version := impl.extractResourceValue(resourceItem, Version)
 			req := ResourceRequestBean{

@@ -28,7 +28,6 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/k8s"
-	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	util4 "github.com/devtron-labs/devtron/util"
@@ -117,7 +116,6 @@ type WorkflowDagExecutorImpl struct {
 	k8sCommonService              k8s.K8sCommonService
 	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
 	chartTemplateService          util.ChartTemplateService
-	k8sApplicationService         application2.K8sApplicationService
 	appRepository                 appRepository.AppRepository
 	helmRepoPushService           app.HelmRepoPushService
 	pipelineStageRepository       repository4.PipelineStageRepository
@@ -214,7 +212,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	chartTemplateService util.ChartTemplateService,
-	k8sApplicationService application2.K8sApplicationService,
 	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
 	pipelineStageRepository repository4.PipelineStageRepository,
@@ -250,7 +247,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		ciWorkflowRepository:          ciWorkflowRepository,
 		appLabelRepository:            appLabelRepository,
 		gitSensorGrpcClient:           gitSensorGrpcClient,
-		k8sApplicationService:         k8sApplicationService,
 		deploymentApprovalRepository:  deploymentApprovalRepository,
 		chartTemplateService:          chartTemplateService,
 		appRepository:                 appRepository,
@@ -845,7 +841,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if cdPipeline.CiPipelineId > 0 {
 		ciPipeline, err = impl.ciPipelineRepository.FindById(cdPipeline.CiPipelineId)
 		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("cannot find ciPipeline", "err", err)
+			impl.logger.Errorw("cannot find ciPipelineRequest", "err", err)
 			return nil, err
 		}
 

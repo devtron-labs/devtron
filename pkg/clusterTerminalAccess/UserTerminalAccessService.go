@@ -743,7 +743,7 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 	}
 
 	// Here Sending userId as 0 as it appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
-	_, err = impl.K8sCommonService.DeleteResource(ctx, resourceRequest, 0)
+	_, err = impl.K8sCommonService.DeleteResource(ctx, resourceRequest)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while deleting resource for pod", "podName", terminalResourceName, "err", err)
 	}
@@ -1144,7 +1144,7 @@ func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, p
 		return false
 	}
 	podRequestBean.K8sRequest.ForceDelete = true
-	_, err = impl.K8sCommonService.DeleteResource(ctx, podRequestBean, userId)
+	_, err = impl.K8sCommonService.DeleteResource(ctx, podRequestBean)
 	if err != nil && !isResourceNotFoundErr(err) {
 		return false
 	}

@@ -66,7 +66,7 @@ func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineI
 				return nil, nil, err
 			}
 		} else {
-			impl.logger.Errorw("found improper stage mapped with ciPipeline", "ciPipelineId", ciPipelineId, "stage", ciStage)
+			impl.logger.Errorw("found improper stage mapped with ciPipelineRequest", "ciPipelineId", ciPipelineId, "stage", ciStage)
 		}
 	}
 	return preCiStage, postCiStage, nil
@@ -371,7 +371,7 @@ func (impl *PipelineStageServiceImpl) GetCiPipelineStageData(ciPipelineId int) (
 				return nil, nil, err
 			}
 		} else {
-			impl.logger.Errorw("found improper stage mapped with ciPipeline", "ciPipelineId", ciPipelineId, "stage", ciStage)
+			impl.logger.Errorw("found improper stage mapped with ciPipelineRequest", "ciPipelineId", ciPipelineId, "stage", ciStage)
 		}
 	}
 	return preCiStage, postCiStage, nil

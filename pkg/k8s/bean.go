@@ -7,8 +7,22 @@ import (
 )
 
 const (
-	Service = "Service"
-	Ingress = "Ingress"
+	SecretKind                   = "Secret"
+	ServiceKind                  = "Service"
+	ServiceAccountKind           = "ServiceAccount"
+	EndpointsKind                = "Endpoints"
+	DeploymentKind               = "Deployment"
+	ReplicaSetKind               = "ReplicaSet"
+	StatefulSetKind              = "StatefulSet"
+	DaemonSetKind                = "DaemonSet"
+	IngressKind                  = "Ingress"
+	JobKind                      = "Job"
+	PersistentVolumeClaimKind    = "PersistentVolumeClaim"
+	CustomResourceDefinitionKind = "CustomResourceDefinition"
+	PodKind                      = "Pod"
+	APIServiceKind               = "APIService"
+	NamespaceKind                = "Namespace"
+	HorizontalPodAutoscalerKind  = "HorizontalPodAutoscaler"
 )
 
 const (

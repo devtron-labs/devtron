@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -12,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util/k8s"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/stretchr/testify/assert"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -307,7 +309,7 @@ func initK8sApplicationService(t *testing.T) *K8sApplicationServiceImpl {
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, nil, nil, nil)
 	ephemeralContainerService := cluster.NewEphemeralContainerServiceImpl(ephemeralContainerRepository, sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger, k8sUtil, ephemeralContainerService)
-	k8sApplicationService := NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, nil, k8sUtil, nil, nil, nil, terminalSessionHandlerImpl, ephemeralContainerService, ephemeralContainerRepository)
+	k8sApplicationService, _ := NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, nil, k8sUtil, nil, nil, nil, terminalSessionHandlerImpl, ephemeralContainerService, ephemeralContainerRepository)
 	return k8sApplicationService
 }
 
@@ -325,4 +327,106 @@ func CreateAndDeletePod(podName string, t *testing.T, k8sApplicationService *K8s
 		}
 		fmt.Println("data cleaned!")
 	})
+}
+
+func TestMatchRegex(t *testing.T) {
+	cfg := &EphemeralContainerConfig{}
+	env.Parse(cfg)
+	ephemeralRegex := cfg.EphemeralServerVersionRegex
+	type args struct {
+		exp  string
+		text string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "Invalid regex",
+			args: args{
+				exp:  "**",
+				text: "v1.23+",
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name: "Valid regex,text not matching with regex",
+			args: args{
+				exp:  ephemeralRegex,
+				text: "v1.03+",
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "Valid regex,text not matching with regex",
+			args: args{
+				exp:  ephemeralRegex,
+				text: "v1.22+",
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "Valid regex, text not matching with regex",
+			args: args{
+				exp:  ephemeralRegex,
+				text: "v1.3",
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "Valid regex, text match with regex",
+			args: args{
+				exp:  ephemeralRegex,
+				text: "v1.23+",
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "Valid regex, text match with regex",
+			args: args{
+				exp:  ephemeralRegex,
+				text: "v1.26.6",
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "Valid regex, text match with regex",
+			args: args{
+				exp:  ephemeralRegex,
+				text: "v1.26",
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "Valid regex, text match with regex",
+			args: args{
+				exp:  ephemeralRegex,
+				text: "v1.30",
+			},
+			want:    true,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := util2.MatchRegexExpression(tt.args.exp, tt.args.text)
+			fmt.Println(err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MatchRegexExpression() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("MatchRegexExpression() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
