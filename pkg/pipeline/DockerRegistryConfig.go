@@ -452,6 +452,7 @@ func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository
 			storeBean.IsPublic = ociRegistryConfig.IsPublic
 		}
 	}
+	storeBean.OCIRegistryConfig = ociRegistryConfigs
 	return storeBean
 }
 
@@ -466,19 +467,20 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 
 	ipsConfig := store.IpsConfig
 	storeBean := &DockerArtifactStoreBean{
-		Id:                 store.Id,
-		PluginId:           store.PluginId,
-		RegistryURL:        store.RegistryURL,
-		RegistryType:       store.RegistryType,
-		AWSAccessKeyId:     store.AWSAccessKeyId,
-		AWSSecretAccessKey: store.AWSSecretAccessKey,
-		AWSRegion:          store.AWSRegion,
-		Username:           store.Username,
-		Password:           store.Password,
-		IsDefault:          store.IsDefault,
-		Connection:         store.Connection,
-		Cert:               store.Cert,
-		Active:             store.Active,
+		Id:                     store.Id,
+		PluginId:               store.PluginId,
+		RegistryURL:            store.RegistryURL,
+		RegistryType:           store.RegistryType,
+		AWSAccessKeyId:         store.AWSAccessKeyId,
+		AWSSecretAccessKey:     store.AWSSecretAccessKey,
+		AWSRegion:              store.AWSRegion,
+		Username:               store.Username,
+		Password:               store.Password,
+		IsDefault:              store.IsDefault,
+		Connection:             store.Connection,
+		Cert:                   store.Cert,
+		Active:                 store.Active,
+		IsOCICompliantRegistry: store.IsOCICompliantRegistry,
 		DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
 			Id:                   ipsConfig.Id,
 			CredentialType:       ipsConfig.CredentialType,
