@@ -28,7 +28,7 @@ type Task struct {
 	RunStatus      bool   `json:"-,omitempty"`                          // task run was attempted or not
 }
 
-var globalInputVariableList = []string{DOCKER_IMAGE, DEPLOYMENT_RELEASE_ID, DEPLOYMENT_UNIQUE_ID, CD_TRIGGER_TIME, CD_TRIGGERED_BY, CD_PIPELINE_ENV_NAME_KEY, CD_PIPELINE_CLUSTER_NAME_KEY, APP_NAME}
+var globalInputVariableList = []string{DOCKER_IMAGE, DEPLOYMENT_RELEASE_ID, DEPLOYMENT_UNIQUE_ID, DEVTRON_CD_TRIGGER_TIME, DEVTRON_CD_TRIGGERED_BY, CD_PIPELINE_ENV_NAME_KEY, CD_PIPELINE_CLUSTER_NAME_KEY, APP_NAME}
 
 func ConvertStageYamlScriptsToPipelineStageSteps(cdPipeline *bean2.CDPipelineConfigObject) (*bean2.CDPipelineConfigObject, error) {
 	if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
@@ -203,11 +203,9 @@ func constructGlobalInputVariablesUsedInScript(script string) []*bean.StepVariab
 				ReferenceVariableStage:    "",
 			}
 			if inputVariable == DEVTRON_CD_TRIGGER_TIME {
-				stepVariable.Name = DEVTRON_CD_TRIGGER_TIME
 				stepVariable.ReferenceVariableName = CD_TRIGGER_TIME
 			}
 			if inputVariable == DEVTRON_CD_TRIGGERED_BY {
-				stepVariable.Name = DEVTRON_CD_TRIGGERED_BY
 				stepVariable.ReferenceVariableName = CD_TRIGGERED_BY
 			}
 			inputVariables = append(inputVariables, stepVariable)
