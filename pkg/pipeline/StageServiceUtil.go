@@ -190,7 +190,7 @@ func constructGlobalInputVariablesUsedInScript(script string) []*bean.StepVariab
 			stepVariable := &bean.StepVariableDto{
 				Id:                        0,
 				Name:                      inputVariable,
-				Format:                    "",
+				Format:                    repository2.PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_STRING,
 				Description:               "",
 				IsExposed:                 false,
 				AllowEmptyValue:           false,
