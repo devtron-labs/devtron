@@ -19,7 +19,6 @@ package repository
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -60,7 +59,7 @@ func (impl ClusterDescriptionRepositoryImpl) FindByClusterIdWithClusterDetails(c
 		" ON cl.id=gn.identifier AND (gn.identifier_type = %d OR gn.identifier_type IS NULL)" +
 		" WHERE cl.id=%d AND cl.active=true " +
 		" LIMIT 1 OFFSET 0;"
-	query = fmt.Sprintf(query, clusterId, repository.ClusterType)
+	query = fmt.Sprintf(query, clusterId, 0) //0 is for cluster type description
 	_, err := impl.dbConnection.Query(clusterDescription, query)
 	return clusterDescription, err
 }
