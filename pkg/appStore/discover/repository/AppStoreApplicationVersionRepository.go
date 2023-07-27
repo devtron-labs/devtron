@@ -134,8 +134,8 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 		} else {
 			query = query +
 				" LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
-				" INNER JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
+				" INNER JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
 				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)))"
 		}
 	}
