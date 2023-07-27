@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/util"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"k8s.io/utils/strings/slices"
@@ -147,6 +148,16 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 			return
 		}
 		//RBAC enforcer Ends
+		if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
+			impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+			err = &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: "Invalid authentication credentials. Please verify.",
+				UserMessage:     "Invalid authentication credentials. Please verify.",
+			}
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 		exist, err := impl.dockerRegistryConfig.CheckInActiveDockerAccount(bean.Id)
 
 		if err != nil {
@@ -261,34 +272,30 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	} else {
-		impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+	}
+	impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "payload", bean)
 
-		err = impl.validator.Struct(bean)
-		if err != nil {
-			impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-
-		// RBAC enforcer applying
-		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionUpdate, strings.ToLower(bean.Id)); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-		//RBAC enforcer Ends
-
-		res, err := impl.dockerRegistryConfig.Update(&bean)
-		if err != nil {
-			impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-
-		common.WriteJsonResp(w, err, res, http.StatusOK)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionUpdate, strings.ToLower(bean.Id)); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	res, err := impl.dockerRegistryConfig.Update(&bean)
+	if err != nil {
+		impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl DockerRegRestHandlerImpl) FetchAllDockerRegistryForAutocomplete(w http.ResponseWriter, r *http.Request) {
