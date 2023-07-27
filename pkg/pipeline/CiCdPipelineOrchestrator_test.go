@@ -141,7 +141,7 @@ func InitClusterNoteService() {
 	attributesService := attributes.NewAttributesServiceImpl(logger, nil)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(logger)
 	appListingRepository := repository.NewAppListingRepositoryImpl(logger, conn, appListingRepositoryQueryBuilder, envRepository)
-	appLabelsService := app2.NewAppCrudOperationServiceImpl(nil, logger, nil, nil, nil)
+	appLabelsService := app2.NewAppCrudOperationServiceImpl(nil, logger, nil, nil, nil, nil)
 	userAuthService := user.NewUserAuthServiceImpl(nil, nil, nil, nil, nil, nil, nil)
 	prePostCdScriptHistoryService := history.NewPrePostCdScriptHistoryServiceImpl(logger, nil, nil, nil)
 	prePostCiScriptHistoryService := history.NewPrePostCiScriptHistoryServiceImpl(logger, nil)
@@ -153,7 +153,7 @@ func InitClusterNoteService() {
 	dockerArtifactStoreRepository := repository2.NewDockerArtifactStoreRepositoryImpl(conn)
 	configMapRepository := chartConfig.NewConfigMapRepositoryImpl(logger, conn)
 	configMapService := NewConfigMapServiceImpl(nil, nil, nil, util.MergeUtil{}, nil, configMapRepository, nil, nil, appRepository, nil, envRepository)
-	ciCdPipelineOrchestrator = NewCiCdPipelineOrchestrator(appRepository, logger, materialRepository, pipelineRepository, ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService, appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService, pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService, dockerArtifactStoreRepository, configMapService)
+	ciCdPipelineOrchestrator = NewCiCdPipelineOrchestrator(appRepository, logger, materialRepository, pipelineRepository, ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService, appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService, pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService, dockerArtifactStoreRepository, configMapService, nil)
 }
 
 //	func TestPatchCiMaterialSourceWhenOldPipelineExistsAndSaveUpdatedMaterialFailsItShouldReturnError(t *testing.T) {

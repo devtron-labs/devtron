@@ -29,6 +29,7 @@ type AppContainer struct {
 	ProjectId               int                        `json:"projectId"`
 	AppEnvironmentContainer []*AppEnvironmentContainer `json:"environments"`
 	DefaultEnv              AppEnvironmentContainer    `json:"-"`
+	Description             GenericNoteResponseBean    `json:"description"`
 }
 
 type AppContainerResponse struct {
@@ -58,11 +59,18 @@ type CiMaterialDTO struct {
 	SourceValue string `json:"value"`
 }
 
+type GenericNoteResponseBean struct {
+	Id          int       `json:"id" validate:"number"`
+	Description string    `json:"description"`
+	UpdatedBy   string    `json:"updatedBy"`
+	UpdatedOn   time.Time `json:"updatedOn"`
+}
+
 type JobContainer struct {
-	JobId          int             `json:"jobId"`
-	JobName        string          `json:"jobName""`
-	Description    string          `json:"description"`
-	JobCiPipelines []JobCIPipeline `json:"ciPipelines"'`
+	JobId          int                     `json:"jobId"`
+	JobName        string                  `json:"jobName""`
+	Description    GenericNoteResponseBean `json:"description"`
+	JobCiPipelines []JobCIPipeline         `json:"ciPipelines"'`
 }
 
 type JobCIPipeline struct {
