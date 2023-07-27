@@ -23,7 +23,7 @@ components:
         ENABLE_RESTART_WORKLOAD: "true"
   devtron:
     image: "quay.io/devtron/hyperion:a5eb8d31-280-14582"
-    cicdImage: "quay.io/devtron/devtron:8f1c1b92-435-14487"
+    cicdImage: "quay.io/devtron/devtron:a5eb8d31-434-14583"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:1efb0a66-138-14544"
   argocdDexServer:
@@ -51,10 +51,10 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "fcaa76547c4b876d232f82925a1f69a4be0cd46d"
+        GIT_HASH: "a5eb8d312bcd36715e95e557f923f45edd458375"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "fcaa76547c4b876d232f82925a1f69a4be0cd46d"
+        GIT_HASH: "a5eb8d312bcd36715e95e557f923f45edd458375"
         
 argo-cd:
   global:
