@@ -17,6 +17,7 @@ import (
 type ResourceProtectionRestHandler interface {
 	ConfigureResourceProtect(w http.ResponseWriter, r *http.Request)
 	GetResourceProtectMetadata(w http.ResponseWriter, r *http.Request)
+	GetResourceProtectMetadataForEnv(w http.ResponseWriter, r *http.Request)
 }
 
 type ResourceProtectionRestHandlerImpl struct {
@@ -103,4 +104,53 @@ func (handler *ResourceProtectionRestHandlerImpl) GetResourceProtectMetadata(w h
 	}
 	common.WriteJsonResp(w, nil, protectModels, http.StatusOK)
 }
+
+func (handler *ResourceProtectionRestHandlerImpl) GetResourceProtectMetadataForEnv(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	envId, err := common.ExtractIntQueryParam(w, r, "envId")
+	if err != nil {
+		return
+	}
+
+	token := r.Header.Get("token")
+	userEmailId, err := handler.userService.GetEmailFromToken(token)
+	if err != nil {
+		handler.logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	appStatues := handler.resourceProtectionService.ResourceProtectionEnabledForEnv(envId)
+	if err != nil {
+		handler.logger.Errorw("error occurred while fetching resource protection", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	var rbacObjectArray []string
+	rbacObjectVsAppIdMap := make(map[string]int)
+	for appId, _ := range appStatues {
+		rbacObject := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(appId, envId)
+		rbacObjectArray = append(rbacObjectArray, rbacObject)
+		rbacObjectVsAppIdMap[rbacObject] = appId
+	}
+
+	rbacResponse := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjectArray)
+	appStatusResponse := make(map[int]bool)
+	for rbacObj := range rbacResponse {
+		appId := rbacObjectVsAppIdMap[rbacObj]
+		appStatusResponse[appId] = appStatues[appId]
+	}
+	if len(appStatusResponse) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, appStatusResponse, http.StatusOK)
+}
+
 

@@ -20,4 +20,7 @@ func (router *ResourceProtectionRouterImpl) InitResourceProtectionRouter(protect
 	protectRouter.Path("").HandlerFunc(router.resourceProtectionRestHandler.GetResourceProtectMetadata).
 		Queries("appId", "{appId}").
 		Methods("GET")
+	protectRouter.Path("/env").HandlerFunc(router.resourceProtectionRestHandler.GetResourceProtectMetadataForEnv).
+		Queries("envId", "{envId}").
+		Methods("GET")
 }

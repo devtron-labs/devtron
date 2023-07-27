@@ -12,6 +12,7 @@ type ResourceProtectionRepository interface {
 	ConfigureResourceProtection(appId int, envId int, state ProtectionState, userId int32) error
 	GetResourceProtectMetadata(appId int) ([]*ResourceProtectionDto, error)
 	GetResourceProtectionState(appId int, envId int) (*ResourceProtectionDto, error)
+	GetResourceProtectionStateForEnv(envId int) ([]*ResourceProtectionDto, error)
 }
 
 type ResourceProtectionDto struct {
@@ -136,5 +137,17 @@ func (repo *ResourceProtectionRepositoryImpl) GetResourceProtectMetadata(appId i
 	}
 	return resourceProtectionDtos, err
 }
+
+func (repo *ResourceProtectionRepositoryImpl) GetResourceProtectionStateForEnv(envId int) ([]*ResourceProtectionDto, error) {
+	var resourceProtectionDtos []*ResourceProtectionDto
+	err := repo.dbConnection.Model(&resourceProtectionDtos).Where("env_id = ?", envId).Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error occurred while fetching resource protection", "envId", envId, "err", err)
+	} else {
+		err = nil
+	}
+	return resourceProtectionDtos, err
+}
+
 
 

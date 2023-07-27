@@ -9,6 +9,7 @@ type ResourceProtectionService interface {
 	ConfigureResourceProtection(request *ResourceProtectModel) error
 	GetResourceProtectMetadata(appId int) ([]*ResourceProtectModel, error)
 	ResourceProtectionEnabled(appId, envId int) bool
+	ResourceProtectionEnabledForEnv(envId int) map[int]bool
 	RegisterListener(listener ResourceProtectionUpdateListener)
 }
 
@@ -79,4 +80,16 @@ func (impl *ResourceProtectionServiceImpl) convertToResourceProtectModel(protect
 	}
 	return resourceProtectModel
 }
+
+func (impl *ResourceProtectionServiceImpl) ResourceProtectionEnabledForEnv(envId int) map[int]bool {
+	appVsState := make(map[int]bool)
+	protectionDtos, err := impl.resourceProtectionRepository.GetResourceProtectionStateForEnv(envId)
+	if err == nil {
+		for _, protectionDto := range protectionDtos {
+			appVsState[protectionDto.AppId] = protectionDto.State == EnabledProtectionState
+		}
+	}
+	return appVsState
+}
+
 
