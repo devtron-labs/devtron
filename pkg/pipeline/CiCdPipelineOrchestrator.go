@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	util2 "github.com/devtron-labs/devtron/util"
+	util3 "github.com/devtron-labs/devtron/util/k8s"
 	"path"
 	"regexp"
 	"strconv"
@@ -914,7 +915,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		}
 		labelKey := label.Key
 		labelValue := label.Value
-		err := util2.CheckIfValidLabel(labelKey, labelValue)
+		err := util3.CheckIfValidLabel(labelKey, labelValue)
 		if err != nil {
 			return nil, err
 		}

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/bean"
 	"strings"
 	"time"
 
@@ -103,7 +104,7 @@ type PodMetadata struct {
 	Containers          []*string                      `json:"containers"`
 	InitContainers      []*string                      `json:"initContainers"`
 	IsNew               bool                           `json:"isNew"`
-	EphemeralContainers []*util.EphemeralContainerData `json:"ephemeralContainers"`
+	EphemeralContainers []*bean.EphemeralContainerData `json:"ephemeralContainers"`
 }
 
 type Manifests struct {
