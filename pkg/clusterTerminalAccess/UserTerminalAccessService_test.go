@@ -3,14 +3,13 @@ package clusterTerminalAccess
 import (
 	"context"
 	"errors"
-	"github.com/devtron-labs/devtron/client/k8s/application"
-	mocks4 "github.com/devtron-labs/devtron/client/k8s/application/mocks"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
+	mocks3 "github.com/devtron-labs/devtron/pkg/k8s/application/mocks"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	mocks2 "github.com/devtron-labs/devtron/pkg/terminal/mocks"
-	mocks3 "github.com/devtron-labs/devtron/util/k8s/mocks"
+	util2 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,7 +44,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		assert.Equal(tt, terminalSessionResponse1.UserId, request.UserId)
 		podTemplate := &models.TerminalAccessTemplates{TemplateData: podJson}
 		podStatus := "Running"
-		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(&application.ManifestResponse{Manifest: unstructured.Unstructured{Object: map[string]interface{}{"status": map[string]interface{}{"phase": podStatus}}}}, nil)
+		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(&util2.ManifestResponse{Manifest: unstructured.Unstructured{Object: map[string]interface{}{"status": map[string]interface{}{"phase": podStatus}}}}, nil)
 		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
 		terminalAccessRepository.On("GetUserTerminalAccessData", terminalAccessId1).Return(savedTerminalAccessData, nil)
 		terminalAccessRepository.On("UpdateUserTerminalStatus", mock.AnythingOfType("int"), mock.AnythingOfType("string")).
@@ -173,9 +172,8 @@ func loadUserTerminalAccessService(t *testing.T) (*mocks.TerminalAccessRepositor
 	terminalAccessRepository := mocks.NewTerminalAccessRepository(t)
 	terminalSessionHandler := mocks2.NewTerminalSessionHandler(t)
 	k8sApplicationService := mocks3.NewK8sApplicationService(t)
-	k8sClientService := mocks4.NewK8sClientService(t)
 	terminalAccessRepository.On("GetAllRunningUserTerminalData").Return(nil, nil)
-	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(logger, terminalAccessRepository, userTerminalSessionConfig, k8sApplicationService, k8sClientService, terminalSessionHandler, nil)
+	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(logger, terminalAccessRepository, userTerminalSessionConfig, nil, terminalSessionHandler, nil, nil)
 	assert.Nil(t, err)
 	return terminalAccessRepository, terminalSessionHandler, k8sApplicationService, terminalAccessServiceImpl
 }
