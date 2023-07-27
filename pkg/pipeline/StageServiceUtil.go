@@ -203,11 +203,11 @@ func constructGlobalInputVariablesUsedInScript(script string) []*bean.StepVariab
 				ReferenceVariableStage:    "",
 			}
 			if inputVariable == DEVTRON_CD_TRIGGER_TIME {
-				stepVariable.Name = CD_TRIGGER_TIME
+				stepVariable.Name = DEVTRON_CD_TRIGGER_TIME
 				stepVariable.ReferenceVariableName = CD_TRIGGER_TIME
 			}
 			if inputVariable == DEVTRON_CD_TRIGGERED_BY {
-				stepVariable.Name = CD_TRIGGERED_BY
+				stepVariable.Name = DEVTRON_CD_TRIGGERED_BY
 				stepVariable.ReferenceVariableName = CD_TRIGGERED_BY
 			}
 			inputVariables = append(inputVariables, stepVariable)
