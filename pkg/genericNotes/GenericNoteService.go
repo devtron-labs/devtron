@@ -111,17 +111,22 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 	}
 
 	model, err := impl.genericNoteRepository.FindByIdentifier(req.Identifier, req.IdentifierType)
-	if err != nil && err == pg.ErrNoRows {
-		impl.logger.Debugw("id not found to update generic_note, saving new entry", "req", req, "userId", userId)
-		res, err := impl.Save(tx, req, userId)
-		if err == nil {
-			err = impl.genericNoteRepository.CommitTx(tx)
-			if err != nil {
-				impl.logger.Errorw("error in committing db transaction", "err", err)
-				return nil, err
+	if err != nil {
+		if err == pg.ErrNoRows {
+			impl.logger.Debugw("id not found to update generic_note, saving new entry", "req", req, "userId", userId)
+			res, err := impl.Save(tx, req, userId)
+			if err == nil {
+				err = impl.genericNoteRepository.CommitTx(tx)
+				if err != nil {
+					impl.logger.Errorw("error in committing db transaction", "err", err)
+					return nil, err
+				}
 			}
+			impl.logger.Errorw("error in saving cluster note in db", "err", err, "genericNoteReq", req)
+			return res, err
 		}
-		return res, err
+		impl.logger.Error("error in finding generic note by identifier and identifier type", "err", err, "identifier", req.Identifier, "identifierType", req.IdentifierType)
+		return nil, err
 	}
 
 	// update the cluster description with new data

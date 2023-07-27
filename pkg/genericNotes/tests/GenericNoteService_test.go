@@ -1,10 +1,11 @@
-package mocks
+package tests
 
 import (
 	"errors"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	mocks3 "github.com/devtron-labs/devtron/pkg/genericNotes/mocks"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -33,12 +34,6 @@ var testUsers = []repository.UserModel{
 }
 
 func TestSave(t *testing.T) {
-
-	testErrorAssertions := func(tt *testing.T, resp *bean2.GenericNoteResponseBean, testErr string, err error) {
-		assert.NotNil(tt, err)
-		assert.Nil(tt, resp)
-		assert.Equal(tt, testErr, err.Error())
-	}
 
 	req := &repository3.GenericNote{
 		Identifier:     testAppId1,
@@ -107,7 +102,7 @@ func TestSave(t *testing.T) {
 		testErrorAssertions(tt, resp, testErr, err)
 	})
 
-	t.Run("Test Success Case", func(tt *testing.T) {
+	t.Run("Test Success Case for Save", func(tt *testing.T) {
 		genericNoteSvc, mockedNoteRepo, mockedHistorySvc, mockedUserRepo := initGenericNoteService(t)
 		tx := &pg.Tx{}
 
@@ -125,6 +120,124 @@ func TestSave(t *testing.T) {
 	})
 }
 
+func TestUpdate(t *testing.T) {
+	req := &repository3.GenericNote{
+		Identifier:     testAppId1,
+		IdentifierType: repository3.AppType,
+		Description:    "test-description",
+		AuditLog: sql.AuditLog{
+			UpdatedBy: userId1,
+		},
+	}
+
+	t.Run("Test Error Case, error in starting transaction", func(tt *testing.T) {
+		genericNoteSvc, mockedNoteRepo, _, _ := initGenericNoteService(t)
+		tx := &pg.Tx{}
+
+		testErr := errors.New("start tnx error")
+		mockedNoteRepo.On("StartTx").Return(tx, testErr)
+		mockedNoteRepo.On("RollbackTx", tx).Return(errors.New("rollback error"))
+		res, err := genericNoteSvc.Update(req, userId1)
+		testErrorAssertions(tt, res, testErr.Error(), err)
+	})
+
+	t.Run("Test Error Case, error in starting transaction", func(tt *testing.T) {
+		genericNoteSvc, mockedNoteRepo, _, _ := initGenericNoteService(t)
+		tx := &pg.Tx{}
+
+		testErr := errors.New("find note by identifier error")
+		mockedNoteRepo.On("StartTx").Return(tx, nil)
+		mockedNoteRepo.On("RollbackTx", tx).Return(nil)
+		dbModel := &repository3.GenericNote{}
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(dbModel, testErr)
+		res, err := genericNoteSvc.Update(req, userId1)
+		testErrorAssertions(tt, res, testErr.Error(), err)
+	})
+
+	t.Run("Test Error Case, error updating generic note data", func(tt *testing.T) {
+		genericNoteSvc, mockedNoteRepo, _, _ := initGenericNoteService(t)
+		tx := &pg.Tx{}
+		testErr := errors.New("note update error")
+		mockedNoteRepo.On("StartTx").Return(tx, nil)
+		mockedNoteRepo.On("RollbackTx", tx).Return(nil)
+		dbModel := &repository3.GenericNote{}
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(dbModel, nil)
+		mockedNoteRepo.On("Update", tx, dbModel).Return(testErr)
+		res, err := genericNoteSvc.Update(req, userId1)
+		testErrorAssertions(tt, res, testErr.Error(), err)
+	})
+
+	t.Run("Test Error Case, error in saving generic_note update audit data", func(tt *testing.T) {
+		genericNoteSvc, mockedNoteRepo, mockedHistorySvc, _ := initGenericNoteService(t)
+		tx := &pg.Tx{}
+		testErr := errors.New("save generic_note update audit error")
+		mockedNoteRepo.On("StartTx").Return(tx, nil)
+		mockedNoteRepo.On("RollbackTx", tx).Return(nil)
+		dbModel := &repository3.GenericNote{}
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(dbModel, nil)
+		mockedNoteRepo.On("Update", tx, dbModel).Return(nil)
+		mockedHistorySvc.On("Save", tx, mock.AnythingOfType("*genericNotes.GenericNoteHistoryBean"), userId1).Return(nil, testErr)
+
+		res, err := genericNoteSvc.Update(req, userId1)
+		testErrorAssertions(tt, res, testErr.Error(), err)
+	})
+
+	t.Run("Test Error Case, error in finding user by userId", func(tt *testing.T) {
+		genericNoteSvc, mockedNoteRepo, mockedHistorySvc, mockedUserRepo := initGenericNoteService(t)
+		tx := &pg.Tx{}
+		testErr := errors.New("find user by userId error")
+		mockedNoteRepo.On("StartTx").Return(tx, nil)
+		mockedNoteRepo.On("RollbackTx", tx).Return(nil)
+		dbModel := &repository3.GenericNote{}
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(dbModel, nil)
+		mockedNoteRepo.On("Update", tx, dbModel).Return(nil)
+		mockedHistorySvc.On("Save", tx, mock.AnythingOfType("*genericNotes.GenericNoteHistoryBean"), userId1).Return(nil, nil)
+
+		mockedUserRepo.On("GetById", req.UpdatedBy).Return(nil, testErr)
+		res, err := genericNoteSvc.Update(req, userId1)
+		testErrorAssertions(tt, res, testErr.Error(), err)
+	})
+
+	t.Run("Test Error Case, error in committing db transaction", func(tt *testing.T) {
+		genericNoteSvc, mockedNoteRepo, mockedHistorySvc, mockedUserRepo := initGenericNoteService(t)
+		tx := &pg.Tx{}
+		testErr := errors.New("transaction commit error")
+		mockedNoteRepo.On("StartTx").Return(tx, nil)
+		mockedNoteRepo.On("RollbackTx", tx).Return(nil)
+		dbModel := &repository3.GenericNote{}
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(dbModel, nil)
+		mockedNoteRepo.On("Update", tx, dbModel).Return(nil)
+		mockedHistorySvc.On("Save", tx, mock.AnythingOfType("*genericNotes.GenericNoteHistoryBean"), userId1).Return(nil, nil)
+
+		testUser := testUsers[0]
+		mockedUserRepo.On("GetById", req.UpdatedBy).Return(&testUser, nil)
+		mockedNoteRepo.On("CommitTx", tx).Return(testErr)
+		res, err := genericNoteSvc.Update(req, userId1)
+		testErrorAssertions(tt, res, testErr.Error(), err)
+	})
+
+	t.Run("Test Success Case for Update", func(tt *testing.T) {
+		genericNoteSvc, mockedNoteRepo, mockedHistorySvc, mockedUserRepo := initGenericNoteService(t)
+		tx := &pg.Tx{}
+
+		mockedNoteRepo.On("StartTx").Return(tx, nil)
+		mockedNoteRepo.On("RollbackTx", tx).Return(nil)
+		dbModel := &repository3.GenericNote{}
+		mockedNoteRepo.On("FindByIdentifier", req.Identifier, req.IdentifierType).Return(dbModel, nil)
+		mockedNoteRepo.On("Update", tx, dbModel).Return(nil)
+		mockedHistorySvc.On("Save", tx, mock.AnythingOfType("*genericNotes.GenericNoteHistoryBean"), userId1).Return(nil, nil)
+
+		testUser := testUsers[0]
+		mockedUserRepo.On("GetById", req.UpdatedBy).Return(&testUser, nil)
+		mockedNoteRepo.On("CommitTx", tx).Return(nil)
+		resp, err := genericNoteSvc.Update(req, userId1)
+		assert.NotNil(tt, resp)
+		assert.Nil(tt, err)
+		assert.Equal(tt, testUser.EmailId, resp.UpdatedBy)
+		assert.Equal(tt, req.Description, resp.Description)
+	})
+
+}
 func TestGetGenericNotesForAppIds(t *testing.T) {
 
 	genericNoteResp := &repository3.GenericNote{
@@ -223,14 +336,20 @@ func TestGetGenericNotesForAppIds(t *testing.T) {
 	})
 }
 
-func initGenericNoteService(t *testing.T) (*genericNotes.GenericNoteServiceImpl, *mocks.GenericNoteRepository, *GenericNoteHistoryService, *mocks2.UserRepository) {
+func testErrorAssertions(tt *testing.T, resp *bean2.GenericNoteResponseBean, testErr string, err error) {
+	assert.NotNil(tt, err)
+	assert.Nil(tt, resp)
+	assert.Equal(tt, testErr, err.Error())
+}
+
+func initGenericNoteService(t *testing.T) (*genericNotes.GenericNoteServiceImpl, *mocks.GenericNoteRepository, *mocks3.GenericNoteHistoryService, *mocks2.UserRepository) {
 	logger, err := util.NewSugardLogger()
 	if err != nil {
 		assert.Fail(t, "error in creating logger")
 	}
 
 	mockedNoteRepo := mocks.NewGenericNoteRepository(t)
-	mockedHistoryService := NewGenericNoteHistoryService(t)
+	mockedHistoryService := mocks3.NewGenericNoteHistoryService(t)
 	mockedUserRepo := mocks2.NewUserRepository(t)
 	genericNoteSvc := genericNotes.NewGenericNoteServiceImpl(mockedNoteRepo, mockedHistoryService, mockedUserRepo, logger)
 	return genericNoteSvc, mockedNoteRepo, mockedHistoryService, mockedUserRepo
