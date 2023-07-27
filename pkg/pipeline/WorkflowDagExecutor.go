@@ -702,7 +702,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if cdPipeline.CiPipelineId > 0 {
 		ciPipeline, err = impl.ciPipelineRepository.FindById(cdPipeline.CiPipelineId)
 		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("cannot find ciPipeline", "err", err)
+			impl.logger.Errorw("cannot find ciPipelineRequest", "err", err)
 			return nil, err
 		}
 
