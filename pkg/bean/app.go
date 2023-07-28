@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -42,15 +43,15 @@ type SourceTypeConfig struct {
 }
 
 type CreateAppDTO struct {
-	Id          int            `json:"id,omitempty" validate:"number"`
-	AppName     string         `json:"appName" validate:"name-component,max=100"`
-	UserId      int32          `json:"-"` //not exposed to UI
-	Material    []*GitMaterial `json:"material" validate:"dive,min=1"`
-	TeamId      int            `json:"teamId,omitempty" validate:"number,required"`
-	TemplateId  int            `json:"templateId"`
-	AppLabels   []*Label       `json:"labels,omitempty" validate:"dive"`
-	Description string         `json:"description"`
-	AppType     helper.AppType `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
+	Id          int                            `json:"id,omitempty" validate:"number"`
+	AppName     string                         `json:"appName" validate:"name-component,max=100"`
+	UserId      int32                          `json:"-"` //not exposed to UI
+	Material    []*GitMaterial                 `json:"material" validate:"dive,min=1"`
+	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`
+	TemplateId  int                            `json:"templateId"`
+	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
+	Description *bean3.GenericNoteResponseBean `json:"description,omitempty"`
+	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
 type CreateMaterialDTO struct {
@@ -217,6 +218,13 @@ func (a PatchAction) String() string {
 }
 
 // ----------------
+
+type CiMaterialPatchRequest struct {
+	AppId         int               `json:"appId" validate:"required"`
+	EnvironmentId int               `json:"environmentId" validate:"required"`
+	Source        *SourceTypeConfig `json:"source" validate:"required"`
+}
+
 type CiPatchRequest struct {
 	CiPipeline    *CiPipeline `json:"ciPipeline"`
 	AppId         int         `json:"appId,omitempty"`
@@ -752,16 +760,16 @@ type Label struct {
 }
 
 type AppMetaInfoDto struct {
-	AppId       int       `json:"appId"`
-	AppName     string    `json:"appName"`
-	ProjectId   int       `json:"projectId"`
-	ProjectName string    `json:"projectName"`
-	CreatedBy   string    `json:"createdBy"`
-	CreatedOn   time.Time `json:"createdOn"`
-	Active      bool      `json:"active,notnull"`
-	Labels      []*Label  `json:"labels"`
-	Description string    `json:"description"`
-	UserId      int32     `json:"-"`
+	AppId       int                            `json:"appId"`
+	AppName     string                         `json:"appName"`
+	ProjectId   int                            `json:"projectId"`
+	ProjectName string                         `json:"projectName"`
+	CreatedBy   string                         `json:"createdBy"`
+	CreatedOn   time.Time                      `json:"createdOn"`
+	Active      bool                           `json:"active,notnull"`
+	Labels      []*Label                       `json:"labels"`
+	Description *bean3.GenericNoteResponseBean `json:"description"`
+	UserId      int32                          `json:"-"`
 }
 
 type AppLabelsJsonForDeployment struct {

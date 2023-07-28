@@ -12,15 +12,14 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
-	"log"
-
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/stretchr/testify/assert"
+	"log"
 	"testing"
 )
 
@@ -142,7 +141,7 @@ func InitClusterNoteService() {
 	attributesService := attributes.NewAttributesServiceImpl(logger, nil)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(logger)
 	appListingRepository := repository.NewAppListingRepositoryImpl(logger, conn, appListingRepositoryQueryBuilder, envRepository)
-	appLabelsService := app2.NewAppCrudOperationServiceImpl(nil, logger, nil, nil, nil, nil)
+	appLabelsService := app2.NewAppCrudOperationServiceImpl(nil, logger, nil, nil, nil, nil, nil)
 	userAuthService := user.NewUserAuthServiceImpl(nil, nil, nil, nil, nil, nil, nil)
 	prePostCdScriptHistoryService := history.NewPrePostCdScriptHistoryServiceImpl(logger, nil, nil, nil)
 	prePostCiScriptHistoryService := history.NewPrePostCiScriptHistoryServiceImpl(logger, nil)
@@ -154,5 +153,55 @@ func InitClusterNoteService() {
 	dockerArtifactStoreRepository := repository2.NewDockerArtifactStoreRepositoryImpl(conn)
 	configMapRepository := chartConfig.NewConfigMapRepositoryImpl(logger, conn)
 	configMapService := NewConfigMapServiceImpl(nil, nil, nil, util.MergeUtil{}, nil, configMapRepository, nil, nil, appRepository, nil, envRepository)
-	ciCdPipelineOrchestrator = NewCiCdPipelineOrchestrator(appRepository, logger, materialRepository, pipelineRepository, ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService, appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService, pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService, dockerArtifactStoreRepository, nil, nil, nil, configMapService)
+	ciCdPipelineOrchestrator = NewCiCdPipelineOrchestrator(appRepository, logger, materialRepository, pipelineRepository, ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService, appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService, pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService, dockerArtifactStoreRepository, nil, nil, nil, configMapService, nil)
 }
+
+//	func TestPatchCiMaterialSourceWhenOldPipelineExistsAndSaveUpdatedMaterialFailsItShouldReturnError(t *testing.T) {
+//		//ctrl := gomock.NewController(t)
+//		userId := int32(10)
+//		oldPipeline := &bean.CiPipeline{
+//			ParentAppId: 0,
+//			AppId:       4,
+//			CiMaterial: []*bean.CiMaterial{
+//				{
+//					Source: &bean.SourceTypeConfig{
+//						Type:  "SOURCE_TYPE_BRANCH_FIXED",
+//						Value: "main",
+//					},
+//					Id:      0,
+//					IsRegex: false,
+//				},
+//			},
+//			Id:     1,
+//			Active: false,
+//		}
+//
+//		newPipeline := &bean.CiPipeline{
+//			ParentAppId: 0,
+//			AppId:       4,
+//			CiMaterial: []*bean.CiMaterial{
+//				{
+//					Source: &bean.SourceTypeConfig{
+//						Type:  "SOURCE_TYPE_BRANCH_FIXED",
+//						Value: "main",
+//					},
+//					Id:      1,
+//					IsRegex: false,
+//				},
+//			},
+//			Id:     0,
+//			Active: false,
+//		}
+//		mockedCiPipelineRepository := mocks.NewCiPipelineRepository(t)
+//		mockedCiPipelineRepository.On("FindById", newPipeline.Id).Return(oldPipeline, nil)
+//		//mockedCiPipelineMaterialRepository := &mocks.MockCiPipelineMaterialRepository{}
+//		//mockedGitSensor := &mock_gitSensor.MockClient{}
+//		impl := CiCdPipelineOrchestratorImpl{
+//			ciPipelineRepository: mockedCiPipelineRepository,
+//			//ciPipelineMaterialRepository: mockedCiPipelineMaterialRepository,
+//			//GitSensorClient:              mockedGitSensor,
+//		}
+//		res, err := impl.PatchCiMaterialSource(pipeline, userId)
+//		assert.Error(t, err)
+//		assert.Nil(t, res)
+//	}

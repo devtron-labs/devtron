@@ -31,7 +31,7 @@ type ServerVersion struct {
 }
 
 func GetDevtronVersion() *ServerVersion {
-	return &ServerVersion{BuildTime: BuildTime, GitCommit: GitCommit, ServerMode: ServerMode}
+	return &ServerVersion{BuildTime: BuildTime, GitCommit: GitCommit, ServerMode: SERVER_MODE_FULL}
 }
 
 func IsBaseStack() bool {

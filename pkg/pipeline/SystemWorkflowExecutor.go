@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,10 +29,10 @@ type SystemWorkflowExecutor interface {
 
 type SystemWorkflowExecutorImpl struct {
 	logger  *zap.SugaredLogger
-	k8sUtil *util.K8sUtil
+	k8sUtil *k8s.K8sUtil
 }
 
-func NewSystemWorkflowExecutorImpl(logger *zap.SugaredLogger, k8sUtil *util.K8sUtil) *SystemWorkflowExecutorImpl {
+func NewSystemWorkflowExecutorImpl(logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil) *SystemWorkflowExecutorImpl {
 	return &SystemWorkflowExecutorImpl{logger: logger, k8sUtil: k8sUtil}
 }
 
@@ -40,7 +40,7 @@ func (impl *SystemWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Wo
 	templatesList := &unstructured.UnstructuredList{}
 	//create job template with suspended state
 	jobTemplate := impl.getJobTemplate(workflowTemplate)
-	clientset, err := impl.k8sUtil.GetClientSetForConfig(workflowTemplate.ClusterConfig)
+	_, clientset, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(workflowTemplate.ClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating k8s client", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "err", err)
 		return nil, err
@@ -81,7 +81,7 @@ func (impl *SystemWorkflowExecutorImpl) addToUnstructuredList(template interface
 }
 
 func (impl *SystemWorkflowExecutorImpl) TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error {
-	clientset, err := impl.k8sUtil.GetClientSetForConfig(clusterConfig)
+	_, clientset, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating k8s client", "workflowName", workflowName, "namespace", namespace, "err", err)
 		return err
@@ -170,7 +170,7 @@ func (impl *SystemWorkflowExecutorImpl) createJobOwnerRefVal(createdJob *v1.Job)
 }
 
 func (impl *SystemWorkflowExecutorImpl) createCmAndSecrets(template bean.WorkflowTemplate, createdJob *v1.Job, templateList *unstructured.UnstructuredList) error {
-	client, err := impl.k8sUtil.GetK8sClientForConfig(template.ClusterConfig)
+	client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(template.ClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating k8s client", "WorkflowRunnerId", template.WorkflowRunnerId, "err", err)
 		return err
