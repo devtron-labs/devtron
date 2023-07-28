@@ -8,7 +8,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	util2 "github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -19,6 +18,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"github.com/patrickmn/go-cache"
 	"github.com/posthog/posthog-go"
@@ -43,7 +43,7 @@ type TelemetryEventClientImpl struct {
 	logger                   *zap.SugaredLogger
 	client                   *http.Client
 	clusterService           cluster.ClusterService
-	K8sUtil                  *util2.K8sUtil
+	K8sUtil                  *k8s.K8sUtil
 	aCDAuthConfig            *util3.ACDAuthConfig
 	userService              user.UserService
 	attributeRepo            repository.AttributesRepository
@@ -67,7 +67,7 @@ type TelemetryEventClient interface {
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
+	K8sUtil *k8s.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
 	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
@@ -221,7 +221,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		req := &client.AppListRequest{}
 		config := &client.ClusterConfig{
 			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config[util2.BearerToken],
+			Token:        clusterDetail.Config[k8s.BearerToken],
 			ClusterId:    int32(clusterDetail.Id),
 			ClusterName:  clusterDetail.ClusterName,
 		}
