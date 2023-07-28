@@ -42,6 +42,7 @@ import (
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -106,6 +107,7 @@ type AppListingRestHandlerImpl struct {
 	appStatusService                  appStatus.AppStatusService
 	installedAppRepository            repository.InstalledAppRepository
 	environmentClusterMappingsService cluster.EnvironmentService
+	genericNoteService                genericNotes.GenericNoteService
 	cfg                               *bean.Config
 	k8sApplicationService             application3.K8sApplicationService
 }
@@ -137,6 +139,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
 	environmentClusterMappingsService cluster.EnvironmentService,
+	genericNoteService genericNotes.GenericNoteService,
 	k8sApplicationService application3.K8sApplicationService,
 ) *AppListingRestHandlerImpl {
 	cfg := &bean.Config{}
@@ -167,6 +170,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		appStatusService:                  appStatusService,
 		installedAppRepository:            installedAppRepository,
 		environmentClusterMappingsService: environmentClusterMappingsService,
+		genericNoteService:                genericNoteService,
 		cfg:                               cfg,
 		k8sApplicationService:             k8sApplicationService,
 	}
@@ -1516,6 +1520,18 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
 		resp, err := handler.application.ResourceTree(ctx, query)
+		elapsed := time.Since(start)
+		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
+		if err != nil {
+			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
+			err = &util.ApiError{
+				Code:            constants.AppDetailResourceTreeNotFound,
+				InternalMessage: "app detail fetched, failed to get resource tree from acd",
+				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
+			}
+			return resourceTree, err
+		}
+
 		//we currently add appId and envId as labels for devtron apps deployed via acd
 		label := fmt.Sprintf("appId=%v,envId=%v", cdPipeline.AppId, cdPipeline.EnvironmentId)
 		pods, err := handler.k8sApplicationService.GetPodListByLabel(cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, label)
@@ -1527,17 +1543,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		for _, metaData := range resp.PodMetadata {
 			metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 		}
-		elapsed := time.Since(start)
-		if err != nil {
-			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
-			}
-			return resourceTree, err
-		}
-		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 
 		if resp.Status == string(health.HealthStatusHealthy) {
 			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)

@@ -180,50 +180,50 @@ func (n NewK8sClientServiceImplMock) ListEvents(restConfig *rest.Config, request
 	panic("implement me")
 }
 
-//func (n NewK8sClientServiceImplMock) GetPodLogs(restConfig *rest.Config, request *k8s2.K8sRequestBean) (io.ReadCloser, error) {
-//	//TODO implement me
-//	panic("implement me")
-//}
-//
-//func Test_GetManifestsInBatch(t *testing.T) {
-//	var (
-//		k8sCS          = NewK8sClientServiceImplMock{}
-//		clusterService = NewClusterServiceMock{}
-//		impl           = NewK8sApplicationServiceImpl(
-//			nil, clusterService, nil, k8sCS, nil,
-//			nil, nil, nil, nil, nil)
-//	)
-//	n := 10
-//	kinds := []string{"Service", "Ingress", "Random", "Invalid"}
-//	var testInput = make([]ResourceRequestBean, 0)
-//	expectedTestOutputs := make([]BatchResourceResponse, 0)
-//	for i := 0; i < n; i++ {
-//		idx := rand.Int31n(int32(len(kinds)))
-//		inp := generateTestResourceRequest(kinds[idx])
-//		testInput = append(testInput, inp)
+//	func (n NewK8sClientServiceImplMock) GetPodLogs(restConfig *rest.Config, request *k8s2.K8sRequestBean) (io.ReadCloser, error) {
+//		//TODO implement me
+//		panic("implement me")
 //	}
-//	for i := 0; i < n; i++ {
-//		man := generateTestManifest(testInput[i].K8sRequest.ResourceIdentifier.GroupVersionKind.Kind)
-//		bRR := k8s.BatchResourceResponse{
-//			ManifestResponse: &man,
-//			Err:              nil,
+//
+//	func Test_GetManifestsInBatch(t *testing.T) {
+//		var (
+//			k8sCS          = NewK8sClientServiceImplMock{}
+//			clusterService = NewClusterServiceMock{}
+//			impl           = NewK8sApplicationServiceImpl(
+//				nil, clusterService, nil, k8sCS, nil,
+//				nil, nil, nil, nil, nil)
+//		)
+//		n := 10
+//		kinds := []string{"Service", "Ingress", "Random", "Invalid"}
+//		var testInput = make([]ResourceRequestBean, 0)
+//		expectedTestOutputs := make([]BatchResourceResponse, 0)
+//		for i := 0; i < n; i++ {
+//			idx := rand.Int31n(int32(len(kinds)))
+//			inp := generateTestResourceRequest(kinds[idx])
+//			testInput = append(testInput, inp)
 //		}
-//		expectedTestOutputs = append(expectedTestOutputs, bRR)
-//	}
-//
-//	t.Run(fmt.Sprint("test1"), func(t *testing.T) {
-//		resultOutput := impl.GetHostUrlsByBatch(testInput)
-//		//check if all the output manifests are expected
-//		for j, _ := range resultOutput {
-//			if !cmp.Equal(resultOutput[j], expectedTestOutputs[j]) {
-//				t.Errorf("expected %+v but got %+v", expectedTestOutputs[j].ManifestResponse, resultOutput[j].ManifestResponse)
-//				break
+//		for i := 0; i < n; i++ {
+//			man := generateTestManifest(testInput[i].K8sRequest.ResourceIdentifier.GroupVersionKind.Kind)
+//			bRR := k8s.BatchResourceResponse{
+//				ManifestResponse: &man,
+//				Err:              nil,
 //			}
+//			expectedTestOutputs = append(expectedTestOutputs, bRR)
 //		}
 //
-//	})
+//		t.Run(fmt.Sprint("test1"), func(t *testing.T) {
+//			resultOutput := impl.GetHostUrlsByBatch(testInput)
+//			//check if all the output manifests are expected
+//			for j, _ := range resultOutput {
+//				if !cmp.Equal(resultOutput[j], expectedTestOutputs[j]) {
+//					t.Errorf("expected %+v but got %+v", expectedTestOutputs[j].ManifestResponse, resultOutput[j].ManifestResponse)
+//					break
+//				}
+//			}
 //
-//}
+//		})
+//
+// }
 func generateTestResourceRequest(kind string) k8s.ResourceRequestBean {
 	return k8s.ResourceRequestBean{
 		AppIdentifier: &client.AppIdentifier{},
