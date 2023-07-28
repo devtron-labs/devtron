@@ -50,6 +50,8 @@ type DevtronAppDeploymentRestHandler interface {
 	FetchCdWorkflowDetails(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesByEnvironmentMin(w http.ResponseWriter, r *http.Request)
+
+	ChangeChartRef(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppDeploymentConfigRestHandler interface {
@@ -495,6 +497,103 @@ func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCha
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 	return
+}
+
+func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request chart.ChartRefChangeRequest
+	err = decoder.Decode(&request)
+	if err != nil || request.EnvId == 0 || request.TargetChartRefId == 0 || request.AppId == 0 {
+		handler.Logger.Errorw("request err, ChangeChartRef", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, request, http.StatusBadRequest)
+		return
+	}
+	envConfigProperties, err := handler.propertiesConfigService.GetLatestEnvironmentProperties(request.AppId, request.EnvId)
+	if err != nil {
+		handler.Logger.Errorw("request err, EnvConfigOverrideCreate", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envConfigProperties.ChartRefId = request.TargetChartRefId
+	envConfigProperties.UserId = userId
+	envConfigProperties.EnvironmentId = request.EnvId
+
+	token := r.Header.Get("token")
+	handler.Logger.Infow("request payload, EnvConfigOverrideCreate", "payload", request)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	object := handler.enforcerUtil.GetEnvRBACNameByAppId(request.AppId, request.EnvId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId)
+	if !validate {
+		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", request)
+		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+		return
+	}
+
+	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, envConfigProperties)
+	if err != nil {
+		if err.Error() == bean2.NOCHARTEXIST {
+			ctx, cancel := context.WithCancel(r.Context())
+			if cn, ok := w.(http.CloseNotifier); ok {
+				go func(done <-chan struct{}, closed <-chan bool) {
+					select {
+					case <-done:
+					case <-closed:
+						cancel()
+					}
+				}(ctx.Done(), cn.CloseNotify())
+			}
+			acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+			if err != nil {
+				handler.Logger.Errorw("error in getting acd token", "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+			ctx = context.WithValue(r.Context(), "token", acdToken)
+			appMetrics := false
+			//if request.AppMetrics != nil {
+			//	appMetrics = *request.AppMetrics
+			//}
+			templateRequest := chart.TemplateRequest{
+				AppId:               request.AppId,
+				ChartRefId:          request.TargetChartRefId,
+				ValuesOverride:      []byte("{}"),
+				UserId:              userId,
+				IsAppMetricsEnabled: appMetrics,
+			}
+
+			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+			if err != nil {
+				handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", request)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+			createResp, err = handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, envConfigProperties)
+			if err != nil {
+				handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", request)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+		} else {
+			handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", request)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request) {

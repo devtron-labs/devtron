@@ -96,6 +96,12 @@ type ChartUpgradeRequest struct {
 	UserId     int32 `json:"-"`
 }
 
+type ChartRefChangeRequest struct {
+	AppId            int `json:"appId" validate:"required"`
+	EnvId            int `json:"envId"`
+	TargetChartRefId int `json:"targetChartRefId" validate:"required"`
+}
+
 type PipelineConfigRequest struct {
 	Id                   int             `json:"id"  validate:"number"`
 	AppId                int             `json:"appId,omitempty"  validate:"number,required"`
@@ -888,6 +894,76 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	return templateRequest, nil
 }
 
+func (impl ChartServiceImpl) handleChartTypeChange(currentLatestChart *chartRepoRepository.Chart, templateRequest *TemplateRequest) (json.RawMessage, error) {
+	var oldChartRef, newChartRef *chartRepoRepository.ChartRef
+	var err error
+	if oldChartRef, err = impl.chartRefRepository.FindById(currentLatestChart.ChartRefId); err != nil {
+		return nil, fmt.Errorf("chartRef not found for %v", currentLatestChart.ChartRefId)
+	}
+	if newChartRef, err = impl.chartRefRepository.FindById(templateRequest.ChartRefId); err != nil {
+		return nil, fmt.Errorf("chartRef not found for %v", templateRequest.ChartRefId)
+	}
+	if len(oldChartRef.Name) == 0 {
+		oldChartRef.Name = RolloutChartType
+	}
+	if len(newChartRef.Name) == 0 {
+		oldChartRef.Name = RolloutChartType
+	}
+	if !CheckCompatibility(oldChartRef.Name, newChartRef.Name) {
+		return nil, fmt.Errorf("charts are not compatible")
+	}
+	updatedOverride, err := patchWinterSoldierConfig(templateRequest.ValuesOverride, newChartRef.Name)
+	if err != nil {
+		return nil, err
+	}
+	return updatedOverride, nil
+}
+
+func patchWinterSoldierConfig(override json.RawMessage, newChartType string) (json.RawMessage, error) {
+	var jsonMap map[string]json.RawMessage
+	if err := json.Unmarshal(override, &jsonMap); err != nil {
+		return override, err
+	}
+	updatedJson, err := patchWinterSoldierIfExists(newChartType, jsonMap)
+	if err != nil {
+		return override, err
+	}
+	updatedOverride, err := json.Marshal(updatedJson)
+	if err != nil {
+		return override, err
+	}
+	return updatedOverride, nil
+}
+
+func patchWinterSoldierIfExists(newChartType string, jsonMap map[string]json.RawMessage) (map[string]json.RawMessage, error) {
+	winterSoldierConfig, found := jsonMap["winterSoldier"]
+	if !found {
+		return jsonMap, nil
+	}
+	var winterSoldierUnmarshalled map[string]json.RawMessage
+	if err := json.Unmarshal(winterSoldierConfig, &winterSoldierUnmarshalled); err != nil {
+		return jsonMap, err
+	}
+
+	_, found = winterSoldierUnmarshalled["type"]
+	if !found {
+		return jsonMap, nil
+	}
+	switch newChartType {
+	case DeploymentChartType:
+		winterSoldierUnmarshalled["type"] = json.RawMessage("Deployment")
+	case RolloutChartType:
+		winterSoldierUnmarshalled["type"] = json.RawMessage("Rollout")
+	}
+	winterSoldierMarshalled, err := json.Marshal(winterSoldierUnmarshalled)
+	if err != nil {
+		return jsonMap, err
+	}
+	jsonMap["winterSoldier"] = winterSoldierMarshalled
+
+	return jsonMap, nil
+}
+
 func (impl ChartServiceImpl) updateAppLevelMetrics(appMetricRequest *AppMetricEnableDisableRequest) (*repository3.AppLevelMetrics, error) {
 	existingAppLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appMetricRequest.AppId)
 	if err != nil && err != pg.ErrNoRows {
@@ -973,11 +1049,12 @@ type ChartRefMetaData struct {
 }
 
 type chartRefResponse struct {
-	ChartRefs         []chartRef                  `json:"chartRefs"`
-	LatestChartRef    int                         `json:"latestChartRef"`
-	LatestAppChartRef int                         `json:"latestAppChartRef"`
-	LatestEnvChartRef int                         `json:"latestEnvChartRef,omitempty"`
-	ChartsMetadata    map[string]ChartRefMetaData `json:"chartMetadata"` // chartName vs Metadata
+	ChartRefs            []chartRef                  `json:"chartRefs"`
+	LatestChartRef       int                         `json:"latestChartRef"`
+	LatestAppChartRef    int                         `json:"latestAppChartRef"`
+	LatestEnvChartRef    int                         `json:"latestEnvChartRef,omitempty"`
+	ChartsMetadata       map[string]ChartRefMetaData `json:"chartMetadata"` // chartName vs Metadata
+	CompatibleChartTypes []string                    `json:"compatibleChartTypes,omitempty"`
 }
 
 type ChartYamlStruct struct {
