@@ -156,6 +156,7 @@ type ChartService interface {
 	CheckCustomChartByChartId(id int) (bool, error)
 	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
+	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -239,6 +240,26 @@ func (impl ChartServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRe
 	return CheckCompatibility(oldChart.Name, newChart.Name), oldChart.Name, newChart.Name
 }
 
+func (impl ChartServiceImpl) FlaggerCanaryEnabled(values json.RawMessage) (bool, error) {
+	var jsonMap map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(values), &jsonMap); err != nil {
+		return false, err
+	}
+
+	flaggerCanary, found := jsonMap["flaggerCanary"]
+	if !found {
+		return false, nil
+	}
+	var flaggerCanaryUnmarshalled map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(flaggerCanary), &flaggerCanaryUnmarshalled); err != nil {
+		return false, err
+	}
+	enabled, found := flaggerCanaryUnmarshalled["enabled"]
+	if !found {
+		return true, fmt.Errorf("flagger canary enabled field must be set and be equal to false")
+	}
+	return string(enabled) == "true", nil
+}
 func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error) {
 	return PatchWinterSoldierConfig(values, newChartType)
 }

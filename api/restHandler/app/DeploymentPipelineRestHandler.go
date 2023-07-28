@@ -536,6 +536,15 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 		return
 	}
 
+	if newChartType == chart.RolloutChartType {
+		enabled, err := handler.chartService.FlaggerCanaryEnabled(envConfigProperties.EnvOverrideValues)
+		if err != nil || enabled {
+			handler.Logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "err", err, "payload", request)
+			common.WriteJsonResp(w, err, "rollout charts do not support flaggerCanary, ChangeChartRef", http.StatusBadRequest)
+			return
+		}
+	}
+
 	envMetrics, err := handler.propertiesConfigService.FindEnvLevelAppMetricsByAppIdAndEnvId(request.AppId, request.EnvId)
 	if err != nil {
 		handler.Logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)
