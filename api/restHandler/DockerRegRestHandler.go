@@ -180,17 +180,11 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 			common.WriteJsonResp(w, err, res, http.StatusOK)
 			return
 		}
-
-		res, err := impl.dockerRegistryConfig.Create(&bean)
-		if err != nil {
-			impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		if res.IsOCICompliantRegistry && len(res.RepositoryList) != 0 {
+		// valid registry credentials from kubelink
+		if bean.IsOCICompliantRegistry && len(bean.RepositoryList) != 0 {
 			request := &chartProviderService.ChartProviderRequestDto{
-				Id:            res.Id,
-				IsOCIRegistry: res.IsOCICompliantRegistry,
+				Id:            bean.Id,
+				IsOCIRegistry: bean.IsOCICompliantRegistry,
 			}
 			err = impl.chartProviderService.SyncChartProvider(request)
 			if err != nil {
@@ -198,6 +192,13 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
+		}
+
+		res, err := impl.dockerRegistryConfig.Create(&bean)
+		if err != nil {
+			impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
 		}
 		common.WriteJsonResp(w, err, res, http.StatusOK)
 	}
