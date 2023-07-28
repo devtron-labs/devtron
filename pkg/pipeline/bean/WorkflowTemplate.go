@@ -26,4 +26,6 @@ type WorkflowTemplate struct {
 	AzureBlobConfig        *blob_storage.AzureBlobConfig
 	GcpBlobConfig          *blob_storage.GcpBlobConfig
 	CloudStorageKey        string
+	PrePostDeploySteps     []*StepObject
+	RefPlugins             []*RefPluginObject
 }

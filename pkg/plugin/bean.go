@@ -8,6 +8,12 @@ type PluginDetailDto struct {
 	OutputVariables []*PluginVariableDto `json:"outputVariables"`
 }
 
+type PluginListComponentDto struct { //created new struct for backward compatibility (needed to add input and output Vars along with metadata fields)
+	*PluginMetadataDto
+	InputVariables  []*PluginVariableDto `json:"inputVariables"`
+	OutputVariables []*PluginVariableDto `json:"outputVariables"`
+}
+
 type PluginMetadataDto struct {
 	Id          int      `json:"id"`
 	Name        string   `json:"name"`

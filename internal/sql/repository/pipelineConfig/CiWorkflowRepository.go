@@ -68,6 +68,7 @@ type CiWorkflow struct {
 	CiArtifactLocation string            `sql:"ci_artifact_location"`
 	PodName            string            `sql:"pod_name"`
 	CiBuildType        string            `sql:"ci_build_type"`
+	EnvironmentId      int               `sql:"environment_id"`
 	CiPipeline         *CiPipeline
 }
 
@@ -92,6 +93,8 @@ type WorkflowWithArtifact struct {
 	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
 	CiBuildType        string            `json:"ci_build_type"`
 	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
+	EnvironmentId      int               `json:"environmentId"`
+	EnvironmentName    string            `json:"environmentName"`
 }
 
 type GitCommit struct {
@@ -163,7 +166,7 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 
 func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
-	queryTemp := "select cia.id as ci_artifact_id, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
+	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
 	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
 	if err != nil {
 		return nil, err

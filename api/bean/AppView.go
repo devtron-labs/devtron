@@ -29,6 +29,7 @@ type AppContainer struct {
 	ProjectId               int                        `json:"projectId"`
 	AppEnvironmentContainer []*AppEnvironmentContainer `json:"environments"`
 	DefaultEnv              AppEnvironmentContainer    `json:"-"`
+	Description             GenericNoteResponseBean    `json:"description"`
 }
 
 type AppContainerResponse struct {
@@ -58,29 +59,43 @@ type CiMaterialDTO struct {
 	SourceValue string `json:"value"`
 }
 
+type GenericNoteResponseBean struct {
+	Id          int       `json:"id" validate:"number"`
+	Description string    `json:"description"`
+	UpdatedBy   string    `json:"updatedBy"`
+	UpdatedOn   time.Time `json:"updatedOn"`
+}
+
 type JobContainer struct {
-	JobId          int             `json:"jobId"`
-	JobName        string          `json:"jobName""`
-	Description    string          `json:"description"`
-	JobCiPipelines []JobCIPipeline `json:"ciPipelines"'`
+	JobId          int                     `json:"jobId"`
+	JobName        string                  `json:"jobName""`
+	Description    GenericNoteResponseBean `json:"description"`
+	JobCiPipelines []JobCIPipeline         `json:"ciPipelines"'`
 }
 
 type JobCIPipeline struct {
-	CiPipelineId   int       `json:"ciPipelineId"`
-	CiPipelineName string    `json:"ciPipelineName"`
-	Status         string    `json:"status"`
-	LastRunAt      time.Time `json:"lastRunAt"`
-	LastSuccessAt  time.Time `json:"lastSuccessAt"`
+	CiPipelineId                 int       `json:"ciPipelineId"`
+	CiPipelineName               string    `json:"ciPipelineName"`
+	Status                       string    `json:"status"`
+	LastRunAt                    time.Time `json:"lastRunAt"`
+	LastSuccessAt                time.Time `json:"lastSuccessAt"`
+	EnvironmentId                int       `json:"environmentId"`
+	EnvironmentName              string    `json:"environmentName"`
+	LastTriggeredEnvironmentName string    `json:"lastTriggeredEnvironmentName"`
 }
 
 type JobListingContainer struct {
-	JobId          int       `json:"job_id"`
-	JobName        string    `json:"job_name"`
-	Description    string    `json:"description"`
-	CiPipelineID   int       `json:"ci_pipeline_id"`
-	CiPipelineName string    `json:"ci_pipeline_name"`
-	Status         string    `json:"status"`
-	StartedOn      time.Time `json:"started_on"`
+	JobId                        int       `sql:"job_id" json:"jobId"`
+	JobName                      string    `sql:"job_name" json:"jobName"`
+	Description                  string    `sql:"description" json:"description"`
+	CiPipelineID                 int       `sql:"ci_pipeline_id" json:"ciPipelineID"`
+	CiPipelineName               string    `sql:"ci_pipeline_name" json:"ciPipelineName"`
+	Status                       string    `sql:"status" json:"status"`
+	StartedOn                    time.Time `sql:"started_on" json:"startedOn"`
+	EnvironmentId                int       `sql:"environment_id" json:"environmentId"`
+	EnvironmentName              string    `sql:"environment_name" json:"environmentName"`
+	LastTriggeredEnvironmentName string    `sql:"last_triggered_environment_name" json:"lastTriggeredEnvironmentName"`
+	LastTriggeredEnvironmentId   int       `sql:"last_triggered_environment_id" json:"lastEnvironmentId"`
 }
 
 type CiPipelineLastSucceededTime struct {
