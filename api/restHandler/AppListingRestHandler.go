@@ -1521,6 +1521,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		start := time.Now()
 		resp, err := handler.application.ResourceTree(ctx, query)
 		elapsed := time.Since(start)
+		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
 			err = &util.ApiError{
@@ -1530,7 +1531,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			}
 			return resourceTree, err
 		}
-		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 
 		//we currently add appId and envId as labels for devtron apps deployed via acd
 		label := fmt.Sprintf("appId=%v,envId=%v", cdPipeline.AppId, cdPipeline.EnvironmentId)
