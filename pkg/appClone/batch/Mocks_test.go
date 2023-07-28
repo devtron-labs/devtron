@@ -23,10 +23,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 )
 
@@ -34,7 +34,7 @@ var (
 	LoggerMock = zap.SugaredLogger{}
 )
 
-//--------------
+// --------------
 type AppRepositoryMock struct{}
 
 func (repo AppRepositoryMock) Save(pipelineGroup *app.App) error {
@@ -74,7 +74,7 @@ func (repo AppRepositoryMock) FindAppsByEnvironmentId(environmentId int) ([]app.
 	panic("implement me")
 }
 
-//--------------
+// --------------
 type ConfigMapServiceMock struct{}
 
 func (impl ConfigMapServiceMock) CMGlobalAddUpdate(configMapRequest *pipeline.ConfigDataRequest) (*pipeline.ConfigDataRequest, error) {
@@ -176,7 +176,7 @@ func (impl EnvironmentServiceMock) FindById(id int) (*cluster.EnvironmentBean, e
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) getClusterConfig(cluster *cluster.ClusterBean) (*util.ClusterConfig, error) {
+func (impl EnvironmentServiceMock) getClusterConfig(cluster *cluster.ClusterBean) (*k8s.ClusterConfig, error) {
 	panic("implement me")
 }
 
@@ -192,7 +192,7 @@ func (impl EnvironmentServiceMock) GetEnvironmentListForAutocomplete() ([]cluste
 	panic("implement me")
 }
 
-//--------------
+// --------------
 type PipelineBuilderMock struct{}
 
 func (impl PipelineBuilderMock) CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error) {
@@ -234,7 +234,7 @@ func (impl PipelineBuilderMock) GetCdPipelinesForApp(appId int) (cdPipelines *be
 func (impl PipelineBuilderMock) GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error) {
 	panic("implement me")
 }
-func (impl PipelineBuilderMock) GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.CdWorkflowType) (bean.CiArtifactResponse, error) {
+func (impl PipelineBuilderMock) GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error) {
 	panic("implement me")
 }
 func (impl PipelineBuilderMock) FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error) {
@@ -267,7 +267,7 @@ func (impl PipelineBuilderMock) FetchConfigmapSecretsForCdStages(appId, envId, c
 	panic("implement me")
 }
 
-//--------------
+// --------------
 type AppWorkflowRepositoryMock struct{}
 
 func (impl AppWorkflowRepositoryMock) SaveAppWorkflow(wf *appWorkflow.AppWorkflow) (*appWorkflow.AppWorkflow, error) {
@@ -322,7 +322,7 @@ func (impl AppWorkflowRepositoryMock) FindWFCDMappingByCIPipelineIds(ciPipelineI
 	panic("implement me")
 }
 
-//--------
+// --------
 type CiPipelineRepositoryMock struct{}
 
 func (impl CiPipelineRepositoryMock) Save(pipeline *pipelineConfig.CiPipeline) error {
@@ -350,7 +350,7 @@ func (impl CiPipelineRepositoryMock) FindByAppId(appId int) (pipelines []*pipeli
 	panic("implement me")
 }
 
-//find non deleted pipeline
+// find non deleted pipeline
 func (impl CiPipelineRepositoryMock) FindById(id int) (pipeline *pipelineConfig.CiPipeline, err error) {
 	panic("implement me")
 }
@@ -383,7 +383,7 @@ func (impl CiPipelineRepositoryMock) FinDByParentCiPipelineAndAppId(parentCiPipe
 	panic("implement me")
 }
 
-//------
+// ------
 type PipelineRepositoryMock struct{}
 
 func (impl PipelineRepositoryMock) Save(pipeline []*pipelineConfig.Pipeline) error {
@@ -438,7 +438,7 @@ func (impl PipelineRepositoryMock) FindByIdsInAndEnvironment(ids []int, environm
 	panic("implement me")
 }
 
-//--------
+// --------
 type MaterialRepositoryMock struct{}
 
 func (impl MaterialRepositoryMock) MaterialExists(url string) (bool, error) {

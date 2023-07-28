@@ -22,12 +22,13 @@ import (
 	"fmt"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
+	util2 "github.com/devtron-labs/devtron/util/k8s"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -111,7 +112,7 @@ type EnvironmentServiceImpl struct {
 	environmentRepository repository.EnvironmentRepository
 	logger                *zap.SugaredLogger
 	clusterService        ClusterService
-	K8sUtil               *util.K8sUtil
+	K8sUtil               *util2.K8sUtil
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
 	userAuthService      user.UserAuthService
@@ -120,7 +121,7 @@ type EnvironmentServiceImpl struct {
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
+	K8sUtil *util2.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
@@ -182,7 +183,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return mappings, err
 	}
 	if len(model.Namespace) > 0 {
-		cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+		cfg, err := clusterBean.GetClusterConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -361,7 +362,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 
 	//namespace create if not exist
 	if len(model.Namespace) > 0 {
-		cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+		cfg, err := clusterBean.GetClusterConfig()
 		if err != nil {
 			return nil, err
 		}

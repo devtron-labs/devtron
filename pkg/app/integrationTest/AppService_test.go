@@ -145,7 +145,7 @@ func InitAppService() *app2.AppServiceImpl {
 	eventFactory := client1.NewEventSimpleFactoryImpl(logger, cdWorkflowRepository, pipelineOverrideRepository, ciWorkflowRepository,
 		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository, nil, nil)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(logger)
-	appListingRepository := repository.NewAppListingRepositoryImpl(logger, dbConnection, appListingRepositoryQueryBuilder)
+	appListingRepository := repository.NewAppListingRepositoryImpl(logger, dbConnection, appListingRepositoryQueryBuilder, nil)
 	appRepository := app.NewAppRepositoryImpl(dbConnection, logger)
 	chartRepository := chartRepoRepository.NewChartRepository(dbConnection)
 	pipelineStatusTimelineResourcesRepository := pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl(dbConnection, logger)
@@ -162,6 +162,6 @@ func InitAppService() *app2.AppServiceImpl {
 		nil, nil, nil, nil, nil, refChartDir, nil,
 		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
 		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return appService
 }

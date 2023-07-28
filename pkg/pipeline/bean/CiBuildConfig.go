@@ -15,6 +15,7 @@ const (
 	SKIP_BUILD_BUILD_TYPE         CiBuildType = "skip-build"
 	BUILDPACK_BUILD_TYPE          CiBuildType = "buildpack-build"
 )
+const Main = "main"
 
 type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`

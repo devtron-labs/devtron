@@ -31,6 +31,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"io/ioutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"path"
@@ -54,7 +55,7 @@ import (
 type CdWorkflowService interface {
 	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (string, error)
 	DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error)
+	GetWorkflow(name string, namespace string, restConfig *rest.Config, isExtRun bool) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
 	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, clusterConfig *rest.Config) error
@@ -81,6 +82,7 @@ type CdWorkflowServiceImpl struct {
 	refChartDir            chartRepoRepository.RefChartDir
 	chartTemplateService   util2.ChartTemplateService
 	mergeUtil              *util2.MergeUtil
+	k8sUtil                *k8s.K8sUtil
 }
 
 type CdWorkflowRequest struct {
@@ -144,9 +146,10 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	cdConfig *CdConfig,
 	appService app.AppService,
 	globalCMCSService GlobalCMCSService,
-	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService, mergeUtil *util2.MergeUtil) *CdWorkflowServiceImpl {
-	return &CdWorkflowServiceImpl{Logger: Logger,
-		config:                 cdConfig.ClusterConfig,
+	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor,
+	refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService,
+	mergeUtil *util2.MergeUtil, k8sUtil *k8s.K8sUtil) (*CdWorkflowServiceImpl, error) {
+	cdWorkflowService := &CdWorkflowServiceImpl{Logger: Logger,
 		cdConfig:               cdConfig,
 		appService:             appService,
 		envRepository:          envRepository,
@@ -156,7 +159,15 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 		refChartDir:            refChartDir,
 		chartTemplateService:   chartTemplateService,
 		mergeUtil:              mergeUtil,
+		k8sUtil:                k8sUtil,
 	}
+	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
+	if err != nil {
+		Logger.Errorw("error in getting in cluster rest config", "err", err)
+		return nil, err
+	}
+	cdWorkflowService.config = restConfig
+	return cdWorkflowService, nil
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (string, error) {
@@ -297,7 +308,20 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.ActiveDeadlineSeconds = &workflowRequest.ActiveDeadlineSeconds
 	workflowTemplate.Namespace = workflowRequest.Namespace
 	if workflowRequest.IsExtRun {
-		workflowTemplate.ClusterConfig = env.Cluster.GetClusterConfig()
+		configMap := env.Cluster.Config
+		bearerToken := configMap[k8s.BearerToken]
+		clusterConfig := &k8s.ClusterConfig{
+			ClusterName:           env.Cluster.ClusterName,
+			BearerToken:           bearerToken,
+			Host:                  env.Cluster.ServerUrl,
+			InsecureSkipTLSVerify: true,
+		}
+		restConfig, err2 := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err2 != nil {
+			impl.Logger.Errorw("error in getting rest config from cluster config", "err", err2, "appId", workflowRequest.AppId)
+			return "", err2
+		}
+		workflowTemplate.ClusterConfig = restConfig
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
@@ -378,12 +402,12 @@ func (impl *CdWorkflowServiceImpl) getConfiguredCmCs(pipeline *pipelineConfig.Pi
 	return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, nil
 }
 
-func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error) {
+func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, restConfig *rest.Config, isExtRun bool) (*v1alpha1.Workflow, error) {
 	impl.Logger.Debugw("getting wf", "name", name)
 	var wfClient v1alpha12.WorkflowInterface
 	var err error
 	if isExtRun {
-		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, clusterConfig)
+		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, restConfig)
 
 	} else {
 		wfClient, err = impl.getClientInstance(namespace)
@@ -453,18 +477,8 @@ func (impl *CdWorkflowServiceImpl) getClientInstance(namespace string) (v1alpha1
 	return wfClient, nil
 }
 
-func (impl *CdWorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, clusterConfig util2.ClusterConfig) (v1alpha12.WorkflowInterface, error) {
-	config := &rest.Config{
-		Host:        clusterConfig.Host,
-		BearerToken: clusterConfig.BearerToken,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: clusterConfig.InsecureSkipTLSVerify,
-			KeyData:  []byte(clusterConfig.KeyData),
-			CAData:   []byte(clusterConfig.CAData),
-			CertData: []byte(clusterConfig.CertData),
-		},
-	}
-	clientSet, err := versioned.NewForConfig(config)
+func (impl *CdWorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, restConfig *rest.Config) (v1alpha12.WorkflowInterface, error) {
+	clientSet, err := versioned.NewForConfig(restConfig)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err

@@ -27,6 +27,7 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	bean2 "github.com/devtron-labs/devtron/api/restHandler/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -41,13 +42,15 @@ import (
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	"github.com/devtron-labs/devtron/pkg/k8s"
+	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -97,14 +100,16 @@ type AppListingRestHandlerImpl struct {
 	clusterService                    cluster.ClusterService
 	helmAppService                    client.HelmAppService
 	argoUserService                   argo.ArgoUserService
-	k8sApplicationService             k8s.K8sApplicationService
+	k8sCommonService                  k8s.K8sCommonService
 	installedAppService               service1.InstalledAppService
 	cdApplicationStatusUpdateHandler  cron.CdApplicationStatusUpdateHandler
 	pipelineRepository                pipelineConfig.PipelineRepository
 	appStatusService                  appStatus.AppStatusService
 	installedAppRepository            repository.InstalledAppRepository
 	environmentClusterMappingsService cluster.EnvironmentService
+	genericNoteService                genericNotes.GenericNoteService
 	cfg                               *bean.Config
+	k8sApplicationService             application3.K8sApplicationService
 }
 
 type AppStatus struct {
@@ -129,11 +134,13 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
 	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
-	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
+	argoUserService argo.ArgoUserService, k8sCommonService k8s.K8sCommonService, installedAppService service1.InstalledAppService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
 	environmentClusterMappingsService cluster.EnvironmentService,
+	genericNoteService genericNotes.GenericNoteService,
+	k8sApplicationService application3.K8sApplicationService,
 ) *AppListingRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
@@ -156,14 +163,16 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		clusterService:                    clusterService,
 		helmAppService:                    helmAppService,
 		argoUserService:                   argoUserService,
-		k8sApplicationService:             k8sApplicationService,
+		k8sCommonService:                  k8sCommonService,
 		installedAppService:               installedAppService,
 		cdApplicationStatusUpdateHandler:  cdApplicationStatusUpdateHandler,
 		pipelineRepository:                pipelineRepository,
 		appStatusService:                  appStatusService,
 		installedAppRepository:            installedAppRepository,
 		environmentClusterMappingsService: environmentClusterMappingsService,
+		genericNoteService:                genericNoteService,
 		cfg:                               cfg,
+		k8sApplicationService:             k8sApplicationService,
 	}
 	return appListingHandler
 }
@@ -1454,19 +1463,19 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
 	validRequests := make([]k8s.ResourceRequestBean, 0)
-	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(r.Context(), resourceTree, validRequests, appDetail, "")
+	validRequests = handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, appDetail, "", []string{k8s.ServiceKind, k8s.IngressKind})
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for", "appId", appIdParam, "envId", envIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
 		return
 	}
-	resp, err := handler.k8sApplicationService.GetManifestsByBatch(r.Context(), validRequests)
+	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequests)
 	if err != nil {
 		handler.logger.Errorw("error in getting manifests in batch", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	result := handler.k8sApplicationService.GetUrlsByBatch(r.Context(), resp)
+	result := handler.k8sApplicationService.GetUrlsByBatchForIngress(r.Context(), resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
@@ -1520,7 +1529,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			handler.logger.Errorw("error in getting pods by label", "err", err, "clusterId", cdPipeline.Environment.ClusterId, "namespace", cdPipeline.Environment.Namespace, "label", label)
 			return resourceTree, err
 		}
-		ephemeralContainersMap := util2.ExtractEphemeralContainers(pods)
+		ephemeralContainersMap := bean2.ExtractEphemeralContainers(pods)
 		for _, metaData := range resp.PodMetadata {
 			metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 		}
@@ -1598,7 +1607,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	} else {
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
 	}
-	version, err := handler.k8sApplicationService.GetK8sServerVersion(cdPipeline.Environment.ClusterId)
+	version, err := handler.k8sCommonService.GetK8sServerVersion(cdPipeline.Environment.ClusterId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", cdPipeline.Environment.ClusterId, "err", err)
 	} else {
