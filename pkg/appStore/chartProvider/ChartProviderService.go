@@ -35,15 +35,11 @@ type ChartProviderService interface {
 }
 
 type ChartProviderServiceImpl struct {
-	logger                 *zap.SugaredLogger
-	repoRepository         chartRepoRepository.ChartRepoRepository
-	chartRepositoryService chartRepo.ChartRepositoryService
-}
-
-type ChartProviderServiceExtendedImpl struct {
+	logger                      *zap.SugaredLogger
+	repoRepository              chartRepoRepository.ChartRepoRepository
+	chartRepositoryService      chartRepo.ChartRepositoryService
 	registryRepository          dockerRegistryRepository.DockerArtifactStoreRepository
 	ociRegistryConfigRepository dockerRegistryRepository.OCIRegistryConfigRepository
-	*ChartProviderServiceImpl
 }
 
 func NewChartProviderServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, chartRepositoryService chartRepo.ChartRepositoryService) *ChartProviderServiceImpl {
@@ -54,17 +50,6 @@ func NewChartProviderServiceImpl(logger *zap.SugaredLogger, repoRepository chart
 	}
 }
 
-func NewChartProviderServiceExtendedImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, chartRepositoryService chartRepo.ChartRepositoryService, registryRepository dockerRegistryRepository.DockerArtifactStoreRepository, ociRegistryConfigRepository dockerRegistryRepository.OCIRegistryConfigRepository) *ChartProviderServiceExtendedImpl {
-	return &ChartProviderServiceExtendedImpl{
-		registryRepository:          registryRepository,
-		ociRegistryConfigRepository: ociRegistryConfigRepository,
-		ChartProviderServiceImpl: &ChartProviderServiceImpl{
-			logger:                 logger,
-			repoRepository:         repoRepository,
-			chartRepositoryService: chartRepositoryService,
-		},
-	}
-}
 func UpdateChartRepoList(models []*chartRepoRepository.ChartRepoWithDeploymentCount, chartProviders []*ChartProviderResponseDto) []*ChartProviderResponseDto {
 	for _, model := range models {
 		chartRepo := &ChartProviderResponseDto{}
@@ -83,64 +68,13 @@ func UpdateChartRepoList(models []*chartRepoRepository.ChartRepoWithDeploymentCo
 
 func (impl *ChartProviderServiceImpl) GetChartProviderList() ([]*ChartProviderResponseDto, error) {
 	var chartProviders []*ChartProviderResponseDto
-	models, err := impl.repoRepository.FindAllWithDeploymentCount()
-	if err != nil && !util.IsErrNoRows(err) {
-		return nil, err
-	}
-	return UpdateChartRepoList(models, chartProviders), nil
-}
-
-func (impl *ChartProviderServiceImpl) ToggleChartProvider(request *ChartProviderRequestDto) error {
-	dbConnection := impl.repoRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	chartRepo, err := impl.repoRepository.FindById(request.ChartRepoId)
-	if err != nil {
-		return err
-	}
-	chartRepo.Active = request.Active
-	chartRepo.UpdatedBy = request.UserId
-	chartRepo.UpdatedOn = time.Now()
-	err = impl.repoRepository.Update(chartRepo, tx)
-	if err != nil {
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error in db transaction commit, ToggleChartProvider", "err", err)
-		return err
-	}
-	return nil
-}
-
-func (impl *ChartProviderServiceImpl) SyncChartProvider(request *ChartProviderRequestDto) error {
-	chartProviderConfig := &chartRepo.ChartProviderConfig{
-		ChartProviderId: request.Id,
-		IsOCIRegistry:   false,
-	}
-	err := impl.chartRepositoryService.TriggerChartSyncManual(chartProviderConfig)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (impl *ChartProviderServiceExtendedImpl) GetChartProviderList() ([]*ChartProviderResponseDto, error) {
-	var chartProviders []*ChartProviderResponseDto
 	store, err := impl.registryRepository.FindAllChartProviders()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in listing artifact", "err", err)
 		return nil, err
 	}
 	for _, model := range store {
-		//TODO: refactor
-		if model.OCIRegistryConfig == nil ||
-			len(model.OCIRegistryConfig) != 1 ||
-			model.OCIRegistryConfig[0].RepositoryType != dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART {
+		if !util.IsOCIRegistryChartProvider(model) {
 			continue
 		}
 		chartRepo := &ChartProviderResponseDto{}
@@ -160,8 +94,7 @@ func (impl *ChartProviderServiceExtendedImpl) GetChartProviderList() ([]*ChartPr
 	return UpdateChartRepoList(models, chartProviders), nil
 }
 
-func (impl *ChartProviderServiceExtendedImpl) ToggleChartProvider(request *ChartProviderRequestDto) error {
-
+func (impl *ChartProviderServiceImpl) ToggleChartProvider(request *ChartProviderRequestDto) error {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -189,10 +122,7 @@ func (impl *ChartProviderServiceExtendedImpl) ToggleChartProvider(request *Chart
 		}
 		found := false
 		for _, ociRegistryConfig := range ociRegistryConfigs {
-			//TODO: refactor
-			if ociRegistryConfig.RepositoryType == dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART &&
-				(ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL ||
-					ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) {
+			if util.IsOCIConfigChartProvider(ociRegistryConfig) {
 				ociRegistryConfig.IsChartPullActive = request.Active
 				ociRegistryConfig.UpdatedBy = request.UserId
 				ociRegistryConfig.UpdatedOn = time.Now()
@@ -219,7 +149,7 @@ func (impl *ChartProviderServiceExtendedImpl) ToggleChartProvider(request *Chart
 	return nil
 }
 
-func (impl *ChartProviderServiceExtendedImpl) SyncChartProvider(request *ChartProviderRequestDto) error {
+func (impl *ChartProviderServiceImpl) SyncChartProvider(request *ChartProviderRequestDto) error {
 	chartProviderConfig := &chartRepo.ChartProviderConfig{
 		ChartProviderId: request.Id,
 		IsOCIRegistry:   request.IsOCIRegistry,

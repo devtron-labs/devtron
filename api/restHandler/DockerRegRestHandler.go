@@ -24,7 +24,7 @@ import (
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartProviderService "github.com/devtron-labs/devtron/pkg/appStore/chartProvider"
-	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	deleteService "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"k8s.io/utils/strings/slices"
 	"net/http"
@@ -51,39 +51,64 @@ type DockerRegRestHandler interface {
 	IsDockerRegConfigured(w http.ResponseWriter, r *http.Request)
 	DeleteDockerRegistryConfig(w http.ResponseWriter, r *http.Request)
 }
+
+type DockerRegRestHandlerExtendedImpl struct {
+	deleteServiceFullMode deleteService.DeleteServiceFullMode
+	*DockerRegRestHandlerImpl
+}
+
 type DockerRegRestHandlerImpl struct {
-	dockerRegistryConfig  pipeline.DockerRegistryConfig
-	logger                *zap.SugaredLogger
-	chartProviderService  chartProviderService.ChartProviderService
-	gitRegistryConfig     pipeline.GitRegistryConfig
-	dbConfigService       pipeline.DbConfigService
-	userAuthService       user.UserService
-	validator             *validator.Validate
-	enforcer              casbin.Enforcer
-	teamService           team.TeamService
-	deleteServiceFullMode delete2.DeleteServiceFullMode
+	dockerRegistryConfig pipeline.DockerRegistryConfig
+	logger               *zap.SugaredLogger
+	chartProviderService chartProviderService.ChartProviderService
+	userAuthService      user.UserService
+	validator            *validator.Validate
+	enforcer             casbin.Enforcer
+	teamService          team.TeamService
+	deleteService        deleteService.DeleteService
 }
 
 const secureWithCert = "secure-with-cert"
 
-func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
+func NewDockerRegRestHandlerExtendedImpl(
+	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger,
 	chartProviderService chartProviderService.ChartProviderService,
-	gitRegistryConfig pipeline.GitRegistryConfig,
-	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
+	userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
-	deleteServiceFullMode delete2.DeleteServiceFullMode) *DockerRegRestHandlerImpl {
-	return &DockerRegRestHandlerImpl{
-		dockerRegistryConfig:  dockerRegistryConfig,
-		logger:                logger,
-		chartProviderService:  chartProviderService,
-		gitRegistryConfig:     gitRegistryConfig,
-		dbConfigService:       dbConfigService,
-		userAuthService:       userAuthService,
-		validator:             validator,
-		enforcer:              enforcer,
-		teamService:           teamService,
+	deleteService deleteService.DeleteService,
+	deleteServiceFullMode deleteService.DeleteServiceFullMode) *DockerRegRestHandlerExtendedImpl {
+	return &DockerRegRestHandlerExtendedImpl{
 		deleteServiceFullMode: deleteServiceFullMode,
+		DockerRegRestHandlerImpl: &DockerRegRestHandlerImpl{
+			dockerRegistryConfig: dockerRegistryConfig,
+			logger:               logger,
+			chartProviderService: chartProviderService,
+			userAuthService:      userAuthService,
+			validator:            validator,
+			enforcer:             enforcer,
+			teamService:          teamService,
+			deleteService:        deleteService,
+		},
+	}
+}
+
+func NewDockerRegRestHandlerImpl(
+	dockerRegistryConfig pipeline.DockerRegistryConfig,
+	logger *zap.SugaredLogger,
+	chartProviderService chartProviderService.ChartProviderService,
+	userAuthService user.UserService,
+	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
+	deleteService deleteService.DeleteService) *DockerRegRestHandlerImpl {
+	return &DockerRegRestHandlerImpl{
+		dockerRegistryConfig: dockerRegistryConfig,
+		logger:               logger,
+		chartProviderService: chartProviderService,
+		userAuthService:      userAuthService,
+		validator:            validator,
+		enforcer:             enforcer,
+		teamService:          teamService,
+		deleteService:        deleteService,
 	}
 }
 
@@ -374,6 +399,45 @@ func (impl DockerRegRestHandlerImpl) IsDockerRegConfigured(w http.ResponseWriter
 }
 
 func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean pipeline.DockerArtifactStoreBean
+	err = decoder.Decode(&bean)
+	if err != nil {
+		impl.logger.Errorw("request err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	bean.User = userId
+	impl.logger.Infow("request payload, DeleteDockerRegistryConfig", "payload", bean)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, strings.ToLower(bean.Id)); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	err = impl.deleteService.DeleteDockerRegistryConfig(&bean)
+	if err != nil {
+		impl.logger.Errorw("service err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, REG_DELETE_SUCCESS_RESP, http.StatusOK)
+}
+
+func (impl DockerRegRestHandlerExtendedImpl) DeleteDockerRegistryConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {

@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -15,6 +16,7 @@ type DeleteService interface {
 	DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *team.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
+	DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error
 }
 
 type DeleteServiceImpl struct {
@@ -24,6 +26,7 @@ type DeleteServiceImpl struct {
 	environmentService     cluster.EnvironmentService
 	chartRepositoryService chartRepo.ChartRepositoryService
 	installedAppRepository repository.InstalledAppRepository
+	dockerRegistryConfig   pipeline.DockerRegistryConfig
 }
 
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
@@ -32,6 +35,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	environmentService cluster.EnvironmentService,
 	chartRepositoryService chartRepo.ChartRepositoryService,
 	installedAppRepository repository.InstalledAppRepository,
+	dockerRegistryConfig pipeline.DockerRegistryConfig,
 ) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                 logger,
@@ -40,6 +44,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 		environmentService:     environmentService,
 		chartRepositoryService: chartRepositoryService,
 		installedAppRepository: installedAppRepository,
+		dockerRegistryConfig:   dockerRegistryConfig,
 	}
 }
 
@@ -86,5 +91,14 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 		return err
 	}
 
+	return nil
+}
+
+func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error {
+	err := impl.dockerRegistryConfig.DeleteReg(deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("error in deleting docker registry", "err", err, "deleteRequest", deleteRequest)
+		return err
+	}
 	return nil
 }

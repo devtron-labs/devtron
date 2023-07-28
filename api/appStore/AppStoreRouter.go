@@ -18,7 +18,7 @@
 package appStore
 
 import (
-	chartProvider "github.com/devtron-labs/devtron/api/appStore/ChartProvider"
+	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"

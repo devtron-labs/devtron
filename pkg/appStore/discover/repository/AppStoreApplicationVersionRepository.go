@@ -104,36 +104,33 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 	query := ""
 	if updateAction == QUERY_COLUMN_UPDATE {
 		if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
-			query = query + " ch.name as chart_name, das.id as docker_artifact_store_id"
+			query = " ch.name as chart_name, das.id as docker_artifact_store_id"
 		} else if len(filter.RegistryId) > 0 {
-			query = query + " das.id as docker_artifact_store_id"
+			query = " das.id as docker_artifact_store_id"
 		} else if len(filter.ChartRepoId) > 0 {
-			query = query + " ch.name as chart_name"
+			query = " ch.name as chart_name"
 		} else {
-			query = query + " ch.name as chart_name, das.id as docker_artifact_store_id"
+			query = " ch.name as chart_name, das.id as docker_artifact_store_id"
 		}
 	}
 	if updateAction == QUERY_JOIN_UPDTAE {
 		if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
-			query = query + " LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
+			query = " LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
 				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)))" +
 				" AND (ch.id IN (?) OR das.id IN (?))"
 		} else if len(filter.RegistryId) > 0 {
-			query = query +
-				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
+			query = " LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
 				" WHERE asv.latest IS TRUE AND (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)" +
 				" AND das.id IN (?)"
 		} else if len(filter.ChartRepoId) > 0 {
-			query = query +
-				" LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
+			query = " LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
 				" WHERE asv.latest IS TRUE AND ch.active IS TRUE" +
 				" AND ch.id IN (?)"
 		} else {
-			query = query +
-				" LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
+			query = " LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
 				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)))"
