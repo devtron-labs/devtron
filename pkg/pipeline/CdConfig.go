@@ -18,21 +18,15 @@
 package pipeline
 
 import (
-	"flag"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"os/user"
-	"path/filepath"
 	"strings"
 
 	"github.com/caarlos0/env"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type CdConfig struct {
-	Mode                             string   `env:"MODE" envDefault:"DEV"`
 	LimitCpu                         string   `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
 	LimitMem                         string   `env:"CD_LIMIT_CI_MEM" envDefault:"3G"`
 	ReqCpu                           string   `env:"CD_REQ_CI_CPU" envDefault:"0.5"`
@@ -52,7 +46,6 @@ type CdConfig struct {
 	WfControllerInstanceID           string   `env:"WF_CONTROLLER_INSTANCE_ID" envDefault:"devtron-runner"`
 	OrchestratorHost                 string   `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
 	OrchestratorToken                string   `env:"ORCH_TOKEN" envDefault:""`
-	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
 	CloudProvider                    blob_storage.BlobStorageType        `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
 	BlobStorageEnabled               bool                                `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
@@ -82,23 +75,6 @@ type CdConfig struct {
 func GetCdConfig() (*CdConfig, error) {
 	cfg := &CdConfig{}
 	err := env.Parse(cfg)
-	if cfg.Mode == DevMode {
-		usr, err := user.Current()
-		if err != nil {
-			return nil, err
-		}
-		kubeconfig_cd := flag.String("kubeconfig_cd", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		cfg.ClusterConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig_cd)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		cfg.ClusterConfig, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
-	}
 	cfg.NodeLabel = make(map[string]string)
 	for _, l := range cfg.NodeLabelSelector {
 		if l == "" {

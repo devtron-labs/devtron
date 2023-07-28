@@ -18,20 +18,12 @@
 package pipeline
 
 import (
-	"flag"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"os/user"
-	"path/filepath"
 	"strings"
 
 	"github.com/caarlos0/env"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
-
-const DevMode = "DEV"
-const ProdMode = "PROD"
 
 type CiConfig struct {
 	DefaultCacheBucket               string                       `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
@@ -40,7 +32,6 @@ type CiConfig struct {
 	DefaultImage                     string                       `env:"DEFAULT_CI_IMAGE" envDefault:"686244538589.dkr.ecr.us-east-2.amazonaws.com/cirunner:47"`
 	DefaultNamespace                 string                       `env:"DEFAULT_NAMESPACE" envDefault:"devtron-ci"`
 	DefaultTimeout                   int64                        `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
-	Mode                             string                       `env:"MODE" envDefault:"DEV"`
 	DefaultBuildLogsBucket           string                       `env:"DEFAULT_BUILD_LOGS_BUCKET" envDefault:"devtron-pro-ci-logs"`
 	DefaultCdLogsBucketRegion        string                       `env:"DEFAULT_CD_LOGS_BUCKET_REGION" envDefault:"us-east-2"`
 	LimitCpu                         string                       `env:"LIMIT_CI_CPU" envDefault:"0.5"`
@@ -87,7 +78,6 @@ type CiConfig struct {
 	InAppLoggingEnabled              bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
 	DefaultTargetPlatform            string                       `env:"DEFAULT_TARGET_PLATFORM" envDefault:""`
 	UseBuildx                        bool                         `env:"USE_BUILDX" envDefault:"false"`
-	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
 	EnableBuildContext               bool   `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
 	ImageRetryCount                  int    `env:"IMAGE_RETRY_COUNT" envDefault:"0"`
@@ -107,24 +97,6 @@ const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"
 func GetCiConfig() (*CiConfig, error) {
 	cfg := &CiConfig{}
 	err := env.Parse(cfg)
-
-	if cfg.Mode == DevMode {
-		usr, err := user.Current()
-		if err != nil {
-			return nil, err
-		}
-		kubeconfig := flag.String("kubeconfig", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		cfg.ClusterConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		cfg.ClusterConfig, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
-	}
 	cfg.NodeLabel = make(map[string]string)
 	for _, l := range cfg.NodeLabelSelector {
 		if l == "" {

@@ -40,12 +40,14 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -118,6 +120,7 @@ type CdHandlerImpl struct {
 	appGroupService                        appGroup2.AppGroupService
 	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
 	imageTaggingService                    ImageTaggingService
+	k8sUtil                                *k8s.K8sUtil
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -145,7 +148,8 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository,
 	appGroupService appGroup2.AppGroupService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	imageTaggingService ImageTaggingService) *CdHandlerImpl {
+	imageTaggingService ImageTaggingService,
+	k8sUtil *k8s.K8sUtil) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -181,6 +185,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		appGroupService:                        appGroupService,
 		deploymentApprovalRepository:           deploymentApprovalRepository,
 		imageTaggingService:                    imageTaggingService,
+		k8sUtil:                                k8sUtil,
 	}
 }
 
@@ -571,11 +576,24 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
 	// Terminate workflow
-	var clusterConfig *rest.Config
+	var restConfig *rest.Config
 	if isExtCluster {
-		clusterConfig = env.Cluster.GetClusterConfig()
+		var clusterBean cluster.ClusterBean
+		if env != nil && env.Cluster != nil {
+			clusterBean = cluster.GetClusterBean(*env.Cluster)
+		}
+		clusterConfig, err := clusterBean.GetClusterConfig()
+		if err != nil {
+			impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+			return 0, err
+		}
+		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err != nil {
+			impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
+			return 0, err
+		}
 	}
-	err = impl.cdService.TerminateWorkflow(workflowRunner.ExecutorType, workflowRunner.Name, workflowRunner.Namespace, clusterConfig)
+	err = impl.cdService.TerminateWorkflow(workflowRunner.ExecutorType, workflowRunner.Name, workflowRunner.Namespace, restConfig)
 	if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
@@ -848,18 +866,15 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		impl.Logger.Errorw("error while fetching cd pipeline", "err", err)
 		return nil, nil, err
 	}
-	configMap := env.Cluster.Config
-	clusterConfig := util.ClusterConfig{
-		Host:                  env.Cluster.ServerUrl,
-		BearerToken:           configMap[util.BearerToken],
-		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	var clusterBean cluster.ClusterBean
+	if env != nil && env.Cluster != nil {
+		clusterBean = cluster.GetClusterBean(*env.Cluster)
 	}
-	if env.Cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = configMap[util.TlsKey]
-		clusterConfig.CertData = configMap[util.CertData]
-		clusterConfig.CAData = configMap[util.CertificateAuthorityData]
+	clusterConfig, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return nil, nil, err
 	}
-
 	var isExtCluster bool
 	if cdWorkflow.WorkflowType == PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
@@ -869,7 +884,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
 }
 
-func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig util.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,

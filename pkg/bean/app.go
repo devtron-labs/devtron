@@ -217,6 +217,13 @@ func (a PatchAction) String() string {
 }
 
 // ----------------
+
+type CiMaterialPatchRequest struct {
+	AppId         int               `json:"appId" validate:"required"`
+	EnvironmentId int               `json:"environmentId" validate:"required"`
+	Source        *SourceTypeConfig `json:"source" validate:"required"`
+}
+
 type CiPatchRequest struct {
 	CiPipeline    *CiPipeline `json:"ciPipeline"`
 	AppId         int         `json:"appId,omitempty"`
