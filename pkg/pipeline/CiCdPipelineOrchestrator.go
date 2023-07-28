@@ -33,6 +33,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -112,6 +114,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	CiArtifactRepository          repository.CiArtifactRepository
 	manifestPushConfigRepository  repository5.ManifestPushConfigRepository
 	configMapService              ConfigMapService
+	genericNoteService            genericNotes.GenericNoteService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -139,7 +142,8 @@ func NewCiCdPipelineOrchestrator(
 	PipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	CiArtifactRepository repository.CiArtifactRepository,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
-	configMapService ConfigMapService) *CiCdPipelineOrchestratorImpl {
+	configMapService ConfigMapService,
+	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -167,6 +171,7 @@ func NewCiCdPipelineOrchestrator(
 		CiArtifactRepository:          CiArtifactRepository,
 		manifestPushConfigRepository:  manifestPushConfigRepository,
 		configMapService:              configMapService,
+		genericNoteService:            genericNoteService,
 	}
 }
 
@@ -939,8 +944,13 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, createRequest.AppType, createRequest.Description, tx)
+	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, createRequest.AppType, tx)
 	if err != nil {
+		return nil, err
+	}
+	err = impl.storeDescription(tx, createRequest, app.Id)
+	if err != nil {
+		impl.logger.Errorw("error in saving description", "err", err, "descriptionObj", createRequest.Description, "userId", createRequest.UserId)
 		return nil, err
 	}
 	// create labels and tags with app
@@ -970,6 +980,23 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		createRequest.AppName = app.DisplayName
 	}
 	return createRequest, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) storeDescription(tx *pg.Tx, createRequest *bean.CreateAppDTO, appId int) error {
+	if createRequest.Description != nil && createRequest.Description.Description != "" {
+		descriptionObj := repository3.GenericNote{
+			Description:    createRequest.Description.Description,
+			IdentifierType: repository3.AppType,
+			Identifier:     appId,
+		}
+		note, err := impl.genericNoteService.Save(tx, &descriptionObj, createRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in saving description", "err", err, "descriptionObj", descriptionObj, "userId", createRequest.UserId)
+			return err
+		}
+		createRequest.Description = note
+	}
+	return nil
 }
 
 func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error {
@@ -1124,7 +1151,7 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 }
 
 // FIXME: not thread safe
-func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, appType helper.AppType, description string, tx *pg.Tx) (*app2.App, error) {
+func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, appType helper.AppType, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -1166,7 +1193,6 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 		DisplayName: displayName,
 		TeamId:      teamId,
 		AppType:     appType,
-		Description: description,
 		AuditLog:    sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.appRepository.SaveWithTxn(pg, tx)
