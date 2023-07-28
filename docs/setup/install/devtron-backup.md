@@ -2,13 +2,20 @@
 
 Regular backups for Devtron PostgreSQL and ArgoCD are crucial components of a disaster recovery plan, as they protect against potential data loss due to unforeseen circumstances. This documentation provides instructions on how to take backups of Devtron and store them either on AWS S3 or Azure containers.
 
+1. Go to the devtron chart store and search for `devtron-backups` chart.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/install-devtron/backup/backup-chart-search.jpg)
+
+2. Select the `devtron-backups` and click `Configure & Deploy`.
+3. Now follow either of the options described below according to your Cloud provider.
+
 ### AWS S3 Backup
 
 To store Devtron backups on AWS S3, please follow these steps:
 
-1. Create a user with sufficient permissions to access S3.
-2. Obtain the access key and secret access key for the created user.
-3. Create an S3 bucket to store the Devtron backup.
+1. Create an S3 bucket to store the Devtron backup, you can configure the bucket to delete all the objects older than 15/30 days.
+2. Create a user with sufficient permissions to push to the S3 bucket created in step 1.
+3. Obtain the access key and secret access key for the created user.
 4. Configure the `devtron-backups` chart for AWS S3 by selecting the appropriate options:
 
 ![AWS Backup Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/install-devtron/backup/aws-backup-config.jpg)
