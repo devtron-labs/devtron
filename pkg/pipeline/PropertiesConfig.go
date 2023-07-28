@@ -79,6 +79,7 @@ type PropertiesConfigService interface {
 
 	GetAppIdByChartEnvId(chartEnvId int) (*chartConfig.EnvConfigOverride, error)
 	GetLatestEnvironmentProperties(appId, environmentId int) (*EnvironmentProperties, error)
+	FindEnvLevelAppMetricsByAppIdAndEnvId(appId int, envId int) (*repository.EnvLevelAppMetrics, error)
 	ResetEnvironmentProperties(id int) (bool, error)
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
 
@@ -530,12 +531,15 @@ func (impl PropertiesConfigServiceImpl) GetAppIdByChartEnvId(chartEnvId int) (*c
 	return envOverride, nil
 }
 
+func (impl PropertiesConfigServiceImpl) FindEnvLevelAppMetricsByAppIdAndEnvId(appId int, envId int) (*repository.EnvLevelAppMetrics, error) {
+	return impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appId, envId)
+}
+
 func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *EnvironmentProperties, err error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err
 	}
-
 	// step 1
 	envOverride, err := impl.envConfigRepo.ActiveEnvConfigOverride(appId, environmentId)
 	if err != nil {

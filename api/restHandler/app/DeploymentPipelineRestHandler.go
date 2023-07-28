@@ -515,13 +515,20 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	}
 	envConfigProperties, err := handler.propertiesConfigService.GetLatestEnvironmentProperties(request.AppId, request.EnvId)
 	if err != nil {
-		handler.Logger.Errorw("request err, EnvConfigOverrideCreate", "err", err, "payload", request)
+		handler.Logger.Errorw("request err, ChangeChartRef", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envMetrics, err := handler.propertiesConfigService.FindEnvLevelAppMetricsByAppIdAndEnvId(request.AppId, request.EnvId)
+	if err != nil {
+		handler.Logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envConfigProperties.ChartRefId = request.TargetChartRefId
 	envConfigProperties.UserId = userId
 	envConfigProperties.EnvironmentId = request.EnvId
+	envConfigProperties.AppMetrics = envMetrics.AppMetrics
 
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, EnvConfigOverrideCreate", "payload", request)
@@ -564,9 +571,9 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 			}
 			ctx = context.WithValue(r.Context(), "token", acdToken)
 			appMetrics := false
-			//if request.AppMetrics != nil {
-			//	appMetrics = *request.AppMetrics
-			//}
+			if envConfigProperties.AppMetrics != nil {
+				appMetrics = *envMetrics.AppMetrics
+			}
 			templateRequest := chart.TemplateRequest{
 				AppId:               request.AppId,
 				ChartRefId:          request.TargetChartRefId,
