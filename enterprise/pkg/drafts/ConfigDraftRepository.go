@@ -214,7 +214,7 @@ func (repo *ConfigDraftRepositoryImpl) DiscardDrafts(appId int, envId int, userI
 	_, err := repo.dbConnection.Model(draftsDto).Set("draft_state = ?", DiscardedDraftState).
 		Set("updated_on = ?", time.Now()).Set("updated_by = ?", userId).
 		Where("app_id = ?", appId).Where("env_id = ?", envId).
-		Where("draft_state = ?", InitDraftState).
+		Where("draft_state in (?)", pg.In(GetNonTerminalDraftStates())).
 		Update()
 	if err != nil {
 		repo.logger.Errorw("error occurred while discarding drafts", "appId", appId, "envId", envId, "err", err)
