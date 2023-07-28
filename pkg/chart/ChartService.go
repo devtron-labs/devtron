@@ -154,6 +154,8 @@ type ChartService interface {
 	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
 	CheckCustomChartByChartId(id int) (bool, error)
+	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
+	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -217,6 +219,28 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		client:                           client,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 	}
+}
+
+func (impl ChartServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string) {
+	oldChart, err := impl.chartRefRepository.FindById(oldChartRefId)
+	if err != nil {
+		return false, "", ""
+	}
+	newChart, err := impl.chartRefRepository.FindById(newChartRefId)
+	if err != nil {
+		return false, "", ""
+	}
+	if len(oldChart.Name) == 0 {
+		oldChart.Name = RolloutChartType
+	}
+	if len(newChart.Name) == 0 {
+		newChart.Name = RolloutChartType
+	}
+	return CheckCompatibility(oldChart.Name, newChart.Name), oldChart.Name, newChart.Name
+}
+
+func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error) {
+	return PatchWinterSoldierConfig(values, newChartType)
 }
 
 func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {
@@ -912,56 +936,11 @@ func (impl ChartServiceImpl) handleChartTypeChange(currentLatestChart *chartRepo
 	if !CheckCompatibility(oldChartRef.Name, newChartRef.Name) {
 		return nil, fmt.Errorf("charts are not compatible")
 	}
-	updatedOverride, err := patchWinterSoldierConfig(templateRequest.ValuesOverride, newChartRef.Name)
+	updatedOverride, err := PatchWinterSoldierConfig(templateRequest.ValuesOverride, newChartRef.Name)
 	if err != nil {
 		return nil, err
 	}
 	return updatedOverride, nil
-}
-
-func patchWinterSoldierConfig(override json.RawMessage, newChartType string) (json.RawMessage, error) {
-	var jsonMap map[string]json.RawMessage
-	if err := json.Unmarshal(override, &jsonMap); err != nil {
-		return override, err
-	}
-	updatedJson, err := patchWinterSoldierIfExists(newChartType, jsonMap)
-	if err != nil {
-		return override, err
-	}
-	updatedOverride, err := json.Marshal(updatedJson)
-	if err != nil {
-		return override, err
-	}
-	return updatedOverride, nil
-}
-
-func patchWinterSoldierIfExists(newChartType string, jsonMap map[string]json.RawMessage) (map[string]json.RawMessage, error) {
-	winterSoldierConfig, found := jsonMap["winterSoldier"]
-	if !found {
-		return jsonMap, nil
-	}
-	var winterSoldierUnmarshalled map[string]json.RawMessage
-	if err := json.Unmarshal(winterSoldierConfig, &winterSoldierUnmarshalled); err != nil {
-		return jsonMap, err
-	}
-
-	_, found = winterSoldierUnmarshalled["type"]
-	if !found {
-		return jsonMap, nil
-	}
-	switch newChartType {
-	case DeploymentChartType:
-		winterSoldierUnmarshalled["type"] = json.RawMessage("Deployment")
-	case RolloutChartType:
-		winterSoldierUnmarshalled["type"] = json.RawMessage("Rollout")
-	}
-	winterSoldierMarshalled, err := json.Marshal(winterSoldierUnmarshalled)
-	if err != nil {
-		return jsonMap, err
-	}
-	jsonMap["winterSoldier"] = winterSoldierMarshalled
-
-	return jsonMap, nil
 }
 
 func (impl ChartServiceImpl) updateAppLevelMetrics(appMetricRequest *AppMetricEnableDisableRequest) (*repository3.AppLevelMetrics, error) {

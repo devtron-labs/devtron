@@ -524,6 +524,18 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusUnprocessableEntity)
 		return
 	}
+	compatible, oldChartType, newChartType := handler.chartService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
+	if !compatible {
+		common.WriteJsonResp(w, fmt.Errorf("charts not compatible"), nil, http.StatusUnprocessableEntity)
+		return
+	}
+
+	envConfigProperties.EnvOverrideValues, err = handler.chartService.PatchEnvOverrides(envConfigProperties.EnvOverrideValues, oldChartType, newChartType)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	envMetrics, err := handler.propertiesConfigService.FindEnvLevelAppMetricsByAppIdAndEnvId(request.AppId, request.EnvId)
 	if err != nil {
 		handler.Logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)

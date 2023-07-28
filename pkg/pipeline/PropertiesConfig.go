@@ -573,6 +573,7 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 			IsOverride:        envOverride.IsOverride,
 			IsBasicViewLocked: envOverride.IsBasicViewLocked,
 			CurrentViewEditor: envOverride.CurrentViewEditor,
+			ChartRefId:        envOverride.Chart.ChartRefId,
 		}
 	}
 
