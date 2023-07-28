@@ -517,7 +517,6 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 			val = bean.JobContainer{}
 			val.JobId = jobContainer.JobId
 			val.JobName = jobContainer.JobName
-			val.Description = jobContainer.Description
 		}
 
 		if len(val.JobCiPipelines) == 0 {

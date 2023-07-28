@@ -24,6 +24,8 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -42,31 +44,35 @@ type AppRestHandler interface {
 	UpdateApp(w http.ResponseWriter, r *http.Request)
 	UpdateProjectForApps(w http.ResponseWriter, r *http.Request)
 	GetAppListByTeamIds(w http.ResponseWriter, r *http.Request)
+	UpdateAppDescription(w http.ResponseWriter, r *http.Request)
 }
 
 type AppRestHandlerImpl struct {
-	logger           *zap.SugaredLogger
-	appService       app.AppCrudOperationService
-	userAuthService  user.UserService
-	validator        *validator.Validate
-	enforcerUtil     rbac.EnforcerUtil
-	enforcer         casbin.Enforcer
-	helmAppService   client.HelmAppService
-	enforcerUtilHelm rbac.EnforcerUtilHelm
+	logger             *zap.SugaredLogger
+	appService         app.AppCrudOperationService
+	userAuthService    user.UserService
+	validator          *validator.Validate
+	enforcerUtil       rbac.EnforcerUtil
+	enforcer           casbin.Enforcer
+	helmAppService     client.HelmAppService
+	enforcerUtilHelm   rbac.EnforcerUtilHelm
+	genericNoteService genericNotes.GenericNoteService
 }
 
 func NewAppRestHandlerImpl(logger *zap.SugaredLogger, appService app.AppCrudOperationService,
 	userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer, helmAppService client.HelmAppService, enforcerUtilHelm rbac.EnforcerUtilHelm) *AppRestHandlerImpl {
+	enforcer casbin.Enforcer, helmAppService client.HelmAppService, enforcerUtilHelm rbac.EnforcerUtilHelm,
+	genericNoteService genericNotes.GenericNoteService) *AppRestHandlerImpl {
 	handler := &AppRestHandlerImpl{
-		logger:           logger,
-		appService:       appService,
-		userAuthService:  userAuthService,
-		validator:        validator,
-		enforcerUtil:     enforcerUtil,
-		enforcer:         enforcer,
-		helmAppService:   helmAppService,
-		enforcerUtilHelm: enforcerUtilHelm,
+		logger:             logger,
+		appService:         appService,
+		userAuthService:    userAuthService,
+		validator:          validator,
+		enforcerUtil:       enforcerUtil,
+		enforcer:           enforcer,
+		helmAppService:     helmAppService,
+		enforcerUtilHelm:   enforcerUtilHelm,
+		genericNoteService: genericNoteService,
 	}
 	return handler
 }
@@ -347,4 +353,49 @@ func getTeamIdsForAppListApi(teamIdsStr string) ([]int, error) {
 	}
 	return nil, nil
 
+}
+
+func (handler AppRestHandlerImpl) UpdateAppDescription(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		handler.logger.Errorw("service err, Update", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean repository.GenericNote
+	err = decoder.Decode(&bean)
+	if err != nil {
+		handler.logger.Errorw("request err, Update", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Debugw("request payload, Update", "payload", bean)
+	err = handler.validator.Struct(bean)
+	if err != nil {
+		handler.logger.Errorw("validate err, Update", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	bean.IdentifierType = repository.AppType
+
+	//rbac implementation starts here
+
+	// check for existing project/app permission
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(bean.Identifier)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	// RBAC enforcer ends
+
+	genericNoteResponseBean, err := handler.genericNoteService.Update(&bean, userId)
+	if err != nil {
+		handler.logger.Errorw("cluster note service err, Update", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, genericNoteResponseBean, http.StatusOK)
 }

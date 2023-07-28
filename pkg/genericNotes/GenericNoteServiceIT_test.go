@@ -1,6 +1,10 @@
-package cluster
+package genericNotes
 
 import (
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	repository2 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"log"
 	"testing"
 	"time"
@@ -21,37 +25,43 @@ type Config struct {
 	LogQuery bool   `env:"TEST_PG_LOG_QUERY" envDefault:"true"`
 }
 
-var clusterNoteService *ClusterNoteServiceImpl
+var genericNoteService *GenericNoteServiceImpl
 
 func TestClusterNoteService_Save(t *testing.T) {
-	if clusterNoteService == nil {
+	if genericNoteService == nil {
 		InitClusterNoteService()
 	}
 	initialiseDb(t)
 	testCases := []struct {
 		name        string
-		input       *ClusterNoteBean
+		input       *repository2.GenericNote
 		expectedErr bool
 	}{
 		{
 			name: "TEST : successfully save the note",
-			input: &ClusterNoteBean{
-				Id:          0,
-				ClusterId:   10000,
-				Description: "Test Note",
-				UpdatedBy:   1,
-				UpdatedOn:   time.Now(),
+			input: &repository2.GenericNote{
+				Id:             0,
+				Identifier:     10000,
+				Description:    "Test Note",
+				IdentifierType: repository2.ClusterType,
+				AuditLog: sql.AuditLog{
+					UpdatedBy: 1,
+					UpdatedOn: time.Now(),
+				},
 			},
 			expectedErr: false,
 		},
 		{
 			name: "TEST : error while saving the existing note",
-			input: &ClusterNoteBean{
-				Id:          0,
-				ClusterId:   10000,
-				Description: "Test Note",
-				UpdatedBy:   1,
-				UpdatedOn:   time.Now(),
+			input: &repository2.GenericNote{
+				Id:             0,
+				Identifier:     10000,
+				IdentifierType: repository2.ClusterType,
+				Description:    "Test Note",
+				AuditLog: sql.AuditLog{
+					UpdatedBy: 1,
+					UpdatedOn: time.Now(),
+				},
 			},
 			expectedErr: true,
 		},
@@ -59,12 +69,20 @@ func TestClusterNoteService_Save(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			res, err := clusterNoteService.Save(tc.input, 1)
+			tx, err := genericNoteService.genericNoteRepository.StartTx()
+			if err != nil {
+				t.Fatalf("Error starting transaction in database: %s", err.Error())
+			}
+			res, err := genericNoteService.Save(tx, tc.input, 1)
 			if tc.expectedErr {
 				assert.NotNil(tt, err)
 			} else {
 				assert.Nil(tt, err)
 				assert.NotEqual(tt, res.Id, 0)
+			}
+			err = genericNoteService.genericNoteRepository.CommitTx(tx)
+			if err != nil {
+				t.Fatalf("Error commiting transaction in database: %s", err.Error())
 			}
 		})
 	}
@@ -73,40 +91,51 @@ func TestClusterNoteService_Save(t *testing.T) {
 }
 
 func TestClusterNoteServiceImpl_Update(t *testing.T) {
-	if clusterNoteService == nil {
+	if genericNoteService == nil {
 		InitClusterNoteService()
 	}
 	initialiseDb(t)
 	// insert a cluster note in the database which will be updated later
-	note := &ClusterNoteBean{
-		ClusterId:   10001,
-		Description: "test note",
-		UpdatedBy:   1,
+	note := &repository2.GenericNote{
+		Identifier:     10001,
+		Description:    "test note",
+		IdentifierType: repository2.ClusterType,
+		AuditLog:       sql.AuditLog{UpdatedBy: 1},
 	}
-	_, err := clusterNoteService.Save(note, 1)
+	tx, err := genericNoteService.genericNoteRepository.StartTx()
+	if err != nil {
+		t.Fatalf("Error starting transaction in database: %s", err.Error())
+	}
+	_, err = genericNoteService.Save(tx, note, 1)
 	if err != nil {
 		t.Fatalf("Error inserting record in database: %s", err.Error())
+	}
+	err = genericNoteService.genericNoteRepository.CommitTx(tx)
+	if err != nil {
+		t.Fatalf("Error commiting transaction in database: %s", err.Error())
 	}
 
 	// define input for update function
 	testCases := []struct {
 		name        string
-		input       *ClusterNoteBean
+		input       *repository2.GenericNote
 		expectedErr bool
 	}{
 		{
 			name: "TEST : error while updating the existing note",
-			input: &ClusterNoteBean{
-				Id:        1,
-				ClusterId: 100,
+			input: &repository2.GenericNote{
+				Id:             1,
+				Identifier:     100,
+				IdentifierType: repository2.ClusterType,
 			},
 			expectedErr: true,
 		},
 		{
 			name: "TEST : successfully update the note",
-			input: &ClusterNoteBean{
-				Description: "Updated Text",
-				ClusterId:   10001,
+			input: &repository2.GenericNote{
+				Description:    "Updated Text",
+				Identifier:     10001,
+				IdentifierType: repository2.ClusterType,
 			},
 			expectedErr: false,
 		},
@@ -114,7 +143,7 @@ func TestClusterNoteServiceImpl_Update(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			res, err := clusterNoteService.Update(tc.input, 1)
+			res, err := genericNoteService.Update(tc.input, 1)
 			if tc.expectedErr {
 				assert.NotNil(tt, err)
 			} else {
@@ -151,8 +180,8 @@ func getDbConn() (*pg.DB, error) {
 
 func cleanDb(tt *testing.T) {
 	DB, _ := getDbConn()
-	query := "DELETE FROM cluster_note_history WHERE note_id IN (SELECT id FROM cluster_note);\n" +
-		"DELETE FROM cluster_note WHERE cluster_id IN (SELECT id FROM cluster);\n" +
+	query := "DELETE FROM generic_note_history WHERE note_id IN (SELECT id FROM generic_note);\n" +
+		"DELETE FROM generic_note WHERE identifier IN (SELECT id FROM cluster) AND identifier_type=0;\n" +
 		"DELETE FROM cluster WHERE id=10000 OR id=10001;\n"
 	_, err := DB.Exec(query)
 	assert.Nil(tt, err)
@@ -161,7 +190,7 @@ func cleanDb(tt *testing.T) {
 	}
 }
 
-func createClusterData(DB *pg.DB, bean *ClusterBean) error {
+func createClusterData(DB *pg.DB, bean *cluster.ClusterBean) error {
 	model := &repository.Cluster{
 		Id:          bean.Id,
 		ClusterName: bean.ClusterName,
@@ -176,7 +205,7 @@ func createClusterData(DB *pg.DB, bean *ClusterBean) error {
 
 func initialiseDb(tt *testing.T) {
 	DB, _ := getDbConn()
-	clusters := []ClusterBean{
+	clusters := []cluster.ClusterBean{
 		{
 			Id:          10000,
 			ClusterName: "test-cluster-1",
@@ -198,7 +227,7 @@ func initialiseDb(tt *testing.T) {
 }
 
 func InitClusterNoteService() {
-	if clusterNoteService != nil {
+	if genericNoteService != nil {
 		return
 	}
 	logger, err := util.NewSugardLogger()
@@ -210,8 +239,9 @@ func InitClusterNoteService() {
 		log.Fatalf("error in db connection initialization %s, %s", "err", err)
 	}
 
-	clusterNoteHistoryRepository := repository.NewClusterNoteHistoryRepositoryImpl(conn, logger)
-	clusterNoteRepository := repository.NewClusterNoteRepositoryImpl(conn, logger)
-	clusterNoteHistoryService := NewClusterNoteHistoryServiceImpl(clusterNoteHistoryRepository, logger)
-	clusterNoteService = NewClusterNoteServiceImpl(clusterNoteRepository, clusterNoteHistoryService, logger)
+	userRepository := repository3.NewUserRepositoryImpl(conn, logger)
+	clusterNoteHistoryRepository := repository2.NewGenericNoteHistoryRepositoryImpl(conn)
+	clusterNoteRepository := repository2.NewGenericNoteRepositoryImpl(conn)
+	clusterNoteHistoryService := NewGenericNoteHistoryServiceImpl(clusterNoteHistoryRepository, logger)
+	genericNoteService = NewGenericNoteServiceImpl(clusterNoteRepository, clusterNoteHistoryService, userRepository, logger)
 }
