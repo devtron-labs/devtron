@@ -1,4 +1,5 @@
 ## Bugs
+- fix: resource tree error handling miss (#3704)
 - fix: manifest output is not in sync with selected chart version and wrong manifest coming in deployment history (#3701)
 - fix: empty format type in global variable fix (#3695)
 - fix: matching k8s version using regex for ephemeral container feature support (#3688)
