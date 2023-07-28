@@ -1522,6 +1522,18 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
 		resp, err := handler.application.ResourceTree(ctx, query)
+		elapsed := time.Since(start)
+		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
+		if err != nil {
+			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
+			err = &util.ApiError{
+				Code:            constants.AppDetailResourceTreeNotFound,
+				InternalMessage: "app detail fetched, failed to get resource tree from acd",
+				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
+			}
+			return resourceTree, err
+		}
+
 		//we currently add appId and envId as labels for devtron apps deployed via acd
 		label := fmt.Sprintf("appId=%v,envId=%v", cdPipeline.AppId, cdPipeline.EnvironmentId)
 		pods, err := handler.k8sApplicationService.GetPodListByLabel(cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, label)
@@ -1533,17 +1545,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		for _, metaData := range resp.PodMetadata {
 			metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 		}
-		elapsed := time.Since(start)
-		if err != nil {
-			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
-			}
-			return resourceTree, err
-		}
-		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 
 		if resp.Status == string(health.HealthStatusHealthy) {
 			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
