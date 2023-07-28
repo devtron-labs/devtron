@@ -137,6 +137,8 @@ const (
 	CD_TRIGGERED_BY              = "CD_TRIGGERED_BY"
 	CD_TRIGGER_TIME              = "CD_TRIGGER_TIME"
 	APP_NAME                     = "APP_NAME"
+	DEVTRON_CD_TRIGGERED_BY      = "DEVTRON_CD_TRIGGERED_BY"
+	DEVTRON_CD_TRIGGER_TIME      = "DEVTRON_CD_TRIGGER_TIME"
 )
 
 type CiArtifactDTO struct {
