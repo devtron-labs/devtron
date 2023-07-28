@@ -1275,16 +1275,6 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	defer cancel()
 	start := time.Now()
 	resp, err := impl.acdClient.ResourceTree(ctx, query)
-	label := fmt.Sprintf("app.kubernetes.io/instance=%s", deploymentAppName)
-	pods, err := impl.k8sApplicationService.GetPodListByLabel(clusterId, namespace, label)
-	if err != nil {
-		impl.logger.Errorw("error in getting pods by label", "err", err, "clusterId", clusterId, "namespace", namespace, "label", label)
-		return resourceTree, err
-	}
-	ephemeralContainersMap := bean3.ExtractEphemeralContainers(pods)
-	for _, metaData := range resp.PodMetadata {
-		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
-	}
 	elapsed := time.Since(start)
 	impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, deploymentAppName, envId)
 	if err != nil {
@@ -1295,6 +1285,16 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 			UserMessage:     "app detail fetched, failed to get resource tree from acd",
 		}
 		return resourceTree, err
+	}
+	label := fmt.Sprintf("app.kubernetes.io/instance=%s", deploymentAppName)
+	pods, err := impl.k8sApplicationService.GetPodListByLabel(clusterId, namespace, label)
+	if err != nil {
+		impl.logger.Errorw("error in getting pods by label", "err", err, "clusterId", clusterId, "namespace", namespace, "label", label)
+		return resourceTree, err
+	}
+	ephemeralContainersMap := bean3.ExtractEphemeralContainers(pods)
+	for _, metaData := range resp.PodMetadata {
+		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 	}
 	// TODO: using this resp.Status to update in app_status table
 	resourceTree = util3.InterfaceToMapAdapter(resp)
