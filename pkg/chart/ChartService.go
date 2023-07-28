@@ -98,7 +98,7 @@ type ChartUpgradeRequest struct {
 
 type ChartRefChangeRequest struct {
 	AppId            int `json:"appId" validate:"required"`
-	EnvId            int `json:"envId"`
+	EnvId            int `json:"envId" validate:"required"`
 	TargetChartRefId int `json:"targetChartRefId" validate:"required"`
 }
 

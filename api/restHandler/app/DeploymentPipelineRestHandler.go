@@ -514,9 +514,14 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 		return
 	}
 	envConfigProperties, err := handler.propertiesConfigService.GetLatestEnvironmentProperties(request.AppId, request.EnvId)
-	if err != nil {
+	if err != nil || envConfigProperties == nil {
 		handler.Logger.Errorw("request err, ChangeChartRef", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusUnprocessableEntity)
+		return
+	}
+	if !envConfigProperties.IsOverride {
+		handler.Logger.Errorw("isOverride is not true, ChangeChartRef", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusUnprocessableEntity)
 		return
 	}
 	envMetrics, err := handler.propertiesConfigService.FindEnvLevelAppMetricsByAppIdAndEnvId(request.AppId, request.EnvId)
@@ -549,8 +554,20 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
-
+	envConfigPropertiesOld, err := handler.propertiesConfigService.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
+	if err == nil {
+		envConfigProperties.Id = envConfigPropertiesOld.Id
+		createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(request.AppId, envConfigProperties, userId)
+		if err != nil {
+			handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
+			common.WriteJsonResp(w, err, createResp, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, err, createResp, http.StatusOK)
+		return
+	}
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, envConfigProperties)
+
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
 			ctx, cancel := context.WithCancel(r.Context())

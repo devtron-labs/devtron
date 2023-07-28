@@ -84,6 +84,7 @@ type PropertiesConfigService interface {
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
 
 	EnvMetricsEnableDisable(appMetricRequest *chartService.AppMetricEnableDisableRequest) (*chartService.AppMetricEnableDisableRequest, error)
+	FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error)
 }
 type PropertiesConfigServiceImpl struct {
 	logger                           *zap.SugaredLogger
@@ -236,6 +237,10 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 		environmentPropertiesResponse.AppMetrics = envLevelMetrics.AppMetrics
 	}
 	return environmentPropertiesResponse, nil
+}
+
+func (impl PropertiesConfigServiceImpl) FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error) {
+	return impl.envConfigRepo.GetByAppIdEnvIdAndChartRefId(appId, envId, chartRefId)
 }
 
 func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *EnvironmentProperties) (*EnvironmentProperties, error) {
@@ -557,14 +562,17 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 
 		environmentProperties = &EnvironmentProperties{
 			Id:                envOverride.Id,
-			Status:            envOverride.Status,
 			EnvOverrideValues: r,
+			Status:            envOverride.Status,
 			ManualReviewed:    envOverride.ManualReviewed,
 			Active:            envOverride.Active,
 			Namespace:         env.Namespace,
 			EnvironmentId:     environmentId,
 			EnvironmentName:   env.Name,
 			Latest:            envOverride.Latest,
+			IsOverride:        envOverride.IsOverride,
+			IsBasicViewLocked: envOverride.IsBasicViewLocked,
+			CurrentViewEditor: envOverride.CurrentViewEditor,
 		}
 	}
 
