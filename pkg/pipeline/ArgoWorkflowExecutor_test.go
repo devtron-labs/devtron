@@ -260,7 +260,7 @@ func getGcpBlobStorage() *blob_storage.GcpBlobConfig {
 	}
 }
 
-func getBaseWorkflowTemplate(cdConfig *CdConfig) bean.WorkflowTemplate {
+func getBaseWorkflowTemplate(cdConfig *CiCdConfig) bean.WorkflowTemplate {
 
 	workflowTemplate := bean.WorkflowTemplate{}
 	workflowTemplate.WfControllerInstanceID = "random-controller-id"

@@ -84,10 +84,10 @@ type WorkflowDagExecutorImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	pubsubClient                  *pubsub.PubSubClientServiceImpl
 	appService                    app.AppService
-	cdWorkflowService             CdWorkflowService
+	cdWorkflowService             CommonWorkflowService
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	materialRepository            pipelineConfig.MaterialRepository
-	cdConfig                      *CdConfig
+	cdConfig                      *CiCdConfig
 	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
 	ciArtifactRepository          repository.CiArtifactRepository
 	user                          user.UserService
@@ -184,8 +184,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	appService app.AppService,
-	cdWorkflowService CdWorkflowService,
-	cdConfig *CdConfig,
+	cdWorkflowService CommonWorkflowService,
+	cdConfig *CiCdConfig,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	materialRepository pipelineConfig.MaterialRepository,
@@ -474,10 +474,10 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		Status:             pipelineConfig.WorkflowStarting, //starting
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
-		Namespace:          impl.cdConfig.DefaultNamespace,
+		Namespace:          impl.cdConfig.CdDefaultNamespace,
 		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
-		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.cdConfig.DefaultBuildLogsKeyPrefix, strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
+		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.cdConfig.CdDefaultBuildLogsKeyPrefix, strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
 		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 	}
 	var env *repository2.Environment
@@ -508,7 +508,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 	cdStageWorkflowRequest.StageType = PRE
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
+	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env, nil, false, false)
 	span.End()
 
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
@@ -564,10 +564,10 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		Status:             pipelineConfig.WorkflowStarting,
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
-		Namespace:          impl.cdConfig.DefaultNamespace,
+		Namespace:          impl.cdConfig.CdDefaultNamespace,
 		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
-		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.cdConfig.DefaultBuildLogsKeyPrefix, strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_POST), pipeline.Name),
+		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.cdConfig.CdDefaultBuildLogsKeyPrefix, strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_POST), pipeline.Name),
 		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 	}
 	var env *repository2.Environment
@@ -591,7 +591,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 	cdStageWorkflowRequest.StageType = POST
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
+	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env, nil, false, false)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
 		return err
@@ -624,10 +624,10 @@ func (impl *WorkflowDagExecutorImpl) buildArtifactLocationForS3(cdWorkflowConfig
 		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
 	}
 	if cdWorkflowConfig.LogsBucket == "" {
-		cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
+		cdWorkflowConfig.LogsBucket = impl.cdConfig.CdDefaultBuildLogsBucket
 	}
-	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
-	artifactFileName := fmt.Sprintf(impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWf.Id, runner.Id)
+	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.CdDefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+	artifactFileName := fmt.Sprintf(impl.cdConfig.CdDefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWf.Id, runner.Id)
 	return ArtifactLocation, cdWorkflowConfig.LogsBucket, artifactFileName
 }
 
@@ -680,7 +680,7 @@ func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVa
 		}
 	}
 }
-func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
+func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CommonWorkflowRequest, error) {
 	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -824,20 +824,20 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 
-	cdStageWorkflowRequest := &CdWorkflowRequest{
+	cdStageWorkflowRequest := &CommonWorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
 		WorkflowId:            cdWf.Id,
 		WorkflowRunnerId:      runner.Id,
 		WorkflowNamePrefix:    strconv.Itoa(runner.Id) + "-" + runner.Name,
 		WorkflowPrefixForLog:  strconv.Itoa(cdWf.Id) + string(runner.WorkflowType) + "-" + runner.Name,
-		CdImage:               impl.cdConfig.DefaultImage,
+		CdImage:               impl.cdConfig.CdDefaultImage,
 		CdPipelineId:          cdWf.PipelineId,
 		TriggeredBy:           triggeredBy,
 		StageYaml:             stageYaml,
 		CiProjectDetails:      ciProjectDetails,
 		Namespace:             runner.Namespace,
-		ActiveDeadlineSeconds: impl.cdConfig.DefaultTimeout,
+		ActiveDeadlineSeconds: impl.cdConfig.CdDefaultTimeout,
 		CiArtifactDTO: CiArtifactDTO{
 			Id:           artifact.Id,
 			PipelineId:   artifact.PipelineId,
@@ -1011,7 +1011,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.DeploymentReleaseCounter = pipelineReleaseCounter
 	}
 	if cdWorkflowConfig.CdCacheRegion == "" {
-		cdWorkflowConfig.CdCacheRegion = impl.cdConfig.DefaultCdLogsBucketRegion
+		cdWorkflowConfig.CdCacheRegion = impl.cdConfig.CdDefaultCdLogsBucketRegion
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
@@ -1028,7 +1028,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
 		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
 		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
-		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.ArtifactBucket, cdStageWorkflowRequest.ArtifactFileName = impl.buildArtifactLocationForS3(cdWorkflowConfig, cdWf, runner)
+		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.CiArtifactBucket, cdStageWorkflowRequest.CiArtifactFileName = impl.buildArtifactLocationForS3(cdWorkflowConfig, cdWf, runner)
 		cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
 			AccessKey:                  impl.cdConfig.BlobStorageS3AccessKey,
 			Passkey:                    impl.cdConfig.BlobStorageS3SecretKey,
@@ -1037,21 +1037,21 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			CiCacheBucketName:          cdWorkflowConfig.CdCacheBucket,
 			CiCacheRegion:              cdWorkflowConfig.CdCacheRegion,
 			CiCacheBucketVersioning:    impl.cdConfig.BlobStorageS3BucketVersioned,
-			CiArtifactBucketName:       cdStageWorkflowRequest.ArtifactBucket,
+			CiArtifactBucketName:       cdStageWorkflowRequest.CiArtifactBucket,
 			CiArtifactRegion:           cdWorkflowConfig.CdCacheRegion,
 			CiArtifactBucketVersioning: impl.cdConfig.BlobStorageS3BucketVersioned,
-			CiLogBucketName:            impl.cdConfig.DefaultBuildLogsBucket,
-			CiLogRegion:                impl.cdConfig.DefaultCdLogsBucketRegion,
+			CiLogBucketName:            impl.cdConfig.CdDefaultBuildLogsBucket,
+			CiLogRegion:                impl.cdConfig.CdDefaultCdLogsBucketRegion,
 			CiLogBucketVersioning:      impl.cdConfig.BlobStorageS3BucketVersioned,
 		}
 	case BLOB_STORAGE_GCP:
 		cdStageWorkflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
 			CredentialFileJsonData: impl.cdConfig.BlobStorageGcpCredentialJson,
-			ArtifactBucketName:     impl.cdConfig.DefaultBuildLogsBucket,
-			LogBucketName:          impl.cdConfig.DefaultBuildLogsBucket,
+			ArtifactBucketName:     impl.cdConfig.CdDefaultBuildLogsBucket,
+			LogBucketName:          impl.cdConfig.CdDefaultBuildLogsBucket,
 		}
 		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWorkflowConfig, cdWf, runner)
-		cdStageWorkflowRequest.ArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
+		cdStageWorkflowRequest.CiArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
 	case BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
 			Enabled:               true,
@@ -1069,14 +1069,14 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			AccessKey:       impl.cdConfig.AzureAccountName,
 		}
 		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWorkflowConfig, cdWf, runner)
-		cdStageWorkflowRequest.ArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
+		cdStageWorkflowRequest.CiArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
 	default:
 		if impl.cdConfig.BlobStorageEnabled {
 			return nil, fmt.Errorf("blob storage %s not supported", cdStageWorkflowRequest.CloudProvider)
 		}
 	}
-	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.cdConfig.DefaultAddressPoolBaseCidr
-	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.cdConfig.DefaultAddressPoolSize
+	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.cdConfig.CdDefaultAddressPoolBaseCidr
+	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.cdConfig.CdDefaultAddressPoolSize
 	return cdStageWorkflowRequest, nil
 }
 
@@ -1085,7 +1085,7 @@ func (impl *WorkflowDagExecutorImpl) buildDefaultArtifactLocation(cdWorkflowConf
 	if cdArtifactLocationFormat == "" {
 		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
 	}
-	ArtifactLocation := fmt.Sprintf("%s/"+cdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, savedWf.Id, runner.Id)
+	ArtifactLocation := fmt.Sprintf("%s/"+cdArtifactLocationFormat, impl.cdConfig.CdDefaultArtifactKeyPrefix, savedWf.Id, runner.Id)
 	return ArtifactLocation
 }
 
@@ -1217,7 +1217,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		Status:       pipelineConfig.WorkflowInProgress, //starting
 		TriggeredBy:  1,
 		StartedOn:    triggeredAt,
-		Namespace:    impl.cdConfig.DefaultNamespace,
+		Namespace:    impl.cdConfig.CdDefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 	}
@@ -1625,7 +1625,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			Status:       pipelineConfig.WorkflowInProgress,
 			TriggeredBy:  overrideRequest.UserId,
 			StartedOn:    triggeredAt,
-			Namespace:    impl.cdConfig.DefaultNamespace,
+			Namespace:    impl.cdConfig.CdDefaultNamespace,
 			CdWorkflowId: cdWorkflowId,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 		}
@@ -1698,7 +1698,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				TriggeredBy:  overrideRequest.UserId,
 				StartedOn:    triggeredAt,
 				Status:       pipelineConfig.WorkflowSucceeded,
-				Namespace:    impl.cdConfig.DefaultNamespace,
+				Namespace:    impl.cdConfig.CdDefaultNamespace,
 				CdWorkflowId: overrideRequest.CdWorkflowId,
 				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
