@@ -211,11 +211,11 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 	}
 	// key will be used for log archival through in-app logging
 	if isCi {
-		ciCdTriggerEvent.CdRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciCdConfig.CiDefaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
+		ciCdTriggerEvent.CommonWorkflowRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciCdConfig.CiDefaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
 	} else {
-		ciCdTriggerEvent.CdRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciCdConfig.CdDefaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
+		ciCdTriggerEvent.CommonWorkflowRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciCdConfig.CdDefaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
 	}
-	ciCdTriggerEvent.CdRequest.InAppLoggingEnabled = impl.ciCdConfig.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
+	ciCdTriggerEvent.CommonWorkflowRequest.InAppLoggingEnabled = impl.ciCdConfig.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while marshalling ciCdTriggerEvent", "error", err)
@@ -316,8 +316,13 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 	workflowTemplate.Secrets = workflowSecrets
 	if isCi {
 		workflowTemplate.ServiceAccountName = impl.ciCdConfig.CiWorkflowServiceAccount
-		workflowTemplate.NodeSelector = map[string]string{impl.ciCdConfig.CiTaintKey: impl.ciCdConfig.CiTaintValue}
-		workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.ciCdConfig.CiTaintKey, Value: impl.ciCdConfig.CiTaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
+		if impl.ciCdConfig.CiTaintKey != "" || impl.ciCdConfig.CiTaintValue != "" {
+			workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.ciCdConfig.CiTaintKey, Value: impl.ciCdConfig.CiTaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
+		}
+		// In the future, we will give support for NodeSelector for job currently we need to have a node without dedicated NodeLabel to run job
+		if len(impl.ciCdConfig.NodeLabel) > 0 && !(isJob && workflowRequest.IsExtRun) {
+			workflowTemplate.NodeSelector = impl.ciCdConfig.NodeLabel
+		}
 	} else {
 		workflowTemplate.ServiceAccountName = impl.ciCdConfig.CdWorkflowServiceAccount
 		workflowTemplate.NodeSelector = map[string]string{impl.ciCdConfig.CdTaintKey: impl.ciCdConfig.CdTaintValue}

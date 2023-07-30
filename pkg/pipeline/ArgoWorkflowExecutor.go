@@ -72,7 +72,7 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateWorkflow(workflowName string, nam
 
 func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error) {
 
-	entryPoint := CD_WORKFLOW_NAME
+	entryPoint := workflowTemplate.WorkflowType
 	// get cm and cs argo step templates
 	templates, err := impl.getArgoTemplates(workflowTemplate.ConfigMaps, workflowTemplate.Secrets)
 	if err != nil {
@@ -80,27 +80,39 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		return nil, err
 	}
 	if len(templates) > 0 {
-		entryPoint = CD_WORKFLOW_WITH_STAGES
+		if workflowTemplate.WorkflowType == CI_WORKFLOW_NAME {
+			entryPoint = CI_WORKFLOW_WITH_STAGES
+		} else {
+			entryPoint = CD_WORKFLOW_WITH_STAGES
+		}
 	}
 
 	wfContainer := workflowTemplate.Containers[0]
-	cdTemplate := v1alpha1.Template{
-		Name:      CD_WORKFLOW_NAME,
+	ciCdTemplate := v1alpha1.Template{
+		Name:      workflowTemplate.WorkflowType,
 		Container: &wfContainer,
 		ActiveDeadlineSeconds: &intstr.IntOrString{
 			IntVal: int32(*workflowTemplate.ActiveDeadlineSeconds),
 		},
 	}
-	impl.updateBlobStorageConfig(workflowTemplate, &cdTemplate)
-	templates = append(templates, cdTemplate)
+	impl.updateBlobStorageConfig(workflowTemplate, &ciCdTemplate)
+	templates = append(templates, ciCdTemplate)
+
+	objectMeta := v1.ObjectMeta{
+		GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
+		Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
+	}
+	if workflowTemplate.WorkflowType == CD_WORKFLOW_NAME {
+		objectMeta = v1.ObjectMeta{
+			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
+			Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
+			Labels:       map[string]string{"devtron.ai/workflow-purpose": "cd"},
+		}
+	}
 
 	var (
-		cdWorkflow = v1alpha1.Workflow{
-			ObjectMeta: v1.ObjectMeta{
-				GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
-				Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
-				Labels:       map[string]string{"devtron.ai/workflow-purpose": "cd"},
-			},
+		ciCdWorkflow = v1alpha1.Workflow{
+			ObjectMeta: objectMeta,
 			Spec: v1alpha1.WorkflowSpec{
 				ServiceAccountName: workflowTemplate.ServiceAccountName,
 				NodeSelector:       workflowTemplate.NodeSelector,
@@ -115,7 +127,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		}
 	)
 
-	wfTemplate, err := json.Marshal(cdWorkflow)
+	wfTemplate, err := json.Marshal(ciCdWorkflow)
 	if err != nil {
 		impl.logger.Errorw("error occurred while marshalling json", "err", err)
 		return nil, err
@@ -128,7 +140,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		return nil, err
 	}
 
-	createdWf, err := wfClient.Create(context.Background(), &cdWorkflow, v1.CreateOptions{})
+	createdWf, err := wfClient.Create(context.Background(), &ciCdWorkflow, v1.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in wf trigger", "err", err)
 		return nil, err

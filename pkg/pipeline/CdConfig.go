@@ -18,9 +18,14 @@
 package pipeline
 
 import (
+	"flag"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/caarlos0/env"
@@ -69,11 +74,31 @@ type CdConfig struct {
 	BaseLogLocationPath              string                              `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	InAppLoggingEnabled              bool                                `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
+	*CiCdConfig
 }
 
 func GetCdConfig() (*CdConfig, error) {
-	cfg := &CdConfig{}
-	err := env.Parse(cfg)
+	ciCdConfig := &CiCdConfig{}
+	err := env.Parse(ciCdConfig)
+	cfg := &CdConfig{CiCdConfig: ciCdConfig}
+	err = env.Parse(cfg)
+	if cfg.Mode == DevMode {
+		usr, err := user.Current()
+		if err != nil {
+			return nil, err
+		}
+		kubeconfig_cd := flag.String("kubeconfig_cd", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		flag.Parse()
+		cfg.ClusterConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig_cd)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cfg.ClusterConfig, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, err
+		}
+	}
 	cfg.NodeLabel = make(map[string]string)
 	for _, l := range cfg.NodeLabelSelector {
 		if l == "" {
