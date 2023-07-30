@@ -111,9 +111,9 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 		if err != nil {
 			return nil, err
 		}
-		kubeconfig_cd := flag.String("kubeconfig_cd", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		kubeconfig_cicd := flag.String("kubeconfig_cicd", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 		flag.Parse()
-		cfg.ClusterConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig_cd)
+		cfg.ClusterConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig_cicd)
 		if err != nil {
 			return nil, err
 		}

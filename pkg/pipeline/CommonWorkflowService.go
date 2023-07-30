@@ -266,15 +266,18 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 			return err
 		}
 	}
-
-	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
-	if err != nil {
-		impl.Logger.Errorw("failed to get configmap data", "err", err)
-		return err
+	var existingConfigMap *bean.ConfigMapJson
+	var existingSecrets *bean.ConfigSecretJson
+	if !isCi || isJob {
+		existingConfigMap, existingSecrets, err = impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
+		if err != nil {
+			impl.Logger.Errorw("failed to get configmap data", "err", err)
+			return err
+		}
+		impl.Logger.Debugw("existing cm", "pipelineId", pipeline.Id, "cm", existingConfigMap)
 	}
-	impl.Logger.Debugw("existing cm", "pipelineId", pipeline.Id, "cm", existingConfigMap)
 
-	if isCi {
+	if isCi && isJob {
 		for _, cm := range existingConfigMap.Maps {
 			if !cm.External {
 				cm.Name = cm.Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
@@ -288,7 +291,8 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 			}
 			workflowSecrets = append(workflowSecrets, *secret)
 		}
-	} else {
+	} else if !isCi {
+
 		for _, cm := range existingConfigMap.Maps {
 			if _, ok := cdPipelineLevelConfigMaps[cm.Name]; ok {
 				if !cm.External {
@@ -421,9 +425,14 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 		workflowTemplate.ClusterConfig = impl.config
 	}
 
-	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
+	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor, isCi)
 	if workflowExecutor == nil {
 		return errors.New("workflow executor not found")
+	}
+	if isCi {
+		workflowTemplate.WorkflowType = CI_WORKFLOW_NAME
+	} else {
+		workflowTemplate.WorkflowType = CD_WORKFLOW_NAME
 	}
 	_, err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
 	return err
@@ -472,8 +481,8 @@ func (impl *CommonWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *
 	workflowTemplate.CloudStorageKey = blobStorageKey
 }
 
-func (impl *CommonWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
-	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
+func (impl *CommonWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType, isCi bool) WorkflowExecutor {
+	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF || isCi {
 		return impl.argoWorkflowExecutor
 	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		return impl.systemWorkflowExecutor
