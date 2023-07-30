@@ -372,7 +372,7 @@ func (impl *ChartGroupServiceImpl) GetChartGroupWithInstallationDetail(chartGrou
 			InstallationTime: version.CreatedOn,
 			InstalledCharts: []*InstalledChart{&InstalledChart{
 				ChartMetaData: ChartMetaData{
-					ChartName:       version.InstalledApp.App.AppName,
+					GitOpsRepoName:       version.InstalledApp.App.AppName,
 					ChartRepoName:   version.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
 					Icon:            version.AppStoreApplicationVersion.Icon,
 					AppStoreId:      version.AppStoreApplicationVersion.AppStoreId,

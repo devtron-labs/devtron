@@ -191,6 +191,7 @@ type AppService interface {
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
+	UploadKustomizeData(appId int, unzipDir string) error
 }
 
 func NewAppService(
@@ -317,6 +318,24 @@ const (
 	Failure = "FAILURE"
 )
 
+func (impl *AppServiceImpl) UploadKustomizeData(appId int, unzipDir string) error {
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	if err != nil {
+		return err
+	}
+	request := KustomizeUploadRequest{
+		GitOpsRepoName:    chart.ChartName,
+		ReferenceTemplate: chart.ReferenceTemplate,
+		Version:           chart.ChartVersion,
+		RepoUrl:           chart.GitRepoUrl,
+		ExtractedFilePath: unzipDir,
+	}
+	err = impl.GitOpsManifestPushService.PushKustomize(request)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func (impl *AppServiceImpl) SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
 	overrideRequest.PipelineId = pipeline.Id
 	overrideRequest.PipelineName = pipeline.Name
