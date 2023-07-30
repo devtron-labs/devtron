@@ -51,6 +51,9 @@ func (router CDRouterImpl) initCDRouter(cdRouter *mux.Router) {
 		HandlerFunc(router.cdRestHandler.FetchResourceTree).
 		Methods("GET")
 
+	cdRouter.Path("/upload/kustomize/{appId}/{envId}").
+		HandlerFunc(router.cdRestHandler.UploadKustomizeHandler).Methods("POST")
+
 	cdRouter.Path("/logs/{app-name}/pods/{pod-name}").
 		HandlerFunc(router.cdRestHandler.FetchPodContainerLogs).
 		Methods("GET")

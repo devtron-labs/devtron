@@ -37,8 +37,6 @@ func NewChartGroupRouterImpl(ChartGroupRestHandler restHandler.ChartGroupRestHan
 func (impl *ChartGroupRouterImpl) initChartGroupRouter(chartGroupRouter *mux.Router) {
 	chartGroupRouter.Path("/").
 		HandlerFunc(impl.ChartGroupRestHandler.CreateChartGroup).Methods("POST")
-	chartGroupRouter.Path("/upload/kustomize/{appId}/{envId}").
-		HandlerFunc(impl.ChartGroupRestHandler.UploadKustomizeHandler).Methods("POST")
 	chartGroupRouter.Path("/").
 		HandlerFunc(impl.ChartGroupRestHandler.UpdateChartGroup).Methods("PUT")
 	chartGroupRouter.Path("/entries").

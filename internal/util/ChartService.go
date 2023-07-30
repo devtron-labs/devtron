@@ -82,6 +82,7 @@ type ChartTemplateService interface {
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
 	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
+	PushKustomizeToGitRepo()
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -278,7 +279,23 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 	}
 	return &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
 }
-
+func (impl ChartTemplateServiceImpl) PushKustomizeToGitRepo() {
+	//kustomizeDir := "/tmp/uploads"
+	//clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
+	//
+	gitOpsRepoName := "test-gitops"
+	referenceTemplate := "deployment-chart_4-18-0"
+	version := "4.18.1"
+	tempReferenceTemplateDir := "/tmp/charts/3296915438359238942"
+	repoUrl := "https://github.com/avd-org/devtron-test-gitops.git"
+	userId := int32(2)
+	err := impl.PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, userId)
+	if err != nil {
+		impl.logger.Errorw("eerrrr", err)
+	} else {
+		impl.logger.Infow("successful", err)
+	}
+}
 func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
 	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)

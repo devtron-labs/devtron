@@ -524,7 +524,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	resourceServiceImpl := ArgoUtil.NewResourceServiceImpl(argoSession)
-	cdRestHandlerImpl := restHandler.NewCDRestHandlerImpl(sugaredLogger, resourceServiceImpl)
+	cdRestHandlerImpl := restHandler.NewCDRestHandlerImpl(sugaredLogger, resourceServiceImpl, appServiceImpl, userServiceImpl)
 	cdRouterImpl := router.NewCDRouterImpl(sugaredLogger, cdRestHandlerImpl)
 	jiraAccountRepositoryImpl := repository.NewJiraAccountRepositoryImpl(db)
 	jiraClientImpl := client4.NewJiraClientImpl(sugaredLogger, httpClient)

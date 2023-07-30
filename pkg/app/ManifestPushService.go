@@ -20,6 +20,7 @@ import (
 
 type ManifestPushService interface {
 	PushChart(manifestPushConfig *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse
+	PushKustomize()
 }
 
 type GitOpsPushService interface {
@@ -51,6 +52,10 @@ func NewGitOpsManifestPushServiceImpl(
 		gitFactory:                    gitFactory,
 		pipelineStatusTimelineService: pipelineStatusTimelineService,
 	}
+}
+
+func (impl *GitOpsManifestPushServiceImpl) PushKustomize() {
+	impl.chartTemplateService.PushKustomizeToGitRepo()
 }
 
 func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse {

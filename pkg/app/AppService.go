@@ -191,6 +191,7 @@ type AppService interface {
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
+	UploadKustomizeData()
 }
 
 func NewAppService(
@@ -317,6 +318,9 @@ const (
 	Failure = "FAILURE"
 )
 
+func (impl *AppServiceImpl) UploadKustomizeData() {
+	impl.GitOpsManifestPushService.PushKustomize()
+}
 func (impl *AppServiceImpl) SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
 	overrideRequest.PipelineId = pipeline.Id
 	overrideRequest.PipelineName = pipeline.Name
@@ -325,7 +329,7 @@ func (impl *AppServiceImpl) SetPipelineFieldsInOverrideRequest(overrideRequest *
 	overrideRequest.ClusterId = pipeline.Environment.ClusterId
 	overrideRequest.AppId = pipeline.AppId
 	overrideRequest.AppName = pipeline.App.AppName
-	overrideRequest.DeploymentAppType = pipeline.DeploymentAppType
+	overrideRequest.DeploymentAppType = "argo_cd"
 }
 
 func (impl *AppServiceImpl) getValuesFileForEnv(environmentId int) string {
