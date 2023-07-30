@@ -395,6 +395,8 @@ func InitializeApp() (*App, error) {
 		util.IntValidator,
 		pipeline.GetCiConfig,
 
+		pipeline.GetCiCdConfig,
+
 		pipeline.NewWorkflowServiceImpl,
 		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
 
@@ -519,6 +521,9 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewCdWorkflowServiceImpl,
 		wire.Bind(new(pipeline.CdWorkflowService), new(*pipeline.CdWorkflowServiceImpl)),
+
+		pipeline.NewCommonWorkflowServiceImpl,
+		wire.Bind(new(pipeline.CommonWorkflowService), new(*pipeline.CommonWorkflowServiceImpl)),
 
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),

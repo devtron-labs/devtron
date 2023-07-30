@@ -36,7 +36,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -54,7 +53,6 @@ type CiService interface {
 
 type CiServiceImpl struct {
 	Logger                        *zap.SugaredLogger
-	workflowService               WorkflowService
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	ciConfig                      *CiConfig
@@ -69,19 +67,21 @@ type CiServiceImpl struct {
 	appCrudOperationService       app.AppCrudOperationService
 	envRepository                 repository1.EnvironmentRepository
 	appRepository                 appRepository.AppRepository
+	commonWorkflowService         CommonWorkflowService
 }
 
-func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
+func NewCiServiceImpl(Logger *zap.SugaredLogger,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient,
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
-	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository) *CiServiceImpl {
+	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
+	commonWorkflowService CommonWorkflowService,
+) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
-		workflowService:               workflowService,
 		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
 		ciWorkflowRepository:          ciWorkflowRepository,
 		ciConfig:                      ciConfig,
@@ -96,6 +96,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		appCrudOperationService:       appCrudOperationService,
 		envRepository:                 envRepository,
 		appRepository:                 appRepository,
+		commonWorkflowService:         commonWorkflowService,
 	}
 }
 
@@ -180,12 +181,12 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 	workflowRequest.AppId = pipeline.AppId
-	createdWf, err := impl.executeCiPipeline(workflowRequest, appLabels, env, isJob)
+	err = impl.executeCiPipeline(workflowRequest, appLabels, env, isJob)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return 0, err
 	}
-	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
+	impl.Logger.Debugw("ci triggered", " pipeline ", trigger.PipelineId)
 
 	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
@@ -215,7 +216,7 @@ func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipel
 	return nil, isJob, nil
 }
 
-func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *WorkflowRequest) {
+func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *CommonWorkflowRequest) {
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
 
@@ -255,7 +256,7 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 }
 
 // TODO: Send all trigger data
-func (impl *CiServiceImpl) BuildPayload(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *WorkflowRequest) *client.Payload {
+func (impl *CiServiceImpl) BuildPayload(trigger Trigger, pipeline *pipelineConfig.CiPipeline) *client.Payload {
 	payload := &client.Payload{}
 	payload.AppName = pipeline.App.AppName
 	payload.PipelineName = pipeline.Name
@@ -314,13 +315,13 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	return ciWorkflow, nil
 }
 
-func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository1.Environment, isJob bool) (*v1alpha1.Workflow, error) {
-	createdWorkFlow, err := impl.workflowService.SubmitWorkflow(workflowRequest, appLabels, env, isJob)
+func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *CommonWorkflowRequest, appLabels map[string]string, env *repository1.Environment, isJob bool) error {
+	err := impl.commonWorkflowService.SubmitWorkflow(workflowRequest, nil, env, appLabels, isJob, true)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
-		return nil, err
+		return err
 	}
-	return createdWorkFlow, nil
+	return nil
 }
 
 func (impl *CiServiceImpl) buildS3ArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) (string, string, string) {
@@ -345,7 +346,7 @@ func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipeli
 func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger Trigger,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow,
 	ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript,
-	preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject) (*WorkflowRequest, error) {
+	preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject) (*CommonWorkflowRequest, error) {
 	var ciProjectDetails []CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
@@ -524,7 +525,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciBuildConfigBean.DockerBuildConfig.UseBuildx = useBuildx
 	}
 
-	workflowRequest := &WorkflowRequest{
+	workflowRequest := &CommonWorkflowRequest{
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
 		PipelineName:               pipeline.Name,
 		PipelineId:                 pipeline.Id,
@@ -720,7 +721,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 	return dockerImageTag
 }
 
-func (impl *CiServiceImpl) updateCiWorkflow(request *WorkflowRequest, savedWf *pipelineConfig.CiWorkflow) error {
+func (impl *CiServiceImpl) updateCiWorkflow(request *CommonWorkflowRequest, savedWf *pipelineConfig.CiWorkflow) error {
 	ciBuildConfig := request.CiBuildConfig
 	ciBuildType := string(ciBuildConfig.CiBuildType)
 	savedWf.CiBuildType = ciBuildType

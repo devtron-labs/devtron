@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -42,12 +41,7 @@ import (
 )
 
 type CommonWorkflowService interface {
-	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error
-	DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(name string, namespace string, restConfig *rest.Config, isExtRun bool) (*v1alpha1.Workflow, error)
-	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
-	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExtRun bool) error
+	SubmitWorkflow(workflowRequest *CommonWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment, appLabels map[string]string, isJob bool, isCi bool) error
 }
 
 type CommonWorkflowServiceImpl struct {
@@ -330,7 +324,7 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 	}
 	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 	workflowTemplate.ArchiveLogs = storageConfigured
-	workflowTemplate.ArchiveLogs = workflowTemplate.ArchiveLogs && !ciCdTriggerEvent.CdRequest.InAppLoggingEnabled
+	workflowTemplate.ArchiveLogs = workflowTemplate.ArchiveLogs && !ciCdTriggerEvent.CommonWorkflowRequest.InAppLoggingEnabled
 	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
 
 	if len(impl.ciCdConfig.NodeLabel) > 0 {
@@ -350,7 +344,7 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 	}
 
 	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
-	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(ciCdTriggerEvent.CdRequest.InAppLoggingEnabled)}
+	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(ciCdTriggerEvent.CommonWorkflowRequest.InAppLoggingEnabled)}
 	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
 	workflowMainContainer := v12.Container{
 		Env:   containerEnvVariables,
@@ -370,9 +364,37 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 			},
 		},
 	}
+	if len(pvc) != 0 && isCi {
+		buildPvcCachePath := impl.ciCdConfig.BuildPvcCachePath
+		buildxPvcCachePath := impl.ciCdConfig.BuildxPvcCachePath
+		defaultPvcCachePath := impl.ciCdConfig.DefaultPvcCachePath
+
+		workflowTemplate.Volumes = append(workflowTemplate.Volumes, v12.Volume{
+			Name: "root-vol",
+			VolumeSource: v12.VolumeSource{
+				PersistentVolumeClaim: &v12.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvc,
+					ReadOnly:  false,
+				},
+			},
+		})
+		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts,
+			v12.VolumeMount{
+				Name:      "root-vol",
+				MountPath: buildPvcCachePath,
+			},
+			v12.VolumeMount{
+				Name:      "root-vol",
+				MountPath: buildxPvcCachePath,
+			},
+			v12.VolumeMount{
+				Name:      "root-vol",
+				MountPath: defaultPvcCachePath,
+			})
+	}
 	UpdateContainerEnvsFromCmCs(&workflowMainContainer, workflowConfigMaps, workflowSecrets)
 
-	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate, storageConfigured, ciCdTriggerEvent.CdRequest.BlobStorageLogsKey)
+	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate, storageConfigured, ciCdTriggerEvent.CommonWorkflowRequest.BlobStorageLogsKey)
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	workflowTemplate.WorkflowNamePrefix = workflowRequest.WorkflowNamePrefix
 	if !isCi {
