@@ -191,7 +191,7 @@ type AppService interface {
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
-	UploadKustomizeData(appId int, unzipDir string) error
+	UploadKustomizeData(appId int, envId int, unzipDir string) error
 }
 
 func NewAppService(
@@ -318,11 +318,18 @@ const (
 	Failure = "FAILURE"
 )
 
-func (impl *AppServiceImpl) UploadKustomizeData(appId int, unzipDir string) error {
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
-	if err != nil {
-		return err
+func (impl *AppServiceImpl) UploadKustomizeData(appId int, envId int, unzipDir string) error {
+	var chart *chartRepoRepository.Chart
+	envConfigOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(appId, 1)
+	if err != nil || envConfigOverride == nil {
+		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(appId)
+		if err != nil {
+			return err
+		}
+	} else {
+		chart = envConfigOverride.Chart
 	}
+
 	request := KustomizeUploadRequest{
 		GitOpsRepoName:    chart.ChartName,
 		ReferenceTemplate: chart.ReferenceTemplate,

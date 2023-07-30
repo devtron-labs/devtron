@@ -101,7 +101,7 @@ func (handler PipelineTriggerRestHandlerImpl) UploadKustomizeHandler(w http.Resp
 		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
 		return
 	}
-	_, err = strconv.Atoi(vars["envId"])
+	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
 		return
@@ -134,7 +134,7 @@ func (handler PipelineTriggerRestHandlerImpl) UploadKustomizeHandler(w http.Resp
 		return
 	}
 
-	err = handler.appService.UploadKustomizeData(appId, unzipDir)
+	err = handler.appService.UploadKustomizeData(appId, envId, unzipDir)
 	if err != nil {
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
