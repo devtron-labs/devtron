@@ -25,10 +25,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
+	"github.com/xyproto/unzip"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 const CHART_GROUP_DELETE_SUCCESS_RESP = "Chart group deleted successfully."
@@ -62,6 +67,55 @@ type ChartGroupRestHandler interface {
 	GetChartGroupInstallationDetail(w http.ResponseWriter, r *http.Request)
 	GetChartGroupListMin(w http.ResponseWriter, r *http.Request)
 	DeleteChartGroup(w http.ResponseWriter, r *http.Request)
+	UploadKustomizeHandler(w http.ResponseWriter, r *http.Request)
+}
+
+func (impl *ChartGroupRestHandlerImpl) UploadKustomizeHandler(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	r.ParseMultipartForm(10 << 20) // Set the maximum upload size to 10 MB
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Error retrieving file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	uploadDir := "/tmp/uploads"
+	os.MkdirAll(uploadDir, os.ModePerm)
+
+	zipFilePath := filepath.Join(uploadDir, handler.Filename)
+	outFile, err := os.Create(zipFilePath)
+	if err != nil {
+		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		return
+	}
+	defer outFile.Close()
+	io.Copy(outFile, file)
+
+	unzipDir := filepath.Join(uploadDir, strings.TrimSuffix(handler.Filename, filepath.Ext(handler.Filename)))
+	err = unzip.Extract(zipFilePath, unzipDir)
+	//err = unzip1(zipFilePath, unzipDir)
+	if err != nil {
+		http.Error(w, "Error unzipping the folder", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(w, "Folder uploaded and extracted successfully.")
 }
 
 func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r *http.Request) {
