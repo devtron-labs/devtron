@@ -18,6 +18,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -47,6 +48,7 @@ type DevtronAppBuildRestHandler interface {
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
+	GetCIPipelineByPipelineId(w http.ResponseWriter, r *http.Request)
 	HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request)
 	GetBuildLogs(w http.ResponseWriter, r *http.Request)
 	FetchWorkflowDetails(w http.ResponseWriter, r *http.Request)
@@ -1049,6 +1051,64 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 		handler.Logger.Infow("service error, GetCIPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetCIPipelineByPipelineId(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	var ciPipelineId int
+	var err error
+	v := r.URL.Query()
+	pipelineId := v.Get("pipelineId")
+	if len(pipelineId) != 0 {
+		ciPipelineId, err = strconv.Atoi(pipelineId)
+		if err != nil {
+			handler.Logger.Errorw("request err, GetCIPipelineByPipelineId", "err", err, "pipelineIdParam", pipelineId)
+			response.WriteResponse(http.StatusBadRequest, "please send valid pipelineId", w, errors.New("pipelineId id invalid"))
+			return
+		}
+	}
+
+	handler.Logger.Infow("request payload, GetCIPipelineByPipelineId", "pipelineId", pipelineId)
+
+	ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(ciPipelineId)
+	if err != nil {
+		handler.Logger.Infow("service error, GetCIPipelineById", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	app, err := handler.pipelineBuilder.GetApp(ciPipeline.AppId)
+	if err != nil {
+		handler.Logger.Infow("service error, GetCIPipelineByPipelineId", "err", err, "appId", ciPipeline.AppId, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(ciPipeline.AppId, ciPipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	var environmentIds []int
+	for _, pipeline := range pipelineData {
+		environmentIds = append(environmentIds, pipeline.EnvironmentId)
+	}
+	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(ciPipelineId) {
+		for _, envId := range environmentIds {
+			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId, envId)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+		}
 	}
 	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
 }
