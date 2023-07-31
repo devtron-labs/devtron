@@ -393,10 +393,7 @@ func InitializeApp() (*App, error) {
 		repository.NewNotificationSettingsRepositoryImpl,
 		wire.Bind(new(repository.NotificationSettingsRepository), new(*repository.NotificationSettingsRepositoryImpl)),
 		util.IntValidator,
-		pipeline.GetCiConfig,
-
-		pipeline.NewWorkflowServiceImpl,
-		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
+		pipeline.GetCiCdConfig,
 
 		pipeline.NewCiServiceImpl,
 		wire.Bind(new(pipeline.CiService), new(*pipeline.CiServiceImpl)),
@@ -516,9 +513,8 @@ func InitializeApp() (*App, error) {
 
 		pipelineConfig.NewCdWorkflowRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CdWorkflowRepository), new(*pipelineConfig.CdWorkflowRepositoryImpl)),
-
-		pipeline.NewCdWorkflowServiceImpl,
-		wire.Bind(new(pipeline.CdWorkflowService), new(*pipeline.CdWorkflowServiceImpl)),
+		pipeline.NewCommonWorkflowServiceImpl,
+		wire.Bind(new(pipeline.CommonWorkflowService), new(*pipeline.CommonWorkflowServiceImpl)),
 
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
@@ -527,7 +523,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.WorkflowDagExecutor), new(*pipeline.WorkflowDagExecutorImpl)),
 		appClone.NewAppCloneServiceImpl,
 		wire.Bind(new(appClone.AppCloneService), new(*appClone.AppCloneServiceImpl)),
-		pipeline.GetCdConfig,
 
 		router.NewDeploymentGroupRouterImpl,
 		wire.Bind(new(router.DeploymentGroupRouter), new(*router.DeploymentGroupRouterImpl)),
@@ -858,6 +853,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appGroup2.AppGroupMappingRepository), new(*appGroup2.AppGroupMappingRepositoryImpl)),
 		pipeline.NewArgoWorkflowExecutorImpl,
 		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
+		pipeline.NewSystemWorkflowExecutorImpl,
+		wire.Bind(new(pipeline.SystemWorkflowExecutor), new(*pipeline.SystemWorkflowExecutorImpl)),
 		repository5.NewManifestPushConfigRepository,
 		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
 		app.NewGitOpsManifestPushServiceImpl,

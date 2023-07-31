@@ -28,4 +28,5 @@ type WorkflowTemplate struct {
 	CloudStorageKey        string
 	PrePostDeploySteps     []*StepObject
 	RefPlugins             []*RefPluginObject
+	TerminationGracePeriod int
 }
