@@ -133,10 +133,6 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 			return nil, err
 		}
 	}
-	if err != nil {
-		return nil, err
-	}
-
 	//validation for supported cloudproviders
 	if cfg.BlobStorageEnabled && cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE &&
 		cfg.CloudProvider != BLOB_STORAGE_GCP && cfg.CloudProvider != BLOB_STORAGE_MINIO {
