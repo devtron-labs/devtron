@@ -70,6 +70,7 @@ type HelmAppService interface {
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
+	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) bool
 	GetRevisionHistoryMaxValue(appType SourceAppType) int32
 }
 
@@ -797,6 +798,15 @@ func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *InstallRe
 	}
 	notesTxt = response.Notes
 	return notesTxt, err
+}
+
+func (impl *HelmAppServiceImpl) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) bool {
+	response, err := impl.helmAppClient.ValidateOCIRegistry(ctx, OCIRegistryRequest)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart", "err", err)
+		return false
+	}
+	return response.IsLoggedIn
 }
 
 type AppIdentifier struct {

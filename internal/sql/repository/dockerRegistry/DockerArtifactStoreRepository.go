@@ -18,6 +18,7 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg/orm"
 	"net/url"
@@ -38,6 +39,7 @@ const (
 	STORAGE_ACTION_TYPE_PULL_AND_PUSH        = "PULL/PUSH"
 	OCI_REGISRTY_REPO_TYPE_CONTAINER         = "CONTAINER"
 	OCI_REGISRTY_REPO_TYPE_CHART             = "CHART"
+	INSECRUE                                 = "insecure"
 )
 
 type RegistryType string
@@ -60,6 +62,7 @@ type DockerArtifactStore struct {
 	Connection             string       `sql:"connection" json:"connection,omitempty"`
 	Cert                   string       `sql:"cert" json:"cert,omitempty"`
 	Active                 bool         `sql:"active,notnull" json:"active"`
+	DeploymentCount        int          `sql:"deployment_count" json:"deploymentCount"`
 	IpsConfig              *DockerRegistryIpsConfig
 	OCIRegistryConfig      []*OCIRegistryConfig
 	sql.AuditLog
@@ -80,7 +83,9 @@ type DockerArtifactStoreRepository interface {
 	FindActiveDefaultStore() (*DockerArtifactStore, error)
 	FindAllActiveForAutocomplete() ([]DockerArtifactStore, error)
 	FindAll() ([]DockerArtifactStore, error)
+	FindAllChartProviders() ([]DockerArtifactStore, error)
 	FindOne(storeId string) (*DockerArtifactStore, error)
+	FindOneWithDeploymentCount(storeId string) (*DockerArtifactStore, error)
 	FindOneInactive(storeId string) (*DockerArtifactStore, error)
 	Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error
 	Delete(storeId string) error
@@ -148,6 +153,20 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 	return providers, err
 }
 
+func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]DockerArtifactStore, error) {
+	var providers []DockerArtifactStore
+	err := impl.dbConnection.Model(&providers).
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Where("active = ?", true).
+		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE and " +
+				"repository_type='CHART' and " +
+				"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
+		}).
+		Select()
+	return providers, err
+}
+
 func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerArtifactStore, error) {
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
@@ -158,6 +177,16 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 			return q.Where("deleted IS FALSE"), nil
 		}).
 		Select()
+	return &provider, err
+}
+
+func (impl DockerArtifactStoreRepositoryImpl) FindOneWithDeploymentCount(storeId string) (*DockerArtifactStore, error) {
+	var provider DockerArtifactStore
+	query := "SELECT docker_artifact_store.*, count(jq.ia_id) as deployment_count FROM docker_artifact_store" +
+		fmt.Sprintf(" LEFT JOIN oci_registry_config orc on (docker_artifact_store.id = orc.docker_artifact_store_id and orc.is_chart_pull_active = true and orc.repository_type = '%s' and (orc.repository_action = '%s' or orc.repository_action = '%s'))", OCI_REGISRTY_REPO_TYPE_CHART, STORAGE_ACTION_TYPE_PULL, STORAGE_ACTION_TYPE_PULL_AND_PUSH) +
+		" LEFT JOIN (SELECT aps.docker_artifact_store_id as das_id ,ia.id as ia_id FROM installed_app_versions iav INNER JOIN installed_apps ia on iav.installed_app_id = ia.id INNER JOIN app_store_application_version asav on iav.app_store_application_version_id = asav.id INNER JOIN app_store aps on asav.app_store_id = aps.id WHERE ia.active=true and iav.active=true) jq on jq.das_id = docker_artifact_store.id" +
+		" WHERE docker_artifact_store.id = ? and docker_artifact_store.active = true Group by docker_artifact_store.id;"
+	_, err := impl.dbConnection.Query(&provider, query, storeId)
 	return &provider, err
 }
 

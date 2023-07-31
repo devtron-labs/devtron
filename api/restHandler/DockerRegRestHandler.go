@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/internal/util"
+	chartProviderService "github.com/devtron-labs/devtron/pkg/appStore/chartProvider"
+	deleteService "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"k8s.io/utils/strings/slices"
 	"net/http"
@@ -49,36 +51,64 @@ type DockerRegRestHandler interface {
 	IsDockerRegConfigured(w http.ResponseWriter, r *http.Request)
 	DeleteDockerRegistryConfig(w http.ResponseWriter, r *http.Request)
 }
+
+type DockerRegRestHandlerExtendedImpl struct {
+	deleteServiceFullMode deleteService.DeleteServiceFullMode
+	*DockerRegRestHandlerImpl
+}
+
 type DockerRegRestHandlerImpl struct {
-	dockerRegistryConfig  pipeline.DockerRegistryConfig
-	logger                *zap.SugaredLogger
-	gitRegistryConfig     pipeline.GitRegistryConfig
-	dbConfigService       pipeline.DbConfigService
-	userAuthService       user.UserService
-	validator             *validator.Validate
-	enforcer              casbin.Enforcer
-	teamService           team.TeamService
-	deleteServiceFullMode delete2.DeleteServiceFullMode
+	dockerRegistryConfig pipeline.DockerRegistryConfig
+	logger               *zap.SugaredLogger
+	chartProviderService chartProviderService.ChartProviderService
+	userAuthService      user.UserService
+	validator            *validator.Validate
+	enforcer             casbin.Enforcer
+	teamService          team.TeamService
+	deleteService        deleteService.DeleteService
 }
 
 const secureWithCert = "secure-with-cert"
 
-func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
+func NewDockerRegRestHandlerExtendedImpl(
+	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger,
-	gitRegistryConfig pipeline.GitRegistryConfig,
-	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
+	chartProviderService chartProviderService.ChartProviderService,
+	userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
-	deleteServiceFullMode delete2.DeleteServiceFullMode) *DockerRegRestHandlerImpl {
-	return &DockerRegRestHandlerImpl{
-		dockerRegistryConfig:  dockerRegistryConfig,
-		logger:                logger,
-		gitRegistryConfig:     gitRegistryConfig,
-		dbConfigService:       dbConfigService,
-		userAuthService:       userAuthService,
-		validator:             validator,
-		enforcer:              enforcer,
-		teamService:           teamService,
+	deleteService deleteService.DeleteService,
+	deleteServiceFullMode deleteService.DeleteServiceFullMode) *DockerRegRestHandlerExtendedImpl {
+	return &DockerRegRestHandlerExtendedImpl{
 		deleteServiceFullMode: deleteServiceFullMode,
+		DockerRegRestHandlerImpl: &DockerRegRestHandlerImpl{
+			dockerRegistryConfig: dockerRegistryConfig,
+			logger:               logger,
+			chartProviderService: chartProviderService,
+			userAuthService:      userAuthService,
+			validator:            validator,
+			enforcer:             enforcer,
+			teamService:          teamService,
+			deleteService:        deleteService,
+		},
+	}
+}
+
+func NewDockerRegRestHandlerImpl(
+	dockerRegistryConfig pipeline.DockerRegistryConfig,
+	logger *zap.SugaredLogger,
+	chartProviderService chartProviderService.ChartProviderService,
+	userAuthService user.UserService,
+	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
+	deleteService deleteService.DeleteService) *DockerRegRestHandlerImpl {
+	return &DockerRegRestHandlerImpl{
+		dockerRegistryConfig: dockerRegistryConfig,
+		logger:               logger,
+		chartProviderService: chartProviderService,
+		userAuthService:      userAuthService,
+		validator:            validator,
+		enforcer:             enforcer,
+		teamService:          teamService,
+		deleteService:        deleteService,
 	}
 }
 
@@ -93,11 +123,19 @@ func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBea
 		if bean.OCIRegistryConfig == nil {
 			return false
 		}
+		// For Containers, storage action should be "PULL/PUSH"
 		containerStorageActionType, containerStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CONTAINER]
 		if containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
 			return false
 		}
-	} else if bean.OCIRegistryConfig != nil {
+		// For Charts with storage action type "PULL/PUSH" or "PULL", RepositoryList cannot be nil
+		chartStorageActionType, chartStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CHART]
+		if chartStorageActionExists && (chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH || chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL) {
+			if bean.RepositoryList == nil || len(bean.RepositoryList) == 0 || slices.Contains(bean.RepositoryList, "") {
+				return false
+			}
+		}
+	} else if bean.OCIRegistryConfig != nil || bean.IsPublic {
 		return false
 	}
 	return true
@@ -139,6 +177,16 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 			return
 		}
 		//RBAC enforcer Ends
+		if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
+			impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+			err = &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: "Invalid authentication credentials. Please verify.",
+				UserMessage:     "Invalid authentication credentials. Please verify.",
+			}
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 		exist, err := impl.dockerRegistryConfig.CheckInActiveDockerAccount(bean.Id)
 
 		if err != nil {
@@ -157,6 +205,19 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 			common.WriteJsonResp(w, err, res, http.StatusOK)
 			return
 		}
+		// valid registry credentials from kubelink
+		if bean.IsOCICompliantRegistry && len(bean.RepositoryList) != 0 {
+			request := &chartProviderService.ChartProviderRequestDto{
+				Id:            bean.Id,
+				IsOCIRegistry: bean.IsOCICompliantRegistry,
+			}
+			err = impl.chartProviderService.SyncChartProvider(request)
+			if err != nil {
+				impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "userId", userId)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+		}
 
 		res, err := impl.dockerRegistryConfig.Create(&bean)
 		if err != nil {
@@ -164,7 +225,6 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-
 		common.WriteJsonResp(w, err, res, http.StatusOK)
 	}
 
@@ -253,34 +313,42 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	} else {
-		impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+	}
+	impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "payload", bean)
 
-		err = impl.validator.Struct(bean)
-		if err != nil {
-			impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionUpdate, strings.ToLower(bean.Id)); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	res, err := impl.dockerRegistryConfig.Update(&bean)
+	if err != nil {
+		impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if res.IsOCICompliantRegistry && len(res.RepositoryList) != 0 {
+		request := &chartProviderService.ChartProviderRequestDto{
+			Id:            res.Id,
+			IsOCIRegistry: res.IsOCICompliantRegistry,
 		}
-
-		// RBAC enforcer applying
-		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionUpdate, strings.ToLower(bean.Id)); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-		//RBAC enforcer Ends
-
-		res, err := impl.dockerRegistryConfig.Update(&bean)
+		err = impl.chartProviderService.SyncChartProvider(request)
 		if err != nil {
-			impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+			impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "userId", userId)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-
-		common.WriteJsonResp(w, err, res, http.StatusOK)
 	}
-
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl DockerRegRestHandlerImpl) FetchAllDockerRegistryForAutocomplete(w http.ResponseWriter, r *http.Request) {
@@ -331,6 +399,45 @@ func (impl DockerRegRestHandlerImpl) IsDockerRegConfigured(w http.ResponseWriter
 }
 
 func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean pipeline.DockerArtifactStoreBean
+	err = decoder.Decode(&bean)
+	if err != nil {
+		impl.logger.Errorw("request err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	bean.User = userId
+	impl.logger.Infow("request payload, DeleteDockerRegistryConfig", "payload", bean)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, strings.ToLower(bean.Id)); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	err = impl.deleteService.DeleteDockerRegistryConfig(&bean)
+	if err != nil {
+		impl.logger.Errorw("service err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, REG_DELETE_SUCCESS_RESP, http.StatusOK)
+}
+
+func (impl DockerRegRestHandlerExtendedImpl) DeleteDockerRegistryConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {

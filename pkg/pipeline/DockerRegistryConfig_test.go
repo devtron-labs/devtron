@@ -192,5 +192,5 @@ func InitDockerRegistryConfig() {
 	dockerArtifactStoreRepository := repository.NewDockerArtifactStoreRepositoryImpl(conn)
 	dockerRegistryIpsConfigRepository := repository.NewDockerRegistryIpsConfigRepositoryImpl(conn)
 	ociRegistryConfigRepository := repository.NewOCIRegistryConfigRepositoryImpl(conn)
-	dockerRegistryConfig = NewDockerRegistryConfigImpl(logger, dockerArtifactStoreRepository, dockerRegistryIpsConfigRepository, ociRegistryConfigRepository)
+	dockerRegistryConfig = NewDockerRegistryConfigImpl(logger, nil, dockerArtifactStoreRepository, dockerRegistryIpsConfigRepository, ociRegistryConfigRepository)
 }

@@ -252,9 +252,11 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreVe
 		return "", err
 	}
 	dependency := appStoreBean.Dependency{
-		Name:       appStoreAppVersion.AppStore.Name,
-		Version:    appStoreAppVersion.Version,
-		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
+		Name:    appStoreAppVersion.AppStore.Name,
+		Version: appStoreAppVersion.Version,
+	}
+	if appStoreAppVersion.AppStore.ChartRepo != nil {
+		dependency.Repository = appStoreAppVersion.AppStore.ChartRepo.Url
 	}
 	var dependencies []appStoreBean.Dependency
 	dependencies = append(dependencies, dependency)

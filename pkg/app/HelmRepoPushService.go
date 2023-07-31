@@ -49,7 +49,7 @@ func (impl *HelmRepoPushServiceImpl) PushChart(manifestPushTemplate *bean.Manife
 
 		return manifestPushResponse
 	}
-	manifestPushResponse.CommitHash = helmManifestResponse.Result.Digest
+	manifestPushResponse.CommitHash = helmManifestResponse.PushResult.Digest
 	manifestPushResponse.CommitTime = time.Now()
 
 	timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO, "helm packaged successfully pushed to helm repo")
@@ -68,12 +68,16 @@ func getOciPushTemplate(manifestPushTemplate *bean.ManifestPushTemplate) *client
 		ChartName:    manifestPushTemplate.ChartName,
 		ChartVersion: manifestPushTemplate.ChartVersion,
 		IsInsecure:   true,
-		Username:     manifestPushTemplate.ContainerRegistryConfig.Username,
-		Password:     manifestPushTemplate.ContainerRegistryConfig.Password,
-		AwsRegion:    manifestPushTemplate.ContainerRegistryConfig.AwsRegion,
-		AccessKey:    manifestPushTemplate.ContainerRegistryConfig.AccessKey,
-		SecretKey:    manifestPushTemplate.ContainerRegistryConfig.SecretKey,
-		RegistryURL:  manifestPushTemplate.ContainerRegistryConfig.RegistryUrl,
-		RepoURL:      manifestPushTemplate.RepoUrl,
+		RegistryCredential: &client.RegistryCredential{
+			Username:     manifestPushTemplate.ContainerRegistryConfig.Username,
+			Password:     manifestPushTemplate.ContainerRegistryConfig.Password,
+			AwsRegion:    manifestPushTemplate.ContainerRegistryConfig.AwsRegion,
+			AccessKey:    manifestPushTemplate.ContainerRegistryConfig.AccessKey,
+			SecretKey:    manifestPushTemplate.ContainerRegistryConfig.SecretKey,
+			RegistryUrl:  manifestPushTemplate.ContainerRegistryConfig.RegistryUrl,
+			RegistryType: manifestPushTemplate.ContainerRegistryConfig.RegistryType,
+			IsPublic:     manifestPushTemplate.ContainerRegistryConfig.IsPublic,
+			RepoName:     manifestPushTemplate.ContainerRegistryConfig.RepoName,
+		},
 	}
 }

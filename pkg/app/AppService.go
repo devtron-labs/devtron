@@ -1881,13 +1881,20 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 			manifestPushTemplate.ChartName = chartName
 			manifestPushTemplate.ChartVersion = fmt.Sprintf("%d.%d.%d-%s", 1, 0, overrideRequest.WfrId, "DEPLOY")
 			containerRegistryConfig := &bean3.ContainerRegistryConfig{
-				RegistryUrl: dockerArtifactStore.RegistryURL,
-				Username:    dockerArtifactStore.Username,
-				Password:    dockerArtifactStore.Password,
-				Insecure:    true,
-				AccessKey:   dockerArtifactStore.AWSAccessKeyId,
-				SecretKey:   dockerArtifactStore.AWSSecretAccessKey,
-				AwsRegion:   dockerArtifactStore.AWSRegion,
+				RegistryUrl:  dockerArtifactStore.RegistryURL,
+				Username:     dockerArtifactStore.Username,
+				Password:     dockerArtifactStore.Password,
+				Insecure:     true,
+				AccessKey:    dockerArtifactStore.AWSAccessKeyId,
+				SecretKey:    dockerArtifactStore.AWSSecretAccessKey,
+				AwsRegion:    dockerArtifactStore.AWSRegion,
+				RegistryType: string(dockerArtifactStore.RegistryType),
+				RepoName:     repoPath,
+			}
+			for _, ociRegistryConfig := range dockerArtifactStore.OCIRegistryConfig {
+				if ociRegistryConfig.RepositoryType == dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART {
+					containerRegistryConfig.IsPublic = ociRegistryConfig.IsPublic
+				}
 			}
 			manifestPushTemplate.ContainerRegistryConfig = containerRegistryConfig
 
@@ -3232,13 +3239,20 @@ func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipe
 		manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
 		manifestPushTemplate.ChartName = chartName
 		containerRegistryConfig := &bean3.ContainerRegistryConfig{
-			RegistryUrl: dockerArtifactStore.RegistryURL,
-			Username:    dockerArtifactStore.Username,
-			Password:    dockerArtifactStore.Password,
-			Insecure:    true,
-			AccessKey:   dockerArtifactStore.AWSAccessKeyId,
-			SecretKey:   dockerArtifactStore.AWSSecretAccessKey,
-			AwsRegion:   dockerArtifactStore.AWSRegion,
+			RegistryUrl:  dockerArtifactStore.RegistryURL,
+			Username:     dockerArtifactStore.Username,
+			Password:     dockerArtifactStore.Password,
+			Insecure:     true,
+			AccessKey:    dockerArtifactStore.AWSAccessKeyId,
+			SecretKey:    dockerArtifactStore.AWSSecretAccessKey,
+			AwsRegion:    dockerArtifactStore.AWSRegion,
+			RegistryType: string(dockerArtifactStore.RegistryType),
+			RepoName:     repoPath,
+		}
+		for _, ociRegistryConfig := range dockerArtifactStore.OCIRegistryConfig {
+			if ociRegistryConfig.RepositoryType == dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART {
+				containerRegistryConfig.IsPublic = ociRegistryConfig.IsPublic
+			}
 		}
 		manifestPushTemplate.ContainerRegistryConfig = containerRegistryConfig
 	} else if manifestPushConfig.StorageType == bean2.ManifestStorageGit {

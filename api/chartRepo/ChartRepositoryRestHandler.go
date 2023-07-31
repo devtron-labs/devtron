@@ -281,7 +281,11 @@ func (handler *ChartRepositoryRestHandlerImpl) TriggerChartSyncManual(w http.Res
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	err2 := handler.chartRepositoryService.TriggerChartSyncManual()
+	chartProviderConfig := &chartRepo.ChartProviderConfig{
+		ChartProviderId: "*",
+		IsOCIRegistry:   true,
+	}
+	err2 := handler.chartRepositoryService.TriggerChartSyncManual(chartProviderConfig)
 	if err2 != nil {
 		common.WriteJsonResp(w, err2, nil, http.StatusInternalServerError)
 	} else {
