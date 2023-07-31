@@ -350,10 +350,14 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(ciCdTriggerEvent.CommonWorkflowRequest.InAppLoggingEnabled)}
 	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
+	workflowImage := workflowRequest.CdImage
+	if isCi {
+		workflowImage = workflowRequest.CiImage
+	}
 	workflowMainContainer := v12.Container{
 		Env:   containerEnvVariables,
 		Name:  common.MainContainerName,
-		Image: workflowRequest.CdImage,
+		Image: workflowImage,
 		SecurityContext: &v12.SecurityContext{
 			Privileged: &privileged,
 		},
