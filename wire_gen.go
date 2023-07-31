@@ -535,7 +535,7 @@ func InitializeApp() (*App, error) {
 	projectManagementServiceImpl := jira2.NewProjectManagementServiceImpl(sugaredLogger, accountServiceImpl, jiraAccountRepositoryImpl, accountValidatorImpl)
 	jiraRestHandlerImpl := restHandler.NewJiraRestHandlerImpl(projectManagementServiceImpl, sugaredLogger, userServiceImpl, validate)
 	projectManagementRouterImpl := router.NewProjectManagementRouterImpl(jiraRestHandlerImpl)
-	deleteServiceFullModeImpl := delete2.NewDeleteServiceFullModeImpl(sugaredLogger, materialRepositoryImpl, gitRegistryConfigImpl, ciTemplateRepositoryImpl, dockerRegistryConfigImpl)
+	deleteServiceFullModeImpl := delete2.NewDeleteServiceFullModeImpl(sugaredLogger, materialRepositoryImpl, gitRegistryConfigImpl, ciTemplateRepositoryImpl, dockerRegistryConfigImpl, dockerArtifactStoreRepositoryImpl)
 	gitProviderRestHandlerImpl := restHandler.NewGitProviderRestHandlerImpl(dockerRegistryConfigImpl, sugaredLogger, gitRegistryConfigImpl, dbConfigServiceImpl, userServiceImpl, validate, enforcerImpl, teamServiceImpl, deleteServiceFullModeImpl)
 	gitProviderRouterImpl := router.NewGitProviderRouterImpl(gitProviderRestHandlerImpl)
 	gitHostRepositoryImpl := repository.NewGitHostRepositoryImpl(db)

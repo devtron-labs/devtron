@@ -2,6 +2,7 @@ package delete
 
 import (
 	"fmt"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -20,13 +21,14 @@ type DeleteService interface {
 }
 
 type DeleteServiceImpl struct {
-	logger                 *zap.SugaredLogger
-	teamService            team.TeamService
-	clusterService         cluster.ClusterService
-	environmentService     cluster.EnvironmentService
-	chartRepositoryService chartRepo.ChartRepositoryService
-	installedAppRepository repository.InstalledAppRepository
-	dockerRegistryConfig   pipeline.DockerRegistryConfig
+	logger                   *zap.SugaredLogger
+	teamService              team.TeamService
+	clusterService           cluster.ClusterService
+	environmentService       cluster.EnvironmentService
+	chartRepositoryService   chartRepo.ChartRepositoryService
+	installedAppRepository   repository.InstalledAppRepository
+	dockerRegistryConfig     pipeline.DockerRegistryConfig
+	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
 }
 
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
@@ -36,15 +38,17 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	chartRepositoryService chartRepo.ChartRepositoryService,
 	installedAppRepository repository.InstalledAppRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
+	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 ) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
-		logger:                 logger,
-		teamService:            teamService,
-		clusterService:         clusterService,
-		environmentService:     environmentService,
-		chartRepositoryService: chartRepositoryService,
-		installedAppRepository: installedAppRepository,
-		dockerRegistryConfig:   dockerRegistryConfig,
+		logger:                   logger,
+		teamService:              teamService,
+		clusterService:           clusterService,
+		environmentService:       environmentService,
+		chartRepositoryService:   chartRepositoryService,
+		installedAppRepository:   installedAppRepository,
+		dockerRegistryConfig:     dockerRegistryConfig,
+		dockerRegistryRepository: dockerRegistryRepository,
 	}
 }
 
@@ -95,7 +99,16 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 }
 
 func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error {
-	err := impl.dockerRegistryConfig.DeleteReg(deleteRequest)
+	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(deleteRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("error in deleting docker registry", "err", err, "deleteRequest", deleteRequest)
+		return err
+	}
+	if store.DeploymentCount > 0 {
+		impl.logger.Errorw("err in deleting docker registry, found chart deployments using registry", "dockerRegistry", deleteRequest.Id, "err", err)
+		return fmt.Errorf(" Please update all related docker config before deleting this registry")
+	}
+	err = impl.dockerRegistryConfig.DeleteReg(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting docker registry", "err", err, "deleteRequest", deleteRequest)
 		return err
