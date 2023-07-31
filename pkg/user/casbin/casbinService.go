@@ -51,7 +51,7 @@ func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) error {
 		return err
 	}
 	if resp != nil && len(resp.FailedPolicies) > 0 {
-		impl.logger.Errorw("error in adding all policies", "err", err, "failedPolicies", resp.FailedPolicies)
+		impl.logger.Errorw("error in adding all policies", "err", err, "failedPolicies", resp.FailedPolicies, "error message", resp.ErrorMessage)
 	}
 	return nil
 }
@@ -77,8 +77,10 @@ func (impl *CasbinServiceImpl) RemovePolicy(policies []Policy) ([]Policy, error)
 	in := &client.MultiPolicyObj{
 		Policies: convertedPolicies,
 	}
-	_, err := impl.casbinClient.RemovePolicy(context.Background(), in)
+
+	resp, err := impl.casbinClient.RemovePolicy(context.Background(), in)
 	if err != nil {
+		impl.logger.Errorw("error in removing policies", "err", err, "policies", resp.Policies)
 		return nil, err
 	}
 	return policies, nil
