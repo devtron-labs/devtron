@@ -89,9 +89,9 @@ type CiHandlerImpl struct {
 	ciService                    CiService
 	gitSensorClient              gitSensor.Client
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
-	workflowService              WorkflowService
+	workflowService              CommonWorkflowService
 	ciLogService                 CiLogService
-	ciConfig                     *CiConfig
+	ciConfig                     *CiCdConfig
 	ciArtifactRepository         repository.CiArtifactRepository
 	userService                  user.UserService
 	eventClient                  client.EventClient
@@ -106,7 +106,7 @@ type CiHandlerImpl struct {
 	imageTaggingService          ImageTaggingService
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService CommonWorkflowService, ciLogService CiLogService, ciConfig *CiCdConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -540,7 +540,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 	}
 
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, isExt, env)
+	err = impl.workflowService.TerminateWorkflow("", runningWf.Name, runningWf.Namespace, nil, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
@@ -692,12 +692,12 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 	}
 
 	if ciConfig.LogsBucket == "" {
-		ciConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+		ciConfig.LogsBucket = impl.ciConfig.CiDefaultBuildLogsBucket
 	}
 	if ciConfig.CiCacheRegion == "" {
 		ciConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
 	}
-	logsFilePath := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log" // this is for backward compatibilty
+	logsFilePath := impl.ciConfig.CiDefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log" // this is for backward compatibilty
 	if strings.Contains(ciWorkflow.LogLocation, "main.log") {
 		logsFilePath = ciWorkflow.LogLocation
 	}
@@ -754,12 +754,12 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 
 	ciConfig, err := impl.ciWorkflowRepository.FindConfigByPipelineId(pipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("unable to fetch ciConfig", "err", err)
+		impl.Logger.Errorw("unable to fetch ciCdConfig", "err", err)
 		return nil, err
 	}
 
 	if ciConfig.LogsBucket == "" {
-		ciConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+		ciConfig.LogsBucket = impl.ciConfig.CiDefaultBuildLogsBucket
 	}
 
 	item := strconv.Itoa(ciWorkflow.Id)
@@ -786,7 +786,7 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
 	}
 
-	key := fmt.Sprintf("%s/"+impl.ciConfig.CiArtifactLocationFormat, impl.ciConfig.DefaultArtifactKeyPrefix, ciWorkflow.Id, ciWorkflow.Id)
+	key := fmt.Sprintf("%s/"+impl.ciConfig.CiArtifactLocationFormat, impl.ciConfig.CiDefaultArtifactKeyPrefix, ciWorkflow.Id, ciWorkflow.Id)
 
 	baseLogLocationPathConfig := impl.ciConfig.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
@@ -830,7 +830,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	}
 
 	if ciConfig.LogsBucket == "" {
-		ciConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+		ciConfig.LogsBucket = impl.ciConfig.CiDefaultBuildLogsBucket
 	}
 	ciLogRequest := BuildLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,

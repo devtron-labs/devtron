@@ -31,6 +31,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"net/http"
 	"strings"
 	"time"
@@ -438,14 +439,15 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx con
 
 	envId := int32(installedApp.EnvironmentId)
 	clusterId := int32(installedApp.ClusterId)
-	appStoreVersionId := int32(installedApp.AppStoreApplicationVersionId)
+	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
+	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
 
 	manifestRequest := openapi2.TemplateChartRequest{
 		EnvironmentId:                &envId,
 		ClusterId:                    &clusterId,
 		Namespace:                    &installedApp.Namespace,
 		ReleaseName:                  &installedApp.AppName,
-		AppStoreApplicationVersionId: &appStoreVersionId,
+		AppStoreApplicationVersionId: appStoreVersionId,
 		ValuesYaml:                   values.ValuesYaml,
 	}
 

@@ -18,20 +18,20 @@
 package cluster
 
 import (
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"time"
-
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type ClusterDescriptionBean struct {
-	ClusterId        int                      `json:"clusterId" validate:"number"`
-	ClusterName      string                   `json:"clusterName" validate:"required"`
-	ClusterCreatedBy string                   `json:"clusterCreatedBy" validate:"number"`
-	ClusterCreatedOn time.Time                `json:"clusterCreatedOn" validate:"required"`
-	ClusterNote      *ClusterNoteResponseBean `json:"clusterNote,omitempty"`
+	ClusterId        int                              `json:"clusterId" validate:"number"`
+	ClusterName      string                           `json:"clusterName" validate:"required"`
+	ClusterCreatedBy string                           `json:"clusterCreatedBy" validate:"number"`
+	ClusterCreatedOn time.Time                        `json:"clusterCreatedOn" validate:"required"`
+	ClusterNote      *apiBean.GenericNoteResponseBean `json:"clusterNote,omitempty"`
 }
 
 type ClusterDescriptionService interface {
@@ -53,8 +53,8 @@ func NewClusterDescriptionServiceImpl(repository repository.ClusterDescriptionRe
 	return clusterDescriptionService
 }
 
-func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(id int) (*ClusterDescriptionBean, error) {
-	model, err := impl.clusterDescriptionRepository.FindByClusterIdWithClusterDetails(id)
+func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(clusterId int) (*ClusterDescriptionBean, error) {
+	model, err := impl.clusterDescriptionRepository.FindByClusterIdWithClusterDetails(clusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(id 
 		ClusterCreatedOn: model.ClusterCreatedOn,
 	}
 	if model.NoteId > 0 {
-		clusterNote := &ClusterNoteResponseBean{
+		clusterNote := &apiBean.GenericNoteResponseBean{
 			Id:          model.NoteId,
 			Description: model.Description,
 			UpdatedBy:   noteUpdatedByUser.EmailId,

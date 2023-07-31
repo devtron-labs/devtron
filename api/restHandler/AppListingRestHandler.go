@@ -42,6 +42,7 @@ import (
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -106,6 +107,7 @@ type AppListingRestHandlerImpl struct {
 	appStatusService                  appStatus.AppStatusService
 	installedAppRepository            repository.InstalledAppRepository
 	environmentClusterMappingsService cluster.EnvironmentService
+	genericNoteService                genericNotes.GenericNoteService
 	cfg                               *bean.Config
 	k8sApplicationService             application3.K8sApplicationService
 }
@@ -137,6 +139,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
 	environmentClusterMappingsService cluster.EnvironmentService,
+	genericNoteService genericNotes.GenericNoteService,
 	k8sApplicationService application3.K8sApplicationService,
 ) *AppListingRestHandlerImpl {
 	cfg := &bean.Config{}
@@ -167,6 +170,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		appStatusService:                  appStatusService,
 		installedAppRepository:            installedAppRepository,
 		environmentClusterMappingsService: environmentClusterMappingsService,
+		genericNoteService:                genericNoteService,
 		cfg:                               cfg,
 		k8sApplicationService:             k8sApplicationService,
 	}

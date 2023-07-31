@@ -188,7 +188,7 @@ type PipelineBuilderImpl struct {
 	pipelineConfigRepository         chartConfig.PipelineConfigRepository
 	mergeUtil                        util.MergeUtil
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
-	ciConfig                         *CiConfig
+	ciConfig                         *CiCdConfig
 	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
 	appService                       app.AppService
 	imageScanResultRepository        security.ImageScanResultRepository
@@ -252,7 +252,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	mergeUtil util.MergeUtil,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	ciConfig *CiConfig,
+	ciConfig *CiCdConfig,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
@@ -749,7 +749,7 @@ func (impl *PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConf
 		return nil, err
 	}
 	//TODO fill these variables
-	//ciConfig.CiPipeline=
+	//ciCdConfig.CiPipeline=
 	//--------pipeline population start
 	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -1148,7 +1148,7 @@ func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipeline
 func (impl *PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error) {
 	originalCiConf, err := impl.getCiTemplateVariables(updateRequest.AppId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching original ciConfig for update", "appId", updateRequest.Id, "err", err)
+		impl.logger.Errorw("error in fetching original ciCdConfig for update", "appId", updateRequest.Id, "err", err)
 		return nil, err
 	}
 	if originalCiConf.Version != updateRequest.Version {

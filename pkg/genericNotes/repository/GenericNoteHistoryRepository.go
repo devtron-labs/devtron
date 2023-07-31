@@ -20,40 +20,41 @@ package repository
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"go.uber.org/zap"
 )
 
-type ClusterNoteHistory struct {
-	tableName   struct{} `sql:"cluster_note_history" pg:",discard_unknown_columns"`
+type GenericNoteHistory struct {
+	tableName   struct{} `sql:"generic_note_history" pg:",discard_unknown_columns"`
 	Id          int      `sql:"id,pk"`
 	NoteId      int      `sql:"note_id"`
 	Description string   `sql:"description"`
 	sql.AuditLog
 }
 
-type ClusterNoteHistoryRepository interface {
-	SaveHistory(model *ClusterNoteHistory) error
-	FindHistoryByNoteId(id []int) ([]ClusterNoteHistory, error)
+type GenericNoteHistoryRepository interface {
+	sql.TransactionWrapper
+	SaveHistory(tx *pg.Tx, model *GenericNoteHistory) error
+	FindHistoryByNoteId(id []int) ([]GenericNoteHistory, error)
 }
 
-func NewClusterNoteHistoryRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterNoteHistoryRepositoryImpl {
-	return &ClusterNoteHistoryRepositoryImpl{
-		dbConnection: dbConnection,
-		logger:       logger,
+func NewGenericNoteHistoryRepositoryImpl(dbConnection *pg.DB) *GenericNoteHistoryRepositoryImpl {
+	TransactionUtilImpl := sql.NewTransactionUtilImpl(dbConnection)
+	return &GenericNoteHistoryRepositoryImpl{
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
-type ClusterNoteHistoryRepositoryImpl struct {
+type GenericNoteHistoryRepositoryImpl struct {
+	*sql.TransactionUtilImpl
 	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
 }
 
-func (impl ClusterNoteHistoryRepositoryImpl) SaveHistory(model *ClusterNoteHistory) error {
-	return impl.dbConnection.Insert(model)
+func (impl GenericNoteHistoryRepositoryImpl) SaveHistory(tx *pg.Tx, model *GenericNoteHistory) error {
+	return tx.Insert(model)
 }
 
-func (impl ClusterNoteHistoryRepositoryImpl) FindHistoryByNoteId(id []int) ([]ClusterNoteHistory, error) {
-	var clusterNoteHistories []ClusterNoteHistory
+func (impl GenericNoteHistoryRepositoryImpl) FindHistoryByNoteId(id []int) ([]GenericNoteHistory, error) {
+	var clusterNoteHistories []GenericNoteHistory
 	err := impl.dbConnection.
 		Model(&clusterNoteHistories).
 		Where("note_id =?", id).

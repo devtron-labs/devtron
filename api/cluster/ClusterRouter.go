@@ -66,7 +66,7 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.Update)
 
-	clusterRouter.Path("/description/note").
+	clusterRouter.Path("/description").
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.UpdateClusterNote)
 

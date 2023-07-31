@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -18,6 +19,7 @@ type InstalledAppVersionHistoryRepository interface {
 	GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId int) (*InstalledAppVersionHistory, error)
 	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
+	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error)
 
 	GetConnection() *pg.DB
 }
@@ -76,6 +78,20 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHisto
 		Where("installed_app_version_history.id = ?", id).Select()
 	return model, err
 }
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error) {
+	appStoreApplicationVersionId := 0
+	query := "SELECT iav.app_store_application_version_id " +
+		" FROM installed_app_version_history iavh " +
+		" INNER JOIN installed_app_versions iav " +
+		" ON iav.id=iavh.installed_app_version_id " +
+		"WHERE iavh.id=%d;"
+
+	query = fmt.Sprintf(query, installedAppVersionHistoryId)
+	_, err := impl.dbConnection.Query(&appStoreApplicationVersionId, query)
+	return appStoreApplicationVersionId, err
+}
+
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHistoryByVersionId(installAppVersionId int) ([]*InstalledAppVersionHistory, error) {
 	var model []*InstalledAppVersionHistory
 	err := impl.dbConnection.Model(&model).

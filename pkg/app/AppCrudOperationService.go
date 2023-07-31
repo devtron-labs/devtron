@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
@@ -53,16 +54,20 @@ type AppCrudOperationServiceImpl struct {
 	appRepository          appRepository.AppRepository
 	userRepository         repository.UserRepository
 	installedAppRepository repository2.InstalledAppRepository
+	genericNoteService     genericNotes.GenericNoteService
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository) *AppCrudOperationServiceImpl {
+	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository,
+	installedAppRepository repository2.InstalledAppRepository,
+	genericNoteService genericNotes.GenericNoteService) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
 		appRepository:          appRepository,
 		userRepository:         userRepository,
 		installedAppRepository: installedAppRepository,
+		genericNoteService:     genericNoteService,
 	}
 }
 
@@ -105,7 +110,6 @@ func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*
 		impl.logger.Errorw("error in fetching app", "error", err)
 		return nil, err
 	}
-	app.Description = request.Description
 	app.TeamId = request.TeamId
 	app.UpdatedOn = time.Now()
 	app.UpdatedBy = request.UserId
@@ -319,6 +323,11 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 	if app.AppType == helper.Job {
 		appName = app.DisplayName
 	}
+	descriptionResp, err := impl.genericNoteService.GetGenericNotesForAppIds([]int{app.Id})
+	if err != nil {
+		impl.logger.Errorw("error in fetching description", "err", err, "appId", app.Id)
+		return nil, err
+	}
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
 		AppName:     appName,
@@ -328,7 +337,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
-		Description: app.Description,
+		Description: descriptionResp[app.Id],
 	}
 	return info, nil
 }

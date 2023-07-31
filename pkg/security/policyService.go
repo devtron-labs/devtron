@@ -63,7 +63,7 @@ type PolicyServiceImpl struct {
 	imageScanObjectMetaRepository security.ImageScanObjectMetaRepository
 	client                        *http.Client
 	ciArtifactRepository          repository.CiArtifactRepository
-	ciConfig                      *pipeline.CiConfig
+	ciConfig                      *pipeline.CiCdConfig
 	scanHistoryRepository         security.ImageScanHistoryRepository
 	cveStoreRepository            security.CveStoreRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
@@ -79,7 +79,7 @@ func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	scanResultRepository security.ImageScanResultRepository,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
 	imageScanObjectMetaRepository security.ImageScanObjectMetaRepository, client *http.Client,
-	ciArtifactRepository repository.CiArtifactRepository, ciConfig *pipeline.CiConfig,
+	ciArtifactRepository repository.CiArtifactRepository, ciConfig *pipeline.CiCdConfig,
 	scanHistoryRepository security.ImageScanHistoryRepository, cveStoreRepository security.CveStoreRepository,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository) *PolicyServiceImpl {
 	return &PolicyServiceImpl{
