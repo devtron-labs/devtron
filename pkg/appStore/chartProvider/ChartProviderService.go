@@ -189,6 +189,7 @@ func (impl *ChartProviderServiceExtendedImpl) ToggleChartProvider(request *Chart
 		}
 		found := false
 		for _, ociRegistryConfig := range ociRegistryConfigs {
+			//TODO: refactor
 			if ociRegistryConfig.RepositoryType == dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART &&
 				(ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL ||
 					ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) {
@@ -225,6 +226,7 @@ func (impl *ChartProviderServiceExtendedImpl) SyncChartProvider(request *ChartPr
 	}
 	err := impl.chartRepositoryService.TriggerChartSyncManual(chartProviderConfig)
 	if err != nil {
+		impl.logger.Errorw("error creating chart sync job, SyncChartProvider", "err", err)
 		return err
 	}
 	return nil

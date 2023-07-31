@@ -118,12 +118,14 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 		if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
 			query = query + " LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
-				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR das.active IS TRUE))" +
+				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
+				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)))" +
 				" AND (ch.id IN (?) OR das.id IN (?))"
 		} else if len(filter.RegistryId) > 0 {
 			query = query +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
-				" WHERE asv.latest IS TRUE AND das.active IS TRUE" +
+				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
+				" WHERE asv.latest IS TRUE AND (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)" +
 				" AND das.id IN (?)"
 		} else if len(filter.ChartRepoId) > 0 {
 			query = query +
@@ -134,7 +136,8 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 			query = query +
 				" LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
-				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR das.active IS TRUE))"
+				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
+				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)))"
 		}
 	}
 	return query
