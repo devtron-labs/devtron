@@ -110,6 +110,8 @@ type CiVolumeMount struct {
 }
 
 const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"
+const DevMode = "DEV"
+const ProdMode = "PROD"
 
 func GetCiCdConfig() (*CiCdConfig, error) {
 	cfg := &CiCdConfig{}
