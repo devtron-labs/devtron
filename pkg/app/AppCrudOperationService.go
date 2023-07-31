@@ -25,8 +25,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
-	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"
@@ -53,16 +54,20 @@ type AppCrudOperationServiceImpl struct {
 	appRepository          appRepository.AppRepository
 	userRepository         repository.UserRepository
 	installedAppRepository repository2.InstalledAppRepository
+	genericNoteService     genericNotes.GenericNoteService
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository) *AppCrudOperationServiceImpl {
+	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository,
+	installedAppRepository repository2.InstalledAppRepository,
+	genericNoteService genericNotes.GenericNoteService) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
 		appRepository:          appRepository,
 		userRepository:         userRepository,
 		installedAppRepository: installedAppRepository,
+		genericNoteService:     genericNoteService,
 	}
 }
 
@@ -86,7 +91,7 @@ func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*
 		}
 		labelKey := label.Key
 		labelValue := label.Value
-		err := util2.CheckIfValidLabel(labelKey, labelValue)
+		err := k8s.CheckIfValidLabel(labelKey, labelValue)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +110,6 @@ func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*
 		impl.logger.Errorw("error in fetching app", "error", err)
 		return nil, err
 	}
-	app.Description = request.Description
 	app.TeamId = request.TeamId
 	app.UpdatedOn = time.Now()
 	app.UpdatedBy = request.UserId
@@ -319,6 +323,11 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 	if app.AppType == helper.Job {
 		appName = app.DisplayName
 	}
+	descriptionResp, err := impl.genericNoteService.GetGenericNotesForAppIds([]int{app.Id})
+	if err != nil {
+		impl.logger.Errorw("error in fetching description", "err", err, "appId", app.Id)
+		return nil, err
+	}
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
 		AppName:     appName,
@@ -328,7 +337,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
-		Description: app.Description,
+		Description: descriptionResp[app.Id],
 	}
 	return info, nil
 }
@@ -425,7 +434,7 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 
 		// if labelKey is not satisfying the label key criteria don't add in labels
 		// label key must be a 'qualified name' (https://github.com/kubernetes/website/issues/17969)
-		err = util2.CheckIfValidLabel(labelKey, labelValue)
+		err = k8s.CheckIfValidLabel(labelKey, labelValue)
 		if err != nil {
 			impl.logger.Warnw("Ignoring label to propagate to app level", "err", err, "appId", appId)
 			continue
