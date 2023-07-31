@@ -25,5 +25,6 @@
 - docs: added devtron release note in summary.md (#3681)
 - docs: Updated readme for 4.18 chart for winter soldier. (#3673)
 ## Others
+- fix : Resource list fetch for K8s (#3713)
 - integration test cases FW (#3508)
 - task: Updated chart version for v0.6.19 (#3639)
