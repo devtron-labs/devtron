@@ -107,6 +107,19 @@ func (handler PipelineTriggerRestHandlerImpl) UploadKustomizeHandler(w http.Resp
 		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
 		return
 	}
+	token := r.Header.Get("token")
+	//rbac block starts from here
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
 	r.ParseMultipartForm(10 << 20) // Set the maximum upload size to 10 MB
 	file, fileHandler, err := r.FormFile("file")
 	if err != nil {
