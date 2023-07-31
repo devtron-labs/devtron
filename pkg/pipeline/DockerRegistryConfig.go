@@ -267,6 +267,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactSt
 			if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
 				ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
 				ociRegistryConfig.IsPublic = bean.IsPublic
+				ociRegistryConfig.IsChartPullActive = true
 			}
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
@@ -285,6 +286,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactSt
 			if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
 				ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
 				ociRegistryConfig.IsPublic = bean.IsPublic
+				ociRegistryConfig.IsChartPullActive = true
 			}
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
@@ -292,6 +294,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactSt
 			}
 		case "":
 			ociRegistryConfig.Deleted = true
+			ociRegistryConfig.IsChartPullActive = false
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
 				return err

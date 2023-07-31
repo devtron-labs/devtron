@@ -118,12 +118,12 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 			query = " LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
-				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)))" +
+				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))" +
 				" AND (ch.id IN (?) OR das.id IN (?))"
 		} else if len(filter.RegistryId) > 0 {
 			query = " LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
-				" WHERE asv.latest IS TRUE AND (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)" +
+				" WHERE asv.latest IS TRUE AND (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)" +
 				" AND das.id IN (?)"
 		} else if len(filter.ChartRepoId) > 0 {
 			query = " LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
@@ -133,7 +133,7 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 			query = " LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
-				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)))"
+				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))"
 		}
 	}
 	return query
@@ -187,7 +187,7 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindById(id int) (*AppStore
 		Where("app_store_application_version.id = ?", id).
 		Join("INNER JOIN app_store aps on app_store_application_version.app_store_id = aps.id").
 		Join("LEFT JOIN chart_repo ch on aps.chart_repo_id = ch.id").
-		Join("LEFT JOIN docker_artifact_store das on aps.docker_artifact_store_id = das.id").
+		Join("LEFT JOIN docker_artifact_store das on (aps.docker_artifact_store_id = das.id and das.active IS TRUE)").
 		Limit(1).
 		Select()
 	return appStoreWithVersion, err
@@ -204,7 +204,7 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindByIds(ids []int) ([]*Ap
 		Where("app_store_application_version.id in (?)", pg.In(ids)).
 		Join("INNER JOIN app_store aps on app_store_application_version.app_store_id = aps.id").
 		Join("LEFT JOIN chart_repo ch on aps.chart_repo_id = ch.id").
-		Join("LEFT JOIN docker_artifact_store das on aps.docker_artifact_store_id = das.id").
+		Join("LEFT JOIN docker_artifact_store das on (aps.docker_artifact_store_id = das.id and das.active IS TRUE)").
 		Select()
 	return appStoreApplicationVersions, err
 }
