@@ -341,6 +341,29 @@ func (impl *AppServiceImpl) UploadKustomizeData(appId int, envId int, unzipDir s
 	if err != nil {
 		return err
 	}
+	app, err := impl.appRepository.FindById(appId)
+	env, err := impl.envRepository.FindById(envId)
+
+	argoAppName := fmt.Sprintf("%s-%s", app.AppName, env.Name)
+	//if status, ok:=status.FromError(err);ok{
+	appStatus, _ := status.FromError(err)
+
+	if appStatus.Code() == codes.OK {
+		patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Helm: nil, Plugin: &v1alpha1.ApplicationSourcePlugin{Env: []*v1alpha1.EnvEntry{{Name: "HELM_VALUES", Value: "targetRevision: master"}}}}}}
+		reqbyte, err := json.Marshal(patchReq)
+		if err != nil {
+			impl.logger.Errorw("error in creating patch", "err", err)
+		}
+		reqString := string(reqbyte)
+		patchType := "merge"
+		_, err = impl.acdClient.Patch(context.Background(), &application2.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
+		if err != nil {
+			impl.logger.Errorw("error in creating argo pipeline ", "patch", string(reqbyte), "err", err)
+			return err
+		}
+		impl.logger.Debugw("pipeline update req ", "res", patchReq)
+	}
+
 	return nil
 }
 func (impl *AppServiceImpl) SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
