@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"strconv"
 	"time"
@@ -295,7 +296,8 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	query = query + " inner join cluster on env.cluster_id = cluster.id"
 	query = query + " inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id"
 	query = query + " inner join app_store aps on aps.id = asav.app_store_id"
-	query = query + " inner join chart_repo ch on ch.id = aps.chart_repo_id"
+	query = query + " left join chart_repo ch on ch.id = aps.chart_repo_id"
+	query = query + " left join  docker_artifact_store das on aps.docker_artifact_store_id = das.id"
 	query = query + " left join app_status on app_status.app_id = ia.app_id and ia.environment_id = app_status.env_id"
 	query = query + " where ia.active = true and iav.active = true"
 	if filter.OnlyDeprecated {
@@ -373,13 +375,32 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdAnd
 	installedAppVersion := &InstalledAppVersions{}
 	err := impl.dbConnection.
 		Model(installedAppVersion).
-		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore", "AppStoreApplicationVersion.AppStore.ChartRepo").
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion").
 		Join("inner join installed_apps ia on ia.id = installed_app_versions.installed_app_id").
 		Where("ia.id = ?", installedAppId).
 		Where("ia.environment_id = ?", envId).
 		Where("ia.active = true").Where("installed_app_versions.active = true").
 		Limit(1).
 		Select()
+	if err != nil {
+		return installedAppVersion, err
+	}
+	appStore := &appStoreDiscoverRepository.AppStore{}
+	err = impl.dbConnection.
+		Model(appStore).
+		Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
+		Where("app_store.id = ? ", installedAppVersion.AppStoreApplicationVersion.AppStoreId).
+		Where("app_store.active = true").
+		Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE and " +
+				"repository_type='CHART' and " +
+				"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
+		}).
+		Select()
+	if err != nil {
+		return installedAppVersion, err
+	}
+	installedAppVersion.AppStoreApplicationVersion.AppStore = appStore
 	return installedAppVersion, err
 }
 

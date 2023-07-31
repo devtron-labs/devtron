@@ -3,6 +3,7 @@ package appStoreDeploymentTool
 import (
 	"context"
 	"errors"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"net/http"
 	"time"
 
@@ -46,10 +47,11 @@ type AppStoreDeploymentHelmServiceImpl struct {
 	helmAppClient                        client.HelmAppClient
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
 }
 
 func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient, installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService) *AppStoreDeploymentHelmServiceImpl {
+	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient, installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService, OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *AppStoreDeploymentHelmServiceImpl {
 	return &AppStoreDeploymentHelmServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,
@@ -58,6 +60,7 @@ func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppServ
 		helmAppClient:                        helmAppClient,
 		installedAppRepository:               installedAppRepository,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
+		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
 	}
 }
 
@@ -77,21 +80,46 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		impl.Logger.Errorw("fetching error", "err", err)
 		return installAppVersionRequest, err
 	}
-
+	var IsOCIRepo bool
+	var registryCredential *client.RegistryCredential
+	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
+	if dockerRegistryId != "" {
+		ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching oci registry config", "err", err)
+			return nil, err
+		}
+		var ociRegistryConfig *repository2.OCIRegistryConfig
+		for _, config := range ociRegistryConfigs {
+			if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+				ociRegistryConfig = config
+				break
+			}
+		}
+		IsOCIRepo = true
+		registryCredential = &client.RegistryCredential{
+			RegistryUrl:  appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:     appStoreAppVersion.AppStore.DockerArtifactStore.Username,
+			Password:     appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType: string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:     appStoreAppVersion.AppStore.Name,
+			IsPublic:     ociRegistryConfig.IsPublic,
+		}
+	}
 	installReleaseRequest := &client.InstallReleaseRequest{
-		ChartName:    appStoreAppVersion.Name,
-		ChartVersion: appStoreAppVersion.Version,
-		ValuesYaml:   installAppVersionRequest.ValuesOverrideYaml,
-		ChartRepository: &client.ChartRepository{
-			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
-			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
-			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
-			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
-		},
+		ChartName:       appStoreAppVersion.Name,
+		ChartVersion:    appStoreAppVersion.Version,
+		ValuesYaml:      installAppVersionRequest.ValuesOverrideYaml,
+		ChartRepository: nil,
 		ReleaseIdentifier: &client.ReleaseIdentifier{
 			ReleaseNamespace: installAppVersionRequest.Namespace,
 			ReleaseName:      installAppVersionRequest.AppName,
 		},
+		IsOCIRepo:          IsOCIRepo,
+		RegistryCredential: registryCredential,
 	}
 
 	_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
