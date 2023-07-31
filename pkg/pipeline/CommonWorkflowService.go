@@ -549,7 +549,7 @@ func (impl *CommonWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *
 }
 
 func (impl *CommonWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType, isCi bool) WorkflowExecutor {
-	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF || isCi {
+	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
 	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		return impl.systemWorkflowExecutor

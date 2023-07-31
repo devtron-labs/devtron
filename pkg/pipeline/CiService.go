@@ -556,6 +556,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		OrchestratorToken:          impl.ciConfig.OrchestratorToken,
 		ImageRetryCount:            impl.ciConfig.ImageRetryCount,
 		ImageRetryInterval:         impl.ciConfig.ImageRetryInterval,
+		WorkflowExecutor:           impl.ciConfig.CiWorkflowExecutorType,
 	}
 	if dockerRegistry != nil {
 
