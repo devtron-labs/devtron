@@ -345,23 +345,31 @@ func (impl *AppServiceImpl) UploadKustomizeData(appId int, envId int, unzipDir s
 	env, err := impl.envRepository.FindById(envId)
 
 	argoAppName := fmt.Sprintf("%s-%s", app.AppName, env.Name)
+	application, err := impl.acdClient.Get(context.Background(), &application2.ApplicationQuery{Name: &argoAppName})
+
+	if err != nil {
+		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline")
+		return err
+	}
 	//if status, ok:=status.FromError(err);ok{
 	appStatus, _ := status.FromError(err)
 
 	if appStatus.Code() == codes.OK {
-		patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Helm: nil, Plugin: &v1alpha1.ApplicationSourcePlugin{Env: []*v1alpha1.EnvEntry{{Name: "HELM_VALUES", Value: "targetRevision: master"}}}}}}
-		reqbyte, err := json.Marshal(patchReq)
-		if err != nil {
-			impl.logger.Errorw("error in creating patch", "err", err)
+		if application.Spec.Source.Helm != nil {
+			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Helm: nil, Plugin: &v1alpha1.ApplicationSourcePlugin{Env: []*v1alpha1.EnvEntry{{Name: "HELM_VALUES", Value: "targetRevision: master"}}}}}}
+			reqbyte, err := json.Marshal(patchReq)
+			if err != nil {
+				impl.logger.Errorw("error in creating patch", "err", err)
+			}
+			reqString := string(reqbyte)
+			patchType := "merge"
+			_, err = impl.acdClient.Patch(context.Background(), &application2.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
+			if err != nil {
+				impl.logger.Errorw("error in creating argo pipeline ", "patch", string(reqbyte), "err", err)
+				return err
+			}
+			impl.logger.Debugw("pipeline update req ", "res", patchReq)
 		}
-		reqString := string(reqbyte)
-		patchType := "merge"
-		_, err = impl.acdClient.Patch(context.Background(), &application2.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
-		if err != nil {
-			impl.logger.Errorw("error in creating argo pipeline ", "patch", string(reqbyte), "err", err)
-			return err
-		}
-		impl.logger.Debugw("pipeline update req ", "res", patchReq)
 	}
 
 	return nil
