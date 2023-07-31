@@ -3,12 +3,15 @@ package pipeline
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
+	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	"strconv"
 )
 
@@ -262,4 +265,13 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 	}
 
 	return nil
+}
+
+func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.WorkflowInterface, error) {
+	clientSet, err := versioned.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	wfClient := clientSet.ArgoprojV1alpha1().Workflows(namespace) // create the workflow client
+	return wfClient, nil
 }

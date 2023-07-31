@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
@@ -591,23 +590,23 @@ func (impl *CommonWorkflowServiceImpl) getRuntimeEnvClientInstance(environment *
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
 		return nil, err
 	}
-	clientSet, err := versioned.NewForConfig(restConfig)
+	wfClient, err := GetClientInstance(restConfig, environment.Namespace)
 	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
+		impl.Logger.Errorw("error in getting wfClient", "err", err)
 		return nil, err
 	}
-	wfClient := clientSet.ArgoprojV1alpha1().Workflows(environment.Namespace) // create the workflow client
 	return wfClient, nil
 }
-func (impl *CommonWorkflowServiceImpl) getClientInstance(namespace string) (v1alpha12.WorkflowInterface, error) {
-	clientSet, err := versioned.NewForConfig(impl.config)
-	if err != nil {
-		impl.Logger.Errorw("err on get client instance", "err", err)
-		return nil, err
-	}
-	wfClient := clientSet.ArgoprojV1alpha1().Workflows(namespace) // create the workflow client
-	return wfClient, nil
-}
+
+//func (impl *CommonWorkflowServiceImpl) getClientInstance(namespace string) (v1alpha12.WorkflowInterface, error) {
+//	clientSet, err := versioned.NewForConfig(impl.config)
+//	if err != nil {
+//		impl.Logger.Errorw("err on get client instance", "err", err)
+//		return nil, err
+//	}
+//	wfClient := clientSet.ArgoprojV1alpha1().Workflows(namespace) // create the workflow client
+//	return wfClient, nil
+//}
 
 func (impl *CommonWorkflowServiceImpl) getWfClient(environment *repository.Environment, namespace string, isExt bool) (v1alpha12.WorkflowInterface, error) {
 	var wfClient v1alpha12.WorkflowInterface
@@ -619,7 +618,7 @@ func (impl *CommonWorkflowServiceImpl) getWfClient(environment *repository.Envir
 			return nil, err
 		}
 	} else {
-		wfClient, err = impl.getClientInstance(namespace)
+		wfClient, err = GetClientInstance(impl.config, namespace)
 		if err != nil {
 			impl.Logger.Errorw("cannot build wf client", "err", err)
 			return nil, err
