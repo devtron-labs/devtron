@@ -521,7 +521,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	}
 	if !envConfigProperties.IsOverride {
 		handler.Logger.Errorw("isOverride is not true, ChangeChartRef", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusUnprocessableEntity)
+		common.WriteJsonResp(w, err, "specific environment is not overriden", http.StatusUnprocessableEntity)
 		return
 	}
 	compatible, oldChartType, newChartType := handler.chartService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
