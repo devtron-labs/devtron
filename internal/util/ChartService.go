@@ -302,8 +302,9 @@ func (impl ChartTemplateServiceImpl) PushKustomizeToGitRepo(request KustomizeUpl
 	chartDir := fmt.Sprintf("%s-%s", request.GitOpsRepoName, impl.GetDir())
 	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
 	clonedDir, err := impl.syncRepo(request.GitOpsRepoName, clonedDir, request.RepoUrl, chartDir)
+	defer os.RemoveAll(clonedDir)
 	if err != nil {
-		impl.logger.Errorw("eerrrr", err)
+		impl.logger.Errorw("err", err)
 		return err
 	}
 	targetPath := clonedDir + "/" + request.ReferenceTemplate + "/" + request.Version

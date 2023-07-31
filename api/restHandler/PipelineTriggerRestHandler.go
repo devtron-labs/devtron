@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"net/http"
 	"strconv"
@@ -114,7 +115,8 @@ func (handler PipelineTriggerRestHandlerImpl) UploadKustomizeHandler(w http.Resp
 	}
 	defer file.Close()
 
-	uploadDir := "/tmp/uploads"
+	uploadDir := fmt.Sprintf("/tmp/uploads/%v-%v", appId, time.Now().Nanosecond())
+	defer os.RemoveAll(uploadDir)
 	os.MkdirAll(uploadDir, os.ModePerm)
 
 	zipFilePath := filepath.Join(uploadDir, fileHandler.Filename)

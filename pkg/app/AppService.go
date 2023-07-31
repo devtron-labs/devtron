@@ -320,7 +320,7 @@ const (
 
 func (impl *AppServiceImpl) UploadKustomizeData(appId int, envId int, unzipDir string) error {
 	var chart *chartRepoRepository.Chart
-	envConfigOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(appId, 1)
+	envConfigOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(appId, envId)
 	if err != nil || envConfigOverride == nil {
 		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(appId)
 		if err != nil {
