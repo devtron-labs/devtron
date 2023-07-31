@@ -27,7 +27,7 @@ func TestExecuteWorkflow(t *testing.T) {
 	t.SkipNow()
 	logger, loggerErr := util.NewSugardLogger()
 	assert.Nil(t, loggerErr)
-	cdConfig, err := GetCdConfig()
+	cdConfig, err := GetCiCdConfig()
 	assert.Nil(t, err)
 	workflowExecutorImpl := NewArgoWorkflowExecutorImpl(logger)
 

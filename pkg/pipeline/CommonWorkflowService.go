@@ -470,6 +470,7 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 	workflowTemplate.WorkflowNamePrefix = workflowRequest.WorkflowNamePrefix
 	if !isCi {
 		workflowTemplate.WfControllerInstanceID = impl.ciCdConfig.WfControllerInstanceID
+		workflowTemplate.TerminationGracePeriod = impl.ciCdConfig.TerminationGracePeriod
 	}
 	workflowTemplate.ActiveDeadlineSeconds = &workflowRequest.ActiveDeadlineSeconds
 	workflowTemplate.Namespace = workflowRequest.Namespace
@@ -492,7 +493,7 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 		workflowTemplate.ClusterConfig = impl.config
 	}
 
-	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor, isCi)
+	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 	if workflowExecutor == nil {
 		return errors.New("workflow executor not found")
 	}
@@ -548,7 +549,7 @@ func (impl *CommonWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *
 	workflowTemplate.CloudStorageKey = blobStorageKey
 }
 
-func (impl *CommonWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType, isCi bool) WorkflowExecutor {
+func (impl *CommonWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
 	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
 	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
@@ -573,7 +574,7 @@ func (impl *CommonWorkflowServiceImpl) TerminateWorkflow(executorType pipelineCo
 	impl.Logger.Debugw("terminating wf", "name", name)
 	var err error
 	if executorType != "" {
-		workflowExecutor := impl.getWorkflowExecutor(executorType, false)
+		workflowExecutor := impl.getWorkflowExecutor(executorType)
 		err = workflowExecutor.TerminateWorkflow(name, namespace, restConfig)
 	} else {
 		wfClient, err := impl.getWfClient(environment, namespace, isExt)

@@ -78,6 +78,7 @@ type CiCdConfig struct {
 	ExposeCDMetrics                  bool                                `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 	UseBlobStorageConfigInCdWorkflow bool                                `env:"USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW" envDefault:"true"`
 	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
+	TerminationGracePeriod           int                                 `env:"TERMINATION_GRACE_PERIOD_SECS" envDefault:"180"`
 
 	//common in both ciconfig and cd config
 	Mode                           string `env:"MODE" envDefault:"DEV"`
