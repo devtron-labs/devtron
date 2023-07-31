@@ -1086,6 +1086,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineByPipelineId(w http.Re
 		return
 	}
 	ciPipeline.AppName = app.AppName
+	ciPipeline.AppType = app.AppType
 
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
