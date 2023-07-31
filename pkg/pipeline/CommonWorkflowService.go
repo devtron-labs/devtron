@@ -274,7 +274,7 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 			impl.Logger.Errorw("failed to get configmap data", "err", err)
 			return err
 		}
-		impl.Logger.Debugw("existing cm", "pipelineId", pipeline.Id, "cm", existingConfigMap)
+		impl.Logger.Debugw("existing cm", "cm", existingConfigMap, "secrets", existingSecrets)
 	}
 
 	if isCi && isJob {
