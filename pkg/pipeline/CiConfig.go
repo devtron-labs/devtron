@@ -17,72 +17,72 @@
 
 package pipeline
 
-const DevMode = "DEV"
-const ProdMode = "PROD"
+//const DevMode = "DEV"
+//const ProdMode = "PROD"
 
-type CiConfig struct {
-	//	DefaultCacheBucket       string `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
-	DefaultCacheBucketRegion string `env:"DEFAULT_CACHE_BUCKET_REGION" envDefault:"us-east-2"`
-	CiLogsKeyPrefix          string `env:"CI_LOGS_KEY_PREFIX" envDxefault:"my-artifacts"`
-	CiDefaultImage           string `env:"DEFAULT_CI_IMAGE" envDefault:"686244538589.dkr.ecr.us-east-2.amazonaws.com/cirunner:47"`
-	CiDefaultNamespace       string `env:"DEFAULT_NAMESPACE" envDefault:"devtron-ci"`
-	CiDefaultTimeout         int64  `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
-	//Mode                             string                       `env:"MODE" envDefault:"DEV"`
-	CiDefaultBuildLogsBucket    string   `env:"DEFAULT_BUILD_LOGS_BUCKET" envDefault:"devtron-pro-ci-logs"`
-	CiDefaultCdLogsBucketRegion string   `env:"DEFAULT_CD_LOGS_BUCKET_REGION" envDefault:"us-east-2"`
-	CiLimitCpu                  string   `env:"LIMIT_CI_CPU" envDefault:"0.5"`
-	CiLimitMem                  string   `env:"LIMIT_CI_MEM" envDefault:"3G"`
-	CiReqCpu                    string   `env:"REQ_CI_CPU" envDefault:"0.5"`
-	CiReqMem                    string   `env:"REQ_CI_MEM" envDefault:"3G"`
-	CiTaintKey                  string   `env:"CI_NODE_TAINTS_KEY" envDefault:""`
-	CiTaintValue                string   `env:"CI_NODE_TAINTS_VALUE" envDefault:""`
-	CiNodeLabelSelector         []string `env:"CI_NODE_LABEL_SELECTOR"`
-	CacheLimit                  int64    `env:"CACHE_LIMIT" envDefault:"5000000000"` // TODO: Add to default db config also
-	CiDefaultBuildLogsKeyPrefix string   `env:"DEFAULT_BUILD_LOGS_KEY_PREFIX" envDefault:"arsenal-v1"`
-	CiDefaultArtifactKeyPrefix  string   `env:"DEFAULT_ARTIFACT_KEY_LOCATION" envDefault:"arsenal-v1/ci-artifacts"`
-	CiWorkflowServiceAccount    string   `env:"WORKFLOW_SERVICE_ACCOUNT" envDefault:"ci-runner"`
-	ExternalCiApiSecret         string   `env:"EXTERNAL_CI_API_SECRET" envDefault:"devtroncd-secret"`
-	ExternalCiWebhookUrl        string   `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:""`
-	ExternalCiPayload           string   `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/vikram1601/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2022-10-30T20:00:00\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"User Name \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\"}"`
-	CiArtifactLocationFormat    string   `env:"CI_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
-	ImageScannerEndpoint        string   `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
-	//CloudProvider               blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
-	//AzureAccountName               string                       `env:"AZURE_ACCOUNT_NAME"`
-	//AzureGatewayUrl                string                       `env:"AZURE_GATEWAY_URL" envDefault:"http://devtron-minio.devtroncd:9000"`
-	//AzureGatewayConnectionInsecure bool   `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
-	//AzureBlobContainerCiLog    string `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
-	//AzureBlobContainerCiCache  string `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
-	CiDefaultAddressPoolBaseCidr string `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
-	CiDefaultAddressPoolSize     int    `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
-	//BlobStorageEnabled               bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
-	//BlobStorageS3AccessKey           string                       `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
-	//BlobStorageS3SecretKey           string                       `env:"BLOB_STORAGE_S3_SECRET_KEY"`
-	//BlobStorageS3Endpoint            string                       `env:"BLOB_STORAGE_S3_ENDPOINT"`
-	//BlobStorageS3EndpointInsecure    bool   `env:"BLOB_STORAGE_S3_ENDPOINT_INSECURE" envDefault:"false"`
-	//BlobStorageS3BucketVersioned     bool   `env:"BLOB_STORAGE_S3_BUCKET_VERSIONED" envDefault:"true"`
-	//BlobStorageGcpCredentialJson     string `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
-	//BuildLogTTLValue                 int    `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
-	//AzureAccountKey                  string `env:"AZURE_ACCOUNT_KEY"`
-	CiRunnerDockerMTUValue           int    `env:"CI_RUNNER_DOCKER_MTU_VALUE" envDefault:"-1"`
-	IgnoreDockerCacheForCI           bool   `env:"CI_IGNORE_DOCKER_CACHE"`
-	VolumeMountsForCiJson            string `env:"CI_VOLUME_MOUNTS_JSON"`
-	BuildPvcCachePath                string `env:"PRE_CI_CACHE_PATH" envDefault:"/devtroncd-cache"`
-	DefaultPvcCachePath              string `env:"DOCKER_BUILD_CACHE_PATH" envDefault:"/var/lib/docker"`
-	BuildxPvcCachePath               string `env:"BUILDX_CACHE_PATH" envDefault:"/var/lib/devtron/buildx"`
-	UseBlobStorageConfigInCiWorkflow bool   `env:"USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW" envDefault:"true"`
-	//BaseLogLocationPath              string `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
-	//InAppLoggingEnabled              bool   `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
-	DefaultTargetPlatform string `env:"DEFAULT_TARGET_PLATFORM" envDefault:""`
-	UseBuildx             bool   `env:"USE_BUILDX" envDefault:"false"`
-	//ClusterConfig                    *rest.Config
-	//NodeLabel                        map[string]string
-	EnableBuildContext bool `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
-	ImageRetryCount    int  `env:"IMAGE_RETRY_COUNT" envDefault:"0"`
-	ImageRetryInterval int  `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
-	//OrchestratorHost                 string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
-	//OrchestratorToken                string `env:"ORCH_TOKEN" envDefault:""`
-	*CiCdConfig
-}
+//type CiConfig struct {
+//	//	DefaultCacheBucket       string `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
+//	DefaultCacheBucketRegion string `env:"DEFAULT_CACHE_BUCKET_REGION" envDefault:"us-east-2"`
+//	CiLogsKeyPrefix          string `env:"CI_LOGS_KEY_PREFIX" envDxefault:"my-artifacts"`
+//	CiDefaultImage           string `env:"DEFAULT_CI_IMAGE" envDefault:"686244538589.dkr.ecr.us-east-2.amazonaws.com/cirunner:47"`
+//	CiDefaultNamespace       string `env:"DEFAULT_NAMESPACE" envDefault:"devtron-ci"`
+//	CiDefaultTimeout         int64  `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
+//	//Mode                             string                       `env:"MODE" envDefault:"DEV"`
+//	CiDefaultBuildLogsBucket    string   `env:"DEFAULT_BUILD_LOGS_BUCKET" envDefault:"devtron-pro-ci-logs"`
+//	CiDefaultCdLogsBucketRegion string   `env:"DEFAULT_CD_LOGS_BUCKET_REGION" envDefault:"us-east-2"`
+//	CiLimitCpu                  string   `env:"LIMIT_CI_CPU" envDefault:"0.5"`
+//	CiLimitMem                  string   `env:"LIMIT_CI_MEM" envDefault:"3G"`
+//	CiReqCpu                    string   `env:"REQ_CI_CPU" envDefault:"0.5"`
+//	CiReqMem                    string   `env:"REQ_CI_MEM" envDefault:"3G"`
+//	CiTaintKey                  string   `env:"CI_NODE_TAINTS_KEY" envDefault:""`
+//	CiTaintValue                string   `env:"CI_NODE_TAINTS_VALUE" envDefault:""`
+//	CiNodeLabelSelector         []string `env:"CI_NODE_LABEL_SELECTOR"`
+//	CacheLimit                  int64    `env:"CACHE_LIMIT" envDefault:"5000000000"` // TODO: Add to default db config also
+//	CiDefaultBuildLogsKeyPrefix string   `env:"DEFAULT_BUILD_LOGS_KEY_PREFIX" envDefault:"arsenal-v1"`
+//	CiDefaultArtifactKeyPrefix  string   `env:"DEFAULT_ARTIFACT_KEY_LOCATION" envDefault:"arsenal-v1/ci-artifacts"`
+//	CiWorkflowServiceAccount    string   `env:"WORKFLOW_SERVICE_ACCOUNT" envDefault:"ci-runner"`
+//	ExternalCiApiSecret         string   `env:"EXTERNAL_CI_API_SECRET" envDefault:"devtroncd-secret"`
+//	ExternalCiWebhookUrl        string   `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:""`
+//	ExternalCiPayload           string   `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/vikram1601/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2022-10-30T20:00:00\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"User Name \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\"}"`
+//	CiArtifactLocationFormat    string   `env:"CI_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
+//	ImageScannerEndpoint        string   `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
+//	//CloudProvider               blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
+//	//AzureAccountName               string                       `env:"AZURE_ACCOUNT_NAME"`
+//	//AzureGatewayUrl                string                       `env:"AZURE_GATEWAY_URL" envDefault:"http://devtron-minio.devtroncd:9000"`
+//	//AzureGatewayConnectionInsecure bool   `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
+//	//AzureBlobContainerCiLog    string `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
+//	//AzureBlobContainerCiCache  string `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
+//	CiDefaultAddressPoolBaseCidr string `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
+//	CiDefaultAddressPoolSize     int    `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
+//	//BlobStorageEnabled               bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
+//	//BlobStorageS3AccessKey           string                       `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
+//	//BlobStorageS3SecretKey           string                       `env:"BLOB_STORAGE_S3_SECRET_KEY"`
+//	//BlobStorageS3Endpoint            string                       `env:"BLOB_STORAGE_S3_ENDPOINT"`
+//	//BlobStorageS3EndpointInsecure    bool   `env:"BLOB_STORAGE_S3_ENDPOINT_INSECURE" envDefault:"false"`
+//	//BlobStorageS3BucketVersioned     bool   `env:"BLOB_STORAGE_S3_BUCKET_VERSIONED" envDefault:"true"`
+//	//BlobStorageGcpCredentialJson     string `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
+//	//BuildLogTTLValue                 int    `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
+//	//AzureAccountKey                  string `env:"AZURE_ACCOUNT_KEY"`
+//	CiRunnerDockerMTUValue           int    `env:"CI_RUNNER_DOCKER_MTU_VALUE" envDefault:"-1"`
+//	IgnoreDockerCacheForCI           bool   `env:"CI_IGNORE_DOCKER_CACHE"`
+//	VolumeMountsForCiJson            string `env:"CI_VOLUME_MOUNTS_JSON"`
+//	BuildPvcCachePath                string `env:"PRE_CI_CACHE_PATH" envDefault:"/devtroncd-cache"`
+//	DefaultPvcCachePath              string `env:"DOCKER_BUILD_CACHE_PATH" envDefault:"/var/lib/docker"`
+//	BuildxPvcCachePath               string `env:"BUILDX_CACHE_PATH" envDefault:"/var/lib/devtron/buildx"`
+//	UseBlobStorageConfigInCiWorkflow bool   `env:"USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW" envDefault:"true"`
+//	//BaseLogLocationPath              string `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
+//	//InAppLoggingEnabled              bool   `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
+//	DefaultTargetPlatform string `env:"DEFAULT_TARGET_PLATFORM" envDefault:""`
+//	UseBuildx             bool   `env:"USE_BUILDX" envDefault:"false"`
+//	//ClusterConfig                    *rest.Config
+//	//NodeLabel                        map[string]string
+//	EnableBuildContext bool `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
+//	ImageRetryCount    int  `env:"IMAGE_RETRY_COUNT" envDefault:"0"`
+//	ImageRetryInterval int  `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
+//	//OrchestratorHost                 string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
+//	//OrchestratorToken                string `env:"ORCH_TOKEN" envDefault:""`
+//	*CiCdConfig
+//}
 
 //type CiVolumeMount struct {
 //	Name               string `json:"name"`

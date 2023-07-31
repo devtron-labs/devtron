@@ -119,9 +119,9 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 		if err != nil {
 			return nil, err
 		}
-		kubeconfig_cd := flag.String("kubeconfig_cd", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		kubeconfig := flag.String("kubeconfig", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 		flag.Parse()
-		cfg.ClusterConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig_cd)
+		cfg.ClusterConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {
 			return nil, err
 		}
@@ -131,8 +131,25 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 			return nil, err
 		}
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	//validation for supported cloudproviders
+	if cfg.BlobStorageEnabled && cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE &&
+		cfg.CloudProvider != BLOB_STORAGE_GCP && cfg.CloudProvider != BLOB_STORAGE_MINIO {
+		return nil, fmt.Errorf("unsupported blob storage provider: %s", cfg.CloudProvider)
+	}
+
+	return cfg, err
+}
+func getNodeLabel(cfg *CiCdConfig, isCi bool) (map[string]string, error) {
+	node := cfg.CdNodeLabelSelector
+	if isCi {
+		node = cfg.CiNodeLabelSelector
+	}
 	cfg.NodeLabel = make(map[string]string)
-	for _, l := range cfg.CdNodeLabelSelector {
+	for _, l := range node {
 		if l == "" {
 			continue
 		}
@@ -142,86 +159,5 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 		}
 		cfg.NodeLabel[kv[0]] = kv[1]
 	}
-	//validation for supported cloudproviders
-	if cfg.BlobStorageEnabled && cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE &&
-		cfg.CloudProvider != BLOB_STORAGE_GCP && cfg.CloudProvider != BLOB_STORAGE_MINIO {
-		return nil, fmt.Errorf("unsupported blob storage provider: %s", cfg.CloudProvider)
-	}
-
-	return cfg, err
+	return cfg.NodeLabel, nil
 }
-
-//func GetCiConfig() (*CiCdConfig, error) {
-//	cfg := &CiCdConfig{}
-//	err := env.Parse(cfg)
-//	if cfg.Mode == DevMode {
-//		usr, err := user.Current()
-//		if err != nil {
-//			return nil, err
-//		}
-//		kubeconfig := flag.String("kubeconfig", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-//		flag.Parse()
-//		cfg.ClusterConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
-//		if err != nil {
-//			return nil, err
-//		}
-//	} else {
-//		cfg.ClusterConfig, err = rest.InClusterConfig()
-//		if err != nil {
-//			return nil, err
-//		}
-//	}
-//	cfg.NodeLabel = make(map[string]string)
-//	for _, l := range cfg.CiNodeLabelSelector {
-//		if l == "" {
-//			continue
-//		}
-//		kv := strings.Split(l, "=")
-//		if len(kv) != 2 {
-//			return nil, fmt.Errorf("invalid ci node label selector %s, it must be in form key=value, key2=val2", kv)
-//		}
-//		cfg.NodeLabel[kv[0]] = kv[1]
-//	}
-//	//validation for supported cloudproviders
-//	if cfg.BlobStorageEnabled && cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE &&
-//		cfg.CloudProvider != BLOB_STORAGE_GCP && cfg.CloudProvider != BLOB_STORAGE_MINIO {
-//		return nil, fmt.Errorf("unsupported blob storage provider: %s", cfg.CloudProvider)
-//	}
-//	return cfg, err
-//}
-
-//
-//func GetCdConfig() (*CiCdConfig, error) {
-//	cfg := &CiCdConfig{}
-//	err := env.Parse(cfg)
-//	if cfg.Mode == DevMode {
-//		usr, err := user.Current()
-//		if err != nil {
-//			return nil, err
-//		}
-//		kubeconfig_cd := flag.String("kubeconfig_cd", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-//		flag.Parse()
-//		cfg.ClusterConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig_cd)
-//		if err != nil {
-//			return nil, err
-//		}
-//	} else {
-//		cfg.ClusterConfig, err = rest.InClusterConfig()
-//		if err != nil {
-//			return nil, err
-//		}
-//	}
-//	cfg.NodeLabel = make(map[string]string)
-//	for _, l := range cfg.CdNodeLabelSelector {
-//		if l == "" {
-//			continue
-//		}
-//		kv := strings.Split(l, "=")
-//		if len(kv) != 2 {
-//			return nil, fmt.Errorf("invalid ci node label selector %s, it must be in form key=value, key2=val2", kv)
-//		}
-//		cfg.NodeLabel[kv[0]] = kv[1]
-//	}
-//
-//	return cfg, err
-//}

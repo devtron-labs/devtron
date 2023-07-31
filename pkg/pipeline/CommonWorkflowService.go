@@ -236,6 +236,7 @@ func NewCommonWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repos
 func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment, appLabels map[string]string, isJob bool, isCi bool) error {
 
 	containerEnvVariables := []v12.EnvVar{}
+	getNodeLabel(impl.ciCdConfig, isCi)
 	if isCi {
 		containerEnvVariables = []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciCdConfig.ImageScannerEndpoint}}
 	}
