@@ -29,4 +29,5 @@ type WorkflowTemplate struct {
 	PrePostDeploySteps     []*StepObject
 	RefPlugins             []*RefPluginObject
 	TerminationGracePeriod int
+	WorkflowType           string
 }

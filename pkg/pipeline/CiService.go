@@ -254,7 +254,7 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 }
 
 // TODO: Send all trigger data
-func (impl *CiServiceImpl) BuildPayload(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *CommonWorkflowRequest) *client.Payload {
+func (impl *CiServiceImpl) BuildPayload(trigger Trigger, pipeline *pipelineConfig.CiPipeline) *client.Payload {
 	payload := &client.Payload{}
 	payload.AppName = pipeline.App.AppName
 	payload.PipelineName = pipeline.Name
