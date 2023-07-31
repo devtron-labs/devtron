@@ -89,7 +89,7 @@ func NewUserServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	return serviceImpl
 }
 
-func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, error) {
+func (impl *UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, error) {
 	if len(userInfo.RoleFilters) == 1 &&
 		userInfo.RoleFilters[0].Team == "" && userInfo.RoleFilters[0].Environment == "" && userInfo.RoleFilters[0].Action == "" {
 		//skip
@@ -112,7 +112,7 @@ func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, 
 	return true, nil
 }
 
-func (impl UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
+func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
 	var pass []string
 	var userResponse []*bean.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
@@ -187,7 +187,7 @@ func (impl UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo)
 	return userResponse, nil
 }
 
-func (impl UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (*bean.UserInfo, error) {
+func (impl *UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (*bean.UserInfo, error) {
 	dbConnection := impl.userRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -225,7 +225,7 @@ func (impl UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (*
 	return userInfo, nil
 }
 
-func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error) {
+func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error) {
 
 	var pass []string
 	var userResponse []*bean.UserInfo
@@ -264,7 +264,7 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, ma
 	return userResponse, nil
 }
 
-func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository2.UserModel, emailId string,
+func (impl *UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository2.UserModel, emailId string,
 	token string, managerAuth func(resource, token, object string) bool) (*bean.UserInfo, error) {
 	updateUserInfo, err := impl.GetById(dbUser.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -288,7 +288,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 	return userInfo, nil
 }
 
-func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emailId string, token string, managerAuth func(resource string, token string, object string) bool) (*bean.UserInfo, error) {
+func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emailId string, token string, managerAuth func(resource string, token string, object string) bool) (*bean.UserInfo, error) {
 	// if not found, create new user
 	dbConnection := impl.userRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -405,7 +405,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	return userInfo, nil
 }
 
-func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
+func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
 	//var policiesToBeAdded []casbin2.Policy
 	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
 	var err error
@@ -479,7 +479,7 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 	return policiesToBeAdded, rolesChanged, nil
 }
 
-func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
+func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
 
 	//var policiesToBeAdded []casbin2.Policy
 	rolesChanged := false
@@ -556,7 +556,7 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 	return policiesToBeAdded, rolesChanged, nil
 }
 
-func (impl UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.RoleFilter) []bean.RoleFilter {
+func (impl *UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.RoleFilter) []bean.RoleFilter {
 	var roleFilters []bean.RoleFilter
 	keysMap := make(map[string]bool)
 	for _, role := range oldR {
@@ -599,7 +599,7 @@ func (impl UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.
 	return roleFilters
 }
 
-func (impl UserServiceImpl) mergeGroups(oldGroups []string, newGroups []string) []string {
+func (impl *UserServiceImpl) mergeGroups(oldGroups []string, newGroups []string) []string {
 	var groups []string
 	keysMap := make(map[string]bool)
 	for _, group := range oldGroups {
@@ -616,7 +616,7 @@ func (impl UserServiceImpl) mergeGroups(oldGroups []string, newGroups []string) 
 	return groups
 }
 
-func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, bool, bool, []string, error) {
+func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, bool, bool, []string, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.Id))
 	if err != nil {
@@ -805,7 +805,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	return userInfo, rolesChanged, groupsModified, restrictedGroups, nil
 }
 
-func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
+func (impl *UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	model, err := impl.userRepository.GetById(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -832,7 +832,7 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	return response, nil
 }
 
-func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool, []bean.RoleFilter, []string) {
+func (impl *UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool, []bean.RoleFilter, []string) {
 	roles, err := impl.userAuthRepository.GetRolesByUserId(model.Id)
 	if err != nil {
 		impl.logger.Debugw("No Roles Found for user", "id", model.Id)
@@ -953,7 +953,7 @@ func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool,
 }
 
 // GetAll excluding API token user
-func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
+func (impl *UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 	model, err := impl.userRepository.GetAllExcludingApiTokenUser()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -974,7 +974,7 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 	return response, nil
 }
 
-func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1005,7 +1005,7 @@ func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	return response, nil
 }
 
-func (impl UserServiceImpl) UserExists(emailId string) bool {
+func (impl *UserServiceImpl) UserExists(emailId string) bool {
 	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1018,7 +1018,7 @@ func (impl UserServiceImpl) UserExists(emailId string) bool {
 		return true
 	}
 }
-func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
+func (impl *UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
 	if emailId != "" && id <= 0 {
 		user, err := impl.GetUserByEmail(emailId)
@@ -1042,7 +1042,7 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 	}
 }
 
-func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, error) {
+func (impl *UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, error) {
 	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1079,7 +1079,7 @@ func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, erro
 
 	return response, nil
 }
-func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
+func (impl *UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 	_, span := otel.Tracer("userService").Start(r.Context(), "GetLoggedInUser")
 	defer span.End()
 	token := ""
@@ -1096,7 +1096,7 @@ func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 	return userId, err
 }
 
-func (impl UserServiceImpl) GetUserByToken(context context.Context, token string) (int32, string, error) {
+func (impl *UserServiceImpl) GetUserByToken(context context.Context, token string) (int32, string, error) {
 	_, span := otel.Tracer("userService").Start(context, "GetUserByToken")
 	email, err := impl.GetEmailFromToken(token)
 	span.End()
@@ -1116,7 +1116,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	return userInfo.Id, userInfo.UserType, nil
 }
 
-func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
+func (impl *UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 	if token == "" {
 		impl.logger.Infow("no token provided")
 		err := &util.ApiError{
@@ -1159,7 +1159,7 @@ func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 	return email, nil
 }
 
-func (impl UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
+func (impl *UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
 	var beans []bean.UserInfo
 	models, err := impl.userRepository.GetByIds(ids)
 	if err != nil && err != pg.ErrNoRows {
@@ -1174,7 +1174,7 @@ func (impl UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
 	return beans, nil
 }
 
-func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
+func (impl *UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -1228,7 +1228,7 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	return true, nil
 }
 
-func (impl UserServiceImpl) CheckUserRoles(id int32) ([]string, error) {
+func (impl *UserServiceImpl) CheckUserRoles(id int32) ([]string, error) {
 	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1244,7 +1244,7 @@ func (impl UserServiceImpl) CheckUserRoles(id int32) ([]string, error) {
 	return groups, nil
 }
 
-func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
+func (impl *UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 	roles, err := impl.userAuthRepository.GetAllRole()
 	if err != nil {
 		impl.logger.Errorw("error while fetching roles from db", "error", err)
@@ -1274,7 +1274,7 @@ func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 	return true, nil
 }
 
-func (impl UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
+func (impl *UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isSuperAdmin := false
 	userCasbinRoles, err := impl.CheckUserRoles(int32(userId))
@@ -1291,7 +1291,7 @@ func (impl UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
 	return isSuperAdmin, nil
 }
 
-func (impl UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error) {
+func (impl *UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error) {
 	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1304,7 +1304,7 @@ func (impl UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, err
 	return response, nil
 }
 
-func (impl UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
+func (impl *UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
 	err = impl.userAuthRepository.UpdateTriggerPolicyForTerminalAccess()
 	if err != nil {
 		impl.logger.Errorw("error in updating policy for terminal access to trigger role", "err", err)
@@ -1313,7 +1313,7 @@ func (impl UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
 	return nil
 }
 
-func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
+func (impl *UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 	clientIp := util2.GetClientIP(r)
 	userAudit := &UserAudit{
 		UserId:    userId,
@@ -1323,7 +1323,7 @@ func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 	impl.userAuditService.Save(userAudit)
 }
 
-func (impl UserServiceImpl) checkGroupAuth(groupName string, token string, managerAuth func(resource, token string, object string) bool, isActionUserSuperAdmin bool) bool {
+func (impl *UserServiceImpl) checkGroupAuth(groupName string, token string, managerAuth func(resource, token string, object string) bool, isActionUserSuperAdmin bool) bool {
 	//check permission for group which is going to add/eliminate
 	roles, err := impl.roleGroupRepository.GetRolesByGroupCasbinName(groupName)
 	if err != nil && err != pg.ErrNoRows {
@@ -1353,7 +1353,7 @@ func (impl UserServiceImpl) checkGroupAuth(groupName string, token string, manag
 	return hasAccessToGroup
 }
 
-func (impl UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error) {
+func (impl *UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error) {
 	roles, err := impl.roleGroupRepository.GetRolesByGroupNames(groupNames)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting roles by group names", "err", err)
