@@ -555,12 +555,6 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
 		return 0, err
 	}
-	//runningWf, err := impl.cdService.GetWorkflow(workflowRunner.Name, workflowRunner.Namespace, restConfig, isExtCluster)
-	//if err != nil {
-	//	impl.Logger.Errorw("cannot find workflow ", "name", workflowRunner.Name)
-	//	return 0, errors.New("cannot find workflow " + workflowRunner.Name)
-	//}
-
 	// Terminate workflow
 	err = impl.commonWorkflowService.TerminateWorkflow(workflowRunner.ExecutorType, workflowRunner.Name, workflowRunner.Namespace, restConfig, isExtCluster, nil)
 	if err != nil {
