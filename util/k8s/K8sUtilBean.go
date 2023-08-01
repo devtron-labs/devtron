@@ -35,7 +35,9 @@ const K8sClusterResourceCellKey = "cells"
 const K8sClusterResourceColumnDefinitionKey = "columnDefinitions"
 const K8sClusterResourceObjectKey = "object"
 
+const K8sClusterResourceGroupKey = "group"
 const K8sClusterResourceKindKey = "kind"
+const K8sClusterResourceVersionKey = "version"
 const K8sClusterResourceApiVersionKey = "apiVersion"
 
 const K8sClusterResourceRolloutKind = "Rollout"
@@ -48,6 +50,16 @@ const AppsGroup = "apps"
 const RestartingNotSupported = "restarting not supported"
 
 const Running = "Running"
+
+const (
+	K8sResourceColumnDefinitionName         = "Name"
+	K8sResourceColumnDefinitionSyncStatus   = "Sync Status"
+	K8sResourceColumnDefinitionHealthStatus = "Health Status"
+	K8sClusterResourceStatusKey             = "status"
+	K8sClusterResourceHealthKey             = "health"
+	K8sClusterResourceResourcesKey          = "resources"
+	K8sClusterResourceSyncKey               = "sync"
+)
 
 var KindVsChildrenGvk = map[string][]schema.GroupVersionKind{
 	kube.DeploymentKind:                         append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: AppsGroup, Version: V1VERSION, Kind: kube.ReplicaSetKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
@@ -103,8 +115,9 @@ type GetAllApiResourcesResponse struct {
 }
 
 type K8sApiResource struct {
-	Gvk        schema.GroupVersionKind `json:"gvk"`
-	Namespaced bool                    `json:"namespaced"`
+	Gvk        schema.GroupVersionKind     `json:"gvk"`
+	Gvr        schema.GroupVersionResource `json:"gvr"`
+	Namespaced bool                        `json:"namespaced"`
 }
 
 type ApplyResourcesRequest struct {

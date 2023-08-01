@@ -62,6 +62,7 @@ type HelmAppService interface {
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
 	GetRevisionHistoryMaxValue(appType SourceAppType) int32
+	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, resources []*ExternalResourceDetail) (*ResourceTreeResponse, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -314,6 +315,21 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 		}
 	}
 	return appdetail, err
+}
+
+func (impl *HelmAppServiceImpl) GetResourceTreeForExternalResources(ctx context.Context, clusterId int,
+	resources []*ExternalResourceDetail) (*ResourceTreeResponse, error) {
+	config, err := impl.GetClusterConf(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
+		return nil, err
+	}
+
+	req := &ExternalResourceTreeRequest{
+		ClusterConfig:          config,
+		ExternalResourceDetail: resources,
+	}
+	return impl.helmAppClient.GetResourceTreeForExternalResources(ctx, req)
 }
 
 func (impl *HelmAppServiceImpl) getApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {

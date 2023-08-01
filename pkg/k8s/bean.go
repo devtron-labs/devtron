@@ -32,7 +32,7 @@ const (
 
 type ResourceRequestBean struct {
 	AppId                string                     `json:"appId"`
-	AppType              int                        `json:"appType,omitempty"`        // 0: DevtronApp, 1: HelmApp
+	AppType              int                        `json:"appType,omitempty"`        // 0: DevtronApp, 1: HelmApp, 2:ArgoApp
 	DeploymentType       int                        `json:"deploymentType,omitempty"` // 0: DevtronApp, 1: HelmApp
 	AppIdentifier        *client.AppIdentifier      `json:"-"`
 	K8sRequest           *k8s.K8sRequestBean        `json:"k8sRequest"`
