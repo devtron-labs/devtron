@@ -145,7 +145,7 @@ func (handler *ResourceProtectionRestHandlerImpl) GetResourceProtectMetadataForE
 		appId := rbacObjectVsAppIdMap[rbacObj]
 		appStatusResponse[appId] = appStatues[appId]
 	}
-	if len(appStatusResponse) == 0 {
+	if len(appStatusResponse) == 0 && len(appStatues) != 0 {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
