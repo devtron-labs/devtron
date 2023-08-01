@@ -128,6 +128,7 @@ type ConfigData struct {
 	RoleARN               string           `json:"roleARN"`
 	SubPath               bool             `json:"subPath"`
 	FilePermission        string           `json:"filePermission"`
+	Overridden            bool             `json:"overridden"`
 }
 
 const (
@@ -524,6 +525,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*Conf
 			item.DefaultData = val
 			item.DefaultMountPath = kv11[item.Name]
 			item.Global = true
+			item.Overridden = true
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		} else {
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
@@ -931,6 +933,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 			item.DefaultExternalSecret = kv1External[item.Name]
 			item.DefaultMountPath = kv11[item.Name]
 			item.Global = true
+			item.Overridden = true
 			item.DefaultESOSecretData = kv1ESOSecret[item.Name]
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		} else {
