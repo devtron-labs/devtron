@@ -52,7 +52,6 @@ type CommonWorkflowService interface {
 	GetWorkflow(name string, namespace string, isExt bool, environment *repository.Environment) (*v1alpha1.Workflow, error)
 	//ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	//UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	//TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExtRun bool) error
 	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
 }
 
@@ -598,16 +597,6 @@ func (impl *CommonWorkflowServiceImpl) getRuntimeEnvClientInstance(environment *
 	}
 	return wfClient, nil
 }
-
-//func (impl *CommonWorkflowServiceImpl) getClientInstance(namespace string) (v1alpha12.WorkflowInterface, error) {
-//	clientSet, err := versioned.NewForConfig(impl.config)
-//	if err != nil {
-//		impl.Logger.Errorw("err on get client instance", "err", err)
-//		return nil, err
-//	}
-//	wfClient := clientSet.ArgoprojV1alpha1().Workflows(namespace) // create the workflow client
-//	return wfClient, nil
-//}
 
 func (impl *CommonWorkflowServiceImpl) getWfClient(environment *repository.Environment, namespace string, isExt bool) (v1alpha12.WorkflowInterface, error) {
 	var wfClient v1alpha12.WorkflowInterface
