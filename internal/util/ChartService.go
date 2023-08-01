@@ -313,15 +313,15 @@ func (impl ChartTemplateServiceImpl) PushKustomizeToGitRepo(request KustomizeUpl
 		return err
 	}
 
-	err = os.MkdirAll(targetPath+"/overlays", os.ModePerm)
+	//err = os.MkdirAll(targetPath+"/overlays", os.ModePerm)
+	//if err != nil {
+	//	return err
+	//}
+	err = util.CopyDir(request.ExtractedFilePath, targetPath)
 	if err != nil {
 		return err
 	}
-	err = util.CopyDir(request.ExtractedFilePath+"/overlays", targetPath+"/overlays")
-	if err != nil {
-		return err
-	}
-	err = util.CopyFile(request.ExtractedFilePath+"/kustomize.yml", targetPath+"/kustomize.yml")
+	err = util.CopyFile(request.ExtractedFilePath+"/kustomization.yaml", targetPath+"/kustomization.yaml")
 	if err != nil {
 		return err
 	}
