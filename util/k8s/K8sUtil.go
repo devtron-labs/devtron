@@ -441,6 +441,15 @@ func (impl K8sUtil) GetK8sInClusterConfigAndDynamicClients() (*rest.Config, *htt
 	return restConfig, k8sHttpClient, dynamicClientSet, nil
 }
 
+func (impl K8sUtil) GetK8sDynamicClient(restConfig *rest.Config, k8sHttpClient *http.Client) (dynamic.Interface, error) {
+	dynamicClientSet, err := dynamic.NewForConfigAndClient(restConfig, k8sHttpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config for in cluster", "err", err)
+		return nil, err
+	}
+	return dynamicClientSet, nil
+}
+
 func (impl K8sUtil) GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
 	restConfig, err := impl.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
@@ -1323,6 +1332,11 @@ func (impl K8sUtil) GetApiResources(restConfig *rest.Config, includeOnlyVerb str
 						Group:   group,
 						Version: version,
 						Kind:    apiResourceFromK8s.Kind,
+					},
+					Gvr: schema.GroupVersionResource{
+						Group:    group,
+						Version:  version,
+						Resource: apiResourceFromK8s.Name,
 					},
 					Namespaced: apiResourceFromK8s.Namespaced,
 				})
