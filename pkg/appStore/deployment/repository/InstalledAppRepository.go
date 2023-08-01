@@ -226,10 +226,30 @@ func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, 
 func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error) {
 	var model []*InstalledAppVersions
 	err := impl.dbConnection.Model(&model).
-		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
-		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion").
 		Where("app_store_application_version.app_store_id = ?", appStoreId).
 		Where("installed_app_versions.active = true").Select()
+	if err != nil {
+		return model, err
+	}
+	for _, installedAppVersion := range model {
+		appStore := &appStoreDiscoverRepository.AppStore{}
+		err = impl.dbConnection.
+			Model(appStore).
+			Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
+			Where("app_store.id = ? ", installedAppVersion.AppStoreApplicationVersion.AppStoreId).
+			Where("app_store.active = true").
+			Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+				return q.Where("deleted IS FALSE and " +
+					"repository_type='CHART' and " +
+					"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
+			}).
+			Select()
+		if err != nil {
+			return model, err
+		}
+		installedAppVersion.AppStoreApplicationVersion.AppStore = appStore
+	}
 	return model, err
 }
 

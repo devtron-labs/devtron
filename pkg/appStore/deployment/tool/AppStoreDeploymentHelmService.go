@@ -82,6 +82,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 	}
 	var IsOCIRepo bool
 	var registryCredential *client.RegistryCredential
+	var chartRepository *client.ChartRepository
 	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
 	if dockerRegistryId != "" {
 		ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
@@ -108,12 +109,19 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 			RepoName:     appStoreAppVersion.AppStore.Name,
 			IsPublic:     ociRegistryConfig.IsPublic,
 		}
+	} else {
+		chartRepository = &client.ChartRepository{
+			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
+			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
+			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
+			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
+		}
 	}
 	installReleaseRequest := &client.InstallReleaseRequest{
 		ChartName:       appStoreAppVersion.Name,
 		ChartVersion:    appStoreAppVersion.Version,
 		ValuesYaml:      installAppVersionRequest.ValuesOverrideYaml,
-		ChartRepository: nil,
+		ChartRepository: chartRepository,
 		ReleaseIdentifier: &client.ReleaseIdentifier{
 			ReleaseNamespace: installAppVersionRequest.Namespace,
 			ReleaseName:      installAppVersionRequest.AppName,
@@ -389,8 +397,43 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", appStoreApplicationVersionId, "err", err)
 		return err
 	}
-
-	chartRepo := appStoreApplicationVersion.AppStore.ChartRepo
+	var IsOCIRepo bool
+	var registryCredential *client.RegistryCredential
+	var chartRepository *client.ChartRepository
+	dockerRegistryId := appStoreApplicationVersion.AppStore.DockerArtifactStoreId
+	if dockerRegistryId != "" {
+		ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching oci registry config", "err", err)
+			return err
+		}
+		var ociRegistryConfig *repository2.OCIRegistryConfig
+		for _, config := range ociRegistryConfigs {
+			if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+				ociRegistryConfig = config
+				break
+			}
+		}
+		IsOCIRepo = true
+		registryCredential = &client.RegistryCredential{
+			RegistryUrl:  appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Username,
+			Password:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType: string(appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:     appStoreApplicationVersion.AppStore.Name,
+			IsPublic:     ociRegistryConfig.IsPublic,
+		}
+	} else {
+		chartRepository = &client.ChartRepository{
+			Name:     appStoreApplicationVersion.AppStore.ChartRepo.Name,
+			Url:      appStoreApplicationVersion.AppStore.ChartRepo.Url,
+			Username: appStoreApplicationVersion.AppStore.ChartRepo.UserName,
+			Password: appStoreApplicationVersion.AppStore.ChartRepo.Password,
+		}
+	}
 
 	updateReleaseRequest := &client.UpdateApplicationWithChartInfoRequestDto{
 		InstallReleaseRequest: &client.InstallReleaseRequest{
@@ -399,14 +442,11 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 				ReleaseNamespace: installedApp.Environment.Namespace,
 				ReleaseName:      installedApp.App.AppName,
 			},
-			ChartName:    appStoreApplicationVersion.Name,
-			ChartVersion: appStoreApplicationVersion.Version,
-			ChartRepository: &client.ChartRepository{
-				Name:     chartRepo.Name,
-				Url:      chartRepo.Url,
-				Username: chartRepo.UserName,
-				Password: chartRepo.Password,
-			},
+			ChartName:          appStoreApplicationVersion.Name,
+			ChartVersion:       appStoreApplicationVersion.Version,
+			ChartRepository:    chartRepository,
+			RegistryCredential: registryCredential,
+			IsOCIRepo:          IsOCIRepo,
 		},
 		SourceAppType: client.SOURCE_HELM_APP,
 	}

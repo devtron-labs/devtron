@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"reflect"
@@ -723,21 +724,56 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
 	}
-	installReleaseRequest := &InstallReleaseRequest{
-		ChartName:    appStoreAppVersion.Name,
-		ChartVersion: appStoreAppVersion.Version,
-		ValuesYaml:   *templateChartRequest.ValuesYaml,
-		K8SVersion:   k8sServerVersion.String(),
-		ChartRepository: &ChartRepository{
+	var IsOCIRepo bool
+	var registryCredential *RegistryCredential
+	var chartRepository *ChartRepository
+	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
+	if dockerRegistryId != "" {
+		ociRegistryConfigs := appStoreAppVersion.AppStore.DockerArtifactStore.OCIRegistryConfig
+		if err != nil {
+			impl.logger.Errorw("error in fetching oci registry config", "err", err)
+			return nil, err
+		}
+		var ociRegistryConfig *repository2.OCIRegistryConfig
+		for _, config := range ociRegistryConfigs {
+			if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+				ociRegistryConfig = config
+				break
+			}
+		}
+		IsOCIRepo = true
+		registryCredential = &RegistryCredential{
+			RegistryUrl:  appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:     appStoreAppVersion.AppStore.DockerArtifactStore.Username,
+			Password:     appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType: string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:     appStoreAppVersion.AppStore.Name,
+			IsPublic:     ociRegistryConfig.IsPublic,
+		}
+	} else {
+		chartRepository = &ChartRepository{
 			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
 			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
 			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
-		},
+		}
+	}
+
+	installReleaseRequest := &InstallReleaseRequest{
+		ChartName:       appStoreAppVersion.Name,
+		ChartVersion:    appStoreAppVersion.Version,
+		ValuesYaml:      *templateChartRequest.ValuesYaml,
+		K8SVersion:      k8sServerVersion.String(),
+		ChartRepository: chartRepository,
 		ReleaseIdentifier: &ReleaseIdentifier{
 			ReleaseNamespace: *templateChartRequest.Namespace,
 			ReleaseName:      *templateChartRequest.ReleaseName,
 		},
+		IsOCIRepo:          IsOCIRepo,
+		RegistryCredential: registryCredential,
 	}
 
 	config, err := impl.GetClusterConf(clusterId)
