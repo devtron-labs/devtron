@@ -7,6 +7,7 @@
   * [Install Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md)
   * [Install Devtron](setup/install/install-devtron.md)
   * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+  * [Backup for Disaster Recovery](setup/install/devtron-backup.md)
   * [FAQ on Installation](setup/install/faq-on-installation.md)
   * [Uninstall Devtron](setup/install/uninstall-devtron.md)
 * [Devtron Kubernetes Client](setup/install/install-devtron-Kubernetes-client.md)

@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,7 +61,7 @@ type ClusterRestHandler interface {
 
 type ClusterRestHandlerImpl struct {
 	clusterService            cluster.ClusterService
-	clusterNoteService        cluster.ClusterNoteService
+	clusterNoteService        genericNotes.GenericNoteService
 	clusterDescriptionService cluster.ClusterDescriptionService
 	logger                    *zap.SugaredLogger
 	userService               user.UserService
@@ -71,7 +73,7 @@ type ClusterRestHandlerImpl struct {
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
-	clusterNoteService cluster.ClusterNoteService,
+	clusterNoteService genericNotes.GenericNoteService,
 	clusterDescriptionService cluster.ClusterDescriptionService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
@@ -349,13 +351,13 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 func (impl ClusterRestHandlerImpl) FindNoteByClusterId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	i, err := strconv.Atoi(id)
+	clusterId, err := strconv.Atoi(id)
 	if err != nil {
 		impl.logger.Errorw("request err, FindById", "error", err, "clusterId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	bean, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(i)
+	bean, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(clusterId)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			impl.logger.Errorw("cluster not found, FindById", "err", err, "clusterId", id)
@@ -452,7 +454,7 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean cluster.ClusterNoteBean
+	var bean repository.GenericNote
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Update", "error", err, "payload", bean)
@@ -466,9 +468,9 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	clusterDescription, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(bean.ClusterId)
+	clusterDescription, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(bean.Identifier)
 	if err != nil {
-		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", bean.ClusterId)
+		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", bean.Identifier)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -479,32 +481,9 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 	}
 	// RBAC enforcer ends
 
-	_, err = impl.clusterNoteService.Update(&bean, userId)
-	if err == pg.ErrNoRows {
-		_, err = impl.clusterNoteService.Save(&bean, userId)
-		if err != nil {
-			impl.logger.Errorw("service err, Save", "error", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	}
-	if err != nil {
-		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	userInfo, err := impl.userService.GetById(bean.UpdatedBy)
-	if err != nil {
-		impl.logger.Errorw("user service err, FindById", "err", err, "userId", bean.UpdatedBy)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	clusterNoteResponseBean := &cluster.ClusterNoteResponseBean{
-		Id:          bean.Id,
-		Description: bean.Description,
-		UpdatedOn:   bean.UpdatedOn,
-		UpdatedBy:   userInfo.EmailId,
-	}
+	bean.IdentifierType = repository.ClusterType
+	clusterNoteResponseBean, err := impl.clusterNoteService.Update(&bean, userId)
+
 	if err != nil {
 		impl.logger.Errorw("cluster note service err, Update", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
