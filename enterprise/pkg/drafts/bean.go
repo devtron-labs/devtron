@@ -107,6 +107,7 @@ type ConfigDraftResponse struct {
 	DraftState     DraftState `json:"draftState"`
 	Approvers      []string   `json:"approvers"`
 	CanApprove     *bool      `json:"canApprove,omitempty"`
+	CommentsCount  int        `json:"commentsCount"`
 }
 
 type DraftCountResponse struct {

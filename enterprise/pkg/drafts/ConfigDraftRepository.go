@@ -16,6 +16,7 @@ type ConfigDraftRepository interface {
 	UpdateDraftState(draftId int, draftState DraftState, userId int32) error
 	GetDraftVersionsMetadata(draftId int) ([]*DraftVersion, error)
 	GetDraftVersionComments(draftId int) ([]*DraftVersionComment, error)
+	GetDraftVersionCommentsCount(draftId int) (int, error)
 	GetLatestConfigDraft(draftId int) (*DraftVersion, error)
 	GetDraftMetadataForAppAndEnv(appId int, envIds []int) ([]*DraftDto, error)
 	GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftDto, error)
@@ -147,6 +148,19 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftVersionComments(draftId int) ([]*
 		err = nil //ignoring noRows Error
 	}
 	return draftComments, err
+}
+
+func (repo *ConfigDraftRepositoryImpl) GetDraftVersionCommentsCount(draftId int) (int, error) {
+	count, err := repo.dbConnection.Model(&DraftVersionComment{}).
+		Where("draft_id = ?", draftId).
+		Where("active = ?", true).
+		Order("id desc").Count()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error occurred while fetching draft comments", "draftId", draftId, "err", err)
+	} else {
+		err = nil //ignoring noRows Error
+	}
+	return count, err
 }
 
 func (repo *ConfigDraftRepositoryImpl) GetLatestConfigDraft(draftId int) (*DraftVersion, error) {

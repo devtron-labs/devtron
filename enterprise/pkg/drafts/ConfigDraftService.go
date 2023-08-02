@@ -240,6 +240,11 @@ func (impl *ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*Co
 		return nil, err
 	}
 	draftResponse.CanApprove = pointer.BoolPtr(!userContributedToDraft)
+	commentsCount, err := impl.configDraftRepository.GetDraftVersionCommentsCount(draftId)
+	if err != nil {
+		return nil, err
+	}
+	draftResponse.CommentsCount = commentsCount
 	return draftResponse, nil
 }
 
