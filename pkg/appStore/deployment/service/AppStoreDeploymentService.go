@@ -392,6 +392,8 @@ func (impl *AppStoreDeploymentServiceImpl) IsChartRepoActive(appStoreVersionId i
 	}
 	if appStoreAppVersion.AppStore.ChartRepo != nil {
 		return appStoreAppVersion.AppStore.ChartRepo.Active, nil
+	} else if appStoreAppVersion.AppStore.DockerArtifactStore.OCIRegistryConfig != nil {
+		return appStoreAppVersion.AppStore.DockerArtifactStore.OCIRegistryConfig[0].IsChartPullActive, err
 	}
 	return false, nil
 }

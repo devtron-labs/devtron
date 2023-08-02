@@ -18,12 +18,14 @@
 package appStoreDiscoverRepository
 
 import (
+	"strconv"
+	"time"
+
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
-	"strconv"
-	"time"
 )
 
 type AppStoreApplicationVersionRepository interface {
@@ -183,11 +185,17 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindById(id int) (*AppStore
 	appStoreWithVersion := &AppStoreApplicationVersion{}
 	err := impl.dbConnection.
 		Model(appStoreWithVersion).
-		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo", "AppStore.DockerArtifactStore").
-		Where("app_store_application_version.id = ?", id).
+		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo", "AppStore.DockerArtifactStore", "AppStore.DockerArtifactStore.OCIRegistryConfig").
 		Join("INNER JOIN app_store aps on app_store_application_version.app_store_id = aps.id").
 		Join("LEFT JOIN chart_repo ch on aps.chart_repo_id = ch.id").
 		Join("LEFT JOIN docker_artifact_store das on (aps.docker_artifact_store_id = das.id and das.active IS TRUE)").
+		Join("LEFT JOIN oci_registry_config orc on orc.docker_artifact_store_id=das.id").
+		Relation("AppStore.DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE and " +
+				"repository_type='CHART' and " +
+				"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
+		}).
+		Where("app_store_application_version.id = ?", id).
 		Limit(1).
 		Select()
 	return appStoreWithVersion, err
