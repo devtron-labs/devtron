@@ -22,11 +22,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"go.opentelemetry.io/otel"
-
 	"github.com/devtron-labs/devtron/internal/constants"
-
+	"go.opentelemetry.io/otel"
 	//"github.com/devtron-labs/devtron/pkg/pipeline"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -138,6 +135,7 @@ type ChartService interface {
 	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
+	GetManifest(chartRefId int) ([]byte, error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
 	CheckChartExists(chartRefId int) error
 	CheckIsAppMetricsSupported(chartRefId int) (bool, error)
@@ -211,6 +209,59 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		client:                           client,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 	}
+}
+
+func readDirectoryContents(dirPath string) ([]byte, error) {
+	// Read the files and directories in the given directory
+	entries, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a buffer to store the bytes
+	var data []byte
+
+	// Loop through the entries in the directory
+	for _, entry := range entries {
+		entryPath := filepath.Join(dirPath, entry.Name())
+
+		// Check if the entry is a file
+		if !entry.IsDir() {
+			// Read the content of the file
+			fileData, err := ioutil.ReadFile(entryPath)
+			if err != nil {
+				return nil, err
+			}
+
+			// Append the file content to the buffer
+			data = append(data, fileData...)
+		} else {
+			// If the entry is a subdirectory, recursively call the same function to handle its contents
+			subdirData, err := readDirectoryContents(entryPath)
+			if err != nil {
+				return nil, err
+			}
+
+			// Append the subdirectory content to the buffer
+			data = append(data, subdirData...)
+		}
+	}
+
+	return data, nil
+}
+
+func (impl ChartServiceImpl) GetManifest(chartRefId int) ([]byte, error) {
+	refChart, _, err, _, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, err
+	}
+
+	byteData, err := readDirectoryContents(refChart)
+	if err != nil {
+		return nil, err
+	}
+	return byteData, nil
 }
 
 func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {

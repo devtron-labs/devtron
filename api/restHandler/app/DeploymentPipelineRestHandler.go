@@ -55,6 +55,7 @@ type DevtronAppDeploymentRestHandler interface {
 type DevtronAppDeploymentConfigRestHandler interface {
 	ConfigureDeploymentTemplateForApp(w http.ResponseWriter, r *http.Request)
 	GetDeploymentTemplate(w http.ResponseWriter, r *http.Request)
+	GetManifest(w http.ResponseWriter, r *http.Request)
 	GetDefaultDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
 
@@ -703,7 +704,39 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 	env.Readme = string(readme)
 	common.WriteJsonResp(w, err, env, http.StatusOK)
 }
+func (handler PipelineConfigRestHandlerImpl) GetManifest(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Error(err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	if err != nil {
+		handler.Logger.Error(err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, GetDeploymentTemplate", "appId", appId, "chartRefId", chartRefId)
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
 
+	manifest, err := handler.chartService.GetManifest(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+	}
+	common.WriteJsonResp(w, nil, string(manifest), http.StatusOK)
+}
 func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
