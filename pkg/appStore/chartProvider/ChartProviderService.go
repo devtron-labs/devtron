@@ -42,11 +42,17 @@ type ChartProviderServiceImpl struct {
 	ociRegistryConfigRepository dockerRegistryRepository.OCIRegistryConfigRepository
 }
 
-func NewChartProviderServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, chartRepositoryService chartRepo.ChartRepositoryService) *ChartProviderServiceImpl {
+func NewChartProviderServiceImpl(logger *zap.SugaredLogger,
+	repoRepository chartRepoRepository.ChartRepoRepository,
+	chartRepositoryService chartRepo.ChartRepositoryService,
+	registryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	ociRegistryConfigRepository dockerRegistryRepository.OCIRegistryConfigRepository) *ChartProviderServiceImpl {
 	return &ChartProviderServiceImpl{
-		logger:                 logger,
-		repoRepository:         repoRepository,
-		chartRepositoryService: chartRepositoryService,
+		logger:                      logger,
+		repoRepository:              repoRepository,
+		chartRepositoryService:      chartRepositoryService,
+		registryRepository:          registryRepository,
+		ociRegistryConfigRepository: ociRegistryConfigRepository,
 	}
 }
 
