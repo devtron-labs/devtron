@@ -145,15 +145,21 @@ ReadinessProbe:
 
 ### Pod Disruption Budget
 
-```yaml
-podDisruptionBudget: {}
-     minAvailable: 1
-     maxUnavailable: 1
-```
-
 You can create `PodDisruptionBudget` for each application. A PDB limits the number of pods of a replicated application that are down simultaneously from voluntary disruptions. For example, an application would like to ensure the number of replicas running is never brought below the certain number.
 
-You can specify maxUnavailable and minAvailable in a PodDisruptionBudget.
+```yaml
+podDisruptionBudget: 
+     minAvailable: 1
+```
+
+or
+
+```yaml
+podDisruptionBudget: 
+     maxUnavailable: 50%
+```
+
+You can specify either `maxUnavailable` or `minAvailable` in a PodDisruptionBudget and it can be expressed as integers or as a percentage
 
 | Key | Description |
 | :--- | :--- |
