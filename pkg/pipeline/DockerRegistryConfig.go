@@ -542,6 +542,16 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		bean.Cert = existingStore.Cert
 	}
 
+	existingRepositoryList := make([]string, 0)
+	for _, ociRegistryConfig := range existingStore.OCIRegistryConfig {
+		if ociRegistryConfig.RepositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+			existingRepositoryList = strings.Split(ociRegistryConfig.RepositoryList, ",")
+		}
+	}
+	if len(bean.RepositoryList) == 0 {
+		bean.RepositoryList = existingRepositoryList
+	}
+
 	bean.PluginId = existingStore.PluginId
 
 	store := NewDockerArtifactStore(bean, true, existingStore.CreatedOn, time.Now(), existingStore.CreatedBy, bean.User)

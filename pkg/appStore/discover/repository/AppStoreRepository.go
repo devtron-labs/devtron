@@ -39,13 +39,13 @@ func NewAppStoreRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB) *
 type AppStore struct {
 	TableName   struct{} `sql:"app_store" pg:",discard_unknown_columns"`
 	Id          int      `sql:"id,pk"`
-	Name        string   `sql:"name"`
+	Name        string   `sql:"name,notnull"`
 	ChartRepoId int      `sql:"chart_repo_id"`
-	//Active           bool      `sql:"active"`
+	//Active                bool      `sql:"active,notnull"`
 	DockerArtifactStoreId string    `sql:"docker_artifact_store_id"`
 	ChartGitLocation      string    `sql:"chart_git_location"`
-	CreatedOn             time.Time `sql:"created_on"`
-	UpdatedOn             time.Time `sql:"updated_on"`
+	CreatedOn             time.Time `sql:"created_on,notnull"`
+	UpdatedOn             time.Time `sql:"updated_on,notnull"`
 	ChartRepo             *chartRepoRepository.ChartRepo
 	DockerArtifactStore   *dockerArtifactStoreRegistry.DockerArtifactStore
 }
