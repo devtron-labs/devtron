@@ -147,7 +147,7 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *app
 	query = query + updateFindWithFilterQuery(filter, QUERY_COLUMN_UPDATE)
 
 	query = query + " FROM app_store_application_version asv" +
-		" INNER JOIN app_store aps ON asv.app_store_id = aps.id"
+		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = true)"
 
 	query = query + updateFindWithFilterQuery(filter, QUERY_JOIN_UPDTAE)
 
