@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	"go.uber.org/zap"
+	"path"
 	"time"
 )
 
@@ -40,13 +41,22 @@ func (impl *HelmRepoPushServiceImpl) PushChart(manifestPushTemplate *bean.Manife
 	helmManifestResponse, err := impl.helmAppClient.PushHelmChartToOCIRegistry(ctx, ociHelmRepoPushRequest)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to helm oci repo", "err", err)
-		manifestPushResponse.Error = fmt.Errorf("Could not push helm package to \"%v\"", ociHelmRepoPushRequest.RepoURL)
-		timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED, fmt.Sprintf("Could not push helm package to \"%v\"", ociHelmRepoPushRequest.RepoURL))
-		timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
-		if timelineErr != nil {
-			impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+		if ociHelmRepoPushRequest.RegistryCredential != nil {
+			repoURL := path.Join(ociHelmRepoPushRequest.RegistryCredential.RegistryUrl, ociHelmRepoPushRequest.RegistryCredential.RepoName)
+			manifestPushResponse.Error = fmt.Errorf("Could not push helm package to \"%v\"", repoURL)
+			timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED, fmt.Sprintf("Could not push helm package to \"%v\"", repoURL))
+			timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+			if timelineErr != nil {
+				impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+			}
+		} else {
+			manifestPushResponse.Error = err
+			timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED, err.Error())
+			timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+			if timelineErr != nil {
+				impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+			}
 		}
-
 		return manifestPushResponse
 	}
 	manifestPushResponse.CommitHash = helmManifestResponse.PushResult.Digest

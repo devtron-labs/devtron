@@ -3361,6 +3361,17 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 					UpdatedBy: userId,
 				},
 			}
+			existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByStoreId(pipeline.ContainerRegistryName)
+			if err != nil {
+				impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
+				return 0, err
+			}
+
+			if existingManifestPushConfig.Id != 0 {
+				err = fmt.Errorf("container registry has already been configured")
+				impl.logger.Errorw("error in saving manifest push config in db", "err", err)
+				return 0, err
+			}
 			manifestPushConfig, err = impl.manifestPushConfigRepository.SaveConfig(manifestPushConfig)
 			if err != nil {
 				impl.logger.Errorw("error in saving config for oci helm repo", "err", err)
@@ -3520,6 +3531,19 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
 			//implement
 		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
+			if !strings.Contains(manifestPushConfig.CredentialsConfig, "\"ContainerRegistryName\":\""+pipeline.ContainerRegistryName+"\"}") {
+				existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByStoreId(pipeline.ContainerRegistryName)
+				if err != nil {
+					impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
+					return err
+				}
+
+				if existingManifestPushConfig.Id != 0 {
+					err = fmt.Errorf("container registry has already been configured")
+					impl.logger.Errorw("error in saving manifest push config in db", "err", err)
+					return err
+				}
+			}
 			if manifestPushConfig.Id == 0 {
 				manifestPushConfig = &repository3.ManifestPushConfig{
 					AppId:            appId,

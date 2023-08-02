@@ -23,6 +23,7 @@ type ManifestPushConfigRepository interface {
 	SaveConfig(manifestPushConfig *ManifestPushConfig) (*ManifestPushConfig, error)
 	GetManifestPushConfigByAppIdAndEnvId(appId, envId int) (*ManifestPushConfig, error)
 	UpdateConfig(manifestPushConfig *ManifestPushConfig) error
+	GetManifestPushConfigByStoreId(storeId string) (*ManifestPushConfig, error)
 }
 
 type ManifestPushConfigRepositoryImpl struct {
@@ -63,4 +64,17 @@ func (impl ManifestPushConfigRepositoryImpl) GetManifestPushConfigByAppIdAndEnvI
 func (impl ManifestPushConfigRepositoryImpl) UpdateConfig(manifestPushConfig *ManifestPushConfig) error {
 	_, err := impl.dbConnection.Model(manifestPushConfig).WherePK().Update()
 	return err
+}
+
+func (impl ManifestPushConfigRepositoryImpl) GetManifestPushConfigByStoreId(storeId string) (*ManifestPushConfig, error) {
+	manifestPushConfig := &ManifestPushConfig{}
+	err := impl.dbConnection.Model(manifestPushConfig).
+		Where("credentials_config LIKE ? ", "%\"ContainerRegistryName\":\""+storeId+"\"}").
+		Where("deleted = ? ", false).
+		Limit(1).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		return manifestPushConfig, err
+	}
+	return manifestPushConfig, nil
 }

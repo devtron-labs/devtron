@@ -5,6 +5,7 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -15,12 +16,13 @@ type DeleteServiceFullMode interface {
 }
 
 type DeleteServiceFullModeImpl struct {
-	logger                   *zap.SugaredLogger
-	gitMaterialRepository    pipelineConfig.MaterialRepository
-	gitRegistryConfig        pipeline.GitRegistryConfig
-	ciTemplateRepository     pipelineConfig.CiTemplateRepository
-	dockerRegistryConfig     pipeline.DockerRegistryConfig
-	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	logger                       *zap.SugaredLogger
+	gitMaterialRepository        pipelineConfig.MaterialRepository
+	gitRegistryConfig            pipeline.GitRegistryConfig
+	ciTemplateRepository         pipelineConfig.CiTemplateRepository
+	dockerRegistryConfig         pipeline.DockerRegistryConfig
+	dockerRegistryRepository     dockerRegistryRepository.DockerArtifactStoreRepository
+	manifestPushConfigRepository repository.ManifestPushConfigRepository
 }
 
 func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
@@ -29,14 +31,16 @@ func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	manifestPushConfigRepository repository.ManifestPushConfigRepository,
 ) *DeleteServiceFullModeImpl {
 	return &DeleteServiceFullModeImpl{
-		logger:                   logger,
-		gitMaterialRepository:    gitMaterialRepository,
-		gitRegistryConfig:        gitRegistryConfig,
-		ciTemplateRepository:     ciTemplateRepository,
-		dockerRegistryConfig:     dockerRegistryConfig,
-		dockerRegistryRepository: dockerRegistryRepository,
+		logger:                       logger,
+		gitMaterialRepository:        gitMaterialRepository,
+		gitRegistryConfig:            gitRegistryConfig,
+		ciTemplateRepository:         ciTemplateRepository,
+		dockerRegistryConfig:         dockerRegistryConfig,
+		dockerRegistryRepository:     dockerRegistryRepository,
+		manifestPushConfigRepository: manifestPushConfigRepository,
 	}
 }
 func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *pipeline.GitRegistry) error {
@@ -66,10 +70,20 @@ func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *
 		return err
 	}
 	if len(ciTemplates) > 0 {
+		err = fmt.Errorf(" Please update all related docker config before deleting this registry")
 		impl.logger.Errorw("err in deleting docker registry, found docker build config using registry", "dockerRegistry", deleteRequest.Id, "err", err)
-		return fmt.Errorf(" Please update all related docker config before deleting this registry")
+		return err
 	}
-
+	manifestConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByStoreId(deleteRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("err in deleting docker registry", "dockerRegistry", deleteRequest.Id, "err", err)
+		return err
+	}
+	if manifestConfig.Id != 0 {
+		err = fmt.Errorf(" Please update all related docker config before deleting this registry")
+		impl.logger.Errorw("err in deleting docker registry, found virtual deployment config using registry", "dockerRegistry", deleteRequest.Id, "err", err)
+		return err
+	}
 	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(deleteRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("error in deleting docker registry", "err", err, "deleteRequest", deleteRequest)
