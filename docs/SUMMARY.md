@@ -99,6 +99,7 @@
   * [Notifications](user-guide/integrations/notifications.md)
   * [Monitoring (Grafana)](user-guide/integrations/grafana.md)
 
+
 ## Resources
 
 * [Troubleshooting](FAQs/devtron-troubleshoot.md)
@@ -108,7 +109,5 @@
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
+* [Release Notes](https://github.com/devtron-labs/devtron/releases)
 
-## Deprecated
-
-* [Hyperion](hyperion/devtron.md)

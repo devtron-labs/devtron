@@ -76,6 +76,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
 	//save environment specific override
 	configRouter.Path("/env/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreate).Methods("POST")
+	configRouter.Path("/env/patch").HandlerFunc(router.restHandler.ChangeChartRef).Methods("PATCH")
 	configRouter.Path("/env").HandlerFunc(router.restHandler.EnvConfigOverrideUpdate).Methods("PUT")
 	configRouter.Path("/env/{appId}/{environmentId}/{chartRefId}").HandlerFunc(router.restHandler.GetEnvConfigOverride).Methods("GET")
 
