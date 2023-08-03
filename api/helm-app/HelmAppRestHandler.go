@@ -349,6 +349,11 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 }
 
 func (handler *HelmAppRestHandlerImpl) GetManifestForDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	chartRefId, err := strconv.Atoi(vars["chartRefId"])
 	if err != nil {
@@ -356,9 +361,16 @@ func (handler *HelmAppRestHandlerImpl) GetManifestForDeploymentTemplate(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	request := &openapi2.TemplateChartResponse{}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
-	response, err := handler.helmAppService.GetManifest(ctx, chartRefId)
+	response, err := handler.helmAppService.GetManifest(ctx, chartRefId, *request.Manifest)
 	if err != nil {
 		handler.logger.Errorw("Error in helm-template", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

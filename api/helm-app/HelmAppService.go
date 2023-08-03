@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/util/k8s"
-	"io/ioutil"
 	"net/http"
-	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -62,7 +60,7 @@ type HelmAppService interface {
 	GetClusterConf(clusterId int) (*ClusterConfig, error)
 	GetDevtronHelmAppIdentifier() *AppIdentifier
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
-	GetManifest(ctx context.Context, chartRefId int) (*openapi2.TemplateChartResponse, error)
+	GetManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
 	GetRevisionHistoryMaxValue(appType SourceAppType) int32
@@ -694,17 +692,17 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 	return response, nil
 }
 
-func (impl HelmAppServiceImpl) GetManifest(ctx context.Context, chartRefId int) (*openapi2.TemplateChartResponse, error) {
+func (impl HelmAppServiceImpl) GetManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
 	refChart, template, err, version, _ := impl.chartService.GetRefChart(chart.TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, err
 	}
 
-	valuesYaml, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "values.yaml")))
-	if err != nil {
-		impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
-	}
+	//valuesYaml, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "values.yaml")))
+	//if err != nil {
+	//	impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
+	//}
 
 	chartBytes, chartZipPath, err := impl.chartTemplateServiceImpl.LoadChartInBytes(refChart, false, "", "")
 	if err != nil {
@@ -721,7 +719,7 @@ func (impl HelmAppServiceImpl) GetManifest(ctx context.Context, chartRefId int) 
 	installReleaseRequest := &InstallReleaseRequest{
 		ChartName:    template,
 		ChartVersion: version,
-		ValuesYaml:   string(valuesYaml),
+		ValuesYaml:   valuesYaml,
 		K8SVersion:   k8sServerVersion.String(),
 		ChartRepository: &ChartRepository{
 			Name:     "repo",
