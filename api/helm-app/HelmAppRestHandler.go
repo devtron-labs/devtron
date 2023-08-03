@@ -356,9 +356,9 @@ func (handler *HelmAppRestHandlerImpl) GetManifestForDeploymentTemplate(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
-	//defer cancel()
-	response, err := handler.helmAppService.GetManifest(chartRefId)
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	response, err := handler.helmAppService.GetManifest(ctx, chartRefId)
 	if err != nil {
 		handler.logger.Errorw("Error in helm-template", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

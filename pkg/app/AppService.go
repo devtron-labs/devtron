@@ -1482,7 +1482,7 @@ func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId
 		return manifestByteArray, nil
 	}
 
-	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
+	manifestByteArray, _, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArray, err
@@ -1514,25 +1514,6 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 		return "", err
 	}
 	return tempReferenceTemplateDir, nil
-}
-
-func (impl *AppServiceImpl) GetHelmManifestInByte(overrideValues string, refChartPath string) ([]byte, error) {
-
-	var manifestByteArr []byte
-
-	valuesFilePath := path.Join(refChartPath, "valuesOverride.yaml")
-	err := ioutil.WriteFile(valuesFilePath, []byte(overrideValues), 0600)
-	if err != nil {
-		return manifestByteArr, nil
-	}
-
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArr, err
-	}
-
-	return manifestByteArr, err
 }
 
 func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error) {
