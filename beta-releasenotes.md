@@ -17,6 +17,7 @@
 - fix: Clone of app with external-ci (#3624)
 - Fix: optimizing when querying DB to get running Helm deployments (#3637)
 ## Enhancements
+- feat:sql script file added for Approval node notification  (#3725)
 - feat: Allow changing chart ref (#3706)
 - feat: Patch branch api (#3722)
 - feat: App grouping admin access (#3692)
