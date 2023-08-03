@@ -25,6 +25,12 @@ secrets: {}
 #  If No POSTGRESQL_PASSWORD is provided, a password is automatically generated and saved in secret devtron-secret
 #  POSTGRESQL_PASSWORD: "change-me"
 
+global:
+  externalDatabase: {}
+    # NOTE : external db's username should be postgres only. 
+    # PG_PASSWORD: "" Required if external database is enabled, provide Postgres User's Password.
+    # PG_ENDPOINT: "" Required if external database is enabled, provide external db's endpoint.
+
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
 #  AZURE_ACCOUNT_KEY: "xxxxxxxxxx"
 configs:

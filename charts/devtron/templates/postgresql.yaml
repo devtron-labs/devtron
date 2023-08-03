@@ -1,3 +1,5 @@
+{{- $serviceName := (include "clair.service" $) }}
+{{- $dbName := (include "clair.db" $) }}
 {{- with .Values.components.postgres }}
 apiVersion: v1
 kind: ConfigMap
@@ -13,10 +15,22 @@ metadata:
     "helm.sh/resource-policy": keep
 data:
   db_create.sql: |
+{{- if not $.Values.global.externalDatabase }}
     create database casbin;
     create database git_sensor;
     create database lens;
+{{- end }}
     create database clairv4
+{{- if $.Values.global.externalDatabase }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-postgresql
+spec:
+  type: ExternalName
+  externalName: {{ $.Values.global.externalDatabase.PG_ENDPOINT }}
+{{- end }}
 {{- if not $.Values.installer.arch }}
 ---
 apiVersion: v1
@@ -66,7 +80,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgresql-postgresql
+  name: {{ $serviceName }}
   labels:
     app: postgresql
     chart: postgresql-8.6.4
@@ -166,7 +180,7 @@ spec:
                   name: postgresql-postgresql
                   key: postgresql-password
             - name: POSTGRES_DB
-              value: "orchestrator"
+              value: "{{ $dbName }}"
             - name: POSTGRESQL_ENABLE_LDAP
               value: "no"
             - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
@@ -183,7 +197,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - exec pg_isready -U "postgres" -d "orchestrator" -h 127.0.0.1 -p 5432
+                - exec pg_isready -U "postgres" -d "{{ $dbName }}" -h 127.0.0.1 -p 5432
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -196,7 +210,7 @@ spec:
                 - -c
                 - -e
                 - |
-                  exec pg_isready -U "postgres" -d "orchestrator" -h 127.0.0.1 -p 5432
+                  exec pg_isready -U "postgres" -d "{{ $dbName }}" -h 127.0.0.1 -p 5432
                   [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -216,7 +230,7 @@ spec:
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI
-              value: "127.0.0.1:5432/orchestrator?sslmode=disable"
+              value: "127.0.0.1:5432/{{ $dbName }}?sslmode=disable"
             - name: DATA_SOURCE_PASS
               valueFrom:
                 secretKeyRef:
@@ -287,9 +301,11 @@ metadata:
     "helm.sh/resource-policy": keep
 data:
   db_create.sql: |
+{{- if not $.Values.global.externalDatabase }}
     create database casbin;
     create database git_sensor;
     create database lens;
+{{- end }}
     create database clairv4;
 ---
 apiVersion: v1
@@ -346,7 +362,7 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgresql-postgresql
+  name: {{ $serviceName }}
   labels:
     helm.sh/chart: postgres-0.4.0
     app.kubernetes.io/name: postgres
@@ -550,7 +566,7 @@ spec:
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI
-              value: "127.0.0.1:5432/orchestrator?sslmode=disable"
+              value: "127.0.0.1:5432/{{ $dbName }}?sslmode=disable"
             - name: DATA_SOURCE_PASS
               valueFrom:
                 secretKeyRef:
