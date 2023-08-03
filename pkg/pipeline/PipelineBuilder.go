@@ -40,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.opentelemetry.io/otel"
 	"net/http"
@@ -226,7 +227,7 @@ type PipelineBuilderImpl struct {
 	enforcerUtil                                    rbac.EnforcerUtil
 	appGroupService                                 appGroup2.AppGroupService
 	chartDeploymentService                          util.ChartDeploymentService
-	K8sUtil                                         *util.K8sUtil
+	K8sUtil                                         *util4.K8sUtil
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
 	imageTaggingService                             ImageTaggingService
@@ -282,7 +283,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appGroupService appGroup2.AppGroupService,
 	chartDeploymentService util.ChartDeploymentService,
-	K8sUtil *util.K8sUtil,
+	K8sUtil *util4.K8sUtil,
 	attributesRepository repository.AttributesRepository,
 	imageTaggingService ImageTaggingService) *PipelineBuilderImpl {
 	securityConfig := &SecurityConfig{}

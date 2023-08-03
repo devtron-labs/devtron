@@ -27,7 +27,6 @@ import (
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
-	application3 "github.com/devtron-labs/devtron/client/k8s/application"
 	bean3 "github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -35,10 +34,11 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/k8s"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/devtron-labs/devtron/util/k8s"
+	. "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
@@ -165,7 +165,7 @@ type AppServiceImpl struct {
 	appStatusService                       appStatus.AppStatusService
 	installedAppRepository                 repository4.InstalledAppRepository
 	AppStoreDeploymentService              service.AppStoreDeploymentService
-	k8sApplicationService                  k8s.K8sApplicationService
+	K8sCommonService                       k8s.K8sCommonService
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
 	globalEnvVariables                     *util2.GlobalEnvVariables
 	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
@@ -243,7 +243,7 @@ func NewAppService(
 	appStatusService appStatus.AppStatusService,
 	installedAppRepository repository4.InstalledAppRepository,
 	AppStoreDeploymentService service.AppStoreDeploymentService,
-	k8sApplicationService k8s.K8sApplicationService,
+	k8sCommonService k8s.K8sCommonService,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
 	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
@@ -302,7 +302,7 @@ func NewAppService(
 		appStatusService:                       appStatusService,
 		installedAppRepository:                 installedAppRepository,
 		AppStoreDeploymentService:              AppStoreDeploymentService,
-		k8sApplicationService:                  k8sApplicationService,
+		K8sCommonService:                       k8sCommonService,
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
 		globalEnvVariables:                     globalEnvVariables,
 		helmAppService:                         helmAppService,
@@ -2718,8 +2718,8 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			}
 		} else {
 			version := "v2beta2"
-			k8sResource, err := impl.k8sApplicationService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
-				K8sRequest: &application3.K8sRequestBean{ResourceIdentifier: application3.ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
+			k8sResource, err := impl.K8sCommonService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
+				K8sRequest: &K8sRequestBean{ResourceIdentifier: ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
 					Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: hpaResourceRequest.Group, Kind: hpaResourceRequest.Kind, Version: version}}}})
 			if err != nil {
 				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
