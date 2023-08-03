@@ -1100,13 +1100,15 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
 		}
 	}
-	version, err := impl.k8sCommonService.GetK8sServerVersion(installedApp.Environment.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", installedApp.Environment.ClusterId, "err", err)
-	} else {
-		resourceTree["serverVersion"] = version.String()
+	if resourceTree != nil {
+		version, err := impl.k8sCommonService.GetK8sServerVersion(installedApp.Environment.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", installedApp.Environment.ClusterId, "err", err)
+		} else {
+			resourceTree["serverVersion"] = version.String()
+		}
+		resourceTreeAndNotesContainer.ResourceTree = resourceTree
 	}
-	resourceTreeAndNotesContainer.ResourceTree = resourceTree
 	return err
 }
 

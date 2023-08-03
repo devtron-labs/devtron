@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
@@ -80,6 +81,8 @@ type InstalledAppRestHandlerImpl struct {
 	argoUserService                  argo.ArgoUserService
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	installedAppRepository           repository.InstalledAppRepository
+	//K8sCommonService               k8s2.K8sCommonService
+	K8sApplicationService application2.K8sApplicationService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -691,6 +694,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 
 	resourceTreeAndNotesContainer := bean2.ResourceTreeAndNotesContainer{}
 	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
+	//resp, err := k8s2.K8sCommonService.GetResourceList GetResourceList()
 
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
 		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp)
