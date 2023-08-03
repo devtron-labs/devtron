@@ -352,7 +352,7 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		Namespace:                  impl.ciConfig.DefaultNamespace,
 		WorkflowNamePrefix:         CI_WORKFLOW_NAME,
 	}
-	impl.workflowService.SubmitWorkflow(workflowRequest, nil, nil, false, WEBHOOK)
+	impl.workflowService.SubmitWebhookWorkflow(workflowRequest, nil, nil, false, WEBHOOK)
 
 	hasAnyTriggered := false
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)

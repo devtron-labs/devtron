@@ -54,6 +54,7 @@ type WorkflowService interface {
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
 	TerminateWorkflow(name string, namespace string, isExt bool, environment *repository2.Environment) error
+	SubmitWebhookWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool, eventType string) (*v1alpha1.Workflow, error)
 }
 
 type CiCdTriggerEvent struct {
@@ -581,6 +582,89 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 	impl.Logger.Debug("---->", string(wfTemplate))
 
+	createdWf, err := wfClient.Create(context.Background(), &ciWorkflow, v1.CreateOptions{}) // submit the hello world workflow
+	impl.Logger.Debug("workflow submitted: " + createdWf.Name)
+	impl.checkErr(err)
+	return createdWf, err
+}
+
+func (impl *WorkflowServiceImpl) SubmitWebhookWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool, eventType string) (*v1alpha1.Workflow, error) {
+	ciCdTriggerEvent := CiCdTriggerEvent{
+		Type:      eventType,
+		CiRequest: workflowRequest,
+	}
+	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
+	ciCdTriggerEvent.CiRequest.InAppLoggingEnabled = impl.ciConfig.InAppLoggingEnabled
+	workflowJson, _ := json.Marshal(&ciCdTriggerEvent)
+	wfClient, _ := impl.getClientInstance(workflowRequest.Namespace)
+	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
+	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(impl.ciConfig.InAppLoggingEnabled)}
+	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
+	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
+	privileged := true
+	blobStorageConfigured := workflowRequest.BlobStorageConfigured
+	archiveLogs := blobStorageConfigured && !impl.ciConfig.InAppLoggingEnabled
+
+	limitCpu := impl.ciConfig.LimitCpu
+	limitMem := impl.ciConfig.LimitMem
+
+	reqCpu := impl.ciConfig.ReqCpu
+	reqMem := impl.ciConfig.ReqMem
+	ciTemplate := v1alpha1.Template{
+		Name: CI_WORKFLOW_NAME,
+		Container: &v12.Container{
+			Env:   containerEnvVariables,
+			Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
+			SecurityContext: &v12.SecurityContext{
+				Privileged: &privileged,
+			},
+			Resources: v12.ResourceRequirements{
+				Limits: v12.ResourceList{
+					"cpu":    resource.MustParse(limitCpu),
+					"memory": resource.MustParse(limitMem),
+				},
+				Requests: v12.ResourceList{
+					"cpu":    resource.MustParse(reqCpu),
+					"memory": resource.MustParse(reqMem),
+				},
+			},
+			Ports: []v12.ContainerPort{{
+				//exposed for user specific data from ci container
+				Name:          "app-data",
+				ContainerPort: 9102,
+			}},
+		},
+		ActiveDeadlineSeconds: &intstr.IntOrString{
+			IntVal: int32(2147483632),
+		},
+		ArchiveLocation: &v1alpha1.ArtifactLocation{
+			ArchiveLogs: &archiveLogs,
+		},
+	}
+	templates := make([]v1alpha1.Template, 0)
+	templates = append(templates, ciTemplate)
+	ttl := int32(impl.ciConfig.BuildLogTTLValue)
+	entryPoint := CI_WORKFLOW_NAME // template name from where worklow execution will start
+	var (
+		ciWorkflow = v1alpha1.Workflow{
+			ObjectMeta: v1.ObjectMeta{
+				GenerateName: workflowRequest.WorkflowNamePrefix + "-",
+				Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
+			},
+			Spec: v1alpha1.WorkflowSpec{
+				ServiceAccountName: impl.ciConfig.WorkflowServiceAccount,
+				//NodeSelector:            map[string]string{impl.ciConfig.TaintKey: impl.ciConfig.TaintValue},
+				//Tolerations:             []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}},
+				Entrypoint: entryPoint,
+				TTLStrategy: &v1alpha1.TTLStrategy{
+					SecondsAfterCompletion: &ttl,
+				},
+				Templates: templates,
+			},
+		}
+	)
+	wfTemplate, err := json.Marshal(ciWorkflow)
+	impl.Logger.Debug("---->", string(wfTemplate))
 	createdWf, err := wfClient.Create(context.Background(), &ciWorkflow, v1.CreateOptions{}) // submit the hello world workflow
 	impl.Logger.Debug("workflow submitted: " + createdWf.Name)
 	impl.checkErr(err)
