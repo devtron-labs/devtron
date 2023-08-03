@@ -47,6 +47,7 @@ const (
 
 type DockerRegRestHandler interface {
 	SaveDockerRegistryConfig(w http.ResponseWriter, r *http.Request)
+	ValidateDockerRegistryConfig(w http.ResponseWriter, r *http.Request)
 	GetDockerArtifactStore(w http.ResponseWriter, r *http.Request)
 	FetchAllDockerAccounts(w http.ResponseWriter, r *http.Request)
 	FetchOneDockerAccounts(w http.ResponseWriter, r *http.Request)
@@ -139,8 +140,9 @@ func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBea
 				}
 			}
 		}
-		// For public registry, URL prefix "oci://" should be trimmed
+		// For public registry, URL prefix "oci://" should be trimmed and default should be false
 		if bean.IsPublic {
+			bean.IsDefault = false
 			bean.RegistryURL = strings.TrimPrefix(bean.RegistryURL, OCIScheme)
 		}
 	} else if bean.OCIRegistryConfig != nil || bean.IsPublic {
@@ -237,6 +239,52 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl DockerRegRestHandlerImpl) ValidateDockerRegistryConfig(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean pipeline.DockerArtifactStoreBean
+	err = decoder.Decode(&bean)
+	if err != nil {
+		impl.logger.Errorw("request err, ValidateDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	bean.User = userId
+
+	impl.logger.Infow("request payload, ValidateDockerRegistryConfig", "payload", bean)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, ValidateDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	// valid registry credentials from kubelink
+	if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
+		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: "Invalid authentication credentials. Please verify.",
+			UserMessage:     "Invalid authentication credentials. Please verify.",
+		}
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
 func (impl DockerRegRestHandlerImpl) GetDockerArtifactStore(w http.ResponseWriter, r *http.Request) {
