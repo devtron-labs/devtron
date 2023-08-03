@@ -79,7 +79,7 @@ func TestPipelineConfigRestHandlerImpl_PatchCiMaterialSource(t *testing.T) {
 			fields: fields{
 				validator: validator.New(),
 			},
-			body: "{\"appId\":4, \"id\": 5 ,\"ciMaterial\":[{\"gitMaterialId\":4,\"id\":5,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main3\",\"regex\":\"\"}}]}",
+			body: "{\"appId\":4, \"id\": 5 ,\"source\":{\"type\":\"SOURCE_TYPE_BRANCH_FIXED\",\"value\":\"main3\",\"regex\":\"\"}}",
 			setup: func(fields2 *fields) {
 				ctrl := gomock.NewController(t)
 				fields2.pipelineBuilder = mock_pipeline.NewMockPipelineBuilder(ctrl)
