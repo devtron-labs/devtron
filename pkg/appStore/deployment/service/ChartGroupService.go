@@ -263,6 +263,16 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 
 		//appStoreValuesChartVersion = chartGroupEntry.AppStoreValuesVersion.AppStoreApplicationVersion.Version
 	}
+	var chartRepoName string
+	var isChartRepoActive bool
+
+	if chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id != "" {
+		chartRepoName = chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
+		isChartRepoActive = chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore.OCIRegistryConfig[0].IsChartPullActive
+	} else {
+		chartRepoName = chartGroupEntry.AppStoreApplicationVersion.AppStore.ChartRepo.Name
+		isChartRepoActive = chartGroupEntry.AppStoreApplicationVersion.AppStore.ChartRepo.Active
+	}
 	entry := &ChartGroupEntryBean{
 		Id:                           chartGroupEntry.Id,
 		AppStoreValuesVersionId:      chartGroupEntry.AppStoreValuesVersionId,
@@ -272,11 +282,11 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 		AppStoreValuesChartVersion:   appStoreValuesChartVersion,
 		ChartMetaData: &ChartMetaData{
 			ChartName:                  chartGroupEntry.AppStoreApplicationVersion.Name,
-			ChartRepoName:              chartGroupEntry.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
+			ChartRepoName:              chartRepoName,
 			Icon:                       chartGroupEntry.AppStoreApplicationVersion.Icon,
 			AppStoreId:                 chartGroupEntry.AppStoreApplicationVersion.AppStoreId,
 			AppStoreApplicationVersion: chartGroupEntry.AppStoreApplicationVersion.Version,
-			IsChartRepoActive:          chartGroupEntry.AppStoreApplicationVersion.AppStore.ChartRepo.Active,
+			IsChartRepoActive:          isChartRepoActive,
 		},
 	}
 	return entry
