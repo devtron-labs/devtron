@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"reflect"
@@ -59,6 +60,7 @@ type HelmAppService interface {
 	GetClusterConf(clusterId int) (*ClusterConfig, error)
 	GetDevtronHelmAppIdentifier() *AppIdentifier
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
+	GetManifest(chartRefId int) ([]byte, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
 	GetRevisionHistoryMaxValue(appType SourceAppType) int32
@@ -80,6 +82,8 @@ type HelmAppServiceImpl struct {
 	clusterRepository                    clusterRepository.ClusterRepository
 	K8sUtil                              *k8s.K8sUtil
 	helmReleaseConfig                    *HelmReleaseConfig
+	chartService                         chart.ChartService
+	chartTemplateServiceImpl             util.ChartTemplateService
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
@@ -89,7 +93,9 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
 	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtil,
-	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
+	helmReleaseConfig *HelmReleaseConfig,
+	chartService chart.ChartService,
+	chartTemplateServiceImpl util.ChartTemplateService) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
 		clusterService:                       clusterService,
@@ -106,6 +112,8 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 		clusterRepository:                    clusterRepository,
 		K8sUtil:                              K8sUtil,
 		helmReleaseConfig:                    helmReleaseConfig,
+		chartService:                         chartService,
+		chartTemplateServiceImpl:             chartTemplateServiceImpl,
 	}
 }
 
@@ -682,6 +690,17 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 	}
 
 	return response, nil
+}
+
+func (impl HelmAppServiceImpl) GetManifest(chartRefId int) ([]byte, error) {
+	refChart, _, err, _, _ := impl.chartService.GetRefChart(chart.TemplateRequest{ChartRefId: chartRefId})
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, err
+	}
+	chartBytes, err := impl.chartTemplateServiceImpl.LoadChartInBytes(refChart, true)
+
+	return chartBytes, nil
 }
 
 func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error) {

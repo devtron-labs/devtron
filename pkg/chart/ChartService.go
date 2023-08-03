@@ -22,11 +22,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"go.opentelemetry.io/otel"
-
 	"github.com/devtron-labs/devtron/internal/constants"
-
+	"go.opentelemetry.io/otel"
 	//"github.com/devtron-labs/devtron/pkg/pipeline"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -138,6 +135,7 @@ type ChartService interface {
 	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
+	GetManifest(chartRefId int) ([]byte, error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
 	CheckChartExists(chartRefId int) error
 	CheckIsAppMetricsSupported(chartRefId int) (bool, error)
@@ -148,6 +146,7 @@ type ChartService interface {
 	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
 	CheckCustomChartByChartId(id int) (bool, error)
+	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -213,8 +212,61 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	}
 }
 
+func readDirectoryContents(dirPath string) ([]byte, error) {
+	// Read the files and directories in the given directory
+	entries, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a buffer to store the bytes
+	var data []byte
+
+	// Loop through the entries in the directory
+	for _, entry := range entries {
+		entryPath := filepath.Join(dirPath, entry.Name())
+
+		// Check if the entry is a file
+		if !entry.IsDir() {
+			// Read the content of the file
+			fileData, err := ioutil.ReadFile(entryPath)
+			if err != nil {
+				return nil, err
+			}
+
+			// Append the file content to the buffer
+			data = append(data, fileData...)
+		} else {
+			// If the entry is a subdirectory, recursively call the same function to handle its contents
+			subdirData, err := readDirectoryContents(entryPath)
+			if err != nil {
+				return nil, err
+			}
+
+			// Append the subdirectory content to the buffer
+			data = append(data, subdirData...)
+		}
+	}
+
+	return data, nil
+}
+
+func (impl ChartServiceImpl) GetManifest(chartRefId int) ([]byte, error) {
+	refChart, _, err, _, _ := impl.GetRefChart(TemplateRequest{ChartRefId: chartRefId})
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, err
+	}
+
+	byteData, err := readDirectoryContents(refChart)
+	if err != nil {
+		return nil, err
+	}
+	return byteData, nil
+}
+
 func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {
-	refChart, _, err, _, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChart, _, err, _, _ := impl.GetRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, nil, err
@@ -244,7 +296,7 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 		return nil, err
 	}
 
-	refChart, _, err, _, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChart, _, err, _, _ := impl.GetRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +366,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	refChart, templateName, err, _, pipelineStrategyPath := impl.getRefChart(templateRequest)
+	refChart, templateName, err, _, pipelineStrategyPath := impl.GetRefChart(templateRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +534,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 
-	refChart, templateName, err, _, pipelineStrategyPath := impl.getRefChart(templateRequest)
+	refChart, templateName, err, _, pipelineStrategyPath := impl.GetRefChart(templateRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -616,7 +668,7 @@ func (impl ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (
 	}
 	return metadata, err
 }
-func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (string, string, error, string, string) {
+func (impl ChartServiceImpl) GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string) {
 	var template string
 	var version string
 	//path of file in chart from where strategy config is to be taken
@@ -1327,7 +1379,7 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		return nil, "", err
 	}
 
-	refChartDir, _, err, version, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChartDir, _, err, version, _ := impl.GetRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
 		return nil, "", err

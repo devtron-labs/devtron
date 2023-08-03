@@ -34,6 +34,7 @@ type HelmAppRestHandler interface {
 	DeleteApplication(w http.ResponseWriter, r *http.Request)
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
 	TemplateChart(w http.ResponseWriter, r *http.Request)
+	GetManifestForDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	SaveHelmAppDetailsViewedTelemetryData(w http.ResponseWriter, r *http.Request)
 }
 
@@ -345,6 +346,25 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	}
 	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_UPDATE_COUNTER)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) GetManifestForDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	if err != nil {
+		handler.logger.Error(err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	//defer cancel()
+	response, err := handler.helmAppService.GetManifest(chartRefId)
+	if err != nil {
+		handler.logger.Errorw("Error in helm-template", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
 func (handler *HelmAppRestHandlerImpl) TemplateChart(w http.ResponseWriter, r *http.Request) {
