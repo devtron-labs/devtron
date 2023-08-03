@@ -337,7 +337,6 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		CloudProvider:              impl.ciConfig.CloudProvider,
 		DefaultAddressPoolBaseCidr: impl.ciConfig.DefaultAddressPoolBaseCidr,
 		DefaultAddressPoolSize:     impl.ciConfig.DefaultAddressPoolSize,
-		AppName:                    "",
 		AppId:                      externalCiPipeline.AppId,
 		CiBuildDockerMtuValue:      impl.ciConfig.CiRunnerDockerMTUValue,
 		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
@@ -351,6 +350,9 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		Image:                      artifact.Image,
 		Namespace:                  impl.ciConfig.DefaultNamespace,
 		WorkflowNamePrefix:         CI_WORKFLOW_NAME,
+	}
+	if workflowRequest.CiImage == "" {
+		workflowRequest.CiImage = impl.ciConfig.DefaultImage
 	}
 	impl.workflowService.SubmitWebhookWorkflow(workflowRequest, nil, nil, false, WEBHOOK)
 
