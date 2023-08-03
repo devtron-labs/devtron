@@ -355,15 +355,24 @@ func (impl *ChartGroupServiceImpl) GetChartGroupWithInstallationDetail(chartGrou
 				return nil, err
 			}
 			version := versions[0]
+			var chartRepoName string
+			var isChartRepoActive bool
+			if version.AppStoreApplicationVersion.AppStore.DockerArtifactStore != nil {
+				chartRepoName = version.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
+				isChartRepoActive = version.AppStoreApplicationVersion.AppStore.DockerArtifactStore.OCIRegistryConfig[0].IsChartPullActive
+			} else {
+				chartRepoName = version.AppStoreApplicationVersion.AppStore.ChartRepo.Name
+				isChartRepoActive = version.AppStoreApplicationVersion.AppStore.ChartRepo.Active
+			}
 			installedChart := &InstalledChart{
 				ChartMetaData: ChartMetaData{
 					ChartName:         version.InstalledApp.App.AppName,
-					ChartRepoName:     version.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
+					ChartRepoName:     chartRepoName,
 					Icon:              version.AppStoreApplicationVersion.Icon,
 					AppStoreId:        version.AppStoreApplicationVersion.AppStoreId,
 					EnvironmentName:   version.InstalledApp.Environment.Name,
 					EnvironmentId:     version.InstalledApp.EnvironmentId,
-					IsChartRepoActive: version.AppStoreApplicationVersion.AppStore.ChartRepo.Active,
+					IsChartRepoActive: isChartRepoActive,
 				},
 				InstalledAppId: version.InstalledAppId,
 			}
