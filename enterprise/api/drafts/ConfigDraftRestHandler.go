@@ -311,9 +311,11 @@ func (impl *ConfigDraftRestHandlerImpl) enforceForAppAndEnv(appId int, envId int
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
 		return false
 	}
-	object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, action, object); !ok {
-		return false
+	if envId != -1 {
+		object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, action, object); !ok {
+			return false
+		}
 	}
 	return true
 }
