@@ -266,7 +266,7 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 	var chartRepoName string
 	var isChartRepoActive bool
 
-	if chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id != "" {
+	if chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore != nil {
 		chartRepoName = chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
 		isChartRepoActive = chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore.OCIRegistryConfig[0].IsChartPullActive
 	} else {
