@@ -16,7 +16,7 @@ data:
   PG_ADDR: postgresql-postgresql.devtroncd
   PG_USER: postgres
   COMMIT_STATS_TIMEOUT_IN_SEC: "2"
-  ENABLE_FILE_STATS: "false"
+  ENABLE_FILE_STATS: "true"
 ---
 # Source: gitsensor/templates/generic.yaml
 apiVersion: v1
