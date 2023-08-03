@@ -48,7 +48,7 @@ import (
 )
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool) (*v1alpha1.Workflow, error)
+	SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool, eventType string) (*v1alpha1.Workflow, error)
 	DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string, isExt bool, environment *repository2.Environment) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
@@ -224,8 +224,9 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig, globa
 
 const ciEvent = "CI"
 const cdStage = "CD"
+const WEBHOOK = "WEBHOOK"
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool, eventType string) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
 	if impl.ciConfig.CloudProvider == BLOB_STORAGE_S3 && impl.ciConfig.BlobStorageS3AccessKey != "" {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
@@ -241,7 +242,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		workflowRequest.IgnoreDockerCachePull = true
 	}
 	ciCdTriggerEvent := CiCdTriggerEvent{
-		Type:      ciEvent,
+		Type:      eventType,
 		CiRequest: workflowRequest,
 	}
 	if env != nil && env.Id != 0 {

@@ -293,7 +293,7 @@ func (impl WebhookServiceImpl) HandleExternalCiWebhook(externalCiId int, request
 		return 0, err
 	}
 
-	hasAnyTriggered, err := impl.workflowDagExecutor.HandleWebhookExternalCiEvent(artifact, request.UserId, externalCiId, auth)
+	hasAnyTriggered, err := impl.workflowDagExecutor.HandleWebhookExternalCiEvent(artifact, request.UserId, externalCiId, auth, externalCiPipeline)
 	if err != nil {
 		impl.logger.Errorw("error on handle ext ci webhook", "err", err)
 		// if none of the child node has been triggered

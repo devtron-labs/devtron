@@ -66,6 +66,7 @@ type ExternalCiPipeline struct {
 	AppId       int      `sql:"app_id"`
 	Active      bool     `sql:"active,notnull"`
 	AccessToken string   `sql:"access_token"`
+	ScanEnabled bool     `sql:"scan_enabled,notnull"`
 	sql.AuditLog
 }
 

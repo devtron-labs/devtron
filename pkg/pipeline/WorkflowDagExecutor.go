@@ -64,7 +64,7 @@ import (
 
 type WorkflowDagExecutor interface {
 	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
-	HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool) (bool, error)
+	HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool, externalCiPipeline *pipelineConfig.ExternalCiPipeline) (bool, error)
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(gitHash string, pipelineOverrideId int) error
 	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
@@ -113,6 +113,9 @@ type WorkflowDagExecutorImpl struct {
 	k8sCommonService              k8s.K8sCommonService
 	pipelineStageRepository       repository4.PipelineStageRepository
 	pipelineStageService          PipelineStageService
+	ciService                     CiService
+	workflowService               WorkflowService
+	ciConfig                      *CiConfig
 }
 
 const (
@@ -206,7 +209,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	pipelineStageRepository repository4.PipelineStageRepository,
-	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService) *WorkflowDagExecutorImpl {
+	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
+	workflowService WorkflowService,
+	ciService CiService, ciConfig *CiConfig) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -241,6 +246,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		k8sCommonService:              k8sCommonService,
 		pipelineStageRepository:       pipelineStageRepository,
 		pipelineStageService:          pipelineStageService,
+		ciService:                     ciService,
+		workflowService:               workflowService,
+		ciConfig:                      ciConfig,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -315,7 +323,34 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool) (bool, error) {
+func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool, externalCiPipeline *pipelineConfig.ExternalCiPipeline) (bool, error) {
+	_, postCiSteps, refPlugins, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(externalCiId, WEBHOOK)
+
+	workflowRequest := &WorkflowRequest{
+		PipelineId:                 externalCiPipeline.Id,
+		CiImage:                    artifact.Image,
+		TriggeredBy:                triggeredBy,
+		ScanEnabled:                externalCiPipeline.ScanEnabled,
+		PostCiSteps:                postCiSteps,
+		CacheLimit:                 impl.ciConfig.CacheLimit,
+		RefPlugins:                 refPlugins,
+		CloudProvider:              impl.ciConfig.CloudProvider,
+		DefaultAddressPoolBaseCidr: impl.ciConfig.DefaultAddressPoolBaseCidr,
+		DefaultAddressPoolSize:     impl.ciConfig.DefaultAddressPoolSize,
+		AppName:                    "",
+		AppId:                      externalCiPipeline.AppId,
+		CiBuildDockerMtuValue:      impl.ciConfig.CiRunnerDockerMTUValue,
+		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
+		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI,
+		IsExtRun:                   false,
+		EnableBuildContext:         impl.ciConfig.EnableBuildContext,
+		OrchestratorHost:           impl.ciConfig.OrchestratorHost,
+		OrchestratorToken:          impl.ciConfig.OrchestratorToken,
+		ImageRetryCount:            impl.ciConfig.ImageRetryCount,
+		ImageRetryInterval:         impl.ciConfig.ImageRetryInterval,
+	}
+	impl.workflowService.SubmitWorkflow(workflowRequest, nil, nil, false, WEBHOOK)
+
 	hasAnyTriggered := false
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)
 	if err != nil {

@@ -20,6 +20,7 @@ const (
 	PIPELINE_STAGE_TYPE_POST_CI                      PipelineStageType                   = "POST_CI"
 	PIPELINE_STAGE_TYPE_PRE_CD                       PipelineStageType                   = "PRE_CD"
 	PIPELINE_STAGE_TYPE_POST_CD                      PipelineStageType                   = "POST_CD"
+	PIPELINE_STAGE_TYPE_POST_WEBHOOK                 PipelineStageType                   = "POST_WEBHOOK"
 	PIPELINE_STEP_TYPE_INLINE                        PipelineStepType                    = "INLINE"
 	PIPELINE_STEP_TYPE_REF_PLUGIN                    PipelineStepType                    = "REF_PLUGIN"
 	PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT          PipelineStageStepVariableType       = "INPUT"
@@ -38,14 +39,15 @@ const (
 )
 
 type PipelineStage struct {
-	tableName    struct{}          `sql:"pipeline_stage" pg:",discard_unknown_columns"`
-	Id           int               `sql:"id,pk"`
-	Name         string            `sql:"name"`
-	Description  string            `sql:"description"`
-	Type         PipelineStageType `sql:"type"`
-	Deleted      bool              `sql:"deleted, notnull"`
-	CiPipelineId int               `sql:"ci_pipeline_id"`
-	CdPipelineId int               `sql:"cd_pipeline_id"`
+	tableName         struct{}          `sql:"pipeline_stage" pg:",discard_unknown_columns"`
+	Id                int               `sql:"id,pk"`
+	Name              string            `sql:"name"`
+	Description       string            `sql:"description"`
+	Type              PipelineStageType `sql:"type"`
+	Deleted           bool              `sql:"deleted, notnull"`
+	CiPipelineId      int               `sql:"ci_pipeline_id"`
+	CdPipelineId      int               `sql:"cd_pipeline_id"`
+	WebhookPipelineId int               `sql:"webhook_pipeline_id"`
 	sql.AuditLog
 }
 
@@ -144,6 +146,7 @@ type PipelineStageRepository interface {
 	GetAllCiStagesByCiPipelineId(ciPipelineId int) ([]*PipelineStage, error)
 	GetAllCdStagesByCdPipelineId(cdPipelineId int) ([]*PipelineStage, error)
 	GetAllCdStagesByCdPipelineIds(cdPipelineIds []int) ([]*PipelineStage, error)
+	GetAllWebhookStagesByCiPipelineId(webhookPipelineId int) ([]*PipelineStage, error)
 
 	GetCiStageByCiPipelineIdAndStageType(ciPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
 	GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
@@ -217,6 +220,18 @@ func (impl *PipelineStageRepositoryImpl) GetAllCiStagesByCiPipelineId(ciPipeline
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all ci stages by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
+		return nil, err
+	}
+	return pipelineStages, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) GetAllWebhookStagesByCiPipelineId(webhookPipelineId int) ([]*PipelineStage, error) {
+	var pipelineStages []*PipelineStage
+	err := impl.dbConnection.Model(&pipelineStages).
+		Where("webhook_pipeline_id = ?", webhookPipelineId).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all ci stages by ciPipelineId", "err", err, "ciPipelineId", webhookPipelineId)
 		return nil, err
 	}
 	return pipelineStages, nil

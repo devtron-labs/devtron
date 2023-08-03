@@ -564,6 +564,8 @@ func (impl *PipelineStageServiceImpl) CreatePipelineStage(stageReq *bean.Pipelin
 	tx, err := dbConnection.Begin()
 	if err != nil {
 		return err
+
+		//djjdj
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
@@ -583,6 +585,8 @@ func (impl *PipelineStageServiceImpl) CreatePipelineStage(stageReq *bean.Pipelin
 		stage.CiPipelineId = pipelineId
 	} else if stageType == repository.PIPELINE_STAGE_TYPE_PRE_CD || stageType == repository.PIPELINE_STAGE_TYPE_POST_CD {
 		stage.CdPipelineId = pipelineId
+	} else if stageType == repository.PIPELINE_STAGE_TYPE_POST_WEBHOOK {
+		stage.WebhookPipelineId = pipelineId
 	} else {
 		return errors.New("unknown stage type")
 	}
@@ -1526,6 +1530,8 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 	var err error
 	if stageType == ciEvent {
 		pipelineStages, err = impl.pipelineStageRepository.GetAllCiStagesByCiPipelineId(pipelineId)
+	} else if stageType == WEBHOOK {
+		pipelineStages, err = impl.pipelineStageRepository.GetAllWebhookStagesByCiPipelineId(pipelineId)
 	} else {
 		//cdEvent
 		pipelineStages, err = impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(pipelineId)
@@ -1568,6 +1574,13 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 				impl.logger.Errorw("error in getting post cd steps data for wf request", "err", err, "cdStage", pipelineStage)
 				return nil, nil, nil, err
 			}
+
+		case repository.PIPELINE_STAGE_TYPE_POST_WEBHOOK:
+			postCiSteps = steps
+			if err != nil {
+				impl.logger.Errorw("error in getting post cd steps data for wf request", "err", err, "cdStage", pipelineStage)
+				return nil, nil, nil, err
+			}
 		}
 		refPluginIds = append(refPluginIds, refIds...)
 	}
@@ -1578,7 +1591,7 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 			return nil, nil, nil, err
 		}
 	}
-	if stageType == ciEvent {
+	if stageType == ciEvent || stageType == WEBHOOK {
 		return preCiSteps, postCiSteps, refPluginsData, nil
 	} else {
 		return preCdSteps, postCdSteps, refPluginsData, nil

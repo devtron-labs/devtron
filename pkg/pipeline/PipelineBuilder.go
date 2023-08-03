@@ -1864,7 +1864,7 @@ func (impl *PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.C
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 
-		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
+		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId, pipelineCreateRequest.CiScanEnabled, pipelineCreateRequest.CiPostBuildStage)
 		if err != nil {
 			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)
 			return nil, err
@@ -3014,7 +3014,7 @@ type Deployment struct {
 	Strategy map[string]interface{} `json:"strategy"`
 }
 
-func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, userId int32) (pipelineRes int, err error) {
+func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, userId int32, ciScanEnabled bool, ciPostStage *bean3.PipelineStageDto) (pipelineRes int, err error) {
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -3028,9 +3028,15 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 			AppId:       app.Id,
 			AccessToken: "",
 			Active:      true,
+			ScanEnabled: ciScanEnabled,
 			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
 		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+		err := impl.pipelineStageService.CreatePipelineStage(ciPostStage, repository5.PIPELINE_STAGE_TYPE_POST_WEBHOOK, externalCiPipeline.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating post-cd stage", "err", err, "postCdStage", pipeline.PostDeployStage, "pipelineId", externalCiPipeline.Id)
+			return 0, err
+		}
 		wf := &appWorkflow.AppWorkflow{
 			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
 			AppId:    app.Id,

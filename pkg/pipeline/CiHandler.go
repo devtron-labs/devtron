@@ -202,7 +202,7 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 		ExtraEnvironmentVariables: extraEnvironmentVariables,
 		EnvironmentId:             ciTriggerRequest.EnvironmentId,
 	}
-	id, err := impl.ciService.TriggerCiPipeline(trigger)
+	id, err := impl.ciService.TriggerCiPipeline(trigger, ciEvent, nil)
 
 	if err != nil {
 		return 0, err
@@ -244,7 +244,7 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 		TriggeredBy:               gitCiTriggerRequest.TriggeredBy,
 		ExtraEnvironmentVariables: gitCiTriggerRequest.ExtraEnvironmentVariables,
 	}
-	id, err := impl.ciService.TriggerCiPipeline(trigger)
+	id, err := impl.ciService.TriggerCiPipeline(trigger, ciEvent, nil)
 	if err != nil {
 		return 0, err
 	}

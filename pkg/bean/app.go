@@ -561,6 +561,8 @@ type CdPipelines struct {
 	AppId             int                       `json:"appId,omitempty"  validate:"number,required" `
 	UserId            int32                     `json:"-"`
 	AppDeleteResponse *AppDeleteResponseDTO     `json:"deleteResponse,omitempty"`
+	CiScanEnabled     bool                      `json:"ciScanEnabled"`
+	CiPostBuildStage  *bean.PipelineStageDto    `json:"ciPostBuildStage,omitempty"`
 }
 
 type AppDeleteResponseDTO struct {

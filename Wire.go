@@ -262,6 +262,9 @@ func InitializeApp() (*App, error) {
 		router.NewJobRouterImpl,
 		wire.Bind(new(router.JobRouter), new(*router.JobRouterImpl)),
 
+		pipeline.NewWorkflowDagExecutorImpl,
+		wire.Bind(new(pipeline.WorkflowDagExecutor), new(*pipeline.WorkflowDagExecutorImpl)),
+
 		pipelineConfig.NewPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
 		pipeline.NewPropertiesConfigServiceImpl,
@@ -523,8 +526,6 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
 
-		pipeline.NewWorkflowDagExecutorImpl,
-		wire.Bind(new(pipeline.WorkflowDagExecutor), new(*pipeline.WorkflowDagExecutorImpl)),
 		appClone.NewAppCloneServiceImpl,
 		wire.Bind(new(appClone.AppCloneService), new(*appClone.AppCloneServiceImpl)),
 		pipeline.GetCdConfig,
