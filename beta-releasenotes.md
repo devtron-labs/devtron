@@ -17,6 +17,7 @@
 - fix: Clone of app with external-ci (#3624)
 - Fix: optimizing when querying DB to get running Helm deployments (#3637)
 ## Enhancements
+- feat: Patch branch api (#3722)
 - feat: App grouping admin access (#3692)
 - feat: description for apps and jobs (#3668)
 - Enhancement: Kubernetes api refactoring (#3635)
