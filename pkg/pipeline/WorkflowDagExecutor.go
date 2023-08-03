@@ -348,6 +348,9 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		OrchestratorToken:          impl.ciConfig.OrchestratorToken,
 		ImageRetryCount:            impl.ciConfig.ImageRetryCount,
 		ImageRetryInterval:         impl.ciConfig.ImageRetryInterval,
+		Image:                      artifact.Image,
+		Namespace:                  impl.ciConfig.DefaultNamespace,
+		WorkflowNamePrefix:         CI_WORKFLOW_NAME,
 	}
 	impl.workflowService.SubmitWorkflow(workflowRequest, nil, nil, false, WEBHOOK)
 
