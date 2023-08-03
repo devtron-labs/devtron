@@ -91,6 +91,7 @@ func (impl *AppStoreServiceImpl) FindChartDetailsById(id int) (appStoreBean.AppS
 	if chartDetails.AppStore.ChartRepo != nil {
 		appStoreApplicationVersion.ChartName = chartDetails.AppStore.ChartRepo.Name
 		appStoreApplicationVersion.IsChartRepoActive = chartDetails.AppStore.ChartRepo.Active
+		appStoreApplicationVersion.IsOCICompliantChart = false
 	}
 	return appStoreApplicationVersion, nil
 }
