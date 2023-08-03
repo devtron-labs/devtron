@@ -57,7 +57,7 @@ type CiArtifactRepository interface {
 	Get(id int) (artifact *CiArtifact, err error)
 	GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
-	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error)
+	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, searchString string, parentType bean.WorkflowType) ([]*CiArtifact, error)
 
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
@@ -137,14 +137,16 @@ func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 }
 
 // this method takes CD Pipeline id and Returns List of Artifacts Latest By last deployed
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, searchString string, parentType bean.WorkflowType) ([]*CiArtifact, error) {
 	artifacts := make([]*CiArtifact, 0, limit)
+	searchStringFinal := "%" + searchString + "%"
 
 	if parentType == bean.WEBHOOK_WORKFLOW_TYPE {
 		// WEBHOOK type parent
 		err := impl.dbConnection.Model(&artifacts).
 			Column("ci_artifact.id", "ci_artifact.material_info", "ci_artifact.data_source", "ci_artifact.image", "ci_artifact.image_digest", "ci_artifact.scan_enabled", "ci_artifact.scanned").
 			Where("ci_artifact.external_ci_pipeline_id = ?", parentId).
+			Where("ci_artifact.image LIKE ?", searchStringFinal).
 			Order("ci_artifact.id DESC").
 			Limit(limit).
 			Select()
@@ -165,6 +167,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 			Join("INNER JOIN ci_pipeline cp on cp.id=ci_artifact.pipeline_id").
 			Join("INNER JOIN pipeline p on p.ci_pipeline_id = cp.id").
 			Where("p.id = ?", cdPipelineId).
+			Where("ci_artifact.image LIKE ?", searchStringFinal).
 			Order("ci_artifact.id DESC").
 			Limit(limit).
 			Select()
