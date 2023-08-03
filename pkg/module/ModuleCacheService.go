@@ -19,17 +19,16 @@ package module
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/internal/util"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"log"
@@ -45,7 +44,7 @@ type ModuleCacheService interface {
 type ModuleCacheServiceImpl struct {
 	logger           *zap.SugaredLogger
 	mutex            sync.Mutex
-	K8sUtil          *util.K8sUtil
+	K8sUtil          *k8s.K8sUtil
 	moduleEnvConfig  *ModuleEnvConfig
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
@@ -53,7 +52,7 @@ type ModuleCacheServiceImpl struct {
 	teamService      team.TeamService
 }
 
-func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
+func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
 	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
@@ -116,18 +115,9 @@ func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
 
 func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 	impl.logger.Debug("building informer cache to listen on installer object")
-	clusterConfig, err := impl.K8sUtil.GetK8sClusterRestConfig()
+	_, _, clusterDynamicClient, err := impl.K8sUtil.GetK8sInClusterConfigAndDynamicClients()
 	if err != nil {
 		log.Fatalln("not able to get k8s cluster rest config.", "error", err)
-	}
-
-	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(clusterConfig)
-	if err != nil {
-		log.Fatalln("not able to get k8s http client from rest config.", "error", err)
-	}
-	clusterClient, err := dynamic.NewForConfigAndClient(clusterConfig, k8sHttpClient)
-	if err != nil {
-		log.Fatalln("not able to get config from rest config.", "error", err)
 	}
 
 	installerResource := schema.GroupVersionResource{
@@ -136,7 +126,7 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 		Resource: impl.serverEnvConfig.InstallerCrdObjectResource,
 	}
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
-		clusterClient, time.Minute, impl.serverEnvConfig.InstallerCrdNamespace, nil)
+		clusterDynamicClient, time.Minute, impl.serverEnvConfig.InstallerCrdNamespace, nil)
 	informer := factory.ForResource(installerResource).Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{

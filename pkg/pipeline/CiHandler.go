@@ -29,7 +29,9 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -96,7 +98,7 @@ type CiHandlerImpl struct {
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	appListingRepository         repository.AppListingRepository
-	K8sUtil                      *util.K8sUtil
+	K8sUtil                      *k8s.K8sUtil
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	appGroupService              appGroup2.AppGroupService
@@ -104,13 +106,7 @@ type CiHandlerImpl struct {
 	imageTaggingService          ImageTaggingService
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
-	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
-	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
-	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil,
-	appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository,
-	imageTaggingService ImageTaggingService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -653,22 +649,20 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		Namespace: ciWorkflow.Namespace,
 	}
 	isExt := false
-	clusterConfig := util.ClusterConfig{}
+	clusterConfig := &k8s.ClusterConfig{}
 	if ciWorkflow.EnvironmentId != 0 {
 		env, err := impl.envRepository.FindById(ciWorkflow.EnvironmentId)
 		if err != nil {
 			return nil, nil, err
 		}
-		configMap := env.Cluster.Config
-		clusterConfig = util.ClusterConfig{
-			Host:                  env.Cluster.ServerUrl,
-			BearerToken:           configMap[util.BearerToken],
-			InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+		var clusterBean cluster.ClusterBean
+		if env != nil && env.Cluster != nil {
+			clusterBean = cluster.GetClusterBean(*env.Cluster)
 		}
-		if env.Cluster.InsecureSkipTlsVerify == false {
-			clusterConfig.KeyData = configMap[util.TlsKey]
-			clusterConfig.CertData = configMap[util.CertData]
-			clusterConfig.CAData = configMap[util.CertificateAuthorityData]
+		clusterConfig, err = clusterBean.GetClusterConfig()
+		if err != nil {
+			impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+			return nil, nil, err
 		}
 		isExt = true
 	}
