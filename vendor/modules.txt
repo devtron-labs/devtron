@@ -46,9 +46,10 @@ github.com/Azure/go-autorest/logger
 # github.com/Azure/go-autorest/tracing v0.6.0
 ## explicit; go 1.12
 github.com/Azure/go-autorest/tracing
-# github.com/BurntSushi/toml v0.3.1
-## explicit
+# github.com/BurntSushi/toml v0.4.1
+## explicit; go 1.16
 github.com/BurntSushi/toml
+github.com/BurntSushi/toml/internal
 # github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 ## explicit
 github.com/Knetic/govaluate
@@ -368,6 +369,8 @@ github.com/exponent-io/jsonpath
 # github.com/fatih/camelcase v1.0.0
 ## explicit
 github.com/fatih/camelcase
+# github.com/fatih/color v1.13.0
+## explicit; go 1.13
 # github.com/felixge/httpsnoop v1.0.3
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
@@ -626,6 +629,8 @@ github.com/hashicorp/errwrap
 # github.com/hashicorp/go-cleanhttp v0.5.2
 ## explicit; go 1.13
 github.com/hashicorp/go-cleanhttp
+# github.com/hashicorp/go-hclog v0.12.0
+## explicit; go 1.13
 # github.com/hashicorp/go-multierror v1.1.1
 ## explicit; go 1.13
 github.com/hashicorp/go-multierror
@@ -705,6 +710,8 @@ github.com/liggitt/tabwriter
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
+# github.com/mattn/go-colorable v0.1.11
+## explicit; go 1.13
 # github.com/mattn/go-ieproxy v0.0.1
 ## explicit; go 1.14
 github.com/mattn/go-ieproxy
@@ -778,7 +785,7 @@ github.com/oliveagle/jsonpath
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/otiai10/copy v1.0.2
+# github.com/otiai10/copy v1.2.0
 ## explicit; go 1.12
 github.com/otiai10/copy
 # github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -828,8 +835,10 @@ github.com/robfig/cron
 # github.com/robfig/cron/v3 v3.0.1
 ## explicit; go 1.12
 github.com/robfig/cron/v3
-# github.com/russross/blackfriday v1.5.2
-## explicit
+# github.com/rogpeppe/go-internal v1.6.2
+## explicit; go 1.11
+# github.com/russross/blackfriday v1.6.0
+## explicit; go 1.13
 github.com/russross/blackfriday
 # github.com/satori/go.uuid v1.2.0
 ## explicit
