@@ -164,6 +164,13 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		return nil, err
 	}
 
+	var isOCIRepo bool
+	if appStoreAppVersion.AppStore.DockerArtifactStore != nil {
+		isOCIRepo = true
+	} else {
+		isOCIRepo = false
+	}
+
 	var appInstallationMode string
 	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) {
 		appInstallationMode = util2.SERVER_MODE_HYPERION
@@ -222,14 +229,14 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	//	}
 	//}
 	if !isInternalUse {
-		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL {
+		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 		}
 	}
 	if installAppVersionRequest.DeploymentAppType == "" {
-		if isGitOpsConfigured {
+		if isGitOpsConfigured && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
