@@ -52,8 +52,6 @@ type DockerRegistryConfig interface {
 	ValidateRegistryStorageType(registryId string, storageType string, storageActions ...string) bool
 }
 
-type ArtifactStoreType int
-
 type DockerArtifactStoreBean struct {
 	Id                      string                       `json:"id,omitempty" validate:"required"`
 	PluginId                string                       `json:"pluginId,omitempty" validate:"required"`
