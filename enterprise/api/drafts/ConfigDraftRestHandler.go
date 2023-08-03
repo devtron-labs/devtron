@@ -141,7 +141,7 @@ func (impl *ConfigDraftRestHandlerImpl) AddDraftVersion(w http.ResponseWriter, r
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftVersionMetadata(w http.ResponseWriter, r *http.Request) {
 
-	draftId, _, errorOccurred, _ := impl.enforceDraftRequest(w, r, casbin.ActionGet)
+	draftId, _, errorOccurred, _ := impl.enforceDraftRequest(w, r, casbin.ActionGet, true)
 	if errorOccurred {
 		return
 	}
@@ -156,7 +156,7 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftVersionMetadata(w http.ResponseW
 }
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftComments(w http.ResponseWriter, r *http.Request) {
-	draftId, _, errorOccurred, _ := impl.enforceDraftRequest(w, r, casbin.ActionGet)
+	draftId, _, errorOccurred, _ := impl.enforceDraftRequest(w, r, casbin.ActionGet, true)
 	if errorOccurred {
 		return
 	}
@@ -243,8 +243,8 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftsCount(w http.ResponseWriter, r 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	// if user has admin access then its fine else user should have get and Approver access
-	draftId, userId, hasAdminAccess, draftResponse := impl.enforceDraftRequest(w, r, casbin.ActionUpdate)
-	if !hasAdminAccess {
+	_, _, notAllowed, draftResponse := impl.enforceDraftRequest(w, r, casbin.ActionUpdate, false)
+	if notAllowed {
 		object := impl.enforcerUtil.GetTeamEnvRBACNameByAppId(draftResponse.AppId, draftResponse.EnvId)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -256,12 +256,12 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *h
 	//if errorOccurred {
 	//	return
 	//}
-	draftResponse, err := impl.configDraftService.GetDraftById(draftId, userId)
-	if err != nil {
-		impl.logger.Errorw("error occurred while fetching draft comments", "err", err, "draftId", draftId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+	//draftResponse, err := impl.configDraftService.GetDraftById(draftId, userId)
+	//if err != nil {
+	//	impl.logger.Errorw("error occurred while fetching draft comments", "err", err, "draftId", draftId)
+	//	common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+	//	return
+	//}
 	if draftResponse.Resource == drafts.CSDraftResource {
 		// in case of Secret, required admin access
 		allowed := impl.enforceForAppAndEnv(draftResponse.AppId, draftResponse.EnvId, token, casbin.ActionCreate)
@@ -270,10 +270,10 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *h
 			return
 		}
 	}
-	common.WriteJsonResp(w, err, draftResponse, http.StatusOK)
+	common.WriteJsonResp(w, nil, draftResponse, http.StatusOK)
 }
 
-func (impl *ConfigDraftRestHandlerImpl) enforceDraftRequest(w http.ResponseWriter, r *http.Request, action string) (int, int32, bool, *drafts.ConfigDraftResponse) {
+func (impl *ConfigDraftRestHandlerImpl) enforceDraftRequest(w http.ResponseWriter, r *http.Request, action string, writeErrorMsg bool) (int, int32, bool, *drafts.ConfigDraftResponse) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -285,11 +285,11 @@ func (impl *ConfigDraftRestHandlerImpl) enforceDraftRequest(w http.ResponseWrite
 		return 0, 0, true, nil
 	}
 
-	draftResponse, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, action)
+	draftResponse, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, action, writeErrorMsg)
 	return draftId, userId, notAllowed, draftResponse
 }
 
-func (impl *ConfigDraftRestHandlerImpl) enforceForDraftId(w http.ResponseWriter, r *http.Request, draftId int, userId int32, action string) (*drafts.ConfigDraftResponse, bool) {
+func (impl *ConfigDraftRestHandlerImpl) enforceForDraftId(w http.ResponseWriter, r *http.Request, draftId int, userId int32, action string, writeErrorMsg bool) (*drafts.ConfigDraftResponse, bool) {
 	configDraft, err := impl.configDraftService.GetDraftById(draftId, userId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching draft", "draftId", draftId, "err", err)
@@ -300,7 +300,9 @@ func (impl *ConfigDraftRestHandlerImpl) enforceForDraftId(w http.ResponseWriter,
 	token := r.Header.Get("token")
 	enforced := impl.enforceForAppAndEnv(configDraft.AppId, configDraft.EnvId, token, action)
 	if !enforced {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		if writeErrorMsg {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		}
 		return nil, true
 	}
 	return configDraft, false
@@ -369,7 +371,7 @@ func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter,
 		return
 	}
 
-	_, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, casbin.ActionDelete)
+	_, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, casbin.ActionDelete, true)
 	if notAllowed {
 		return
 	}
@@ -399,7 +401,7 @@ func (impl *ConfigDraftRestHandlerImpl) UpdateDraftState(w http.ResponseWriter, 
 	if err != nil {
 		return
 	}
-	_, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, casbin.ActionUpdate)
+	_, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, casbin.ActionUpdate, true)
 	if notAllowed {
 		return
 	}
