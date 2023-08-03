@@ -39,7 +39,11 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
-const REG_DELETE_SUCCESS_RESP = "Container Registry deleted successfully."
+const (
+	REG_DELETE_SUCCESS_RESP = "Container Registry deleted successfully."
+	OCIScheme               = "oci://"
+	secureWithCert          = "secure-with-cert"
+)
 
 type DockerRegRestHandler interface {
 	SaveDockerRegistryConfig(w http.ResponseWriter, r *http.Request)
@@ -67,8 +71,6 @@ type DockerRegRestHandlerImpl struct {
 	teamService          team.TeamService
 	deleteService        deleteService.DeleteService
 }
-
-const secureWithCert = "secure-with-cert"
 
 func NewDockerRegRestHandlerExtendedImpl(
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
@@ -112,7 +114,7 @@ func NewDockerRegRestHandlerImpl(
 	}
 }
 
-func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBean) bool {
+func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBean, isUpdate bool) bool {
 	// validating secure connection configs
 	if (bean.Connection == secureWithCert && bean.Cert == "") ||
 		(bean.Connection != secureWithCert && bean.Cert != "") {
@@ -128,12 +130,18 @@ func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBea
 		if containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
 			return false
 		}
-		// For Charts with storage action type "PULL/PUSH" or "PULL", RepositoryList cannot be nil
-		chartStorageActionType, chartStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CHART]
-		if chartStorageActionExists && (chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH || chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL) {
-			if bean.RepositoryList == nil || len(bean.RepositoryList) == 0 || slices.Contains(bean.RepositoryList, "") {
-				return false
+		if !isUpdate {
+			// For Charts with storage action type "PULL/PUSH" or "PULL", RepositoryList cannot be nil
+			chartStorageActionType, chartStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CHART]
+			if chartStorageActionExists && (chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH || chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL) {
+				if bean.RepositoryList == nil || len(bean.RepositoryList) == 0 || slices.Contains(bean.RepositoryList, "") {
+					return false
+				}
 			}
+		}
+		// For public registry, URL prefix "oci://" should be trimmed
+		if bean.IsPublic {
+			bean.RegistryURL = strings.TrimPrefix(bean.RegistryURL, OCIScheme)
 		}
 	} else if bean.OCIRegistryConfig != nil || bean.IsPublic {
 		return false
@@ -156,78 +164,79 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 	bean.User = userId
-	if !ValidateDockerArtifactStoreRequestBean(bean) {
+	if !ValidateDockerArtifactStoreRequestBean(bean, false) {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	} else {
-		impl.logger.Infow("request payload, SaveDockerRegistryConfig", "payload", bean)
-		err = impl.validator.Struct(bean)
+	}
+
+	impl.logger.Infow("request payload, SaveDockerRegistryConfig", "payload", bean)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	// valid registry credentials from kubelink
+	if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
+		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: "Invalid authentication credentials. Please verify.",
+			UserMessage:     "Invalid authentication credentials. Please verify.",
+		}
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	exist, err := impl.dockerRegistryConfig.CheckInActiveDockerAccount(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if exist {
+		res, err := impl.dockerRegistryConfig.UpdateInactive(&bean)
 		if err != nil {
-			impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-
-		// RBAC enforcer applying
-		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, "*"); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-		//RBAC enforcer Ends
-		if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
-			impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
-			err = &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				InternalMessage: "Invalid authentication credentials. Please verify.",
-				UserMessage:     "Invalid authentication credentials. Please verify.",
-			}
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		exist, err := impl.dockerRegistryConfig.CheckInActiveDockerAccount(bean.Id)
-
-		if err != nil {
-			impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-
-		if exist {
-			res, err := impl.dockerRegistryConfig.UpdateInactive(&bean)
-			if err != nil {
-				impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-			common.WriteJsonResp(w, err, res, http.StatusOK)
-			return
-		}
-		// valid registry credentials from kubelink
-		if bean.IsOCICompliantRegistry && len(bean.RepositoryList) != 0 {
-			request := &chartProviderService.ChartProviderRequestDto{
-				Id:            bean.Id,
-				IsOCIRegistry: bean.IsOCICompliantRegistry,
-			}
-			err = impl.chartProviderService.SyncChartProvider(request)
-			if err != nil {
-				impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "userId", userId)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-		}
-
-		res, err := impl.dockerRegistryConfig.Create(&bean)
-		if err != nil {
-			impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+			impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 		common.WriteJsonResp(w, err, res, http.StatusOK)
+		return
 	}
 
+	// trigger a chart sync job
+	if bean.IsOCICompliantRegistry && len(bean.RepositoryList) != 0 {
+		request := &chartProviderService.ChartProviderRequestDto{
+			Id:            bean.Id,
+			IsOCIRegistry: bean.IsOCICompliantRegistry,
+		}
+		err = impl.chartProviderService.SyncChartProvider(request)
+		if err != nil {
+			impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "userId", userId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	res, err := impl.dockerRegistryConfig.Create(&bean)
+	if err != nil {
+		impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl DockerRegRestHandlerImpl) GetDockerArtifactStore(w http.ResponseWriter, r *http.Request) {
@@ -308,14 +317,14 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	bean.User = userId
-	if !ValidateDockerArtifactStoreRequestBean(bean) {
+	if !ValidateDockerArtifactStoreRequestBean(bean, true) {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "payload", bean)
 
+	impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
@@ -330,12 +339,15 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	//RBAC enforcer Ends
+
 	res, err := impl.dockerRegistryConfig.Update(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	// trigger a chart sync job
 	if res.IsOCICompliantRegistry && len(res.RepositoryList) != 0 {
 		request := &chartProviderService.ChartProviderRequestDto{
 			Id:            res.Id,
