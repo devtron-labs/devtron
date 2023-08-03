@@ -515,8 +515,8 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	}
 	envConfigProperties, err := handler.propertiesConfigService.GetLatestEnvironmentProperties(request.AppId, request.EnvId)
 	if err != nil || envConfigProperties == nil {
-		handler.Logger.Errorw("request err, ChangeChartRef", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusUnprocessableEntity)
+		handler.Logger.Errorw("env properties not found, ChangeChartRef", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, "env properties not found", http.StatusNotFound)
 		return
 	}
 	if !envConfigProperties.IsOverride {
@@ -526,13 +526,13 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	}
 	compatible, oldChartType, newChartType := handler.chartService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
 	if !compatible {
-		common.WriteJsonResp(w, fmt.Errorf("charts not compatible"), nil, http.StatusUnprocessableEntity)
+		common.WriteJsonResp(w, fmt.Errorf("charts not compatible"), "chart not compatible", http.StatusUnprocessableEntity)
 		return
 	}
 
 	envConfigProperties.EnvOverrideValues, err = handler.chartService.PatchEnvOverrides(envConfigProperties.EnvOverrideValues, oldChartType, newChartType)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "error in patching env override", http.StatusInternalServerError)
 		return
 	}
 
@@ -548,7 +548,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	envMetrics, err := handler.propertiesConfigService.FindEnvLevelAppMetricsByAppIdAndEnvId(request.AppId, request.EnvId)
 	if err != nil {
 		handler.Logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, "env metric could not be fetched", http.StatusBadRequest)
 		return
 	}
 	envConfigProperties.ChartRefId = request.TargetChartRefId
@@ -572,7 +572,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", request)
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err2, "validation err, UpdateAppOverrid", http.StatusBadRequest)
 		return
 	}
 	envConfigPropertiesOld, err := handler.propertiesConfigService.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
@@ -604,7 +604,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 			acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 			if err != nil {
 				handler.Logger.Errorw("error in getting acd token", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, "error in getting acd token", http.StatusInternalServerError)
 				return
 			}
 			ctx = context.WithValue(r.Context(), "token", acdToken)
@@ -622,19 +622,21 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 
 			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
 			if err != nil {
-				handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", request)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				handler.Logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "payload", request)
+				common.WriteJsonResp(w, err, "could not create chart from env override", http.StatusInternalServerError)
 				return
 			}
 			createResp, err = handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, envConfigProperties)
 			if err != nil {
-				handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", request)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				handler.Logger.Errorw("service err, CreateEnvironmentProperties", "err", err, "payload", request)
+				common.WriteJsonResp(w, err, "could not create env properties", http.StatusInternalServerError)
 				return
 			}
+			common.WriteJsonResp(w, err, createResp, http.StatusOK)
+			return
 		} else {
 			handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", request)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, "service err, EnvConfigOverrideCreate", http.StatusInternalServerError)
 			return
 		}
 	}
