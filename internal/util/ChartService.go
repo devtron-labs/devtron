@@ -780,6 +780,9 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 	if err != nil {
 		return chartBytesArr, err
 	}
+	if deleteChart {
+		defer impl.CleanDir(ChartPath)
+	}
 
 	return chartBytesArr, err
 }

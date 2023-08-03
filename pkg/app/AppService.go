@@ -1565,7 +1565,7 @@ func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, envName string
 		imageTag = strings.Split(image, ":")[1]
 	}
 	chartName := fmt.Sprintf("%s-%s-%s", appName, envName, imageTag)
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, false, chartName, chartVersion)
+	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, chartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArr, err
