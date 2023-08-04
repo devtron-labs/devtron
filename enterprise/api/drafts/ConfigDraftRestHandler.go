@@ -244,10 +244,15 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	// if user has admin access then its fine else user should have get and Approver access
 	draftId, userId, notAllowed, draftResponse := impl.enforceDraftRequest(w, r, casbin.ActionUpdate, false)
-	appId := draftResponse.AppId
-	envId := draftResponse.EnvId
+	var appId, envId int
 	if notAllowed {
-		if notAnApprover := impl.checkForApproverAccess(w, envId, appId, token); notAnApprover {
+		if draftResponse != nil {
+			appId = draftResponse.AppId
+			envId = draftResponse.EnvId
+			if notAnApprover := impl.checkForApproverAccess(w, envId, appId, token); notAnApprover {
+				return
+			}
+		} else {
 			return
 		}
 	}
@@ -261,6 +266,8 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *h
 			return
 		}
 	}
+	appId = draftResponse.AppId
+	envId = draftResponse.EnvId
 	if draftResponse.Resource == drafts.CSDraftResource {
 		// in case of Secret, required admin access
 		allowed := impl.enforceForAppAndEnv(appId, envId, token, casbin.ActionCreate)
@@ -316,7 +323,7 @@ func (impl *ConfigDraftRestHandlerImpl) enforceForDraftId(w http.ResponseWriter,
 		if writeErrorMsg {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
-		return nil, true
+		return configDraft, true
 	}
 	return configDraft, false
 }
