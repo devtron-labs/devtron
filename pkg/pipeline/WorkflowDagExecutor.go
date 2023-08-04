@@ -328,7 +328,6 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 
 	workflowRequest := &WorkflowRequest{
 		PipelineId:                 externalCiPipeline.Id,
-		CiImage:                    artifact.Image,
 		TriggeredBy:                triggeredBy,
 		ScanEnabled:                externalCiPipeline.ScanEnabled,
 		PostCiSteps:                postCiSteps,
