@@ -244,14 +244,14 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	// if user has admin access then its fine else user should have get and Approver access
 	draftId, userId, notAllowed, draftResponse := impl.enforceDraftRequest(w, r, casbin.ActionUpdate, false)
+	appId := draftResponse.AppId
+	envId := draftResponse.EnvId
 	if notAllowed {
-		object := impl.enforcerUtil.GetTeamEnvRBACNameByAppId(draftResponse.AppId, draftResponse.EnvId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		if notAnApprover := impl.checkForApproverAccess(w, envId, appId, token); notAnApprover {
 			return
 		}
 	}
-	
+
 	var err error
 	if draftResponse == nil {
 		draftResponse, err = impl.configDraftService.GetDraftById(draftId, userId)
@@ -263,13 +263,27 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *h
 	}
 	if draftResponse.Resource == drafts.CSDraftResource {
 		// in case of Secret, required admin access
-		allowed := impl.enforceForAppAndEnv(draftResponse.AppId, draftResponse.EnvId, token, casbin.ActionCreate)
+		allowed := impl.enforceForAppAndEnv(appId, envId, token, casbin.ActionCreate)
 		if !allowed {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
 	common.WriteJsonResp(w, nil, draftResponse, http.StatusOK)
+}
+
+func (impl *ConfigDraftRestHandlerImpl) checkForApproverAccess(w http.ResponseWriter, envId int, appId int, token string) bool {
+	var object string
+	if envId > 0 {
+		object = impl.enforcerUtil.GetTeamEnvRBACNameByAppId(appId, envId)
+	} else {
+		object = impl.enforcerUtil.GetTeamNoEnvRBACNameByAppId(appId)
+	}
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return true
+	}
+	return false
 }
 
 func (impl *ConfigDraftRestHandlerImpl) enforceDraftRequest(w http.ResponseWriter, r *http.Request, action string, writeErrorMsg bool) (int, int32, bool, *drafts.ConfigDraftResponse) {
@@ -342,9 +356,9 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 		return
 	}
 	token := r.Header.Get("token")
-	object := impl.enforcerUtil.GetTeamEnvRBACNameByAppId(draftResponse.AppId, draftResponse.EnvId)
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	envId := draftResponse.EnvId
+	appId := draftResponse.AppId
+	if notAnApprover := impl.checkForApproverAccess(w, envId, appId, token); notAnApprover {
 		return
 	}
 	err = impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
