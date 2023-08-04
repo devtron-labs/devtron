@@ -88,6 +88,7 @@ type DockerRegistryIpsConfigBean struct {
 	CredentialValue      string                                     `json:"credentialValue,omitempty"`
 	AppliedClusterIdsCsv string                                     `json:"appliedClusterIdsCsv,omitempty"`
 	IgnoredClusterIdsCsv string                                     `json:"ignoredClusterIdsCsv,omitempty"`
+	Active               bool                                       `json:"active,omitempty"`
 }
 
 type DockerRegistryConfigImpl struct {
@@ -357,7 +358,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 		impl.logger.Infow("created OCI registry config successfully")
 	}
 
-	if !bean.IsPublic {
+	if !bean.IsPublic && bean.DockerRegistryIpsConfig != nil {
 		// 4- insert imagePullSecretConfig for this docker registry
 		dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
 		ipsConfig := &repository.DockerRegistryIpsConfig{
@@ -366,18 +367,12 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 			CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
 			AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
 			IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
+			Active:                true,
 		}
-		err = impl.dockerRegistryIpsConfigRepository.Save(ipsConfig, tx)
+		err = impl.createDockerIpConfig(tx, ipsConfig)
 		if err != nil {
-			impl.logger.Errorw("error in saving registry config ips", "ipsConfig", ipsConfig, "err", err)
-			err = &util.ApiError{
-				Code:            constants.DockerRegCreateFailedInDb,
-				InternalMessage: "docker registry ips config to create in db",
-				UserMessage:     fmt.Sprintf("Container registry [%s] already exists.", bean.Id),
-			}
 			return nil, err
 		}
-		impl.logger.Infow("created ips config for this docker repository", "ipsConfig", ipsConfig)
 		dockerRegistryIpsConfig.Id = ipsConfig.Id
 	}
 
@@ -604,28 +599,48 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		impl.logger.Infow("updated OCI registry config successfully")
 	}
 
+	// 5- update imagePullSecretConfig for this docker registry
+	existingIpsConfig, err := impl.dockerRegistryIpsConfigRepository.FindByDockerRegistryId(store.Id)
 	if !bean.IsPublic && bean.DockerRegistryIpsConfig != nil {
-		// 5- update imagePullSecretConfig for this docker registry
 		dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
 		ipsConfig := &repository.DockerRegistryIpsConfig{
-			Id:                    dockerRegistryIpsConfig.Id,
 			DockerArtifactStoreId: store.Id,
 			CredentialType:        dockerRegistryIpsConfig.CredentialType,
 			CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
 			AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
 			IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
+			Active:                true,
 		}
-		err = impl.dockerRegistryIpsConfigRepository.Update(ipsConfig, tx)
 		if err != nil {
-			impl.logger.Errorw("error in updating registry config ips", "ipsConfig", ipsConfig, "err", err)
-			err = &util.ApiError{
-				Code:            constants.DockerRegUpdateFailedInDb,
-				InternalMessage: "docker registry ips config failed to update in db",
-				UserMessage:     "docker registry ips config failed to update in db",
+			impl.logger.Errorw("Error while getting docker registry ips config", "dockerRegistryId", store.Id, "err", err)
+			// Create a new docker registry ips config
+			if err == pg.ErrNoRows {
+				err = impl.createDockerIpConfig(tx, ipsConfig)
+				if err != nil {
+					return nil, err
+				}
+				dockerRegistryIpsConfig.Id = ipsConfig.Id
+			} else {
+				// Throw error
+				return nil, err
 			}
-			return nil, err
+		} else {
+			// Update the docker registry ips config
+			ipsConfig.Id = existingIpsConfig.Id
+			err = impl.updateDockerIpConfig(tx, existingIpsConfig)
+			if err != nil {
+				return nil, err
+			}
 		}
-		impl.logger.Infow("updated ips config for this docker repository ", "ipsConfig", ipsConfig)
+	} else {
+		if err != nil && err != pg.ErrNoRows {
+			// Update the docker registry ips config to inactive
+			existingIpsConfig.Active = false
+			err = impl.updateDockerIpConfig(tx, existingIpsConfig)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// 6- now commit transaction
@@ -636,6 +651,48 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 	}
 
 	return bean, nil
+}
+
+func (impl DockerRegistryConfigImpl) updateDockerIpConfig(tx *pg.Tx, existingIpsConfig *repository.DockerRegistryIpsConfig) error {
+	err := impl.dockerRegistryIpsConfigRepository.Update(existingIpsConfig, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating registry config ips", "ipsConfig", existingIpsConfig, "err", err)
+		err = &util.ApiError{
+			Code:            constants.DockerRegUpdateFailedInDb,
+			InternalMessage: "docker registry ips config failed to update in db",
+			UserMessage:     "docker registry ips config failed to update in db",
+		}
+		return err
+	}
+	impl.logger.Infow("updated ips config for this docker repository ", "ipsConfig", existingIpsConfig)
+	return nil
+}
+
+func (impl DockerRegistryConfigImpl) createDockerIpConfig(tx *pg.Tx, ipsConfig *repository.DockerRegistryIpsConfig) error {
+	existingIpsConfig, err := impl.dockerRegistryIpsConfigRepository.FindInActiveByDockerRegistryId(ipsConfig.DockerArtifactStoreId)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			err = impl.dockerRegistryIpsConfigRepository.Save(ipsConfig, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving registry config ips", "ipsConfig", ipsConfig, "err", err)
+				err = &util.ApiError{
+					Code:            constants.DockerRegCreateFailedInDb,
+					InternalMessage: "docker registry ips config to create in db",
+					UserMessage:     fmt.Sprintf("Container registry [%s] already exists.", ipsConfig.DockerArtifactStoreId),
+				}
+				return err
+			}
+			impl.logger.Infow("created ips config for this docker repository", "ipsConfig", ipsConfig)
+			return nil
+		} else {
+			return err
+		}
+	}
+	err = impl.updateDockerIpConfig(tx, existingIpsConfig)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // UpdateInactive will update the existing soft deleted registry with the given DockerArtifactStoreBean instead of creating one
@@ -697,24 +754,25 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *DockerArtifactStoreBea
 		// 5- update imagePullSecretConfig for this docker registry
 		dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
 		ipsConfig := &repository.DockerRegistryIpsConfig{
-			Id:                    existingStore.IpsConfig.Id,
 			DockerArtifactStoreId: store.Id,
 			CredentialType:        dockerRegistryIpsConfig.CredentialType,
 			CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
 			AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
 			IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
+			Active:                true,
 		}
-		err = impl.dockerRegistryIpsConfigRepository.Update(ipsConfig, tx)
-		if err != nil {
-			impl.logger.Errorw("error in updating registry config ips", "ipsConfig", ipsConfig, "err", err)
-			err = &util.ApiError{
-				Code:            constants.DockerRegUpdateFailedInDb,
-				InternalMessage: "docker registry ips config failed to update in db",
-				UserMessage:     "docker registry ips config failed to update in db",
+		if existingStore.IpsConfig != nil {
+			ipsConfig.Id = existingStore.IpsConfig.Id
+			err = impl.updateDockerIpConfig(tx, ipsConfig)
+			if err != nil {
+				return nil, err
 			}
-			return nil, err
+		} else {
+			err = impl.createDockerIpConfig(tx, ipsConfig)
+			if err != nil {
+				return nil, err
+			}
 		}
-		impl.logger.Infow("updated ips config for this docker repository ", "ipsConfig", ipsConfig)
 	}
 
 	// 6- now commit transaction
