@@ -448,6 +448,7 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 				CredentialValue:      ipsConfig.CredentialValue,
 				AppliedClusterIdsCsv: ipsConfig.AppliedClusterIdsCsv,
 				IgnoredClusterIdsCsv: ipsConfig.IgnoredClusterIdsCsv,
+				Active:               ipsConfig.Active,
 			}
 		}
 		storeBeans = append(storeBeans, storeBean)
@@ -506,6 +507,7 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 			CredentialValue:      ipsConfig.CredentialValue,
 			AppliedClusterIdsCsv: ipsConfig.AppliedClusterIdsCsv,
 			IgnoredClusterIdsCsv: ipsConfig.IgnoredClusterIdsCsv,
+			Active:               ipsConfig.Active,
 		}
 	}
 	return storeBean, err

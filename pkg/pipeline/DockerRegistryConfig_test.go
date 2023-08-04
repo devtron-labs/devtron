@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"log"
 	"testing"
 
@@ -34,9 +35,10 @@ var (
 		IsOCICompliantRegistry: false,
 		DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
 			Id:                   0,
-			CredentialType:       "SAME_AS_REGISTRY",
+			CredentialType:       dockerRegistry.IPS_CREDENTIAL_TYPE_SAME_AS_REGISTRY,
 			AppliedClusterIdsCsv: "",
 			IgnoredClusterIdsCsv: "-1",
+			Active:               true,
 		},
 	}
 	validInput2 = &DockerArtifactStoreBean{
@@ -56,9 +58,10 @@ var (
 		RepositoryList: []string{"username/test", "username/chart"},
 		DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
 			Id:                   0,
-			CredentialType:       "SAME_AS_REGISTRY",
+			CredentialType:       dockerRegistry.IPS_CREDENTIAL_TYPE_SAME_AS_REGISTRY,
 			AppliedClusterIdsCsv: "",
 			IgnoredClusterIdsCsv: "-1",
+			Active:               true,
 		},
 	}
 	validInput3 = &DockerArtifactStoreBean{
@@ -75,7 +78,7 @@ var (
 )
 
 func TestRegistryConfigService_Save(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	if dockerRegistryConfig == nil {
 		InitDockerRegistryConfig()
 	}
@@ -117,12 +120,12 @@ func TestRegistryConfigService_Save(t *testing.T) {
 					t.Fatalf("Error inserting record in database: %s", err.Error())
 				}
 				assert.Nil(tt, err)
-				assert.Equal(tt, res.Id, tc.input.Id)
-				assert.Equal(tt, store.Id, tc.input.Id)
-				assert.Equal(tt, res.IsPublic, tc.input.IsPublic)
-				assert.Equal(tt, store.IsPublic, tc.input.IsPublic)
-				assert.True(tt, res.IsOCICompliantRegistry)
-				assert.True(tt, store.IsOCICompliantRegistry)
+				assert.Equal(tt, tc.input.Id, res.Id)
+				assert.Equal(tt, tc.input.Id, store.Id)
+				assert.Equal(tt, tc.input.IsPublic, res.IsPublic)
+				assert.Equal(tt, tc.input.IsPublic, store.IsPublic)
+				assert.Equal(tt, tc.input.IsOCICompliantRegistry, res.IsOCICompliantRegistry)
+				assert.Equal(tt, tc.input.IsOCICompliantRegistry, store.IsOCICompliantRegistry)
 				if tc.input.OCIRegistryConfig != nil {
 					if _, inputStorageActionExists := res.OCIRegistryConfig["CONTAINER"]; !inputStorageActionExists {
 						_, containerStorageActionExists := res.OCIRegistryConfig["CONTAINER"]
@@ -130,8 +133,8 @@ func TestRegistryConfigService_Save(t *testing.T) {
 						_, containerStorageActionExists = store.OCIRegistryConfig["CONTAINER"]
 						assert.False(tt, containerStorageActionExists)
 					} else {
-						assert.Equal(tt, res.OCIRegistryConfig["CONTAINER"], tc.input.OCIRegistryConfig["CONTAINER"])
-						assert.Equal(tt, store.OCIRegistryConfig["CONTAINER"], tc.input.OCIRegistryConfig["CONTAINER"])
+						assert.Equal(tt, tc.input.OCIRegistryConfig["CONTAINER"], res.OCIRegistryConfig["CONTAINER"])
+						assert.Equal(tt, tc.input.OCIRegistryConfig["CONTAINER"], store.OCIRegistryConfig["CONTAINER"])
 					}
 
 					if _, inputStorageActionExists := res.OCIRegistryConfig["CHART"]; !inputStorageActionExists {
@@ -140,13 +143,23 @@ func TestRegistryConfigService_Save(t *testing.T) {
 						_, chartStorageActionExists = store.OCIRegistryConfig["CHART"]
 						assert.False(tt, chartStorageActionExists)
 					} else {
-						assert.Equal(tt, res.OCIRegistryConfig["CHART"], tc.input.OCIRegistryConfig["CHART"])
-						assert.Equal(tt, store.OCIRegistryConfig["CHART"], tc.input.OCIRegistryConfig["CHART"])
+						assert.Equal(tt, tc.input.OCIRegistryConfig["CHART"], res.OCIRegistryConfig["CHART"])
+						assert.Equal(tt, tc.input.OCIRegistryConfig["CHART"], store.OCIRegistryConfig["CHART"])
 					}
 				}
 				if tc.input.DockerRegistryIpsConfig != nil {
-					assert.Equal(tt, res.DockerRegistryIpsConfig.CredentialType, tc.input.DockerRegistryIpsConfig.CredentialValue)
-					assert.Equal(tt, store.DockerRegistryIpsConfig.CredentialType, tc.input.DockerRegistryIpsConfig.CredentialValue)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Id, res.DockerRegistryIpsConfig.Id)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Id, store.DockerRegistryIpsConfig.Id)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialType, res.DockerRegistryIpsConfig.CredentialType)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialType, store.DockerRegistryIpsConfig.CredentialType)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialValue, res.DockerRegistryIpsConfig.CredentialValue)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialValue, store.DockerRegistryIpsConfig.CredentialValue)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.AppliedClusterIdsCsv, res.DockerRegistryIpsConfig.AppliedClusterIdsCsv)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.AppliedClusterIdsCsv, store.DockerRegistryIpsConfig.AppliedClusterIdsCsv)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.IgnoredClusterIdsCsv, res.DockerRegistryIpsConfig.IgnoredClusterIdsCsv)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.IgnoredClusterIdsCsv, store.DockerRegistryIpsConfig.IgnoredClusterIdsCsv)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Active, res.DockerRegistryIpsConfig.Active)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Active, store.DockerRegistryIpsConfig.Active)
 				}
 			}
 		})
@@ -154,7 +167,7 @@ func TestRegistryConfigService_Save(t *testing.T) {
 }
 
 func TestRegistryConfigService_Update(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	if dockerRegistryConfig == nil {
 		InitDockerRegistryConfig()
 	}
@@ -168,8 +181,8 @@ func TestRegistryConfigService_Update(t *testing.T) {
 		t.Fatalf("Error inserting record in database: %s", err.Error())
 	}
 
-	assert.Equal(t, savedRegisrty.OCIRegistryConfig["CONTAINER"], validInput2.OCIRegistryConfig["CONTAINER"])
-	assert.Equal(t, savedRegisrty.OCIRegistryConfig["CHART"], validInput2.OCIRegistryConfig["CHART"])
+	assert.Equal(t, validInput2.OCIRegistryConfig["CONTAINER"], savedRegisrty.OCIRegistryConfig["CONTAINER"])
+	assert.Equal(t, validInput2.OCIRegistryConfig["CONTAINER"], savedRegisrty.OCIRegistryConfig["CHART"])
 
 	delete(savedRegisrty.OCIRegistryConfig, "CHART")
 	// define input for update function
@@ -206,6 +219,8 @@ func TestRegistryConfigService_Update(t *testing.T) {
 				assert.Equal(tt, store.Id, tc.input.Id)
 				assert.Equal(tt, res.IsPublic, tc.input.IsPublic)
 				assert.Equal(tt, store.IsPublic, tc.input.IsPublic)
+				assert.Equal(tt, tc.input.IsOCICompliantRegistry, res.IsOCICompliantRegistry)
+				assert.Equal(tt, tc.input.IsOCICompliantRegistry, store.IsOCICompliantRegistry)
 				if tc.input.OCIRegistryConfig != nil {
 					if _, inputStorageActionExists := res.OCIRegistryConfig["CONTAINER"]; !inputStorageActionExists {
 						_, containerStorageActionExists := res.OCIRegistryConfig["CONTAINER"]
@@ -213,8 +228,8 @@ func TestRegistryConfigService_Update(t *testing.T) {
 						_, containerStorageActionExists = store.OCIRegistryConfig["CONTAINER"]
 						assert.False(tt, containerStorageActionExists)
 					} else {
-						assert.Equal(tt, res.OCIRegistryConfig["CONTAINER"], tc.input.OCIRegistryConfig["CONTAINER"])
-						assert.Equal(tt, store.OCIRegistryConfig["CONTAINER"], tc.input.OCIRegistryConfig["CONTAINER"])
+						assert.Equal(tt, tc.input.OCIRegistryConfig["CONTAINER"], res.OCIRegistryConfig["CONTAINER"])
+						assert.Equal(tt, tc.input.OCIRegistryConfig["CONTAINER"], store.OCIRegistryConfig["CONTAINER"])
 					}
 
 					if _, inputStorageActionExists := res.OCIRegistryConfig["CHART"]; !inputStorageActionExists {
@@ -223,9 +238,23 @@ func TestRegistryConfigService_Update(t *testing.T) {
 						_, chartStorageActionExists = store.OCIRegistryConfig["CHART"]
 						assert.False(tt, chartStorageActionExists)
 					} else {
-						assert.Equal(tt, res.OCIRegistryConfig["CHART"], tc.input.OCIRegistryConfig["CHART"])
-						assert.Equal(tt, store.OCIRegistryConfig["CHART"], tc.input.OCIRegistryConfig["CHART"])
+						assert.Equal(tt, tc.input.OCIRegistryConfig["CHART"], res.OCIRegistryConfig["CHART"])
+						assert.Equal(tt, tc.input.OCIRegistryConfig["CHART"], store.OCIRegistryConfig["CHART"])
 					}
+				}
+				if tc.input.DockerRegistryIpsConfig != nil {
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Id, res.DockerRegistryIpsConfig.Id)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Id, store.DockerRegistryIpsConfig.Id)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialType, res.DockerRegistryIpsConfig.CredentialType)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialType, store.DockerRegistryIpsConfig.CredentialType)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialValue, res.DockerRegistryIpsConfig.CredentialValue)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialValue, store.DockerRegistryIpsConfig.CredentialValue)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.AppliedClusterIdsCsv, res.DockerRegistryIpsConfig.AppliedClusterIdsCsv)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.AppliedClusterIdsCsv, store.DockerRegistryIpsConfig.AppliedClusterIdsCsv)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.IgnoredClusterIdsCsv, res.DockerRegistryIpsConfig.IgnoredClusterIdsCsv)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.IgnoredClusterIdsCsv, store.DockerRegistryIpsConfig.IgnoredClusterIdsCsv)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Active, res.DockerRegistryIpsConfig.Active)
+					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Active, store.DockerRegistryIpsConfig.Active)
 				}
 			}
 		})
