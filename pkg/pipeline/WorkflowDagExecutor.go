@@ -326,6 +326,12 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool, externalCiPipeline *pipelineConfig.ExternalCiPipeline) (bool, error) {
 	_, postCiSteps, refPlugins, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(externalCiId, WEBHOOK)
 
+	dockerRegistryConfig, err := impl.CiTemplateRepository.FindByAppId(externalCiPipeline.AppId)
+	if err != nil {
+		impl.logger.Errorw("Error in getting dockerRegistryConfig appId:", externalCiPipeline.AppId)
+	}
+	dockerRegistry := dockerRegistryConfig.DockerRegistry
+
 	workflowRequest := &WorkflowRequest{
 		PipelineId:                 externalCiPipeline.Id,
 		TriggeredBy:                triggeredBy,
@@ -349,6 +355,19 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		Image:                      artifact.Image,
 		Namespace:                  impl.ciConfig.DefaultNamespace,
 		WorkflowNamePrefix:         CI_WORKFLOW_NAME,
+	}
+	if dockerRegistry != nil {
+		workflowRequest.DockerRegistryId = dockerRegistry.Id
+		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
+		workflowRequest.DockerRegistryURL = dockerRegistry.RegistryURL
+		workflowRequest.DockerRepository = dockerRegistryConfig.DockerRepository
+		workflowRequest.DockerUsername = dockerRegistry.Username
+		workflowRequest.DockerPassword = dockerRegistry.Password
+		workflowRequest.AwsRegion = dockerRegistry.AWSRegion
+		workflowRequest.AccessKey = dockerRegistry.AWSAccessKeyId
+		workflowRequest.SecretKey = dockerRegistry.AWSSecretAccessKey
+		workflowRequest.DockerConnection = dockerRegistry.Connection
+		workflowRequest.DockerCert = dockerRegistry.Cert
 	}
 	if workflowRequest.CiImage == "" {
 		workflowRequest.CiImage = impl.ciConfig.DefaultImage
