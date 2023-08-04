@@ -322,8 +322,11 @@ func (impl DockerRegRestHandlerImpl) FetchAllDockerAccounts(w http.ResponseWrite
 	var result []pipeline.DockerArtifactStoreBean
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
-			if isEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(item.Id); !(isEditable || item.IsPublic) {
-				item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PULL)
+			item.DisabledFields = make([]pipeline.DisabledFields, 0)
+			if !item.IsPublic {
+				if isEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(item.Id); !(isEditable || item.IsPublic) {
+					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PULL)
+				}
 			}
 			result = append(result, item)
 		}
@@ -345,11 +348,14 @@ func (impl DockerRegRestHandlerExtendedImpl) FetchAllDockerAccounts(w http.Respo
 	var result []pipeline.DockerArtifactStoreBean
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
-			if isContainerEditable := impl.deleteServiceFullMode.CanDeleteChartRegistryPullConfig(item.Id); !(isContainerEditable || item.IsPublic) {
-				item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CONTAINER)
-			}
-			if isChartEditable := impl.deleteServiceFullMode.CanDeleteChartRegistryPullConfig(item.Id); !(isChartEditable || item.IsPublic) {
-				item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PULL)
+			item.DisabledFields = make([]pipeline.DisabledFields, 0)
+			if !item.IsPublic {
+				if isContainerEditable := impl.deleteServiceFullMode.CanDeleteContainerRegistryConfig(item.Id); !(isContainerEditable || item.IsPublic) {
+					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CONTAINER)
+				}
+				if isChartEditable := impl.DockerRegRestHandlerImpl.deleteService.CanDeleteChartRegistryPullConfig(item.Id); !(isChartEditable || item.IsPublic) {
+					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PULL)
+				}
 			}
 			result = append(result, item)
 		}
@@ -367,9 +373,13 @@ func (impl DockerRegRestHandlerImpl) FetchOneDockerAccounts(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if isContainerEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isContainerEditable || res.IsPublic) {
-		res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
+	res.DisabledFields = make([]pipeline.DisabledFields, 0)
+	if !res.IsPublic {
+		if isChartEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isChartEditable || res.IsPublic) {
+			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
+		}
 	}
+
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(res.Id)); !ok {
@@ -390,12 +400,16 @@ func (impl DockerRegRestHandlerExtendedImpl) FetchOneDockerAccounts(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if isContainerEditable := impl.deleteServiceFullMode.CanDeleteChartRegistryPullConfig(res.Id); !(isContainerEditable || res.IsPublic) {
-		res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
+	res.DisabledFields = make([]pipeline.DisabledFields, 0)
+	if !res.IsPublic {
+		if isContainerEditable := impl.deleteServiceFullMode.CanDeleteContainerRegistryConfig(res.Id); !(isContainerEditable || res.IsPublic) {
+			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
+		}
+		if isChartEditable := impl.DockerRegRestHandlerImpl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isChartEditable || res.IsPublic) {
+			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CHART_PULL)
+		}
 	}
-	if isChartEditable := impl.deleteServiceFullMode.CanDeleteChartRegistryPullConfig(res.Id); !(isChartEditable || res.IsPublic) {
-		res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CHART_PULL)
-	}
+
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(res.Id)); !ok {

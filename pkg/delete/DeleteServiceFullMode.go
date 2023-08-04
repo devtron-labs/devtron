@@ -13,7 +13,6 @@ type DeleteServiceFullMode interface {
 	DeleteGitProvider(deleteRequest *pipeline.GitRegistry) error
 	DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error
 	CanDeleteContainerRegistryConfig(storeId string) bool
-	CanDeleteChartRegistryPullConfig(storeId string) bool
 }
 
 type DeleteServiceFullModeImpl struct {
@@ -98,19 +97,6 @@ func (impl DeleteServiceFullModeImpl) CanDeleteContainerRegistryConfig(storeId s
 		return false
 	}
 	if len(ciTemplates) > 0 {
-		return false
-	}
-	return true
-}
-
-func (impl DeleteServiceFullModeImpl) CanDeleteChartRegistryPullConfig(storeId string) bool {
-	//finding if docker reg chart is used in any deployment, if yes then will not delete
-	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(storeId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching registry chart deployment docker registry", "dockerRegistry", storeId, "err", err)
-		return false
-	}
-	if store.DeploymentCount > 0 {
 		return false
 	}
 	return true

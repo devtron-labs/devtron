@@ -56,7 +56,7 @@ type DisabledFields string
 
 const (
 	DISABLED_CONTAINER  DisabledFields = "CONTAINER"
-	DISABLED_CHART_PULL DisabledFields = "DISABLED_CHART_PULL"
+	DISABLED_CHART_PULL DisabledFields = "CHART_PULL"
 )
 
 type DockerArtifactStoreBean struct {
