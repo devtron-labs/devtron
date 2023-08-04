@@ -1513,7 +1513,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, 
 }
 
 func (impl ConfigMapServiceImpl) validateConfigData(configData *ConfigData) (bool, error) {
-	dataMap := make(map[string]string)
+	dataMap := make(map[string]interface{})
 	if configData.Data != nil {
 		err := json.Unmarshal(configData.Data, &dataMap)
 		if err != nil {
