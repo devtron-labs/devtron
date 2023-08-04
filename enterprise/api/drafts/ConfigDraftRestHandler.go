@@ -243,7 +243,7 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftsCount(w http.ResponseWriter, r 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	// if user has admin access then its fine else user should have get and Approver access
-	_, _, notAllowed, draftResponse := impl.enforceDraftRequest(w, r, casbin.ActionUpdate, false)
+	draftId, userId, notAllowed, draftResponse := impl.enforceDraftRequest(w, r, casbin.ActionUpdate, false)
 	if notAllowed {
 		object := impl.enforcerUtil.GetTeamEnvRBACNameByAppId(draftResponse.AppId, draftResponse.EnvId)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object); !ok {
@@ -251,17 +251,16 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *h
 			return
 		}
 	}
-
-	//draftId, userId, errorOccurred, _ := impl.enforceDraftRequest(w, r, casbin.ActionGet)
-	//if errorOccurred {
-	//	return
-	//}
-	//draftResponse, err := impl.configDraftService.GetDraftById(draftId, userId)
-	//if err != nil {
-	//	impl.logger.Errorw("error occurred while fetching draft comments", "err", err, "draftId", draftId)
-	//	common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return
-	//}
+	
+	var err error
+	if draftResponse == nil {
+		draftResponse, err = impl.configDraftService.GetDraftById(draftId, userId)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching draft comments", "err", err, "draftId", draftId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
 	if draftResponse.Resource == drafts.CSDraftResource {
 		// in case of Secret, required admin access
 		allowed := impl.enforceForAppAndEnv(draftResponse.AppId, draftResponse.EnvId, token, casbin.ActionCreate)
