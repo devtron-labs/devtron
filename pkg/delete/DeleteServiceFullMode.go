@@ -13,6 +13,8 @@ import (
 type DeleteServiceFullMode interface {
 	DeleteGitProvider(deleteRequest *pipeline.GitRegistry) error
 	DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error
+	CanDeleteContainerRegistryConfig(storeId string) bool
+	CanDeleteChartRegistryPushConfig(storeId string) bool
 }
 
 type DeleteServiceFullModeImpl struct {
@@ -66,7 +68,7 @@ func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *
 	//finding if docker reg is used in any app, if yes then will not delete
 	ciTemplates, err := impl.ciTemplateRepository.FindByDockerRegistryId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("err in deleting docker registry", "dockerRegistry", deleteRequest.Id, "err", err)
+		impl.logger.Errorw("err in fetching CI build configs attached with registry", "dockerRegistry", deleteRequest.Id, "err", err)
 		return err
 	}
 	if len(ciTemplates) > 0 {
@@ -84,9 +86,11 @@ func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *
 		impl.logger.Errorw("err in deleting docker registry, found virtual deployment config using registry", "dockerRegistry", deleteRequest.Id, "err", err)
 		return err
 	}
+
+	//finding if docker reg chart is used in any deployment, if yes then will not delete
 	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(deleteRequest.Id)
 	if err != nil {
-		impl.logger.Errorw("error in deleting docker registry", "err", err, "deleteRequest", deleteRequest)
+		impl.logger.Errorw("error in fetching registry chart deployment", "dockerRegistry", deleteRequest.Id, "err", err)
 		return err
 	}
 	if store.DeploymentCount > 0 {
@@ -99,4 +103,30 @@ func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *
 		return err
 	}
 	return nil
+}
+
+func (impl DeleteServiceFullModeImpl) CanDeleteContainerRegistryConfig(storeId string) bool {
+	//finding if docker reg is used in any app, if yes then will not delete
+	ciTemplates, err := impl.ciTemplateRepository.FindByDockerRegistryId(storeId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting docker registry", "dockerRegistry", storeId, "err", err)
+		return false
+	}
+	if len(ciTemplates) > 0 {
+		return false
+	}
+	return true
+}
+
+func (impl DeleteServiceFullModeImpl) CanDeleteChartRegistryPushConfig(storeId string) bool {
+	//finding if docker reg is used in any virtual CD pipeline, if yes then will not delete
+	manifestConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByStoreId(storeId)
+	if err != nil {
+		impl.logger.Errorw("err in deleting docker registry", "dockerRegistry", storeId, "err", err)
+		return false
+	}
+	if manifestConfig.Id != 0 {
+		return false
+	}
+	return true
 }

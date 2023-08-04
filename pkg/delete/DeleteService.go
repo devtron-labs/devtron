@@ -20,6 +20,7 @@ type DeleteService interface {
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error
 	DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error
+	CanDeleteChartRegistryPullConfig(storeId string) bool
 }
 
 type DeleteServiceImpl struct {
@@ -125,4 +126,17 @@ func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *pipeline
 		return err
 	}
 	return nil
+}
+
+func (impl DeleteServiceImpl) CanDeleteChartRegistryPullConfig(storeId string) bool {
+	//finding if docker reg chart is used in any deployment, if yes then will not delete
+	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(storeId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching registry chart deployment docker registry", "dockerRegistry", storeId, "err", err)
+		return false
+	}
+	if store.DeploymentCount > 0 {
+		return false
+	}
+	return true
 }

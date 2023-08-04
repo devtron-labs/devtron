@@ -128,7 +128,7 @@ func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBea
 		}
 		// For Containers, storage action should be "PULL/PUSH"
 		containerStorageActionType, containerStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CONTAINER]
-		if containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+		if containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH && bean.DockerRegistryIpsConfig == nil {
 			return false
 		}
 		if !isUpdate {
@@ -140,9 +140,10 @@ func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBea
 				}
 			}
 		}
-		// For public registry, URL prefix "oci://" should be trimmed and default should be false
+		// For public registry, URL prefix "oci://" should be trimmed, DockerRegistryIpsConfig should be nil and default should be false
 		if bean.IsPublic {
 			bean.IsDefault = false
+			bean.DockerRegistryIpsConfig = nil
 			bean.RegistryURL = strings.TrimPrefix(bean.RegistryURL, OCIScheme)
 		}
 	} else if bean.OCIRegistryConfig != nil || bean.IsPublic {
@@ -321,11 +322,48 @@ func (impl DockerRegRestHandlerImpl) FetchAllDockerAccounts(w http.ResponseWrite
 	var result []pipeline.DockerArtifactStoreBean
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
+			item.DisabledFields = make([]pipeline.DisabledFields, 0)
+			if !item.IsPublic {
+				if isEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(item.Id); !(isEditable || item.IsPublic) {
+					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PULL)
+				}
+			}
 			result = append(result, item)
 		}
 	}
 	//RBAC enforcer Ends
+	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
 
+func (impl DockerRegRestHandlerExtendedImpl) FetchAllDockerAccounts(w http.ResponseWriter, r *http.Request) {
+	res, err := impl.dockerRegistryConfig.FetchAllDockerAccounts()
+	if err != nil {
+		impl.logger.Errorw("service err, FetchAllDockerAccounts", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	var result []pipeline.DockerArtifactStoreBean
+	for _, item := range res {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
+			item.DisabledFields = make([]pipeline.DisabledFields, 0)
+			if !item.IsPublic {
+				if isContainerEditable := impl.deleteServiceFullMode.CanDeleteContainerRegistryConfig(item.Id); !(isContainerEditable || item.IsPublic) {
+					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CONTAINER)
+				}
+				if isChartPushEditable := impl.deleteServiceFullMode.CanDeleteChartRegistryPushConfig(item.Id); !(isChartPushEditable || item.IsPublic) {
+					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PUSH)
+				}
+				if isChartPullEditable := impl.DockerRegRestHandlerImpl.deleteService.CanDeleteChartRegistryPullConfig(item.Id); !(isChartPullEditable || item.IsPublic) {
+					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PULL)
+				}
+			}
+			result = append(result, item)
+		}
+	}
+	//RBAC enforcer Ends
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
@@ -337,6 +375,45 @@ func (impl DockerRegRestHandlerImpl) FetchOneDockerAccounts(w http.ResponseWrite
 		impl.logger.Errorw("service err, FetchOneDockerAccounts", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+	res.DisabledFields = make([]pipeline.DisabledFields, 0)
+	if !res.IsPublic {
+		if isChartPullEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isChartPullEditable || res.IsPublic) {
+			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
+		}
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(res.Id)); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl DockerRegRestHandlerExtendedImpl) FetchOneDockerAccounts(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id := params["id"]
+	res, err := impl.dockerRegistryConfig.FetchOneDockerAccount(id)
+	if err != nil {
+		impl.logger.Errorw("service err, FetchOneDockerAccounts", "err", err, "id", id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	res.DisabledFields = make([]pipeline.DisabledFields, 0)
+	if !res.IsPublic {
+		if isContainerEditable := impl.deleteServiceFullMode.CanDeleteContainerRegistryConfig(res.Id); !(isContainerEditable || res.IsPublic) {
+			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
+		}
+		if isChartPushEditable := impl.deleteServiceFullMode.CanDeleteChartRegistryPushConfig(res.Id); !(isChartPushEditable || res.IsPublic) {
+			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CHART_PUSH)
+		}
+		if isChartPullEditable := impl.DockerRegRestHandlerImpl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isChartPullEditable || res.IsPublic) {
+			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CHART_PULL)
+		}
 	}
 
 	// RBAC enforcer applying

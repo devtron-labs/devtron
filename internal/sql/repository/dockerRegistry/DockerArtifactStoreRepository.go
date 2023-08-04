@@ -149,6 +149,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Join("LEFT JOIN docker_registry_ips_config ipc on ipc.docker_artifact_store_id = docker_artifact_store.id").
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
@@ -160,7 +161,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Column("docker_artifact_store.*", "OCIRegistryConfig").
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
@@ -175,6 +176,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Join("LEFT JOIN docker_registry_ips_config ipc on ipc.docker_artifact_store_id = docker_artifact_store.id").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
@@ -198,6 +200,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Join("LEFT JOIN docker_registry_ips_config ipc on ipc.docker_artifact_store_id = docker_artifact_store.id").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("active = ?", false).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
