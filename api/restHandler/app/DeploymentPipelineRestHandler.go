@@ -543,7 +543,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, environmentId)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", environmentId)
-		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusLocked)
 		return
 	}
 
@@ -653,7 +653,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", envId)
-		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusLocked)
 		return
 	}
 	chartRefId := envConfigProperties.ChartRefId
@@ -1228,7 +1228,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(templateRequest.AppId, -1)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "appId", templateRequest.AppId, "envId", -1)
-		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusLocked)
 		return
 	}
 
@@ -1478,7 +1478,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.Respo
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, environmentId)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", environmentId)
-		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusLocked)
 		return
 	}
 	isSuccess, err := handler.propertiesConfigService.ResetEnvironmentProperties(id)

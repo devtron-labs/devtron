@@ -122,7 +122,7 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, -1)
 	if protectionEnabled {
 		handler.Logger.Errorw("request err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
-		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
 		return
 	}
 	res, err := handler.configMapService.CMGlobalAddUpdate(&configMapRequest)
@@ -168,7 +168,7 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, configMapRequest.EnvironmentId)
 	if protectionEnabled {
 		handler.Logger.Errorw("request err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
-		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
 		return
 	}
 
@@ -281,7 +281,7 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, -1)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "err", err, "payload", configMapRequest)
-		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
 		return
 	}
 
@@ -329,7 +329,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, configMapRequest.EnvironmentId)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "err", err, "payload", configMapRequest)
-		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
 		return
 	}
 
@@ -446,7 +446,7 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r 
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, -1)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "appId", appId, "id", id, "name", name)
-		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
 		return
 	}
 
@@ -504,7 +504,7 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", envId, "id", id, "name", name)
-		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
 		return
 	}
 
@@ -550,7 +550,7 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r 
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, -1)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "appId", appId, "id", id, "name", name)
-		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
 		return
 	}
 
@@ -608,7 +608,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
 	if protectionEnabled {
 		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", envId, "id", id, "name", name)
-		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
 		return
 	}
 
