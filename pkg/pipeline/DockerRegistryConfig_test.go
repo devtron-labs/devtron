@@ -1,6 +1,9 @@
 package pipeline
 
 import (
+	"context"
+	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/mocks"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"log"
@@ -23,6 +26,7 @@ type Config struct {
 
 var (
 	dockerRegistryConfig *DockerRegistryConfigImpl
+	helmAppServiceMock   *mocks.HelmAppService
 	storeIds             = []string{"integration-test-store-1", "integration-test-store-2", "integration-test-store-3"}
 	validInput1          = &DockerArtifactStoreBean{
 		Id:                     storeIds[0],
@@ -80,7 +84,7 @@ var (
 func TestRegistryConfigService_Save(t *testing.T) {
 	//t.SkipNow()
 	if dockerRegistryConfig == nil {
-		InitDockerRegistryConfig()
+		InitDockerRegistryConfig(t)
 	}
 	testCases := []struct {
 		name        string
@@ -169,7 +173,7 @@ func TestRegistryConfigService_Save(t *testing.T) {
 func TestRegistryConfigService_Update(t *testing.T) {
 	//t.SkipNow()
 	if dockerRegistryConfig == nil {
-		InitDockerRegistryConfig()
+		InitDockerRegistryConfig(t)
 	}
 	//clean data in db
 	t.Cleanup(cleanDb)
@@ -206,6 +210,17 @@ func TestRegistryConfigService_Update(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
 			tc.input.User = 1
+			// Set expectations for the mock method call
+			helmAppServiceMock.On("ValidateOCIRegistry", context.Background(), &client.RegistryCredential{
+				RegistryUrl:  tc.input.RegistryURL,
+				Username:     tc.input.Username,
+				Password:     tc.input.Password,
+				AwsRegion:    tc.input.AWSRegion,
+				AccessKey:    tc.input.AWSAccessKeyId,
+				SecretKey:    tc.input.AWSSecretAccessKey,
+				RegistryType: string(tc.input.RegistryType),
+				IsPublic:     tc.input.IsPublic,
+			}).Return(true)
 			res, err := dockerRegistryConfig.Update(tc.input)
 			if tc.expectedErr {
 				assert.NotNil(tt, err)
@@ -294,7 +309,7 @@ func cleanDb() {
 	}
 }
 
-func InitDockerRegistryConfig() {
+func InitDockerRegistryConfig(t *testing.T) {
 	if dockerRegistryConfig != nil {
 		return
 	}
@@ -310,5 +325,6 @@ func InitDockerRegistryConfig() {
 	dockerArtifactStoreRepository := repository.NewDockerArtifactStoreRepositoryImpl(conn)
 	dockerRegistryIpsConfigRepository := repository.NewDockerRegistryIpsConfigRepositoryImpl(conn)
 	ociRegistryConfigRepository := repository.NewOCIRegistryConfigRepositoryImpl(conn)
-	dockerRegistryConfig = NewDockerRegistryConfigImpl(logger, nil, dockerArtifactStoreRepository, dockerRegistryIpsConfigRepository, ociRegistryConfigRepository)
+	helmAppServiceMock = mocks.NewHelmAppService(t)
+	dockerRegistryConfig = NewDockerRegistryConfigImpl(logger, helmAppServiceMock, dockerArtifactStoreRepository, dockerRegistryIpsConfigRepository, ociRegistryConfigRepository)
 }
