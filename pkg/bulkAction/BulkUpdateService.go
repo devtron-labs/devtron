@@ -11,6 +11,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -78,17 +79,18 @@ type BulkUpdateServiceImpl struct {
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
 	workflowDagExecutor              pipeline.WorkflowDagExecutor
-	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
-	pipelineBuilder                  pipeline.PipelineBuilder
-	helmAppService                   client.HelmAppService
-	enforcerUtil                     rbac.EnforcerUtil
-	enforcerUtilHelm                 rbac.EnforcerUtilHelm
-	ciHandler                        pipeline.CiHandler
-	ciPipelineRepository             pipelineConfig.CiPipelineRepository
-	appWorkflowRepository            appWorkflow.AppWorkflowRepository
-	appWorkflowService               appWorkflow2.AppWorkflowService
-	pubsubClient                     *pubsub.PubSubClientServiceImpl
-	argoUserService                  argo.ArgoUserService
+	cdWorkflowRepository      pipelineConfig.CdWorkflowRepository
+	pipelineBuilder           pipeline.PipelineBuilder
+	helmAppService            client.HelmAppService
+	enforcerUtil              rbac.EnforcerUtil
+	enforcerUtilHelm          rbac.EnforcerUtilHelm
+	ciHandler                 pipeline.CiHandler
+	ciPipelineRepository      pipelineConfig.CiPipelineRepository
+	appWorkflowRepository     appWorkflow.AppWorkflowRepository
+	appWorkflowService        appWorkflow2.AppWorkflowService
+	pubsubClient              *pubsub.PubSubClientServiceImpl
+	argoUserService           argo.ArgoUserService
+	resourceProtectionService protect.ResourceProtectionService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -118,7 +120,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	appWorkflowService appWorkflow2.AppWorkflowService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
-	argoUserService argo.ArgoUserService) (*BulkUpdateServiceImpl, error) {
+	argoUserService argo.ArgoUserService, resourceProtectionService protect.ResourceProtectionService) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -152,6 +154,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		appWorkflowService:               appWorkflowService,
 		pubsubClient:                     pubsubClient,
 		argoUserService:                  argoUserService,
+		resourceProtectionService:        resourceProtectionService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
@@ -413,11 +416,23 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 			} else {
 				for _, chart := range charts {
 					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartId(chart.Id)
+					appId := appDetailsByChart.Id
+					configProtectionEnabled := impl.configProtectionEnabled(appId, -1)
+					if configProtectionEnabled {
+						impl.logger.Warn("not applying json patch, config protection enabled")
+						bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+							AppId:   appId,
+							AppName: appDetailsByChart.AppName,
+							Message: "config protection enabled",
+						}
+						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					modified, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chart.Values)
 					if err != nil {
 						impl.logger.Errorw("error in applying JSON patch", "err", err)
 						bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-							AppId:   appDetailsByChart.Id,
+							AppId:   appId,
 							AppName: appDetailsByChart.AppName,
 							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 						}
@@ -427,14 +442,14 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 						if err != nil {
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
 							}
 							deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
 							bulkUpdateSuccessResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								Message: "Updated Successfully",
 							}
@@ -472,11 +487,24 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 			} else {
 				for _, chartEnv := range chartsEnv {
 					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartEnvId(chartEnv.Id)
+					appId := appDetailsByChart.Id
+					configProtectionEnabled := impl.configProtectionEnabled(appId, envId)
+					if configProtectionEnabled {
+						impl.logger.Warn("not applying json patch, config protection enabled")
+						bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+							AppId:   appId,
+							AppName: appDetailsByChart.AppName,
+							EnvId:   envId,
+							Message: "config protection enabled",
+						}
+						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					modified, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chartEnv.EnvOverrideValues)
 					if err != nil {
 						impl.logger.Errorw("error in applying JSON patch", "err", err)
 						bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-							AppId:   appDetailsByChart.Id,
+							AppId:   appId,
 							AppName: appDetailsByChart.AppName,
 							EnvId:   envId,
 							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
@@ -487,7 +515,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 						if err != nil {
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								EnvId:   envId,
 								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
@@ -495,7 +523,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
 							bulkUpdateSuccessResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								EnvId:   envId,
 								Message: "Updated Successfully",
@@ -562,6 +590,19 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 				configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, "No matching apps to update globally")
 			} else {
 				for _, configMapAppModel := range configMapAppModels {
+					appId := configMapAppModel.AppId
+					protectionEnabled := impl.configProtectionEnabled(appId, -1)
+					if protectionEnabled {
+						appDetailsById, _ := impl.appRepository.FindById(appId)
+						bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+							AppId:   appDetailsById.Id,
+							AppName: appDetailsById.AppName,
+							Names:   []string{},
+							Message: "config protection enabled",
+						}
+						configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					configMapNames := gjson.Get(configMapAppModel.ConfigMapData, "maps.#.name")
 					messageCmNamesMap := make(map[string][]string)
 					for i, configMapName := range configMapNames.Array() {
@@ -615,7 +656,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 						}
 					}
 					if len(messageCmNamesMap) != 0 {
-						appDetailsById, _ := impl.appRepository.FindById(configMapAppModel.AppId)
+						appDetailsById, _ := impl.appRepository.FindById(appId)
 						for key, value := range messageCmNamesMap {
 							if key == "Updated Successfully" {
 								bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
@@ -654,6 +695,19 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 				configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId : %d", envId))
 			} else {
 				for _, configMapEnvModel := range configMapEnvModels {
+					appId := configMapEnvModel.AppId
+					protectionEnabled := impl.configProtectionEnabled(appId, envId)
+					if protectionEnabled {
+						appDetailsById, _ := impl.appRepository.FindById(appId)
+						bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+							AppId:   appDetailsById.Id,
+							AppName: appDetailsById.AppName,
+							Names:   []string{},
+							Message: "config protection enabled",
+						}
+						configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					configMapNames := gjson.Get(configMapEnvModel.ConfigMapData, "maps.#.name")
 					messageCmNamesMap := make(map[string][]string)
 					for i, configMapName := range configMapNames.Array() {
@@ -767,6 +821,19 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 				secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, "No matching apps to update globally")
 			} else {
 				for _, secretAppModel := range secretAppModels {
+					appId := secretAppModel.AppId
+					protectionEnabled := impl.configProtectionEnabled(appId, -1)
+					if protectionEnabled {
+						appDetailsById, _ := impl.appRepository.FindById(appId)
+						bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+							AppId:   appDetailsById.Id,
+							AppName: appDetailsById.AppName,
+							Names:   []string{},
+							Message: "config protection enabled",
+						}
+						secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					secretNames := gjson.Get(secretAppModel.SecretData, "secrets.#.name")
 					messageSecretNamesMap := make(map[string][]string)
 					for i, secretName := range secretNames.Array() {
@@ -826,7 +893,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 						}
 					}
 					if len(messageSecretNamesMap) != 0 {
-						appDetailsById, _ := impl.appRepository.FindById(secretAppModel.AppId)
+						appDetailsById, _ := impl.appRepository.FindById(appId)
 						for key, value := range messageSecretNamesMap {
 							if key == "Updated Successfully" {
 								bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
@@ -865,6 +932,19 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 				secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId : %d", envId))
 			} else {
 				for _, secretEnvModel := range secretEnvModels {
+					appId := secretEnvModel.AppId
+					protectionEnabled := impl.configProtectionEnabled(appId, envId)
+					if protectionEnabled {
+						appDetailsById, _ := impl.appRepository.FindById(appId)
+						bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+							AppId:   appDetailsById.Id,
+							AppName: appDetailsById.AppName,
+							Names:   []string{},
+							Message: "config protection enabled",
+						}
+						secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					secretNames := gjson.Get(secretEnvModel.SecretData, "secrets.#.name")
 					messageSecretNamesMap := make(map[string][]string)
 					for i, secretName := range secretNames.Array() {
@@ -924,7 +1004,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 						}
 					}
 					if len(messageSecretNamesMap) != 0 {
-						appDetailsById, _ := impl.appRepository.FindById(secretEnvModel.AppId)
+						appDetailsById, _ := impl.appRepository.FindById(appId)
 						for key, value := range messageSecretNamesMap {
 							if key == "Updated Successfully" {
 								bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
@@ -1657,4 +1737,8 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 	}
 	return respDto, nil
 
+}
+
+func (impl BulkUpdateServiceImpl) configProtectionEnabled(appId int, envId int) bool {
+	return impl.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
 }
