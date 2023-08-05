@@ -92,6 +92,7 @@ type ConfigMapService interface {
 	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *bean.CreateJobEnvOverridePayload) (*bean.CreateJobEnvOverridePayload, error)
 	ConfigSecretEnvironmentGet(appId int) ([]bean.JobEnvOverrideResponse, error)
 	ConfigSecretEnvironmentClone(appId int, cloneAppId int, userId int32) ([]chartConfig.ConfigMapEnvModel, error)
+	EncryptCSData(item *bean.ConfigData) error
 }
 
 type ConfigMapServiceImpl struct {
@@ -589,52 +590,12 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*bean.ConfigDataReque
 		configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 	}
 
-	//removing actual values
 	var configs []*bean.ConfigData
 	for _, item := range configDataRequest.ConfigData {
-		resultMap := make(map[string]string)
-		resultMapFinal := make(map[string]string)
-
-		if item.Data != nil {
-			err = json.Unmarshal(item.Data, &resultMap)
-			if err != nil {
-				impl.logger.Warnw("unmarshal failed: ", "error", err)
-				configs = append(configs, item)
-				continue
-			}
-			for k := range resultMap {
-				resultMapFinal[k] = ""
-			}
-			resultByte, err := json.Marshal(resultMapFinal)
-			if err != nil {
-				impl.logger.Errorw("error while marshaling request ", "err", err)
-				return nil, err
-			}
-			item.Data = resultByte
+		err = impl.EncryptCSData(item)
+		if err != nil {
+			return nil, err
 		}
-
-		var externalSecret []bean.ExternalSecret
-		if item.ExternalSecret != nil && len(item.ExternalSecret) > 0 {
-			for _, es := range item.ExternalSecret {
-				externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
-			}
-		}
-		item.ExternalSecret = externalSecret
-
-		var esoData []bean.ESOData
-		if len(item.ESOSecretData.EsoData) > 0 {
-			for _, data := range item.ESOSecretData.EsoData {
-				esoData = append(esoData, bean.ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
-			}
-		}
-
-		esoSecretData := bean.ESOSecretData{
-			SecretStore:     item.ESOSecretData.SecretStore,
-			SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
-			EsoData:         esoData,
-			RefreshInterval: item.ESOSecretData.RefreshInterval,
-		}
-		item.ESOSecretData = esoSecretData
 		configs = append(configs, item)
 	}
 	configDataRequest.ConfigData = configs
@@ -647,6 +608,53 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*bean.ConfigDataReque
 	}
 
 	return configDataRequest, nil
+}
+
+func (impl ConfigMapServiceImpl) EncryptCSData(item *bean.ConfigData) error {
+	//removing actual values
+	resultMap := make(map[string]string)
+	resultMapFinal := make(map[string]string)
+
+	if item.Data != nil {
+		err := json.Unmarshal(item.Data, &resultMap)
+		if err != nil {
+			impl.logger.Warnw("unmarshal failed: ", "error", err)
+			return nil
+		}
+		for k := range resultMap {
+			resultMapFinal[k] = ""
+		}
+		resultByte, err := json.Marshal(resultMapFinal)
+		if err != nil {
+			impl.logger.Errorw("error while marshaling request ", "err", err)
+			return err
+		}
+		item.Data = resultByte
+	}
+
+	var externalSecret []bean.ExternalSecret
+	if item.ExternalSecret != nil && len(item.ExternalSecret) > 0 {
+		for _, es := range item.ExternalSecret {
+			externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
+		}
+	}
+	item.ExternalSecret = externalSecret
+
+	var esoData []bean.ESOData
+	if len(item.ESOSecretData.EsoData) > 0 {
+		for _, data := range item.ESOSecretData.EsoData {
+			esoData = append(esoData, bean.ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
+		}
+	}
+
+	esoSecretData := bean.ESOSecretData{
+		SecretStore:     item.ESOSecretData.SecretStore,
+		SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
+		EsoData:         esoData,
+		RefreshInterval: item.ESOSecretData.RefreshInterval,
+	}
+	item.ESOSecretData = esoSecretData
+	return nil
 }
 
 func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {

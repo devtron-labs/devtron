@@ -29,6 +29,7 @@ type ConfigDraftService interface {
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
+	EncryptCSData(draftCsData string) string
 }
 
 type ConfigDraftServiceImpl struct {
@@ -326,6 +327,27 @@ func (impl *ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceTy
 		impl.logger.Errorw("error occurred while adding/updating/deleting config", "isCm", isCm, "action", action, "appId", appId, "envId", envId, "err", err)
 	}
 	return err
+}
+
+func (impl *ConfigDraftServiceImpl) EncryptCSData(draftCsData string) string {
+	configDataRequest := &bean.ConfigDataRequest{}
+	err := json.Unmarshal([]byte(draftCsData), configDataRequest)
+	if err != nil {
+		impl.logger.Errorw("error occurred while unmarshalling draftData of CS", "err", err)
+		return draftCsData
+	}
+	configData := configDataRequest.ConfigData
+	var configDataResponse []*bean.ConfigData
+	for _, data := range configData {
+		impl.configMapService.EncryptCSData(data)
+		configDataResponse = append(configDataResponse, data)
+	}
+	configDataRequest.ConfigData = configDataResponse
+	encryptedCSData, err := json.Marshal(configDataRequest)
+	if err != nil {
+		return draftCsData
+	}
+	return string(encryptedCSData)
 }
 
 func (impl *ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction) error {
