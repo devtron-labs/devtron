@@ -339,12 +339,13 @@ func (impl *ConfigDraftServiceImpl) EncryptCSData(draftCsData string) string {
 	configData := configDataRequest.ConfigData
 	var configDataResponse []*bean.ConfigData
 	for _, data := range configData {
-		impl.configMapService.EncryptCSData(data)
+		_ = impl.configMapService.EncryptCSData(data)
 		configDataResponse = append(configDataResponse, data)
 	}
 	configDataRequest.ConfigData = configDataResponse
 	encryptedCSData, err := json.Marshal(configDataRequest)
 	if err != nil {
+		impl.logger.Errorw("error occurred while marshalling config data request, so returning original data", "err", err)
 		return draftCsData
 	}
 	return string(encryptedCSData)

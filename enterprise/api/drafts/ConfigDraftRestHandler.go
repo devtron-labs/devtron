@@ -241,38 +241,18 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftsCount(w http.ResponseWriter, r 
 }
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	// if user has admin access then its fine else user should have get and Approver access
-	draftId, userId, notAnAppAdmin, draftResponse := impl.enforceDraftRequest(w, r, casbin.ActionUpdate, false)
-	var appId, envId int
-	var notAnApprover = true
-	if notAnAppAdmin {
-		if draftResponse != nil {
-			appId = draftResponse.AppId
-			envId = draftResponse.EnvId
-			if notAnApprover = impl.checkForApproverAccess(w, envId, appId, token, true); notAnApprover {
-				return
-			}
-		} else {
-			return
-		}
-	}
-
-	var err error
+	// if user has admin access then its fine
+	_, _, notAnAppAdmin, draftResponse := impl.enforceDraftRequest(w, r, casbin.ActionUpdate, false)
 	if draftResponse == nil {
-		draftResponse, err = impl.configDraftService.GetDraftById(draftId, userId)
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching draft comments", "err", err, "draftId", draftId)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
+		return
 	}
-	appId = draftResponse.AppId
-	envId = draftResponse.EnvId
-	if draftResponse.Resource == drafts.CSDraftResource && notAnAppAdmin && notAnApprover {
-		// in case of Secret data, required admin access
-		encryptedCSData := impl.configDraftService.EncryptCSData(draftResponse.Data)
-		draftResponse.Data = encryptedCSData
+	if draftResponse.Resource == drafts.CSDraftResource && notAnAppAdmin {
+		token := r.Header.Get("token")
+		if notAnApprover := impl.checkForApproverAccess(w, draftResponse.EnvId, draftResponse.AppId, token, true); notAnApprover {
+			// not an admin and config approver, protecting secret data
+			encryptedCSData := impl.configDraftService.EncryptCSData(draftResponse.Data)
+			draftResponse.Data = encryptedCSData
+		}
 	}
 	common.WriteJsonResp(w, nil, draftResponse, http.StatusOK)
 }
