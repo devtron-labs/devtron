@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/helm-app/mocks"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -28,7 +29,7 @@ var (
 	dockerRegistryConfig *DockerRegistryConfigImpl
 	helmAppServiceMock   *mocks.HelmAppService
 	storeIds             = []string{"integration-test-store-1", "integration-test-store-2", "integration-test-store-3"}
-	validInput1          = &DockerArtifactStoreBean{
+	validInput1          = DockerArtifactStoreBean{
 		Id:                     storeIds[0],
 		PluginId:               "cd.go.artifact.docker.registry",
 		RegistryType:           "docker-hub",
@@ -45,7 +46,7 @@ var (
 			Active:               true,
 		},
 	}
-	validInput2 = &DockerArtifactStoreBean{
+	validInput2 = DockerArtifactStoreBean{
 		Id:                     storeIds[1],
 		PluginId:               "cd.go.artifact.docker.registry",
 		RegistryType:           "docker-hub",
@@ -68,7 +69,7 @@ var (
 			Active:               true,
 		},
 	}
-	validInput3 = &DockerArtifactStoreBean{
+	validInput3 = DockerArtifactStoreBean{
 		Id:                     storeIds[2],
 		PluginId:               "cd.go.artifact.docker.registry",
 		RegistryType:           "docker-hub",
@@ -88,7 +89,7 @@ func TestRegistryConfigService_Save(t *testing.T) {
 	}
 	testCases := []struct {
 		name        string
-		input       *DockerArtifactStoreBean
+		input       DockerArtifactStoreBean
 		expectedErr bool
 	}{
 		{
@@ -115,7 +116,7 @@ func TestRegistryConfigService_Save(t *testing.T) {
 		t.Cleanup(cleanDb)
 		t.Run(tc.name, func(tt *testing.T) {
 			tc.input.User = 1
-			res, err := dockerRegistryConfig.Create(tc.input)
+			res, err := dockerRegistryConfig.Create(&tc.input)
 			if tc.expectedErr {
 				assert.NotNil(tt, err)
 			} else {
@@ -152,8 +153,9 @@ func TestRegistryConfigService_Save(t *testing.T) {
 					}
 				}
 				if tc.input.DockerRegistryIpsConfig != nil {
-					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Id, res.DockerRegistryIpsConfig.Id)
-					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Id, store.DockerRegistryIpsConfig.Id)
+					assert.NotZero(tt, res.DockerRegistryIpsConfig.Id)
+					assert.NotZero(tt, store.DockerRegistryIpsConfig.Id)
+					assert.Equal(tt, res.DockerRegistryIpsConfig.Id, store.DockerRegistryIpsConfig.Id)
 					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialType, res.DockerRegistryIpsConfig.CredentialType)
 					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialType, store.DockerRegistryIpsConfig.CredentialType)
 					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialValue, res.DockerRegistryIpsConfig.CredentialValue)
@@ -179,30 +181,61 @@ func TestRegistryConfigService_Update(t *testing.T) {
 	t.Cleanup(cleanDb)
 
 	// insert a cluster note in the database which will be updated later
-	validInput2.User = 1
-	savedRegisrty, err := dockerRegistryConfig.Create(validInput2)
+	updateRgistry1 := validInput2
+	updateRgistry1.User = 1
+
+	updateRgistry3 := validInput2
+	updateRgistry3.User = 1
+
+	updateRgistry5 := validInput2
+	updateRgistry5.User = 1
+
+	savedRegisrty, err := dockerRegistryConfig.Create(&updateRgistry1)
 	if err != nil {
 		t.Fatalf("Error inserting record in database: %s", err.Error())
 	}
+	assert.Equal(t, updateRgistry1.OCIRegistryConfig["CONTAINER"], savedRegisrty.OCIRegistryConfig["CONTAINER"])
+	assert.Equal(t, updateRgistry1.OCIRegistryConfig["CHART"], savedRegisrty.OCIRegistryConfig["CHART"])
 
-	assert.Equal(t, validInput2.OCIRegistryConfig["CONTAINER"], savedRegisrty.OCIRegistryConfig["CONTAINER"])
-	assert.Equal(t, validInput2.OCIRegistryConfig["CONTAINER"], savedRegisrty.OCIRegistryConfig["CHART"])
+	updateRgistry2 := *savedRegisrty
+	updateRgistry2.User = 1
+	updateRgistry2.OCIRegistryConfig = map[string]string{
+		"CONTAINER": "PULL/PUSH",
+	}
+	updateRgistry1.RepositoryList = make([]string, 0)
 
-	delete(savedRegisrty.OCIRegistryConfig, "CHART")
+	updateRgistry4 := *savedRegisrty
+	updateRgistry4.User = 1
+	updateRgistry4.OCIRegistryConfig = map[string]string{
+		"CHART": "PULL/PUSH",
+	}
+	updateRgistry4.DockerRegistryIpsConfig = nil
+
 	// define input for update function
 	testCases := []struct {
 		name        string
-		input       *DockerArtifactStoreBean
+		input       DockerArtifactStoreBean
 		expectedErr bool
 	}{
 		{
-			name:        "TEST : error while updating a non-existing registry",
+			name:        "TEST1 : error while updating a non-existing registry",
 			input:       validInput1,
 			expectedErr: true,
-		},
-		{
-			name:        "TEST : successfully update the note",
-			input:       savedRegisrty,
+		}, {
+			name:        "TEST2 : successfully update the note",
+			input:       updateRgistry2,
+			expectedErr: false,
+		}, {
+			name:        "TEST3 : successfully update the note",
+			input:       updateRgistry3,
+			expectedErr: false,
+		}, {
+			name:        "TEST4 : successfully update the note",
+			input:       updateRgistry4,
+			expectedErr: false,
+		}, {
+			name:        "TEST5 : successfully update the note",
+			input:       updateRgistry5,
 			expectedErr: false,
 		},
 	}
@@ -221,7 +254,7 @@ func TestRegistryConfigService_Update(t *testing.T) {
 				RegistryType: string(tc.input.RegistryType),
 				IsPublic:     tc.input.IsPublic,
 			}).Return(true)
-			res, err := dockerRegistryConfig.Update(tc.input)
+			res, err := dockerRegistryConfig.Update(&tc.input)
 			if tc.expectedErr {
 				assert.NotNil(tt, err)
 			} else {
@@ -256,10 +289,14 @@ func TestRegistryConfigService_Update(t *testing.T) {
 						assert.Equal(tt, tc.input.OCIRegistryConfig["CHART"], res.OCIRegistryConfig["CHART"])
 						assert.Equal(tt, tc.input.OCIRegistryConfig["CHART"], store.OCIRegistryConfig["CHART"])
 					}
+				} else {
+					assert.Nil(tt, res.OCIRegistryConfig)
+					assert.Nil(tt, store.OCIRegistryConfig)
 				}
 				if tc.input.DockerRegistryIpsConfig != nil {
-					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Id, res.DockerRegistryIpsConfig.Id)
-					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Id, store.DockerRegistryIpsConfig.Id)
+					assert.NotZero(tt, res.DockerRegistryIpsConfig.Id)
+					assert.NotZero(tt, store.DockerRegistryIpsConfig.Id)
+					assert.Equal(tt, res.DockerRegistryIpsConfig.Id, store.DockerRegistryIpsConfig.Id)
 					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialType, res.DockerRegistryIpsConfig.CredentialType)
 					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialType, store.DockerRegistryIpsConfig.CredentialType)
 					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.CredentialValue, res.DockerRegistryIpsConfig.CredentialValue)
@@ -270,6 +307,9 @@ func TestRegistryConfigService_Update(t *testing.T) {
 					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.IgnoredClusterIdsCsv, store.DockerRegistryIpsConfig.IgnoredClusterIdsCsv)
 					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Active, res.DockerRegistryIpsConfig.Active)
 					assert.Equal(tt, tc.input.DockerRegistryIpsConfig.Active, store.DockerRegistryIpsConfig.Active)
+				} else {
+					assert.Nil(tt, res.DockerRegistryIpsConfig)
+					assert.Nil(tt, store.DockerRegistryIpsConfig)
 				}
 			}
 		})
@@ -277,6 +317,10 @@ func TestRegistryConfigService_Update(t *testing.T) {
 }
 
 var db *pg.DB
+
+func captureQuery(event *pg.QueryProcessedEvent) {
+	fmt.Println(event.FormattedQuery())
+}
 
 func getDbConn() (*pg.DB, error) {
 	if db != nil {
@@ -294,6 +338,10 @@ func getDbConn() (*pg.DB, error) {
 		Database: cfg.Database,
 	}
 	db = pg.Connect(&options)
+
+	// Add the query event listener to capture SQL queries.
+	db.OnQueryProcessed(captureQuery)
+
 	return db, nil
 }
 
@@ -325,6 +373,7 @@ func InitDockerRegistryConfig(t *testing.T) {
 	dockerArtifactStoreRepository := repository.NewDockerArtifactStoreRepositoryImpl(conn)
 	dockerRegistryIpsConfigRepository := repository.NewDockerRegistryIpsConfigRepositoryImpl(conn)
 	ociRegistryConfigRepository := repository.NewOCIRegistryConfigRepositoryImpl(conn)
+	//Mock helm service
 	helmAppServiceMock = mocks.NewHelmAppService(t)
 	dockerRegistryConfig = NewDockerRegistryConfigImpl(logger, helmAppServiceMock, dockerArtifactStoreRepository, dockerRegistryIpsConfigRepository, ociRegistryConfigRepository)
 }

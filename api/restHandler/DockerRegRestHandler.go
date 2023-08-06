@@ -145,8 +145,10 @@ func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBea
 			bean.IsDefault = false
 			bean.DockerRegistryIpsConfig = nil
 			bean.RegistryURL = strings.TrimPrefix(bean.RegistryURL, OCIScheme)
+		} else if containerStorageActionExists && bean.DockerRegistryIpsConfig == nil {
+			return false
 		}
-	} else if bean.OCIRegistryConfig != nil || bean.IsPublic {
+	} else if bean.OCIRegistryConfig != nil || bean.IsPublic || bean.DockerRegistryIpsConfig == nil {
 		return false
 	}
 	return true

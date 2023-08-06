@@ -621,7 +621,6 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 				if err != nil {
 					return nil, err
 				}
-				dockerRegistryIpsConfig.Id = ipsConfig.Id
 			} else {
 				// Throw error
 				return nil, err
@@ -634,8 +633,9 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 				return nil, err
 			}
 		}
+		bean.DockerRegistryIpsConfig.Id = ipsConfig.Id
 	} else {
-		if err != nil && err != pg.ErrNoRows {
+		if err == nil {
 			// Update the docker registry ips config to inactive
 			existingIpsConfig.Active = false
 			err = impl.updateDockerIpConfig(tx, existingIpsConfig)
@@ -690,7 +690,8 @@ func (impl DockerRegistryConfigImpl) createDockerIpConfig(tx *pg.Tx, ipsConfig *
 			return err
 		}
 	}
-	err = impl.updateDockerIpConfig(tx, existingIpsConfig)
+	ipsConfig.Id = existingIpsConfig.Id
+	err = impl.updateDockerIpConfig(tx, ipsConfig)
 	if err != nil {
 		return err
 	}
