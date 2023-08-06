@@ -248,7 +248,7 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *h
 	}
 	if draftResponse.Resource == drafts.CSDraftResource && notAnAppAdmin {
 		token := r.Header.Get("token")
-		if notAnApprover := impl.checkForApproverAccess(w, draftResponse.EnvId, draftResponse.AppId, token, true); notAnApprover {
+		if notAnApprover := impl.checkForApproverAccess(w, draftResponse.EnvId, draftResponse.AppId, token, false); notAnApprover {
 			// not an admin and config approver, protecting secret data
 			encryptedCSData := impl.configDraftService.EncryptCSData(draftResponse.Data)
 			draftResponse.Data = encryptedCSData
