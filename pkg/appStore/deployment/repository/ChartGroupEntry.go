@@ -110,7 +110,6 @@ func (impl *ChartGroupEntriesRepositoryImpl) FindEntriesWithChartMetaByChartGrou
 			Model(appStore).
 			Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 			Where("app_store.id = ? ", chartGroupEntry.AppStoreApplicationVersion.AppStoreId).
-			Where("app_store.active = true").
 			Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 				return q.Where("deleted IS FALSE and " +
 					"repository_type='CHART' and " +
