@@ -31,6 +31,10 @@ type DevtronAppIdentifier struct {
 	EnvId     int `json:"envId"`
 }
 
+//type PortResponse struct {
+//	port []int64 `json:port`
+//}
+
 type Response struct {
 	Kind     string   `json:"kind"`
 	Name     string   `json:"name"`

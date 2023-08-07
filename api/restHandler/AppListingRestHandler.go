@@ -943,6 +943,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		return
 	}
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	//acdToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJkZXZ0cm9uOmFwaUtleSIsIm5iZiI6MTY5MDE4Mjg0MSwiaWF0IjoxNjkwMTgyODQxLCJqdGkiOiJhMDA4YWIzZC05ODdiLTQ4ZWEtYjVhNS1kNTQwOWM3YjQzZmUifQ.ChpTDgoNERC7BBeB2E1HTI1UnYpyWBrn1pjQmWYro-8"
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
 		return
@@ -1612,6 +1613,71 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			handler.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", cdPipeline.Environment.ClusterId, "err", err)
 		} else {
 			resourceTree["serverVersion"] = version.String()
+		}
+	}
+	validRequests := make([]k8s.ResourceRequestBean, 0)
+	k8sAppDetail := bean.AppDetailContainer{
+		DeploymentDetailContainer: bean.DeploymentDetailContainer{
+			ClusterId: cdPipeline.Environment.ClusterId,
+			Namespace: cdPipeline.Environment.Namespace,
+		},
+	}
+	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
+	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
+	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
+	ports := make([]int64, 0)
+	for _, portHolder := range resp {
+		if portHolder.ManifestResponse.Manifest.Object["kind"] == "Service" {
+			spec := portHolder.ManifestResponse.Manifest.Object["spec"].(map[string]interface{})
+			if spec != nil {
+				portList := spec["ports"].([]interface{})
+				for _, portItem := range portList {
+					if portItem.(map[string]interface{}) != nil {
+						_portNumber := portItem.(map[string]interface{})["port"]
+						portNumber := _portNumber.(int64)
+						if portNumber != 0 {
+							ports = append(ports, portNumber)
+						}
+					}
+				}
+			} else {
+				handler.logger.Errorw("spec doest not contain data", "err", spec)
+			}
+		}
+		if portHolder.ManifestResponse.Manifest.Object["kind"] == "Endpoints" {
+			if portHolder.ManifestResponse.Manifest.Object["subsets"] != nil {
+				subsets := portHolder.ManifestResponse.Manifest.Object["subsets"].([]interface{})
+				for _, subset := range subsets {
+					subsetObj := subset.(map[string]interface{})
+					if subsetObj != nil {
+						portsIfs := subsetObj["ports"].([]interface{})
+						for _, portsIf := range portsIfs {
+							portsIfObj := portsIf.(map[string]interface{})
+							if portsIfObj != nil {
+								port := portsIfObj["port"].(int64)
+								ports = append(ports, port)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if err != nil {
+		handler.logger.Errorw("error in fetching manifest", "err", err)
+	}
+	if val, ok := resourceTree["nodes"]; ok {
+		resourceTreeVal := val.([]interface{})
+		for _, val := range resourceTreeVal {
+			_value := val.(map[string]interface{})
+			for key, _type := range _value {
+				if key == "kind" && _type == "Endpoints" {
+					_value["port"] = ports
+				}
+				if key == "kind" && _type == "Service" {
+					_value["port"] = ports
+				}
+			}
 		}
 	}
 	return resourceTree, nil

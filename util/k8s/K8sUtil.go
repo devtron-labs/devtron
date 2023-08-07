@@ -872,7 +872,7 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 
 func (impl K8sUtil) GetCoreV1ClientInCluster() (*v12.CoreV1Client, error) {
 	restConfig := &rest.Config{}
-	restConfig, err := rest.InClusterConfig()
+	restConfig, err := impl.GetK8sInClusterRestConfig()
 	if err != nil {
 		impl.logger.Error("Error in creating config for default cluster", "err", err)
 		return nil, err

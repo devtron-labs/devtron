@@ -972,6 +972,39 @@ func (impl *K8sApplicationServiceImpl) GetUrlsByBatchForIngress(ctx context.Cont
 	return result
 }
 
+//func (impl *K8sApplicationServiceImpl) GetPort(ctx context.Context, resp []k8s.BatchResourceResponse) []int {
+//	result := []int
+//	for _, res := range resp {
+//		err := res.Err
+//		if err != nil {
+//			continue
+//		}
+//		portRes := getServicePorts(res.ManifestResponse)
+//		result := append(result, portRes)
+//	}
+//	return result
+//}
+
+//func getServicePorts(manifest *k8s2.ManifestResponse) bean3.PortResponse {
+//	var res bean3.PortResponse
+//	ports := make([]int64, 0)
+//	spec := manifest.Manifest.Object["spec"].(map[string]interface{})
+//	if spec != nil {
+//		portList := spec["ports"].([]interface{})
+//		for _, portItem := range portList {
+//			if portItem.(map[string]interface{}) != nil {
+//				_portNumber := portItem.(map[string]interface{})["port"]
+//				portNumber := _portNumber.(int64)
+//				if portNumber != 0 {
+//					ports = append(ports, portNumber)
+//				}
+//			}
+//		}
+//	}
+//	res.port = ports
+//	return res
+//}
+
 func getUrls(manifest *k8s2.ManifestResponse) bean3.Response {
 	var res bean3.Response
 	kind := manifest.Manifest.Object["kind"]
