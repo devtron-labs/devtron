@@ -203,7 +203,7 @@ func (impl *CiServiceImpl) setBuildxK8sDriverData(workflowRequest *WorkflowReque
 		if dockerBuildConfig != nil {
 			dockerBuildConfig.UseBuildxK8sDriver = impl.ciConfig.UseBuildxK8sDriver
 			buildxK8sDriverOptions := make([]bean2.BuildxK8sDriverOptions, 0)
-			for _, nodeName := range impl.ciConfig.BuildxK8sDriverNodes {
+			for _, nodeName := range strings.Split(impl.ciConfig.BuildxK8sDriverNodes, ",") {
 				buildxK8sDriverOptions = append(buildxK8sDriverOptions, bean2.BuildxK8sDriverOptions{
 					DeploymentName: nodeName,
 					Namespace:      impl.ciConfig.BuildXK8sDriverNamespace,
