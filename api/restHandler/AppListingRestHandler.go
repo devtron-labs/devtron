@@ -943,7 +943,6 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		return
 	}
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	//acdToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJkZXZ0cm9uOmFwaUtleSIsIm5iZiI6MTY5MDE4Mjg0MSwiaWF0IjoxNjkwMTgyODQxLCJqdGkiOiJhMDA4YWIzZC05ODdiLTQ4ZWEtYjVhNS1kNTQwOWM3YjQzZmUifQ.ChpTDgoNERC7BBeB2E1HTI1UnYpyWBrn1pjQmWYro-8"
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
 		return
@@ -1625,9 +1624,9 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
 	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
-	ports_service := make([]int64, 0)
-	ports_endpoint := make([]int64, 0)
-	port_endpointSlice := make([]int64, 0)
+	portsService := make([]int64, 0)
+	portsEndpoint := make([]int64, 0)
+	portEndpointSlice := make([]int64, 0)
 	for _, portHolder := range resp {
 		if portHolder.ManifestResponse.Manifest.Object["kind"] == "Service" {
 			spec := portHolder.ManifestResponse.Manifest.Object["spec"].(map[string]interface{})
@@ -1638,7 +1637,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 						_portNumber := portItem.(map[string]interface{})["port"]
 						portNumber := _portNumber.(int64)
 						if portNumber != 0 {
-							ports_service = append(ports_service, portNumber)
+							portsService = append(portsService, portNumber)
 						}
 					}
 				}
@@ -1657,7 +1656,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 							portsIfObj := portsIf.(map[string]interface{})
 							if portsIfObj != nil {
 								port := portsIfObj["port"].(int64)
-								ports_endpoint = append(ports_endpoint, port)
+								portsEndpoint = append(portsEndpoint, port)
 							}
 						}
 					}
@@ -1671,7 +1670,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 					_portNumber := val.(map[string]interface{})["port"]
 					portNumber := _portNumber.(int64)
 					if portNumber != 0 {
-						port_endpointSlice = append(port_endpointSlice, portNumber)
+						portEndpointSlice = append(portEndpointSlice, portNumber)
 					}
 				}
 			}
@@ -1686,13 +1685,13 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			_value := val.(map[string]interface{})
 			for key, _type := range _value {
 				if key == "kind" && _type == "Endpoints" {
-					_value["port"] = ports_endpoint
+					_value["port"] = portsEndpoint
 				}
 				if key == "kind" && _type == "Service" {
-					_value["port"] = ports_service
+					_value["port"] = portsService
 				}
 				if key == "kind" && _type == "EndpointSlice" {
-					_value["port"] = port_endpointSlice
+					_value["port"] = portEndpointSlice
 				}
 			}
 		}

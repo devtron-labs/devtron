@@ -81,8 +81,7 @@ type InstalledAppRestHandlerImpl struct {
 	argoUserService                  argo.ArgoUserService
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	installedAppRepository           repository.InstalledAppRepository
-	//K8sCommonService               k8s2.K8sCommonService
-	K8sApplicationService application2.K8sApplicationService
+	K8sApplicationService            application2.K8sApplicationService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -694,7 +693,6 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 
 	resourceTreeAndNotesContainer := bean2.ResourceTreeAndNotesContainer{}
 	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
-	//resp, err := k8s2.K8sCommonService.GetResourceList GetResourceList()
 
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
 		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp)
