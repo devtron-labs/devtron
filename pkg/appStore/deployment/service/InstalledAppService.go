@@ -1104,7 +1104,9 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 	if err != nil {
 		impl.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", installedApp.Environment.ClusterId, "err", err)
 	} else {
-		resourceTree["serverVersion"] = version.String()
+		if resourceTree != nil {
+			resourceTree["serverVersion"] = version.String()
+		}
 	}
 	resourceTreeAndNotesContainer.ResourceTree = resourceTree
 	return err

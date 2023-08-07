@@ -1610,7 +1610,9 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	if err != nil {
 		handler.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", cdPipeline.Environment.ClusterId, "err", err)
 	} else {
-		resourceTree["serverVersion"] = version.String()
+		if resourceTree != nil {
+			resourceTree["serverVersion"] = version.String()
+		}
 	}
 	return resourceTree, nil
 }
