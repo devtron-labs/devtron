@@ -171,6 +171,10 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
+	if impl.ciConfig != nil && impl.ciConfig.UseBuildxK8sDriver {
+		impl.setBuildxK8sDriverData(workflowRequest)
+	}
+
 	//savedCiWf.LogLocation = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix + "/main.log"
 	savedCiWf.LogLocation = fmt.Sprintf("%s/%s/main.log", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
 	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
@@ -190,6 +194,24 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
 	return savedCiWf.Id, err
+}
+
+func (impl *CiServiceImpl) setBuildxK8sDriverData(workflowRequest *WorkflowRequest) {
+	ciBuildConfig := workflowRequest.CiBuildConfig
+	if ciBuildConfig != nil {
+		dockerBuildConfig := ciBuildConfig.DockerBuildConfig
+		if dockerBuildConfig != nil {
+			dockerBuildConfig.UseBuildxK8sDriver = impl.ciConfig.UseBuildxK8sDriver
+			buildxK8sDriverOptions := make([]bean2.BuildxK8sDriverOptions, 0)
+			for _, nodeName := range impl.ciConfig.BuildxK8sDriverNodes {
+				buildxK8sDriverOptions = append(buildxK8sDriverOptions, bean2.BuildxK8sDriverOptions{
+					DeploymentName: nodeName,
+					Namespace:      impl.ciConfig.BuildXK8sDriverNamespace,
+				})
+			}
+			dockerBuildConfig.BuildxK8sDriverOptions = buildxK8sDriverOptions
+		}
+	}
 }
 
 func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger Trigger) (*repository1.Environment, bool, error) {
