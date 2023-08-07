@@ -1625,7 +1625,9 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
 	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
-	ports := make([]int64, 0)
+	ports_service := make([]int64, 0)
+	ports_endpoint := make([]int64, 0)
+	port_endpointSlice := make([]int64, 0)
 	for _, portHolder := range resp {
 		if portHolder.ManifestResponse.Manifest.Object["kind"] == "Service" {
 			spec := portHolder.ManifestResponse.Manifest.Object["spec"].(map[string]interface{})
@@ -1636,7 +1638,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 						_portNumber := portItem.(map[string]interface{})["port"]
 						portNumber := _portNumber.(int64)
 						if portNumber != 0 {
-							ports = append(ports, portNumber)
+							ports_service = append(ports_service, portNumber)
 						}
 					}
 				}
@@ -1655,7 +1657,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 							portsIfObj := portsIf.(map[string]interface{})
 							if portsIfObj != nil {
 								port := portsIfObj["port"].(int64)
-								ports = append(ports, port)
+								ports_endpoint = append(ports_endpoint, port)
 							}
 						}
 					}
@@ -1669,7 +1671,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 					_portNumber := val.(map[string]interface{})["port"]
 					portNumber := _portNumber.(int64)
 					if portNumber != 0 {
-						ports = append(ports, portNumber)
+						port_endpointSlice = append(port_endpointSlice, portNumber)
 					}
 				}
 			}
@@ -1684,10 +1686,13 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			_value := val.(map[string]interface{})
 			for key, _type := range _value {
 				if key == "kind" && _type == "Endpoints" {
-					_value["port"] = ports
+					_value["port"] = ports_endpoint
 				}
 				if key == "kind" && _type == "Service" {
-					_value["port"] = ports
+					_value["port"] = ports_service
+				}
+				if key == "kind" && _type == "EndpointSlice" {
+					_value["port"] = port_endpointSlice
 				}
 			}
 		}
