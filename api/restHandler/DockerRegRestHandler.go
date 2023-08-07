@@ -131,9 +131,14 @@ func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBea
 		if containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH && bean.DockerRegistryIpsConfig == nil {
 			return false
 		}
+		chartStorageActionType, chartStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CHART]
+		// For Charts with storage action type "PULL", default will always be false
+		if chartStorageActionExists && chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL {
+			bean.IsDefault = false
+		}
+
 		if !isUpdate {
 			// For Charts with storage action type "PULL/PUSH" or "PULL", RepositoryList cannot be nil
-			chartStorageActionType, chartStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CHART]
 			if chartStorageActionExists && (chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH || chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL) {
 				if bean.RepositoryList == nil || len(bean.RepositoryList) == 0 || slices.Contains(bean.RepositoryList, "") {
 					return false
