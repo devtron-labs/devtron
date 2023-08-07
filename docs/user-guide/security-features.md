@@ -6,11 +6,11 @@ Within the CI pipeline of Devtron, there is an option called [**Scan for vulnera
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/enable-image-scan.jpg)
 
-By enabling this option, the system automatically scans the container image after the image build stage. It then generates a report that highlights all the vulnerabilities present within the image. To access the scan report of all builds with enabled vulnerability scans, simply navigate to the 'Security' tab on the dashboard. You can conveniently view the build history and all the vulnerabilities found in the build image there.
+By enabling this option, the system automatically scans the container image after the image build stage. It then generates a report that highlights all the vulnerabilities present within the image. To access the scan report of all builds with vulnerability scans enabled, simply navigate to the 'Security' tab on the dashboard. There you can conveniently view the build history and all the vulnerabilities detected in the build image.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/scan-report-on-build-history.jpg)
 
- The scan report provides a comprehensive overview of any vulnerabilities present in the image. This allows you to identify and address potential security risks effectively. By leveraging this feature, you can ensure that your containerized applications are safeguarded against known vulnerabilities.
+The scan report provides a comprehensive overview of any vulnerabilities present in the image. This allows you to identify and address potential security risks effectively. By leveraging this feature, you can ensure that your containerized applications are safeguarded against known vulnerabilities.
 
 Devtron's Security Feature consists of two primary components:
 
@@ -25,15 +25,15 @@ These comprehensive scan reports provide valuable insights, including informatio
 
 ## Security Policies
 
-Devtron's Security Policies feature allows users to define policies based on the severity levels of vulnerabilities, which include **Critical**, **Moderate**, and **Low**. Users have the flexibility to set policies that either block the deployment of container images with vulnerabilities or allow their deployment.
+Devtron's Security Policies feature allows users to define policies based on the severity levels of vulnerabilities, which include `Critical`, `Moderate`, and `Low`. Users have the flexibility to set policies that either block the deployment of container images with vulnerabilities or allow their deployment.
 
-With this feature, users can specify their desired actions for each severity level. For example, they can choose to block any container image with Critical vulnerabilities, while allowing container images with Moderate or Low vulnerabilities to be deployed.
+With this feature, users can specify their desired actions for each severity level. For example, they can choose to block any container image with `Critical` vulnerabilities, while allowing container images with `Moderate` or `Low` vulnerabilities to be deployed.
 
 ### Checking Comprehensive Vulnerability Scan Report
 
 To access the comprehensive security scan reports, follow these steps:
 
-1. Navigate to the Security tab within Devtron.
+1. Navigate to the `Security` tab within Devtron.
 2. Select the desired application from the available list.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/security-scans.jpg)
@@ -62,7 +62,7 @@ To access security vulnerability details during image deployment in Devtron, fol
 
 In the `Security` tab, you will find the security vulnerability details associated with the image. 
 
-**NOTE:** Vulnerabilities will only be displayed if a vulnerability scan has been enabled for that specific image. If no vulnerabilities are visible, it indicates that a vulnerability scan has not been performed for the image.
+**NOTE**: Vulnerabilities will only be displayed if a vulnerability scan has been enabled for that specific image. If no vulnerabilities are visible, it indicates that a vulnerability scan has not been performed for the image.
 
 ### Accessing Vulnerability Information on the App Details Page
 
@@ -78,7 +78,7 @@ By clicking on the 'Details' link in the security vulnerabilities report, you ca
 
 ## Configuring Security Policies
 
-You can establish security policies for their vulnerabilities through the Security Policies tab, which can be accessed from the left pane by navigating to Security and selecting Security Policies. Policies are implemented in a hierarchical order, following a specific sequence. The order of implementation is as follows, starting from the highest level:
+You can establish security policies for their vulnerabilities through the `Security Policies` tab, which can be accessed from the left pane by navigating to `Security` and selecting `Security Policies`. Policies are implemented in a hierarchical order, following a specific sequence. The order of implementation is as follows, starting from the highest level:
 
 * **Global**
 * **Cluster**
@@ -91,12 +91,16 @@ Policies are implemented in a hierarchical order, with the following sequence: G
 
 **Some examples of how policies can be defined**
 
-Users can block all the critical vulnerabilities and allow the moderate and low vulnerabilities or Users can block all vulnerabilities or users can block all vulnerabilities for one application and can block only Critical vulnerabilities for other applications.
+Users can block all the critical vulnerabilities and allow the moderate and low vulnerabilities <br />
+or <br />
+Users can block all vulnerabilities <br />
+or <br />
+Users can block all vulnerabilities for one application and can block only critical vulnerabilities for other applications
 
 ## Configure Global Security Policy
 
-Within the Global Security Policies, there are two options available: Block and Allow.
-If critical severity levels are blocked in the Global Security Policy, the same blocking will be applied to the Cluster Security Policy. Similarly, if the global policy is modified to allow critical levels, it will also allow them in Cluster Security Policies. 
+Within the `Global Security Policies`, there are two options available: Block and Allow.
+If critical severity levels are blocked in the `Global Security Policy`, the same blocking will be applied to the `Cluster Security Policy`. Similarly, if the global policy is modified to allow critical levels, it will also allow them in `Cluster Security Policies`. 
 However, users have the flexibility to explicitly modify these policies as desired.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/global-security-policy.jpg)
@@ -104,9 +108,9 @@ However, users have the flexibility to explicitly modify these policies as desir
 ## Configure Cluster Security Policy
 
 
-In Global Security Policies, there are two options: `Block` and `Allow`. Cluster Security Policies have an additional option called `Inherit`.
+In `Global Security Policies`, there are two options: `Block` and `Allow`. `Cluster Security Policies` have an additional option called `Inherit`.
 
-When Inherit is selected, the policy adopts settings from higher-level options. For example, if critical severity levels are blocked globally, they will also be blocked in Cluster Security Policies. Changing the global policy to allow critical levels will also allow them in Cluster Security Policies. Explicit changes can be made to these policies.
+When `Inherit` is selected, the policy adopts settings from higher-level options. For example, if critical severity levels are blocked globally, they will also be blocked in `Cluster Security Policies`. Changing the global policy to allow critical levels will also allow them in `Cluster Security Policies`. Explicit changes can be made to these policies.
 
 To block critical vulnerabilities globally but allow them in specific clusters:
 
@@ -120,9 +124,9 @@ To block critical vulnerabilities globally but allow them in specific clusters:
 
 Environment Security Policies, like Cluster Security Policies, offer three options: Block, Allow, and Inherit.
 
-The Environment Security Policy inherits its settings from the Cluster Security Policy, following a hierarchical structure where each level inherits the policy from its upper level.
+The `Environment Security Policy` inherits its settings from the `Cluster Security Policy`, following a hierarchical structure where each level inherits the policy from its upper level.
 
-When you select an environment, it automatically adopts the policy of the associated Cluster. For example, if critical-level vulnerabilities are blocked globally but allowed in the Cluster Security Policy, the Environment Security Policy will inherit this allowance. Consequently, critical-level vulnerabilities will also be allowed in the Environment Security Policy.
+When you select an environment, it automatically adopts the policy of the associated cluster. For example, if critical-level vulnerabilities are blocked globally but allowed in the `Cluster Security Policy`, the `Environment Security Policy` will inherit this allowance. Consequently, critical-level vulnerabilities will also be allowed in the `Environment Security Policy`.
 
 However, you have the flexibility to make explicit changes to the policy if needed. This empowers you to customize the policy to align with specific requirements or preferences.
 
@@ -130,7 +134,7 @@ However, you have the flexibility to make explicit changes to the policy if need
 
 ## Configure Application Security Policy
 
-The Application Security Policy operates on a similar principle as other policies. However, in the Application Security Policy, the policy is determined by both the Environment option and the Application option.
+The `Application Security Policy` operates on a similar principle as other policies. However, in the `Application Security Policy`, the policy is determined by both the Environment option and the Application option.
 
 When modifying the policy within a development environment, the changes will be applied to all applications within that specific development environment. This means that any adjustments made to the policy settings will be consistently applied across all applications associated with that particular development environment.
 
@@ -140,11 +144,11 @@ This approach ensures uniformity and streamlined management of security policies
 
 ## Block or Allow Specific CVE Policies.
 
-To block or allow specific Common Vulnerabilities and Exposures (CVE) policies, simply click on `Add CVE Policy`.
+To block or allow specific Common Vulnerabilities and Exposures (CVE) policies, simply click `Add CVE Policy`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/add-cve-policy.jpg)
 
-A window will appear where you can enter the CVE ID and select whether to Allow or Block it.
+A window will appear where you can enter the CVE ID and select whether to allow or block it.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/cve-popup.jpg)
 
