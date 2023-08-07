@@ -153,10 +153,12 @@ func (s *RepositoriesService) GetContents(ctx context.Context, owner, repo, path
 	}
 	var rawJSON json.RawMessage
 	resp, err = s.client.Do(ctx, req, &rawJSON)
+	fmt.Println("rawJSON",rawJSON)
 	if err != nil {
 		return nil, nil, resp, err
 	}
 	fileUnmarshalError := json.Unmarshal(rawJSON, &fileContent)
+	fmt.Println("fileContent",fileContent)
 	if fileUnmarshalError == nil {
 		return fileContent, nil, resp, nil
 	}
