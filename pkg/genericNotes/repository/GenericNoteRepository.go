@@ -82,12 +82,17 @@ func (impl GenericNoteRepositoryImpl) FindByAppId(id int) (*GenericNote, error) 
 
 func (impl GenericNoteRepositoryImpl) FindByIdentifier(identifier int, identifierType NoteType) (*GenericNote, error) {
 	clusterNote := &GenericNote{}
-	err := impl.dbConnection.
-		Model(clusterNote).
-		Where("identifier =?", identifier).
-		Where("identifier_type =?", identifierType).
-		Limit(1).
-		Select()
+	query := "SELECT * " +
+		" FROM generic_note WHERE identifier = %v"
+	query = fmt.Sprintf(query, identifier)
+
+	if identifierType == ClusterType {
+		query += " AND identifier_type is NULL or identifier_type = %v"
+	} else {
+		query += " AND identifier_type = %v"
+	}
+	query = fmt.Sprintf(query, identifierType)
+	_, err := impl.dbConnection.Query(clusterNote, query)
 	return clusterNote, err
 }
 
