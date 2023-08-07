@@ -1662,6 +1662,18 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				}
 			}
 		}
+		if portHolder.ManifestResponse.Manifest.Object["kind"] == "EndpointSlice" {
+			if portHolder.ManifestResponse.Manifest.Object["ports"] != nil {
+				endPointsSlicePorts := portHolder.ManifestResponse.Manifest.Object["ports"].([]interface{})
+				for _, val := range endPointsSlicePorts {
+					_portNumber := val.(map[string]interface{})["port"]
+					portNumber := _portNumber.(int64)
+					if portNumber != 0 {
+						ports = append(ports, portNumber)
+					}
+				}
+			}
+		}
 	}
 	if err != nil {
 		handler.logger.Errorw("error in fetching manifest", "err", err)
