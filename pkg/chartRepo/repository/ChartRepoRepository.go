@@ -115,7 +115,7 @@ func (impl ChartRepoRepositoryImpl) FindAllWithDeploymentCount() ([]*ChartRepoWi
 		" (select aps.chart_repo_id as cr_id ,ia.id as ia_id from installed_app_versions iav" +
 		" inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id" +
-		" inner join app_store aps on (asav.app_store_id = aps.id and aps.active = true)" +
+		" inner join app_store aps on asav.app_store_id = aps.id" +
 		" where ia.active=true and iav.active=true) jq" +
 		" on jq.cr_id = chart_repo.id" +
 		" where chart_repo.deleted = false Group by chart_repo.id;"
