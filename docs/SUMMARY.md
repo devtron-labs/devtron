@@ -30,7 +30,7 @@
     * [API Tokens](user-guide/global-configurations/authorization/api-tokens.md)
   * [Manage Notification](user-guide/global-configurations/manage-notification.md)
   * [External links](user-guide/global-configurations/external-links.md)
-  * [Tags Policy](user-guide/global-configurations/mandatory-tags.md)
+  * [Tags Policy](user-guide/global-configurations/tags-policy.md)
 * [Devtron Upgrade](setup/upgrade/README.md)
   * [Update Devtron from Devtron UI](setup/upgrade/upgrade-devtron-ui.md)
   * [0.5.x-0.6.x](setup/upgrade/devtron-upgrade-0.5.x-0.6.x.md)
