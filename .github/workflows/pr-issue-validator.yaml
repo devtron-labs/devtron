@@ -1,0 +1,51 @@
+name: Validate Pull Request
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - edited
+      - reopened
+
+jobs:
+  validate-PR-issue:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      
+    - name: Validate Issue Reference
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PRNUM: ${{ github.event.pull_request.number }}
+        TITLE: ${{ github.event.pull_request.title }}
+      run: |
+        set -e
+        
+        # Get the pull request body
+        PR_BODY=$(jq -r '.pull_request.body' $GITHUB_EVENT_PATH)
+
+        # Check if the pull request is for documentation. If yes, skip it.
+        if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* ]]; then
+          echo "Skipping validation as this is a PR for documentation or chore."
+          gh pr edit $PRNUM --remove-label "PR: Issue-verification-failed"
+          gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
+          exit 0
+          
+        # Check if the pull request body contains "Fixes" or "Resolves" keywords
+        elif echo "$PR_BODY" | grep -Ei 'fixes #[0-9]+|resolves #[0-9]+'; then
+          echo "Issue reference found in the pull request body."
+          gh pr edit $PRNUM --remove-label "PR: Issue-verification-failed"
+          gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
+          exit 0
+          
+        # If the pull request body doesn't contain "Fixes" or "Resolves" keywords
+        else
+          echo "No valid issue reference found in the pull request body."
+          gh pr comment $PRNUM --body "PR is not linked to any issue, please make the corresponding changes in the body."
+          gh pr edit $PRNUM --add-label "PR: Issue-verification-failed"
+          gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
+          exit 1
+        fi
