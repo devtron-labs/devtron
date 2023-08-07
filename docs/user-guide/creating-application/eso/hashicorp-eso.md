@@ -14,23 +14,23 @@ metadata:
    namespace: <namespace>
 ```
 
-**Note:** Please note that you don't need to create the Kubernetes secret every time you create an External Secret for the corresponding namespace.
+**Note**: Please note that you don't need to create the Kubernetes secret every time you create an External Secret for the corresponding namespace.
 
 Once you have created the generic secret, follow these steps in the application's Secrets section:
 
-**1. Create a new secret.**
+**1. Create a new secret**
 
-To add a new secret to the application, go to the `App Configuration` section of the application. Then, navigate to the left pane and select the `Secrets` option and click on the `Add Secret` button.
+To add a new secret to the application, go to the `App Configuration` section of the application. Then, navigate to the left pane and select the `Secrets` option and click the **Add Secret** button.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/hc-add-secret.jpg)
 
 **2. Select `HashiCorp Vault` as the External Secret Operator**
 
-After clicking on the `Add Secret` button, select `HashiCorp Vault` from the dropdown menu for the `Data type` option. Provide a name for the secret you are creating, and then proceed to configure the external secret as described in the next step.
+After clicking the **Add Secret** button, select `HashiCorp Vault` from the dropdown menu for the `Data type` option. Provide a name for the secret you are creating, and then proceed to configure the external secret as described in the next step.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/hc-secret-type.jpg)
 
-**3. Configure secret:**
+**3. Configure the secret**
 
 To configure the external secret that will be fetched from HashiCorp Vault for your application, you will need to provide specific details using the following key-value pairs:
 
@@ -39,21 +39,21 @@ To configure the external secret that will be fetched from HashiCorp Vault for y
 
 | Key | Description |
 | :--- | :--- |
-| `vault.server` | Server is the connection address for the Vaultserver, e.g: "https://vault.example.com:8200". |
-| `vault.path` | Specify the path where the secret is stored in Vault. |
-| `tokenSecretRef.name` | Enter the name of the secret that will be used for authentication. |
-| `tokenSecretRef.key` | Specify the key name within the secret that contains the token. |
-| `secretKey` | Provide a name for the secret in Kubernetes. |
-| `key` | Enter the name of the secret in Vault. |
-| `property` | Specify the key within the Vault secret. |
+| `vault.server` | Server is the connection address for the Vaultserver, e.g: "https://vault.example.com:8200" |
+| `vault.path` | Specify the path where the secret is stored in Vault |
+| `tokenSecretRef.name` | Enter the name of the secret that will be used for authentication |
+| `tokenSecretRef.key` | Specify the key name within the secret that contains the token |
+| `secretKey` | Provide a name for the secret in Kubernetes |
+| `key` | Enter the name of the secret in Vault |
+| `property` | Specify the key within the Vault secret |
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/tokenSecretRef.jpg)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/hc-eso.jpg)
 
-**4. Save secret.**
+**4. Save the secret**
 
-After configuring the external secret from HashiCorp Vault, proceed to save the secret by clicking on the `Save` button. 
+After configuring the external secret from HashiCorp Vault, proceed to save the secret by clicking the **Save** button. 
 
 By following the steps mentioned above and configuring these values correctly, you can seamlessly fetch and utilize external secrets from HashiCorp Vault within your application environment by deploying the application.
 
