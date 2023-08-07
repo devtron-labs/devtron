@@ -239,7 +239,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppStoreId(appSto
 			Model(appStore).
 			Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 			Where("app_store.id = ? ", installedAppVersion.AppStoreApplicationVersion.AppStoreId).
-			Where("app_store.active = true").
 			Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 				return q.Where("deleted IS FALSE and " +
 					"repository_type='CHART' and " +
@@ -270,7 +269,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdMet
 			Model(appStore).
 			Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 			Where("app_store.id = ? ", installedAppVersion.AppStoreApplicationVersion.AppStoreId).
-			Where("app_store.active = true").
 			Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 				return q.Where("deleted IS FALSE and " +
 					"repository_type='CHART' and " +
@@ -299,7 +297,6 @@ func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppVersionByInstalledAp
 		Model(appStore).
 		Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 		Where("app_store.id = ? ", model.AppStoreApplicationVersion.AppStoreId).
-		Where("app_store.active = true").
 		Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
 				"repository_type='CHART' and " +
@@ -336,7 +333,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Installe
 		Model(appStore).
 		Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 		Where("app_store.id = ? ", model.AppStoreApplicationVersion.AppStoreId).
-		Where("app_store.active = true").
 		Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
 				"repository_type='CHART' and " +
@@ -364,7 +360,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*Insta
 		Model(appStore).
 		Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 		Where("app_store.id = ? ", model.AppStoreApplicationVersion.AppStoreId).
-		Where("app_store.active = true").
 		Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
 				"repository_type='CHART' and " +
@@ -486,7 +481,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdAnd
 		Model(appStore).
 		Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 		Where("app_store.id = ? ", installedAppVersion.AppStoreApplicationVersion.AppStoreId).
-		Where("app_store.active = true").
 		Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
 				"repository_type='CHART' and " +
@@ -588,7 +582,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppIdAndEnvId(app
 		Model(appStore).
 		Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 		Where("app_store.id = ? ", installedAppVersion.AppStoreApplicationVersion.AppStoreId).
-		Where("app_store.active = true").
 		Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
 				"repository_type='CHART' and " +
@@ -622,7 +615,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIds(cluste
 			Model(appStore).
 			Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 			Where("app_store.id = ? ", installedAppVersion.AppStoreApplicationVersion.AppStoreId).
-			Where("app_store.active = true").
 			Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 				return q.Where("deleted IS FALSE and " +
 					"repository_type='CHART' and " +
@@ -656,7 +648,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clus
 			Model(appStore).
 			Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
 			Where("app_store.id = ? ", installedAppVersion.AppStoreApplicationVersion.AppStoreId).
-			Where("app_store.active = true").
 			Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 				return q.Where("deleted IS FALSE and " +
 					"repository_type='CHART' and " +
