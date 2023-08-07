@@ -39,6 +39,8 @@ type ConfigMapRestHandler interface {
 	CMEnvironmentAddUpdate(w http.ResponseWriter, r *http.Request)
 	CMGlobalFetch(w http.ResponseWriter, r *http.Request)
 	CMEnvironmentFetch(w http.ResponseWriter, r *http.Request)
+	CMGlobalFetchForEdit(w http.ResponseWriter, r *http.Request)
+	CMEnvironmentFetchForEdit(w http.ResponseWriter, r *http.Request)
 
 	CSGlobalAddUpdate(w http.ResponseWriter, r *http.Request)
 	CSEnvironmentAddUpdate(w http.ResponseWriter, r *http.Request)
@@ -194,6 +196,84 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalFetch(w http.ResponseWriter, r *
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler ConfigMapRestHandlerImpl) CMGlobalFetchForEdit(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	cmId, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "cmId", cmId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	name := vars["name"]
+	response, err := handler.configMapService.CMGlobalFetchForEdit(name, cmId)
+	if err != nil {
+		handler.Logger.Errorw("service err, CMGlobalFetchForEdit", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
+func (handler ConfigMapRestHandlerImpl) CMEnvironmentFetchForEdit(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	cmId, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "cmId", cmId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	name := vars["name"]
+	response, err := handler.configMapService.CMEnvironmentFetchForEdit(name, cmId, appId, envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, CMEnvironmentFetchForEdit", "err", err, "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CMEnvironmentFetch(w http.ResponseWriter, r *http.Request) {
