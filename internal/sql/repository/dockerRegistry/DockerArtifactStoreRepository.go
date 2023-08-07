@@ -152,15 +152,10 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
 		}).
+		Relation("IpsConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.JoinOn("(ips_config.active=true or ips_config is null)"), nil
+		}).
 		Select()
-	if err != nil {
-		return providers, err
-	}
-	for _, provider := range providers {
-		if provider.IpsConfig != nil && !provider.IpsConfig.Active {
-			provider.IpsConfig = nil
-		}
-	}
 	return providers, err
 }
 
@@ -182,20 +177,16 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
-		Join("LEFT JOIN docker_registry_ips_config ipc on (ipc.docker_artifact_store_id = docker_artifact_store.id AND ipc.active IS TRUE)").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("docker_artifact_store.active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
 		}).
+		Relation("IpsConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.JoinOn("(ips_config.active=true or ips_config is null)"), nil
+		}).
 		Select()
-	if err != nil {
-		return &provider, err
-	}
-	if provider.IpsConfig != nil && !provider.IpsConfig.Active {
-		provider.IpsConfig = nil
-	}
-	return &provider, nil
+	return &provider, err
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) FindOneWithDeploymentCount(storeId string) (*DockerArtifactStoreExt, error) {

@@ -260,7 +260,7 @@ func TestRegistryConfigService_Update(t *testing.T) {
 			} else {
 				store, err := dockerRegistryConfig.FetchOneDockerAccount(validInput2.Id)
 				if err != nil {
-					t.Fatalf("Error inserting record in database: %s", err.Error())
+					t.Fatalf("Error fetching record from database: %s", err.Error())
 				}
 				assert.Nil(tt, err)
 				assert.Equal(tt, res.Id, tc.input.Id)
