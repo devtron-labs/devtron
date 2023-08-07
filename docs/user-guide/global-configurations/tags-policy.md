@@ -6,21 +6,21 @@ Devtron's `Tags Policy` feature enables you to assign tags to your applications.
 
 To add tags, follow these steps:
 
-1. From the left pane, navigate to the Global Configuration section.
-2. Select Tags within the Global Configuration section.
+1. From the left pane, navigate to the `Global Configuration` section.
+2. Select `Tags` within the `Global Configuration` section.
 
-Once you are in the Tags section, locate the `Add Tag` button in the upper-right corner of the screen. Click on this button to proceed.
+Once you are in the `Tags` section, locate the **Add Tag** button in the upper-right corner of the screen and click it.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/mandatory-tags/add-tag.jpg)
 
-Within the Add Tag section, you will find two options for tags:
+Within the `Add Tag` section, you will find two options for tags:
 
-* **Suggested tags:** These tags appear as suggestions when adding tags to applications.
-* **Mandatory tags:** These tags are required for applications within the selected project.
+* **Suggested tags**: These tags appear as suggestions when adding tags to applications.
+* **Mandatory tags**: These tags are required for applications within the selected project.
 
 To create mandatory tags, choose the second option: `Mandatory tags`. This ensures that the specified tags are mandatory for the applications within the selected project.
 
-3. Next, choose the project(s) for which you want to create mandatory tags. You can select multiple projects at once.
+3. Next, choose the project(s) for which you want to create mandatory tags. You can select multiple projects at once (if required).
 
 4. After selecting the projects, proceed to add the mandatory tags for the selected projects.
 
