@@ -242,6 +242,11 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftsCount(w http.ResponseWriter, r 
 }
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftByName(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	queryParams := r.URL.Query()
 	resourceName := queryParams.Get("resourceName")
 	appId, err := common.ExtractIntQueryParam(w, r, "appId")
@@ -257,7 +262,7 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftByName(w http.ResponseWriter, r 
 		return
 	}
 
-	draftResponse, err := impl.configDraftService.GetDraftByName(appId, envId, resourceName, drafts.DraftResourceType(resourceType))
+	draftResponse, err := impl.configDraftService.GetDraftByName(appId, envId, resourceName, drafts.DraftResourceType(resourceType), userId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

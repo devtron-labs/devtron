@@ -26,7 +26,7 @@ type ConfigDraftService interface {
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
 	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
 	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
-	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType) (*ConfigDraftResponse, error)
+	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
@@ -230,12 +230,17 @@ func (impl *ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType
 	return appConfigDrafts, nil
 }
 
-func (impl *ConfigDraftServiceImpl) GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType) (*ConfigDraftResponse, error) {
+func (impl *ConfigDraftServiceImpl) GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error) {
 	draftVersion, err := impl.configDraftRepository.GetLatestConfigDraftByName(appId, envId, resourceName, resourceType)
 	if err != nil {
 		return nil, err
 	}
-	return draftVersion.ConvertToConfigDraft(), nil
+	draftResponse := draftVersion.ConvertToConfigDraft()
+	err = impl.updateDraftResponse(draftResponse.DraftId, userId, draftResponse)
+	if err != nil {
+		return nil, err
+	}
+	return draftResponse, nil
 }
 
 func (impl *ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) {
@@ -244,18 +249,26 @@ func (impl *ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*Co
 		return nil, err
 	}
 	draftResponse := configDraft.ConvertToConfigDraft()
+	err = impl.updateDraftResponse(draftId, userId, draftResponse)
+	if err != nil {
+		return nil, err
+	}
+	return draftResponse, nil
+}
+
+func (impl *ConfigDraftServiceImpl) updateDraftResponse(draftId int, userId int32, draftResponse *ConfigDraftResponse) error {
 	draftResponse.Approvers = impl.getApproversData(draftResponse.AppId, draftResponse.EnvId)
 	userContributedToDraft, err := impl.checkUserContributedToDraft(draftId, userId)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	draftResponse.CanApprove = pointer.BoolPtr(!userContributedToDraft)
 	commentsCount, err := impl.configDraftRepository.GetDraftVersionCommentsCount(draftId)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	draftResponse.CommentsCount = commentsCount
-	return draftResponse, nil
+	return nil
 }
 
 func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int, userId int32) error {
