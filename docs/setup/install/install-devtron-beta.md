@@ -56,7 +56,7 @@ $ helm install devtron .  --create-namespace --namespace devtroncd \
 
 ## Install Devtron with CI/CD and Additional Integration
 
-To install additional integrations along with CI/CD using the Devtron Helm chart, you can append the configurations for those integrations to the installation command in the same way you did for the cicd integration. Assuming you want to add an integration named `GitOps (Argo CD)`, the installation command would look like this:
+To install additional integrations along with CI/CD using the Devtron Helm chart, you can append the configurations for those integrations to the installation command in the same way it is done for the cicd integration. If you want to add the `GitOps (Argo CD)` integration, modify the installation command as follows:
 
 
 ```bash
