@@ -54,7 +54,7 @@ type WorkflowService interface {
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
 	TerminateWorkflow(name string, namespace string, isExt bool, environment *repository2.Environment) error
-	SubmitWebhookWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool, eventType string) (*v1alpha1.Workflow, error)
+	SubmitWebhookWorkflow(workflowRequest *WorkflowRequest, eventType string) (*v1alpha1.Workflow, error)
 }
 
 type CiCdTriggerEvent struct {
@@ -589,7 +589,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	return createdWf, err
 }
 
-func (impl *WorkflowServiceImpl) SubmitWebhookWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool, eventType string) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) SubmitWebhookWorkflow(workflowRequest *WorkflowRequest, eventType string) (*v1alpha1.Workflow, error) {
 	ciCdTriggerEvent := CiCdTriggerEvent{
 		Type:      eventType,
 		CiRequest: workflowRequest,
