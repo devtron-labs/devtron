@@ -7,6 +7,16 @@ on:
       - synchronize
       - edited
       - reopened
+    branches:    
+      - 'main'
+      - 'release-**'
+    paths-ignore:
+      - 'docs/**'
+      - '.github/'
+      - 'CHANGELOG/'
+      - 'charts/'
+      - 'manifests/'
+      - 'sample-docker-templates/'
 
 jobs:
   validate-PR-issue:
