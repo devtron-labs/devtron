@@ -26,6 +26,7 @@ type ConfigDraftService interface {
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
 	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
 	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
+	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
@@ -227,6 +228,14 @@ func (impl *ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType
 		appConfigDrafts = append(appConfigDrafts, appConfigDraft)
 	}
 	return appConfigDrafts, nil
+}
+
+func (impl *ConfigDraftServiceImpl) GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType) (*ConfigDraftResponse, error) {
+	draftVersion, err := impl.configDraftRepository.GetLatestConfigDraftByName(appId, envId, resourceName, resourceType)
+	if err != nil {
+		return nil, err
+	}
+	return draftVersion.ConvertToConfigDraft(), nil
 }
 
 func (impl *ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) {

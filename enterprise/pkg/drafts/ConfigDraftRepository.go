@@ -18,6 +18,7 @@ type ConfigDraftRepository interface {
 	GetDraftVersionComments(draftId int) ([]*DraftVersionComment, error)
 	GetDraftVersionCommentsCount(draftId int) (int, error)
 	GetLatestConfigDraft(draftId int) (*DraftVersion, error)
+	GetLatestConfigDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType) (*DraftVersion, error)
 	GetDraftMetadataForAppAndEnv(appId int, envIds []int) ([]*DraftDto, error)
 	GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftDto, error)
 	GetDraftVersionById(draftVersionId int) (*DraftVersion, error)
@@ -161,6 +162,23 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftVersionCommentsCount(draftId int)
 		err = nil //ignoring noRows Error
 	}
 	return count, err
+}
+
+func (repo *ConfigDraftRepositoryImpl) GetLatestConfigDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType) (*DraftVersion, error) {
+	draftVersion := &DraftVersion{}
+	err := repo.dbConnection.Model(draftVersion).Column("draft_version.*", "Draft").
+		//Join("INNER JOIN draft ON draft.id = draft_version.draft_id").
+		Where("draft.app_id = ?", appId).
+		Where("draft.env_id = ?", envId).
+		Where("draft.resource_name = ?", resourceName).
+		Where("draft.resource = ?", resourceType).
+		Order("draft_version.id desc").Limit(1).Select()
+	if err != nil {
+		repo.logger.Errorw("error occurred while fetching latest draft version", "resourceName", resourceName,
+			"resourceType", resourceType, "err", err)
+		return nil, err
+	}
+	return draftVersion, nil
 }
 
 func (repo *ConfigDraftRepositoryImpl) GetLatestConfigDraft(draftId int) (*DraftVersion, error) {

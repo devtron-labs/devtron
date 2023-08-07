@@ -33,6 +33,12 @@ func (router *ConfigDraftRouterImpl) InitConfigDraftRouter(configRouter *mux.Rou
 		Queries("envIds", "{envIds}").
 		Methods("GET")
 	configRouter.Path("/{draftId}").HandlerFunc(router.configDraftRestHandler.GetDraftById).Methods("GET")
+	configRouter.Path("").HandlerFunc(router.configDraftRestHandler.GetDraftByName).
+		Queries("appId", "{appId}").
+		Queries("envId", "{envId}").
+		Queries("resourceName", "{resourceName}").
+		Queries("resourceType", "{resourceType}").
+		Methods("GET")
 	configRouter.Path("/version").HandlerFunc(router.configDraftRestHandler.AddDraftVersion).Methods("PUT")
 	configRouter.Path("/version/{draftId}").HandlerFunc(router.configDraftRestHandler.GetDraftVersionMetadata).Methods("GET")
 	configRouter.Path("/version/comments/{draftId}").HandlerFunc(router.configDraftRestHandler.GetDraftComments).Methods("GET")

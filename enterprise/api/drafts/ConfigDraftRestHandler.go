@@ -21,6 +21,7 @@ type ConfigDraftRestHandler interface {
 	GetDraftComments(w http.ResponseWriter, r *http.Request)
 	GetAppDrafts(w http.ResponseWriter, r *http.Request)
 	GetDraftById(w http.ResponseWriter, r *http.Request)
+	GetDraftByName(w http.ResponseWriter, r *http.Request)
 	ApproveDraft(w http.ResponseWriter, r *http.Request)
 	DeleteUserComment(w http.ResponseWriter, r *http.Request)
 	UpdateDraftState(w http.ResponseWriter, r *http.Request)
@@ -238,6 +239,39 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftsCount(w http.ResponseWriter, r 
 		return
 	}
 	common.WriteJsonResp(w, err, configDrafts, http.StatusOK)
+}
+
+func (impl *ConfigDraftRestHandlerImpl) GetDraftByName(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	resourceName := queryParams.Get("resourceName")
+	appId, err := common.ExtractIntQueryParam(w, r, "appId")
+	if err != nil {
+		return
+	}
+	envId, err := common.ExtractIntQueryParam(w, r, "envId")
+	if err != nil {
+		return
+	}
+	resourceType, err := common.ExtractIntQueryParam(w, r, "resourceType")
+	if err != nil {
+		return
+	}
+
+	draftResponse, err := impl.configDraftService.GetDraftByName(appId, envId, resourceName, drafts.DraftResourceType(resourceType))
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	token := r.Header.Get("token")
+	appAdminUser := impl.enforceForAppAndEnv(draftResponse.AppId, draftResponse.EnvId, token, casbin.ActionUpdate)
+	if draftResponse.Resource == drafts.CSDraftResource && !appAdminUser {
+		if notAnApprover := impl.checkForApproverAccess(w, draftResponse.EnvId, draftResponse.AppId, token, false); notAnApprover {
+			// not an admin and config approver, protecting secret data
+			encryptedCSData := impl.configDraftService.EncryptCSData(draftResponse.Data)
+			draftResponse.Data = encryptedCSData
+		}
+	}
+	common.WriteJsonResp(w, nil, draftResponse, http.StatusOK)
 }
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *http.Request) {
