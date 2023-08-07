@@ -61,10 +61,10 @@ const (
 )
 
 type DockerArtifactStoreBean struct {
-	Id                      string                       `json:"id,omitempty" validate:"required"`
+	Id                      string                       `json:"id" validate:"required"`
 	PluginId                string                       `json:"pluginId,omitempty" validate:"required"`
-	RegistryURL             string                       `json:"registryUrl,omitempty"`
-	RegistryType            repository.RegistryType      `json:"registryType,omitempty" validate:"required"`
+	RegistryURL             string                       `json:"registryUrl" validate:"required"`
+	RegistryType            repository.RegistryType      `json:"registryType" validate:"required"`
 	IsOCICompliantRegistry  bool                         `json:"isOCICompliantRegistry"`
 	OCIRegistryConfig       map[string]string            `json:"ociRegistryConfig,omitempty"`
 	IsPublic                bool                         `json:"isPublic"`
