@@ -86,15 +86,15 @@ Make sure your cluster has `devtron-agent` installed if you check the `Execute i
 
 ### 4. Manual approval for deployment
 
-When `manual approval for deployment` is enabled, only approved images are available for deployment through the respective deployment pipeline.
-Users can specify the number of approvals required for each deployment, with a minimum of 1 and a maximum of 6.
+When `Manual approval for deployment` is enabled, only approved images are available for deployment through the respective deployment pipeline.
+Users can specify the number of approvals required for each deployment, where the permissible limit ranges from one approval (minimum) to six approval (maximum).
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/deployment-approval.jpg)
 
-To enable Manual Approval for Deployment, follow these steps:
+To enable manual approval for deployment, follow these steps:
 
-1. Click on the deployment pipeline for which you want to enable manual approval for deployment.
-2. Toggle the ‘Manual approval for deployment’ switch to ‘On’.
+1. Click the deployment pipeline for which you want to enable manual approval.
+2. Turn on the ‘Manual approval for deployment’ toggle button.
 3. Select the number of approvals required for each deployment.
 
 ### 5. Deployment stage
@@ -121,7 +121,7 @@ Devtron's tool has 4 types of deployment strategies. Click on `Add Deployment st
 
 ### 6. Post-deployment Stage
 
-If you want to Configure actions like Jira ticket close, that you want to run after the deployment, you can configure such actions in the post-deployment stages.
+If you want to run actions like closure of Jira ticket after the deployment, you can configure such actions in the post-deployment stages.
 
 Post-deployment stages are similar to pre-deployment stages. The difference is, pre-deployment executes before the CD pipeline execution and post-deployment executes after the CD pipeline execution. The configuration of post-deployment stages is similar to the pre-deployment stages.
 
