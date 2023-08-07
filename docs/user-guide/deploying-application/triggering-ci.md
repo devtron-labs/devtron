@@ -1,22 +1,22 @@
 # Triggering CI Pipelines
 
-To trigger the CI pipeline, first you need to select the Git commit for which the CI pipeline will be triggered. To select the Git commit, click on the `Select Material` button present on the CI pipeline.
+To trigger the CI pipeline, first you need to select a Git commit. To select a Git commit, clic the **Select Material** button present on the CI pipeline.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/select-material-new.jpg)
 
-Once clicked, a list will appear showing various commits made in the repository, including details such as the author name, commit date and time etc. Choose the desired commit for which you want to trigger the pipeline, and then click on "Start Build" to initiate the CI pipeline.
+Once clicked, a list will appear showing various commits made in the repository, it includes details such as the author name, commit date, time, etc. Choose the desired commit for which you want to trigger the pipeline, and then click **Start Build** to initiate the CI pipeline.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/trigger-build.jpg)
 
-CI Pipelines with automatic triggers are triggereded immediately when a new commit is made to the git branch. If the trigger for a build pipeline is set to manual, it will not be automatically triggered and requires manual trigger.
+CI Pipelines with automatic trigger enabled are triggered immediately when a new commit is made to the git branch. If the trigger for a build pipeline is set to manual, it will not be automatically triggered and requires a manual trigger.
 
 The **Refresh** icon updates the Git Commits section in the CI Pipeline by fetching the latest commits from the repository. Clicking on the refresh icon ensures that you have the most recent commit available.
 
-**Ignore Cache** : This option will ignore the previous build cache and create a fresh build. If selected, will take a longer build time than usual.
+The **Ignore Cache** option ignores the previous build cache and creates a fresh build. If selected, will take a longer build time than usual.
 
-Click on the `CI Pipeline` or navigate to the `Build History` to get the CI pipeline details such as build logs, sorce code details, artifacts and vulnerability scan reports.
+Click the `CI Pipeline` or navigate to the `Build History` to get the CI pipeline details such as build logs, source code details, artifacts, and vulnerability scan reports.
 
-To access the logs of the CI Pipeline, simply click on the `Logs`.
+To access the logs of the CI Pipeline, simply click `Logs`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-logs.jpg)
 
