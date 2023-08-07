@@ -139,6 +139,7 @@ type WorkflowRequest struct {
 	ImageRetryCount            int                               `json:"imageRetryCount"`
 	ImageRetryInterval         int                               `json:"imageRetryInterval"`
 	Image                      string                            `json:"image"`
+	Type                       string                            `json:"type"`
 }
 
 const (

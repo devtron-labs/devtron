@@ -355,6 +355,7 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		Image:                      artifact.Image,
 		Namespace:                  impl.ciConfig.DefaultNamespace,
 		WorkflowNamePrefix:         CI_WORKFLOW_NAME,
+		Type:                       WEBHOOK,
 	}
 	if dockerRegistry != nil {
 		workflowRequest.DockerRegistryId = dockerRegistry.Id
@@ -460,6 +461,7 @@ func (impl *WorkflowDagExecutorImpl) triggerStageForBulk(cdWf *pipelineConfig.Cd
 		return err
 	}
 }
+
 func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error {
 	wfRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
 	if err != nil {

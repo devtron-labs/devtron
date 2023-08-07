@@ -3032,9 +3032,13 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
 		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving external ci", "err: ", err, "externalCiPipeline: ", externalCiPipeline)
+			return 0, err
+		}
 		err := impl.pipelineStageService.CreatePipelineStage(ciPostStage, repository5.PIPELINE_STAGE_TYPE_POST_WEBHOOK, externalCiPipeline.Id, userId)
 		if err != nil {
-			impl.logger.Errorw("error in creating post-cd stage", "err", err, "postCdStage", pipeline.PostDeployStage, "pipelineId", externalCiPipeline.Id)
+			impl.logger.Errorw("error in creating post-cd stage", "err: ", err, "postCdStage: ", pipeline.PostDeployStage, "pipelineId: ", externalCiPipeline.Id)
 			return 0, err
 		}
 		wf := &appWorkflow.AppWorkflow{
