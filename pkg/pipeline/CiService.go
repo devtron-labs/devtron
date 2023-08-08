@@ -401,6 +401,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
 		ciProjectDetail := CiProjectDetails{
+			GitMaterialId:   ciMaterial.GitMaterialId,
 			GitRepository:   ciMaterial.GitMaterial.Url,
 			MaterialName:    ciMaterial.GitMaterial.Name,
 			CheckoutPath:    ciMaterial.GitMaterial.CheckoutPath,
