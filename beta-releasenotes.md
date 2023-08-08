@@ -45,6 +45,7 @@
 - docs: added devtron release note in summary.md (#3681)
 - docs: Updated readme for 4.18 chart for winter soldier. (#3673)
 ## Others
+- chore: Update pr-issue-validator.yaml (#3740)
 - chore: Removed path-ignore section in pr-issue-validator (#3739)
 - fix : Resource list fetch for K8s (#3713)
 - integration test cases FW (#3508)
