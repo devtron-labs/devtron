@@ -486,7 +486,7 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 		if err != nil {
 			return nil, err
 		}
-		envPropertiesReq := &pipeline.EnvironmentProperties{
+		envPropertiesReq := &bean3.EnvironmentProperties{
 			Id:                thisEnvProperties.EnvironmentConfig.Id,
 			EnvOverrideValues: refEnvProperties.EnvironmentConfig.EnvOverrideValues,
 			Status:            refEnvProperties.EnvironmentConfig.Status,

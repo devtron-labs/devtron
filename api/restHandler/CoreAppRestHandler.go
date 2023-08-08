@@ -1787,7 +1787,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		return err
 	}
 	chartRefId := deploymentTemplateOverride.ChartRefId
-	envConfigProperties := &pipeline.EnvironmentProperties{
+	envConfigProperties := &bean2.EnvironmentProperties{
 		IsOverride:        true,
 		Active:            true,
 		ManualReviewed:    true,
