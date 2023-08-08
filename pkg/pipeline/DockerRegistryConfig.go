@@ -79,7 +79,7 @@ type DockerArtifactStoreBean struct {
 	Active                  bool                         `json:"active"`
 	DisabledFields          []DisabledFields             `json:"disabledFields"`
 	User                    int32                        `json:"-"`
-	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean `json:"ipsConfig,notnull,omitempty" validate:"required"`
+	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean `json:"ipsConfig,omitempty"`
 }
 
 type DockerRegistryIpsConfigBean struct {
@@ -557,8 +557,23 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 			existingRepositoryList = strings.Split(ociRegistryConfig.RepositoryList, ",")
 		}
 	}
-	if len(bean.RepositoryList) == 0 {
-		bean.RepositoryList = existingRepositoryList
+	deployedChartList := make([]string, 0)
+	for _, repository := range existingRepositoryList {
+		if !slices.Contains(bean.RepositoryList, repository) {
+			chartDeploymentCount, err := impl.dockerArtifactStoreRepository.FindOneWithChartDeploymentCount(bean.Id, repository)
+			if err != nil && err != pg.ErrNoRows {
+				return nil, err
+			} else if chartDeploymentCount != nil && chartDeploymentCount.DeploymentCount > 0 {
+				deployedChartList = append(deployedChartList, chartDeploymentCount.OCIChartName)
+			}
+		}
+	}
+	if len(deployedChartList) > 0 {
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusConflict,
+			InternalMessage: fmt.Sprintf("%s chart(s) cannot be removed as they are being used by helm applications.", strings.Join(deployedChartList, ", ")),
+			UserMessage:     fmt.Sprintf("%s chart(s) cannot be removed as they are being used by helm applications.", strings.Join(deployedChartList, ", "))}
+		return nil, err
 	}
 
 	bean.PluginId = existingStore.PluginId

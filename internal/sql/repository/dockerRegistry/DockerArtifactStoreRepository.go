@@ -71,6 +71,11 @@ type DockerArtifactStoreExt struct {
 	DeploymentCount int `sql:"deployment_count" json:"deploymentCount"`
 }
 
+type ChartDeploymentCount struct {
+	OCIChartName    string `sql:"oci_chart_name" json:"ociChartName"`
+	DeploymentCount int    `sql:"deployment_count" json:"deploymentCount"`
+}
+
 func (store *DockerArtifactStore) GetRegistryLocation() (registryLocation string, err error) {
 	u, err := url.Parse(registryLocation)
 	if err != nil {
@@ -89,6 +94,7 @@ type DockerArtifactStoreRepository interface {
 	FindAllChartProviders() ([]DockerArtifactStore, error)
 	FindOne(storeId string) (*DockerArtifactStore, error)
 	FindOneWithDeploymentCount(storeId string) (*DockerArtifactStoreExt, error)
+	FindOneWithChartDeploymentCount(storeId, chartName string) (*ChartDeploymentCount, error)
 	FindOneInactive(storeId string) (*DockerArtifactStore, error)
 	Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error
 	Delete(storeId string) error
@@ -193,9 +199,21 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneWithDeploymentCount(storeId
 	var provider DockerArtifactStoreExt
 	query := "SELECT docker_artifact_store.*, count(jq.ia_id) as deployment_count FROM docker_artifact_store" +
 		fmt.Sprintf(" LEFT JOIN oci_registry_config orc on (docker_artifact_store.id = orc.docker_artifact_store_id and orc.is_chart_pull_active = true and orc.deleted = false and orc.repository_type = '%s' and (orc.repository_action = '%s' or orc.repository_action = '%s'))", OCI_REGISRTY_REPO_TYPE_CHART, STORAGE_ACTION_TYPE_PULL, STORAGE_ACTION_TYPE_PULL_AND_PUSH) +
-		" LEFT JOIN (SELECT aps.docker_artifact_store_id as das_id ,ia.id as ia_id FROM installed_app_versions iav INNER JOIN installed_apps ia on iav.installed_app_id = ia.id INNER JOIN app_store_application_version asav on iav.app_store_application_version_id = asav.id INNER JOIN app_store aps on (asav.app_store_id = aps.id AND aps.active IS TRUE) WHERE ia.active=true and iav.active=true) jq on jq.das_id = docker_artifact_store.id" +
+		" LEFT JOIN (SELECT aps.docker_artifact_store_id as das_id ,ia.id as ia_id FROM installed_app_versions iav INNER JOIN installed_apps ia on iav.installed_app_id = ia.id INNER JOIN app_store_application_version asav on iav.app_store_application_version_id = asav.id INNER JOIN app_store aps on asav.app_store_id = aps.id WHERE ia.active=true and iav.active=true) jq on jq.das_id = docker_artifact_store.id" +
 		" WHERE docker_artifact_store.id = ? and docker_artifact_store.active = true Group by docker_artifact_store.id;"
 	_, err := impl.dbConnection.Query(&provider, query, storeId)
+	return &provider, err
+}
+
+func (impl DockerArtifactStoreRepositoryImpl) FindOneWithChartDeploymentCount(storeId, chartName string) (*ChartDeploymentCount, error) {
+	var provider ChartDeploymentCount
+	query := "SELECT aps.name as oci_chart_name, COUNT(ia.id) as deployment_count FROM installed_app_versions iav" +
+		" INNER JOIN installed_apps ia on iav.installed_app_id = ia.id" +
+		" INNER JOIN app_store_application_version asav on iav.app_store_application_version_id = asav.id" +
+		" INNER JOIN app_store aps on asav.app_store_id = aps.id" +
+		" WHERE ia.active=true and iav.active=true and aps.docker_artifact_store_id = ? and aps.name = ?" +
+		" GROUP BY oci_chart_name,aps.docker_artifact_store_id;"
+	_, err := impl.dbConnection.Query(&provider, query, storeId, chartName)
 	return &provider, err
 }
 
