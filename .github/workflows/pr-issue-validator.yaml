@@ -31,14 +31,15 @@ jobs:
         PR_BODY: ${{ github.event.pull_request.body }}
         url: ${{ github.event.pull_request.url }}
         GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        GH_TOKEN: ${{ secrets.GIT_TOKEN }
         PRNUM: ${{ github.event.pull_request.number }}
         TITLE: ${{ github.event.pull_request.title }}
       run: |
         set -e
         if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* ]]; then
           echo "Skipping validation as this is a PR for documentation or chore."
-          gh pr edit $PRNUM --remove-label "PR: Issue-verification-failed"
-          gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
+          gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
+          gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
           exit 0
         fi
         pattern="((Fixes|Resolves) #[0-9]+)"
@@ -70,7 +71,7 @@ jobs:
           if [[ $(echo "$text" | jq -r '.state') == "open" ]]; then
             echo "Issue #$issue_num is open"
             echo "Issue reference found in the pull request body."
-            gh pr edit $PRNUM --remove-label "PR: Issue-verification-failed"
+            gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
             gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
             exit 0
           else
@@ -81,7 +82,7 @@ jobs:
             echo "Invalid Response Code obtained - error code: $response_code"
             echo "No valid issue reference found in the pull request body."
             gh pr comment $PRNUM --body "PR is not linked to any issue, please make the corresponding changes in the body."
-            gh pr edit $PRNUM --add-label "PR: Issue-verification-failed"
+            gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
             gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
             exit 1
         fi
