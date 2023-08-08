@@ -103,6 +103,7 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 
 type PipelineBuilder interface {
 	CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error)
+	CreateWebhookCiPipeline(createRequest *bean.WebhookCiRequest) (*bean.PipelineCreateResponse, error)
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	CreateMaterialsForApp(request *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
 	UpdateMaterialsForApp(request *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
@@ -940,8 +941,8 @@ func (impl *PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exte
 		}
 
 		if _, ok := appWorkflowMappingsMap[externalCiPipeline.Id]; !ok {
-			impl.logger.Errorw("unable to find app workflow cd mapping corresponding to external ci pipeline id")
-			return nil, errors.New("unable to find app workflow cd mapping corresponding to external ci pipeline id")
+			externalCiConfigs = append(externalCiConfigs, externalCiConfig)
+			continue
 		}
 
 		var appWorkflowComponentIds []int
@@ -1048,6 +1049,15 @@ func (impl *PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) 
 	}
 
 	roleData := make(map[string]interface{})
+	app, err := impl.appRepo.FindAppAndProjectByAppId(externalCiPipeline.AppId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+	roleData[teamIdKey] = app.TeamId
+	roleData[teamNameKey] = app.Team.Name
+	roleData[appIdKey] = externalCiPipeline.AppId
+	roleData[appNameKey] = app.AppName
 	for _, appWorkflowMapping := range appWorkflowMappings {
 		cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
 		if err != nil && !util.IsErrNoRows(err) {
@@ -1083,14 +1093,18 @@ func (impl *PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) 
 		Payload:    impl.ciConfig.ExternalCiPayload,
 		AccessKey:  "",
 	}
+
 	externalCiConfig.ExternalCiConfigRole = bean.ExternalCiConfigRole{
-		ProjectId:             roleData[teamIdKey].(int),
-		ProjectName:           roleData[teamNameKey].(string),
-		AppId:                 roleData[appIdKey].(int),
-		AppName:               roleData[appNameKey].(string),
-		EnvironmentName:       roleData[environmentNameKey].(string),
-		EnvironmentIdentifier: roleData[environmentIdentifierKey].(string),
-		Role:                  "Build and deploy",
+		ProjectId:   roleData[teamIdKey].(int),
+		ProjectName: roleData[teamNameKey].(string),
+		AppId:       roleData[appIdKey].(int),
+		AppName:     roleData[appNameKey].(string),
+		Role:        "Build and deploy",
+	}
+	if roleData[environmentNameKey] != nil && roleData[environmentIdentifierKey] != nil {
+
+		externalCiConfig.ExternalCiConfigRole.EnvironmentName = roleData[environmentNameKey].(string)
+		externalCiConfig.ExternalCiConfigRole.EnvironmentIdentifier = roleData[environmentIdentifierKey].(string)
 	}
 	externalCiConfig.Schema = impl.buildExternalCiWebhookSchema()
 	externalCiConfig.PayloadOption = impl.buildPayloadOption()
@@ -1356,6 +1370,70 @@ func (impl *PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigRe
 			return nil, err
 		}
 		impl.logger.Debugw("pipeline created ", "detail", conf)
+	}
+	createRes := &bean.PipelineCreateResponse{AppName: app.AppName, AppId: createRequest.AppId} //FIXME
+	return createRes, nil
+}
+
+func (impl *PipelineBuilderImpl) CreateWebhookCiPipeline(createRequest *bean.WebhookCiRequest) (*bean.PipelineCreateResponse, error) {
+	impl.logger.Debugw("pipeline create request received", "req", createRequest)
+
+	//-----------fetch data
+	app, err := impl.appRepo.FindById(createRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline group", "groupId", createRequest.AppId, "err", err)
+		return nil, err
+	}
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	//--ecr config
+	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
+		AppId:       app.Id,
+		AccessToken: "",
+		Active:      true,
+		ScanEnabled: createRequest.CiScanEnabled,
+		AuditLog:    sql.AuditLog{CreatedBy: createRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: createRequest.UserId},
+	}
+	externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving external ci", "err: ", err, "externalCiPipeline: ", externalCiPipeline)
+		return nil, err
+	}
+
+	if createRequest.CiPostBuildStage != nil {
+		err = impl.pipelineStageService.CreatePipelineStage(createRequest.CiPostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_WEBHOOK, externalCiPipeline.Id, createRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in creating post-cd stage", "err: ", err, "postCdStage: ", createRequest.CiPostBuildStage, "pipelineId: ", externalCiPipeline.Id)
+			return nil, err
+		}
+	}
+
+	wf := &appWorkflow.AppWorkflow{
+		Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
+		AppId:    app.Id,
+		Active:   true,
+		AuditLog: sql.AuditLog{CreatedBy: createRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: createRequest.UserId},
+	}
+	savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
+	if err != nil {
+		impl.logger.Errorw("err", err)
+		return nil, err
+	}
+	appWorkflowMap := &appWorkflow.AppWorkflowMapping{
+		AppWorkflowId: savedAppWf.Id,
+		ComponentId:   externalCiPipeline.Id,
+		Type:          "WEBHOOK",
+		Active:        true,
+		AuditLog:      sql.AuditLog{CreatedBy: createRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: createRequest.UserId},
+	}
+	appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+	if err != nil {
+		return nil, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err)
+		return nil, err
 	}
 	createRes := &bean.PipelineCreateResponse{AppName: app.AppName, AppId: createRequest.AppId} //FIXME
 	return createRes, nil

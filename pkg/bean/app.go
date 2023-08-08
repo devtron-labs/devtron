@@ -323,6 +323,13 @@ type CiConfigRequest struct {
 	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
 }
 
+type WebhookCiRequest struct {
+	AppId            int                    `json:"appId,omitempty"  validate:"number,required" `
+	UserId           int32                  `json:"-"`
+	CiScanEnabled    bool                   `json:"ciScanEnabled"`
+	CiPostBuildStage *bean.PipelineStageDto `json:"ciPostBuildStage,omitempty"`
+}
+
 type CiPipelineMinResponse struct {
 	Id               int    `json:"id,omitempty" validate:"number"` //ciTemplateId
 	AppId            int    `json:"appId,omitempty" validate:"required,number"`
