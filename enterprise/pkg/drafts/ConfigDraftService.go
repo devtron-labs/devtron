@@ -378,7 +378,7 @@ func (impl *ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId in
 	ctx := context.Background()
 	var err error
 	if envId == protect.BASE_CONFIG_ENV_ID {
-		err = impl.handleBaseDeploymentTemplate(appId, envId, draftData, userId, ctx)
+		err = impl.handleBaseDeploymentTemplate(appId, envId, draftData, userId, action, ctx)
 		if err != nil {
 			return err
 		}
@@ -391,10 +391,10 @@ func (impl *ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId in
 	return nil
 }
 
-func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId int, draftData string, userId int32, ctx context.Context) error {
-	templateRequest := &chart.TemplateRequest{}
+func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) error {
+	templateRequest := chart.TemplateRequest{}
 	var templateValidated bool
-	err := json.Unmarshal([]byte(draftData), templateRequest)
+	err := json.Unmarshal([]byte(draftData), &templateRequest)
 	if err != nil {
 		impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "appId", appId, "envId", envId, "err", err)
 		return err
@@ -407,7 +407,11 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 		return errors.New("template-outdated")
 	}
 	templateRequest.UserId = userId
-	_, err = impl.chartService.UpdateAppOverride(ctx, templateRequest)
+	if action == AddResourceAction {
+		_, err = impl.chartService.Create(templateRequest, ctx)
+	} else {
+		_, err = impl.chartService.UpdateAppOverride(ctx, &templateRequest)
+	}
 	return err
 }
 
