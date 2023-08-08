@@ -17,8 +17,6 @@ on:
     #   - 'charts/'
     #   - 'manifests/'
     #   - 'sample-docker-templates/'
-env:
-  GH_TOKEN: ${{ secrets.GIT_TARGET_TOKEN }}
   
 jobs:
   validate-PR-issue:
@@ -30,13 +28,13 @@ jobs:
 
     - name: Validate Issue Reference
       env:
+        GH_TOKEN: ${{ secrets.GIT_TARGET_TOKEN }}
         PR_BODY: ${{ github.event.pull_request.body }}
         url: ${{ github.event.pull_request.url }}
         PRNUM: ${{ github.event.pull_request.number }}
         TITLE: ${{ github.event.pull_request.title }}
       run: |
         set +e
-        export GH_TOKEN=${{ secrets.GIT_TARGET_TOKEN }}
         if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* ]]; then
           echo "Skipping validation as this is a PR for documentation or chore."
           gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
