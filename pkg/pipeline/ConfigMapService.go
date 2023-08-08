@@ -460,7 +460,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 }
 
 func (impl ConfigMapServiceImpl) CMGlobalFetchForEdit(name string, id int) (*ConfigDataRequest, error) {
-	configMapGlobal, err := impl.configMapRepository.GetByIdEnvLevel(id)
+	configMapGlobal, err := impl.configMapRepository.GetByIdAppLevel(id)
 	if err != nil && pg.ErrNoRows != err {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
