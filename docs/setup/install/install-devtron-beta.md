@@ -73,8 +73,8 @@ $ helm install devtron . --create-namespace --namespace devtroncd \
 | :---: | :---: |
 | `GitOps (Argo CD)`  |  `--set notifier.enabled=true` |
 |  `Notifications` |  `--set notifier.enabled=true` |
-| `Clair`  | `--set security.enabled=true` <br/> `--set security.clair.enabled=true`  |
-| `Trivy`  |  `--set security.enabled=true` <br/> `--set security.trivy.enabled=true`  |
+| `Vulnerability Scanning (Clair)`  | `--set security.enabled=true` <br/> `--set security.clair.enabled=true`  |
+| `Vulnerability Scanning (Trivy)`  |  `--set security.enabled=true` <br/> `--set security.trivy.enabled=true`  |
 | `Monitoring (Grafana)` | `--set monitoring.grafana.enabled=true` |
 
 
