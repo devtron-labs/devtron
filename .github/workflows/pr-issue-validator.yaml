@@ -31,7 +31,7 @@ jobs:
         PR_BODY: ${{ github.event.pull_request.body }}
         url: ${{ github.event.pull_request.url }}
         # GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
-        GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+        GH_TOKEN: ${{ secrets.GIT_TARGET_TOKEN }}
         PRNUM: ${{ github.event.pull_request.number }}
         TITLE: ${{ github.event.pull_request.title }}
       run: |
