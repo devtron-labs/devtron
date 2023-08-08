@@ -161,11 +161,11 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 	ctx := context.Background()
 	newFile := false
 	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
-	impl.logger.Infow("file contents in git service ", "fc", fc)
+	//impl.logger.Infow("file contents in git service ", "fc", fc)
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
-			impl.logger.Errorw("error in creating repo github", "err", err, "config", config)
+			//impl.logger.Errorw("error in creating repo github", "err", err, "config", config)
 			return "", time.Time{}, err
 		} else {
 			newFile = true
@@ -174,7 +174,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 	currentSHA := ""
 	if !newFile {
 		currentSHA = *fc.SHA
-		impl.logger.Infow("current SHA ", "filename", config.FileName, "sha", currentSHA)
+		//impl.logger.Infow("current SHA ", "filename", config.FileName, "sha", currentSHA)
 	}
 	impl.logger.Infow("sha in commit values function", "filename", config.FileName, "sha", fc.SHA)
 	timeNow := time.Now()
@@ -195,7 +195,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 		},
 	}
 	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
-	impl.logger.Infow("c in git service, response of create file", "c", c)
+	//impl.logger.Infow("c in git service, response of create file", "c", c)
 	if err != nil {
 		impl.logger.Errorw("error in commit github", "err", err, "config", config)
 		return "", time.Time{}, err
