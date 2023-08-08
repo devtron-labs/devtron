@@ -263,6 +263,7 @@ func (impl *CommonWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CommonWor
 		CommonWorkflowRequest: workflowRequest,
 	}
 	if env != nil && env.Id != 0 && isCi {
+		workflowRequest.EnvironmentId = env.Id
 		workflowRequest.IsExtRun = true
 	}
 	// key will be used for log archival through in-app logging
