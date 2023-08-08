@@ -10,13 +10,13 @@ on:
     branches:    
       - 'main'
       - 'release-**'
-    paths-ignore:
-      - 'docs/**'
-      - '.github/'
-      - 'CHANGELOG/'
-      - 'charts/'
-      - 'manifests/'
-      - 'sample-docker-templates/'
+    # paths-ignore:
+    #   - 'docs/**'
+    #   - '.github/'
+    #   - 'CHANGELOG/'
+    #   - 'charts/'
+    #   - 'manifests/'
+    #   - 'sample-docker-templates/'
 
 jobs:
   validate-PR-issue:
