@@ -26,10 +26,11 @@ type Config struct {
 }
 
 var (
-	dockerRegistryConfig *DockerRegistryConfigImpl
-	helmAppServiceMock   *mocks.HelmAppService
-	storeIds             = []string{"integration-test-store-1", "integration-test-store-2", "integration-test-store-3"}
-	validInput1          = DockerArtifactStoreBean{
+	dockerRegistryConfig          *DockerRegistryConfigImpl
+	dockerArtifactStoreRepository *repository.DockerArtifactStoreRepositoryImpl
+	helmAppServiceMock            *mocks.HelmAppService
+	storeIds                      = []string{"integration-test-store-1", "integration-test-store-2", "integration-test-store-3"}
+	validInput1                   = DockerArtifactStoreBean{
 		Id:                     storeIds[0],
 		PluginId:               "cd.go.artifact.docker.registry",
 		RegistryType:           "docker-hub",
@@ -83,7 +84,7 @@ var (
 )
 
 func TestRegistryConfigService_Save(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	if dockerRegistryConfig == nil {
 		InitDockerRegistryConfig(t)
 	}
@@ -110,10 +111,9 @@ func TestRegistryConfigService_Save(t *testing.T) {
 			expectedErr: true,
 		},
 	}
-
+	//clean data in db
+	t.Cleanup(cleanDb)
 	for _, tc := range testCases {
-		//clean data in db
-		t.Cleanup(cleanDb)
 		t.Run(tc.name, func(tt *testing.T) {
 			tc.input.User = 1
 			res, err := dockerRegistryConfig.Create(&tc.input)
@@ -170,10 +170,31 @@ func TestRegistryConfigService_Save(t *testing.T) {
 			}
 		})
 	}
+	t.Run(fmt.Sprintf("TEST%v : successfully fetch all chart providers", len(testCases)+1), func(t *testing.T) {
+		list := make([]string, 0)
+		for _, testcase := range testCases {
+			if !testcase.expectedErr {
+				chartConfig, chartConfigExists := testcase.input.OCIRegistryConfig["CHART"]
+				if testcase.input.IsOCICompliantRegistry && chartConfigExists && chartConfig == "PUSH" {
+					continue
+				}
+				list = append(list, testcase.input.Id)
+			}
+		}
+		providerList := make([]string, 0)
+		chartProviders, err := dockerArtifactStoreRepository.FindAllChartProviders()
+		for _, provider := range chartProviders {
+			providerList = append(providerList, provider.Id)
+		}
+		assert.Nil(t, err)
+		for _, registry := range list {
+			assert.Contains(t, providerList, registry)
+		}
+	})
 }
 
 func TestRegistryConfigService_Update(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	if dockerRegistryConfig == nil {
 		InitDockerRegistryConfig(t)
 	}
@@ -370,7 +391,7 @@ func InitDockerRegistryConfig(t *testing.T) {
 		log.Fatalf("error in db connection initialization %s, %s", "err", err)
 	}
 
-	dockerArtifactStoreRepository := repository.NewDockerArtifactStoreRepositoryImpl(conn)
+	dockerArtifactStoreRepository = repository.NewDockerArtifactStoreRepositoryImpl(conn)
 	dockerRegistryIpsConfigRepository := repository.NewDockerRegistryIpsConfigRepositoryImpl(conn)
 	ociRegistryConfigRepository := repository.NewOCIRegistryConfigRepositoryImpl(conn)
 	//Mock helm service
