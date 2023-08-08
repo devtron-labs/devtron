@@ -30,12 +30,11 @@ jobs:
       env:
         PR_BODY: ${{ github.event.pull_request.body }}
         url: ${{ github.event.pull_request.url }}
-        # GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
         GH_TOKEN: ${{ secrets.GIT_TOKEN }}
         PRNUM: ${{ github.event.pull_request.number }}
         TITLE: ${{ github.event.pull_request.title }}
       run: |
-        set -e
+        set -ex
         if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* ]]; then
           echo "Skipping validation as this is a PR for documentation or chore."
           gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
