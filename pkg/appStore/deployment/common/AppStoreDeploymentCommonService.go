@@ -448,6 +448,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 	}
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(PushChartToGitRequest.UserId)
 	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	impl.logger.Infow("first commit hash", "commit", commit)
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
