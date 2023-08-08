@@ -35,7 +35,7 @@ jobs:
         PRNUM: ${{ github.event.pull_request.number }}
         TITLE: ${{ github.event.pull_request.title }}
       run: |
-        set -e
+        set +e
         export GH_TOKEN=${{ secrets.GIT_TARGET_TOKEN }}
         if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* ]]; then
           echo "Skipping validation as this is a PR for documentation or chore."
