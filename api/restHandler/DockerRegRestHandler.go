@@ -224,6 +224,12 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 
+	res, err := impl.dockerRegistryConfig.Create(&bean)
+	if err != nil {
+		impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	// trigger a chart sync job
 	if bean.IsOCICompliantRegistry && len(bean.RepositoryList) != 0 {
 		request := &chartProviderService.ChartProviderRequestDto{
@@ -236,13 +242,6 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-	}
-
-	res, err := impl.dockerRegistryConfig.Create(&bean)
-	if err != nil {
-		impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
