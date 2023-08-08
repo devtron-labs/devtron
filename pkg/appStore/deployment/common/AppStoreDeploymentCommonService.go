@@ -461,6 +461,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 			return nil, err
 		}
 		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		impl.logger.Infow("first commit hash", "commit", commit)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err
