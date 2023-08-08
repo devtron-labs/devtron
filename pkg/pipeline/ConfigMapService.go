@@ -38,16 +38,6 @@ import (
 	"time"
 )
 
-type ConfigMapRequest struct {
-	Id            int             `json:"id"`
-	AppId         int             `json:"app_id"`
-	EnvironmentId int             `json:"environment_id"`
-	PipelineId    int             `json:"pipeline_id"`
-	ConfigMapData json.RawMessage `json:"config_map_data"`
-	SecretData    json.RawMessage `json:"secret_data"`
-	UserId        int32           `json:"-"`
-}
-
 const (
 	KubernetesSecret  string = "KubernetesSecret"
 	AWSSecretsManager string = "AWSSecretsManager"
