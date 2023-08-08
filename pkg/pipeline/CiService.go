@@ -420,6 +420,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 				AccessToken:   ciMaterial.GitMaterial.GitProvider.AccessToken,
 				AuthMode:      ciMaterial.GitMaterial.GitProvider.AuthMode,
 			},
+			EnableShallowCloning: impl.ciConfig.EnableShallowCloning,
 		}
 
 		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
