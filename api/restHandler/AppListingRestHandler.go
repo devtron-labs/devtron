@@ -1634,8 +1634,8 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				portList := spec["ports"].([]interface{})
 				for _, portItem := range portList {
 					if portItem.(map[string]interface{}) != nil {
-						_portNumber := portItem.(map[string]interface{})["port"]
-						portNumber := _portNumber.(int64)
+						portNumbers := portItem.(map[string]interface{})["port"]
+						portNumber := portNumbers.(int64)
 						if portNumber != 0 {
 							portsService = append(portsService, portNumber)
 						}
@@ -1667,8 +1667,8 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			if portHolder.ManifestResponse.Manifest.Object["ports"] != nil {
 				endPointsSlicePorts := portHolder.ManifestResponse.Manifest.Object["ports"].([]interface{})
 				for _, val := range endPointsSlicePorts {
-					_portNumber := val.(map[string]interface{})["port"]
-					portNumber := _portNumber.(int64)
+					portNumbers := val.(map[string]interface{})["port"]
+					portNumber := portNumbers.(int64)
 					if portNumber != 0 {
 						portEndpointSlice = append(portEndpointSlice, portNumber)
 					}
@@ -1682,16 +1682,16 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	if val, ok := resourceTree["nodes"]; ok {
 		resourceTreeVal := val.([]interface{})
 		for _, val := range resourceTreeVal {
-			_value := val.(map[string]interface{})
-			for key, _type := range _value {
+			value := val.(map[string]interface{})
+			for key, _type := range value {
 				if key == "kind" && _type == "Endpoints" {
-					_value["port"] = portsEndpoint
+					value["port"] = portsEndpoint
 				}
 				if key == "kind" && _type == "Service" {
-					_value["port"] = portsService
+					value["port"] = portsService
 				}
 				if key == "kind" && _type == "EndpointSlice" {
-					_value["port"] = portEndpointSlice
+					value["port"] = portEndpointSlice
 				}
 			}
 		}
