@@ -134,26 +134,6 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	}
 }
 
-func (impl ConfigMapServiceImpl) adapter(model *chartConfig.ConfigMapAppModel) (*ConfigMapRequest, error) {
-	configMapRequest := &ConfigMapRequest{
-		Id:            model.Id,
-		AppId:         model.AppId,
-		ConfigMapData: []byte(model.ConfigMapData),
-		SecretData:    []byte(model.SecretData),
-	}
-	return configMapRequest, nil
-}
-func (impl ConfigMapServiceImpl) adapterEnv(model *chartConfig.ConfigMapEnvModel) (*ConfigMapRequest, error) {
-	configMapRequest := &ConfigMapRequest{
-		Id:            model.Id,
-		AppId:         model.AppId,
-		EnvironmentId: model.EnvironmentId,
-		ConfigMapData: []byte(model.ConfigMapData),
-		SecretData:    []byte(model.SecretData),
-	}
-	return configMapRequest, nil
-}
-
 func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
@@ -641,6 +621,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*bean.ConfigDataReque
 		configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 	}
 
+	//removing actual values
 	var configs []*bean.ConfigData
 	for _, item := range configDataRequest.ConfigData {
 		err = impl.EncryptCSData(item)

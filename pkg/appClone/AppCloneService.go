@@ -25,8 +25,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/go-pg/pg"
 	"strings"
 	"fmt"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -35,6 +33,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
