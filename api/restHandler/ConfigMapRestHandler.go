@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -97,7 +98,7 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var configMapRequest pipeline.ConfigDataRequest
+	var configMapRequest bean.ConfigDataRequest
 
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
@@ -133,7 +134,7 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var configMapRequest pipeline.ConfigDataRequest
+	var configMapRequest bean.ConfigDataRequest
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, CMEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
@@ -321,7 +322,7 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var configMapRequest pipeline.ConfigDataRequest
+	var configMapRequest bean.ConfigDataRequest
 
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
@@ -357,7 +358,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var configMapRequest pipeline.ConfigDataRequest
+	var configMapRequest bean.ConfigDataRequest
 
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
@@ -753,7 +754,7 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 	}
 	//AUTH
 
-	var bulkPatchRequest pipeline.BulkPatchRequest
+	var bulkPatchRequest bean.BulkPatchRequest
 	err = decoder.Decode(&bulkPatchRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
@@ -799,7 +800,7 @@ func (handler ConfigMapRestHandlerImpl) AddEnvironmentToJob(w http.ResponseWrite
 	}
 	//AUTH
 
-	var envOverrideRequest pipeline.CreateJobEnvOverridePayload
+	var envOverrideRequest bean.CreateJobEnvOverridePayload
 	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, AddEvironmentToJob", "err", err, "payload", envOverrideRequest)
@@ -837,7 +838,7 @@ func (handler ConfigMapRestHandlerImpl) RemoveEnvironmentFromJob(w http.Response
 	}
 	//AUTH
 
-	var envOverrideRequest pipeline.CreateJobEnvOverridePayload
+	var envOverrideRequest bean.CreateJobEnvOverridePayload
 	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, RemoveEnvironmentFromJob", "err", err, "payload", envOverrideRequest)
