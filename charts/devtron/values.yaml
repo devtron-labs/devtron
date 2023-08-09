@@ -10,7 +10,7 @@ global:
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.20-rc.0" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.19" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -56,15 +56,15 @@ components:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
         ENABLE_RESTART_WORKLOAD: "true"
-    image: "quay.io/devtron/dashboard:5aa8c767-325-14714"
+    image: "quay.io/devtron/dashboard:21fa40d4-466-14490"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:a5eb8d31-280-14582"
-    cicdImage: "quay.io/devtron/devtron:3241b0f7-434-14715"
+    image: "quay.io/devtron/hyperion:8f1c1b92-336-14491"
+    cicdImage: "quay.io/devtron/devtron:8f1c1b92-435-14487"
     imagePullPolicy: IfNotPresent
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:183b7979-138-14689"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:37b94b38-138-14234"
     serviceMonitor:
       enabled: false
     service:
@@ -94,7 +94,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:b9761996-318-14716"
+    image: "quay.io/devtron/kubelink:9fc8eec3-391-14421"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -115,20 +115,20 @@ components:
       volumeSize: "20Gi"
 
   migrator:
-    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
+    image: "migrate/migrate"
     envVars:
       devtron:
-        GIT_BRANCH: "main"
-        SCRIPT_LOCATION: "scripts/sql/"
-        GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
+        SCRIPT_LOCATION: "/shared/sql/"
         DB_NAME: "orchestrator"
-        GIT_HASH: "3241b0f79ca37e5eef0d2332f9aeff66e25056b0"
       casbin:
-        GIT_BRANCH: "main"
-        SCRIPT_LOCATION: "scripts/casbin/"
-        GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
+        SCRIPT_LOCATION: "/shared/casbin/"
         DB_NAME: "casbin"
-        GIT_HASH: "3241b0f79ca37e5eef0d2332f9aeff66e25056b0"
+      git_sensor:
+        SCRIPT_LOCATION: "/shared/sql/"
+        DB_NAME: "git_sensor"
+      lens: 
+        SCRIPT_LOCATION: "/shared/sql/"
+        DB_NAME: "lens"
 
 # values for argocd integration
 argo-cd:
