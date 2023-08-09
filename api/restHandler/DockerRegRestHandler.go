@@ -277,7 +277,26 @@ func (impl DockerRegRestHandlerImpl) ValidateDockerRegistryConfig(w http.Respons
 		return
 	}
 	//RBAC enforcer Ends
+	existingStore, err := impl.dockerRegistryConfig.FetchOneDockerAccount(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("no matching entry found of update ..", "err", err)
+		return
+	}
+	if bean.Password == "" {
+		bean.Password = existingStore.Password
+	}
 
+	if bean.AWSSecretAccessKey == "" {
+		bean.AWSSecretAccessKey = existingStore.AWSSecretAccessKey
+	}
+
+	if bean.Cert == "" {
+		bean.Cert = existingStore.Cert
+	}
+
+	if bean.Cert == "" {
+		bean.Cert = existingStore.Cert
+	}
 	// valid registry credentials from kubelink
 	if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
 		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
