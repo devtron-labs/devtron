@@ -275,7 +275,7 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: {{ $.Values.components.migrator.envVars.gitsensor.DB_NAME }}
+              value: {{ $.Values.components.migrator.envVars.lens.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
           envFrom:
