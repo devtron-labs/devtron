@@ -100,6 +100,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/team/by-name/{teamName}").HandlerFunc(router.restHandler.FindAppsByTeamName).Methods("GET")
 
 	configRouter.Path("/ci-pipeline/trigger").HandlerFunc(router.restHandler.TriggerCiPipeline).Methods("POST")
+	configRouter.Path("/externalCi-pipeline/trigger").HandlerFunc(router.restHandler.TriggerExternalCiPipeline).Methods("POST")
 
 	configRouter.Path("/{appId}/ci-pipeline/min").HandlerFunc(router.restHandler.GetCiPipelineMin).Methods("GET")
 	configRouter.Path("/ci-pipeline/{pipelineId}/material").HandlerFunc(router.restHandler.FetchMaterials).Methods("GET")

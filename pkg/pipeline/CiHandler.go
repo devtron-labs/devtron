@@ -210,6 +210,29 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 	return id, nil
 }
 
+func (impl *CiHandlerImpl) HandleExternalCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
+	impl.Logger.Debugw("HandleExternalCIManual for pipeline ", "PipelineId", ciTriggerRequest.PipelineId)
+	commitHashes, extraEnvironmentVariables, err := impl.buildManualTriggerCommitHashes(ciTriggerRequest)
+	if err != nil {
+		return 0, err
+	}
+	trigger := Trigger{
+		PipelineId:                ciTriggerRequest.PipelineId,
+		CommitHashes:              commitHashes,
+		CiMaterials:               nil,
+		TriggeredBy:               ciTriggerRequest.TriggeredBy,
+		InvalidateCache:           ciTriggerRequest.InvalidateCache,
+		ExtraEnvironmentVariables: extraEnvironmentVariables,
+		EnvironmentId:             ciTriggerRequest.EnvironmentId,
+	}
+	id, err := impl.ciService.TriggerCiPipeline(trigger, ciEvent, nil)
+
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
 func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error) {
 	impl.Logger.Debugw("HandleCIWebhook for material ", "material", gitCiTriggerRequest.CiPipelineMaterial)
 	ciPipeline, err := impl.GetCiPipeline(gitCiTriggerRequest.CiPipelineMaterial.Id)

@@ -46,6 +46,7 @@ type DevtronAppBuildRestHandler interface {
 	PatchCiPipelines(w http.ResponseWriter, r *http.Request)
 	PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request)
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
+	TriggerExternalCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
 	HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request)
@@ -522,6 +523,82 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWr
 }
 
 func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var ciTriggerRequest bean.CiTriggerRequest
+	err = decoder.Decode(&ciTriggerRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if !handler.validForMultiMaterial(ciTriggerRequest) {
+		handler.Logger.Errorw("invalid req, commit hash not present for multi-git", "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, errors.New("invalid req, commit hash not present for multi-git"),
+			nil, http.StatusBadRequest)
+	}
+	ciTriggerRequest.TriggeredBy = userId
+	token := r.Header.Get("token")
+	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
+	if err != nil {
+		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
+
+	//RBAC STARTS
+	//checking if user has trigger access on app, if not will be forbidden to trigger independent of number of cd cdPipelines
+	ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
+	if err != nil {
+		handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	appObject := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	if appRbacOk := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObject); !appRbacOk {
+		handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//checking rbac for cd cdPipelines
+	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
+	if err != nil {
+		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	cdPipelineRbacObjects := make([]string, len(cdPipelines))
+	for i, cdPipeline := range cdPipelines {
+		envObject := handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(cdPipeline.AppId, cdPipeline.Id)
+		cdPipelineRbacObjects[i] = envObject
+	}
+	envRbacResultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
+	i := 0
+	for _, rbacResultOk := range envRbacResultMap {
+		if !rbacResultOk {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		i++
+	}
+	//RBAC ENDS
+	response := make(map[string]string)
+	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
+		return
+	}
+	response["apiResponse"] = strconv.Itoa(resp)
+	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) TriggerExternalCiPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
