@@ -867,6 +867,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 
 			ciProjectDetail := CiProjectDetails{
 				GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
+				CiPipelineId:    cdPipeline.CiPipelineId,
 				MaterialName:    gitMaterial.Name,
 				CheckoutPath:    gitMaterial.CheckoutPath,
 				FetchSubmodules: gitMaterial.FetchSubmodules,
