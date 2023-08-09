@@ -115,7 +115,7 @@ func NewDockerRegRestHandlerImpl(
 	}
 }
 
-func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBean, isUpdate bool) bool {
+func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBean) bool {
 	// validating secure connection configs
 	if (bean.Connection == secureWithCert && bean.Cert == "") ||
 		(bean.Connection != secureWithCert && bean.Cert != "") {
@@ -137,12 +137,10 @@ func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBea
 			bean.IsDefault = false
 		}
 
-		if !isUpdate {
-			// For Charts with storage action type "PULL/PUSH" or "PULL", RepositoryList cannot be nil
-			if chartStorageActionExists && (chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH || chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL) {
-				if bean.RepositoryList == nil || len(bean.RepositoryList) == 0 || slices.Contains(bean.RepositoryList, "") {
-					return false
-				}
+		// For Charts with storage action type "PULL/PUSH" or "PULL", RepositoryList cannot be nil
+		if chartStorageActionExists && (chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH || chartStorageActionType == repository.STORAGE_ACTION_TYPE_PULL) {
+			if bean.RepositoryList == nil || len(bean.RepositoryList) == 0 || slices.Contains(bean.RepositoryList, "") {
+				return false
 			}
 		}
 		// For public registry, URL prefix "oci://" should be trimmed, DockerRegistryIpsConfig should be nil and default should be false
@@ -174,7 +172,7 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 	bean.User = userId
-	if !ValidateDockerArtifactStoreRequestBean(bean, false) {
+	if !ValidateDockerArtifactStoreRequestBean(bean) {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -226,6 +224,12 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 
+	res, err := impl.dockerRegistryConfig.Create(&bean)
+	if err != nil {
+		impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	// trigger a chart sync job
 	if bean.IsOCICompliantRegistry && len(bean.RepositoryList) != 0 {
 		request := &chartProviderService.ChartProviderRequestDto{
@@ -238,13 +242,6 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-	}
-
-	res, err := impl.dockerRegistryConfig.Create(&bean)
-	if err != nil {
-		impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
@@ -280,7 +277,26 @@ func (impl DockerRegRestHandlerImpl) ValidateDockerRegistryConfig(w http.Respons
 		return
 	}
 	//RBAC enforcer Ends
+	existingStore, err := impl.dockerRegistryConfig.FetchOneDockerAccount(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("no matching entry found of update ..", "err", err)
+		return
+	}
+	if bean.Password == "" {
+		bean.Password = existingStore.Password
+	}
 
+	if bean.AWSSecretAccessKey == "" {
+		bean.AWSSecretAccessKey = existingStore.AWSSecretAccessKey
+	}
+
+	if bean.Cert == "" {
+		bean.Cert = existingStore.Cert
+	}
+
+	if bean.Cert == "" {
+		bean.Cert = existingStore.Cert
+	}
 	// valid registry credentials from kubelink
 	if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
 		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
@@ -449,7 +465,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	bean.User = userId
-	if !ValidateDockerArtifactStoreRequestBean(bean, true) {
+	if !ValidateDockerArtifactStoreRequestBean(bean) {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
