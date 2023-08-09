@@ -440,7 +440,7 @@ func (impl *ConfigDraftRestHandlerImpl) UpdateDraftState(w http.ResponseWriter, 
 	if err != nil {
 		return
 	}
-	draftResponse, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, casbin.ActionUpdate, true)
+	draftResponse, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, casbin.ActionUpdate, false)
 	toUpdateDraftState := drafts.DraftState(state)
 	if notAllowed {
 		if toUpdateDraftState == drafts.DiscardedDraftState {
