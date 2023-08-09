@@ -171,6 +171,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 			newFile = true
 		}
 	}
+	impl.logger.Infow("new File flag", "newFile", newFile)
 	currentSHA := ""
 	if !newFile {
 		currentSHA = *fc.SHA
