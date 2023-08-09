@@ -643,7 +643,7 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		} else {
 			// Update the docker registry ips config
 			ipsConfig.Id = existingIpsConfig.Id
-			err = impl.updateDockerIpConfig(tx, existingIpsConfig)
+			err = impl.updateDockerIpConfig(tx, ipsConfig)
 			if err != nil {
 				return nil, err
 			}
