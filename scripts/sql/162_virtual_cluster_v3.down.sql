@@ -21,3 +21,8 @@ ALTER TABLE public.oci_registry_config
     DROP COLUMN IF EXISTS repository_list,
     DROP COLUMN IF EXISTS is_chart_pull_active,
     DROP COLUMN IF EXISTS is_public;
+
+-- docker_registry_ips_config modifications
+-- Step 1: Drop active column
+ALTER TABLE public.docker_registry_ips_config
+    DROP COLUMN IF EXISTS active;

@@ -71,6 +71,11 @@ type DockerArtifactStoreExt struct {
 	DeploymentCount int `sql:"deployment_count" json:"deploymentCount"`
 }
 
+type ChartDeploymentCount struct {
+	OCIChartName    string `sql:"oci_chart_name" json:"ociChartName"`
+	DeploymentCount int    `sql:"deployment_count" json:"deploymentCount"`
+}
+
 func (store *DockerArtifactStore) GetRegistryLocation() (registryLocation string, err error) {
 	u, err := url.Parse(registryLocation)
 	if err != nil {
@@ -89,6 +94,7 @@ type DockerArtifactStoreRepository interface {
 	FindAllChartProviders() ([]DockerArtifactStore, error)
 	FindOne(storeId string) (*DockerArtifactStore, error)
 	FindOneWithDeploymentCount(storeId string) (*DockerArtifactStoreExt, error)
+	FindOneWithChartDeploymentCount(storeId, chartName string) (*ChartDeploymentCount, error)
 	FindOneInactive(storeId string) (*DockerArtifactStore, error)
 	Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error
 	Delete(storeId string) error
@@ -148,10 +154,12 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
-		Join("LEFT JOIN docker_registry_ips_config ipc on ipc.docker_artifact_store_id = docker_artifact_store.id").
-		Where("active = ?", true).
+		Where("docker_artifact_store.active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
+		}).
+		Relation("IpsConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.JoinOn("(ips_config.active=true or ips_config is null)"), nil
 		}).
 		Select()
 	return providers, err
@@ -161,7 +169,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]DockerA
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
 		Column("docker_artifact_store.*", "OCIRegistryConfig").
-		Where("active = ?", true).
+		Where("docker_artifact_store.active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
 				"repository_type='CHART' and " +
@@ -175,11 +183,13 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
-		Join("LEFT JOIN docker_registry_ips_config ipc on ipc.docker_artifact_store_id = docker_artifact_store.id").
 		Where("docker_artifact_store.id = ?", storeId).
-		Where("active = ?", true).
+		Where("docker_artifact_store.active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
+		}).
+		Relation("IpsConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.JoinOn("(ips_config.active=true or ips_config is null)"), nil
 		}).
 		Select()
 	return &provider, err
@@ -195,13 +205,24 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneWithDeploymentCount(storeId
 	return &provider, err
 }
 
+func (impl DockerArtifactStoreRepositoryImpl) FindOneWithChartDeploymentCount(storeId, chartName string) (*ChartDeploymentCount, error) {
+	var provider ChartDeploymentCount
+	query := "SELECT aps.name as oci_chart_name, COUNT(ia.id) as deployment_count FROM installed_app_versions iav" +
+		" INNER JOIN installed_apps ia on iav.installed_app_id = ia.id" +
+		" INNER JOIN app_store_application_version asav on iav.app_store_application_version_id = asav.id" +
+		" INNER JOIN app_store aps on asav.app_store_id = aps.id" +
+		" WHERE ia.active=true and iav.active=true and aps.docker_artifact_store_id = ? and aps.name = ?" +
+		" GROUP BY oci_chart_name,aps.docker_artifact_store_id;"
+	_, err := impl.dbConnection.Query(&provider, query, storeId, chartName)
+	return &provider, err
+}
+
 func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*DockerArtifactStore, error) {
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
-		Join("LEFT JOIN docker_registry_ips_config ipc on ipc.docker_artifact_store_id = docker_artifact_store.id").
 		Where("docker_artifact_store.id = ?", storeId).
-		Where("active = ?", false).
+		Where("docker_artifact_store.active = ?", false).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
 		}).
