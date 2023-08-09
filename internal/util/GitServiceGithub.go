@@ -176,7 +176,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 		currentSHA = *fc.SHA
 		impl.logger.Infow("current SHA ", "filename", config.FileName, "sha", currentSHA)
 	}
-	impl.logger.Infow("sha in commit values function", "sha", fc.SHA, "filename", config.FileName)
+	//impl.logger.Infow("sha in commit values function", "sha", fc.SHA, "filename", config.FileName)
 	timeNow := time.Now()
 	options := &github.RepositoryContentFileOptions{
 		Message: &config.ReleaseMessage,
