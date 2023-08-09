@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"k8s.io/utils/strings/slices"
+	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -40,7 +41,7 @@ type DockerRegistryConfig interface {
 	Delete(storeId string) (string, error)
 	DeleteReg(bean *DockerArtifactStoreBean) error
 	CheckInActiveDockerAccount(storeId string) (bool, error)
-	ConfigureOCIRegistry(dockerRegistryId string, ociRegistryConfigBean map[string]string, isUpdate bool, userId int32, tx *pg.Tx) error
+	ConfigureOCIRegistry(bean *DockerArtifactStoreBean, isUpdate bool, userId int32, tx *pg.Tx) error
 	CreateOrUpdateOCIRegistryConfig(ociRegistryConfig *repository.OCIRegistryConfig, userId int32, tx *pg.Tx) error
 	FilterOCIRegistryConfigForSpecificRepoType(ociRegistryConfigList []*repository.OCIRegistryConfig, repositoryType string) *repository.OCIRegistryConfig
 	FilterRegistryBeanListBasedOnStorageTypeAndAction(bean []DockerArtifactStoreBean, storageType string, actionTypes ...string) []DockerArtifactStoreBean
@@ -56,6 +57,8 @@ type DockerArtifactStoreBean struct {
 	RegistryType            repository.RegistryType      `json:"registryType,omitempty" validate:"required"`
 	IsOCICompliantRegistry  bool                         `json:"isOCICompliantRegistry"`
 	OCIRegistryConfig       map[string]string            `json:"ociRegistryConfig,omitempty"`
+	IsPublic                bool                         `json:"isPublic"`
+	RepositoryList          []string                     `json:"repositoryList,omitempty"`
 	AWSAccessKeyId          string                       `json:"awsAccessKeyId,omitempty"`
 	AWSSecretAccessKey      string                       `json:"awsSecretAccessKey,omitempty"`
 	AWSRegion               string                       `json:"awsRegion,omitempty"`
@@ -219,41 +222,46 @@ func (impl DockerRegistryConfigImpl) FilterOCIRegistryConfigForSpecificRepoType(
 	return ociRegistryConfig
 }
 
-// ConfigureOCIRegistry Takes DockerRegistryId, the OCIRegistryConfigBean, IsUpdate flag and the DB context. It finally creates/updates the OCI config in the DB. Returns Error if any.
-func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(dockerRegistryId string, ociRegistryConfigBean map[string]string, isUpdate bool, userId int32, tx *pg.Tx) error {
-	ociRegistryConfigList, err := impl.ociRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
+// ConfigureOCIRegistry Takes DockerArtifactStoreBean, IsUpdate flag and the DB context. It finally creates/updates the OCI config in the DB. Returns Error if any.
+func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactStoreBean, isUpdate bool, userId int32, tx *pg.Tx) error {
+	ociRegistryConfigList, err := impl.ociRegistryConfigRepository.FindByDockerRegistryId(bean.Id)
 	if err != nil && (isUpdate || err != pg.ErrNoRows) {
 		return err
 	}
 
 	// If the ociRegistryConfigBean doesn't have any repoType, then mark delete true.
 	for _, repoType := range repository.OCI_REGISRTY_REPO_TYPE_LIST {
-		if _, ok := ociRegistryConfigBean[repoType]; !ok {
-			ociRegistryConfigBean[repoType] = ""
+		if _, ok := bean.OCIRegistryConfig[repoType]; !ok {
+			bean.OCIRegistryConfig[repoType] = ""
 		}
 	}
 
-	for repositoryType, storageActionType := range ociRegistryConfigBean {
+	for repositoryType, storageActionType := range bean.OCIRegistryConfig {
 		if !slices.Contains(repository.OCI_REGISRTY_REPO_TYPE_LIST, repositoryType) {
 			return fmt.Errorf("invalid repository type for OCI registry configuration")
 		}
 		var ociRegistryConfig *repository.OCIRegistryConfig
 		if !isUpdate {
 			ociRegistryConfig = &repository.OCIRegistryConfig{
-				DockerArtifactStoreId: dockerRegistryId,
+				DockerArtifactStoreId: bean.Id,
 				Deleted:               false,
 			}
 		} else {
 			ociRegistryConfig = impl.FilterOCIRegistryConfigForSpecificRepoType(ociRegistryConfigList, repositoryType)
 			if ociRegistryConfig.Id == 0 {
-				ociRegistryConfig.DockerArtifactStoreId = dockerRegistryId
+				ociRegistryConfig.DockerArtifactStoreId = bean.Id
 				ociRegistryConfig.Deleted = false
 			}
 		}
+		ociRegistryConfig.IsPublic = false
 		switch storageActionType {
 		case repository.STORAGE_ACTION_TYPE_PULL:
 			ociRegistryConfig.RepositoryAction = repository.STORAGE_ACTION_TYPE_PULL
 			ociRegistryConfig.RepositoryType = repositoryType
+			if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+				ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
+				ociRegistryConfig.IsPublic = bean.IsPublic
+			}
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
 				return err
@@ -268,6 +276,10 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(dockerRegistryId strin
 		case repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH:
 			ociRegistryConfig.RepositoryAction = repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH
 			ociRegistryConfig.RepositoryType = repositoryType
+			if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+				ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
+				ociRegistryConfig.IsPublic = bean.IsPublic
+			}
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
 				return err
@@ -278,7 +290,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(dockerRegistryId strin
 			if err != nil {
 				return err
 			}
-			delete(ociRegistryConfigBean, repositoryType)
+			delete(bean.OCIRegistryConfig, repositoryType)
 		default:
 			return fmt.Errorf("invalid repository action type for OCI registry configuration")
 		}
@@ -317,7 +329,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 
 	// 3- insert OCIRegistryConfig for this docker registry
 	if store.IsOCICompliantRegistry {
-		err = impl.ConfigureOCIRegistry(bean.Id, bean.OCIRegistryConfig, false, bean.User, tx)
+		err = impl.ConfigureOCIRegistry(bean, false, bean.User, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving OCI registry config", "OCIRegistryConfig", bean.OCIRegistryConfig, "err", err)
 			err = &util.ApiError{
@@ -380,7 +392,7 @@ func (impl DockerRegistryConfigImpl) ListAllActive() ([]DockerArtifactStoreBean,
 			IsOCICompliantRegistry: store.IsOCICompliantRegistry,
 		}
 		if store.IsOCICompliantRegistry {
-			storeBean.OCIRegistryConfig = impl.PopulateOCIRegistryConfig(&store)
+			impl.PopulateOCIRegistryConfig(&store, &storeBean)
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -422,7 +434,7 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 			},
 		}
 		if store.IsOCICompliantRegistry {
-			storeBean.OCIRegistryConfig = impl.PopulateOCIRegistryConfig(&store)
+			impl.PopulateOCIRegistryConfig(&store, &storeBean)
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -431,12 +443,17 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 }
 
 // PopulateOCIRegistryConfig Takes the DB docker_artifact_store response and generates
-func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository.DockerArtifactStore) map[string]string {
+func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository.DockerArtifactStore, storeBean *DockerArtifactStoreBean) *DockerArtifactStoreBean {
 	ociRegistryConfigs := map[string]string{}
 	for _, ociRegistryConfig := range store.OCIRegistryConfig {
 		ociRegistryConfigs[ociRegistryConfig.RepositoryType] = ociRegistryConfig.RepositoryAction
+		if ociRegistryConfig.RepositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+			storeBean.RepositoryList = strings.Split(ociRegistryConfig.RepositoryList, ",")
+			storeBean.IsPublic = ociRegistryConfig.IsPublic
+		}
 	}
-	return ociRegistryConfigs
+	storeBean.OCIRegistryConfig = ociRegistryConfigs
+	return storeBean
 }
 
 // FetchOneDockerAccount this method takes the docker account id and Returns DockerArtifactStoreBean and Error (if any)
@@ -449,21 +466,21 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 	}
 
 	ipsConfig := store.IpsConfig
-	ociRegistryConfigs := impl.PopulateOCIRegistryConfig(store)
 	storeBean := &DockerArtifactStoreBean{
-		Id:                 store.Id,
-		PluginId:           store.PluginId,
-		RegistryURL:        store.RegistryURL,
-		RegistryType:       store.RegistryType,
-		AWSAccessKeyId:     store.AWSAccessKeyId,
-		AWSSecretAccessKey: store.AWSSecretAccessKey,
-		AWSRegion:          store.AWSRegion,
-		Username:           store.Username,
-		Password:           store.Password,
-		IsDefault:          store.IsDefault,
-		Connection:         store.Connection,
-		Cert:               store.Cert,
-		Active:             store.Active,
+		Id:                     store.Id,
+		PluginId:               store.PluginId,
+		RegistryURL:            store.RegistryURL,
+		RegistryType:           store.RegistryType,
+		AWSAccessKeyId:         store.AWSAccessKeyId,
+		AWSSecretAccessKey:     store.AWSSecretAccessKey,
+		AWSRegion:              store.AWSRegion,
+		Username:               store.Username,
+		Password:               store.Password,
+		IsDefault:              store.IsDefault,
+		Connection:             store.Connection,
+		Cert:                   store.Cert,
+		Active:                 store.Active,
+		IsOCICompliantRegistry: store.IsOCICompliantRegistry,
 		DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
 			Id:                   ipsConfig.Id,
 			CredentialType:       ipsConfig.CredentialType,
@@ -471,9 +488,10 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 			AppliedClusterIdsCsv: ipsConfig.AppliedClusterIdsCsv,
 			IgnoredClusterIdsCsv: ipsConfig.IgnoredClusterIdsCsv,
 		},
-		OCIRegistryConfig: ociRegistryConfigs,
 	}
-
+	if store.IsOCICompliantRegistry {
+		impl.PopulateOCIRegistryConfig(store, storeBean)
+	}
 	return storeBean, err
 }
 
@@ -534,7 +552,7 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 
 	// 4- update OCIRegistryConfig for this docker registry
 	if store.IsOCICompliantRegistry {
-		err = impl.ConfigureOCIRegistry(bean.Id, bean.OCIRegistryConfig, true, bean.User, tx)
+		err = impl.ConfigureOCIRegistry(bean, true, bean.User, tx)
 		if err != nil {
 			impl.logger.Errorw("error in updating OCI registry config", "OCIRegistryConfig", bean.OCIRegistryConfig, "err", err)
 			err = &util.ApiError{
@@ -621,7 +639,7 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *DockerArtifactStoreBea
 
 	// 4- update OCIRegistryConfig for this docker registry
 	if store.IsOCICompliantRegistry {
-		err = impl.ConfigureOCIRegistry(bean.Id, bean.OCIRegistryConfig, true, bean.User, tx)
+		err = impl.ConfigureOCIRegistry(bean, true, bean.User, tx)
 		if err != nil {
 			impl.logger.Errorw("error in updating OCI registry config", "OCIRegistryConfig", bean.OCIRegistryConfig, "err", err)
 			err = &util.ApiError{
