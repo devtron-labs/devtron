@@ -39,9 +39,17 @@ func NewConfigDraftRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB
 }
 
 func (repo *ConfigDraftRepositoryImpl) CreateConfigDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
+	// check draft already exists for this name
+	exists, err := repo.checkDraftAlreadyExists(request)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, errors.New("draft-exists-already")
+	}
 	draftState := InitDraftState
 	metadataDto := request.GetDraftDto()
-	err := repo.dbConnection.Insert(metadataDto)
+	err = repo.dbConnection.Insert(metadataDto)
 	if err != nil {
 		repo.logger.Errorw("error occurred while creating config draft", "err", err, "metadataDto", metadataDto)
 		return nil, err
@@ -252,6 +260,26 @@ func (repo *ConfigDraftRepositoryImpl) DiscardDrafts(appId int, envId int, userI
 		repo.logger.Errorw("error occurred while discarding drafts", "appId", appId, "envId", envId, "err", err)
 	}
 	return err
+}
+
+func (repo *ConfigDraftRepositoryImpl) checkDraftAlreadyExists(request ConfigDraftRequest) (bool, error) {
+	resourceName := request.ResourceName
+	resourceType := request.Resource
+	appId := request.AppId
+	envId := request.EnvId
+	count, err := repo.dbConnection.Model(&DraftDto{}).
+		Where("resource = ?", resourceType).
+		Where("resource_name = ?", resourceName).
+		Where("app_id = ?", appId).
+		Where("env_id = ?", envId).
+		Where("draft_state in (?)", pg.In(GetNonTerminalDraftStates())).
+		Count()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error occurred while checking draft already exists", "appId", appId, "envId", envId, "err", err)
+	} else {
+		err = nil //ignoring noRows Error
+	}
+	return count > 0, err
 }
 
 
