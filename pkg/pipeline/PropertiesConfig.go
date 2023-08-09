@@ -49,10 +49,12 @@ type PropertiesConfigService interface {
 
 	GetAppIdByChartEnvId(chartEnvId int) (*chartConfig.EnvConfigOverride, error)
 	GetLatestEnvironmentProperties(appId, environmentId int) (*bean.EnvironmentProperties, error)
+	FindEnvLevelAppMetricsByAppIdAndEnvId(appId int, envId int) (*repository.EnvLevelAppMetrics, error)
 	ResetEnvironmentProperties(id int) (bool, error)
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 
 	EnvMetricsEnableDisable(appMetricRequest *chartService.AppMetricEnableDisableRequest) (*chartService.AppMetricEnableDisableRequest, error)
+	FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error)
 }
 type PropertiesConfigServiceImpl struct {
 	logger                           *zap.SugaredLogger
@@ -205,6 +207,10 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 		environmentPropertiesResponse.AppMetrics = envLevelMetrics.AppMetrics
 	}
 	return environmentPropertiesResponse, nil
+}
+
+func (impl PropertiesConfigServiceImpl) FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error) {
+	return impl.envConfigRepo.GetByAppIdEnvIdAndChartRefId(appId, envId, chartRefId)
 }
 
 func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
@@ -500,12 +506,15 @@ func (impl PropertiesConfigServiceImpl) GetAppIdByChartEnvId(chartEnvId int) (*c
 	return envOverride, nil
 }
 
+func (impl PropertiesConfigServiceImpl) FindEnvLevelAppMetricsByAppIdAndEnvId(appId int, envId int) (*repository.EnvLevelAppMetrics, error) {
+	return impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appId, envId)
+}
+
 func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *bean.EnvironmentProperties, err error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err
 	}
-
 	// step 1
 	envOverride, err := impl.envConfigRepo.ActiveEnvConfigOverride(appId, environmentId)
 	if err != nil {
@@ -523,14 +532,18 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 
 		environmentProperties = &bean.EnvironmentProperties{
 			Id:                envOverride.Id,
-			Status:            envOverride.Status,
 			EnvOverrideValues: r,
+			Status:            envOverride.Status,
 			ManualReviewed:    envOverride.ManualReviewed,
 			Active:            envOverride.Active,
 			Namespace:         env.Namespace,
 			EnvironmentId:     environmentId,
 			EnvironmentName:   env.Name,
 			Latest:            envOverride.Latest,
+			IsOverride:        envOverride.IsOverride,
+			IsBasicViewLocked: envOverride.IsBasicViewLocked,
+			CurrentViewEditor: envOverride.CurrentViewEditor,
+			ChartRefId:        envOverride.Chart.ChartRefId,
 		}
 	}
 
