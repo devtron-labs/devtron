@@ -12,12 +12,3 @@ var AppStoreChartProviderWireSet = wire.NewSet(
 	wire.Bind(new(ChartProviderRestHandler), new(*ChartProviderRestHandlerImpl)),
 	NewChartProviderRouterImpl,
 	wire.Bind(new(ChartProviderRouter), new(*ChartProviderRouterImpl)))
-
-var AppStoreChartProviderExtWireSet = wire.NewSet(
-	chartProviderService.NewChartProviderServiceExtendedImpl,
-	wire.Bind(new(chartProviderService.ChartProviderService), new(*chartProviderService.ChartProviderServiceExtendedImpl)),
-	NewChartProviderRestHandlerImpl,
-	wire.Bind(new(ChartProviderRestHandler), new(*ChartProviderRestHandlerImpl)),
-	NewChartProviderRouterImpl,
-	wire.Bind(new(ChartProviderRouter), new(*ChartProviderRouterImpl)),
-)

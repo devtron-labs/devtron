@@ -52,7 +52,12 @@ type DockerRegistryConfig interface {
 	ValidateRegistryStorageType(registryId string, storageType string, storageActions ...string) bool
 }
 
-type ArtifactStoreType int
+type DisabledFields string
+
+const (
+	DISABLED_CONTAINER  DisabledFields = "CONTAINER"
+	DISABLED_CHART_PULL DisabledFields = "CHART_PULL"
+)
 
 type DockerArtifactStoreBean struct {
 	Id                      string                       `json:"id,omitempty" validate:"required"`
@@ -72,6 +77,7 @@ type DockerArtifactStoreBean struct {
 	Connection              string                       `json:"connection"`
 	Cert                    string                       `json:"cert"`
 	Active                  bool                         `json:"active"`
+	DisabledFields          []DisabledFields             `json:"disabledFields"`
 	User                    int32                        `json:"-"`
 	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean `json:"ipsConfig,notnull,omitempty" validate:"required"`
 }
@@ -267,6 +273,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactSt
 			if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
 				ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
 				ociRegistryConfig.IsPublic = bean.IsPublic
+				ociRegistryConfig.IsChartPullActive = true
 			}
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
@@ -285,6 +292,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactSt
 			if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
 				ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
 				ociRegistryConfig.IsPublic = bean.IsPublic
+				ociRegistryConfig.IsChartPullActive = true
 			}
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
@@ -292,6 +300,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactSt
 			}
 		case "":
 			ociRegistryConfig.Deleted = true
+			ociRegistryConfig.IsChartPullActive = false
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
 				return err
@@ -348,27 +357,29 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 		impl.logger.Infow("created OCI registry config successfully")
 	}
 
-	// 4- insert imagePullSecretConfig for this docker registry
-	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
-	ipsConfig := &repository.DockerRegistryIpsConfig{
-		DockerArtifactStoreId: store.Id,
-		CredentialType:        dockerRegistryIpsConfig.CredentialType,
-		CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
-		AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
-		IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
-	}
-	err = impl.dockerRegistryIpsConfigRepository.Save(ipsConfig, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving registry config ips", "ipsConfig", ipsConfig, "err", err)
-		err = &util.ApiError{
-			Code:            constants.DockerRegCreateFailedInDb,
-			InternalMessage: "docker registry ips config to create in db",
-			UserMessage:     fmt.Sprintf("Container registry [%s] already exists.", bean.Id),
+	if !bean.IsPublic {
+		// 4- insert imagePullSecretConfig for this docker registry
+		dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
+		ipsConfig := &repository.DockerRegistryIpsConfig{
+			DockerArtifactStoreId: store.Id,
+			CredentialType:        dockerRegistryIpsConfig.CredentialType,
+			CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
+			AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
+			IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
 		}
-		return nil, err
+		err = impl.dockerRegistryIpsConfigRepository.Save(ipsConfig, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving registry config ips", "ipsConfig", ipsConfig, "err", err)
+			err = &util.ApiError{
+				Code:            constants.DockerRegCreateFailedInDb,
+				InternalMessage: "docker registry ips config to create in db",
+				UserMessage:     fmt.Sprintf("Container registry [%s] already exists.", bean.Id),
+			}
+			return nil, err
+		}
+		impl.logger.Infow("created ips config for this docker repository", "ipsConfig", ipsConfig)
+		dockerRegistryIpsConfig.Id = ipsConfig.Id
 	}
-	impl.logger.Infow("created ips config for this docker repository", "ipsConfig", ipsConfig)
-	dockerRegistryIpsConfig.Id = ipsConfig.Id
 
 	// 4- now commit transaction
 	err = tx.Commit()
@@ -431,16 +442,18 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 			Cert:                   store.Cert,
 			Active:                 store.Active,
 			IsOCICompliantRegistry: store.IsOCICompliantRegistry,
-			DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
+		}
+		if store.IsOCICompliantRegistry {
+			impl.PopulateOCIRegistryConfig(&store, &storeBean)
+		}
+		if ipsConfig != nil {
+			storeBean.DockerRegistryIpsConfig = &DockerRegistryIpsConfigBean{
 				Id:                   ipsConfig.Id,
 				CredentialType:       ipsConfig.CredentialType,
 				CredentialValue:      ipsConfig.CredentialValue,
 				AppliedClusterIdsCsv: ipsConfig.AppliedClusterIdsCsv,
 				IgnoredClusterIdsCsv: ipsConfig.IgnoredClusterIdsCsv,
-			},
-		}
-		if store.IsOCICompliantRegistry {
-			impl.PopulateOCIRegistryConfig(&store, &storeBean)
+			}
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -487,16 +500,18 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 		Cert:                   store.Cert,
 		Active:                 store.Active,
 		IsOCICompliantRegistry: store.IsOCICompliantRegistry,
-		DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
+	}
+	if store.IsOCICompliantRegistry {
+		impl.PopulateOCIRegistryConfig(store, storeBean)
+	}
+	if ipsConfig != nil {
+		storeBean.DockerRegistryIpsConfig = &DockerRegistryIpsConfigBean{
 			Id:                   ipsConfig.Id,
 			CredentialType:       ipsConfig.CredentialType,
 			CredentialValue:      ipsConfig.CredentialValue,
 			AppliedClusterIdsCsv: ipsConfig.AppliedClusterIdsCsv,
 			IgnoredClusterIdsCsv: ipsConfig.IgnoredClusterIdsCsv,
-		},
-	}
-	if store.IsOCICompliantRegistry {
-		impl.PopulateOCIRegistryConfig(store, storeBean)
+		}
 	}
 	return storeBean, err
 }
@@ -539,6 +554,16 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		bean.Cert = existingStore.Cert
 	}
 
+	existingRepositoryList := make([]string, 0)
+	for _, ociRegistryConfig := range existingStore.OCIRegistryConfig {
+		if ociRegistryConfig.RepositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+			existingRepositoryList = strings.Split(ociRegistryConfig.RepositoryList, ",")
+		}
+	}
+	if len(bean.RepositoryList) == 0 {
+		bean.RepositoryList = existingRepositoryList
+	}
+
 	bean.PluginId = existingStore.PluginId
 
 	store := NewDockerArtifactStore(bean, true, existingStore.CreatedOn, time.Now(), existingStore.CreatedBy, bean.User)
@@ -579,27 +604,29 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		impl.logger.Infow("updated OCI registry config successfully")
 	}
 
-	// 5- update imagePullSecretConfig for this docker registry
-	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
-	ipsConfig := &repository.DockerRegistryIpsConfig{
-		Id:                    dockerRegistryIpsConfig.Id,
-		DockerArtifactStoreId: store.Id,
-		CredentialType:        dockerRegistryIpsConfig.CredentialType,
-		CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
-		AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
-		IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
-	}
-	err = impl.dockerRegistryIpsConfigRepository.Update(ipsConfig, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating registry config ips", "ipsConfig", ipsConfig, "err", err)
-		err = &util.ApiError{
-			Code:            constants.DockerRegUpdateFailedInDb,
-			InternalMessage: "docker registry ips config failed to update in db",
-			UserMessage:     "docker registry ips config failed to update in db",
+	if !bean.IsPublic && bean.DockerRegistryIpsConfig != nil {
+		// 5- update imagePullSecretConfig for this docker registry
+		dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
+		ipsConfig := &repository.DockerRegistryIpsConfig{
+			Id:                    dockerRegistryIpsConfig.Id,
+			DockerArtifactStoreId: store.Id,
+			CredentialType:        dockerRegistryIpsConfig.CredentialType,
+			CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
+			AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
+			IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
 		}
-		return nil, err
+		err = impl.dockerRegistryIpsConfigRepository.Update(ipsConfig, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating registry config ips", "ipsConfig", ipsConfig, "err", err)
+			err = &util.ApiError{
+				Code:            constants.DockerRegUpdateFailedInDb,
+				InternalMessage: "docker registry ips config failed to update in db",
+				UserMessage:     "docker registry ips config failed to update in db",
+			}
+			return nil, err
+		}
+		impl.logger.Infow("updated ips config for this docker repository ", "ipsConfig", ipsConfig)
 	}
-	impl.logger.Infow("updated ips config for this docker repository ", "ipsConfig", ipsConfig)
 
 	// 6- now commit transaction
 	err = tx.Commit()
@@ -666,27 +693,29 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *DockerArtifactStoreBea
 		impl.logger.Infow("updated OCI registry config successfully")
 	}
 
-	// 5- update imagePullSecretConfig for this docker registry
-	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
-	ipsConfig := &repository.DockerRegistryIpsConfig{
-		Id:                    existingStore.IpsConfig.Id,
-		DockerArtifactStoreId: store.Id,
-		CredentialType:        dockerRegistryIpsConfig.CredentialType,
-		CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
-		AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
-		IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
-	}
-	err = impl.dockerRegistryIpsConfigRepository.Update(ipsConfig, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating registry config ips", "ipsConfig", ipsConfig, "err", err)
-		err = &util.ApiError{
-			Code:            constants.DockerRegUpdateFailedInDb,
-			InternalMessage: "docker registry ips config failed to update in db",
-			UserMessage:     "docker registry ips config failed to update in db",
+	if !bean.IsPublic && bean.DockerRegistryIpsConfig != nil {
+		// 5- update imagePullSecretConfig for this docker registry
+		dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
+		ipsConfig := &repository.DockerRegistryIpsConfig{
+			Id:                    existingStore.IpsConfig.Id,
+			DockerArtifactStoreId: store.Id,
+			CredentialType:        dockerRegistryIpsConfig.CredentialType,
+			CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
+			AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
+			IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
 		}
-		return nil, err
+		err = impl.dockerRegistryIpsConfigRepository.Update(ipsConfig, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating registry config ips", "ipsConfig", ipsConfig, "err", err)
+			err = &util.ApiError{
+				Code:            constants.DockerRegUpdateFailedInDb,
+				InternalMessage: "docker registry ips config failed to update in db",
+				UserMessage:     "docker registry ips config failed to update in db",
+			}
+			return nil, err
+		}
+		impl.logger.Infow("updated ips config for this docker repository ", "ipsConfig", ipsConfig)
 	}
-	impl.logger.Infow("updated ips config for this docker repository ", "ipsConfig", ipsConfig)
 
 	// 6- now commit transaction
 	err = tx.Commit()
