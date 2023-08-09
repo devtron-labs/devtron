@@ -150,6 +150,7 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 			Token:        clusterDetail.Config[k8s.BearerToken],
 			ClusterId:    int32(clusterDetail.Id),
 			ClusterName:  clusterDetail.ClusterName,
+			ProxyUrl:     clusterDetail.ProxyUrl,
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
@@ -284,6 +285,7 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 			Token:        clusterObj.Config[k8s.BearerToken],
 			ClusterId:    int32(clusterObj.Id),
 			ClusterName:  clusterObj.ClusterName,
+			ProxyUrl:     clusterObj.ProxyUrl,
 		}
 	}
 

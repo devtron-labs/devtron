@@ -271,7 +271,6 @@ func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, name
 		Stderr:    true,
 		TTY:       tty,
 	}, scheme.ParameterCodec)
-
 	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
 	return exec, err
 }

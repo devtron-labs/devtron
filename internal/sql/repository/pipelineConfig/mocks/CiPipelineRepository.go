@@ -683,6 +683,10 @@ func (_m *CiPipelineRepository) GetAllCDsEnvAndClusterNameByCiPipelineIds(ciPipe
 	ret := _m.Called(ciPipelineIds)
 
 	var r0 []*pipelineConfig.CiPipelineEnvCluster
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.CiPipelineEnvCluster, error)); ok {
+		return rf(ciPipelineIds)
+	}
 	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.CiPipelineEnvCluster); ok {
 		r0 = rf(ciPipelineIds)
 	} else {
@@ -691,7 +695,6 @@ func (_m *CiPipelineRepository) GetAllCDsEnvAndClusterNameByCiPipelineIds(ciPipe
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]int) error); ok {
 		r1 = rf(ciPipelineIds)
 	} else {
@@ -706,6 +709,10 @@ func (_m *CiPipelineRepository) GetAllCIAppAndProjectByProjectNames(projectNames
 	ret := _m.Called(projectNames)
 
 	var r0 []*pipelineConfig.CiPipelineAppProject
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]string) ([]*pipelineConfig.CiPipelineAppProject, error)); ok {
+		return rf(projectNames)
+	}
 	if rf, ok := ret.Get(0).(func([]string) []*pipelineConfig.CiPipelineAppProject); ok {
 		r0 = rf(projectNames)
 	} else {
@@ -714,7 +721,6 @@ func (_m *CiPipelineRepository) GetAllCIAppAndProjectByProjectNames(projectNames
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]string) error); ok {
 		r1 = rf(projectNames)
 	} else {
@@ -729,6 +735,10 @@ func (_m *CiPipelineRepository) GetAllCIsClusterAndEnvByCDClusterNames(clusterNa
 	ret := _m.Called(clusterNames, ciPipelineIds)
 
 	var r0 []*pipelineConfig.CiPipelineEnvCluster
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]string, []int) ([]*pipelineConfig.CiPipelineEnvCluster, error)); ok {
+		return rf(clusterNames, ciPipelineIds)
+	}
 	if rf, ok := ret.Get(0).(func([]string, []int) []*pipelineConfig.CiPipelineEnvCluster); ok {
 		r0 = rf(clusterNames, ciPipelineIds)
 	} else {
@@ -737,7 +747,6 @@ func (_m *CiPipelineRepository) GetAllCIsClusterAndEnvByCDClusterNames(clusterNa
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]string, []int) error); ok {
 		r1 = rf(clusterNames, ciPipelineIds)
 	} else {
@@ -752,6 +761,10 @@ func (_m *CiPipelineRepository) GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPi
 	ret := _m.Called(ciPipelineIds)
 
 	var r0 []*pipelineConfig.CiPipelineEnvCluster
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.CiPipelineEnvCluster, error)); ok {
+		return rf(ciPipelineIds)
+	}
 	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.CiPipelineEnvCluster); ok {
 		r0 = rf(ciPipelineIds)
 	} else {
@@ -760,7 +773,6 @@ func (_m *CiPipelineRepository) GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPi
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]int) error); ok {
 		r1 = rf(ciPipelineIds)
 	} else {
@@ -775,6 +787,10 @@ func (_m *CiPipelineRepository) GetAppAndProjectNameForParentAndAllLinkedCI(ciPi
 	ret := _m.Called(ciPipelineId)
 
 	var r0 []*pipelineConfig.CiPipelineAppProject
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.CiPipelineAppProject, error)); ok {
+		return rf(ciPipelineId)
+	}
 	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.CiPipelineAppProject); ok {
 		r0 = rf(ciPipelineId)
 	} else {
@@ -783,7 +799,6 @@ func (_m *CiPipelineRepository) GetAppAndProjectNameForParentAndAllLinkedCI(ciPi
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(ciPipelineId)
 	} else {

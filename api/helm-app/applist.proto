@@ -9,6 +9,7 @@ message ClusterConfig {
   string token = 2;
   int32 clusterId = 3;
   string clusterName = 4;
+  string proxyUrl = 5;
 }
 
 message AppListRequest {

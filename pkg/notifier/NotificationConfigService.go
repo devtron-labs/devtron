@@ -39,7 +39,7 @@ type NotificationConfigService interface {
 	BuildNotificationSettingsResponse(notificationSettings []*repository.NotificationSettingsViewWithAppEnv) ([]*NotificationSettingsResponse, int, error)
 	DeleteNotificationSettings(request NSDeleteRequest) error
 	FindNotificationSettingOptions(request *repository.SearchRequest) ([]*SearchFilterResponse, error)
-
+	IsSesOrSmtpConfigured() (*ConfigCheck, error)
 	UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error)
 	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
 }
@@ -111,6 +111,10 @@ type NotificationConfigRequest struct {
 type NSViewResponse struct {
 	Total                        int                             `json:"total"`
 	NotificationSettingsResponse []*NotificationSettingsResponse `json:"settings"`
+}
+type ConfigCheck struct {
+	IsConfigured        bool `json:"isConfigured"`
+	IsDefaultConfigured bool `json:"is_default_configured"`
 }
 
 type NotificationSettingsResponse struct {
@@ -880,4 +884,42 @@ func (impl *NotificationConfigServiceImpl) FetchNSViewByIds(ids []*int) ([]*NSCo
 	}
 
 	return configs, nil
+}
+
+func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck, error) {
+	var configCheck ConfigCheck
+	sesConfig, err := impl.sesRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching sesConfig", "sesConfig", sesConfig, "err", err)
+		return nil, err
+	}
+	if len(sesConfig) > 0 {
+		configCheck.IsConfigured = true
+	}
+	defaultSesConfig, err := impl.sesRepository.FindDefault()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching defaultSesConfig", "defaultSesConfig", defaultSesConfig, "err", err)
+		return nil, err
+	}
+	if defaultSesConfig.Id > 0 {
+		configCheck.IsDefaultConfigured = true
+	}
+	smtpConfig, err := impl.smtpRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching smtpConfig", "smtpConfig", smtpConfig, "err", err)
+		return nil, err
+	}
+	if len(smtpConfig) > 0 {
+		configCheck.IsConfigured = true
+	}
+	defaultSmtpConfig, err := impl.smtpRepository.FindDefault()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching defaultSmtpConfig", "defaultSmtpConfig", defaultSmtpConfig, "err", err)
+		return nil, err
+	}
+	if defaultSmtpConfig.Id > 0 {
+		configCheck.IsDefaultConfigured = true
+	}
+
+	return &configCheck, nil
 }

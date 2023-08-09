@@ -3055,6 +3055,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				ClusterName:  envOverride.Environment.Cluster.ClusterName,
 				Token:        bearerToken,
 				ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
+				ProxyUrl:     envOverride.Environment.Cluster.ProxyUrl,
 			},
 		}
 
