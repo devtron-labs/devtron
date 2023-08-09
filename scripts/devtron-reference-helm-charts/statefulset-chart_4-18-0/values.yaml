@@ -201,7 +201,7 @@ prometheusRule:
 #
 winterSoldier:
   enabled: false
-  apiVersion: pincher.devtron.ai/v1alpha1
+  apiVersion: pincher.devtron.ai/v1beta1
   labels: {}
   annotations: {}
   timeRangesWithZone: {}

@@ -121,8 +121,9 @@ statefulSetConfig:
   #     resources: 
   #       requests:
   #         storage: "2Gi"
-
-#service_headless: {}
+# nodeName: ""
+serviceheadless: 
+  enabled: false
   #name: "test-service_headless"
 service:
   type: ClusterIP
@@ -212,7 +213,7 @@ prometheusRule:
 #
 winterSoldier:
   enabled: false
-  apiVersion: pincher.devtron.ai/v1alpha1
+  apiVersion: pincher.devtron.ai/v1beta1
   labels: {}
   annotations: {}
   timeRangesWithZone: {}

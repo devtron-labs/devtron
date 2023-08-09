@@ -22,10 +22,8 @@ EnvVariablesFromCongigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 winterSoldier:
   enabled: false
-  apiVersion: pincher.devtron.ai/v1alpha1
   annotation: {}
   labels: {}
-  type: StatefulSet
   timeRangesWithZone:
     timeZone: "Asia/Kolkata"
     timeRanges: []

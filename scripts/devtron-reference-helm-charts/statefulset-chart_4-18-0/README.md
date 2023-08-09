@@ -814,9 +814,9 @@ Winter Soldier can be used to
 
 Given below is template values you can give in winter-soldier:
 ```yaml
-winterSoilder:
-  enable: false
-  apiVersion: pincher.devtron.ai/v1alpha1
+winterSoldier:
+  enabled: false
+  apiVersion: pincher.devtron.ai/v1beta1 #default 
   action: sleep
   timeRangesWithZone:
     timeZone: "Asia/Kolkata"
@@ -827,7 +827,7 @@ winterSoilder:
 Here, 
 | Key | values | Description |
 | :--- | :--- | :--- |
-| `enable` | `fasle`,`true` | decide the enabling factor  |
+| `enabled` | `fasle`,`true` | decide the enabling factor  |
 | `apiVersion` | `pincher.devtron.ai/v1beta1`, `pincher.devtron.ai/v1alpha1` | specific api version  |
 | `action` | `sleep`,`delete`, `scale` | This specify  the action need to perform.  |
 | `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"US/Pacific"` |  It use to specify the timeZone used. (It uses standard format. please refer [this](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))  |
@@ -838,9 +838,9 @@ Here,
 
 here is an example,
 ```yaml
-winterSoilder:
+winterSoldier:
   apiVersion: pincher.devtron.ai/v1alpha1 
-  enable: true
+  enabled: true
   annotations: {}
   labels: {}
   timeRangesWithZone:

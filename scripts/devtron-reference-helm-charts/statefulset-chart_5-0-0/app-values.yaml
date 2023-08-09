@@ -22,7 +22,7 @@ EnvVariablesFromCongigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 winterSoldier:
   enabled: false
-  apiVersion: pincher.devtron.ai/v1alpha1
+  apiVersion: pincher.devtron.ai/v1beta1
   annotation: {}
   labels: {}
   type: StatefulSet
@@ -35,6 +35,9 @@ winterSoldier:
     - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 
+serviceheadless: 
+  enabled: false
+  #name: "test-service_headless"
 statefulSetConfig:
   labels: {}
   annotations: {}
@@ -42,6 +45,7 @@ statefulSetConfig:
   #revisionHistoryLimit: 3
   # mountPath: "/tmp"
   volumeClaimTemplates: []
+
 service:
   type: ClusterIP
   enabled: false

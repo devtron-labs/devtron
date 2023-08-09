@@ -126,6 +126,10 @@ EnvVariablesFromCongigMapKeys:
     configMapName: CONFIG_MAP_NAME
     keyName: CONFIG_MAP_KEY
 
+nodeName: "testiing"
+serviceheadless: 
+  enabled: false
+  #name: "test-service_headless"
 statefulSetConfig:
   labels: 
     app: example
@@ -390,7 +394,8 @@ volumes:
        emptyDir: {}
 
 
-nodeSelector: {}
+nodeSelector: 
+  microk8s.io/cluster: true
 
 
 #used for deployment algo selection
