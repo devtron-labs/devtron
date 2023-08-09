@@ -340,6 +340,7 @@ message RegistryCredential {
   string RepoName = 8;
   bool IsPublic = 9;
 }
+
 message OCIRegistryResponse {
   bool IsLoggedIn = 1;
   OCIRegistryPushResponse PushResult = 2;
