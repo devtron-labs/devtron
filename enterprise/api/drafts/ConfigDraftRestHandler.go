@@ -440,11 +440,19 @@ func (impl *ConfigDraftRestHandlerImpl) UpdateDraftState(w http.ResponseWriter, 
 	if err != nil {
 		return
 	}
-	_, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, casbin.ActionUpdate, true)
+	draftResponse, notAllowed := impl.enforceForDraftId(w, r, draftId, userId, casbin.ActionUpdate, true)
+	toUpdateDraftState := drafts.DraftState(state)
 	if notAllowed {
-		return
+		if toUpdateDraftState == drafts.DiscardedDraftState {
+			token := r.Header.Get("token")
+			if notAnApprover := impl.checkForApproverAccess(w, draftResponse.EnvId, draftResponse.AppId, token, true); notAnApprover {
+				return
+			}
+		} else {
+			return
+		}
 	}
-	draftVersion, err := impl.configDraftService.UpdateDraftState(draftId, draftVersionId, drafts.DraftState(state), userId)
+	draftVersion, err := impl.configDraftService.UpdateDraftState(draftId, draftVersionId, toUpdateDraftState, userId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
