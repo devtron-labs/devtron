@@ -277,6 +277,7 @@ type AppStoreApplicationVersionResponse struct {
 	Notes                   string    `json:"notes"`
 	UpdatedOn               time.Time `json:"updatedOn"`
 	IsChartRepoActive       bool      `json:"isChartRepoActive"`
+	IsOCICompliantChart     bool      `json:"isOCICompliantChart"`
 }
 
 type AppStoreVersionsResponse struct {

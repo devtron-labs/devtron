@@ -21,6 +21,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 
 	"io/ioutil"
 	"math/rand"
@@ -781,4 +782,23 @@ func IsAcdApp(deploymentAppType string) bool {
 
 func IsManifestDownload(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+}
+
+func IsOCIRegistryChartProvider(ociRegistry dockerRegistryRepository.DockerArtifactStore) bool {
+	if ociRegistry.OCIRegistryConfig == nil ||
+		len(ociRegistry.OCIRegistryConfig) != 1 ||
+		!IsOCIConfigChartProvider(ociRegistry.OCIRegistryConfig[0]) {
+		return false
+	}
+	return true
+}
+
+func IsOCIConfigChartProvider(ociRegistryConfig *dockerRegistryRepository.OCIRegistryConfig) bool {
+	if ociRegistryConfig.RepositoryType == dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART &&
+		(ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL ||
+			ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) &&
+		ociRegistryConfig.RepositoryList != "" {
+		return true
+	}
+	return false
 }
