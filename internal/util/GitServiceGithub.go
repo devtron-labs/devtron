@@ -161,7 +161,6 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 	ctx := context.Background()
 	newFile := false
 	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
-	//impl.logger.Infow("file contents in git service ", "fc", fc)
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -174,9 +173,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 	currentSHA := ""
 	if !newFile {
 		currentSHA = *fc.SHA
-
 	}
-
 	timeNow := time.Now()
 	options := &github.RepositoryContentFileOptions{
 		Message: &config.ReleaseMessage,
