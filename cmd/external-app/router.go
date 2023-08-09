@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/apiToken"
+	chartProvider "github.com/devtron-labs/devtron/api/appStore/ChartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -45,6 +46,7 @@ type MuxRouter struct {
 	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
 	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
+	chartProviderRouter      chartProvider.ChartProviderRouter
 	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
 	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
 	externalLinksRouter      externalLink.ExternalLinkRouter
@@ -76,6 +78,7 @@ func NewMuxRouter(
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
+	chartProviderRouter chartProvider.ChartProviderRouter,
 	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter,
 	externalLinkRouter externalLink.ExternalLinkRouter,
@@ -106,6 +109,7 @@ func NewMuxRouter(
 		appStoreDiscoverRouter:   appStoreDiscoverRouter,
 		appStoreValuesRouter:     appStoreValuesRouter,
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
+		chartProviderRouter:      chartProviderRouter,
 		dashboardTelemetryRouter: dashboardTelemetryRouter,
 		commonDeploymentRouter:   commonDeploymentRouter,
 		externalLinksRouter:      externalLinkRouter,
@@ -207,6 +211,11 @@ func (r *MuxRouter) Init() {
 	appStoreDeploymentSubRouter := r.Router.PathPrefix("/orchestrator/app-store/deployment").Subrouter()
 	r.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
 	// app-store deployment router ends
+
+	// chart provider router starts
+	chartProviderSubRouter := r.Router.PathPrefix("/orchestrator/app-store/chart-provider").Subrouter()
+	r.chartProviderRouter.Init(chartProviderSubRouter)
+	// chart provider router ends
 
 	//  dashboard event router starts
 	dashboardTelemetryRouter := r.Router.PathPrefix("/orchestrator/dashboard-event").Subrouter()

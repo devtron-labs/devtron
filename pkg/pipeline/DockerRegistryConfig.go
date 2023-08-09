@@ -18,10 +18,13 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"k8s.io/utils/strings/slices"
+	"net/http"
 	"strings"
 	"time"
 
@@ -41,6 +44,7 @@ type DockerRegistryConfig interface {
 	Delete(storeId string) (string, error)
 	DeleteReg(bean *DockerArtifactStoreBean) error
 	CheckInActiveDockerAccount(storeId string) (bool, error)
+	ValidateRegistryCredentials(bean *DockerArtifactStoreBean) bool
 	ConfigureOCIRegistry(bean *DockerArtifactStoreBean, isUpdate bool, userId int32, tx *pg.Tx) error
 	CreateOrUpdateOCIRegistryConfig(ociRegistryConfig *repository.OCIRegistryConfig, userId int32, tx *pg.Tx) error
 	FilterOCIRegistryConfigForSpecificRepoType(ociRegistryConfigList []*repository.OCIRegistryConfig, repositoryType string) *repository.OCIRegistryConfig
@@ -82,15 +86,17 @@ type DockerRegistryIpsConfigBean struct {
 
 type DockerRegistryConfigImpl struct {
 	logger                            *zap.SugaredLogger
+	helmAppService                    client.HelmAppService
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 	ociRegistryConfigRepository       repository.OCIRegistryConfigRepository
 }
 
-func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
+func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository, ociRegistryConfigRepository repository.OCIRegistryConfigRepository) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
 		logger:                            logger,
+		helmAppService:                    helmAppService,
 		dockerArtifactStoreRepository:     dockerArtifactStoreRepository,
 		dockerRegistryIpsConfigRepository: dockerRegistryIpsConfigRepository,
 		ociRegistryConfigRepository:       ociRegistryConfigRepository,
@@ -536,7 +542,15 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 	bean.PluginId = existingStore.PluginId
 
 	store := NewDockerArtifactStore(bean, true, existingStore.CreatedOn, time.Now(), existingStore.CreatedBy, bean.User)
-
+	if isValid := impl.ValidateRegistryCredentials(bean); !isValid {
+		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: "Invalid authentication credentials. Please verify.",
+			UserMessage:     "Invalid authentication credentials. Please verify.",
+		}
+		return nil, err
+	}
 	err = impl.dockerArtifactStoreRepository.Update(store, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating registry config in db", "config", store, "err", err)
@@ -768,4 +782,21 @@ func (impl DockerRegistryConfigImpl) CheckInActiveDockerAccount(storeId string) 
 		return false, err
 	}
 	return exist, nil
+}
+
+func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *DockerArtifactStoreBean) bool {
+	if bean.IsPublic {
+		return true
+	}
+	request := &client.RegistryCredential{
+		RegistryUrl:  bean.RegistryURL,
+		Username:     bean.Username,
+		Password:     bean.Password,
+		AwsRegion:    bean.AWSRegion,
+		AccessKey:    bean.AWSAccessKeyId,
+		SecretKey:    bean.AWSSecretAccessKey,
+		RegistryType: string(bean.RegistryType),
+		IsPublic:     bean.IsPublic,
+	}
+	return impl.helmAppService.ValidateOCIRegistry(context.Background(), request)
 }

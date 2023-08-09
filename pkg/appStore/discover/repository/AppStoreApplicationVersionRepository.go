@@ -47,6 +47,13 @@ func NewAppStoreApplicationVersionRepositoryImpl(Logger *zap.SugaredLogger, dbCo
 	return &AppStoreApplicationVersionRepositoryImpl{dbConnection: dbConnection, Logger: Logger}
 }
 
+type FilterQueryUpdateAction string
+
+const (
+	QUERY_COLUMN_UPDATE FilterQueryUpdateAction = "column"
+	QUERY_JOIN_UPDTAE   FilterQueryUpdateAction = "join"
+)
+
 type AppStoreApplicationVersion struct {
 	TableName   struct{}  `sql:"app_store_application_version" pg:",discard_unknown_columns"`
 	Id          int       `sql:"id,pk"`
@@ -79,6 +86,7 @@ func (impl AppStoreApplicationVersionRepositoryImpl) GetChartInfoById(id int) (*
 	return &appStoreWithVersion, err
 }
 
+// FindAll is not being used. instead FindWithFilter is being used for chart listing
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindAll() ([]appStoreBean.AppStoreWithVersion, error) {
 	var appStoreWithVersion []appStoreBean.AppStoreWithVersion
 	queryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name" +
@@ -92,22 +100,65 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindAll() ([]appStoreBean.
 	return appStoreWithVersion, err
 }
 
+func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction FilterQueryUpdateAction) string {
+	query := ""
+	if updateAction == QUERY_COLUMN_UPDATE {
+		if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
+			query = query + " ch.name as chart_name, das.id as docker_artifact_store_id"
+		} else if len(filter.RegistryId) > 0 {
+			query = query + " das.id as docker_artifact_store_id"
+		} else if len(filter.ChartRepoId) > 0 {
+			query = query + " ch.name as chart_name"
+		} else {
+			query = query + " ch.name as chart_name, das.id as docker_artifact_store_id"
+		}
+	}
+	if updateAction == QUERY_JOIN_UPDTAE {
+		if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
+			query = query + " LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
+				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
+				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
+				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)))" +
+				" AND (ch.id IN (?) OR das.id IN (?))"
+		} else if len(filter.RegistryId) > 0 {
+			query = query +
+				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
+				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
+				" WHERE asv.latest IS TRUE AND (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)" +
+				" AND das.id IN (?)"
+		} else if len(filter.ChartRepoId) > 0 {
+			query = query +
+				" LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
+				" WHERE asv.latest IS TRUE AND ch.active IS TRUE" +
+				" AND ch.id IN (?)"
+		} else {
+			query = query +
+				" LEFT JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
+				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
+				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
+				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.is_chart_pull_active IS TRUE)))"
+		}
+	}
+	return query
+}
+
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *appStoreBean.AppStoreFilter) ([]appStoreBean.AppStoreWithVersion, error) {
 	var appStoreWithVersion []appStoreBean.AppStoreWithVersion
-	query := "SELECT asv.version, asv.icon,asv.deprecated,asv.id as app_store_application_version_id," +
-		" asv.description, aps.*, ch.name as chart_name" +
-		" FROM app_store_application_version asv" +
-		" INNER JOIN app_store aps ON asv.app_store_id = aps.id" +
-		" INNER JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
-		" WHERE asv.latest IS TRUE AND ch.active = TRUE"
+	query := "SELECT asv.version, asv.icon, asv.deprecated, asv.id as app_store_application_version_id," +
+		" asv.description, aps.*,"
+
+	query = query + updateFindWithFilterQuery(filter, QUERY_COLUMN_UPDATE)
+
+	query = query + " FROM app_store_application_version asv" +
+		" INNER JOIN app_store aps ON asv.app_store_id = aps.id"
+
+	query = query + updateFindWithFilterQuery(filter, QUERY_JOIN_UPDTAE)
+
 	if !filter.IncludeDeprecated {
 		query = query + " AND asv.deprecated = FALSE"
 	}
 	if len(filter.AppStoreName) > 0 {
 		query = query + " AND aps.name LIKE '%" + filter.AppStoreName + "%'"
-	}
-	if len(filter.ChartRepoId) > 0 {
-		query = query + " AND ch.id IN (?)"
 	}
 	query = query + " ORDER BY aps.name ASC"
 	if filter.Size > 0 {
@@ -116,7 +167,11 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *app
 	query = query + ";"
 
 	var err error
-	if len(filter.ChartRepoId) > 0 {
+	if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, pg.In(filter.ChartRepoId), pg.In(filter.RegistryId))
+	} else if len(filter.RegistryId) > 0 {
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, pg.In(filter.RegistryId))
+	} else if len(filter.ChartRepoId) > 0 {
 		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, pg.In(filter.ChartRepoId))
 	} else {
 		_, err = impl.dbConnection.Query(&appStoreWithVersion, query)
@@ -131,8 +186,11 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindById(id int) (*AppStore
 	appStoreWithVersion := &AppStoreApplicationVersion{}
 	err := impl.dbConnection.
 		Model(appStoreWithVersion).
-		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo").
+		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo", "AppStore.DockerArtifactStore").
 		Where("app_store_application_version.id = ?", id).
+		Join("INNER JOIN app_store aps on app_store_application_version.app_store_id = aps.id").
+		Join("LEFT JOIN chart_repo ch on aps.chart_repo_id = ch.id").
+		Join("LEFT JOIN docker_artifact_store das on aps.docker_artifact_store_id = das.id").
 		Limit(1).
 		Select()
 	return appStoreWithVersion, err
@@ -145,8 +203,11 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindByIds(ids []int) ([]*Ap
 	}
 	err := impl.dbConnection.
 		Model(&appStoreApplicationVersions).
-		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo").
+		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo", "AppStore.DockerArtifactStore").
 		Where("app_store_application_version.id in (?)", pg.In(ids)).
+		Join("INNER JOIN app_store aps on app_store_application_version.app_store_id = aps.id").
+		Join("LEFT JOIN chart_repo ch on aps.chart_repo_id = ch.id").
+		Join("LEFT JOIN docker_artifact_store das on aps.docker_artifact_store_id = das.id").
 		Select()
 	return appStoreApplicationVersions, err
 }

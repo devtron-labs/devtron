@@ -130,6 +130,7 @@ type GitOpsAppDetails struct {
 type InstalledAppsWithChartDetails struct {
 	AppStoreApplicationName      string    `json:"app_store_application_name"`
 	ChartRepoName                string    `json:"chart_repo_name"`
+	DockerArtifactStoreId        string    `json:"docker_artifact_store_id"`
 	AppName                      string    `json:"app_name"`
 	EnvironmentName              string    `json:"environment_name"`
 	InstalledAppVersionId        int       `json:"installed_app_version_id"`
@@ -284,7 +285,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*Insta
 func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error) {
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
 	var query string
-	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name,"
+	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, das.id as docker_artifact_store_id,"
 	query = query + " env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
 	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
 	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated , app_status.status as app_status, ia.deployment_app_delete_request"
@@ -295,7 +296,8 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	query = query + " inner join cluster on env.cluster_id = cluster.id"
 	query = query + " inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id"
 	query = query + " inner join app_store aps on aps.id = asav.app_store_id"
-	query = query + " inner join chart_repo ch on ch.id = aps.chart_repo_id"
+	query = query + " left join chart_repo ch on ch.id = aps.chart_repo_id"
+	query = query + " left join docker_artifact_store das on das.id = aps.docker_artifact_store_id"
 	query = query + " left join app_status on app_status.app_id = ia.app_id and ia.environment_id = app_status.env_id"
 	query = query + " where ia.active = true and iav.active = true"
 	if filter.OnlyDeprecated {

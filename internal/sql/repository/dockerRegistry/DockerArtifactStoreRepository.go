@@ -80,6 +80,7 @@ type DockerArtifactStoreRepository interface {
 	FindActiveDefaultStore() (*DockerArtifactStore, error)
 	FindAllActiveForAutocomplete() ([]DockerArtifactStore, error)
 	FindAll() ([]DockerArtifactStore, error)
+	FindAllChartProviders() ([]DockerArtifactStore, error)
 	FindOne(storeId string) (*DockerArtifactStore, error)
 	FindOneInactive(storeId string) (*DockerArtifactStore, error)
 	Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error
@@ -143,6 +144,20 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
+		}).
+		Select()
+	return providers, err
+}
+
+func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]DockerArtifactStore, error) {
+	var providers []DockerArtifactStore
+	err := impl.dbConnection.Model(&providers).
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Where("active = ?", true).
+		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE and " +
+				"repository_type='CHART' and " +
+				"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
 		}).
 		Select()
 	return providers, err
