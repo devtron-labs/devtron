@@ -23,8 +23,10 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
@@ -37,6 +39,7 @@ import (
 type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
+	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32) Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
 }
@@ -52,13 +55,16 @@ type EventSimpleFactoryImpl struct {
 	userRepository               repository.UserRepository
 	ciArtifactRepository         repository2.CiArtifactRepository
 	DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository
+	sesNotificationRepository    repository2.SESNotificationRepository
+	smtpNotificationRepository   repository2.SMTPNotificationRepository
+	imageTaggingRepository       repository3.ImageTaggingRepository
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository) *EventSimpleFactoryImpl {
+	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository, sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository, imageTaggingRepository repository3.ImageTaggingRepository) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
@@ -70,6 +76,9 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		userRepository:               userRepository,
 		ciArtifactRepository:         ciArtifactRepository,
 		DeploymentApprovalRepository: DeploymentApprovalRepository,
+		sesNotificationRepository:    sesNotificationRepository,
+		smtpNotificationRepository:   smtpNotificationRepository,
+		imageTaggingRepository:       imageTaggingRepository,
 	}
 }
 
@@ -100,18 +109,12 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		event.Payload = payload
 	}
 	var emailIDs []string
-	wfrForApprovalData, err := impl.cdWorkflowRepository.FindLatestWfrByAppIdAndEnvironmentId(event.AppId, event.EnvId)
-	if err != nil {
-		impl.logger.Errorw("error in getting wfr by appId and envId", "err", err, "appId", wfrForApprovalData, "envId", event.EnvId)
-	}
-	var deploymentUserData []*pipelineConfig.DeploymentApprovalUserData
-	if wfrForApprovalData != nil && wfrForApprovalData.DeploymentApprovalRequest != nil {
-		deploymentUserData, err = impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfrForApprovalData.DeploymentApprovalRequest.Id)
+
+	if wfr != nil && wfr.DeploymentApprovalRequestId >= 0 {
+		deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId)
 		if err != nil {
-			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "wfrForApprovalData.DeploymentApprovalRequest.Id", wfrForApprovalData.DeploymentApprovalRequest.Id)
+			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "deploymentApprovalRequestId", wfr.DeploymentApprovalRequestId)
 		}
-	}
-	if wfrForApprovalData != nil {
 		if deploymentUserData != nil {
 			userIDs := []int32{}
 			for _, userData := range deploymentUserData {
@@ -128,8 +131,9 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 		}
 	}
+
 	payload.ApprovedByEmail = emailIDs
-	if wfr != nil {
+	if wfr != nil && wfr.WorkflowType != bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
@@ -138,7 +142,6 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.DockerImageUrl = wfr.CdWorkflow.CiArtifact.Image
 		event.UserId = int(wfr.TriggeredBy)
 		event.Payload = payload
-		payload.ApprovedByEmail = emailIDs
 		event.CdWorkflowRunnerId = wfr.Id
 		event.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 	} else if pipelineOverrideId > 0 {
@@ -280,4 +283,80 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 		}
 	}
 	return materialTriggerInfo, nil
+}
+func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, userId int32) Event {
+	defaultSesConfig, err := impl.sesNotificationRepository.FindDefault()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching defaultSesConfig", "defaultSesConfig", defaultSesConfig, "err", err)
+		return event
+
+	}
+	var defaultSmtpConfig *repository2.SMTPConfig
+	if err == pg.ErrNoRows {
+		defaultSmtpConfig, err = impl.smtpNotificationRepository.FindDefault()
+		if err != nil {
+			impl.logger.Errorw("error fetching defaultSmtpConfig", "defaultSmtpConfig", defaultSmtpConfig, "err", err)
+			return event
+		}
+	}
+	payload := event.Payload
+	if payload == nil {
+		payload = &Payload{}
+		event.Payload = payload
+	}
+	imageComment, err := impl.imageTaggingRepository.GetImageComment(approvalActionRequest.ArtifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageComment", "imageComment", imageComment, "err", err)
+		return event
+	}
+	payload.ImageComment = imageComment.Comment
+	imageTags, err := impl.imageTaggingRepository.GetTagsByArtifactId(approvalActionRequest.ArtifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageTags", "imageTags", imageTags, "err", err)
+		return event
+	}
+	var imageTagNames []string
+	if imageTags != nil && len(imageTags) != 0 {
+		for _, tag := range imageTags {
+			imageTagNames = append(imageTagNames, tag.TagName)
+		}
+	}
+	payload.ImageTagNames = imageTagNames
+	ciArtifact, err := impl.ciArtifactRepository.Get(approvalActionRequest.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error fetching defaultSesConfig", "ciArtifact", ciArtifact, "err", err)
+		return event
+	}
+	payload.AppName = cdPipeline.App.AppName
+	payload.EnvName = cdPipeline.Environment.Name
+	payload.PipelineName = cdPipeline.Name
+	payload.DockerImageUrl = ciArtifact.Image
+	lastColonIndex := strings.LastIndex(payload.DockerImageUrl, ":")
+	dockerImageTag := ""
+	if lastColonIndex != -1 && lastColonIndex < len(payload.DockerImageUrl)-1 {
+		dockerImageTag = payload.DockerImageUrl[lastColonIndex+1:]
+	}
+	payload.ImageApprovalLink = fmt.Sprintf("/dashboard/app/%d/trigger?approval-node=%d&imageTag=%s", event.AppId, cdPipeline.Id, dockerImageTag)
+	for _, emailId := range approvalActionRequest.ApprovalNotificationConfig.EmailIds {
+		provider := &notifier.Provider{
+			//Rule:      "",
+			ConfigId:  0,
+			Recipient: emailId,
+		}
+		if defaultSesConfig.Id != 0 {
+			provider.Destination = "ses"
+		} else if defaultSmtpConfig.Id != 0 {
+			provider.Destination = "smtp"
+		}
+		event.Payload.Providers = append(event.Payload.Providers, provider)
+	}
+	if userId > 0 {
+		user, err := impl.userRepository.GetById(userId)
+		if err != nil {
+			impl.logger.Errorw("found error on getting user data ", "user", user)
+		}
+		event.Payload.TriggeredBy = user.EmailId
+	}
+
+	return event
 }

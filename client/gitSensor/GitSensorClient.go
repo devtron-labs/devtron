@@ -63,9 +63,10 @@ func NewGitSensorClient(logger *zap.SugaredLogger, config *ClientConfig) (*Clien
 }
 
 type ClientConfig struct {
-	Url      string `env:"GIT_SENSOR_URL" envDefault:"127.0.0.1:7070"`
-	Protocol string `env:"GIT_SENSOR_PROTOCOL" envDefault:"REST"`
-	Timeout  int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
+	Url                       string `env:"GIT_SENSOR_URL" envDefault:"127.0.0.1:7070"`
+	Protocol                  string `env:"GIT_SENSOR_PROTOCOL" envDefault:"REST"`
+	Timeout                   int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
+	MaxSizeOfDataTransferInMb int    `env:"GIT_SENSOR_GRPC_DATA_TRANSFER_MAX_SIZE" envDefault:"4"`
 }
 
 func GetConfig() (*ClientConfig, error) {

@@ -27,6 +27,8 @@ type WorkflowTemplate struct {
 	GcpBlobConfig          *blob_storage.GcpBlobConfig
 	CloudStorageKey        string
 	TerminationGracePeriod int
+	PrePostDeploySteps     []*StepObject
+	RefPlugins             []*RefPluginObject
 }
 
 type JobManifestTemplate struct {

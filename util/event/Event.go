@@ -22,6 +22,7 @@ type EventType int
 const Trigger EventType = 1
 const Success EventType = 2
 const Fail EventType = 3
+const Approval EventType = 4
 
 type PipelineType string
 

@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -317,4 +318,21 @@ type HpaResourceRequest struct {
 	Group           string
 	Version         string
 	Kind            string
+}
+
+func ConvertStringSliceToMap(inputs []string) map[string]bool {
+	m := make(map[string]bool, len(inputs))
+	for _, input := range inputs {
+		m[input] = true
+	}
+	return m
+}
+
+func MatchRegexExpression(exp string, text string) (bool, error) {
+	rExp, err := regexp.Compile(exp)
+	if err != nil {
+		return false, err
+	}
+	matched := rExp.Match([]byte(text))
+	return matched, nil
 }

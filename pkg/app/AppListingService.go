@@ -269,13 +269,14 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Offset:        fetchJobListingRequest.Offset,
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
+		Environments:  fetchJobListingRequest.Environments,
 	}
 	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app ids list", "error", err, jobListingFilter)
 		return []*bean.JobContainer{}, err
 	}
-	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds, jobListingFilter.AppStatuses, string(jobListingFilter.SortOrder))
+	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds, jobListingFilter.AppStatuses, jobListingFilter.Environments, string(jobListingFilter.SortOrder))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching job list", "error", err, jobListingFilter)
 		return []*bean.JobContainer{}, err
@@ -516,7 +517,6 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 			val = bean.JobContainer{}
 			val.JobId = jobContainer.JobId
 			val.JobName = jobContainer.JobName
-			val.Description = jobContainer.Description
 		}
 
 		if len(val.JobCiPipelines) == 0 {
@@ -525,10 +525,13 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 
 		if jobContainer.CiPipelineID != 0 {
 			ciPipelineObj := bean.JobCIPipeline{
-				CiPipelineId:   jobContainer.CiPipelineID,
-				CiPipelineName: jobContainer.CiPipelineName,
-				Status:         jobContainer.Status,
-				LastRunAt:      jobContainer.StartedOn,
+				CiPipelineId:                 jobContainer.CiPipelineID,
+				CiPipelineName:               jobContainer.CiPipelineName,
+				Status:                       jobContainer.Status,
+				LastRunAt:                    jobContainer.StartedOn,
+				EnvironmentName:              jobContainer.EnvironmentName,
+				EnvironmentId:                jobContainer.EnvironmentId,
+				LastTriggeredEnvironmentName: jobContainer.LastTriggeredEnvironmentName,
 				//LastSuccessAt: jobContainer.LastSuccessAt,
 			}
 			if lastSuccessAt, ok := lastSucceededTimeMapping[jobContainer.CiPipelineID]; ok {

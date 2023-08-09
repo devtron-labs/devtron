@@ -267,8 +267,6 @@ func getBaseWorkflowTemplate(cdConfig *CdConfig) bean.WorkflowTemplate {
 	workflowTemplate.Namespace = "default"
 	workflowTemplate.ActiveDeadlineSeconds = pointer.Int64Ptr(3600)
 	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
-	clusterConfig := deepCopyClusterConfig(*cdConfig.ClusterConfig)
-	workflowTemplate.ClusterConfig = &clusterConfig
 	workflowTemplate.WorkflowNamePrefix = "workflow-mock-prefix-" + strconv.Itoa(rand.Intn(1000))
 	workflowTemplate.TTLValue = pointer.Int32Ptr(3600)
 	var containers []v12.Container

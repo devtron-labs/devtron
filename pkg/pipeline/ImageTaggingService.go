@@ -59,7 +59,7 @@ type ImageTaggingService interface {
 	//ImageReleaseTags -> this will get the tags of the artifact,
 	//AppReleaseTags -> all the tags of the given appId,
 	//imageComment -> comment of the given artifactId,
-	// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipeline's
+	// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipelineRequest's
 	GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*ImageTaggingResponseDTO, error)
 	CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error)
 	GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error)
@@ -111,10 +111,10 @@ func (impl ImageTaggingServiceImpl) GetImageTaggingServiceConfig() ImageTaggingS
 }
 
 // GetTagsData returns the following fields in reponse Object
-//ImageReleaseTags -> this will get the tags of the artifact,
-//AppReleaseTags -> all the tags of the given appId,
-//imageComment -> comment of the given artifactId,
-// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipeline's
+// ImageReleaseTags -> this will get the tags of the artifact,
+// AppReleaseTags -> all the tags of the given appId,
+// imageComment -> comment of the given artifactId,
+// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipelineRequest's
 func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*ImageTaggingResponseDTO, error) {
 	resp := &ImageTaggingResponseDTO{}
 	imageComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)

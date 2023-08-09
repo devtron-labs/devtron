@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -11,11 +12,12 @@ type GlobalVariable struct {
 	Value       string `json:"value,omitempty"`
 	Format      string `json:"format"`
 	Description string `json:"description"`
+	Type        string `json:"stageType"`
 }
 
 type GlobalPluginService interface {
 	GetAllGlobalVariables() ([]*GlobalVariable, error)
-	ListAllPlugins() ([]*PluginListComponentDto, error)
+	ListAllPlugins(stageType int) ([]*PluginListComponentDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
 }
 
@@ -37,46 +39,119 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Name:        "WORKING_DIRECTORY",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Directory in which git material is cloned.The home path of repo = WORKING_DIRECTORY + CHECKOUT_PATH",
+			Type:        "ci",
 		},
 		{
 			Name:        "DOCKER_IMAGE_TAG",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Tag going to be used to push image.",
+			Type:        "ci",
 		},
 		{
 			Name:        "DOCKER_REPOSITORY",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Name of the repository to be used for pushing images.",
+			Type:        "ci",
 		},
 		{
 			Name:        "DOCKER_REGISTRY_URL",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Url of the container registry used for this pipeline.",
+			Type:        "ci",
 		},
 		{
 			Name:        "DOCKER_IMAGE",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Complete image name(repository+registry+tag).",
+			Type:        "ci",
 		},
 		{
 			Name:        "APP_NAME",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Name of the app this pipeline resides in.",
+			Type:        "ci",
 		},
 		{
 			Name:        "TRIGGER_BY_AUTHOR",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Email-Id/Name of the user who triggers pipeline.",
+			Type:        "ci",
+		},
+		{
+			Name:        pipeline.CD_PIPELINE_ENV_NAME_KEY,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "The name of the environment for which this deployment pipeline is configured.",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.CD_PIPELINE_CLUSTER_NAME_KEY,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "The name of the cluster to which the environment belongs for which this deployment pipeline is configured.",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.DOCKER_IMAGE,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Complete image name(repository+registry+tag).",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.APP_NAME,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "The name of the app this pipeline resides in.",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.DEPLOYMENT_RELEASE_ID,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Auto-incremented counter for deployment triggers.",
+			Type:        "post-cd",
+		},
+		{
+			Name:        pipeline.DEPLOYMENT_UNIQUE_ID,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Auto-incremented counter for deployment triggers. Counter is shared between Pre/Post/Deployment stages.",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.CD_TRIGGERED_BY,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Email-Id/Name of the user who triggered the deployment pipeline.",
+			Type:        "post-cd",
+		},
+		{
+			Name:        pipeline.CD_TRIGGER_TIME,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Time when the deployment pipeline was triggered.",
+			Type:        "post-cd",
+		},
+		{
+			Name:        pipeline.GIT_METADATA,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "GIT_METADATA consists of GIT_COMMIT_HASH, GIT_SOURCE_TYPE, GIT_SOURCE_VALUE.",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.APP_LABEL_METADATA,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "APP_LABEL_METADATA consists of APP_LABEL_KEY, APP_LABEL_VALUE. APP_LABEL_METADATA will only be available if workflow has External CI.",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.CHILD_CD_METADATA,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "CHILD_CD_METADATA consists of CHILD_CD_ENV_NAME, CHILD_CD_CLUSTER_NAME. CHILD_CD_METADATA will only be available if this CD pipeline has a Child CD pipeline.",
+			Type:        "cd",
 		},
 	}
 	return globalVariables, nil
 }
 
-func (impl *GlobalPluginServiceImpl) ListAllPlugins() ([]*PluginListComponentDto, error) {
+func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageType int) ([]*PluginListComponentDto, error) {
 	impl.logger.Infow("request received, ListAllPlugins")
 	var pluginDetails []*PluginListComponentDto
 	//getting all plugins metadata(without tags)
-	pluginsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	pluginsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(stageType)
 	if err != nil {
 		impl.logger.Errorw("error in getting plugins", "err", err)
 		return nil, err

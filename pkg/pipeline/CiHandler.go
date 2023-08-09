@@ -29,6 +29,9 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -94,20 +97,15 @@ type CiHandlerImpl struct {
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	appListingRepository         repository.AppListingRepository
-	K8sUtil                      *util.K8sUtil
+	K8sUtil                      *k8s.K8sUtil
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	appGroupService              appGroup2.AppGroupService
+	envRepository                repository3.EnvironmentRepository
 	imageTaggingService          ImageTaggingService
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
-	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
-	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
-	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil,
-	appGroupService appGroup2.AppGroupService,
-	imageTaggingService ImageTaggingService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -127,6 +125,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		cdPipelineRepository:         cdPipelineRepository,
 		enforcerUtil:                 enforcerUtil,
 		appGroupService:              appGroupService,
+		envRepository:                envRepository,
 		imageTaggingService:          imageTaggingService,
 	}
 }
@@ -156,6 +155,8 @@ type WorkflowResponse struct {
 	CdWorkflowId         int                                         `json:"cdWorkflowId"`
 	HelmPackageName      string                                      `json:"helmPackageName"`
 	PodName              string                                      `json:"podName"`
+	EnvironmentId        int                                         `json:"environmentId"`
+	EnvironmentName      string                                      `json:"environmentName"`
 	ImageReleaseTags     []*repository2.ImageTag                     `json:"imageReleaseTags"`
 	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
 }
@@ -180,6 +181,7 @@ type Trigger struct {
 	TriggeredBy               int32
 	InvalidateCache           bool
 	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
+	EnvironmentId             int
 }
 
 const WorkflowCancel = "CANCELLED"
@@ -200,8 +202,10 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 		TriggeredBy:               ciTriggerRequest.TriggeredBy,
 		InvalidateCache:           ciTriggerRequest.InvalidateCache,
 		ExtraEnvironmentVariables: extraEnvironmentVariables,
+		EnvironmentId:             ciTriggerRequest.EnvironmentId,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
+
 	if err != nil {
 		return 0, err
 	}
@@ -496,6 +500,8 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			ArtifactId:         w.CiArtifactId,
 			BlobStorageEnabled: w.BlobStorageEnabled,
 			IsArtifactUploaded: w.IsArtifactUploaded,
+			EnvironmentId:      w.EnvironmentId,
+			EnvironmentName:    w.EnvironmentName,
 		}
 		if imageTagsDataMap[w.CiArtifactId] != nil {
 			wfResponse.ImageReleaseTags = imageTagsDataMap[w.CiArtifactId] //if artifact is not yet created,empty list will be sent
@@ -518,14 +524,25 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		impl.Logger.Warn("cannot cancel build, build not in progress")
 		return 0, errors.New("cannot cancel build, build not in progress")
 	}
-	runningWf, err := impl.workflowService.GetWorkflow(workflow.Name, workflow.Namespace)
+	var isExt bool
+	var env *repository3.Environment
+	if workflow.Namespace != DefaultCiWorkflowNamespace {
+		isExt = true
+		env, err = impl.envRepository.FindById(workflow.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("could not fetch stage env", "err", err)
+			return 0, err
+		}
+	}
+
+	runningWf, err := impl.workflowService.GetWorkflow(workflow.Name, workflow.Namespace, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot find workflow ", "err", err)
 		return 0, errors.New("cannot find workflow " + workflow.Name)
 	}
 
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow(runningWf.Name, runningWf.Namespace)
+	err = impl.workflowService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
@@ -582,6 +599,15 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		}
 		ciMaterialsArr = append(ciMaterialsArr, res)
 	}
+	environmentName := ""
+	if workflow.EnvironmentId != 0 {
+		env, err := impl.envRepository.FindById(workflow.EnvironmentId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error in fetching environment details ", "err", err)
+			return WorkflowResponse{}, err
+		}
+		environmentName = env.Name
+	}
 	workflowResponse := WorkflowResponse{
 		Id:                 workflow.Id,
 		Name:               workflow.Name,
@@ -601,6 +627,8 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		Artifact:           ciArtifact.Image,
 		ArtifactId:         ciArtifact.Id,
 		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
+		EnvironmentId:      workflow.EnvironmentId,
+		EnvironmentName:    environmentName,
 	}
 	return workflowResponse, nil
 }
@@ -622,8 +650,26 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		PodName:   ciWorkflow.PodName,
 		Namespace: ciWorkflow.Namespace,
 	}
-	var clusterConfig util.ClusterConfig
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, false)
+	isExt := false
+	clusterConfig := &k8s.ClusterConfig{}
+	if ciWorkflow.EnvironmentId != 0 {
+		env, err := impl.envRepository.FindById(ciWorkflow.EnvironmentId)
+		if err != nil {
+			return nil, nil, err
+		}
+		var clusterBean cluster.ClusterBean
+		if env != nil && env.Cluster != nil {
+			clusterBean = cluster.GetClusterBean(*env.Cluster)
+		}
+		clusterConfig, err = clusterBean.GetClusterConfig()
+		if err != nil {
+			impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+			return nil, nil, err
+		}
+		isExt = true
+	}
+
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, isExt)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
@@ -1372,11 +1418,23 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		impl.Logger.Errorw("error while fetching k8s client", "error", err)
 		return err
 	}
+
 	for _, ciWorkflow := range ciWorkflows {
+		var isExt bool
+		var env *repository3.Environment
+		if ciWorkflow.Namespace != DefaultCiWorkflowNamespace {
+			isExt = true
+			env, err = impl.envRepository.FindById(ciWorkflow.EnvironmentId)
+			if err != nil {
+				impl.Logger.Errorw("could not fetch stage env", "err", err)
+				return err
+			}
+		}
+
 		isEligibleToMarkFailed := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
 			//check weather pod is exists or not, if exits check its status
-			_, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, DefaultCiWorkflowNamespace)
+			_, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, ciWorkflow.Namespace, isExt, env)
 			if err != nil {
 				impl.Logger.Warnw("unable to fetch ci workflow", "err", err)
 				statusError, ok := err.(*errors2.StatusError)

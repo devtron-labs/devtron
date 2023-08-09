@@ -74,6 +74,7 @@ func (client *GrpcApiClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(client.config.MaxSizeOfDataTransferInMb*1024*1024)),
 	)
 	endpoint := fmt.Sprintf("dns:///%s", client.config.Url)
 

@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -42,15 +43,15 @@ type SourceTypeConfig struct {
 }
 
 type CreateAppDTO struct {
-	Id          int            `json:"id,omitempty" validate:"number"`
-	AppName     string         `json:"appName" validate:"name-component,max=100"`
-	UserId      int32          `json:"-"` //not exposed to UI
-	Material    []*GitMaterial `json:"material" validate:"dive,min=1"`
-	TeamId      int            `json:"teamId,omitempty" validate:"number,required"`
-	TemplateId  int            `json:"templateId"`
-	AppLabels   []*Label       `json:"labels,omitempty" validate:"dive"`
-	Description string         `json:"description"`
-	AppType     helper.AppType `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
+	Id          int                            `json:"id,omitempty" validate:"number"`
+	AppName     string                         `json:"appName" validate:"name-component,max=100"`
+	UserId      int32                          `json:"-"` //not exposed to UI
+	Material    []*GitMaterial                 `json:"material" validate:"dive,min=1"`
+	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`
+	TemplateId  int                            `json:"templateId"`
+	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
+	Description *bean3.GenericNoteResponseBean `json:"description,omitempty"`
+	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
 type CreateMaterialDTO struct {
@@ -120,6 +121,8 @@ type CiPipeline struct {
 	IsOffendingMandatoryPlugin *bool                  `json:"isOffendingMandatoryPlugin,omitempty"`
 	IsCITriggerBlocked         *bool                  `json:"isCITriggerBlocked,omitempty"`
 	CiBlockState               *bean2.ConsequenceDto  `json:"ciBlockState,omitempty"`
+	EnvironmentId              int                    `json:"environmentId,omitempty"`
+	LastTriggeredEnvId         int                    `json:"lastTriggeredEnvId"`
 }
 
 type DockerConfigOverride struct {
@@ -215,12 +218,21 @@ func (a PatchAction) String() string {
 }
 
 // ----------------
+
+type CiMaterialPatchRequest struct {
+	AppId         int               `json:"appId" validate:"required"`
+	EnvironmentId int               `json:"environmentId" validate:"required"`
+	Source        *SourceTypeConfig `json:"source" validate:"required"`
+}
+
 type CiPatchRequest struct {
 	CiPipeline    *CiPipeline `json:"ciPipeline"`
 	AppId         int         `json:"appId,omitempty"`
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
+	IsJob         bool        `json:"-"`
+	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 }
 
 type CiRegexPatchRequest struct {
@@ -272,6 +284,7 @@ type CiTriggerRequest struct {
 	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
 	TriggeredBy        int32                `json:"triggeredBy"`
 	InvalidateCache    bool                 `json:"invalidateCache"`
+	EnvironmentId      int                  `json:"environmentId"`
 }
 
 type CiTrigger struct {
@@ -313,6 +326,7 @@ type CiConfigRequest struct {
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 	IsJob             bool                    `json:"-"`
 	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
+	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
 }
 
 type CiPipelineMinResponse struct {
@@ -515,6 +529,13 @@ type CDPipelineConfigObject struct {
 	EnvironmentIdentifier         string                                 `json:"-" `
 	IsVirtualEnvironment          bool                                   `json:"isVirtualEnvironment"`
 	HelmPackageName               string                                 `json:"helmPackageName"`
+	ChartName                     string                                 `json:"chartName"`
+	ChartBaseVersion              string                                 `json:"chartBaseVersion"`
+	ContainerRegistryName         string                                 `json:"containerRegistryName"`
+	RepoName                      string                                 `json:"repoName"`
+	ManifestStorageType           string                                 `json:"manifestStorageType"`
+	PreDeployStage                *bean.PipelineStageDto                 `json:"preDeployStage,omitempty"`
+	PostDeployStage               *bean.PipelineStageDto                 `json:"postDeployStage,omitempty"`
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -582,11 +603,15 @@ const (
 )
 
 type UserApprovalActionRequest struct {
-	AppId             int                    `json:"appId"` // would be required for RBAC
-	ActionType        UserApprovalActionType `json:"actionType" validate:"required"`
-	ApprovalRequestId int                    `json:"approvalRequestId"`
-	PipelineId        int                    `json:"pipelineId" validate:"required,number"` // would be required while raising approval request
-	ArtifactId        int                    `json:"artifactId"`                            // would be required while raising approval request
+	AppId                      int                        `json:"appId"` // would be required for RBAC
+	ActionType                 UserApprovalActionType     `json:"actionType" validate:"required"`
+	ApprovalRequestId          int                        `json:"approvalRequestId"`
+	PipelineId                 int                        `json:"pipelineId" validate:"required,number"` // would be required while raising approval request
+	ArtifactId                 int                        `json:"artifactId"`                            // would be required while raising approval
+	ApprovalNotificationConfig ApprovalNotificationConfig `json:"approvalNotificationConfig"`
+}
+type ApprovalNotificationConfig struct {
+	EmailIds []string `json:"emailIds"`
 }
 
 type DeploymentAppTypeChangeRequest struct {
@@ -624,10 +649,10 @@ type CdPipelineTrigger struct {
 type DeploymentType = string
 
 const (
-	Helm                    DeploymentType = "helm"
-	ArgoCd                  DeploymentType = "argo_cd"
-	ManifestDownload        DeploymentType = "manifest_download"
-	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
+	Helm             DeploymentType = "helm"
+	ArgoCd           DeploymentType = "argo_cd"
+	ManifestDownload DeploymentType = "manifest_download"
+	ManifestPush     DeploymentType = "manifest_push"
 )
 
 func IsAcdApp(deploymentType string) bool {
@@ -636,14 +661,6 @@ func IsAcdApp(deploymentType string) bool {
 
 func IsHelmApp(deploymentType string) bool {
 	return deploymentType == Helm
-}
-
-func IsManifestDownload(deploymentType string) bool {
-	return deploymentType == ManifestDownload
-}
-
-func IsGitOpsWithoutDeployment(deploymentType string) bool {
-	return deploymentType == GitOpsWithoutDeployment
 }
 
 type Status string
@@ -743,16 +760,16 @@ type Label struct {
 }
 
 type AppMetaInfoDto struct {
-	AppId       int       `json:"appId"`
-	AppName     string    `json:"appName"`
-	ProjectId   int       `json:"projectId"`
-	ProjectName string    `json:"projectName"`
-	CreatedBy   string    `json:"createdBy"`
-	CreatedOn   time.Time `json:"createdOn"`
-	Active      bool      `json:"active,notnull"`
-	Labels      []*Label  `json:"labels"`
-	Description string    `json:"description"`
-	UserId      int32     `json:"-"`
+	AppId       int                            `json:"appId"`
+	AppName     string                         `json:"appName"`
+	ProjectId   int                            `json:"projectId"`
+	ProjectName string                         `json:"projectName"`
+	CreatedBy   string                         `json:"createdBy"`
+	CreatedOn   time.Time                      `json:"createdOn"`
+	Active      bool                           `json:"active,notnull"`
+	Labels      []*Label                       `json:"labels"`
+	Description *bean3.GenericNoteResponseBean `json:"description"`
+	UserId      int32                          `json:"-"`
 }
 
 type AppLabelsJsonForDeployment struct {
@@ -824,6 +841,21 @@ type ExampleValueDto struct {
 	Errors []ErrorDto `json:"errors,omitempty"`
 	Result string     `json:"result,omitempty"`
 	Status string     `json:"status,omitempty"`
+}
+
+type ManifestStorage = string
+
+const (
+	ManifestStorageGit         ManifestStorage = "git"
+	ManifestStorageOCIHelmRepo ManifestStorage = "helm_repo"
+)
+
+func IsGitStorage(storageType string) bool {
+	return storageType == ManifestStorageGit
+}
+
+func IsHelmStorage(storageType string) bool {
+	return storageType == ManifestStorageOCIHelmRepo
 }
 
 const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"

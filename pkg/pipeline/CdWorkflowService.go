@@ -31,9 +31,11 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"io/ioutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"path"
+	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 	"time"
@@ -53,7 +55,7 @@ import (
 type CdWorkflowService interface {
 	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (string, error)
 	DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error)
+	GetWorkflow(name string, namespace string, restConfig *rest.Config, isExtRun bool) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
 	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, clusterConfig *rest.Config) error
@@ -79,6 +81,8 @@ type CdWorkflowServiceImpl struct {
 	systemWorkflowExecutor SystemWorkflowExecutor
 	refChartDir            chartRepoRepository.RefChartDir
 	chartTemplateService   util2.ChartTemplateService
+	mergeUtil              *util2.MergeUtil
+	k8sUtil                *k8s.K8sUtil
 }
 
 type CdWorkflowRequest struct {
@@ -130,6 +134,8 @@ type CdWorkflowRequest struct {
 	DeploymentReleaseCounter   int                                 `json:"deploymentReleaseCounter,omitempty"`
 	WorkflowExecutor           pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
 	IsDryRun                   bool                                `json:"isDryRun"`
+	PrePostDeploySteps         []*bean3.StepObject                 `json:"prePostDeploySteps"`
+	RefPlugins                 []*bean3.RefPluginObject            `json:"refPlugins"`
 }
 
 const PRE = "PRE"
@@ -140,9 +146,10 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	cdConfig *CdConfig,
 	appService app.AppService,
 	globalCMCSService GlobalCMCSService,
-	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService) *CdWorkflowServiceImpl {
-	return &CdWorkflowServiceImpl{Logger: Logger,
-		config:                 cdConfig.ClusterConfig,
+	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor,
+	refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService,
+	mergeUtil *util2.MergeUtil, k8sUtil *k8s.K8sUtil) (*CdWorkflowServiceImpl, error) {
+	cdWorkflowService := &CdWorkflowServiceImpl{Logger: Logger,
 		cdConfig:               cdConfig,
 		appService:             appService,
 		envRepository:          envRepository,
@@ -151,7 +158,16 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 		systemWorkflowExecutor: systemWorkflowExecutor,
 		refChartDir:            refChartDir,
 		chartTemplateService:   chartTemplateService,
+		mergeUtil:              mergeUtil,
+		k8sUtil:                k8sUtil,
 	}
+	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
+	if err != nil {
+		Logger.Errorw("error in getting in cluster rest config", "err", err)
+		return nil, err
+	}
+	cdWorkflowService.config = restConfig
+	return cdWorkflowService, nil
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (string, error) {
@@ -187,6 +203,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.WorkflowId = workflowRequest.WorkflowId
 	workflowTemplate.WorkflowRunnerId = workflowRequest.WorkflowRunnerId
 	workflowTemplate.WorkflowRequestJson = string(workflowJson)
+	workflowTemplate.PrePostDeploySteps = workflowRequest.PrePostDeploySteps
+	workflowTemplate.RefPlugins = workflowRequest.RefPlugins
 
 	var globalCmCsConfigs []*bean3.GlobalCMCSDto
 	var workflowConfigMaps []bean.ConfigSecretMap
@@ -215,7 +233,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		return "", err
 	}
 
-	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId)
+	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, false)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
 		return "", err
@@ -290,13 +308,26 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.ActiveDeadlineSeconds = &workflowRequest.ActiveDeadlineSeconds
 	workflowTemplate.Namespace = workflowRequest.Namespace
 	if workflowRequest.IsExtRun {
-		workflowTemplate.ClusterConfig = env.Cluster.GetClusterConfig()
+		configMap := env.Cluster.Config
+		bearerToken := configMap[k8s.BearerToken]
+		clusterConfig := &k8s.ClusterConfig{
+			ClusterName:           env.Cluster.ClusterName,
+			BearerToken:           bearerToken,
+			Host:                  env.Cluster.ServerUrl,
+			InsecureSkipTLSVerify: true,
+		}
+		restConfig, err2 := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err2 != nil {
+			impl.Logger.Errorw("error in getting rest config from cluster config", "err", err2, "appId", workflowRequest.AppId)
+			return "", err2
+		}
+		workflowTemplate.ClusterConfig = restConfig
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
 
 	jobHelmChartPath := ""
-	if util2.IsManifestDownload(pipeline.DeploymentAppType) {
+	if workflowRequest.IsDryRun {
 		jobManifestTemplate := &bean3.JobManifestTemplate{
 			NameSpace:               workflowRequest.Namespace,
 			Container:               workflowMainContainer,
@@ -371,12 +402,12 @@ func (impl *CdWorkflowServiceImpl) getConfiguredCmCs(pipeline *pipelineConfig.Pi
 	return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, nil
 }
 
-func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error) {
+func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, restConfig *rest.Config, isExtRun bool) (*v1alpha1.Workflow, error) {
 	impl.Logger.Debugw("getting wf", "name", name)
 	var wfClient v1alpha12.WorkflowInterface
 	var err error
 	if isExtRun {
-		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, clusterConfig)
+		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, restConfig)
 
 	} else {
 		wfClient, err = impl.getClientInstance(namespace)
@@ -446,18 +477,8 @@ func (impl *CdWorkflowServiceImpl) getClientInstance(namespace string) (v1alpha1
 	return wfClient, nil
 }
 
-func (impl *CdWorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, clusterConfig util2.ClusterConfig) (v1alpha12.WorkflowInterface, error) {
-	config := &rest.Config{
-		Host:        clusterConfig.Host,
-		BearerToken: clusterConfig.BearerToken,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: clusterConfig.InsecureSkipTLSVerify,
-			KeyData:  []byte(clusterConfig.KeyData),
-			CAData:   []byte(clusterConfig.CAData),
-			CertData: []byte(clusterConfig.CertData),
-		},
-	}
-	clientSet, err := versioned.NewForConfig(config)
+func (impl *CdWorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, restConfig *rest.Config) (v1alpha12.WorkflowInterface, error) {
+	clientSet, err := versioned.NewForConfig(restConfig)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
@@ -479,19 +500,31 @@ func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobM
 		impl.Logger.Errorw("error in converting to json", "err", err)
 		return builtChartPath, err
 	}
-
 	jobHelmChartPath := path.Join(string(impl.refChartDir), HELM_JOB_REF_TEMPLATE_NAME)
 	builtChartPath, err = impl.chartTemplateService.BuildChart(context.Background(),
 		&chart.Metadata{ApiVersion: JOB_CHART_API_VERSION, Name: JOB_CHART_NAME, Version: JOB_CHART_VERSION},
 		jobHelmChartPath)
 
-	impl.Logger.Debugw(builtChartPath)
-
-	valuesFilePath := path.Join(builtChartPath, "valuesOverride.json")
-	err = ioutil.WriteFile(valuesFilePath, jobManifestJson, 0600)
+	valuesFilePath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
+	defaultValues, err := ioutil.ReadFile(valuesFilePath)
+	if err != nil {
+		return builtChartPath, err
+	}
+	defaultValuesJson, err := yaml.YAMLToJSON(defaultValues)
+	if err != nil {
+		return builtChartPath, err
+	}
+	mergedValues, err := impl.mergeUtil.JsonPatch(defaultValuesJson, jobManifestJson)
+	if err != nil {
+		return builtChartPath, err
+	}
+	mergedValuesYaml, err := yaml.JSONToYAML(mergedValues)
+	if err != nil {
+		return builtChartPath, err
+	}
+	err = ioutil.WriteFile(valuesFilePath, mergedValuesYaml, 0600)
 	if err != nil {
 		return builtChartPath, nil
 	}
-
 	return builtChartPath, nil
 }

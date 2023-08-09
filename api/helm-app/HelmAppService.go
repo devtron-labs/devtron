@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -14,7 +15,6 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
-	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -87,7 +87,7 @@ type HelmAppServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
 	clusterRepository                    clusterRepository.ClusterRepository
-	K8sUtil                              *util.K8sUtil
+	K8sUtil                              *k8s.K8sUtil
 	helmReleaseConfig                    *HelmReleaseConfig
 }
 
@@ -97,7 +97,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
-	clusterRepository clusterRepository.ClusterRepository, K8sUtil *util.K8sUtil,
+	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtil,
 	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
@@ -130,11 +130,6 @@ func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
 	return cfg, err
 }
 
-type ResourceRequestBean struct {
-	AppId      string                     `json:"appId"`
-	K8sRequest application.K8sRequestBean `json:"k8sRequest"`
-}
-
 func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds []int) (ApplicationService_ListApplicationsClient, error) {
 	if len(clusterIds) == 0 {
 		return nil, nil
@@ -150,9 +145,10 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	for _, clusterDetail := range clusters {
 		config := &ClusterConfig{
 			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config[util.BearerToken],
+			Token:        clusterDetail.Config[k8s.BearerToken],
 			ClusterId:    int32(clusterDetail.Id),
 			ClusterName:  clusterDetail.ClusterName,
+			ProxyUrl:     clusterDetail.ProxyUrl,
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
@@ -268,7 +264,7 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 }
 
 func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, error) {
-	cluster, err := impl.clusterService.FindById(clusterId)
+	clusterObj, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
@@ -276,17 +272,18 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 
 	var config ClusterConfig
 	// if virtual cluster run helm template command in default cluster as no real cluster is available in this case
-	if cluster.IsVirtualCluster {
+	if clusterObj.IsVirtualCluster {
 		config = ClusterConfig{
-			ClusterName: DEFAULT_CLUSTER,
+			ClusterName: cluster.DEFAULT_CLUSTER,
 			Token:       "",
 		}
 	} else {
 		config = ClusterConfig{
-			ApiServerUrl: cluster.ServerUrl,
-			Token:        cluster.Config[util.BearerToken],
-			ClusterId:    int32(cluster.Id),
-			ClusterName:  cluster.ClusterName,
+			ApiServerUrl: clusterObj.ServerUrl,
+			Token:        clusterObj.Config[k8s.BearerToken],
+			ClusterId:    int32(clusterObj.Id),
+			ClusterName:  clusterObj.ClusterName,
+			ProxyUrl:     clusterObj.ProxyUrl,
 		}
 	}
 
