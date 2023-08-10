@@ -3339,7 +3339,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
 
 			helmRepositoryConfig := bean4.HelmRepositoryConfig{
-				RepositoryName:        pipeline.RepoName,
+				RepositoryName:        strings.TrimSpace(pipeline.RepoName),
 				ContainerRegistryName: pipeline.ContainerRegistryName,
 			}
 			helmRepositoryConfigBytes, err := json.Marshal(helmRepositoryConfig)
@@ -3362,7 +3362,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 					UpdatedBy: userId,
 				},
 			}
-			existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByStoreId(pipeline.ContainerRegistryName)
+			existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetOneManifestPushConfig(string(helmRepositoryConfigBytes))
 			if err != nil {
 				impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
 				return 0, err
@@ -3532,8 +3532,17 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
 			//implement
 		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
-			if !strings.Contains(manifestPushConfig.CredentialsConfig, "\"ContainerRegistryName\":\""+pipeline.ContainerRegistryName+"\"}") {
-				existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByStoreId(pipeline.ContainerRegistryName)
+			existingHelmRepositoryConfig := bean4.HelmRepositoryConfig{
+				RepositoryName:        strings.TrimSpace(pipeline.RepoName),
+				ContainerRegistryName: pipeline.ContainerRegistryName,
+			}
+			existingHelmRepositoryConfigBytes, err := json.Marshal(existingHelmRepositoryConfig)
+			if err != nil {
+				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
+				return err
+			}
+			if !strings.Contains(manifestPushConfig.CredentialsConfig, string(existingHelmRepositoryConfigBytes)) {
+				existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetOneManifestPushConfig(pipeline.ContainerRegistryName)
 				if err != nil {
 					impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
 					return err
@@ -3562,7 +3571,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 				}
 			}
 			helmRepositoryConfig := bean4.HelmRepositoryConfig{
-				RepositoryName:        pipeline.RepoName,
+				RepositoryName:        strings.TrimSpace(pipeline.RepoName),
 				ContainerRegistryName: pipeline.ContainerRegistryName,
 			}
 			helmRepositoryConfigBytes, err := json.Marshal(helmRepositoryConfig)
