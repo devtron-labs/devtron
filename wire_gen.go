@@ -25,6 +25,7 @@ import (
 	client3 "github.com/devtron-labs/devtron/api/helm-app"
 	application3 "github.com/devtron-labs/devtron/api/k8s/application"
 	capacity2 "github.com/devtron-labs/devtron/api/k8s/capacity"
+	"github.com/devtron-labs/devtron/api/logger"
 	module2 "github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	app3 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -480,7 +481,8 @@ func InitializeApp() (*App, error) {
 	deployedConfigurationHistoryServiceImpl := history.NewDeployedConfigurationHistoryServiceImpl(sugaredLogger, userServiceImpl, deploymentTemplateHistoryServiceImpl, pipelineStrategyHistoryServiceImpl, configMapHistoryServiceImpl, cdWorkflowRepositoryImpl)
 	pipelineHistoryRestHandlerImpl := restHandler.NewPipelineHistoryRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, pipelineStrategyHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, enforcerUtilImpl, deployedConfigurationHistoryServiceImpl)
 	pipelineStatusTimelineRestHandlerImpl := restHandler.NewPipelineStatusTimelineRestHandlerImpl(sugaredLogger, pipelineStatusTimelineServiceImpl, enforcerUtilImpl, enforcerImpl)
-	pipelineConfigRouterImpl := router.NewPipelineRouterImpl(pipelineConfigRestHandlerImpl, appWorkflowRestHandlerImpl, webhookDataRestHandlerImpl, pipelineHistoryRestHandlerImpl, pipelineStatusTimelineRestHandlerImpl)
+	userAuthImpl := logger.NewUserAuthImpl(userServiceImpl)
+	pipelineConfigRouterImpl := router.NewPipelineRouterImpl(pipelineConfigRestHandlerImpl, appWorkflowRestHandlerImpl, webhookDataRestHandlerImpl, pipelineHistoryRestHandlerImpl, pipelineStatusTimelineRestHandlerImpl, userAuthImpl)
 	dbConfigRepositoryImpl := repository.NewDbConfigRepositoryImpl(db, sugaredLogger)
 	dbConfigServiceImpl := pipeline.NewDbConfigService(dbConfigRepositoryImpl, sugaredLogger)
 	migrateDbRestHandlerImpl := restHandler.NewMigrateDbRestHandlerImpl(dockerRegistryConfigImpl, sugaredLogger, gitRegistryConfigImpl, dbConfigServiceImpl, userServiceImpl, validate, dbMigrationServiceImpl, enforcerImpl)

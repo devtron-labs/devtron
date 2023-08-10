@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/k8s"
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -213,6 +214,8 @@ func InitializeApp() (*App, error) {
 		pipeline.GetDeploymentServiceTypeConfig,
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
+		logger.NewUserAuthImpl,
+		wire.Bind(new(logger.UserAuth), new(*logger.UserAuthImpl)),
 		pipeline2.NewPipelineRestHandlerImpl,
 		wire.Bind(new(pipeline2.PipelineConfigRestHandler), new(*pipeline2.PipelineConfigRestHandlerImpl)),
 		router.NewPipelineRouterImpl,
