@@ -54,6 +54,8 @@ spec:
     app: {{ template ".Chart.Name .name" . }}
 {{- end }}
 ---
+{{- if .Values.service-headless.enabled }}
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -108,3 +110,4 @@ spec:
       - {{ . }}
  {{- end }}
 {{- end }}
+{{- end}}
