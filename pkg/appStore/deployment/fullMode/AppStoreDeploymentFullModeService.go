@@ -197,7 +197,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		UserName:       userName,
 	}
 	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfig)
+	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfig, 0)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, nil, err
@@ -242,7 +242,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		UserName:       userName,
 	}
 
-	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfig)
+	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfig, 0)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		//update timeline status for git commit failed state
@@ -405,7 +405,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVer
 		impl.logger.Errorw("error in getting git commit config", "err", err)
 	}
 
-	commitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
+	commitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig, 0)
 	if err != nil {
 		impl.logger.Errorw("error in values commit", "err", err)
 	}
@@ -469,7 +469,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 		return err
 	}
 
-	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig)
+	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig, 0)
 	if err != nil {
 		impl.logger.Errorw("error in values commit", "err", err)
 		return err

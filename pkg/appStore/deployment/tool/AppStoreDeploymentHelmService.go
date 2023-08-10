@@ -285,7 +285,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateRequirementDependencies(ins
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return err
 	}
-	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig)
+	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig, 0)
 	if err != nil {
 		impl.Logger.Errorw("error in committing config to git for helm app", "err", err)
 		return err
@@ -310,7 +310,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateValuesDependencies(installA
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return err
 	}
-	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
+	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig, 0)
 	if err != nil {
 		impl.Logger.Errorw("error in committing config to git for helm app", "err", err)
 		return err

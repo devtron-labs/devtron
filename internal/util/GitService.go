@@ -53,7 +53,7 @@ const (
 
 type GitClient interface {
 	CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
+	CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto, timeout int) (commitHash string, commitTime time.Time, err error)
 	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)
 	DeleteRepository(config *bean2.GitOpsConfigDto) error
 	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)

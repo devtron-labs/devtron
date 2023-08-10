@@ -138,14 +138,14 @@ func (impl GitAzureClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, 
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg, config)
+	hash, _, err := impl.CommitValues(cfg, config, 0)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitAzureClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitAzureClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto, timeout int) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	branchfull := "refs/heads/master"
 	path := filepath.Join(config.ChartLocation, config.FileName)

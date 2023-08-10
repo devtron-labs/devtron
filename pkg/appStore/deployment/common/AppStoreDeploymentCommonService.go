@@ -50,7 +50,7 @@ type AppStoreDeploymentCommonService interface {
 	GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error)
 	CreateChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error)
 	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string) (*util.ChartGitAttribute, error)
-	CommitConfigToGit(chartConfig *util.ChartConfig) (gitHash string, err error)
+	CommitConfigToGit(chartConfig *util.ChartConfig, timeout int) (gitHash string, err error)
 	GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error)
 	GetValuesString(chartName, valuesOverrideYaml string) (string, error)
 	GetRequirementsString(appStoreVersionId int) (string, error)
@@ -489,7 +489,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(ins
 }
 
 // CommitConfigToGit is used for committing values.yaml and requirements.yaml file config
-func (impl AppStoreDeploymentCommonServiceImpl) CommitConfigToGit(chartConfig *util.ChartConfig) (string, error) {
+func (impl AppStoreDeploymentCommonServiceImpl) CommitConfigToGit(chartConfig *util.ChartConfig, timeout int) (string, error) {
 	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -499,7 +499,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CommitConfigToGit(chartConfig *u
 		}
 	}
 	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-	gitHash, _, err := impl.gitFactory.Client.CommitValues(chartConfig, gitOpsConfig)
+	gitHash, _, err := impl.gitFactory.Client.CommitValues(chartConfig, gitOpsConfig, timeout)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return "", err
@@ -515,7 +515,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GitOpsOperations(manifestRespons
 		return appStoreGitOpsResponse, err
 	}
 	// step-2 commit dependencies and values in git
-	_, err = impl.CommitConfigToGit(manifestResponse.RequirementsConfig)
+	_, err = impl.CommitConfigToGit(manifestResponse.RequirementsConfig, installAppVersionRequest.TestingTimeout)
 	if err != nil {
 		impl.logger.Errorw("error in committing dependency config to git", "err", err)
 		return appStoreGitOpsResponse, err
@@ -528,7 +528,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GitOpsOperations(manifestRespons
 		impl.logger.Errorw("error in git pull", "err", err)
 		return appStoreGitOpsResponse, err
 	}
-	githash, err := impl.CommitConfigToGit(manifestResponse.ValuesConfig)
+	githash, err := impl.CommitConfigToGit(manifestResponse.ValuesConfig, installAppVersionRequest.TestingTimeout)
 	if err != nil {
 		impl.logger.Errorw("error in committing values config to git", "err", err)
 		return appStoreGitOpsResponse, err

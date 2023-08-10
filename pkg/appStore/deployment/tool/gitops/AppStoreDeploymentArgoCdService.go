@@ -515,7 +515,7 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(i
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return err
 	}
-	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig)
+	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig, 0)
 	if err != nil {
 		impl.Logger.Errorw("error in committing config to git for helm app", "err", err)
 		return err
@@ -609,7 +609,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return nil, err
 	}
-	gitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
+	gitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig, 0)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)

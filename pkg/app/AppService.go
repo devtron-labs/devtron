@@ -2405,7 +2405,7 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 		}
 		gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "gitFactory.Client.CommitValues")
-		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig, 0)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in git commit", "err", err)

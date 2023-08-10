@@ -148,19 +148,19 @@ func (impl GitHubClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, er
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg, config)
+	hash, _, err := impl.CommitValues(cfg, config, 0)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto, timeout int) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
 	newFile := false
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Duration(timeout) * time.Millisecond)
 	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
 	impl.logger.Infow("file contents in git service ", "fc", fc)
 	if err != nil {
