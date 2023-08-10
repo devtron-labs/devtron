@@ -1207,7 +1207,7 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 		return resp, false
 	}
 	responseTree := resp
-	isDeploymentAppHibernating := true
+	allNodesHibernated := true
 	for _, node := range responseTree["nodes"].(interface{}).([]interface{}) {
 		currNode := node.(interface{}).(map[string]interface{})
 		resName := util3.InterfaceToString(currNode["name"])
@@ -1249,7 +1249,10 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 					}
 				}
 				if replicas != nil {
-					isDeploymentAppHibernating = currNode["canBeHibernated"].(bool) && hibernated
+					isNodeHibernated := currNode["canBeHibernated"].(bool) && hibernated
+					if !isNodeHibernated {
+						allNodesHibernated = false
+					}
 				}
 
 			}
@@ -1257,7 +1260,7 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 		}
 		node = currNode
 	}
-	return responseTree, isDeploymentAppHibernating
+	return responseTree, allNodesHibernated
 }
 
 func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error) {
