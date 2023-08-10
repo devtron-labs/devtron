@@ -1305,6 +1305,12 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	}
 	// TODO: using this resp.Status to update in app_status table
 	resourceTree = util3.InterfaceToMapAdapter(resp)
+	resourceTree, status := impl.checkHibernate(resourceTree, deploymentAppName, ctx)
+	if resourceTree != nil {
+		if status {
+			resourceTree["status"] = appStatus.HealthStatusHibernating
+		}
+	}
 	go func() {
 		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
 		if err != nil {
@@ -1312,11 +1318,5 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 		}
 	}()
 	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	resourceTree, status := impl.checkHibernate(resourceTree, deploymentAppName, ctx)
-	if resourceTree != nil {
-		if status {
-			resourceTree["status"] = appStatus.HealthStatusHibernating
-		}
-	}
 	return resourceTree, err
 }
