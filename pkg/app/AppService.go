@@ -196,7 +196,7 @@ type AppService interface {
 	GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
-	PushPrePostCDManifest(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string, ctx context.Context) error
+	PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error
 }
 
 func NewAppService(
@@ -3186,9 +3186,9 @@ func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
 	return impl.globalEnvVariables.GitOpsRepoPrefix
 }
 
-func (impl *AppServiceImpl) PushPrePostCDManifest(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string, ctx context.Context) error {
+func (impl *AppServiceImpl) PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error {
 
-	manifestPushTemplate, err := impl.BuildManifestPushTemplateForPrePostCd(pipeline, cdWorklowRunnerId, triggeredBy, manifest, deployType)
+	manifestPushTemplate, err := impl.BuildManifestPushTemplateForPrePostCd(pipeline, cdWorklowRunnerId, triggeredBy, manifest, deployType, imageTag)
 	if err != nil {
 		impl.logger.Errorw("error in building manifest push template for pre post cd")
 		return err
@@ -3203,7 +3203,7 @@ func (impl *AppServiceImpl) PushPrePostCDManifest(pipeline *pipelineConfig.Pipel
 	return nil
 }
 
-func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string) (*bean3.ManifestPushTemplate, error) {
+func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string, imageTag string) (*bean3.ManifestPushTemplate, error) {
 
 	manifestPushTemplate := &bean3.ManifestPushTemplate{
 		WorkflowRunnerId:      cdWorklowRunnerId,
@@ -3212,7 +3212,7 @@ func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipe
 		UserId:                triggeredBy,
 		AppName:               pipeline.App.AppName,
 		TargetEnvironmentName: pipeline.Environment.Id,
-		ChartVersion:          fmt.Sprintf("%d.%d.%d-%s", 1, 1, cdWorklowRunnerId, deployType),
+		ChartVersion:          fmt.Sprintf("%d.%d.%d-%s-%s", 1, 1, cdWorklowRunnerId, deployType, imageTag),
 		BuiltChartBytes:       manifest,
 	}
 
