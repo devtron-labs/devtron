@@ -171,7 +171,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	if impl.ciConfig != nil && impl.ciConfig.BuildxK8sDriverNodes != "" {
+	if impl.ciConfig != nil && impl.ciConfig.UseBuildx && impl.ciConfig.BuildxK8sDriverNodes != "" {
 		impl.setBuildxK8sDriverData(workflowRequest)
 	}
 
