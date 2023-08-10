@@ -338,7 +338,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			TTLSecondsAfterFinished: workflowTemplate.TTLValue,
 			ActiveDeadlineSeconds:   workflowTemplate.ActiveDeadlineSeconds,
 		}
-		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, pipeline, env)
+		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, workflowRequest.StageType)
 	} else {
 		workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 		if workflowExecutor == nil {
@@ -493,8 +493,15 @@ func (impl *CdWorkflowServiceImpl) checkErr(err error) {
 	}
 }
 
-func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (builtChartPath string, err error) {
+func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, stageType string) (builtChartPath string, err error) {
 
+	// making secret name unique for pre and post cd
+	for _, configMap := range jobManifestTemplate.ConfigMaps {
+		configMap.Name = fmt.Sprintf("%s-%s", configMap.Name, stageType)
+	}
+	for _, secret := range jobManifestTemplate.ConfigSecrets {
+		secret.Name = fmt.Sprintf("%s-%s", secret.Name, stageType)
+	}
 	jobManifestJson, err := json.Marshal(jobManifestTemplate)
 	if err != nil {
 		impl.Logger.Errorw("error in converting to json", "err", err)

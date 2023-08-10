@@ -545,7 +545,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	span.End()
-
+	if err != nil {
+		return err
+	}
 	if util.IsManifestDownload(pipeline.DeploymentAppType) || util.IsManifestPush(pipeline.DeploymentAppType) {
 		if pipeline.App.Id == 0 {
 			appDbObject, err := impl.appRepository.FindById(pipeline.AppId)
@@ -570,7 +572,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			return err
 		}
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
-			err = impl.appService.PushPrePostCDManifest(pipeline, runner.Id, triggeredBy, &chartBytes, PRE, ctx)
+			err = impl.appService.PushPrePostCDManifest(runner.Id, triggeredBy, &chartBytes, PRE, pipeline, imageTag, ctx)
 			if err != nil {
 				runner.Status = pipelineConfig.WorkflowFailed
 				runner.UpdatedBy = triggeredBy
@@ -708,7 +710,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			return err
 		}
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
-			err = impl.appService.PushPrePostCDManifest(pipeline, runner.Id, triggeredBy, &chartBytes, POST, context.Background())
+			err = impl.appService.PushPrePostCDManifest(runner.Id, triggeredBy, &chartBytes, POST, pipeline, imageTag, context.Background())
 			runner.Status = pipelineConfig.WorkflowFailed
 			runner.UpdatedBy = triggeredBy
 			runner.UpdatedOn = triggeredAt
