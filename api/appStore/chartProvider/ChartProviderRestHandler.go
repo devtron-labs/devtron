@@ -61,14 +61,7 @@ func (handler *ChartProviderRestHandlerImpl) GetChartProviderList(w http.Respons
 		return
 	}
 	handler.Logger.Infow("request payload, GetChartProviderList", "userId", userId)
-	token := r.Header.Get("token")
-	//RBAC starts
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-		handler.Logger.Infow("user forbidden to fetch chart providers list", "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC ends
+
 	res, err := handler.chartProviderService.GetChartProviderList()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartProviderList", "err", err, "userId", userId)
