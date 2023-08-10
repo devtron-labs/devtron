@@ -171,7 +171,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	if impl.ciConfig != nil && impl.ciConfig.UseBuildxK8sDriver {
+	if impl.ciConfig != nil && impl.ciConfig.BuildxK8sDriverNodes != "" {
 		impl.setBuildxK8sDriverData(workflowRequest)
 	}
 
@@ -201,7 +201,7 @@ func (impl *CiServiceImpl) setBuildxK8sDriverData(workflowRequest *WorkflowReque
 	if ciBuildConfig != nil {
 		dockerBuildConfig := ciBuildConfig.DockerBuildConfig
 		if dockerBuildConfig != nil {
-			dockerBuildConfig.UseBuildxK8sDriver = impl.ciConfig.UseBuildxK8sDriver
+			dockerBuildConfig.UseBuildxK8sDriver = true
 			buildxK8sDriverOptions := make([]bean2.BuildxK8sDriverOptions, 0)
 			for _, nodeName := range strings.Split(impl.ciConfig.BuildxK8sDriverNodes, ",") {
 				buildxK8sDriverOptions = append(buildxK8sDriverOptions, bean2.BuildxK8sDriverOptions{

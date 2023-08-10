@@ -85,8 +85,7 @@ type CiConfig struct {
 	OrchestratorHost                 string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
 	OrchestratorToken                string `env:"ORCH_TOKEN" envDefault:""`
 	BuildXK8sDriverNamespace         string `env:"BUILDX_K8S_DRIVER_NAMESPACE" envDefault:"devtron-ci"`
-	BuildxK8sDriverNodes             string `env:"BUILDX_K8S_DRIVER_NODES"`
-	UseBuildxK8sDriver               bool   `env:"USE_BUILDX_K8S_DRIVER" envDefault:"false"`
+	BuildxK8sDriverNodes             string `env:"BUILDX_K8S_DRIVER_NODES" envDefault:""`
 }
 
 type CiVolumeMount struct {
