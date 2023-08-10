@@ -1,1 +1,1 @@
-beta 0 v0.6.20-rc.0
+stable 0 v0.6.19
