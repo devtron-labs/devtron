@@ -1207,7 +1207,8 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 		return resp, false
 	}
 	responseTree := resp
-	allNodesHibernated := true
+	canBeHibernated := 0
+	hibernated := 0
 	for _, node := range responseTree["nodes"].(interface{}).([]interface{}) {
 		currNode := node.(interface{}).(map[string]interface{})
 		resName := util3.InterfaceToString(currNode["name"])
@@ -1236,30 +1237,24 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 				replicas := util3.InterfaceToMapAdapter(manifest["spec"])["replicas"]
 				if replicas != nil {
 					currNode["canBeHibernated"] = true
+					canBeHibernated++
 				}
-				hibernated := false
 				annotations := util3.InterfaceToMapAdapter(manifest["metadata"])["annotations"]
 				if annotations != nil {
 					val := util3.InterfaceToMapAdapter(annotations)["hibernator.devtron.ai/replicas"]
 					if val != nil {
 						if util3.InterfaceToString(val) != "0" && util3.InterfaceToFloat(replicas) == 0 {
 							currNode["isHibernated"] = true
-							hibernated = true
+							hibernated++
 						}
 					}
 				}
-				if replicas != nil {
-					isNodeHibernated := currNode["canBeHibernated"].(bool) && hibernated
-					if !isNodeHibernated {
-						allNodesHibernated = false
-					}
-				}
-
 			}
 
 		}
 		node = currNode
 	}
+	allNodesHibernated := hibernated > 0 && canBeHibernated > 0 && (hibernated == canBeHibernated)
 	return responseTree, allNodesHibernated
 }
 
