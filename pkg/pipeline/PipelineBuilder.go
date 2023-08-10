@@ -3369,7 +3369,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			}
 
 			if existingManifestPushConfig.Id != 0 {
-				err = fmt.Errorf("container registry has already been configured")
+				err = fmt.Errorf("repository name \"%s\" is already in use for this container registry", helmRepositoryConfig.RepositoryName)
 				impl.logger.Errorw("error in saving manifest push config in db", "err", err)
 				return 0, err
 			}
@@ -3549,7 +3549,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 				}
 
 				if existingManifestPushConfig.Id != 0 {
-					err = fmt.Errorf("container registry has already been configured")
+					err = fmt.Errorf("repository name \"%s\" is already in use for this container registry", existingHelmRepositoryConfig.RepositoryName)
 					impl.logger.Errorw("error in saving manifest push config in db", "err", err)
 					return err
 				}
