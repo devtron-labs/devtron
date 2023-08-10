@@ -13,7 +13,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/k8s/application"
 	"github.com/devtron-labs/devtron/api/k8s/capacity"
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router"
@@ -159,7 +158,6 @@ func (r *MuxRouter) Init() {
 		_, _ = writer.Write(b)
 	})
 	ssoLoginRouter := baseRouter.PathPrefix("/sso").Subrouter()
-	ssoLoginRouter.Use(logger.LoggingMiddleware)
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 	teamRouter := baseRouter.PathPrefix("/team").Subrouter()
 	r.teamRouter.InitTeamRouter(teamRouter)
