@@ -545,7 +545,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	span.End()
-
+	if err != nil {
+		return err
+	}
 	if util.IsManifestDownload(pipeline.DeploymentAppType) || util.IsManifestPush(pipeline.DeploymentAppType) {
 		if pipeline.App.Id == 0 {
 			appDbObject, err := impl.appRepository.FindById(pipeline.AppId)
