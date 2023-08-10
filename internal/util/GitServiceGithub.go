@@ -160,7 +160,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
 	newFile := false
-	time.Sleep(5000)
+	time.Sleep(5 * time.Second)
 	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
 	impl.logger.Infow("file contents in git service ", "fc", fc)
 	if err != nil {
