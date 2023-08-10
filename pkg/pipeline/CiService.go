@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -171,8 +172,12 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	if impl.ciConfig != nil && impl.ciConfig.UseBuildx && impl.ciConfig.BuildxK8sDriverNodes != "" {
-		impl.setBuildxK8sDriverData(workflowRequest)
+	if impl.ciConfig != nil && impl.ciConfig.UseBuildx && impl.ciConfig.BuildxK8sDriverOptions != "" {
+		err = impl.setBuildxK8sDriverData(workflowRequest)
+		if err != nil {
+			impl.Logger.Errorw("error in setBuildxK8sDriverData", "BUILDX_K8S_DRIVER_OPTIONS", impl.ciConfig.BuildxK8sDriverOptions, "err", err)
+			return 0, err
+		}
 	}
 
 	//savedCiWf.LogLocation = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix + "/main.log"
@@ -196,22 +201,23 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	return savedCiWf.Id, err
 }
 
-func (impl *CiServiceImpl) setBuildxK8sDriverData(workflowRequest *WorkflowRequest) {
+func (impl *CiServiceImpl) setBuildxK8sDriverData(workflowRequest *WorkflowRequest) error {
 	ciBuildConfig := workflowRequest.CiBuildConfig
 	if ciBuildConfig != nil {
-		dockerBuildConfig := ciBuildConfig.DockerBuildConfig
-		if dockerBuildConfig != nil {
-			dockerBuildConfig.UseBuildxK8sDriver = true
-			buildxK8sDriverOptions := make([]bean2.BuildxK8sDriverOptions, 0)
-			for _, nodeName := range strings.Split(impl.ciConfig.BuildxK8sDriverNodes, ",") {
-				buildxK8sDriverOptions = append(buildxK8sDriverOptions, bean2.BuildxK8sDriverOptions{
-					DeploymentName: nodeName,
-					Namespace:      impl.ciConfig.BuildXK8sDriverNamespace,
-				})
+		if dockerBuildConfig := ciBuildConfig.DockerBuildConfig; dockerBuildConfig != nil {
+			buildxK8sDriverOptions := make([]map[string]string, 0)
+			err := json.Unmarshal([]byte(impl.ciConfig.BuildxK8sDriverOptions), &buildxK8sDriverOptions)
+			if err != nil {
+				errMsg := "error in parsing BUILDX_K8S_DRIVER_OPTIONS from the devtron-cm, "
+				err = errors.New(errMsg + "error : " + err.Error())
+				impl.Logger.Errorw(errMsg, "err", err)
+				return err
+			} else {
+				dockerBuildConfig.BuildxK8sDriverOptions = buildxK8sDriverOptions
 			}
-			dockerBuildConfig.BuildxK8sDriverOptions = buildxK8sDriverOptions
 		}
 	}
+	return nil
 }
 
 func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger Trigger) (*repository1.Environment, bool, error) {

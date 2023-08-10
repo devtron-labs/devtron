@@ -28,24 +28,16 @@ type CiBuildConfigBean struct {
 }
 
 type DockerBuildConfig struct {
-	DockerfilePath         string                   `json:"dockerfileRelativePath,omitempty"`
-	DockerfileContent      string                   `json:"dockerfileContent"`
-	Args                   map[string]string        `json:"args,omitempty"`
-	TargetPlatform         string                   `json:"targetPlatform,omitempty"`
-	Language               string                   `json:"language,omitempty"`
-	LanguageFramework      string                   `json:"languageFramework,omitempty"`
-	DockerBuildOptions     map[string]string        `json:"dockerBuildOptions,omitempty"`
-	BuildContext           string                   `json:"buildContext,omitempty"`
-	UseBuildx              bool                     `json:"useBuildx"`
-	UseBuildxK8sDriver     bool                     `json:"useBuildxK8sDriver,omitempty"`
-	BuildxK8sDriverOptions []BuildxK8sDriverOptions `json:"buildxK8SDriverOptions,omitempty"`
-}
-
-type BuildxK8sDriverOptions struct {
-	DeploymentName string `json:"deploymentName"` //this is node name in docker buildx create command
-	Namespace      string `json:"namespace"`
-	NodeSelector   string `json:"nodeSelector"`
-	//add other k8s driver options https://docs.docker.com/engine/reference/commandline/buildx_create/
+	DockerfilePath         string              `json:"dockerfileRelativePath,omitempty"`
+	DockerfileContent      string              `json:"dockerfileContent"`
+	Args                   map[string]string   `json:"args,omitempty"`
+	TargetPlatform         string              `json:"targetPlatform,omitempty"`
+	Language               string              `json:"language,omitempty"`
+	LanguageFramework      string              `json:"languageFramework,omitempty"`
+	DockerBuildOptions     map[string]string   `json:"dockerBuildOptions,omitempty"`
+	BuildContext           string              `json:"buildContext,omitempty"`
+	UseBuildx              bool                `json:"useBuildx"`
+	BuildxK8sDriverOptions []map[string]string `json:"buildxK8SDriverOptions,omitempty"`
 }
 
 type BuildPackConfig struct {
