@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.20-rc.0"
+  release: "v0.6.20"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
@@ -23,7 +23,7 @@ components:
         ENABLE_RESTART_WORKLOAD: "true"
   devtron:
     image: "quay.io/devtron/hyperion:a5eb8d31-280-14582"
-    cicdImage: "quay.io/devtron/devtron:3241b0f7-434-14715"
+    cicdImage: "quay.io/devtron/devtron:d9cd8bf5-434-14746"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:183b7979-138-14689"
   argocdDexServer:
@@ -51,10 +51,10 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "3241b0f79ca37e5eef0d2332f9aeff66e25056b0"
+        GIT_HASH: "d9cd8bf5305f64bbee8b9235bb0f24bef383967d"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "3241b0f79ca37e5eef0d2332f9aeff66e25056b0"
+        GIT_HASH: "d9cd8bf5305f64bbee8b9235bb0f24bef383967d"
         
 argo-cd:
   global:
