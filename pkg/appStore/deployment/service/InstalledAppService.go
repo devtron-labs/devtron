@@ -1305,9 +1305,9 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	}
 	// TODO: using this resp.Status to update in app_status table
 	resourceTree = util3.InterfaceToMapAdapter(resp)
-	resourceTree, status := impl.checkHibernate(resourceTree, deploymentAppName, ctx)
+	resourceTree, isHibernation := impl.checkHibernate(resourceTree, deploymentAppName, ctx)
 	if resourceTree != nil {
-		if status {
+		if isHibernation {
 			resourceTree["status"] = appStatus.HealthStatusHibernating
 		}
 	}
