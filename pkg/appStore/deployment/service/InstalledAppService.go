@@ -77,10 +77,8 @@ import (
 )
 
 const (
-	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT        = "devtron"
-	CLUSTER_COMPONENT_DIR_PATH                         = "/cluster/component"
-	HealthStatusHibernating                     string = "Hibernated"
-	HealthStatusPartiallyHibernated             string = "Partially Hibernated"
+	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
+	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
 )
 
 type InstalledAppService interface {
@@ -1259,9 +1257,9 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 	status := ""
 	if hibernated > 0 && canBeHibernated > 0 {
 		if hibernated == canBeHibernated {
-			status = HealthStatusHibernating
+			status = appStatus.HealthStatusHibernating
 		} else if hibernated < canBeHibernated {
-			status = HealthStatusPartiallyHibernated
+			status = appStatus.HealthStatusPartiallyHibernated
 		}
 	}
 
