@@ -118,6 +118,7 @@ message ResourceNode {
   bool canBeHibernated = 12;
   repeated InfoItem info = 13;
   string createdAt = 14;
+  repeated int64 port = 15;
 }
 
 message InfoItem {
