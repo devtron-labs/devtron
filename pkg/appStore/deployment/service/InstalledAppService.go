@@ -77,8 +77,10 @@ import (
 )
 
 const (
-	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
-	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT        = "devtron"
+	CLUSTER_COMPONENT_DIR_PATH                         = "/cluster/component"
+	HealthStatusHibernating                     string = "Hibernated"
+	HealthStatusPartiallyHibernated             string = "Partially Hibernated"
 )
 
 type InstalledAppService interface {
@@ -1201,10 +1203,10 @@ func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx co
 	appDetail.ResourceTree, _ = impl.checkHibernate(appDetail.ResourceTree, deploymentAppName, ctx)
 	return *appDetail
 }
-func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, deploymentAppName string, ctx context.Context) (map[string]interface{}, bool) {
+func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, deploymentAppName string, ctx context.Context) (map[string]interface{}, string) {
 
 	if resp == nil {
-		return resp, false
+		return resp, ""
 	}
 	responseTree := resp
 	canBeHibernated := 0
@@ -1254,8 +1256,16 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 		}
 		node = currNode
 	}
-	allNodesHibernated := hibernated > 0 && canBeHibernated > 0 && (hibernated == canBeHibernated)
-	return responseTree, allNodesHibernated
+	status := ""
+	if hibernated > 0 && canBeHibernated > 0 {
+		if hibernated == canBeHibernated {
+			status = HealthStatusHibernating
+		} else if hibernated < canBeHibernated {
+			status = HealthStatusPartiallyHibernated
+		}
+	}
+
+	return responseTree, status
 }
 
 func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error) {
@@ -1305,10 +1315,10 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	}
 	// TODO: using this resp.Status to update in app_status table
 	resourceTree = util3.InterfaceToMapAdapter(resp)
-	resourceTree, isHibernation := impl.checkHibernate(resourceTree, deploymentAppName, ctx)
+	resourceTree, hibernationStatus := impl.checkHibernate(resourceTree, deploymentAppName, ctx)
 	if resourceTree != nil {
-		if isHibernation {
-			resourceTree["status"] = appStatus.HealthStatusHibernating
+		if hibernationStatus != "" {
+			resourceTree["status"] = hibernationStatus
 		}
 	}
 	go func() {
