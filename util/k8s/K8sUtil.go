@@ -696,7 +696,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				if namespaced && index == 1 {
 					headers = append(headers, K8sClusterResourceNamespaceKey)
 				}
-				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") {
+				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") || (kind == "Pod") {
 					columnIndexes[index] = columnName
 					headers = append(headers, columnName)
 				}
@@ -881,7 +881,7 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 
 func (impl K8sUtil) GetCoreV1ClientInCluster() (*v12.CoreV1Client, error) {
 	restConfig := &rest.Config{}
-	restConfig, err := rest.InClusterConfig()
+	restConfig, err := impl.GetK8sInClusterRestConfig()
 	if err != nil {
 		impl.logger.Error("Error in creating config for default cluster", "err", err)
 		return nil, err
