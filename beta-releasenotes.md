@@ -1,4 +1,5 @@
 ## Bugs
+- fix:  app status fix for helm apps which are deployed via acd (#3746)
 - fix: Showing port number instead of string port_number. (#3729)
 - fix:migration script issue  (#3750)
 - fix: resource tree error handling miss (#3704)
