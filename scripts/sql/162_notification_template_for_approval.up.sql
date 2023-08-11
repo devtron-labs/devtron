@@ -1,6 +1,3 @@
-ALTER TABLE ONLY public.notifier_event_log DROP CONSTRAINT notifier_event_log_event_type_id_fkey;
-ALTER TABLE ONLY public.notifier_event_log
-    ADD CONSTRAINT notifier_event_log_event_type_id_fkey FOREIGN KEY (event_type_id) REFERENCES public.event(id) ;
 INSERT INTO public.event (id, event_type, description) VALUES (4, 'APPROVAL', '');
 INSERT INTO "public"."notification_templates" (channel_type, node_type, event_type_id, template_name, template_payload)
 VALUES ('smtp', 'CD', 4, 'CD approval smtp template', '{"from": "{{fromEmail}}",
