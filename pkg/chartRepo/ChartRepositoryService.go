@@ -70,7 +70,7 @@ type ChartRepositoryService interface {
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error)
 	GetChartRepoListMin() ([]*ChartRepoDto, error)
-	CheckDeploymentCount(request *ChartRepoDto) (int, error)
+	ValidateDeploymentCount(request *ChartRepoDto) error
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
@@ -212,16 +212,17 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) CheckDeploymentCount(request *ChartRepoDto) (int, error) {
+func (impl *ChartRepositoryServiceImpl) ValidateDeploymentCount(request *ChartRepoDto) error {
 	activeDeploymentCount, err := impl.repoRepository.FindDeploymentCountByChartRepoId(request.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment count, CheckDeploymentCount", "err", err, "payload", request)
-		return activeDeploymentCount, err
+		return err
 	}
 	if activeDeploymentCount > 0 {
-		return activeDeploymentCount, errors.New("chart already in use")
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update, found charts deployed using this repo"}
+		return err
 	}
-	return activeDeploymentCount, err
+	return err
 }
 
 func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
