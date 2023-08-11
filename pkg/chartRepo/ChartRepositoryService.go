@@ -70,6 +70,7 @@ type ChartRepositoryService interface {
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error)
 	GetChartRepoListMin() ([]*ChartRepoDto, error)
+	CheckDeploymentCount(request *ChartRepoDto) (int, error)
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
@@ -209,6 +210,18 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	}
 
 	return chartRepo, nil
+}
+
+func (impl *ChartRepositoryServiceImpl) CheckDeploymentCount(request *ChartRepoDto) (int, error) {
+	activeDeploymentCount, err := impl.repoRepository.FindDeploymentCountByChartRepoId(request.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment count, CheckDeploymentCount", "err", err, "payload", request)
+		return activeDeploymentCount, err
+	}
+	if activeDeploymentCount > 0 {
+		return activeDeploymentCount, errors.New("chart already in use")
+	}
+	return activeDeploymentCount, err
 }
 
 func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {

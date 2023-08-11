@@ -213,7 +213,17 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	activeDeployment, err := handler.chartRepositoryService.CheckDeploymentCount(request)
+	if err != nil {
+		if activeDeployment > 0 {
+			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update, found charts deployed using this repo", InternalMessage: err.Error()}
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		handler.Logger.Errorw("error updating, UpdateChartRepo", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)

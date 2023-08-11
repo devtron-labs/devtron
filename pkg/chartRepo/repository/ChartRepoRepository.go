@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"strconv"
 )
 
 type ChartRepoFields struct {
@@ -56,6 +57,7 @@ type ChartRepoRepository interface {
 	FindById(id int) (*ChartRepo, error)
 	FindAll() ([]*ChartRepo, error)
 	FindAllWithDeploymentCount() ([]*ChartRepoWithDeploymentCount, error)
+	FindDeploymentCountByChartRepoId(chartId int) (int, error)
 	GetConnection() *pg.DB
 	MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error
 	FindByName(name string) (*ChartRepo, error)
@@ -121,6 +123,22 @@ func (impl ChartRepoRepositoryImpl) FindAllWithDeploymentCount() ([]*ChartRepoWi
 		" where chart_repo.deleted = false Group by chart_repo.id;"
 	_, err := impl.dbConnection.Query(&repo, query)
 	return repo, err
+}
+
+func (impl ChartRepoRepositoryImpl) FindDeploymentCountByChartRepoId(chartId int) (int, error) {
+	var activeDeploymentCount int
+	query := "select count(jq.ia_id ) as deployment_count" +
+		" from chart_repo left join" +
+		" (select aps.chart_repo_id as cr_id ,ia.id as ia_id from installed_app_versions iav" +
+		" inner join installed_apps ia on iav.installed_app_id = ia.id" +
+		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id" +
+		" inner join app_store aps on asav.app_store_id = aps.id" +
+		" where ia.active=true and iav.active=true) jq" +
+		" on jq.cr_id = chart_repo.id" +
+		" where chart_repo.deleted = false and chart_repo.id = " + strconv.Itoa(chartId) +
+		" Group by chart_repo.id;"
+	_, err := impl.dbConnection.Query(&activeDeploymentCount, query)
+	return activeDeploymentCount, err
 }
 
 func (impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error {
