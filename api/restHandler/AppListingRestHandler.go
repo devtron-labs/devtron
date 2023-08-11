@@ -1624,6 +1624,11 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
 	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
+	newResourceTree, err := handler.portNumberExtraction(resp, resourceTree, err)
+	return newResourceTree, nil
+}
+
+func (handler AppListingRestHandlerImpl) portNumberExtraction(resp []k8s.BatchResourceResponse, resourceTree map[string]interface{}, err error) (map[string]interface{}, error) {
 	portsService := make([]int64, 0)
 	portsEndpoint := make([]int64, 0)
 	portEndpointSlice := make([]int64, 0)
