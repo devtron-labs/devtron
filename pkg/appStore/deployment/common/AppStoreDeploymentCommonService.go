@@ -381,7 +381,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifest(installAppVersi
 //}
 
 // CreateGitOpsRepo creates a gitOps repo with readme
-func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error, bool) {
+func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
 
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
 		//here gitops repo will be the app name, to breaking the mono repo structure
@@ -394,7 +394,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersi
 			err = nil
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
-			return "", err, false
+			return "", false, err
 		}
 	}
 	//getting user name & emailId for commit author data
@@ -411,10 +411,10 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersi
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", installAppVersionRequest.GitOpsRepoName, "err", err)
-			return "", err, false
+			return "", false, err
 		}
 	}
-	return repoUrl, err, isNew
+	return repoUrl, isNew, err
 }
 
 // PushChartToGitopsRepo pushes built chart to gitOps repo
@@ -508,7 +508,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) AddConfigFileToChart(config *uti
 
 // CreateGitOpsRepoAndPushChart is a wrapper for creating gitops repo and pushing chart to created repo
 func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, bool, string, error) {
-	repoURL, err, isNew := impl.CreateGitOpsRepo(installAppVersionRequest)
+	repoURL, isNew, err := impl.CreateGitOpsRepo(installAppVersionRequest)
 	if err != nil {
 		impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 		return nil, false, "", err
