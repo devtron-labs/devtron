@@ -1311,16 +1311,18 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	for _, metaData := range resp.PodMetadata {
 		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 	}
-	// TODO: using this resp.Status to update in app_status table
 	resourceTree = util3.InterfaceToMapAdapter(resp)
 	resourceTree, hibernationStatus := impl.checkHibernate(resourceTree, deploymentAppName, ctx)
+	appStatus := resp.Status
 	if resourceTree != nil {
 		if hibernationStatus != "" {
 			resourceTree["status"] = hibernationStatus
+			appStatus = hibernationStatus
 		}
 	}
+	// using this resp.Status to update in app_status table
 	go func() {
-		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, appStatus)
 		if err != nil {
 			impl.logger.Warnw("error in updating app status", "err", err, appId, "envId", envId)
 		}
