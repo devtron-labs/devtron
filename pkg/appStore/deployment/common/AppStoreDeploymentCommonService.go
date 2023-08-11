@@ -50,7 +50,7 @@ type AppStoreDeploymentCommonService interface {
 	ParseGitRepoErrorResponse(err error) (bool, error)
 	GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error)
 	CreateChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error)
-	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, error, bool, string)
+	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, bool, string, error)
 	CommitConfigToGit(chartConfig *util.ChartConfig) (gitHash string, err error)
 	GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error)
 	GetValuesString(chartName, valuesOverrideYaml string) (string, error)
@@ -418,7 +418,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersi
 }
 
 // PushChartToGitopsRepo pushes built chart to gitOps repo
-func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartToGitRequest *appStoreBean.PushChartToGitRequestDTO, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, error, string) {
+func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartToGitRequest *appStoreBean.PushChartToGitRequestDTO, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, string, error) {
 	space := regexp.MustCompile(`\s+`)
 	appStoreName := space.ReplaceAllString(PushChartToGitRequest.ChartAppStoreName, "-")
 	chartDir := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, impl.chartTemplateService.GetDir())
@@ -427,12 +427,12 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 		clonedDir, err = impl.gitFactory.GitService.Clone(PushChartToGitRequest.RepoURL, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", PushChartToGitRequest.RepoURL, "err", err)
-			return nil, err, ""
+			return nil, "", err
 		}
 	} else {
 		err = impl.chartTemplateService.GitPull(clonedDir, PushChartToGitRequest.RepoURL, appStoreName)
 		if err != nil {
-			return nil, err, ""
+			return nil, "", err
 		}
 	}
 	acdAppName := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, PushChartToGitRequest.EnvName)
@@ -440,22 +440,22 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		impl.logger.Errorw("error in making dir", "err", err)
-		return nil, err, ""
+		return nil, "", err
 	}
 	err = dirCopy.Copy(PushChartToGitRequest.TempChartRefDir, dir)
 	if err != nil {
 		impl.logger.Errorw("error copying dir", "err", err)
-		return nil, err, ""
+		return nil, "", err
 	}
 	err = impl.AddConfigFileToChart(requirementsConfig, dir, clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in adding requirements.yaml to chart", "err", err, "appName", PushChartToGitRequest.AppName)
-		return nil, err, ""
+		return nil, "", err
 	}
 	err = impl.AddConfigFileToChart(valuesConfig, dir, clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in adding requirements.yaml to chart", "err", err, "appName", PushChartToGitRequest.AppName)
-		return nil, err, ""
+		return nil, "", err
 	}
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(PushChartToGitRequest.UserId)
 	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
@@ -464,22 +464,23 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 		impl.logger.Warn("re-trying, taking pull and then push again")
 		err = impl.chartTemplateService.GitPull(clonedDir, PushChartToGitRequest.RepoURL, acdAppName)
 		if err != nil {
-			return nil, err, ""
+			impl.logger.Errorw("error in git pull", "err", err, "appName", acdAppName)
+			return nil, "", err
 		}
 		err = dirCopy.Copy(PushChartToGitRequest.TempChartRefDir, dir)
 		if err != nil {
 			impl.logger.Errorw("error copying dir", "err", err)
-			return nil, err, ""
+			return nil, "", err
 		}
 		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
-			return nil, err, ""
+			return nil, "", err
 		}
 	}
 	impl.logger.Debugw("template committed", "url", PushChartToGitRequest.RepoURL, "commit", commit)
 	defer impl.chartTemplateService.CleanDir(clonedDir)
-	return &util.ChartGitAttribute{RepoUrl: PushChartToGitRequest.RepoURL, ChartLocation: filepath.Join("", acdAppName)}, nil, commit
+	return &util.ChartGitAttribute{RepoUrl: PushChartToGitRequest.RepoURL, ChartLocation: filepath.Join("", acdAppName)}, commit, err
 }
 
 // AddConfigFileToChart will override requirements.yaml file in chart
@@ -506,19 +507,19 @@ func (impl AppStoreDeploymentCommonServiceImpl) AddConfigFileToChart(config *uti
 }
 
 // CreateGitOpsRepoAndPushChart is a wrapper for creating gitops repo and pushing chart to created repo
-func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, error, bool, string) {
+func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, bool, string, error) {
 	repoURL, err, isNew := impl.CreateGitOpsRepo(installAppVersionRequest)
 	if err != nil {
 		impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
-		return nil, err, false, ""
+		return nil, false, "", err
 	}
 	pushChartToGitRequest := ParseChartGitPushRequest(installAppVersionRequest, repoURL, builtChartPath)
-	chartGitAttribute, err, commitHash := impl.PushChartToGitopsRepo(pushChartToGitRequest, requirementsConfig, valuesConfig)
+	chartGitAttribute, commitHash, err := impl.PushChartToGitopsRepo(pushChartToGitRequest, requirementsConfig, valuesConfig)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
-		return nil, err, false, ""
+		return nil, false, "", err
 	}
-	return chartGitAttribute, err, isNew, commitHash
+	return chartGitAttribute, isNew, commitHash, err
 }
 
 // CommitConfigToGit is used for committing values.yaml and requirements.yaml file config
@@ -542,7 +543,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CommitConfigToGit(chartConfig *u
 
 func (impl AppStoreDeploymentCommonServiceImpl) GitOpsOperations(manifestResponse *AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error) {
 	appStoreGitOpsResponse := &AppStoreGitOpsResponse{}
-	chartGitAttribute, err, isNew, githash := impl.CreateGitOpsRepoAndPushChart(installAppVersionRequest, manifestResponse.ChartResponse.BuiltChartPath, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
+	chartGitAttribute, isNew, githash, err := impl.CreateGitOpsRepoAndPushChart(installAppVersionRequest, manifestResponse.ChartResponse.BuiltChartPath, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
 	if err != nil {
 		impl.logger.Errorw("Error in pushing chart to git", "err", err)
 		return appStoreGitOpsResponse, err
