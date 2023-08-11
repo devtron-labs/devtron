@@ -284,6 +284,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
 	updateUserInfo.UserId = userInfo.UserId
 	updateUserInfo.EmailId = emailId // override case sensitivity
+	impl.logger.Debugw("update user called through create user flow", "user", updateUserInfo)
 	updateUserInfo, _, _, _, err = impl.UpdateUser(updateUserInfo, token, managerAuth)
 	if err != nil {
 		impl.logger.Errorw("error while update user", "error", err)
@@ -698,6 +699,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		}
 		eliminatedPolicies = append(eliminatedPolicies, items...)
 		if len(eliminatedPolicies) > 0 {
+			impl.logger.Debugw("casbin policies to remove for the request", "policies: ", eliminatedPolicies, "userInfo", userInfo)
 			rolesChanged = true
 		}
 
@@ -786,10 +788,12 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 
 	//updating in casbin
 	if len(eliminatedPolicies) > 0 {
+		impl.logger.Debugw("casbin policies being eliminated", "policies: ", eliminatedPolicies, "userInfo", userInfo)
 		pRes := casbin2.RemovePolicy(eliminatedPolicies)
 		println(pRes)
 	}
 	if len(addedPolicies) > 0 {
+		impl.logger.Debugw("casbin policies being added", "policies: ", addedPolicies)
 		err = casbin2.AddPolicy(addedPolicies)
 		if err != nil {
 			impl.logger.Errorw("casbin policy addition failed", "err", err)
