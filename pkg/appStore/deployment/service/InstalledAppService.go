@@ -1107,8 +1107,8 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		} else {
 			resourceTree["serverVersion"] = version.String()
 		}
+		resourceTreeAndNotesContainer.ResourceTree = resourceTree
 	}
-	resourceTreeAndNotesContainer.ResourceTree = resourceTree
 	return err
 }
 
