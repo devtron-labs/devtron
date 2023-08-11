@@ -1876,10 +1876,12 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 				impl.logger.Errorw("error in fetching artifact info", "err", err)
 				return manifestPushTemplate, err
 			}
+			image := valuesOverrideResponse.Artifact.Image
+			imageTag := strings.Split(image, ":")[1]
 			repoPath, chartName := GetRepoPathAndChartNameFromRepoName(credentialsConfig.RepositoryName)
 			manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
 			manifestPushTemplate.ChartName = chartName
-			manifestPushTemplate.ChartVersion = fmt.Sprintf("%d.%d.%d-%s", 1, 0, overrideRequest.WfrId, "DEPLOY")
+			manifestPushTemplate.ChartVersion = fmt.Sprintf("%d.%d.%d-%s-%s", 1, 0, overrideRequest.WfrId, "DEPLOY", imageTag)
 			containerRegistryConfig := &bean3.ContainerRegistryConfig{
 				RegistryUrl:  dockerArtifactStore.RegistryURL,
 				Username:     dockerArtifactStore.Username,
