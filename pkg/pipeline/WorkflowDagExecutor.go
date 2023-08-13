@@ -84,7 +84,7 @@ type WorkflowDagExecutorImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	pubsubClient                  *pubsub.PubSubClientServiceImpl
 	appService                    app.AppService
-	cdWorkflowService             CommonWorkflowService
+	cdWorkflowService             WorkflowService
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	materialRepository            pipelineConfig.MaterialRepository
 	cdConfig                      *CiCdConfig
@@ -153,7 +153,7 @@ type CiArtifactDTO struct {
 }
 
 type CdStageCompleteEvent struct {
-	CiProjectDetails []CiProjectDetails           `json:"ciProjectDetails"`
+	CiProjectDetails []bean3.CiProjectDetails     `json:"ciProjectDetails"`
 	WorkflowId       int                          `json:"workflowId"`
 	WorkflowRunnerId int                          `json:"workflowRunnerId"`
 	CdPipelineId     int                          `json:"cdPipelineId"`
@@ -184,7 +184,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	appService app.AppService,
-	cdWorkflowService CommonWorkflowService,
+	cdWorkflowService WorkflowService,
 	cdConfig *CiCdConfig,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
@@ -508,7 +508,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 	cdStageWorkflowRequest.StageType = PRE
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env, nil, false, false)
+	cdStageWorkflowRequest.Pipeline = pipeline
+	cdStageWorkflowRequest.Env = env
+	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
 
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
@@ -591,7 +593,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 	cdStageWorkflowRequest.StageType = POST
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env, nil, false, false)
+	cdStageWorkflowRequest.Pipeline = pipeline
+	cdStageWorkflowRequest.Env = env
+	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
 		return err
@@ -680,7 +684,7 @@ func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVa
 		}
 	}
 }
-func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CommonWorkflowRequest, error) {
+func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*WorkflowRequest, error) {
 	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -699,7 +703,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		return nil, err
 	}
 
-	var ciProjectDetails []CiProjectDetails
+	var ciProjectDetails []bean3.CiProjectDetails
 	var ciPipeline *pipelineConfig.CiPipeline
 	if cdPipeline.CiPipelineId > 0 {
 		ciPipeline, err = impl.ciPipelineRepository.FindById(cdPipeline.CiPipelineId)
@@ -726,7 +730,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				return nil, err
 			}
 
-			ciProjectDetail := CiProjectDetails{
+			ciProjectDetail := bean3.CiProjectDetails{
 				GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
 				MaterialName:    gitMaterial.Name,
 				CheckoutPath:    gitMaterial.CheckoutPath,
@@ -734,7 +738,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				SourceType:      m.Type,
 				SourceValue:     m.Value,
 				Type:            string(m.Type),
-				GitOptions: GitOptions{
+				GitOptions: bean3.GitOptions{
 					UserName:      gitMaterial.GitProvider.UserName,
 					Password:      gitMaterial.GitProvider.Password,
 					SshPrivateKey: gitMaterial.GitProvider.SshPrivateKey,
@@ -787,13 +791,13 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 	if len(pipelineStage) > 0 {
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-			preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, CdStage)
 			if err != nil {
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
 			}
 		} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-			_, postDeploySteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			_, postDeploySteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, CdStage)
 			if err != nil {
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
@@ -824,7 +828,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 
-	cdStageWorkflowRequest := &CommonWorkflowRequest{
+	cdStageWorkflowRequest := &WorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
 		WorkflowId:            cdWf.Id,

@@ -53,7 +53,7 @@ type CiService interface {
 
 type CiServiceImpl struct {
 	Logger                        *zap.SugaredLogger
-	workflowService               CommonWorkflowService
+	workflowService               WorkflowService
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	ciConfig                      *CiCdConfig
@@ -70,7 +70,7 @@ type CiServiceImpl struct {
 	appRepository                 appRepository.AppRepository
 }
 
-func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService CommonWorkflowService,
+func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiCdConfig, eventClient client.EventClient,
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
@@ -146,7 +146,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		ciWorkflowConfig.Namespace = impl.ciConfig.CiDefaultNamespace
 	}
 
-	preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
+	preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, CiStage)
 
 	if err != nil {
 		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
@@ -179,7 +179,9 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 	workflowRequest.AppId = pipeline.AppId
-	err = impl.executeCiPipeline(workflowRequest, appLabels, env, isJob)
+	workflowRequest.AppLabels = appLabels
+	workflowRequest.Env = env
+	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return 0, err
@@ -214,7 +216,7 @@ func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipel
 	return nil, isJob, nil
 }
 
-func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *CommonWorkflowRequest) {
+func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *WorkflowRequest) {
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
 
@@ -313,8 +315,8 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	return ciWorkflow, nil
 }
 
-func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *CommonWorkflowRequest, appLabels map[string]string, env *repository1.Environment, isJob bool) error {
-	err := impl.workflowService.SubmitWorkflow(workflowRequest, nil, env, appLabels, isJob, true)
+func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest) error {
+	err := impl.workflowService.SubmitWorkflow(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return err
@@ -344,8 +346,8 @@ func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipeli
 func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger Trigger,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow,
 	ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript,
-	preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject) (*CommonWorkflowRequest, error) {
-	var ciProjectDetails []CiProjectDetails
+	preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject) (*WorkflowRequest, error) {
+	var ciProjectDetails []bean2.CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
 		// ignore those materials which have inactive git material
@@ -353,7 +355,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			continue
 		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
-		ciProjectDetail := CiProjectDetails{
+		ciProjectDetail := bean2.CiProjectDetails{
 			GitRepository:   ciMaterial.GitMaterial.Url,
 			MaterialName:    ciMaterial.GitMaterial.Name,
 			CheckoutPath:    ciMaterial.GitMaterial.CheckoutPath,
@@ -366,7 +368,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			Message:         commitHashForPipelineId.Message,
 			Type:            string(ciMaterial.Type),
 			CommitTime:      commitHashForPipelineId.Date.Format(bean.LayoutRFC3339),
-			GitOptions: GitOptions{
+			GitOptions: bean2.GitOptions{
 				UserName:      ciMaterial.GitMaterial.GitProvider.UserName,
 				Password:      ciMaterial.GitMaterial.GitProvider.Password,
 				SshPrivateKey: ciMaterial.GitMaterial.GitProvider.SshPrivateKey,
@@ -415,7 +417,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	} else {
 		//beforeDockerBuildScripts & afterDockerBuildScripts not found
 		//getting preCiStepsData, postCiStepsData & refPluginsData
-		preCiSteps, postCiSteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
+		preCiSteps, postCiSteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, CiStage)
 		if err != nil {
 			impl.Logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
 			return nil, err
@@ -523,7 +525,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciBuildConfigBean.DockerBuildConfig.UseBuildx = useBuildx
 	}
 
-	workflowRequest := &CommonWorkflowRequest{
+	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
 		PipelineName:               pipeline.Name,
 		PipelineId:                 pipeline.Id,
@@ -557,6 +559,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageRetryCount:            impl.ciConfig.ImageRetryCount,
 		ImageRetryInterval:         impl.ciConfig.ImageRetryInterval,
 		WorkflowExecutor:           impl.ciConfig.CiWorkflowExecutorType,
+		Type:                       bean2.CI_WORKFLOW_PIPELINE_TYPE,
 	}
 	if dockerRegistry != nil {
 
@@ -720,7 +723,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 	return dockerImageTag
 }
 
-func (impl *CiServiceImpl) updateCiWorkflow(request *CommonWorkflowRequest, savedWf *pipelineConfig.CiWorkflow) error {
+func (impl *CiServiceImpl) updateCiWorkflow(request *WorkflowRequest, savedWf *pipelineConfig.CiWorkflow) error {
 	ciBuildConfig := request.CiBuildConfig
 	ciBuildType := string(ciBuildConfig.CiBuildType)
 	savedWf.CiBuildType = ciBuildType

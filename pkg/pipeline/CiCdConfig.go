@@ -6,6 +6,7 @@ import (
 	"github.com/caarlos0/env"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os/user"
@@ -85,7 +86,6 @@ type CiCdConfig struct {
 	OrchestratorHost               string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
 	OrchestratorToken              string `env:"ORCH_TOKEN" envDefault:""`
 	ClusterConfig                  *rest.Config
-	NodeLabel                      map[string]string
 	CloudProvider                  blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
 	BlobStorageEnabled             bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
 	BlobStorageS3AccessKey         string                       `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
@@ -143,12 +143,16 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 
 	return cfg, err
 }
-func getNodeLabel(cfg *CiCdConfig, isCi bool) (map[string]string, error) {
-	node := cfg.CdNodeLabelSelector
-	if isCi {
+
+func getNodeLabel(cfg *CiCdConfig, pipelineType bean.WorkflowPipelineType) (map[string]string, error) {
+	node := []string{}
+	if pipelineType == bean.CI_WORKFLOW_PIPELINE_TYPE || pipelineType == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		node = cfg.CiNodeLabelSelector
 	}
-	cfg.NodeLabel = make(map[string]string)
+	if pipelineType == bean.CD_WORKFLOW_PIPELINE_TYPE {
+		node = cfg.CdNodeLabelSelector
+	}
+	nodeLabel := make(map[string]string)
 	for _, l := range node {
 		if l == "" {
 			continue
@@ -157,7 +161,7 @@ func getNodeLabel(cfg *CiCdConfig, isCi bool) (map[string]string, error) {
 		if len(kv) != 2 {
 			return nil, fmt.Errorf("invalid ci node label selector %s, it must be in form key=value, key2=val2", kv)
 		}
-		cfg.NodeLabel[kv[0]] = kv[1]
+		nodeLabel[kv[0]] = kv[1]
 	}
-	return cfg.NodeLabel, nil
+	return nodeLabel, nil
 }
