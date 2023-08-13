@@ -9,6 +9,7 @@ const (
 	UserContributedToDraft      = "user-committed-to-draft"
 	TemplateOutdated            = "template-outdated"
 	FailedToDeleteComment       = "failed to delete comment"
+	ConfigProtectionDisabled    = "config-protection-disabled"
 )
 
 type DraftResourceType uint8

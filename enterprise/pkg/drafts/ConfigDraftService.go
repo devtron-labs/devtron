@@ -74,6 +74,11 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 	resourceType := request.Resource
 	resourceAction := request.Action
 	envId := request.EnvId
+	appId := request.AppId
+	protectionEnabled := impl.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
+	if !protectionEnabled {
+		return nil, errors.New(ConfigProtectionDisabled)
+	}
 	err := impl.validateDraftData(envId, resourceType, resourceAction, request.Data)
 	if err != nil {
 		return nil, err
@@ -87,6 +92,11 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 	if err != nil {
 		return 0, err
 	}
+	draftDto := latestDraftVersion.Draft
+	protectionEnabled := impl.resourceProtectionService.ResourceProtectionEnabled(draftDto.AppId, draftDto.EnvId)
+	if !protectionEnabled {
+		return 0, errors.New(ConfigProtectionDisabled)
+	}
 	lastDraftVersionId := request.LastDraftVersionId
 	if latestDraftVersion.Id > lastDraftVersionId {
 		return 0, errors.New(LastVersionOutdated)
@@ -94,7 +104,6 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
-		draftDto := latestDraftVersion.Draft
 		err := impl.validateDraftData(draftDto.EnvId, draftDto.Resource, request.Action, request.Data)
 		if err != nil {
 			return 0, err
@@ -649,6 +658,3 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resour
 	}
 	return nil
 }
-
-
-
