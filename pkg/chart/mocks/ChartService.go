@@ -7,6 +7,8 @@ import (
 
 	chart "github.com/devtron-labs/devtron/pkg/chart"
 
+	json "encoding/json"
+
 	mock "github.com/stretchr/testify/mock"
 
 	util "github.com/devtron-labs/devtron/internal/util"
@@ -84,6 +86,34 @@ func (_m *ChartService) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*
 	}
 
 	return r0, r1
+}
+
+// ChartRefIdsCompatible provides a mock function with given fields: oldChartRefId, newChartRefId
+func (_m *ChartService) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string) {
+	ret := _m.Called(oldChartRefId, newChartRefId)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(int, int) bool); ok {
+		r0 = rf(oldChartRefId, newChartRefId)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 string
+	if rf, ok := ret.Get(1).(func(int, int) string); ok {
+		r1 = rf(oldChartRefId, newChartRefId)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	var r2 string
+	if rf, ok := ret.Get(2).(func(int, int) string); ok {
+		r2 = rf(oldChartRefId, newChartRefId)
+	} else {
+		r2 = ret.Get(2).(string)
+	}
+
+	return r0, r1, r2
 }
 
 // CheckChartExists provides a mock function with given fields: chartRefId
@@ -322,6 +352,27 @@ func (_m *ChartService) FindPreviousChartByAppId(appId int) (*chart.TemplateRequ
 	return r0, r1
 }
 
+// FlaggerCanaryEnabled provides a mock function with given fields: values
+func (_m *ChartService) FlaggerCanaryEnabled(values json.RawMessage) (bool, error) {
+	ret := _m.Called(values)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(json.RawMessage) bool); ok {
+		r0 = rf(values)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(json.RawMessage) error); ok {
+		r1 = rf(values)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetAppOverrideForDefaultTemplate provides a mock function with given fields: chartRefId
 func (_m *ChartService) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error) {
 	ret := _m.Called(chartRefId)
@@ -463,6 +514,29 @@ func (_m *ChartService) JsonSchemaExtractFromFile(chartRefId int) (map[string]in
 	}
 
 	return r0, r1, r2
+}
+
+// PatchEnvOverrides provides a mock function with given fields: values, oldChartType, newChartType
+func (_m *ChartService) PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error) {
+	ret := _m.Called(values, oldChartType, newChartType)
+
+	var r0 json.RawMessage
+	if rf, ok := ret.Get(0).(func(json.RawMessage, string, string) json.RawMessage); ok {
+		r0 = rf(values, oldChartType, newChartType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(json.RawMessage)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(json.RawMessage, string, string) error); ok {
+		r1 = rf(values, oldChartType, newChartType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // ReadChartMetaDataForLocation provides a mock function with given fields: chartDir, fileName

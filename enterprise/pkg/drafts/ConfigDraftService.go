@@ -71,23 +71,34 @@ func (impl *ConfigDraftServiceImpl) OnStateChange(appId int, envId int, state pr
 }
 
 func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
+	resourceType := request.Resource
+	resourceAction := request.Action
+	envId := request.EnvId
+	err := impl.validateDraftData(envId, resourceType, resourceAction, request.Data)
+	if err != nil {
+		return nil, err
+	}
 	return impl.configDraftRepository.CreateConfigDraft(request)
 }
 
 func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (int, error) {
 	draftId := request.DraftId
-	latestDraftVersion, err := impl.configDraftRepository.GetLatestDraftVersionId(draftId)
+	latestDraftVersion, err := impl.configDraftRepository.GetLatestDraftVersion(draftId)
 	if err != nil {
 		return 0, err
 	}
 	lastDraftVersionId := request.LastDraftVersionId
-	if latestDraftVersion > lastDraftVersionId {
+	if latestDraftVersion.Id > lastDraftVersionId {
 		return 0, errors.New(LastVersionOutdated)
 	}
 
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
-		//TODO KB: if any edit is being made and draft is in Await_Approval state, ideally we should change state to Init unless changeProposed flag is true
+		draftDto := latestDraftVersion.Draft
+		err := impl.validateDraftData(draftDto.EnvId, draftDto.Resource, request.Action, request.Data)
+		if err != nil {
+			return 0, err
+		}
 		draftVersionDto := request.GetDraftVersionDto(currentTime)
 		draftVersionId, err := impl.configDraftRepository.SaveDraftVersion(draftVersionDto)
 		if err != nil {
@@ -404,7 +415,7 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 		return err
 	}
 	if !templateValidated {
-		return errors.New("template-outdated")
+		return errors.New(TemplateOutdated)
 	}
 	templateRequest.UserId = userId
 	if action == AddResourceAction {
@@ -567,6 +578,76 @@ func (impl *ConfigDraftServiceImpl) GetDraftsCount(appId int, envIds []int) ([]*
 		draftCountResponse = append(draftCountResponse, &DraftCountResponse{AppId: appId, EnvId: envId, DraftsCount: count})
 	}
 	return draftCountResponse, nil
+}
+
+func (impl *ConfigDraftServiceImpl) validateDraftData(envId int, resourceType DraftResourceType, action ResourceAction, draftData string) error {
+	if resourceType == CMDraftResource || resourceType == CSDraftResource {
+		return impl.validateCmCs(action, draftData)
+	}
+	return impl.validateDeploymentTemplate(envId, action, draftData)
+}
+
+func (impl *ConfigDraftServiceImpl) validateCmCs(resourceAction ResourceAction, draftData string) error {
+	configDataRequest := &bean.ConfigDataRequest{}
+	err := json.Unmarshal([]byte(draftData), configDataRequest)
+	if err != nil {
+		impl.logger.Errorw("error occurred while unmarshalling draftData of CM/CS", "err", err)
+		return err
+	}
+	if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
+		configData := configDataRequest.ConfigData[0]
+		_, err = impl.configMapService.ValidateConfigData(configData)
+	} else {
+		configId := configDataRequest.Id
+		if configId == 0 {
+			impl.logger.Errorw("error occurred while validating CM/CS ", "id", configId)
+			err = errors.New("invalid config id")
+		}
+	}
+	return err
+}
+
+func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resourceAction ResourceAction, draftData string) error {
+	if envId == protect.BASE_CONFIG_ENV_ID {
+		templateRequest := chart.TemplateRequest{}
+		var templateValidated bool
+		err := json.Unmarshal([]byte(draftData), &templateRequest)
+		if err != nil {
+			impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "envId", envId, "err", err)
+			return err
+		}
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId)
+		if err != nil {
+			return err
+		}
+		if !templateValidated {
+			return errors.New(TemplateOutdated)
+		}
+	} else {
+		envConfigProperties := &bean.EnvironmentProperties{}
+		err := json.Unmarshal([]byte(draftData), envConfigProperties)
+		if err != nil {
+			impl.logger.Errorw("error occurred while unmarshalling draftData of env deployment template", "envId", envId, "err", err)
+			return err
+		}
+		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
+			chartRefId := envConfigProperties.ChartRefId
+			templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId)
+			if err != nil {
+				return err
+			}
+			if !templateValidated {
+				return errors.New(TemplateOutdated)
+			}
+		} else {
+			id := envConfigProperties.Id
+			if id == 0 {
+				impl.logger.Errorw("error occurred while validating CM/CS ", "id", id)
+				err = errors.New("invalid template ref id")
+			}
+		}
+	}
+	return nil
 }
 
 

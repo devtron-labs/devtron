@@ -68,6 +68,22 @@ func (_m *ResourceProtectionService) ResourceProtectionEnabled(appId int, envId 
 	return r0
 }
 
+// ResourceProtectionEnabledForEnv provides a mock function with given fields: envId
+func (_m *ResourceProtectionService) ResourceProtectionEnabledForEnv(envId int) map[int]bool {
+	ret := _m.Called(envId)
+
+	var r0 map[int]bool
+	if rf, ok := ret.Get(0).(func(int) map[int]bool); ok {
+		r0 = rf(envId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[int]bool)
+		}
+	}
+
+	return r0
+}
+
 type mockConstructorTestingTNewResourceProtectionService interface {
 	mock.TestingT
 	Cleanup(func())

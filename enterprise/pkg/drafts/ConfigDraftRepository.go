@@ -9,7 +9,7 @@ import (
 
 type ConfigDraftRepository interface {
 	CreateConfigDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
-	GetLatestDraftVersionId(draftId int) (int, error)
+	GetLatestDraftVersion(draftId int) (*DraftVersion, error)
 	SaveDraftVersionComment(draftVersionComment *DraftVersionComment) error
 	SaveDraftVersion(draftVersionDto *DraftVersion) (int, error)
 	GetDraftMetadataById(draftId int) (*DraftDto, error)
@@ -75,20 +75,18 @@ func (repo *ConfigDraftRepositoryImpl) CreateConfigDraft(request ConfigDraftRequ
 	return &ConfigDraftResponse{DraftId: draftMetadataId, DraftVersionId: draftVersionId, DraftState: draftState}, nil
 }
 
-func (repo *ConfigDraftRepositoryImpl) GetLatestDraftVersionId(draftId int) (int, error) {
+func (repo *ConfigDraftRepositoryImpl) GetLatestDraftVersion(draftId int) (*DraftVersion, error) {
 	draftVersionDto := &DraftVersion{}
-	err := repo.dbConnection.Model(draftVersionDto).Column("id").Where("draft_id = ?", draftId).
+	err := repo.dbConnection.Model(draftVersionDto).Column("draft_version.*", "Draft").Where("draft_id = ?", draftId).
 		Order("id desc").Limit(1).Select()
 	if err != nil {
 		if err == pg.ErrNoRows {
 			repo.logger.Errorw("no draft version found ", "draftId", draftId)
-			return 0, nil
 		} else {
 			repo.logger.Errorw("error occurred while fetching latest draft version", "draftId", draftId, "err", err)
-			return 0, err
 		}
 	}
-	return draftVersionDto.Id, nil
+	return draftVersionDto, err
 }
 
 func (repo *ConfigDraftRepositoryImpl) SaveDraftVersionComment(draftVersionComment *DraftVersionComment) error {

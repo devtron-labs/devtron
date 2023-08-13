@@ -185,6 +185,27 @@ func (_m *ConfigDraftRepository) GetDraftVersionComments(draftId int) ([]*drafts
 	return r0, r1
 }
 
+// GetDraftVersionCommentsCount provides a mock function with given fields: draftId
+func (_m *ConfigDraftRepository) GetDraftVersionCommentsCount(draftId int) (int, error) {
+	ret := _m.Called(draftId)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(int) int); ok {
+		r0 = rf(draftId)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(draftId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDraftVersionsMetadata provides a mock function with given fields: draftId
 func (_m *ConfigDraftRepository) GetDraftVersionsMetadata(draftId int) ([]*drafts.DraftVersion, error) {
 	ret := _m.Called(draftId)
@@ -231,15 +252,40 @@ func (_m *ConfigDraftRepository) GetLatestConfigDraft(draftId int) (*drafts.Draf
 	return r0, r1
 }
 
-// GetLatestDraftVersionId provides a mock function with given fields: draftId
-func (_m *ConfigDraftRepository) GetLatestDraftVersionId(draftId int) (int, error) {
+// GetLatestConfigDraftByName provides a mock function with given fields: appId, envId, resourceName, resourceType
+func (_m *ConfigDraftRepository) GetLatestConfigDraftByName(appId int, envId int, resourceName string, resourceType drafts.DraftResourceType) (*drafts.DraftVersion, error) {
+	ret := _m.Called(appId, envId, resourceName, resourceType)
+
+	var r0 *drafts.DraftVersion
+	if rf, ok := ret.Get(0).(func(int, int, string, drafts.DraftResourceType) *drafts.DraftVersion); ok {
+		r0 = rf(appId, envId, resourceName, resourceType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*drafts.DraftVersion)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int, int, string, drafts.DraftResourceType) error); ok {
+		r1 = rf(appId, envId, resourceName, resourceType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLatestDraftVersion provides a mock function with given fields: draftId
+func (_m *ConfigDraftRepository) GetLatestDraftVersion(draftId int) (*drafts.DraftVersion, error) {
 	ret := _m.Called(draftId)
 
-	var r0 int
-	if rf, ok := ret.Get(0).(func(int) int); ok {
+	var r0 *drafts.DraftVersion
+	if rf, ok := ret.Get(0).(func(int) *drafts.DraftVersion); ok {
 		r0 = rf(draftId)
 	} else {
-		r0 = ret.Get(0).(int)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*drafts.DraftVersion)
+		}
 	}
 
 	var r1 error

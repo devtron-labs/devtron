@@ -101,6 +101,29 @@ func (_m *ConfigMapService) CMEnvironmentFetch(appId int, envId int) (*bean.Conf
 	return r0, r1
 }
 
+// CMEnvironmentFetchForEdit provides a mock function with given fields: name, id, appId, envId
+func (_m *ConfigMapService) CMEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*bean.ConfigDataRequest, error) {
+	ret := _m.Called(name, id, appId, envId)
+
+	var r0 *bean.ConfigDataRequest
+	if rf, ok := ret.Get(0).(func(string, int, int, int) *bean.ConfigDataRequest); ok {
+		r0 = rf(name, id, appId, envId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*bean.ConfigDataRequest)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, int, int, int) error); ok {
+		r1 = rf(name, id, appId, envId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CMGlobalAddUpdate provides a mock function with given fields: configMapRequest
 func (_m *ConfigMapService) CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	ret := _m.Called(configMapRequest)
@@ -182,6 +205,29 @@ func (_m *ConfigMapService) CMGlobalFetch(appId int) (*bean.ConfigDataRequest, e
 	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(appId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CMGlobalFetchForEdit provides a mock function with given fields: name, id
+func (_m *ConfigMapService) CMGlobalFetchForEdit(name string, id int) (*bean.ConfigDataRequest, error) {
+	ret := _m.Called(name, id)
+
+	var r0 *bean.ConfigDataRequest
+	if rf, ok := ret.Get(0).(func(string, int) *bean.ConfigDataRequest); ok {
+		r0 = rf(name, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*bean.ConfigDataRequest)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, int) error); ok {
+		r1 = rf(name, id)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -542,6 +588,41 @@ func (_m *ConfigMapService) ConfigSecretGlobalBulkPatch(bulkPatchRequest *bean.B
 	var r1 error
 	if rf, ok := ret.Get(1).(func(*bean.BulkPatchRequest) error); ok {
 		r1 = rf(bulkPatchRequest)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// EncryptCSData provides a mock function with given fields: item
+func (_m *ConfigMapService) EncryptCSData(item *bean.ConfigData) error {
+	ret := _m.Called(item)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*bean.ConfigData) error); ok {
+		r0 = rf(item)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ValidateConfigData provides a mock function with given fields: configData
+func (_m *ConfigMapService) ValidateConfigData(configData *bean.ConfigData) (bool, error) {
+	ret := _m.Called(configData)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(*bean.ConfigData) bool); ok {
+		r0 = rf(configData)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*bean.ConfigData) error); ok {
+		r1 = rf(configData)
 	} else {
 		r1 = ret.Error(1)
 	}

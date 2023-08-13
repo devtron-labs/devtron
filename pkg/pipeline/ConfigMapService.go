@@ -85,6 +85,7 @@ type ConfigMapService interface {
 	ConfigSecretEnvironmentGet(appId int) ([]bean.JobEnvOverrideResponse, error)
 	ConfigSecretEnvironmentClone(appId int, cloneAppId int, userId int32) ([]chartConfig.ConfigMapEnvModel, error)
 	EncryptCSData(item *bean.ConfigData) error
+	ValidateConfigData(configData *bean.ConfigData) (bool, error)
 }
 
 type ConfigMapServiceImpl struct {
@@ -129,7 +130,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
-	valid, err := impl.validateConfigData(configData)
+	valid, err := impl.ValidateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
@@ -257,7 +258,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
-	valid, err := impl.validateConfigData(configData)
+	valid, err := impl.ValidateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
@@ -488,7 +489,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
-	valid, err := impl.validateConfigData(configData)
+	valid, err := impl.ValidateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
@@ -685,7 +686,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 	}
 
 	configData := configMapRequest.ConfigData[0]
-	valid, err := impl.validateConfigData(configData)
+	valid, err := impl.ValidateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
@@ -1463,7 +1464,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, 
 	return configDataRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) validateConfigData(configData *bean.ConfigData) (bool, error) {
+func (impl ConfigMapServiceImpl) ValidateConfigData(configData *bean.ConfigData) (bool, error) {
 	dataMap := make(map[string]string)
 	if configData.Data != nil {
 		err := json.Unmarshal(configData.Data, &dataMap)

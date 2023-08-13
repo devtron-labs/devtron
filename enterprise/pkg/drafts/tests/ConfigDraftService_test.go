@@ -633,7 +633,7 @@ func TestConfigDraftService(t *testing.T) {
 			DraftId:            draftId,
 			LastDraftVersionId: lastDraftVersionId,
 		}
-		configDraftRepository.On("GetLatestDraftVersionId", draftId).Return(3, nil)
+		configDraftRepository.On("GetLatestDraftVersion", draftId).Return(3, nil)
 		draftVersionId, err := configDraftServiceImpl.AddDraftVersion(request)
 		assert.Zero(t, draftVersionId)
 		assert.Error(t, err, drafts.LastVersionOutdated)
@@ -651,7 +651,7 @@ func TestConfigDraftService(t *testing.T) {
 			Data:               "random-data",
 			UserId:             userId,
 		}
-		configDraftRepository.On("GetLatestDraftVersionId", draftId).Return(lastDraftVersionId, nil)
+		configDraftRepository.On("GetLatestDraftVersion", draftId).Return(lastDraftVersionId, nil)
 		configDraftRepository.On("SaveDraftVersion", mock.AnythingOfType("*drafts.DraftVersion")).Return(func(draftVersionDto *drafts.DraftVersion) int {
 			assert.NotNil(t, draftVersionDto)
 			assert.Equal(t, draftId, draftVersionDto.DraftsId)
@@ -677,7 +677,7 @@ func TestConfigDraftService(t *testing.T) {
 			UserId:             userId,
 			ChangeProposed:     true,
 		}
-		configDraftRepository.On("GetLatestDraftVersionId", draftId).Return(lastDraftVersionId, nil)
+		configDraftRepository.On("GetLatestDraftVersion", draftId).Return(lastDraftVersionId, nil)
 		configDraftRepository.On("SaveDraftVersionComment", mock.AnythingOfType("*drafts.DraftVersionComment")).Return(func(versionComment *drafts.DraftVersionComment) error {
 			assert.NotNil(t, versionComment)
 			assert.Equal(t, lastDraftVersionId, versionComment.DraftVersionId)
