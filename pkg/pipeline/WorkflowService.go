@@ -368,6 +368,14 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				Name:          "app-data",
 				ContainerPort: 9102,
 			}},
+			Lifecycle: &v12.Lifecycle{
+				PreStop: &v12.LifecycleHandler{
+					HTTPGet: &v12.HTTPGetAction{
+						Path: "/cleanK8sDriver",
+						Port: intstr.FromInt(8080),
+					},
+				},
+			},
 		},
 		ActiveDeadlineSeconds: &intstr.IntOrString{
 			IntVal: int32(workflowRequest.ActiveDeadlineSeconds),
