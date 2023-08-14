@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.20"
+  release: "v0.6.19"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
@@ -31,7 +31,7 @@ components:
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:b9761996-318-14716"
+    image: "quay.io/devtron/kubelink:af6112c2-318-14801"
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       PG_ADDR: postgresql-postgresql.devtroncd
