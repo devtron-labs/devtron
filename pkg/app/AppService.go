@@ -1711,17 +1711,20 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in merging default values with override values ", "err", err)
 			return releaseNo, manifest, err
 		}
-		// for downloaded manifest name is equal to <app-name>-<env-name>-<image-tag>
-		image := valuesOverrideResponse.Artifact.Image
-		var imageTag string
-		if len(image) > 0 {
-			imageTag = strings.Split(image, ":")[1]
-		}
-		chartName := fmt.Sprintf("%s-%s-%s", overrideRequest.AppName, overrideRequest.EnvName, imageTag)
-		manifest, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, valuesOverrideResponse.EnvOverride.Chart.ChartVersion)
-		if err != nil {
-			impl.logger.Errorw("error in converting chart to bytes", "err", err)
-			return releaseNo, manifest, err
+
+		if !triggerEvent.PerformChartPush {
+			// for downloaded manifest name is equal to <app-name>-<env-name>-<image-tag>
+			image := valuesOverrideResponse.Artifact.Image
+			var imageTag string
+			if len(image) > 0 {
+				imageTag = strings.Split(image, ":")[1]
+			}
+			chartName := fmt.Sprintf("%s-%s-%s", overrideRequest.AppName, overrideRequest.EnvName, imageTag)
+			manifest, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, valuesOverrideResponse.EnvOverride.Chart.ChartVersion)
+			if err != nil {
+				impl.logger.Errorw("error in converting chart to bytes", "err", err)
+				return releaseNo, manifest, err
+			}
 		}
 
 	}
@@ -1732,6 +1735,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in building manifest push template", "err", err)
 			return releaseNo, manifest, err
 		}
+		manifest = *manifestPushTemplate.BuiltChartBytes
 		manifestPushService := impl.GetManifestPushService(triggerEvent.ManifestStorageType)
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
