@@ -132,7 +132,7 @@ func (impl ChartRepoRepositoryImpl) FindDeploymentCountByChartRepoId(chartId int
 		" inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id" +
 		" inner join app_store aps on asav.app_store_id = aps.id" +
-		" where ia.active=(?) and iav.active=(?) and aps.chart_repo_id = (?);"
+		" where ia.active=? and iav.active=? and aps.chart_repo_id=?;"
 	_, err := impl.dbConnection.Query(&activeDeploymentCount, query, true, true, strconv.Itoa(chartId))
 	return activeDeploymentCount, err
 }
