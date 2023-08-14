@@ -1,4 +1,5 @@
 ## Bugs
+- fix:  Intermittent helm apps deployment fail deployed through gitops (#3756)
 - fix: server version check for ephemeral suport bug fix (#3757)
 - fix:  app status fix for helm apps which are deployed via acd (#3746)
 - fix: Showing port number instead of string port_number. (#3729)
