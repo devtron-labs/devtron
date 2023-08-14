@@ -1,4 +1,5 @@
 ## Bugs
+- fix: rbac fix terminal connection on view and edit in helm apps (#3723)
 - fix:  Intermittent helm apps deployment fail deployed through gitops (#3756)
 - fix: server version check for ephemeral suport bug fix (#3757)
 - fix:  app status fix for helm apps which are deployed via acd (#3746)
