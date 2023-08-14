@@ -587,13 +587,11 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		cdPipelineRbacObjects[i] = envObject
 	}
 	envRbacResultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
-	i := 0
 	for _, rbacResultOk := range envRbacResultMap {
 		if !rbacResultOk {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
-		i++
 	}
 	//RBAC ENDS
 	response := make(map[string]string)
