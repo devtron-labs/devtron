@@ -1711,19 +1711,19 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in merging default values with override values ", "err", err)
 			return releaseNo, manifest, err
 		}
-		if !triggerEvent.PerformChartPush {
-			image := valuesOverrideResponse.Artifact.Image
-			var imageTag string
-			if len(image) > 0 {
-				imageTag = strings.Split(image, ":")[1]
-			}
-			chartName := fmt.Sprintf("%s-%s-%s", overrideRequest.AppName, overrideRequest.EnvName, imageTag)
-			manifest, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, valuesOverrideResponse.EnvOverride.Chart.ChartVersion)
-			if err != nil {
-				impl.logger.Errorw("error in converting chart to bytes", "err", err)
-				return releaseNo, manifest, err
-			}
+		// for downloaded manifest name is equal to <app-name>-<env-name>-<image-tag>
+		image := valuesOverrideResponse.Artifact.Image
+		var imageTag string
+		if len(image) > 0 {
+			imageTag = strings.Split(image, ":")[1]
 		}
+		chartName := fmt.Sprintf("%s-%s-%s", overrideRequest.AppName, overrideRequest.EnvName, imageTag)
+		manifest, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, valuesOverrideResponse.EnvOverride.Chart.ChartVersion)
+		if err != nil {
+			impl.logger.Errorw("error in converting chart to bytes", "err", err)
+			return releaseNo, manifest, err
+		}
+
 	}
 
 	if triggerEvent.PerformChartPush {
@@ -1732,7 +1732,6 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in building manifest push template", "err", err)
 			return releaseNo, manifest, err
 		}
-		manifest = *manifestPushTemplate.BuiltChartBytes
 		manifestPushService := impl.GetManifestPushService(triggerEvent.ManifestStorageType)
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
@@ -1880,6 +1879,7 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 			imageTag := strings.Split(image, ":")[1]
 			repoPath, chartName := GetRepoPathAndChartNameFromRepoName(credentialsConfig.RepositoryName)
 			manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
+			// pushed chart name should be same as repo name configured by user (if repo name is a/b/c chart name will be c)
 			manifestPushTemplate.ChartName = chartName
 			manifestPushTemplate.ChartVersion = fmt.Sprintf("%d.%d.%d-%s-%s", 1, 0, overrideRequest.WfrId, "DEPLOY", imageTag)
 			manifestBytes, err := impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, manifestPushTemplate.ChartVersion)
