@@ -76,6 +76,7 @@ type K8sUtil struct {
 type ClusterConfig struct {
 	ClusterName           string
 	Host                  string
+	ProxyUrl              string
 	BearerToken           string
 	InsecureSkipTLSVerify bool
 	KeyData               string
@@ -109,6 +110,14 @@ func (impl K8sUtil) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*restc
 		}
 	} else {
 		restConfig = &rest.Config{Host: clusterConfig.Host, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: clusterConfig.InsecureSkipTLSVerify}}
+		if len(clusterConfig.ProxyUrl) > 0 {
+			proxy, err := url.Parse(clusterConfig.ProxyUrl)
+			if err != nil {
+				impl.logger.Errorw("error in parsing proxy url", "err", err, "proxyUrl", clusterConfig.ProxyUrl)
+				return nil, err
+			}
+			restConfig.Proxy = http.ProxyURL(proxy)
+		}
 		if clusterConfig.InsecureSkipTLSVerify == false {
 			restConfig.TLSClientConfig.ServerName = restConfig.ServerName
 			restConfig.TLSClientConfig.KeyData = []byte(clusterConfig.KeyData)

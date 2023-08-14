@@ -68,6 +68,7 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 			ClusterName:           info.ClusterName,
 			BearerToken:           info.BearerToken,
 			Host:                  info.ServerUrl,
+			ProxyUrl:              info.ProxyUrl,
 			InsecureSkipTLSVerify: info.InsecureSkipTLSVerify,
 			KeyData:               info.KeyData,
 			CertData:              info.CertData,

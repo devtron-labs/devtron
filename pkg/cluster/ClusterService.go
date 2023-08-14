@@ -65,6 +65,7 @@ type ClusterBean struct {
 	Id                      int                        `json:"id" validate:"number"`
 	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
+	ProxyUrl                string                     `json:"proxyUrl,omitempty" validate:"omitempty,url"`
 	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
 	Active                  bool                       `json:"active"`
 	Config                  map[string]string          `json:"config,omitempty"`
@@ -87,6 +88,7 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean.Id = model.Id
 	bean.ClusterName = model.ClusterName
 	bean.ServerUrl = model.ServerUrl
+	bean.ProxyUrl = model.ProxyUrl
 	bean.PrometheusUrl = model.PrometheusEndpoint
 	bean.AgentInstallationStage = model.AgentInstallationStage
 	bean.Active = model.Active
@@ -120,8 +122,9 @@ type PrometheusAuth struct {
 func (bean ClusterBean) GetClusterConfig() (*k8s.ClusterConfig, error) {
 	host := bean.ServerUrl
 	configMap := bean.Config
+	proxyUrl := bean.ProxyUrl
 	bearerToken := configMap[k8s.BearerToken]
-	clusterCfg := &k8s.ClusterConfig{Host: host, BearerToken: bearerToken}
+	clusterCfg := &k8s.ClusterConfig{Host: host, BearerToken: bearerToken, ProxyUrl: proxyUrl}
 	clusterCfg.InsecureSkipTLSVerify = bean.InsecureSkipTLSVerify
 	if bean.InsecureSkipTLSVerify == false {
 		clusterCfg.KeyData = configMap[k8s.TlsKey]
@@ -226,7 +229,7 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Cluster
 	model.Config = clusterBean.Config
 	model.PrometheusEndpoint = clusterBean.PrometheusUrl
 	model.InsecureSkipTlsVerify = clusterBean.InsecureSkipTLSVerify
-
+	model.ProxyUrl = clusterBean.ProxyUrl
 	if clusterBean.PrometheusAuth != nil {
 		model.PUserName = clusterBean.PrometheusAuth.UserName
 		model.PPassword = clusterBean.PrometheusAuth.Password
@@ -475,7 +478,9 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		bean.Config[k8s.CertificateAuthorityData] = model.Config[k8s.CertificateAuthorityData]
 	}
 
-	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
+	if bean.ServerUrl != model.ServerUrl || bean.ProxyUrl != model.ProxyUrl ||
+		bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken ||
+		dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
 		if bean.ClusterName == DEFAULT_CLUSTER {
 			impl.logger.Errorw("default_cluster is reserved by the system and cannot be updated, default_cluster", "name", bean.ClusterName)
 			return nil, fmt.Errorf("default_cluster is reserved by the system and cannot be updated")
@@ -491,7 +496,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	model.ServerUrl = bean.ServerUrl
 	model.InsecureSkipTlsVerify = bean.InsecureSkipTLSVerify
 	model.PrometheusEndpoint = bean.PrometheusUrl
-
+	model.ProxyUrl = bean.ProxyUrl
 	if bean.PrometheusAuth != nil {
 		if bean.PrometheusAuth.UserName != "" {
 			model.PUserName = bean.PrometheusAuth.UserName
@@ -612,6 +617,7 @@ func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
 		ClusterName:           bean.ClusterName,
 		BearerToken:           requestConfig,
 		ServerUrl:             bean.ServerUrl,
+		ProxyUrl:              bean.ProxyUrl,
 		InsecureSkipTLSVerify: bean.InsecureSkipTLSVerify,
 	}
 	if !bean.InsecureSkipTLSVerify {
@@ -668,6 +674,7 @@ func (impl *ClusterServiceImpl) buildInformer() {
 				ClusterName:           model.ClusterName,
 				BearerToken:           bearerToken,
 				ServerUrl:             model.ServerUrl,
+				ProxyUrl:              model.ProxyUrl,
 				InsecureSkipTLSVerify: model.InsecureSkipTlsVerify,
 				KeyData:               model.Config[k8s.TlsKey],
 				CertData:              model.Config[k8s.CertData],
@@ -1023,6 +1030,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 		if clusterObj != nil {
 			clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
+			clusterBeanObject.ProxyUrl = clusterObj.ProxyURL
 		}
 
 		if (clusterObj != nil) && !clusterObj.InsecureSkipTLSVerify && (clusterBeanObject.ErrorInConnecting == "") {

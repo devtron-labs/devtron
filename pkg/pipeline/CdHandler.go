@@ -40,13 +40,14 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
@@ -120,6 +121,7 @@ type CdHandlerImpl struct {
 	appGroupService                        appGroup2.AppGroupService
 	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
 	imageTaggingService                    ImageTaggingService
+	eventFactory                           client2.EventFactory
 	k8sUtil                                *k8s.K8sUtil
 }
 
@@ -148,7 +150,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository,
 	appGroupService appGroup2.AppGroupService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	imageTaggingService ImageTaggingService,
+	imageTaggingService ImageTaggingService, eventFactory client2.EventFactory,
 	k8sUtil *k8s.K8sUtil) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
@@ -185,6 +187,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		appGroupService:                        appGroupService,
 		deploymentApprovalRepository:           deploymentApprovalRepository,
 		imageTaggingService:                    imageTaggingService,
+		eventFactory:                           eventFactory,
 		k8sUtil:                                k8sUtil,
 	}
 }
@@ -1682,6 +1685,12 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
 			return err
 		}
+		err = impl.performNotificationApprovalAction(approvalActionRequest, userId)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while performing notification approval action", "approvalActionRequest", approvalActionRequest, "userId", userId, "err", err)
+			return err
+		}
+
 	} else {
 		// fetch if cd wf runner is present then user cannot cancel the request, as deployment has been triggered already
 		approvalRequest, err := impl.deploymentApprovalRepository.FetchById(approvalRequestId)
@@ -1700,6 +1709,23 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", approvalRequest.PipelineId, "artifactId", artifactId, "err", err)
 			return err
 		}
+	}
+	return nil
+}
+
+func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean2.UserApprovalActionRequest, userId int32) error {
+	eventType := util2.Approval
+	pipeline, err := impl.pipelineRepository.FindById(approvalActionRequest.PipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
+		return err
+	}
+	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, "")
+	event = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.Logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+		return evtErr
 	}
 	return nil
 }

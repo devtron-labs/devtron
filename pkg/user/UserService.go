@@ -326,6 +326,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
 	updateUserInfo.UserId = userInfo.UserId
 	updateUserInfo.EmailId = emailId // override case sensitivity
+	impl.logger.Debugw("update user called through create user flow", "user", updateUserInfo)
 	updateUserInfo, _, _, _, err = impl.UpdateUser(updateUserInfo, token, managerAuth)
 	if err != nil {
 		impl.logger.Errorw("error while update user", "error", err)
@@ -669,7 +670,7 @@ func (impl UserServiceImpl) mergeGroups(oldGroups []string, newGroups []string) 
 	return groups
 }
 
-func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, bool, bool, []string, error) {
+func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, bool, bool, []string, error) {
 	//checking if request for same user is being processed
 	isLocked := impl.getUserReqLockStateById(userInfo.Id)
 	if isLocked {
@@ -759,6 +760,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, m
 		}
 		eliminatedPolicies = append(eliminatedPolicies, items...)
 		if len(eliminatedPolicies) > 0 {
+			impl.logger.Debugw("casbin policies to remove for the request", "policies: ", eliminatedPolicies, "userInfo", userInfo)
 			rolesChanged = true
 		}
 
@@ -847,10 +849,12 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, m
 
 	//updating in casbin
 	if len(eliminatedPolicies) > 0 {
+		impl.logger.Debugw("casbin policies being eliminated", "policies: ", eliminatedPolicies, "userInfo", userInfo)
 		pRes := casbin2.RemovePolicy(eliminatedPolicies)
 		println(pRes)
 	}
 	if len(addedPolicies) > 0 {
+		impl.logger.Debugw("casbin policies being added", "policies: ", addedPolicies)
 		err = casbin2.AddPolicy(addedPolicies)
 		if err != nil {
 			impl.logger.Errorw("casbin policy addition failed", "err", err)

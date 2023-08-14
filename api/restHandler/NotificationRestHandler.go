@@ -62,6 +62,7 @@ type NotificationRestHandler interface {
 	GetWebhookVariables(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfig(w http.ResponseWriter, r *http.Request)
 	GetAllNotificationSettings(w http.ResponseWriter, r *http.Request)
+	IsSesOrSmtpConfigured(w http.ResponseWriter, r *http.Request)
 	DeleteNotificationSettings(w http.ResponseWriter, r *http.Request)
 	DeleteNotificationChannelConfig(w http.ResponseWriter, r *http.Request)
 
@@ -430,6 +431,22 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 	}
 
 	common.WriteJsonResp(w, err, nsvResponse, http.StatusOK)
+}
+func (impl NotificationRestHandlerImpl) IsSesOrSmtpConfigured(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	sesConfig, fErr := impl.notificationService.IsSesOrSmtpConfigured()
+	if fErr != nil && fErr != pg.ErrNoRows {
+		impl.logger.Errorw("service err, sesConfig", sesConfig, "err", fErr)
+		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	common.WriteJsonResp(w, nil, sesConfig, http.StatusOK)
 }
 
 func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {
