@@ -452,6 +452,19 @@ func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string 
 	}
 }
 
+func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() string {
+	switch workflowRequest.Type {
+	case bean.CI_WORKFLOW_PIPELINE_TYPE:
+		return CI_WORKFLOW_NAME
+	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
+		return CI_WORKFLOW_NAME
+	case bean.CD_WORKFLOW_PIPELINE_TYPE:
+		return CD_WORKFLOW_NAME
+	default:
+		return ""
+	}
+}
+
 func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdConfig, workflowJson []byte) (containerEnvVariables []v12.EnvVar) {
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE ||
 		workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {

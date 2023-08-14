@@ -402,7 +402,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *Workflo
 
 	clusterConfig, err := impl.getClusterConfig(workflowRequest)
 	workflowTemplate.ClusterConfig = clusterConfig
-	workflowTemplate.WorkflowType = workflowRequest.GetEventTypeForWorkflowRequest()
+	workflowTemplate.WorkflowType = workflowRequest.GetWorkflowTypeForWorkflowRequest()
 	return workflowTemplate, nil
 }
 

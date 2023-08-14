@@ -74,13 +74,13 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 
 	entryPoint := workflowTemplate.WorkflowType
 	// get cm and cs argo step templates
-	templates, err := impl.getArgoTemplates(workflowTemplate.ConfigMaps, workflowTemplate.Secrets, workflowTemplate.WorkflowType == CiStage)
+	templates, err := impl.getArgoTemplates(workflowTemplate.ConfigMaps, workflowTemplate.Secrets, workflowTemplate.WorkflowType == CI_WORKFLOW_NAME)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching argo templates and steps", "err", err)
 		return nil, err
 	}
 	if len(templates) > 0 {
-		if workflowTemplate.WorkflowType == CiStage {
+		if workflowTemplate.WorkflowType == CI_WORKFLOW_NAME {
 			entryPoint = CI_WORKFLOW_WITH_STAGES
 		} else {
 			entryPoint = CD_WORKFLOW_WITH_STAGES
