@@ -454,7 +454,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 	}
 	err = impl.AddConfigFileToChart(valuesConfig, dir, clonedDir)
 	if err != nil {
-		impl.logger.Errorw("error in adding requirements.yaml to chart", "err", err, "appName", PushChartToGitRequest.AppName)
+		impl.logger.Errorw("error in adding values.yaml to chart", "err", err, "appName", PushChartToGitRequest.AppName)
 		return nil, "", err
 	}
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(PushChartToGitRequest.UserId)
