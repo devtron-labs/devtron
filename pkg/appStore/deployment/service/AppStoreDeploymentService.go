@@ -994,14 +994,16 @@ func (impl AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(instal
 				ReleaseNamespace: installAppVersionRequest.Namespace,
 				ReleaseName:      installAppVersionRequest.AppName,
 			},
-			ChartRepository: &client.ChartRepository{
-				Name:     chartRepoInfo.Name,
-				Url:      chartRepoInfo.Url,
-				Username: chartRepoInfo.UserName,
-				Password: chartRepoInfo.Password,
-			},
 		},
 		SourceAppType: client.SOURCE_HELM_APP,
+	}
+	if chartRepoInfo != nil {
+		updateReleaseRequest.ChartRepository = &client.ChartRepository{
+			Name:     chartRepoInfo.Name,
+			Url:      chartRepoInfo.Url,
+			Username: chartRepoInfo.UserName,
+			Password: chartRepoInfo.Password,
+		}
 	}
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest)
 	if err != nil {
