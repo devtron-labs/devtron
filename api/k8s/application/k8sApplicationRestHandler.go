@@ -694,7 +694,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, "*", rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, "*", rbacObject2)
 
 		if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
