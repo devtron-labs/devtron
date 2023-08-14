@@ -1537,40 +1537,29 @@ func (impl *AppServiceImpl) CopyFile(source, destination string) error {
 	return nil
 }
 
-func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, envName string, image string, chartVersion string, overrideValues string, builtChartPath string) ([]byte, error) {
-	var manifestByteArr []byte
+func (impl *AppServiceImpl) MergeDefaultValuesWithOverrideValues(overrideValues string, builtChartPath string) error {
 	valuesFilePath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
 	defaultValues, err := ioutil.ReadFile(valuesFilePath)
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
 	defaultValuesJson, err := yaml.YAMLToJSON(defaultValues)
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
 	mergedValues, err := impl.mergeUtil.JsonPatch(defaultValuesJson, []byte(overrideValues))
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
 	mergedValuesYaml, err := yaml.JSONToYAML(mergedValues)
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
 	err = ioutil.WriteFile(valuesFilePath, mergedValuesYaml, 0600)
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
-	var imageTag string
-	if len(image) > 0 {
-		imageTag = strings.Split(image, ":")[1]
-	}
-	chartName := fmt.Sprintf("%s-%s-%s", appName, envName, imageTag)
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, chartVersion)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArr, err
-	}
-	return manifestByteArr, err
+	return err
 }
 
 func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error) {
@@ -1717,16 +1706,28 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in saving timeline for manifest_download type")
 		}
 		span.End()
-
-		manifest, err = impl.GetHelmManifestInByte(overrideRequest.AppName, overrideRequest.EnvName, valuesOverrideResponse.Artifact.Image, valuesOverrideResponse.EnvOverride.Chart.ChartVersion, valuesOverrideResponse.MergedValues, builtChartPath)
+		err = impl.MergeDefaultValuesWithOverrideValues(valuesOverrideResponse.MergedValues, builtChartPath)
 		if err != nil {
-			impl.logger.Errorw("error in converting built chart to bytes", "err", err)
+			impl.logger.Errorw("error in merging default values with override values ", "err", err)
 			return releaseNo, manifest, err
+		}
+		if !triggerEvent.PerformChartPush {
+			image := valuesOverrideResponse.Artifact.Image
+			var imageTag string
+			if len(image) > 0 {
+				imageTag = strings.Split(image, ":")[1]
+			}
+			chartName := fmt.Sprintf("%s-%s-%s", overrideRequest.AppName, overrideRequest.EnvName, imageTag)
+			manifest, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, valuesOverrideResponse.EnvOverride.Chart.ChartVersion)
+			if err != nil {
+				impl.logger.Errorw("error in converting chart to bytes", "err", err)
+				return releaseNo, manifest, err
+			}
 		}
 	}
 
 	if triggerEvent.PerformChartPush {
-		manifestPushTemplate, err := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
+		manifestPushTemplate, err := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath)
 		if err != nil {
 			impl.logger.Errorw("error in building manifest push template", "err", err)
 			return releaseNo, manifest, err
@@ -1840,7 +1841,7 @@ func GetRepoPathAndChartNameFromRepoName(repoName string) (repoPath, chartName s
 	return repoPath, chartName
 }
 
-func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, manifest *[]byte) (*bean3.ManifestPushTemplate, error) {
+func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string) (*bean3.ManifestPushTemplate, error) {
 
 	manifestPushTemplate := &bean3.ManifestPushTemplate{
 		WorkflowRunnerId:      overrideRequest.WfrId,
@@ -1852,7 +1853,6 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 		AppName:               overrideRequest.AppName,
 		TargetEnvironmentName: valuesOverrideResponse.EnvOverride.TargetEnvironment,
 		BuiltChartPath:        builtChartPath,
-		BuiltChartBytes:       manifest,
 		MergedValues:          valuesOverrideResponse.MergedValues,
 	}
 
@@ -1864,7 +1864,6 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 
 	if manifestPushConfig.Id != 0 {
 		if manifestPushConfig.StorageType == bean2.ManifestStorageOCIHelmRepo {
-
 			var credentialsConfig bean3.HelmRepositoryConfig
 			err = json.Unmarshal([]byte(manifestPushConfig.CredentialsConfig), &credentialsConfig)
 			if err != nil {
@@ -1882,6 +1881,12 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 			manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
 			manifestPushTemplate.ChartName = chartName
 			manifestPushTemplate.ChartVersion = fmt.Sprintf("%d.%d.%d-%s-%s", 1, 0, overrideRequest.WfrId, "DEPLOY", imageTag)
+			manifestBytes, err := impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, manifestPushTemplate.ChartVersion)
+			if err != nil {
+				impl.logger.Errorw("error in converting chart to bytes", "err", err)
+				return manifestPushTemplate, err
+			}
+			manifestPushTemplate.BuiltChartBytes = &manifestBytes
 			containerRegistryConfig := &bean3.ContainerRegistryConfig{
 				RegistryUrl:  dockerArtifactStore.RegistryURL,
 				Username:     dockerArtifactStore.Username,

@@ -495,13 +495,6 @@ func (impl *CdWorkflowServiceImpl) checkErr(err error) {
 
 func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, stageType string) (builtChartPath string, err error) {
 
-	// making secret name unique for pre and post cd
-	for _, configMap := range jobManifestTemplate.ConfigMaps {
-		configMap.Name = fmt.Sprintf("%s-%s", configMap.Name, stageType)
-	}
-	for _, secret := range jobManifestTemplate.ConfigSecrets {
-		secret.Name = fmt.Sprintf("%s-%s", secret.Name, stageType)
-	}
 	jobManifestJson, err := json.Marshal(jobManifestTemplate)
 	if err != nil {
 		impl.Logger.Errorw("error in converting to json", "err", err)
