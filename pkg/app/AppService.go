@@ -1732,6 +1732,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in building manifest push template", "err", err)
 			return releaseNo, manifest, err
 		}
+		manifest = *manifestPushTemplate.BuiltChartBytes
 		manifestPushService := impl.GetManifestPushService(triggerEvent.ManifestStorageType)
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
