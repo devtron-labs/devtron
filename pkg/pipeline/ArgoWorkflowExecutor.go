@@ -80,7 +80,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		return nil, err
 	}
 	if len(templates) > 0 {
-		if workflowTemplate.WorkflowType == CI_WORKFLOW_NAME {
+		if workflowTemplate.WorkflowType == CiStage {
 			entryPoint = CI_WORKFLOW_WITH_STAGES
 		} else {
 			entryPoint = CD_WORKFLOW_WITH_STAGES
@@ -102,7 +102,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
 		Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
 	}
-	if workflowTemplate.WorkflowType == CD_WORKFLOW_NAME {
+	if workflowTemplate.WorkflowType == CdStage {
 		objectMeta = v1.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
 			Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
