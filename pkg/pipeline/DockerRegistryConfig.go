@@ -891,7 +891,10 @@ func (impl DockerRegistryConfigImpl) CheckInActiveDockerAccount(storeId string) 
 }
 
 func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *DockerArtifactStoreBean) bool {
-	if bean.IsPublic || bean.RegistryType == repository.REGISTRYTYPE_GCR || bean.RegistryType == repository.REGISTRYTYPE_ARTIFACT_REGISTRY {
+	if bean.IsPublic ||
+		bean.RegistryType == repository.REGISTRYTYPE_GCR ||
+		bean.RegistryType == repository.REGISTRYTYPE_ARTIFACT_REGISTRY ||
+		bean.RegistryType == repository.REGISTRYTYPE_OTHER {
 		return true
 	}
 	request := &client.RegistryCredential{
