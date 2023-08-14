@@ -21,6 +21,7 @@
 - fix: Clone of app with external-ci (#3624)
 - Fix: optimizing when querying DB to get running Helm deployments (#3637)
 ## Enhancements
+- perf:  user update api concurrent request handling (#3760)
 - feat: workflow to validate PRs if an issue is linked or not (#3730)
 - feat:sql script file added for Approval node notification  (#3725)
 - feat: Allow changing chart ref (#3706)
