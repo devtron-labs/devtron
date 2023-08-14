@@ -699,7 +699,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject2); ok {
 			isAuthorised = true
 		} else {
-			isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+			isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, "*", rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, "*", rbacObject2)
 		}
 		if !isAuthorised {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)

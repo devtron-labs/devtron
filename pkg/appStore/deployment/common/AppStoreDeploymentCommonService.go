@@ -51,7 +51,7 @@ type AppStoreDeploymentCommonService interface {
 	ParseGitRepoErrorResponse(err error) (bool, error)
 	GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error)
 	CreateChartProxyAndGetPath(appName string, includePackageChart bool) (*util.ChartCreateResponse, error)
-	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string) (*util.ChartGitAttribute, error)
+	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, bool, string, error)
 	CommitConfigToGit(chartConfig *util.ChartConfig) (gitHash string, err error)
 	GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error)
 	GetValuesString(chartName, valuesOverrideYaml string) (string, error)
