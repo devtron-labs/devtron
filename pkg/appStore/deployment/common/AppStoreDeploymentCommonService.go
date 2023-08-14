@@ -480,7 +480,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 	}
 	impl.logger.Debugw("template committed", "url", PushChartToGitRequest.RepoURL, "commit", commit)
 	defer impl.chartTemplateService.CleanDir(clonedDir)
-	return &util.ChartGitAttribute{RepoUrl: PushChartToGitRequest.RepoURL, ChartLocation: filepath.Join("", acdAppName)}, commit, err
+	return &util.ChartGitAttribute{RepoUrl: PushChartToGitRequest.RepoURL, ChartLocation: acdAppName}, commit, err
 }
 
 // AddConfigFileToChart will override requirements.yaml file in chart
