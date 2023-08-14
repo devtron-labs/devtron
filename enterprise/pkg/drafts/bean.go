@@ -109,6 +109,8 @@ type ConfigDraftResponse struct {
 	Approvers      []string   `json:"approvers"`
 	CanApprove     *bool      `json:"canApprove,omitempty"`
 	CommentsCount  int        `json:"commentsCount"`
+	DataEncrypted  bool       `json:"dataEncrypted"`
+	IsAppAdmin     bool       `json:"isAppAdmin"`
 }
 
 type DraftCountResponse struct {

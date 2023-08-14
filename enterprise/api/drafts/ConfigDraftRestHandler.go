@@ -268,14 +268,18 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftByName(w http.ResponseWriter, r 
 		return
 	}
 	token := r.Header.Get("token")
+	dataEncrypted := false
 	appAdminUser := impl.enforceForAppAndEnv(draftResponse.AppId, draftResponse.EnvId, token, casbin.ActionUpdate)
 	if draftResponse.Resource == drafts.CSDraftResource && !appAdminUser {
 		if notAnApprover := impl.checkForApproverAccess(w, draftResponse.EnvId, draftResponse.AppId, token, false); notAnApprover {
 			// not an admin and config approver, protecting secret data
 			encryptedCSData := impl.configDraftService.EncryptCSData(draftResponse.Data)
 			draftResponse.Data = encryptedCSData
+			dataEncrypted = true
 		}
 	}
+	draftResponse.DataEncrypted = dataEncrypted
+	draftResponse.IsAppAdmin = appAdminUser
 	common.WriteJsonResp(w, nil, draftResponse, http.StatusOK)
 }
 
