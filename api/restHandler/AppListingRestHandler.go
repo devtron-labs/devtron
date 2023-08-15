@@ -1034,6 +1034,7 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 	cdPipeline := pipelines[0]
 	if cdPipeline.Environment.IsVirtualEnvironment {
 		common.WriteJsonResp(w, nil, nil, http.StatusOK)
+		return
 	}
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
