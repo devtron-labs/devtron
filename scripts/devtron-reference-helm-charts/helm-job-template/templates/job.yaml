@@ -50,13 +50,13 @@ spec:
           {{- range .Values.ConfigMaps }}
           {{- if eq .type "environment" }}
           - configMapRef:
-              name: {{ .name }}
+              name: "{{ $.Release.Name }}-{{ .name}}"
           {{- end }}
           {{- end }}
           {{- range .Values.ConfigSecrets }}
           {{- if eq .type "environment" }}
           - secretRef:
-              name: {{ .name }}
+              name: "{{ $.Release.Name }}-{{ .name}}"
           {{- end }}
           {{- end }}
 
@@ -80,7 +80,7 @@ spec:
       {{- if eq .type "volume"}}
         - name: {{ .name}}-vol
           configMap:
-            name: {{ .name}}
+            name: "{{ $.Release.Name }}-{{ .name}}"
       {{- end }}
       {{- end }}
 
@@ -88,7 +88,7 @@ spec:
       {{- if eq .type "volume"}}
         - name: {{ .name}}-vol
           secret:
-            secretName: {{ .name}}
+            secretName: "{{ $.Release.Name }}-{{ .name}}"''
       {{- end }}
       {{- end }}
 
