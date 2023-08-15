@@ -565,14 +565,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			}
 			pipeline.Environment = *envDbObject
 		}
+		deleteChart := !util.IsManifestPush(pipeline.DeploymentAppType)
 		imageTag := strings.Split(artifact.Image, ":")[1]
 		chartName := fmt.Sprintf("%s-%s-%s-%s", "pre", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
-		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true, chartName, fmt.Sprint(cdWf.Id))
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, deleteChart, chartName, fmt.Sprint(cdWf.Id))
 		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
 			return err
 		}
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
-			err = impl.appService.PushPrePostCDManifest(runner.Id, triggeredBy, &chartBytes, PRE, pipeline, imageTag, ctx)
+			err = impl.appService.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, PRE, pipeline, imageTag, ctx)
 			if err != nil {
 				runner.Status = pipelineConfig.WorkflowFailed
 				runner.UpdatedBy = triggeredBy
@@ -710,7 +711,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			return err
 		}
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
-			err = impl.appService.PushPrePostCDManifest(runner.Id, triggeredBy, &chartBytes, POST, pipeline, imageTag, context.Background())
+			err = impl.appService.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, POST, pipeline, imageTag, context.Background())
 			if err != nil {
 				runner.Status = pipelineConfig.WorkflowFailed
 				runner.UpdatedBy = triggeredBy
@@ -1486,20 +1487,21 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		return nil
 	}
 
-	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
+	manifest, err := impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
 	if util.IsManifestDownload(pipeline.DeploymentAppType) || util.IsManifestPush(pipeline.DeploymentAppType) {
 		runner := &pipelineConfig.CdWorkflowRunner{
-			Id:           runner.Id,
-			Name:         pipeline.Name,
-			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			TriggeredBy:  1,
-			StartedOn:    triggeredAt,
-			Status:       pipelineConfig.WorkflowSucceeded,
-			Namespace:    impl.cdConfig.DefaultNamespace,
-			CdWorkflowId: cdWf.Id,
-			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
-			FinishedOn:   time.Now(),
+			Id:                 runner.Id,
+			Name:               pipeline.Name,
+			WorkflowType:       bean.CD_WORKFLOW_TYPE_DEPLOY,
+			ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			TriggeredBy:        1,
+			StartedOn:          triggeredAt,
+			Status:             pipelineConfig.WorkflowSucceeded,
+			Namespace:          impl.cdConfig.DefaultNamespace,
+			CdWorkflowId:       cdWf.Id,
+			AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+			FinishedOn:         time.Now(),
+			HelmReferenceChart: *manifest,
 		}
 		updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		if updateErr != nil {
