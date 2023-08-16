@@ -255,7 +255,8 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(
 		" aps.name as chart_name, chr.id as chart_repo_id, chr.name as chart_repo_name" +
 		" from app_store_application_version asv" +
 		" inner join app_store aps on asv.app_store_id = aps.id" +
-		" inner join chart_repo chr on aps.chart_repo_id = chr.id" +
+		" left join chart_repo chr on aps.chart_repo_id = chr.id" +
+		" left join docker_artifact_store das on aps.docker_artifact_store_id = das.id" +
 		" where aps.name like '%" + chartName + "%' and asv.latest is TRUE order by aps.name asc;"
 	_, err := impl.dbConnection.Query(&chartRepos, queryTemp)
 	if err != nil {

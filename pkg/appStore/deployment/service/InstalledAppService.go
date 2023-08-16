@@ -1239,6 +1239,9 @@ func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDel
 
 func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error) {
 	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		return nil, err
+	}
 	return installedApp, err
 }
 
@@ -1280,7 +1283,11 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 	responseTree := resp
 	canBeHibernated := 0
 	hibernated := 0
-	for _, node := range responseTree["nodes"].(interface{}).([]interface{}) {
+	responseTreeNodes, ok := responseTree["nodes"]
+	if !ok {
+		return resp, ""
+	}
+	for _, node := range responseTreeNodes.(interface{}).([]interface{}) {
 		currNode := node.(interface{}).(map[string]interface{})
 		resName := util3.InterfaceToString(currNode["name"])
 		resKind := util3.InterfaceToString(currNode["kind"])
