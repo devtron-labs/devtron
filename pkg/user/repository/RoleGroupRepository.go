@@ -31,7 +31,7 @@ type RoleGroupRepository interface {
 	GetRoleGroupListByName(name string) ([]*RoleGroup, error)
 	GetAllRoleGroup() ([]*RoleGroup, error)
 	GetRoleGroupListByCasbinNames(name []string) ([]*RoleGroup, error)
-	GetRoleGroupByCasbinName(name string) (*RoleGroup, error)
+	CheckRoleGroupExistByCasbinName(name string) (bool, error)
 	CreateRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (*RoleGroupRoleMapping, error)
 	GetRoleGroupRoleMapping(model int32) (*RoleGroupRoleMapping, error)
 	GetRoleGroupRoleMappingByRoleGroupId(roleGroupId int32) ([]*RoleGroupRoleMapping, error)
@@ -123,10 +123,11 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupListByCasbinNames(names []string
 	err := impl.dbConnection.Model(&model).Where("casbin_name in (?)", pg.In(names)).Where("active = ?", true).Select()
 	return model, err
 }
-func (impl RoleGroupRepositoryImpl) GetRoleGroupByCasbinName(name string) (*RoleGroup, error) {
-	var model RoleGroup
-	err := impl.dbConnection.Model(&model).Where("casbin_name = ?", name).Where("active = ?", true).Order("updated_on desc").Select()
-	return &model, err
+
+func (impl RoleGroupRepositoryImpl) CheckRoleGroupExistByCasbinName(name string) (bool, error) {
+	var model *RoleGroup
+	return impl.dbConnection.Model(&model).Where("casbin_name = ?", name).Where("active = ?", true).Exists()
+
 }
 
 func (impl RoleGroupRepositoryImpl) CreateRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (*RoleGroupRoleMapping, error) {
