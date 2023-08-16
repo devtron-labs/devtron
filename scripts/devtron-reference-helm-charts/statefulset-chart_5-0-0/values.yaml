@@ -112,8 +112,19 @@ kedaAutoscaling:
 secret:
   enabled: false
 
+service:
+  type: ClusterIP
+  enabled: true
+  #name: "test-service"
+  annotations: {}
+    # test1: test2
+    # test3: test4
 statefulSetConfig:
   mountPath: "/tmp"
+  serviceheadless: 
+    enabled: false
+    name: "test-service_headless"
+
   volumeClaimTemplates: []
   # - spec:
   #     accessModes:
@@ -122,16 +133,7 @@ statefulSetConfig:
   #       requests:
   #         storage: "2Gi"
 # nodeName: ""
-serviceheadless: 
-  enabled: false
-  #name: "test-service_headless"
-service:
-  type: ClusterIP
-  enabled: false
-  #name: "test-service"
-  annotations: {}
-    # test1: test2
-    # test3: test4
+
 
 server:
  deployment:

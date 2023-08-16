@@ -127,10 +127,11 @@ EnvVariablesFromCongigMapKeys:
     keyName: CONFIG_MAP_KEY
 
 nodeName: "testiing"
-serviceheadless: 
-  enabled: false
-  #name: "test-service_headless"
+
 statefulSetConfig:
+  serviceheadless: 
+    enabled: false
+    name: test-service_headless
   labels: 
     app: example
   annotations:

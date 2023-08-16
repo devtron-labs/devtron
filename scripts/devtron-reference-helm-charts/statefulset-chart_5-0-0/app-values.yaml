@@ -35,12 +35,14 @@ winterSoldier:
     - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 
-serviceheadless: 
-  enabled: false
-  #name: "test-service_headless"
+
 statefulSetConfig:
   labels: {}
   annotations: {}
+  serviceheadless: 
+    enabled: false
+    #name: "test-service_headless"
+
   #serviceName: "test-service_headless"
   #revisionHistoryLimit: 3
   # mountPath: "/tmp"
