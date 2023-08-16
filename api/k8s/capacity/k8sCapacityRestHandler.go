@@ -69,7 +69,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 	var authenticatedClusters []*cluster.ClusterBean
 	var clusterDetailList []*bean.ClusterCapacityDetail
 	for _, cluster := range clusters {
-		authenticated, err := handler.CheckRbacForCluster(cluster, token)
+		authenticated, err := handler.CheckRbacForCluster(cluster, token, userId)
 		if err != nil {
 			handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", cluster.Id)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -109,7 +109,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 	// RBAC enforcer applying
 	var authenticatedClusters []*cluster.ClusterBean
 	for _, cluster := range clusters {
-		authenticated, err := handler.CheckRbacForCluster(cluster, token)
+		authenticated, err := handler.CheckRbacForCluster(cluster, token, userId)
 		if err != nil {
 			handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", cluster.Id)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -153,7 +153,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterDetail(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	authenticated, err := handler.CheckRbacForCluster(cluster, token)
+	authenticated, err := handler.CheckRbacForCluster(cluster, token, userId)
 	if err != nil {
 		handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -193,7 +193,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeList(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	authenticated, err := handler.CheckRbacForCluster(cluster, token)
+	authenticated, err := handler.CheckRbacForCluster(cluster, token, userId)
 	if err != nil {
 		handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -239,7 +239,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeDetail(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	authenticated, err := handler.CheckRbacForCluster(cluster, token)
+	authenticated, err := handler.CheckRbacForCluster(cluster, token, userId)
 	if err != nil {
 		handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -403,7 +403,7 @@ func (handler *K8sCapacityRestHandlerImpl) EditNodeTaints(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.ClusterBean, token string) (authenticated bool, err error) {
+func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.ClusterBean, token string, userId int32) (authenticated bool, err error) {
 	//getting all environments for this cluster
 	envs, err := handler.environmentService.GetByClusterId(cluster.Id)
 	if err != nil {
@@ -440,8 +440,27 @@ func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.
 			return true, nil
 		}
 	}
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, strings.ToLower(cluster.ClusterName)); ok {
+	allowedClusterMap, err := handler.FetchAllowedClusterMap(userId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching allowedClusterMap ", "err", err, "clusterName", cluster.ClusterName)
+		return false, err
+	}
+	if allowedClusterMap[cluster.ClusterName] {
 		return true, nil
 	}
+
 	return false, nil
+}
+func (handler *K8sCapacityRestHandlerImpl) FetchAllowedClusterMap(userId int32) (map[string]bool, error) {
+	allowedClustersMap := make(map[string]bool)
+	roles, err := handler.clusterService.FetchRolesFromGroup(userId)
+	if err != nil {
+		handler.logger.Errorw("error while fetching user roles from db", "error", err)
+		return nil, err
+	}
+	for _, role := range roles {
+		allowedClustersMap[role.Cluster] = true
+	}
+	return allowedClustersMap, err
+
 }
