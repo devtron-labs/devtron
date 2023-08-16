@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -11,15 +12,18 @@ type BulkUpdateRouter interface {
 
 type BulkUpdateRouterImpl struct {
 	restHandler restHandler.BulkUpdateRestHandler
+	userAuth    logger.UserAuth
 }
 
-func NewBulkUpdateRouterImpl(handler restHandler.BulkUpdateRestHandler) *BulkUpdateRouterImpl {
+func NewBulkUpdateRouterImpl(handler restHandler.BulkUpdateRestHandler, userAuth logger.UserAuth) *BulkUpdateRouterImpl {
 	router := &BulkUpdateRouterImpl{
 		restHandler: handler,
+		userAuth:    userAuth,
 	}
 	return router
 }
 func (router BulkUpdateRouterImpl) initBulkUpdateRouter(bulkRouter *mux.Router) {
+	bulkRouter.Use(router.userAuth.LoggingMiddleware)
 	bulkRouter.Path("/{apiVersion}/{kind}/readme").HandlerFunc(router.restHandler.FindBulkUpdateReadme).Methods("GET")
 	bulkRouter.Path("/v1beta1/application/dryrun").HandlerFunc(router.restHandler.GetImpactedAppsName).Methods("POST")
 	bulkRouter.Path("/v1beta1/application").HandlerFunc(router.restHandler.BulkUpdate).Methods("POST")

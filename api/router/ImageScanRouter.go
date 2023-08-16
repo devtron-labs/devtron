@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -27,13 +28,16 @@ type ImageScanRouter interface {
 }
 type ImageScanRouterImpl struct {
 	imageScanRestHandler restHandler.ImageScanRestHandler
+	userAuth             logger.UserAuth
 }
 
-func NewImageScanRouterImpl(imageScanRestHandler restHandler.ImageScanRestHandler) *ImageScanRouterImpl {
-	return &ImageScanRouterImpl{imageScanRestHandler: imageScanRestHandler}
+func NewImageScanRouterImpl(imageScanRestHandler restHandler.ImageScanRestHandler, userAuth logger.UserAuth) *ImageScanRouterImpl {
+	return &ImageScanRouterImpl{imageScanRestHandler: imageScanRestHandler,
+		userAuth: userAuth}
 }
 
 func (impl ImageScanRouterImpl) InitImageScanRouter(configRouter *mux.Router) {
+	configRouter.Use(impl.userAuth.LoggingMiddleware)
 	configRouter.Path("/list").HandlerFunc(impl.imageScanRestHandler.ScanExecutionList).Methods("POST")
 
 	//image=image:abc&envId=3&appId=100&artifactId=100&executionId=100

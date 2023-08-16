@@ -18,6 +18,7 @@
 package sso
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -26,17 +27,20 @@ type SsoLoginRouter interface {
 }
 
 type SsoLoginRouterImpl struct {
-	handler SsoLoginRestHandler
+	handler  SsoLoginRestHandler
+	userAuth logger.UserAuth
 }
 
-func NewSsoLoginRouterImpl(handler SsoLoginRestHandler) *SsoLoginRouterImpl {
+func NewSsoLoginRouterImpl(handler SsoLoginRestHandler, userAuth logger.UserAuth) *SsoLoginRouterImpl {
 	router := &SsoLoginRouterImpl{
-		handler: handler,
+		handler:  handler,
+		userAuth: userAuth,
 	}
 	return router
 }
 
 func (router SsoLoginRouterImpl) InitSsoLoginRouter(userAuthRouter *mux.Router) {
+	userAuthRouter.Use(router.userAuth.LoggingMiddleware)
 	userAuthRouter.Path("/create").
 		HandlerFunc(router.handler.CreateSSOLoginConfig).Methods("POST")
 	userAuthRouter.Path("/update").

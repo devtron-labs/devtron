@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -27,14 +28,16 @@ type DeploymentGroupRouter interface {
 }
 type DeploymentGroupRouterImpl struct {
 	restHandler restHandler.DeploymentGroupRestHandler
+	userAuth    logger.UserAuth
 }
 
-func NewDeploymentGroupRouterImpl(restHandler restHandler.DeploymentGroupRestHandler) *DeploymentGroupRouterImpl {
-	return &DeploymentGroupRouterImpl{restHandler: restHandler}
+func NewDeploymentGroupRouterImpl(restHandler restHandler.DeploymentGroupRestHandler, userAuth logger.UserAuth) *DeploymentGroupRouterImpl {
+	return &DeploymentGroupRouterImpl{restHandler: restHandler, userAuth: userAuth}
 
 }
 
 func (router DeploymentGroupRouterImpl) initDeploymentGroupRouter(configRouter *mux.Router) {
+	configRouter.Use(router.userAuth.LoggingMiddleware)
 	configRouter.Path("/dg/create").HandlerFunc(router.restHandler.CreateDeploymentGroup).Methods("POST")
 	configRouter.Path("/dg/fetch/ci/{deploymentGroupId}").HandlerFunc(router.restHandler.FetchParentCiForDG).Methods("GET")
 	configRouter.Path("/dg/fetch/env/apps/{ciPipelineId}").HandlerFunc(router.restHandler.FetchEnvApplicationsForDG).Methods("GET")

@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -27,12 +28,14 @@ type NotificationRouter interface {
 }
 type NotificationRouterImpl struct {
 	notificationRestHandler restHandler.NotificationRestHandler
+	userAuth                logger.UserAuth
 }
 
-func NewNotificationRouterImpl(notificationRestHandler restHandler.NotificationRestHandler) *NotificationRouterImpl {
-	return &NotificationRouterImpl{notificationRestHandler: notificationRestHandler}
+func NewNotificationRouterImpl(notificationRestHandler restHandler.NotificationRestHandler, userAuth logger.UserAuth) *NotificationRouterImpl {
+	return &NotificationRouterImpl{notificationRestHandler: notificationRestHandler, userAuth: userAuth}
 }
 func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.Router) {
+	configRouter.Use(impl.userAuth.LoggingMiddleware)
 	configRouter.Path("").
 		HandlerFunc(impl.notificationRestHandler.SaveNotificationSettings).
 		Methods("POST")

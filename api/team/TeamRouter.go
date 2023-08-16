@@ -18,6 +18,7 @@
 package team
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -26,13 +27,15 @@ type TeamRouter interface {
 }
 type TeamRouterImpl struct {
 	teamRestHandler TeamRestHandler
+	userAuth        logger.UserAuth
 }
 
-func NewTeamRouterImpl(teamRestHandler TeamRestHandler) *TeamRouterImpl {
-	return &TeamRouterImpl{teamRestHandler: teamRestHandler}
+func NewTeamRouterImpl(teamRestHandler TeamRestHandler, userAuth logger.UserAuth) *TeamRouterImpl {
+	return &TeamRouterImpl{teamRestHandler: teamRestHandler, userAuth: userAuth}
 }
 
 func (impl TeamRouterImpl) InitTeamRouter(configRouter *mux.Router) {
+	configRouter.Use(impl.userAuth.LoggingMiddleware)
 	configRouter.Path("").HandlerFunc(impl.teamRestHandler.SaveTeam).Methods("POST")
 	configRouter.Path("").HandlerFunc(impl.teamRestHandler.FetchAll).Methods("GET")
 	configRouter.Path("").HandlerFunc(impl.teamRestHandler.DeleteTeam).Methods("DELETE")

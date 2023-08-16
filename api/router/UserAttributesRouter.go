@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	user "github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -28,16 +29,19 @@ type UserAttributesRouter interface {
 
 type UserAttributesRouterImpl struct {
 	userAttributesRestHandler user.UserAttributesRestHandler
+	userAuth                  logger.UserAuth
 }
 
-func NewUserAttributesRouterImpl(userAttributesRestHandler user.UserAttributesRestHandler) *UserAttributesRouterImpl {
+func NewUserAttributesRouterImpl(userAttributesRestHandler user.UserAttributesRestHandler, userAuth logger.UserAuth) *UserAttributesRouterImpl {
 	router := &UserAttributesRouterImpl{
 		userAttributesRestHandler: userAttributesRestHandler,
+		userAuth:                  userAuth,
 	}
 	return router
 }
 
 func (router UserAttributesRouterImpl) InitUserAttributesRouter(attributesRouter *mux.Router) {
+	attributesRouter.Use(router.userAuth.LoggingMiddleware)
 	attributesRouter.Path("/update").
 		HandlerFunc(router.userAttributesRestHandler.UpdateUserAttributes).Methods("POST")
 	attributesRouter.Path("/get").

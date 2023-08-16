@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -17,9 +18,10 @@ type GrafanaRouter interface {
 type GrafanaRouterImpl struct {
 	logger       *zap.SugaredLogger
 	grafanaProxy func(writer http.ResponseWriter, request *http.Request)
+	userAuth     logger.UserAuth
 }
 
-func NewGrafanaRouterImpl(logger *zap.SugaredLogger, grafanaCfg *grafana.Config) *GrafanaRouterImpl {
+func NewGrafanaRouterImpl(logger *zap.SugaredLogger, grafanaCfg *grafana.Config, userAuth logger.UserAuth) *GrafanaRouterImpl {
 	client := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -35,10 +37,12 @@ func NewGrafanaRouterImpl(logger *zap.SugaredLogger, grafanaCfg *grafana.Config)
 	router := &GrafanaRouterImpl{
 		grafanaProxy: grafanaProxy,
 		logger:       logger,
+		userAuth:     userAuth,
 	}
 	return router
 }
 
 func (router GrafanaRouterImpl) initGrafanaRouter(grafanaRouter *mux.Router) {
+	grafanaRouter.Use(router.userAuth.LoggingMiddleware)
 	grafanaRouter.PathPrefix("").HandlerFunc(router.grafanaProxy)
 }

@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -30,17 +31,20 @@ type ReleaseMetricsRouter interface {
 type ReleaseMetricsRouterImpl struct {
 	logger                    *zap.SugaredLogger
 	releaseMetricsRestHandler restHandler.ReleaseMetricsRestHandler
+	userAuth                  logger.UserAuth
 }
 
 func NewReleaseMetricsRouterImpl(logger *zap.SugaredLogger,
-	releaseMetricsRestHandler restHandler.ReleaseMetricsRestHandler) *ReleaseMetricsRouterImpl {
+	releaseMetricsRestHandler restHandler.ReleaseMetricsRestHandler, userAuth logger.UserAuth) *ReleaseMetricsRouterImpl {
 	return &ReleaseMetricsRouterImpl{
 		logger:                    logger,
 		releaseMetricsRestHandler: releaseMetricsRestHandler,
+		userAuth:                  userAuth,
 	}
 }
 
 func (impl ReleaseMetricsRouterImpl) initReleaseMetricsRouter(router *mux.Router) {
+	router.Use(impl.userAuth.LoggingMiddleware)
 	router.Path("/reset-app-environment").
 		HandlerFunc(impl.releaseMetricsRestHandler.ResetDataForAppEnvironment).
 		Methods("POST")
