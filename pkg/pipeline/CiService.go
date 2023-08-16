@@ -119,10 +119,6 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 }
 
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
-	config, err := GetCiConfig()
-	if err != nil {
-		return 0, err
-	}
 	impl.Logger.Debug("ci pipeline manual trigger")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if err != nil {
@@ -153,7 +149,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		ciWorkflowConfig.Namespace = env.Namespace
 	}
 	if ciWorkflowConfig.Namespace == "" {
-		ciWorkflowConfig.Namespace = config.GetDefaultNamespace()
+		ciWorkflowConfig.Namespace = impl.config.GetDefaultNamespace()
 	}
 
 	preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, CiStage)
