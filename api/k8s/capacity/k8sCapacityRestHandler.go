@@ -404,6 +404,14 @@ func (handler *K8sCapacityRestHandlerImpl) EditNodeTaints(w http.ResponseWriter,
 }
 
 func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.ClusterBean, token string, userId int32) (authenticated bool, err error) {
+	allowedClusterMap, err := handler.FetchAllowedClusterMap(userId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching allowedClusterMap ", "err", err, "clusterName", cluster.ClusterName)
+		return false, err
+	}
+	if allowedClusterMap[cluster.ClusterName] {
+		return true, nil
+	}
 	//getting all environments for this cluster
 	envs, err := handler.environmentService.GetByClusterId(cluster.Id)
 	if err != nil {
@@ -439,14 +447,6 @@ func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.
 			//if user has view permission to even one environment of this cluster, authorise the request
 			return true, nil
 		}
-	}
-	allowedClusterMap, err := handler.FetchAllowedClusterMap(userId)
-	if err != nil {
-		handler.logger.Errorw("error in fetching allowedClusterMap ", "err", err, "clusterName", cluster.ClusterName)
-		return false, err
-	}
-	if allowedClusterMap[cluster.ClusterName] {
-		return true, nil
 	}
 
 	return false, nil
