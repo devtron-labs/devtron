@@ -118,6 +118,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	client2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	repository10 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util4 "github.com/devtron-labs/devtron/util/k8s"
@@ -779,6 +781,18 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
 		//plugin ends
 
+		//scoped variables start
+		repository10.NewVariableEntityMappingRepository,
+		wire.Bind(new(repository10.VariableEntityMappingRepository), new(*repository10.VariableEntityMappingRepositoryImpl)),
+
+		repository10.NewVariableSnapshotHistoryRepository,
+		wire.Bind(new(repository10.VariableSnapshotHistoryRepository), new(*repository10.VariableSnapshotHistoryRepositoryImpl)),
+		variables.NewVariableEntityMappingServiceImpl,
+		wire.Bind(new(variables.VariableEntityMappingService), new(*variables.VariableEntityMappingServiceImpl)),
+		variables.NewVariableSnapshotHistoryServiceImpl,
+		wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
+
+		//end
 		argocdServer.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(argocdServer.ArgoCDConnectionManager), new(*argocdServer.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,

@@ -80,6 +80,7 @@ type TemplateRequest struct {
 	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 	UserId                  int32                       `json:"-"`
+	ScopedVariableIds       []int                       `json:"scopedVariableIds"`
 }
 
 type AppMetricEnableDisableRequest struct {
