@@ -177,8 +177,6 @@ type ContainerResources struct {
 }*/
 
 type CiProjectDetails struct {
-	GitMaterialId   int    `json:"gitMaterialId"`
-	CiPipelineId    int    `json:"ciPipelineId"`
 	GitRepository   string `json:"gitRepository"`
 	MaterialName    string `json:"materialName"`
 	CheckoutPath    string `json:"checkoutPath"`
