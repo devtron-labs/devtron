@@ -428,7 +428,7 @@ func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig
 	return fmt.Sprintf("%s/%s", config.GetDefaultBuildLogsKeyPrefix(), workflowRequest.WorkflowPrefixForLog)
 }
 
-func (workflowRequest *WorkflowRequest) GetWorkflowJsonAndPVC(config *CiCdConfig) ([]byte, error) {
+func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]byte, error) {
 	workflowRequest.assignBlobStorageLogsKey(config, config.CiDefaultBuildLogsKeyPrefix)
 	workflowRequest.CheckForExternal()
 	workflowJson, err := workflowRequest.getWorkflowJson(workflowRequest.GetEventTypeForWorkflowRequest())

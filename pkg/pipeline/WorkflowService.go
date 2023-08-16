@@ -120,7 +120,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 }
 
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *WorkflowRequest) (bean3.WorkflowTemplate, error) {
-	workflowJson, err := workflowRequest.GetWorkflowJsonAndPVC(impl.ciCdConfig)
+	workflowJson, err := workflowRequest.GetWorkflowJson(impl.ciCdConfig)
 	workflowTemplate := workflowRequest.GetWorkflowTemplate(workflowJson, impl.ciCdConfig)
 	workflowConfigMaps, workflowSecrets, err := impl.appendGlobalCMCS(workflowRequest, workflowRequest.GetEventTypeForWorkflowRequest(), workflowRequest.GetGlobalCmCsNamePrefix())
 	pipelineLevelConfigMaps, pipelineLevelSecrets, err := impl.getConfiguredCmCs(workflowRequest.Pipeline, workflowRequest.StageType)
