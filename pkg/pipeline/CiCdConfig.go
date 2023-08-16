@@ -62,12 +62,15 @@ type CiCdConfig struct {
 	CdReqCpu                         string                              `env:"CD_REQ_CI_CPU" envDefault:"0.5"`
 	CdReqMem                         string                              `env:"CD_REQ_CI_MEM" envDefault:"3G"`
 	CdTaintKey                       string                              `env:"CD_NODE_TAINTS_KEY" envDefault:"dedicated"`
+	ExternalCdTaintKey               string                              `env:"EXTERNAL_CD_NODE_TAINTS_KEY" envDefault:"dedicated"`
 	CdWorkflowServiceAccount         string                              `env:"CD_WORKFLOW_SERVICE_ACCOUNT" envDefault:"cd-runner"`
 	CdDefaultBuildLogsKeyPrefix      string                              `env:"DEFAULT_BUILD_LOGS_KEY_PREFIX" `
 	CdDefaultArtifactKeyPrefix       string                              `env:"DEFAULT_CD_ARTIFACT_KEY_LOCATION" `
 	CdTaintValue                     string                              `env:"CD_NODE_TAINTS_VALUE" envDefault:"ci"`
+	ExternalCdTaintValue             string                              `env:"EXTERNAL_CD_NODE_TAINTS_VALUE" envDefault:"ci"`
 	CdDefaultBuildLogsBucket         string                              `env:"DEFAULT_BUILD_LOGS_BUCKET" `
 	CdNodeLabelSelector              []string                            `env:"CD_NODE_LABEL_SELECTOR"`
+	ExternalCdNodeLabelSelector      []string                            `env:"EXTERNAL_CD_NODE_LABEL_SELECTOR"`
 	CdArtifactLocationFormat         string                              `env:"CD_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	CdDefaultNamespace               string                              `env:"DEFAULT_CD_NAMESPACE"`
 	CdDefaultImage                   string                              `env:"DEFAULT_CI_IMAGE"`
@@ -179,14 +182,19 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 	return cfg, err
 }
 
-func getNodeLabel(cfg *CiCdConfig, pipelineType bean.WorkflowPipelineType) (map[string]string, error) {
+func getNodeLabel(cfg *CiCdConfig, pipelineType bean.WorkflowPipelineType, isExt bool) (map[string]string, error) {
 	node := []string{}
 	if pipelineType == bean.CI_WORKFLOW_PIPELINE_TYPE || pipelineType == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		node = cfg.CiNodeLabelSelector
 	}
 	if pipelineType == bean.CD_WORKFLOW_PIPELINE_TYPE {
-		node = cfg.CdNodeLabelSelector
+		if isExt {
+			node = cfg.ExternalCdNodeLabelSelector
+		} else {
+			node = cfg.CdNodeLabelSelector
+		}
 	}
+
 	nodeLabel := make(map[string]string)
 	for _, l := range node {
 		if l == "" {

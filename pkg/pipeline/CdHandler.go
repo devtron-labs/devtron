@@ -607,7 +607,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 
 	ciArtifactLocationFormat := ciWorkflowConfig.CdArtifactLocationFormat
 	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.ciCdConfig.CdArtifactLocationFormat
+		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
 	}
 
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
@@ -1056,7 +1056,7 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		BucketName:             cdConfig.LogsBucket,
 		CredentialFileJsonData: impl.ciCdConfig.BlobStorageGcpCredentialJson,
 	}
-	key := fmt.Sprintf("%s/"+impl.ciCdConfig.CdArtifactLocationFormat, impl.ciCdConfig.CdDefaultArtifactKeyPrefix, wfr.CdWorkflow.Id, wfr.Id)
+	key := fmt.Sprintf("%s/"+impl.config.GetArtifactLocationFormat(), impl.config.GetDefaultArtifactKeyPrefix(), wfr.CdWorkflow.Id, wfr.Id)
 	baseLogLocationPathConfig := impl.ciCdConfig.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))

@@ -419,14 +419,13 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTemplate(workflowJson []byte,
 func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig) string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
-		return fmt.Sprintf("%s/%s", config.CiDefaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
+		config.Type = CiConfigType
 	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		return fmt.Sprintf("%s/%s", config.CiDefaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
+		config.Type = CiConfigType
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
-		return fmt.Sprintf("%s/%s", config.CdDefaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
-	default:
-		return ""
+		config.Type = CdConfigType
 	}
+	return fmt.Sprintf("%s/%s", config.GetDefaultBuildLogsKeyPrefix(), workflowRequest.WorkflowPrefixForLog)
 }
 
 func (workflowRequest *WorkflowRequest) GetWorkflowJsonAndPVC(config *CiCdConfig) ([]byte, error) {
@@ -582,40 +581,27 @@ func (workflowRequest *WorkflowRequest) CheckForJob() bool {
 }
 
 func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *bean.NodeConstraints {
-	nodeLabel, err := getNodeLabel(config, workflowRequest.Type)
+	nodeLabel, err := getNodeLabel(config, workflowRequest.Type, workflowRequest.IsExtRun)
 	if err != nil {
 		return nil
 	}
+	skipNodeSelector := false
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
-		return &bean.NodeConstraints{
-			ServiceAccount:    config.CiWorkflowServiceAccount,
-			TaintKey:          config.CiTaintKey,
-			TaintValue:        config.CiTaintValue,
-			NodeLabel:         nodeLabel,
-			SkipNodeSelector:  false,
-			StorageConfigured: workflowRequest.BlobStorageConfigured,
-		}
+		config.Type = CiConfigType
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
-		return &bean.NodeConstraints{
-			ServiceAccount:    config.CdWorkflowServiceAccount,
-			TaintKey:          config.CdTaintKey,
-			TaintValue:        config.CdTaintValue,
-			NodeLabel:         nodeLabel,
-			SkipNodeSelector:  false,
-			StorageConfigured: workflowRequest.BlobStorageConfigured,
-		}
+		config.Type = CdConfigType
 	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		return &bean.NodeConstraints{
-			ServiceAccount:    config.CiWorkflowServiceAccount,
-			TaintKey:          config.CiTaintKey,
-			TaintValue:        config.CiTaintValue,
-			NodeLabel:         nodeLabel,
-			SkipNodeSelector:  workflowRequest.IsExtRun,
-			StorageConfigured: workflowRequest.BlobStorageConfigured,
-		}
-	default:
-		return nil
+		config.Type = CiConfigType
+		skipNodeSelector = workflowRequest.IsExtRun
+	}
+	return &bean.NodeConstraints{
+		ServiceAccount:    config.GetWorkflowServiceAccount(),
+		TaintKey:          config.GetTaintKey(),
+		TaintValue:        config.GetTaintValue(),
+		NodeLabel:         nodeLabel,
+		StorageConfigured: workflowRequest.BlobStorageConfigured,
+		SkipNodeSelector:  skipNodeSelector,
 	}
 }
 func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) *bean.LimitReqCpuMem {
