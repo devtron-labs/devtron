@@ -684,6 +684,12 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 			impl.logger.Errorw("error in locking, lockUnlockUserReqState", "userId", userInfo.Id)
 			return nil, false, false, nil, err
 		}
+		defer func() {
+			err = impl.lockUnlockUserReqState(userInfo.Id, false)
+			if err != nil {
+				impl.logger.Errorw("error in unlocking, lockUnlockUserReqState", "userId", userInfo.Id)
+			}
+		}()
 	}
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.Id))
@@ -875,13 +881,6 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin2.LoadPolicy()
-
-	err = impl.lockUnlockUserReqState(userInfo.Id, false)
-	if err != nil {
-		impl.logger.Errorw("error in unlocking, lockUnlockUserReqState", "userId", userInfo.Id)
-		return nil, false, false, nil, err
-	}
-
 	return userInfo, rolesChanged, groupsModified, restrictedGroups, nil
 }
 
