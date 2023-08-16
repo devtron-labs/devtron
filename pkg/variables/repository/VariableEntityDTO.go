@@ -23,19 +23,52 @@ const (
 	EntityTypeDeploymentTemplateEnvLevel EntityType = "DEPLOYMENT_TEMPLATE_ENV_LEVEL"
 )
 
+//type Payload struct {
+//	Variables []*Variables `json:"Variables"`
+//}
+//type Variables struct {
+//	Definition      Definition       `json:"definition"`
+//	AttributeValues []AttributeValue `json:"attributeValue"`
+//}
+//
+//// Based on provided values, system will deduce the type and store the // value mapping
+//type AttributeValue struct {
+//	VariableValue
+//	AttributeType   AttributeType
+//	AttributeParams []VariableValue
+//}
+//
+//type Definition struct {
+//	VarName     string `json:"varName"`
+//	DataType    string `json:"dataType" validate:"oneof=json yaml primitive"`
+//	VarType     string `json:"varType" validate:"oneof=private public"`
+//	Description string `json:"description"`
+//}
+//
+//type AttributeType string
+//
+//const (
+//	ApplicationEnv AttributeType = "ApplicationEnv"
+//	Application    AttributeType = "Application"
+//	Env            AttributeType = "Env"
+//)
+//
+//type VariableValue struct {
+//	Value string `json:"value"`
+//}
+
 type Payload struct {
-	ScopedVariables []*ScopedVariables `json:"ScopedVariables"`
+	Variables []*Variables `json:"Variables"`
 }
-type ScopedVariables struct {
-	Definition   Definition     `json:"definition"`
-	ScopedValues []ScopedValues `json:"scopedValues"`
+type Variables struct {
+	Definition      Definition       `json:"definition"`
+	AttributeValues []AttributeValue `json:"attributeValue"`
 }
 
-type ScopedValues struct {
-	ScopedVariableValue
-	ApplicationName string `json:"applicationName"`
-	EnvironmentName string `json:"environmentName"`
-	ClusterName     string `json:"clusterName"`
+type AttributeValue struct {
+	VariableValue
+	AttributeType   AttributeType
+	AttributeParams map[IdentifierType]string
 }
 
 type Definition struct {
@@ -45,6 +78,22 @@ type Definition struct {
 	Description string `json:"description"`
 }
 
-type ScopedVariableValue struct {
+type AttributeType string
+
+const (
+	ApplicationEnv AttributeType = "ApplicationEnv"
+	Application    AttributeType = "Application"
+	Env            AttributeType = "Env"
+)
+
+type IdentifierType string
+
+const (
+	ApplicationName IdentifierType = "ApplicationName"
+	EnvName         IdentifierType = "EnvName"
+	ClusterName     IdentifierType = "ClusterName"
+)
+
+type VariableValue struct {
 	Value string `json:"value"`
 }

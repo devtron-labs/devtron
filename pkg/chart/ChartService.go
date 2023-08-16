@@ -1360,6 +1360,7 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, tem
 	//	impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
 	//	return true, nil
 	//}
+
 	schemaLoader := gojsonschema.NewGoLoader(schemajson)
 	documentLoader := gojsonschema.NewGoLoader(templatejson)
 	marshalTemplatejson, err := json.Marshal(templatejson)

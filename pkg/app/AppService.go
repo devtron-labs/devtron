@@ -38,6 +38,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	. "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
@@ -174,6 +176,7 @@ type AppServiceImpl struct {
 	GitOpsManifestPushService              GitOpsPushService
 	helmRepoPushService                    HelmRepoPushService
 	DockerArtifactStoreRepository          dockerRegistryRepository.DockerArtifactStoreRepository
+	variableSnapshotHistoryService         variables.VariableSnapshotHistoryService
 }
 
 type AppService interface {
@@ -255,7 +258,8 @@ func NewAppService(
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	GitOpsManifestPushService GitOpsPushService,
 	helmRepoPushService HelmRepoPushService,
-	DockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository) *AppServiceImpl {
+	DockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -318,6 +322,7 @@ func NewAppService(
 		GitOpsManifestPushService:              GitOpsManifestPushService,
 		helmRepoPushService:                    helmRepoPushService,
 		DockerArtifactStoreRepository:          DockerArtifactStoreRepository,
+		variableSnapshotHistoryService:         variableSnapshotHistoryService,
 	}
 	return appServiceImpl
 }
@@ -2996,7 +3001,12 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 			return err
 		}
 	}
+
+	//var variablesUsed int[]
+	//a := make([]*repository6.VariableSnapshotHistoryBean, 0)
+
 	//VARIABLE_SNAPSHOT_SAVE
+	//impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger()
 	return nil
 }
 
