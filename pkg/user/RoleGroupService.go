@@ -91,13 +91,18 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		}
 		rgName := strings.ToLower(request.Name)
 		object := "group:" + strings.ReplaceAll(rgName, " ", "_")
+		_, err := impl.roleGroupRepository.GetRoleGroupByCasbinName(object)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting role group by casbin name", "err", err, "casbinName", object)
+			return nil, err
+		}
 		model.CasbinName = object
 		model.CreatedBy = request.UserId
 		model.UpdatedBy = request.UserId
 		model.CreatedOn = time.Now()
 		model.UpdatedOn = time.Now()
 		model.Active = true
-		model, err := impl.roleGroupRepository.CreateRoleGroup(model, tx)
+		model, err = impl.roleGroupRepository.CreateRoleGroup(model, tx)
 		request.Id = model.Id
 		if err != nil {
 			impl.logger.Errorw("error in creating new user group", "error", err)
