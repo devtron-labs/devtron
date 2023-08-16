@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/caarlos0/env"
@@ -9,6 +10,8 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"go.opentelemetry.io/otel"
@@ -20,6 +23,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -35,12 +39,16 @@ type K8sCommonService interface {
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
+	CheckRbacForCluster(clusterId int, token string) (bool, error)
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	K8sUtil                     *k8s.K8sUtil
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
+	environmentService          cluster.EnvironmentService
+	userService                 user.UserService
+	enforcer                    casbin.Enforcer
 }
 type K8sApplicationServiceConfig struct {
 	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
@@ -48,7 +56,9 @@ type K8sApplicationServiceConfig struct {
 }
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil,
-	clusterService cluster.ClusterService) *K8sCommonServiceImpl {
+	clusterService cluster.ClusterService, environmentService cluster.EnvironmentService,
+	userService user.UserService,
+	enforcer casbin.Enforcer) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -59,6 +69,9 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil,
 		K8sUtil:                     k8sUtils,
 		clusterService:              clusterService,
 		K8sApplicationServiceConfig: cfg,
+		environmentService:          environmentService,
+		userService:                 userService,
+		enforcer:                    enforcer,
 	}
 }
 
@@ -337,4 +350,44 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 		return nil, v1Client, err
 	}
 	return clientSet, v1Client, nil
+}
+
+func (impl *K8sCommonServiceImpl) CheckRbacForCluster(clusterId int, token string) (authenticated bool, err error) {
+	//getting all environments for this cluster
+	envs, err := impl.environmentService.GetByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting environments by clusterId", "err", err, "clusterId", clusterId)
+		return false, err
+	}
+	if len(envs) == 0 {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+			return false, nil
+		}
+		return true, nil
+	}
+	emailId, err := impl.userService.GetEmailFromToken(token)
+	if err != nil {
+		impl.logger.Errorw("error in getting emailId from token", "err", err)
+		return false, err
+	}
+
+	var envIdentifierList []string
+	envIdentifierMap := make(map[string]bool)
+	for _, env := range envs {
+		envIdentifier := strings.ToLower(env.EnvironmentIdentifier)
+		envIdentifierList = append(envIdentifierList, envIdentifier)
+		envIdentifierMap[envIdentifier] = true
+	}
+	if len(envIdentifierList) == 0 {
+		return false, errors.New("environment identifier list for rbac batch enforcing contains zero environments")
+	}
+	// RBAC enforcer applying
+	rbacResultMap := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+	for envIdentifier, _ := range envIdentifierMap {
+		if rbacResultMap[envIdentifier] {
+			//if user has view permission to even one environment of this cluster, authorise the request
+			return true, nil
+		}
+	}
+	return false, nil
 }

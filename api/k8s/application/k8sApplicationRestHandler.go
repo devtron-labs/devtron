@@ -159,6 +159,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 		if !ok {
+			ok, err = handler.k8sCommonService.CheckRbacForCluster(request.ClusterId, token)
+			if err != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+		}
+		if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -181,6 +188,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		// RBAC enforcer applying for Devtron App
 		envObject = handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
 		hasReadAccessForEnv := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+		if !hasReadAccessForEnv {
+			hasReadAccessForEnv, err = handler.k8sCommonService.CheckRbacForCluster(request.ClusterId, token)
+			if err != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+		}
 		if !hasReadAccessForEnv {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
@@ -544,6 +558,13 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 		if !ok {
+			ok, err = handler.k8sCommonService.CheckRbacForCluster(request.ClusterId, token)
+			if err != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+		}
+		if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -567,6 +588,13 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		//RBAC enforcer applying for Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
 		hasAccessForEnv := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+		if !hasAccessForEnv {
+			hasAccessForEnv, err = handler.k8sCommonService.CheckRbacForCluster(request.ClusterId, token)
+			if err != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+		}
 		if !hasAccessForEnv {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
@@ -620,7 +648,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		// RBAC enforcer applying for Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
-
+		if !ok {
+			ok, err = handler.k8sCommonService.CheckRbacForCluster(request.ClusterId, token)
+			if err != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+		}
 		if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
@@ -634,7 +668,15 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		}
 		// RBAC enforcer applying For Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
-		if !handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject) {
+		ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+		if !ok {
+			ok, err = handler.k8sCommonService.CheckRbacForCluster(request.ClusterId, token)
+			if err != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+		}
+		if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
