@@ -1235,6 +1235,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
 		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+		//VARIABLE_SNAPSHOT_GET and resolve
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
@@ -1268,6 +1269,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.ActiveEnvConfigOverride")
 		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, overrideRequest.EnvId)
+
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
@@ -1339,6 +1341,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 		return nil, err
 	}
 	envOverride.Environment = env
+	//VARIABLE_RESOLVE
 	return envOverride, nil
 }
 
@@ -2993,6 +2996,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 			return err
 		}
 	}
+	//VARIABLE_SNAPSHOT_SAVE
 	return nil
 }
 

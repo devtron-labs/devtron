@@ -3299,6 +3299,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 		return 0, err
 	}
+	//VARIABLE_MAPPING_UPDATE
 	// strategies for pipeline ids, there is only one is default
 	defaultCount := 0
 	for _, item := range pipeline.Strategies {

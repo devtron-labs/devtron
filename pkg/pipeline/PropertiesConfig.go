@@ -408,6 +408,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", override)
 		return nil, err
 	}
+	//VARIABLE_MAPPING_UPDATE
 
 	return propertiesRequest, err
 }
@@ -499,6 +500,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 			return nil, err
 		}
+		//VARIABLE_MAPPING_UPDATE
 	}
 	return envOverride, nil
 }
@@ -749,5 +751,6 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", currentChart)
 		return nil, err
 	}
+	//VARIABLE_MAPPING_UPDATE
 	return appMetricRequest, err
 }

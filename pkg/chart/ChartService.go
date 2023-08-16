@@ -487,6 +487,9 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
+
+	//VARIABLE_MAPPING_UPDATE
+
 	var appLevelMetrics *repository3.AppLevelMetrics
 	isAppMetricsSupported, err := impl.CheckIsAppMetricsSupported(templateRequest.ChartRefId)
 	if err != nil {
@@ -618,6 +621,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
+	//VARIABLE_MAPPING_UPDATE
 	chartVal, err := impl.chartAdaptor(chart, nil)
 	return chartVal, err
 }
@@ -937,6 +941,9 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", template)
 		return nil, err
 	}
+
+	//VARIABLE_MAPPING_UPDATE
+
 	return templateRequest, nil
 }
 
@@ -1265,6 +1272,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverrideNew)
 			return false, err
 		}
+		//VARIABLE_MAPPING_UPDATE
 	}
 
 	return true, nil
@@ -1323,6 +1331,9 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", currentChart)
 		return nil, err
 	}
+
+	//VARIABLE_MAPPING_UPDATE
+
 	if appLevelMetrics.Id > 0 {
 		return &appMetricRequest, nil
 	}

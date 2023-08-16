@@ -456,6 +456,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 							}
+							//VARIABLE_MAPPING_UPDATE
 						}
 					}
 				}
@@ -524,6 +525,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
 							}
+							//VARIABLE_MAPPING_UPDATE
 						}
 					}
 				}
