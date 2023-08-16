@@ -1633,6 +1633,9 @@ func (handler AppListingRestHandlerImpl) PortNumberExtraction(resp []k8s.BatchRe
 	portsEndpoint := make([]int64, 0)
 	portEndpointSlice := make([]int64, 0)
 	for _, portHolder := range resp {
+		if portHolder.ManifestResponse == nil {
+			continue
+		}
 		kind, ok := portHolder.ManifestResponse.Manifest.Object["kind"]
 		if !ok {
 			handler.logger.Errorw("kind not found in resource tree, unable to extract port no")
