@@ -45,8 +45,5 @@ func (impl UserAuthImpl) LoggingMiddleware(next http.Handler) http.Handler {
 		}
 		log.Printf(userType)
 		NewUserAuthService(url, userId, time.Since(startTime), status)
-
-		//log.Printf("[%s] %d %d %s %s %d", method, status, userId, userType, url, time.Since(startTime))
-
 	})
 }

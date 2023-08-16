@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -28,16 +29,19 @@ type AppListingRouter interface {
 
 type AppListingRouterImpl struct {
 	appListingRestHandler restHandler.AppListingRestHandler
+	userAuth              logger.UserAuth
 }
 
-func NewAppListingRouterImpl(appListingRestHandler restHandler.AppListingRestHandler) *AppListingRouterImpl {
+func NewAppListingRouterImpl(appListingRestHandler restHandler.AppListingRestHandler, userAuth logger.UserAuth) *AppListingRouterImpl {
 	router := &AppListingRouterImpl{
 		appListingRestHandler: appListingRestHandler,
+		userAuth:              userAuth,
 	}
 	return router
 }
 
 func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Router) {
+	appListingRouter.Use(router.userAuth.LoggingMiddleware)
 	appListingRouter.Path("/allApps").HandlerFunc(router.appListingRestHandler.FetchAllDevtronManagedApps).
 		Methods("GET")
 

@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	sse2 "github.com/devtron-labs/devtron/api/sse"
 	"github.com/gorilla/mux"
@@ -54,9 +55,11 @@ func NewPipelineTriggerRouter(pipelineRestHandler restHandler.PipelineTriggerRes
 
 type PipelineTriggerRouterImpl struct {
 	restHandler restHandler.PipelineTriggerRestHandler
+	userAuth    logger.UserAuth
 }
 
 func (router PipelineTriggerRouterImpl) initPipelineTriggerRouter(pipelineTriggerRouter *mux.Router) {
+	pipelineTriggerRouter.Use(router.userAuth.LoggingMiddleware)
 	pipelineTriggerRouter.Path("/cd-pipeline/trigger").HandlerFunc(router.restHandler.OverrideConfig).Methods("POST")
 	pipelineTriggerRouter.Path("/update-release-status").HandlerFunc(router.restHandler.ReleaseStatusUpdate).Methods("POST")
 	pipelineTriggerRouter.Path("/rotate-pods").HandlerFunc(router.restHandler.RotatePods).Methods("POST")
