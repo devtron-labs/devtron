@@ -2,14 +2,16 @@ package variables
 
 import (
 	mapset "github.com/deckarep/golang-set"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"go.uber.org/zap"
+	"time"
 )
 
 type VariableEntityMappingService interface {
-	UpdateVariablesForEntity(variableIds []int, entity repository.Entity) error
+	UpdateVariablesForEntity(variableIds []int, entity repository.Entity, userId int32) error
 	GetAllMappingsForEntities(entities []repository.Entity) (map[string]int, error)
-	DeleteMappingsForEntities(entities []repository.Entity) error
+	DeleteMappingsForEntities(entities []repository.Entity, userId int32) error
 }
 
 type VariableEntityMappingServiceImpl struct {
@@ -24,7 +26,7 @@ func NewVariableEntityMappingServiceImpl(variableEntityMappingRepository reposit
 	}
 }
 
-func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableIds []int, entity repository.Entity) error {
+func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableIds []int, entity repository.Entity, userId int32) error {
 
 	variableMappings, err := impl.variableEntityMappingRepository.GetVariablesForEntities([]repository.Entity{entity})
 
@@ -46,6 +48,12 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableId
 		variableMappings = append(variableMappings, &repository.VariableEntityMapping{
 			VariableId: variableId.(int),
 			Entity:     entity,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
 		})
 	}
 
@@ -58,7 +66,7 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableId
 	if err != nil {
 		return err
 	}
-	err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, ToIntArray(variablesToDelete), entity)
+	err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, ToIntArray(variablesToDelete), entity, userId)
 	if err != nil {
 		return err
 	}
@@ -86,8 +94,8 @@ func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities 
 	return entityIdToVariableIds, nil
 }
 
-func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities []repository.Entity) error {
-	err := impl.variableEntityMappingRepository.DeleteAllVariablesForEntities(entities)
+func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities []repository.Entity, userId int32) error {
+	err := impl.variableEntityMappingRepository.DeleteAllVariablesForEntities(entities, userId)
 	if err != nil {
 		return err
 	}

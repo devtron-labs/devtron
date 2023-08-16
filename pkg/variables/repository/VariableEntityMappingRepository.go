@@ -4,14 +4,15 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
+	"time"
 )
 
 type VariableEntityMappingRepository interface {
 	GetConnection() (dbConnection *pg.DB)
 	GetVariablesForEntities(entities []Entity) ([]*VariableEntityMapping, error)
 	SaveVariableEntityMappings(tx *pg.Tx, mappings []*VariableEntityMapping) error
-	DeleteAllVariablesForEntities(entities []Entity) error
-	DeleteVariablesForEntity(tx *pg.Tx, variableIDs []int, entity Entity) error
+	DeleteAllVariablesForEntities(entities []Entity, userId int32) error
+	DeleteVariablesForEntity(tx *pg.Tx, variableIDs []int, entity Entity, userId int32) error
 }
 
 func NewVariableEntityMappingRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *VariableEntityMappingRepositoryImpl {
@@ -57,18 +58,14 @@ func (impl *VariableEntityMappingRepositoryImpl) GetVariablesForEntities(entitie
 	return mappings, nil
 }
 
-func (impl *VariableEntityMappingRepositoryImpl) DeleteVariablesForEntity(tx *pg.Tx, variableIDs []int, entity Entity) error {
+func (impl *VariableEntityMappingRepositoryImpl) DeleteVariablesForEntity(tx *pg.Tx, variableIDs []int, entity Entity, userId int32) error {
 
 	_, err := tx.Model((*VariableEntityMapping)(nil)).
 		Set("is_deleted = ?", true).
+		Set("updated_by = ?", userId).
+		Set("updated_on = ?", time.Now()).
 		Where("variable_id IN (?)", pg.In(variableIDs)).
 		Where("entity_id = ? AND entity_type = ?", entity.EntityId, entity.EntityType).
-		//WhereGroup(func(q *orm.Query) (*orm.Query, error) {
-		//	for _, entity := range entities {
-		//		q = q.WhereOr("entity_id = ? AND entity_type = ?", entity.EntityId, entity.EntityType)
-		//	}
-		//	return q, nil
-		//}).
 		Update()
 	if err != nil {
 		impl.logger.Errorw("err in deleting variable entity mappings", "err", err)
@@ -77,9 +74,11 @@ func (impl *VariableEntityMappingRepositoryImpl) DeleteVariablesForEntity(tx *pg
 	return nil
 }
 
-func (impl *VariableEntityMappingRepositoryImpl) DeleteAllVariablesForEntities(entities []Entity) error {
+func (impl *VariableEntityMappingRepositoryImpl) DeleteAllVariablesForEntities(entities []Entity, userId int32) error {
 	_, err := impl.dbConnection.Model((*VariableEntityMapping)(nil)).
 		Set("is_deleted = ?", true).
+		Set("updated_by = ?", userId).
+		Set("updated_on = ?", time.Now()).
 		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
 			for _, entity := range entities {
 				q = q.WhereOr("entity_id = ? AND entity_type = ?", entity.EntityId, entity.EntityType)

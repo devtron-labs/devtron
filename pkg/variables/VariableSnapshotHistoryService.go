@@ -1,12 +1,14 @@
 package variables
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sql"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"go.uber.org/zap"
+	"time"
 )
 
 type VariableSnapshotHistoryService interface {
-	SaveVariableHistoriesForTrigger(variableHistories []*repository2.VariableSnapshotHistoryBean) error
+	SaveVariableHistoriesForTrigger(variableHistories []*repository2.VariableSnapshotHistoryBean, userId int32) error
 	GetVariableHistoryForReferences(references []repository2.HistoryReference) ([]*repository2.VariableSnapshotHistoryBean, error)
 }
 
@@ -22,11 +24,17 @@ func NewVariableSnapshotHistoryServiceImpl(repository repository2.VariableSnapsh
 	}
 }
 
-func (impl VariableSnapshotHistoryServiceImpl) SaveVariableHistoriesForTrigger(variableHistories []*repository2.VariableSnapshotHistoryBean) error {
+func (impl VariableSnapshotHistoryServiceImpl) SaveVariableHistoriesForTrigger(variableHistories []*repository2.VariableSnapshotHistoryBean, userId int32) error {
 	variableSnapshotHistoryList := make([]*repository2.VariableSnapshotHistory, 0)
 	for _, history := range variableHistories {
 		variableSnapshotHistoryList = append(variableSnapshotHistoryList, &repository2.VariableSnapshotHistory{
 			VariableSnapshotHistoryBean: *history,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
 		})
 	}
 	err := impl.repository.SaveVariableSnapshots(variableSnapshotHistoryList)
