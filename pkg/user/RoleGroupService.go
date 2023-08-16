@@ -86,7 +86,6 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		//loading policy for safety
 		casbin2.LoadPolicy()
 		//create new user in our db on d basis of info got from google api or hex. assign a basic role
-
 		model := &repository2.RoleGroup{
 			Name:        request.Name,
 			Description: request.Description,
@@ -95,7 +94,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		object := "group:" + strings.ReplaceAll(rgName, " ", "_")
 
 		exists, err := impl.roleGroupRepository.CheckRoleGroupExistByCasbinName(object)
-		if err != nil && err != pg.ErrNoRows {
+		if err != nil {
 			impl.logger.Errorw("error in getting role group by casbin name", "err", err, "casbinName", object)
 			return nil, err
 		} else if exists {
