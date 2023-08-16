@@ -15,7 +15,7 @@ installer:
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:64af8661-325-14817"
+    image: "quay.io/devtron/dashboard:fc19ac0b-325-14837"
     config:
       extraConfigs:
         USE_V2: "true"
