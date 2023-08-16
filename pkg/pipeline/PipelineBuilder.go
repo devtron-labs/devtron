@@ -3541,8 +3541,9 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
 				return err
 			}
-			if !strings.Contains(manifestPushConfig.CredentialsConfig, string(existingHelmRepositoryConfigBytes)) {
-				existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetOneManifestPushConfig(pipeline.ContainerRegistryName)
+			existingCredentialsConfig := string(existingHelmRepositoryConfigBytes)
+			if manifestPushConfig.CredentialsConfig != existingCredentialsConfig {
+				existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetOneManifestPushConfig(existingCredentialsConfig)
 				if err != nil {
 					impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
 					return err
