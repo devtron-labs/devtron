@@ -104,10 +104,11 @@ type CiHandlerImpl struct {
 	appGroupService              appGroup2.AppGroupService
 	envRepository                repository3.EnvironmentRepository
 	imageTaggingService          ImageTaggingService
+	config                       *CiConfig
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiCdConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
-	return &CiHandlerImpl{
+	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
@@ -129,6 +130,13 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		envRepository:                envRepository,
 		imageTaggingService:          imageTaggingService,
 	}
+	config, err := GetCiConfig()
+	if err != nil {
+		return nil
+	}
+	cih.config = config
+
+	return cih
 }
 
 type WorkflowResponse struct {
@@ -692,7 +700,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 	}
 
 	if ciConfig.LogsBucket == "" {
-		ciConfig.LogsBucket = impl.ciConfig.CiDefaultBuildLogsBucket
+		ciConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
 	if ciConfig.CiCacheRegion == "" {
 		ciConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
@@ -759,7 +767,7 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 	}
 
 	if ciConfig.LogsBucket == "" {
-		ciConfig.LogsBucket = impl.ciConfig.CiDefaultBuildLogsBucket
+		ciConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
 
 	item := strconv.Itoa(ciWorkflow.Id)
@@ -830,7 +838,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	}
 
 	if ciConfig.LogsBucket == "" {
-		ciConfig.LogsBucket = impl.ciConfig.CiDefaultBuildLogsBucket
+		ciConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
 	ciLogRequest := BuildLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,

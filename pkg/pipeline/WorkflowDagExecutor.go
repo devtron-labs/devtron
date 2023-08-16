@@ -113,6 +113,7 @@ type WorkflowDagExecutorImpl struct {
 	k8sCommonService              k8s.K8sCommonService
 	pipelineStageRepository       repository4.PipelineStageRepository
 	pipelineStageService          PipelineStageService
+	config                        *CdConfig
 }
 
 const (
@@ -242,7 +243,12 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineStageRepository:       pipelineStageRepository,
 		pipelineStageService:          pipelineStageService,
 	}
-	err := wde.Subscribe()
+	config, err := GetCdConfig()
+	if err != nil {
+		return nil
+	}
+	wde.config = config
+	err = wde.Subscribe()
 	if err != nil {
 		return nil
 	}
@@ -436,6 +442,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, triggeredBy int32, applyAuth bool) error {
+
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 
@@ -454,7 +461,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
 	}
-
+	var err error
 	if cdWf == nil {
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
@@ -474,14 +481,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		Status:             pipelineConfig.WorkflowStarting, //starting
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
-		Namespace:          impl.cdConfig.CdDefaultNamespace,
+		Namespace:          impl.config.GetDefaultNamespace(),
 		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
 		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.cdConfig.CdDefaultBuildLogsKeyPrefix, strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
 		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 	}
 	var env *repository2.Environment
-	var err error
 	if pipeline.RunPreStageInEnv {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
 		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
@@ -567,7 +573,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		Status:             pipelineConfig.WorkflowStarting,
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
-		Namespace:          impl.cdConfig.CdDefaultNamespace,
+		Namespace:          impl.config.GetDefaultNamespace(),
 		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
 		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.cdConfig.CdDefaultBuildLogsKeyPrefix, strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_POST), pipeline.Name),
@@ -630,7 +636,7 @@ func (impl *WorkflowDagExecutorImpl) buildArtifactLocationForS3(cdWorkflowConfig
 		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
 	}
 	if cdWorkflowConfig.LogsBucket == "" {
-		cdWorkflowConfig.LogsBucket = impl.cdConfig.CdDefaultBuildLogsBucket
+		cdWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
 	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.CdDefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
 	artifactFileName := fmt.Sprintf(impl.cdConfig.CdDefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWf.Id, runner.Id)
@@ -687,6 +693,10 @@ func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVa
 	}
 }
 func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*WorkflowRequest, error) {
+	config, err := GetCdConfig()
+	if err != nil {
+		return nil, err
+	}
 	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -837,13 +847,13 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		WorkflowRunnerId:      runner.Id,
 		WorkflowNamePrefix:    strconv.Itoa(runner.Id) + "-" + runner.Name,
 		WorkflowPrefixForLog:  strconv.Itoa(cdWf.Id) + string(runner.WorkflowType) + "-" + runner.Name,
-		CdImage:               impl.cdConfig.CdDefaultImage,
+		CdImage:               config.GetDefaultImage(),
 		CdPipelineId:          cdWf.PipelineId,
 		TriggeredBy:           triggeredBy,
 		StageYaml:             stageYaml,
 		CiProjectDetails:      ciProjectDetails,
 		Namespace:             runner.Namespace,
-		ActiveDeadlineSeconds: impl.cdConfig.CdDefaultTimeout,
+		ActiveDeadlineSeconds: impl.config.GetDefaultTimeout(),
 		CiArtifactDTO: CiArtifactDTO{
 			Id:           artifact.Id,
 			PipelineId:   artifact.PipelineId,
@@ -1017,7 +1027,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.DeploymentReleaseCounter = pipelineReleaseCounter
 	}
 	if cdWorkflowConfig.CdCacheRegion == "" {
-		cdWorkflowConfig.CdCacheRegion = impl.cdConfig.CdDefaultCdLogsBucketRegion
+		cdWorkflowConfig.CdCacheRegion = impl.config.GetDefaultCdLogsBucketRegion()
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
@@ -1046,15 +1056,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			CiArtifactBucketName:       cdStageWorkflowRequest.CiArtifactBucket,
 			CiArtifactRegion:           cdWorkflowConfig.CdCacheRegion,
 			CiArtifactBucketVersioning: impl.cdConfig.BlobStorageS3BucketVersioned,
-			CiLogBucketName:            impl.cdConfig.CdDefaultBuildLogsBucket,
-			CiLogRegion:                impl.cdConfig.CdDefaultCdLogsBucketRegion,
+			CiLogBucketName:            impl.config.GetDefaultBuildLogsBucket(),
+			CiLogRegion:                impl.config.GetDefaultCdLogsBucketRegion(),
 			CiLogBucketVersioning:      impl.cdConfig.BlobStorageS3BucketVersioned,
 		}
 	case BLOB_STORAGE_GCP:
 		cdStageWorkflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
 			CredentialFileJsonData: impl.cdConfig.BlobStorageGcpCredentialJson,
-			ArtifactBucketName:     impl.cdConfig.CdDefaultBuildLogsBucket,
-			LogBucketName:          impl.cdConfig.CdDefaultBuildLogsBucket,
+			ArtifactBucketName:     impl.config.GetDefaultBuildLogsBucket(),
+			LogBucketName:          impl.config.GetDefaultBuildLogsBucket(),
 		}
 		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWorkflowConfig, cdWf, runner)
 		cdStageWorkflowRequest.CiArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
@@ -1223,7 +1233,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		Status:       pipelineConfig.WorkflowInProgress, //starting
 		TriggeredBy:  1,
 		StartedOn:    triggeredAt,
-		Namespace:    impl.cdConfig.CdDefaultNamespace,
+		Namespace:    impl.config.GetDefaultNamespace(),
 		CdWorkflowId: cdWf.Id,
 		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 	}
@@ -1631,7 +1641,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			Status:       pipelineConfig.WorkflowInProgress,
 			TriggeredBy:  overrideRequest.UserId,
 			StartedOn:    triggeredAt,
-			Namespace:    impl.cdConfig.CdDefaultNamespace,
+			Namespace:    impl.config.GetDefaultNamespace(),
 			CdWorkflowId: cdWorkflowId,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 		}
@@ -1704,7 +1714,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				TriggeredBy:  overrideRequest.UserId,
 				StartedOn:    triggeredAt,
 				Status:       pipelineConfig.WorkflowSucceeded,
-				Namespace:    impl.cdConfig.CdDefaultNamespace,
+				Namespace:    impl.config.GetDefaultNamespace(),
 				CdWorkflowId: overrideRequest.CdWorkflowId,
 				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}

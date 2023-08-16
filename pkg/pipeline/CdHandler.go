@@ -116,10 +116,11 @@ type CdHandlerImpl struct {
 	imageTaggingService                    ImageTaggingService
 	k8sUtil                                *k8s.K8sUtil
 	workflowService                        WorkflowService
+	config                                 *CdConfig
 }
 
-func NewCdHandlerImpl(Logger *zap.SugaredLogger, ciCdConfig *CiCdConfig, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, appGroupService appGroup2.AppGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, commonWorkflowService WorkflowService) *CdHandlerImpl {
-	return &CdHandlerImpl{
+func NewCdHandlerImpl(Logger *zap.SugaredLogger, ciCdConfig *CiCdConfig, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, appGroupService appGroup2.AppGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService) *CdHandlerImpl {
+	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
 		ciCdConfig:                             ciCdConfig,
 		userService:                            userService,
@@ -152,8 +153,14 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, ciCdConfig *CiCdConfig, userSer
 		appGroupService:                        appGroupService,
 		imageTaggingService:                    imageTaggingService,
 		k8sUtil:                                k8sUtil,
-		workflowService:                        commonWorkflowService,
+		workflowService:                        workflowService,
 	}
+	config, err := GetCdConfig()
+	if err != nil {
+		return nil
+	}
+	cdh.config = config
+	return cdh
 }
 
 type ArgoPipelineStatusSyncEvent struct {
@@ -878,10 +885,10 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	}
 
 	if cdConfig.LogsBucket == "" {
-		cdConfig.LogsBucket = impl.ciCdConfig.CdDefaultBuildLogsBucket //TODO -fixme
+		cdConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket() //TODO -fixme
 	}
 	if cdConfig.CdCacheRegion == "" {
-		cdConfig.CdCacheRegion = impl.ciCdConfig.CdDefaultCdLogsBucketRegion
+		cdConfig.CdCacheRegion = impl.config.GetDefaultCdLogsBucketRegion()
 	}
 
 	cdLogRequest := BuildLogRequest{
@@ -1023,10 +1030,10 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	}
 
 	if cdConfig.LogsBucket == "" {
-		cdConfig.LogsBucket = impl.ciCdConfig.CdDefaultBuildLogsBucket
+		cdConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
 	if cdConfig.CdCacheRegion == "" {
-		cdConfig.CdCacheRegion = impl.ciCdConfig.CdDefaultCdLogsBucketRegion
+		cdConfig.CdCacheRegion = impl.config.GetDefaultCdLogsBucketRegion()
 	}
 
 	item := strconv.Itoa(wfr.Id)

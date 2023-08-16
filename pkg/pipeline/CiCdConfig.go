@@ -15,7 +15,7 @@ import (
 )
 
 type CiCdConfig struct {
-	//from ciCdConfig
+	//from ciConfig
 	DefaultCacheBucket               string                              `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
 	DefaultCacheBucketRegion         string                              `env:"DEFAULT_CACHE_BUCKET_REGION" envDefault:"us-east-2"`
 	CiLogsKeyPrefix                  string                              `env:"CI_LOGS_KEY_PREFIX" envDxefault:"my-artifacts"`
@@ -56,7 +56,7 @@ type CiCdConfig struct {
 	ImageRetryInterval               int                                 `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
 	CiWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CI_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 
-	//from ciCdConfig
+	//from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
 	CdLimitMem                       string                              `env:"CD_LIMIT_CI_MEM" envDefault:"3G"`
 	CdReqCpu                         string                              `env:"CD_REQ_CI_CPU" envDefault:"0.5"`
@@ -82,6 +82,7 @@ type CiCdConfig struct {
 	TerminationGracePeriod           int                                 `env:"TERMINATION_GRACE_PERIOD_SECS" envDefault:"180"`
 
 	//common in both ciconfig and cd config
+	Type                           string
 	Mode                           string `env:"MODE" envDefault:"DEV"`
 	OrchestratorHost               string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
 	OrchestratorToken              string `env:"ORCH_TOKEN" envDefault:""`
@@ -105,15 +106,49 @@ type CiCdConfig struct {
 	InAppLoggingEnabled            bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
 }
 
+type CiConfig struct {
+	*CiCdConfig
+}
+
+type CdConfig struct {
+	*CiCdConfig
+}
+
 type CiVolumeMount struct {
 	Name               string `json:"name"`
 	HostMountPath      string `json:"hostMountPath"`
 	ContainerMountPath string `json:"containerMountPath"`
 }
 
-const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"
-const DevMode = "DEV"
-const ProdMode = "PROD"
+const (
+	ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"
+	DevMode               = "DEV"
+	ProdMode              = "PROD"
+	CiConfigType          = "CiConfig"
+	CdConfigType          = "CdConfig"
+)
+
+func GetCiConfig() (*CiConfig, error) {
+	ciCdConfig := &CiCdConfig{}
+	err := env.Parse(ciCdConfig)
+	if err != nil {
+		return nil, err
+	}
+	ciConfig := CiConfig{ciCdConfig}
+	ciConfig.Type = CiConfigType
+	return &ciConfig, nil
+}
+func GetCdConfig() (*CdConfig, error) {
+	ciCdConfig := &CiCdConfig{}
+	err := env.Parse(ciCdConfig)
+	if err != nil {
+		return nil, err
+	}
+	cdConfig := CdConfig{ciCdConfig}
+	ciCdConfig.Type = CdConfigType
+	return &cdConfig, nil
+
+}
 
 func GetCiCdConfig() (*CiCdConfig, error) {
 	cfg := &CiCdConfig{}
@@ -164,4 +199,198 @@ func getNodeLabel(cfg *CiCdConfig, pipelineType bean.WorkflowPipelineType) (map[
 		nodeLabel[kv[0]] = kv[1]
 	}
 	return nodeLabel, nil
+}
+func (impl *CiCdConfig) GetDefaultImage() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiDefaultImage
+	case CdConfigType:
+		return impl.CdDefaultImage
+	default:
+		return ""
+	}
+
+}
+func (impl *CiCdConfig) GetDefaultNamespace() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiDefaultNamespace
+	case CdConfigType:
+		return impl.CdDefaultNamespace
+	default:
+		return ""
+	}
+}
+func (impl *CiCdConfig) GetDefaultTimeout() int64 {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiDefaultTimeout
+	case CdConfigType:
+		return impl.CdDefaultTimeout
+	default:
+		return 0
+	}
+}
+func (impl *CiCdConfig) GetDefaultBuildLogsBucket() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiDefaultBuildLogsBucket
+	case CdConfigType:
+		return impl.CdDefaultBuildLogsBucket
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetDefaultCdLogsBucketRegion() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiDefaultCdLogsBucketRegion
+	case CdConfigType:
+		return impl.CdDefaultCdLogsBucketRegion
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetLimitCpu() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiLimitCpu
+	case CdConfigType:
+		return impl.CdLimitCpu
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetLimitMem() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiLimitMem
+	case CdConfigType:
+		return impl.CdLimitMem
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetReqCpu() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiReqCpu
+	case CdConfigType:
+		return impl.CdReqCpu
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetReqMem() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiReqMem
+	case CdConfigType:
+		return impl.CdReqMem
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetTaintKey() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiTaintKey
+	case CdConfigType:
+		return impl.CdTaintKey
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetTaintValue() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiTaintValue
+	case CdConfigType:
+		return impl.CdTaintValue
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetDefaultBuildLogsKeyPrefix() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiDefaultBuildLogsKeyPrefix
+	case CdConfigType:
+		return impl.CdDefaultBuildLogsKeyPrefix
+	default:
+		return ""
+	}
+}
+func (impl *CiCdConfig) GetDefaultArtifactKeyPrefix() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiDefaultArtifactKeyPrefix
+	case CdConfigType:
+		return impl.CdDefaultArtifactKeyPrefix
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetWorkflowServiceAccount() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiWorkflowServiceAccount
+	case CdConfigType:
+		return impl.CdWorkflowServiceAccount
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetArtifactLocationFormat() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiArtifactLocationFormat
+	case CdConfigType:
+		return impl.CdArtifactLocationFormat
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetDefaultAddressPoolBaseCidr() string {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiDefaultAddressPoolBaseCidr
+	case CdConfigType:
+		return impl.CdDefaultAddressPoolBaseCidr
+	default:
+		return ""
+	}
+}
+
+func (impl *CiCdConfig) GetDefaultAddressPoolSize() int {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiDefaultAddressPoolSize
+	case CdConfigType:
+		return impl.CdDefaultAddressPoolSize
+	default:
+		return 0
+	}
+}
+
+func (impl *CiCdConfig) GetWorkflowExecutorType() pipelineConfig.WorkflowExecutorType {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.CiWorkflowExecutorType
+	case CdConfigType:
+		return impl.CdWorkflowExecutorType
+	default:
+		return ""
+	}
 }
