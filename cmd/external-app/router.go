@@ -59,12 +59,7 @@ type MuxRouter struct {
 	attributesRouter         router.AttributesRouter
 	appRouter                router.AppRouter
 	rbacRoleRouter           user.RbacRoleRouter
-	//Logger                   logger.LoggingMiddleware
 }
-
-//type log struct {
-//	logger     *logger.router()
-//}
 
 func NewMuxRouter(
 	logger *zap.SugaredLogger,
