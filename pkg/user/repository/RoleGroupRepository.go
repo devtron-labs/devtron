@@ -125,7 +125,7 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupListByCasbinNames(names []string
 }
 
 func (impl RoleGroupRepositoryImpl) CheckRoleGroupExistByCasbinName(name string) (bool, error) {
-	var model *RoleGroup
+	var model RoleGroup
 	return impl.dbConnection.Model(&model).Where("casbin_name = ?", name).Where("active = ?", true).Exists()
 
 }

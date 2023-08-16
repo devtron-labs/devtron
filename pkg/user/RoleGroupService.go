@@ -98,7 +98,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 			impl.logger.Errorw("error in getting role group by casbin name", "err", err, "casbinName", object)
 			return nil, err
 		} else if exists {
-			impl.logger.Errorw("role group already present", "err", err)
+			impl.logger.Errorw("role group already present", "err", err, "roleGroup", request.Name)
 			return nil, errors.New("role group already exist")
 		}
 		model.CasbinName = object
