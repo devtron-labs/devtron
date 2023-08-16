@@ -221,8 +221,8 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 
 	}
 
-	// if git-ops configured, then only update cluster in ACD, otherwise ignore
-	if isGitOpsConfigured {
+	// if git-ops configured and no proxy is configured, then only update cluster in ACD, otherwise ignore
+	if isGitOpsConfigured && len(bean.ProxyUrl) == 0 {
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
@@ -334,8 +334,8 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		return nil, err
 	}
 
-	// if git-ops configured, then only add cluster in ACD, otherwise ignore
-	if isGitOpsConfigured {
+	// if git-ops configured and no proxy is configured, then only add cluster in ACD, otherwise ignore
+	if isGitOpsConfigured && len(clusterBean.ProxyUrl) == 0 {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 
