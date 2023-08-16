@@ -1,4 +1,5 @@
 ## Bugs
+- fix: remove use-buildx flag to use k8s buildx driver (#3773)
 - fix: updated user flow update api unlock condition (#3770)
 - fix: rbac fix terminal connection on view and edit in helm apps (#3723)
 - fix:  Intermittent helm apps deployment fail deployed through gitops (#3756)
