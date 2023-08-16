@@ -84,6 +84,7 @@ type CiConfig struct {
 	ImageRetryInterval               int    `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
 	OrchestratorHost                 string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
 	OrchestratorToken                string `env:"ORCH_TOKEN" envDefault:""`
+	BuildxK8sDriverOptions           string `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
 }
 
 type CiVolumeMount struct {
