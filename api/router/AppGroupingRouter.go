@@ -30,7 +30,6 @@ func NewAppGroupingRouterImpl(restHandler app.PipelineConfigRestHandler,
 
 func (router AppGroupingRouterImpl) InitAppGroupingRouter(appGroupingRouter *mux.Router) {
 	appGroupingRouter.Use(router.userAuth.LoggingMiddleware)
-	appGroupingRouter.Use(router.userAuth.LoggingMiddleware)
 	appGroupingRouter.Path("/{envId}/app-wf").
 		HandlerFunc(router.appWorkflowRestHandler.FindAppWorkflowByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/{envId}/ci-pipeline").HandlerFunc(router.restHandler.GetCiPipelineByEnvironment).Methods("GET")

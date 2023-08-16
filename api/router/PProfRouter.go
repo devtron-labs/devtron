@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -13,17 +14,20 @@ type PProfRouter interface {
 type PProfRouterImpl struct {
 	logger           *zap.SugaredLogger
 	pprofRestHandler restHandler.PProfRestHandler
+	userAuth         logger.UserAuth
 }
 
 func NewPProfRouter(logger *zap.SugaredLogger,
-	pprofRestHandler restHandler.PProfRestHandler) *PProfRouterImpl {
+	pprofRestHandler restHandler.PProfRestHandler, userAuth logger.UserAuth) *PProfRouterImpl {
 	return &PProfRouterImpl{
 		logger:           logger,
 		pprofRestHandler: pprofRestHandler,
+		userAuth:         userAuth,
 	}
 }
 
 func (ppr PProfRouterImpl) initPProfRouter(router *mux.Router) {
+	router.Use(ppr.userAuth.LoggingMiddleware)
 	router.HandleFunc("/", ppr.pprofRestHandler.Index)
 	router.HandleFunc("/cmdline", ppr.pprofRestHandler.Cmdline)
 	router.HandleFunc("/profile", ppr.pprofRestHandler.Profile)

@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/gorilla/mux"
@@ -29,18 +30,21 @@ type ApplicationRouter interface {
 }
 
 type ApplicationRouterImpl struct {
-	handler restHandler.ArgoApplicationRestHandler
-	logger  *zap.SugaredLogger
+	handler  restHandler.ArgoApplicationRestHandler
+	logger   *zap.SugaredLogger
+	userAuth logger.UserAuth
 }
 
-func NewApplicationRouterImpl(handler restHandler.ArgoApplicationRestHandler, logger *zap.SugaredLogger) *ApplicationRouterImpl {
+func NewApplicationRouterImpl(handler restHandler.ArgoApplicationRestHandler, logger *zap.SugaredLogger, userAuth logger.UserAuth) *ApplicationRouterImpl {
 	return &ApplicationRouterImpl{
-		handler: handler,
-		logger:  logger,
+		handler:  handler,
+		logger:   logger,
+		userAuth: userAuth,
 	}
 }
 
 func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
+	router.Use(r.userAuth.LoggingMiddleware)
 	router.Path("/stream").
 		Queries("name", "{name}").
 		Methods("GET").

@@ -1,6 +1,7 @@
 package terminal
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -10,15 +11,18 @@ type UserTerminalAccessRouter interface {
 
 type UserTerminalAccessRouterImpl struct {
 	userTerminalAccessRestHandler UserTerminalAccessRestHandler
+	userAuth                      logger.UserAuth
 }
 
-func NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandler UserTerminalAccessRestHandler) *UserTerminalAccessRouterImpl {
+func NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandler UserTerminalAccessRestHandler, userAuth logger.UserAuth) *UserTerminalAccessRouterImpl {
 	return &UserTerminalAccessRouterImpl{
 		userTerminalAccessRestHandler: userTerminalAccessRestHandler,
+		userAuth:                      userAuth,
 	}
 }
 
 func (router UserTerminalAccessRouterImpl) InitTerminalAccessRouter(userTerminalAccessRouter *mux.Router) {
+	userTerminalAccessRouter.Use(router.userAuth.LoggingMiddleware)
 	userTerminalAccessRouter.Path("/update").
 		HandlerFunc(router.userTerminalAccessRestHandler.UpdateTerminalSession).Methods("PUT")
 	userTerminalAccessRouter.Path("/update/shell").

@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -28,13 +29,15 @@ type GitHostRouter interface {
 
 type GitHostRouterImpl struct {
 	gitHostRestHandler restHandler.GitHostRestHandler
+	userAuth           logger.UserAuth
 }
 
-func NewGitHostRouterImpl(gitHostRestHandler restHandler.GitHostRestHandler) *GitHostRouterImpl {
-	return &GitHostRouterImpl{gitHostRestHandler: gitHostRestHandler}
+func NewGitHostRouterImpl(gitHostRestHandler restHandler.GitHostRestHandler, userAuth logger.UserAuth) *GitHostRouterImpl {
+	return &GitHostRouterImpl{gitHostRestHandler: gitHostRestHandler, userAuth: userAuth}
 }
 
 func (impl GitHostRouterImpl) InitGitHostRouter(configRouter *mux.Router) {
+	configRouter.Use(impl.userAuth.LoggingMiddleware)
 	configRouter.Path("/host").
 		HandlerFunc(impl.gitHostRestHandler.GetGitHosts).
 		Methods("GET")

@@ -18,6 +18,7 @@
 package cluster
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -27,15 +28,18 @@ type ClusterRouter interface {
 
 type ClusterRouterImpl struct {
 	clusterRestHandler ClusterRestHandler
+	userAuth           logger.UserAuth
 }
 
-func NewClusterRouterImpl(handler ClusterRestHandler) *ClusterRouterImpl {
+func NewClusterRouterImpl(handler ClusterRestHandler, userAuth logger.UserAuth) *ClusterRouterImpl {
 	return &ClusterRouterImpl{
 		clusterRestHandler: handler,
+		userAuth:           userAuth,
 	}
 }
 
 func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
+	clusterRouter.Use(impl.userAuth.LoggingMiddleware)
 	clusterRouter.Path("").
 		Methods("POST").
 		HandlerFunc(impl.clusterRestHandler.Save)

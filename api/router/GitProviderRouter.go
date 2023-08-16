@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -27,12 +28,14 @@ type GitProviderRouter interface {
 }
 type GitProviderRouterImpl struct {
 	gitRestHandler restHandler.GitProviderRestHandler
+	userAuth       logger.UserAuth
 }
 
-func NewGitProviderRouterImpl(gitRestHandler restHandler.GitProviderRestHandler) *GitProviderRouterImpl {
-	return &GitProviderRouterImpl{gitRestHandler: gitRestHandler}
+func NewGitProviderRouterImpl(gitRestHandler restHandler.GitProviderRestHandler, userAuth logger.UserAuth) *GitProviderRouterImpl {
+	return &GitProviderRouterImpl{gitRestHandler: gitRestHandler, userAuth: userAuth}
 }
 func (impl GitProviderRouterImpl) InitGitProviderRouter(configRouter *mux.Router) {
+	configRouter.Use(impl.userAuth.LoggingMiddleware)
 	configRouter.Path("/provider").
 		HandlerFunc(impl.gitRestHandler.SaveGitRepoConfig).
 		Methods("POST")

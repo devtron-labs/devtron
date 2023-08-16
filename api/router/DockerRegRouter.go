@@ -18,6 +18,7 @@
 package router
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -27,12 +28,14 @@ type DockerRegRouter interface {
 }
 type DockerRegRouterImpl struct {
 	dockerRestHandler restHandler.DockerRegRestHandler
+	userAuth          logger.UserAuth
 }
 
-func NewDockerRegRouterImpl(dockerRestHandler restHandler.DockerRegRestHandler) *DockerRegRouterImpl {
-	return &DockerRegRouterImpl{dockerRestHandler: dockerRestHandler}
+func NewDockerRegRouterImpl(dockerRestHandler restHandler.DockerRegRestHandler, userAuth logger.UserAuth) *DockerRegRouterImpl {
+	return &DockerRegRouterImpl{dockerRestHandler: dockerRestHandler, userAuth: userAuth}
 }
 func (impl DockerRegRouterImpl) InitDockerRegRouter(configRouter *mux.Router) {
+	configRouter.Use(impl.userAuth.LoggingMiddleware)
 	configRouter.Path("/registry").
 		HandlerFunc(impl.dockerRestHandler.SaveDockerRegistryConfig).
 		Methods("POST")

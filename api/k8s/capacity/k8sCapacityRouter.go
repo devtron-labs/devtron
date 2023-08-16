@@ -1,6 +1,7 @@
 package capacity
 
 import (
+	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -9,15 +10,18 @@ type K8sCapacityRouter interface {
 }
 type K8sCapacityRouterImpl struct {
 	k8sCapacityRestHandler K8sCapacityRestHandler
+	userAuth               logger.UserAuth
 }
 
-func NewK8sCapacityRouterImpl(k8sCapacityRestHandler K8sCapacityRestHandler) *K8sCapacityRouterImpl {
+func NewK8sCapacityRouterImpl(k8sCapacityRestHandler K8sCapacityRestHandler, userAuth logger.UserAuth) *K8sCapacityRouterImpl {
 	return &K8sCapacityRouterImpl{
 		k8sCapacityRestHandler: k8sCapacityRestHandler,
+		userAuth:               userAuth,
 	}
 }
 
 func (impl *K8sCapacityRouterImpl) InitK8sCapacityRouter(k8sCapacityRouter *mux.Router) {
+	k8sCapacityRouter.Use(impl.userAuth.LoggingMiddleware)
 	k8sCapacityRouter.Path("/cluster/list/raw").
 		HandlerFunc(impl.k8sCapacityRestHandler.GetClusterListRaw).Methods("GET")
 
