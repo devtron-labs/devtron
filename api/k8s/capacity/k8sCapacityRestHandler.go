@@ -440,5 +440,8 @@ func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.
 			return true, nil
 		}
 	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, strings.ToLower(cluster.ClusterName)); ok {
+		return true, nil
+	}
 	return false, nil
 }
