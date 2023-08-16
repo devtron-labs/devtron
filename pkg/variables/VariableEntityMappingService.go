@@ -9,8 +9,8 @@ import (
 )
 
 type VariableEntityMappingService interface {
-	UpdateVariablesForEntity(variableIds []int, entity repository.Entity, userId int32) error
-	GetAllMappingsForEntities(entities []repository.Entity) (map[string]int, error)
+	UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32) error
+	GetAllMappingsForEntities(entities []repository.Entity) (map[int]string, error)
 	DeleteMappingsForEntities(entities []repository.Entity, userId int32) error
 }
 
@@ -26,17 +26,17 @@ func NewVariableEntityMappingServiceImpl(variableEntityMappingRepository reposit
 	}
 }
 
-func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableIds []int, entity repository.Entity, userId int32) error {
+func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32) error {
 
 	variableMappings, err := impl.variableEntityMappingRepository.GetVariablesForEntities([]repository.Entity{entity})
 
-	existingVarIds := make([]int, 0)
+	existingVarNames := make([]string, 0)
 	for _, mapping := range variableMappings {
-		existingVarIds = append(existingVarIds, mapping.VariableId)
+		existingVarNames = append(existingVarNames, mapping.VariableName)
 	}
 
-	existingVarSet := mapset.NewSetFromSlice(ToInterfaceArray(existingVarIds))
-	newVarSet := mapset.NewSetFromSlice(ToInterfaceArray(variableIds))
+	existingVarSet := mapset.NewSetFromSlice(ToInterfaceArray(existingVarNames))
+	newVarSet := mapset.NewSetFromSlice(ToInterfaceArray(variableNames))
 
 	// If present in existing but not in new, then delete
 	variablesToDelete := existingVarSet.Difference(newVarSet).ToSlice()
@@ -46,8 +46,8 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableId
 	newVariableMappings := make([]*repository.VariableEntityMapping, 0)
 	for _, variableId := range variableToAdd {
 		variableMappings = append(variableMappings, &repository.VariableEntityMapping{
-			VariableId: variableId.(int),
-			Entity:     entity,
+			VariableName: variableId.(string),
+			Entity:       entity,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: userId,
@@ -66,7 +66,7 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableId
 	if err != nil {
 		return err
 	}
-	err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, ToIntArray(variablesToDelete), entity, userId)
+	err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, ToStringArray(variablesToDelete), entity, userId)
 	if err != nil {
 		return err
 	}
@@ -82,16 +82,16 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableId
 	return nil
 }
 
-func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities []repository.Entity) (map[string]int, error) {
+func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities []repository.Entity) (map[int]string, error) {
 	variableEntityMappings, err := impl.variableEntityMappingRepository.GetVariablesForEntities(entities)
 	if err != nil {
 		return nil, err
 	}
-	entityIdToVariableIds := make(map[string]int)
+	entityIdToVariableNames := make(map[int]string)
 	for _, mapping := range variableEntityMappings {
-		entityIdToVariableIds[mapping.EntityId] = mapping.VariableId
+		entityIdToVariableNames[mapping.EntityId] = mapping.VariableName
 	}
-	return entityIdToVariableIds, nil
+	return entityIdToVariableNames, nil
 }
 
 func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities []repository.Entity, userId int32) error {
@@ -102,8 +102,8 @@ func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities 
 	return nil
 }
 
-// ToInterfaceArray converts an array of int to an array of interface{}
-func ToInterfaceArray(arr []int) []interface{} {
+// ToInterfaceArray converts an array of string to an array of interface{}
+func ToInterfaceArray(arr []string) []interface{} {
 	interfaceArr := make([]interface{}, len(arr))
 	for i, v := range arr {
 		interfaceArr[i] = v
@@ -111,11 +111,11 @@ func ToInterfaceArray(arr []int) []interface{} {
 	return interfaceArr
 }
 
-// ToIntArray converts an array of interface{} back to an array of int
-func ToIntArray(interfaceArr []interface{}) []int {
-	intArr := make([]int, len(interfaceArr))
+// ToStringArray converts an array of interface{} back to an array of string
+func ToStringArray(interfaceArr []interface{}) []string {
+	stringArr := make([]string, len(interfaceArr))
 	for i, v := range interfaceArr {
-		intArr[i] = v.(int)
+		stringArr[i] = v.(string)
 	}
-	return intArr
+	return stringArr
 }

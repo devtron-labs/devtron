@@ -12,7 +12,7 @@ type VariableEntityMappingRepository interface {
 	GetVariablesForEntities(entities []Entity) ([]*VariableEntityMapping, error)
 	SaveVariableEntityMappings(tx *pg.Tx, mappings []*VariableEntityMapping) error
 	DeleteAllVariablesForEntities(entities []Entity, userId int32) error
-	DeleteVariablesForEntity(tx *pg.Tx, variableIDs []int, entity Entity, userId int32) error
+	DeleteVariablesForEntity(tx *pg.Tx, variableIDs []string, entity Entity, userId int32) error
 }
 
 func NewVariableEntityMappingRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *VariableEntityMappingRepositoryImpl {
@@ -58,13 +58,13 @@ func (impl *VariableEntityMappingRepositoryImpl) GetVariablesForEntities(entitie
 	return mappings, nil
 }
 
-func (impl *VariableEntityMappingRepositoryImpl) DeleteVariablesForEntity(tx *pg.Tx, variableIDs []int, entity Entity, userId int32) error {
+func (impl *VariableEntityMappingRepositoryImpl) DeleteVariablesForEntity(tx *pg.Tx, variableNames []string, entity Entity, userId int32) error {
 
 	_, err := tx.Model((*VariableEntityMapping)(nil)).
 		Set("is_deleted = ?", true).
 		Set("updated_by = ?", userId).
 		Set("updated_on = ?", time.Now()).
-		Where("variable_id IN (?)", pg.In(variableIDs)).
+		Where("variable_id IN (?)", pg.In(variableNames)).
 		Where("entity_id = ? AND entity_type = ?", entity.EntityId, entity.EntityType).
 		Update()
 	if err != nil {
