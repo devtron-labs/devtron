@@ -24,7 +24,7 @@ components:
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
   devtron:
     image: "quay.io/devtron/hyperion:41103807-280-14919"
-    cicdImage: "quay.io/devtron/devtron:91efceb1-434-14914"
+    cicdImage: "quay.io/devtron/devtron:41103807-434-14920"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:71e590dd-138-14841"
   argocdDexServer:
