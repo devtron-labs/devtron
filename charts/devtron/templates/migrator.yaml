@@ -36,6 +36,10 @@ spec:
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+  {{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+          {{- end }}
       containers:
         - command:
             - /bin/sh
@@ -64,6 +68,10 @@ spec:
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+  {{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+          {{- end }}
           {{- if .devtron }}
           {{- if .devtron.resources }}        
           resources:
@@ -96,6 +104,10 @@ spec:
       {{- end }}
       containers:
       - name: devtron-rollout
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
         image: "quay.io/devtron/kubectl:latest"
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd && kubectl rollout restart deployment/kubelink -n devtroncd']
         {{- if .casbin }}
@@ -119,6 +131,10 @@ spec:
           image: {{ $.Values.components.devtron.image }}
           {{- end }}  
           name: init-devtron
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
@@ -146,6 +162,10 @@ spec:
                 name: postgresql-migrator
           image: {{ .image | default "migrate/migrate" }}  
           name: postgresql-migrate-casbin
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /shared
               name: shared-volume  
@@ -190,6 +210,10 @@ spec:
           image: {{ $.Values.components.gitsensor.image }}
           {{- end }}
           name: init-git-sensor
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
@@ -218,6 +242,10 @@ spec:
                 name: postgresql-migrator
           image: {{ .image | default "migrate/migrate" }}  
           name: postgresql-migrate-git-sensor
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
@@ -258,6 +286,10 @@ spec:
           image: {{ $.Values.lens.image }}
           {{- end }}
           name: init-lens
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
@@ -285,7 +317,11 @@ spec:
           envFrom:
           - secretRef:
               name: postgresql-migrator    
-          image: {{ .image | default "migrate/migrate" }}    
+          image: {{ .image | default "migrate/migrate" }}   
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           {{- if .lens }}
           {{- if .lens.resources }}        
           resources:
