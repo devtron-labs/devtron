@@ -1,3 +1,5 @@
+## v0.6.20
+
 ## Bugs
 - fix: resource tree panic fix (#3775)
 - fix: remove use-buildx flag to use k8s buildx driver (#3773)
@@ -65,3 +67,5 @@
 - task: Updated chart version for v0.6.19 (#3639)
 - chore: added migration for reference chart 5-0-0 with active false (#3692)
 - task: updated plugin list to include i/o vars, refactored detail get api (#3627)
+
+
