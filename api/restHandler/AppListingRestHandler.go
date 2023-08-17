@@ -1633,10 +1633,28 @@ func (handler AppListingRestHandlerImpl) PortNumberExtraction(resp []k8s.BatchRe
 	portsEndpoint := make([]int64, 0)
 	portEndpointSlice := make([]int64, 0)
 	for _, portHolder := range resp {
-		if portHolder.ManifestResponse.Manifest.Object["kind"] == "Service" {
-			spec := portHolder.ManifestResponse.Manifest.Object["spec"].(map[string]interface{})
+		if portHolder.ManifestResponse == nil {
+			continue
+		}
+		kind, ok := portHolder.ManifestResponse.Manifest.Object["kind"]
+		if !ok {
+			handler.logger.Errorw("kind not found in resource tree, unable to extract port no")
+			return resourceTree, nil
+		}
+		if kind == k8s.ServiceKind {
+			specField, ok := portHolder.ManifestResponse.Manifest.Object["spec"]
+			if !ok {
+				handler.logger.Errorw("spec not found in resource tree, unable to extract port no")
+				return resourceTree, nil
+			}
+			spec := specField.(map[string]interface{})
 			if spec != nil {
-				portList := spec["ports"].([]interface{})
+				ports, ok := spec["ports"]
+				if !ok {
+					handler.logger.Errorw("ports not found in resource tree, unable to extract port no")
+					return resourceTree, nil
+				}
+				portList := ports.([]interface{})
 				for _, portItem := range portList {
 					if portItem.(map[string]interface{}) != nil {
 						portNumbers := portItem.(map[string]interface{})["port"]
@@ -1650,13 +1668,23 @@ func (handler AppListingRestHandlerImpl) PortNumberExtraction(resp []k8s.BatchRe
 				handler.logger.Errorw("spec doest not contain data", "err", spec)
 			}
 		}
-		if portHolder.ManifestResponse.Manifest.Object["kind"] == "Endpoints" {
-			if portHolder.ManifestResponse.Manifest.Object["subsets"] != nil {
-				subsets := portHolder.ManifestResponse.Manifest.Object["subsets"].([]interface{})
+		if kind == k8s.EndpointsKind {
+			subsetsField, ok := portHolder.ManifestResponse.Manifest.Object["subsets"]
+			if !ok {
+				handler.logger.Errorw("spec not found in resource tree, unable to extract port no")
+				return resourceTree, nil
+			}
+			if subsetsField != nil {
+				subsets := subsetsField.([]interface{})
 				for _, subset := range subsets {
 					subsetObj := subset.(map[string]interface{})
 					if subsetObj != nil {
-						portsIfs := subsetObj["ports"].([]interface{})
+						ports, ok := subsetObj["ports"]
+						if !ok {
+							handler.logger.Errorw("ports not found in resource tree endpoints, unable to extract port no")
+							return resourceTree, nil
+						}
+						portsIfs := ports.([]interface{})
 						for _, portsIf := range portsIfs {
 							portsIfObj := portsIf.(map[string]interface{})
 							if portsIfObj != nil {
@@ -1668,9 +1696,14 @@ func (handler AppListingRestHandlerImpl) PortNumberExtraction(resp []k8s.BatchRe
 				}
 			}
 		}
-		if portHolder.ManifestResponse.Manifest.Object["kind"] == "EndpointSlice" {
-			if portHolder.ManifestResponse.Manifest.Object["ports"] != nil {
-				endPointsSlicePorts := portHolder.ManifestResponse.Manifest.Object["ports"].([]interface{})
+		if kind == "EndpointSlice" {
+			portsField, ok := portHolder.ManifestResponse.Manifest.Object["ports"]
+			if !ok {
+				handler.logger.Errorw("ports not found in resource tree endpoint, unable to extract port no")
+				return resourceTree, nil
+			}
+			if portsField != nil {
+				endPointsSlicePorts := portsField.([]interface{})
 				for _, val := range endPointsSlicePorts {
 					portNumbers := val.(map[string]interface{})["port"]
 					portNumber := portNumbers.(int64)
@@ -1689,10 +1722,10 @@ func (handler AppListingRestHandlerImpl) PortNumberExtraction(resp []k8s.BatchRe
 		for _, val := range resourceTreeVal {
 			value := val.(map[string]interface{})
 			for key, _type := range value {
-				if key == "kind" && _type == "Endpoints" {
+				if key == "kind" && _type == k8s.EndpointsKind {
 					value["port"] = portsEndpoint
 				}
-				if key == "kind" && _type == "Service" {
+				if key == "kind" && _type == k8s.ServiceKind {
 					value["port"] = portsService
 				}
 				if key == "kind" && _type == "EndpointSlice" {
