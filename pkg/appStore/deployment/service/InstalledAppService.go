@@ -51,6 +51,8 @@ import (
 	"github.com/tidwall/gjson"
 	"net/http"
 	"regexp"
+	"sync"
+	"sync/atomic"
 
 	/* #nosec */
 	"crypto/sha1"
@@ -1216,57 +1218,39 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 		return resp, ""
 	}
 	responseTree := resp
-	canBeHibernated := 0
-	hibernated := 0
+	var canBeHibernated uint64 = 0
+	var hibernated uint64 = 0
 	responseTreeNodes, ok := responseTree["nodes"]
 	if !ok {
 		return resp, ""
 	}
-	for _, node := range responseTreeNodes.(interface{}).([]interface{}) {
-		currNode := node.(interface{}).(map[string]interface{})
-		resName := util3.InterfaceToString(currNode["name"])
-		resKind := util3.InterfaceToString(currNode["kind"])
-		resGroup := util3.InterfaceToString(currNode["group"])
-		resVersion := util3.InterfaceToString(currNode["version"])
-		resNamespace := util3.InterfaceToString(currNode["namespace"])
-		rQuery := &application.ApplicationResourceRequest{
-			Name:         &deploymentAppName,
-			ResourceName: &resName,
-			Kind:         &resKind,
-			Group:        &resGroup,
-			Version:      &resVersion,
-			Namespace:    &resNamespace,
+	replicaNodes := impl.filterOutReplicaNodes(responseTreeNodes)
+	batchSize := impl.aCDAuthConfig.ResourceListForReplicasBatchSize
+	requestsLength := len(replicaNodes)
+	for i := 0; i < requestsLength; {
+		//requests left to process
+		remainingBatch := requestsLength - i
+		if remainingBatch < batchSize {
+			batchSize = remainingBatch
 		}
-		ctx, _ := context.WithTimeout(ctx, 60*time.Second)
-		if currNode["parentRefs"] == nil {
-			t0 := time.Now()
-			res, err := impl.acdClient.GetResource(ctx, rQuery)
-			if err != nil {
-				impl.logger.Errorw("error getting response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
-				continue
-			}
-			if res.Manifest != nil {
-				manifest, _ := gjson.Parse(*res.Manifest).Value().(map[string]interface{})
-				replicas := util3.InterfaceToMapAdapter(manifest["spec"])["replicas"]
-				if replicas != nil {
-					currNode["canBeHibernated"] = true
-					canBeHibernated++
+		var wg sync.WaitGroup
+		for j := 0; j < batchSize; j++ {
+			wg.Add(1)
+			go func(j int) {
+				defer wg.Done()
+				canBeHibernatedFlag, hibernatedFlag := impl.processReplicaNodeForHibernation(replicaNodes[i+j], deploymentAppName, ctx)
+				if canBeHibernatedFlag {
+					atomic.AddUint64(&canBeHibernated, 1)
 				}
-				annotations := util3.InterfaceToMapAdapter(manifest["metadata"])["annotations"]
-				if annotations != nil {
-					val := util3.InterfaceToMapAdapter(annotations)["hibernator.devtron.ai/replicas"]
-					if val != nil {
-						if util3.InterfaceToString(val) != "0" && util3.InterfaceToFloat(replicas) == 0 {
-							currNode["isHibernated"] = true
-							hibernated++
-						}
-					}
+				if hibernatedFlag {
+					atomic.AddUint64(&hibernated, 1)
 				}
-			}
-
+			}(j)
 		}
-		node = currNode
+		wg.Wait()
+		i += batchSize
 	}
+
 	status := ""
 	if hibernated > 0 && canBeHibernated > 0 {
 		if hibernated == canBeHibernated {
@@ -1277,6 +1261,61 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 	}
 
 	return responseTree, status
+}
+
+func (impl InstalledAppServiceImpl) processReplicaNodeForHibernation(node interface{}, deploymentAppName string, ctx context.Context) (bool, bool) {
+	currNode := node.(interface{}).(map[string]interface{})
+	resName := util3.InterfaceToString(currNode["name"])
+	resKind := util3.InterfaceToString(currNode["kind"])
+	resGroup := util3.InterfaceToString(currNode["group"])
+	resVersion := util3.InterfaceToString(currNode["version"])
+	resNamespace := util3.InterfaceToString(currNode["namespace"])
+	rQuery := &application.ApplicationResourceRequest{
+		Name:         &deploymentAppName,
+		ResourceName: &resName,
+		Kind:         &resKind,
+		Group:        &resGroup,
+		Version:      &resVersion,
+		Namespace:    &resNamespace,
+	}
+	canBeHibernatedFlag := false
+	alreadyHibernated := false
+
+	if currNode["parentRefs"] == nil {
+		canBeHibernatedFlag, alreadyHibernated = impl.checkForHibernation(ctx, rQuery, currNode)
+	}
+	return canBeHibernatedFlag, alreadyHibernated
+}
+
+func (impl InstalledAppServiceImpl) checkForHibernation(ctx context.Context, rQuery *application.ApplicationResourceRequest, currNode map[string]interface{}) (bool, bool) {
+	t0 := time.Now()
+	canBeHibernated := false
+	alreadyHibernated := false
+	ctx, _ = context.WithTimeout(ctx, 60*time.Second)
+	res, err := impl.acdClient.GetResource(ctx, rQuery)
+	if err != nil {
+		impl.logger.Errorw("error getting response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
+		return canBeHibernated, alreadyHibernated
+	}
+	if res.Manifest != nil {
+		manifest, _ := gjson.Parse(*res.Manifest).Value().(map[string]interface{})
+		replicas := util3.InterfaceToMapAdapter(manifest["spec"])["replicas"]
+		if replicas != nil {
+			currNode["canBeHibernated"] = true
+			canBeHibernated = true
+		}
+		annotations := util3.InterfaceToMapAdapter(manifest["metadata"])["annotations"]
+		if annotations != nil {
+			val := util3.InterfaceToMapAdapter(annotations)["hibernator.devtron.ai/replicas"]
+			if val != nil {
+				if util3.InterfaceToString(val) != "0" && util3.InterfaceToFloat(replicas) == 0 {
+					currNode["isHibernated"] = true
+					alreadyHibernated = true
+				}
+			}
+		}
+	}
+	return canBeHibernated, alreadyHibernated
 }
 
 func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error) {
@@ -1342,4 +1381,19 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	}()
 	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
 	return resourceTree, err
+}
+
+func (impl InstalledAppServiceImpl) filterOutReplicaNodes(responseTreeNodes interface{}) []interface{} {
+	resourceListForReplicas := impl.aCDAuthConfig.ResourceListForReplicas
+	entries := strings.Split(resourceListForReplicas, ",")
+	resourceListMap := util3.ConvertStringSliceToMap(entries)
+	var replicaNodes []interface{}
+	for _, node := range responseTreeNodes.(interface{}).([]interface{}) {
+		currNode := node.(interface{}).(map[string]interface{})
+		resKind := util3.InterfaceToString(currNode["kind"])
+		if _, ok := resourceListMap[resKind]; ok {
+			replicaNodes = append(replicaNodes, node)
+		}
+	}
+	return replicaNodes
 }
