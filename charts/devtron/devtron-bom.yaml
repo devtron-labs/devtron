@@ -22,7 +22,7 @@ components:
         ENABLE_BUILD_CONTEXT: "true"
         ENABLE_RESTART_WORKLOAD: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:a9757030-280-14890"
+    image: "quay.io/devtron/hyperion:30c1c3c4-280-14903"
     cicdImage: "quay.io/devtron/devtron:a9757030-434-14889"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:71e590dd-138-14841"
