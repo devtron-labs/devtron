@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.20"
+  release: "v0.6.21-rc.0"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
@@ -24,7 +24,7 @@ components:
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
   devtron:
     image: "quay.io/devtron/hyperion:30c1c3c4-280-14903"
-    cicdImage: "quay.io/devtron/devtron:30c1c3c4-434-14904"
+    cicdImage: "quay.io/devtron/devtron:d7f571ad-434-14907"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:71e590dd-138-14841"
   argocdDexServer:
