@@ -1273,12 +1273,12 @@ func (impl InstalledAppServiceImpl) processReplicaNodeForHibernation(node interf
 	alreadyHibernated := false
 
 	if currNode["parentRefs"] == nil {
-		canBeHibernatedFlag, alreadyHibernated = impl.getHibernationCount(ctx, rQuery, currNode)
+		canBeHibernatedFlag, alreadyHibernated = impl.checkForHibernation(ctx, rQuery, currNode)
 	}
 	return canBeHibernatedFlag, alreadyHibernated
 }
 
-func (impl InstalledAppServiceImpl) getHibernationCount(ctx context.Context, rQuery *application.ApplicationResourceRequest, currNode map[string]interface{}) (bool, bool) {
+func (impl InstalledAppServiceImpl) checkForHibernation(ctx context.Context, rQuery *application.ApplicationResourceRequest, currNode map[string]interface{}) (bool, bool) {
 	t0 := time.Now()
 	canBeHibernated := false
 	alreadyHibernated := false
