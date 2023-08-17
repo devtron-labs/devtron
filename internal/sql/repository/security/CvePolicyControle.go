@@ -46,6 +46,7 @@ const (
 	Inherit PolicyAction = iota
 	Allow
 	Block
+	BlockIfFixed
 )
 
 func (d PolicyAction) String() string {
@@ -257,13 +258,21 @@ func (impl *CvePolicyRepositoryImpl) enforceCvePolicy(cves []*CveStore, cvePolic
 			if policy.Action == Allow {
 				continue
 			} else {
-				blockedCVE = append(blockedCVE, cve)
+				if policy.Action == Block {
+					blockedCVE = append(blockedCVE, cve)
+				} else if policy.Action == BlockIfFixed && cve.FixedVersion != "" {
+					blockedCVE = append(blockedCVE, cve)
+				}
 			}
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Allow {
 				continue
 			} else {
-				blockedCVE = append(blockedCVE, cve)
+				if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Block {
+					blockedCVE = append(blockedCVE, cve)
+				} else if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == BlockIfFixed && cve.FixedVersion != "" {
+					blockedCVE = append(blockedCVE, cve)
+				}
 			}
 		}
 	}
@@ -346,6 +355,7 @@ func (impl *CvePolicyRepositoryImpl) getHighestPolicy(allPolicies map[string][]*
 	}
 	return applicablePolicies
 }
+
 func (impl *CvePolicyRepositoryImpl) getHighestPolicyS(allPolicies map[Severity][]*CvePolicy) map[Severity]*CvePolicy {
 	applicablePolicies := make(map[Severity]*CvePolicy)
 	for key, policies := range allPolicies {
