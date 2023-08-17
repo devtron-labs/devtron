@@ -64,10 +64,10 @@ spec:
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
-          {{- if .envVars.devtron }}
-          {{- if .envVars.devtron.resources }}        
+          {{- if .devtron }}
+          {{- if .devtron.resources }}        
           resources:
-          {{- toYaml .envVars.devtron.resources | nindent 10 }}
+          {{- toYaml .devtron.resources | nindent 10 }}
           {{- end }}
           {{- end }}           
       restartPolicy: OnFailure
@@ -98,10 +98,10 @@ spec:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd && kubectl rollout restart deployment/kubelink -n devtroncd']
-        {{- if .envVars.casbin }}
-        {{- if .envVars.casbin.resources }}        
+        {{- if .casbin }}
+        {{- if .casbin.resources }}        
         resources:
-        {{- toYaml .envVars.casbin.resources | nindent 10 }}
+        {{- toYaml .casbin.resources | nindent 10 }}
         {{- end }}
         {{- end }} 
       initContainers:
@@ -149,10 +149,10 @@ spec:
           volumeMounts:
             - mountPath: /shared
               name: shared-volume  
-          {{- if .envVars.casbin }}
-          {{- if .envVars.casbin.resources }}        
+          {{- if .casbin }}
+          {{- if .casbin.resources }}        
           resources:
-          {{- toYaml .envVars.casbin.resources | nindent 12 }}
+          {{- toYaml .casbin.resources | nindent 12 }}
           {{- end }}
           {{- end }} 
       restartPolicy: OnFailure
@@ -221,10 +221,10 @@ spec:
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
-          {{- if .envVars.gitsensor }}
-          {{- if .envVars.gitsensor.resources }}        
+          {{- if .gitsensor }}
+          {{- if .gitsensor.resources }}        
           resources:
-          {{- toYaml .envVars.gitsensor.resources | nindent 10 }}
+          {{- toYaml .gitsensor.resources | nindent 10 }}
           {{- end }}
           {{- end }}
       restartPolicy: OnFailure
@@ -286,10 +286,10 @@ spec:
           - secretRef:
               name: postgresql-migrator    
           image: {{ .image | default "migrate/migrate" }}    
-          {{- if .envVars.lens }}
-          {{- if .envVars.lens.resources }}        
+          {{- if .lens }}
+          {{- if .lens.resources }}        
           resources:
-          {{- toYaml .envVars.lens.resources | nindent 10 }}
+          {{- toYaml .lens.resources | nindent 10 }}
           {{- end }} 
           {{- end }}
           volumeMounts:
