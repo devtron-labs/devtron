@@ -9,30 +9,6 @@ import (
 	"time"
 )
 
-type CapturingReadCloser struct {
-	original io.ReadCloser
-	captured *bytes.Buffer
-}
-
-func NewCapturingReadCloser(original io.ReadCloser) *CapturingReadCloser {
-	return &CapturingReadCloser{
-		original: original,
-		captured: new(bytes.Buffer),
-	}
-}
-
-func (crc *CapturingReadCloser) Read(p []byte) (n int, err error) {
-	n, err = crc.original.Read(p)
-	if n > 0 {
-		crc.captured.Write(p[:n])
-	}
-	return
-}
-
-func (crc *CapturingReadCloser) Close() error {
-	return crc.original.Close()
-}
-
 type UserAuthImpl struct {
 	userService user.UserService
 }
@@ -55,12 +31,18 @@ func (impl UserAuthImpl) LoggingMiddleware(next http.Handler) http.Handler {
 
 		// Call the next handler in the chain.
 		next.ServeHTTP(w, r)
+		// Extract the request payload.
+		payload, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
+		}
 
-		// Capture the request payload while preserving the original request body.
-		capturingBody := NewCapturingReadCloser(r.Body)
-		r.Body = capturingBody
+		// Restore the original request body for downstream handlers.
+		r.Body = io.NopCloser(bytes.NewBuffer(payload))
 
-		//Log the request details.
+		// Log the request details.
+		//method := r.Method
 		url := r.URL.Path
 
 		status := w.(interface {
@@ -73,6 +55,6 @@ func (impl UserAuthImpl) LoggingMiddleware(next http.Handler) http.Handler {
 			log.Printf("userId does not exists")
 		}
 		log.Printf(userType)
-		NewUserAuthService(url, userId, time.Since(startTime), status, capturingBody.captured.String())
+		NewUserAuthService(url, userId, time.Since(startTime), status, string(payload))
 	})
 }
