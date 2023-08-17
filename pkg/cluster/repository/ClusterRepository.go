@@ -35,6 +35,7 @@ type Cluster struct {
 	Id                     int               `sql:"id,pk"`
 	ClusterName            string            `sql:"cluster_name"`
 	ServerUrl              string            `sql:"server_url"`
+	ProxyUrl               string            `sql:"proxy_url"`
 	PrometheusEndpoint     string            `sql:"prometheus_endpoint"`
 	Active                 bool              `sql:"active,notnull"`
 	CdArgoSetup            bool              `sql:"cd_argo_setup,notnull"`

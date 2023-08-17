@@ -9,4 +9,5 @@ type ClusterInfo struct {
 	KeyData               string `json:"keyData"`
 	CertData              string `json:"certData"`
 	CAData                string `json:"CAData"`
+	ProxyUrl              string `json:"proxyUrl"`
 }

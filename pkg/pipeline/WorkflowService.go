@@ -377,6 +377,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 			ArchiveLogs: &archiveLogs,
 		},
 	}
+
 	if isJob {
 		ciTemplate, err = getCiTemplateWithConfigMapsAndSecrets(&configMaps, &secrets, ciTemplate, existingConfigMap, existingSecrets)
 	}
