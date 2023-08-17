@@ -3,4 +3,5 @@
 ## Enhancements
 - perf: hibernate check optimisation (#3788)
 ## Documentation
+- doc: HashiCorp external secret operator (#3608)
 ## Others
