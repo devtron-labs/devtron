@@ -3,6 +3,7 @@
 ## Enhancements
 - perf: hibernate check optimisation (#3788)
 ## Documentation
+- doc: mandatory tags feature (#3630)
 - doc: ci-trigger documentation update (#3629)
 - docs: container lifecycle  (#3623)
 - doc: security feature doc (#3622)
