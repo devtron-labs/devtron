@@ -1213,6 +1213,11 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 	if !ok {
 		return resp, ""
 	}
+
+	resourceListForReplicas := impl.aCDAuthConfig.ResourceListForReplicas
+	entries := strings.Split(resourceListForReplicas, ",")
+	resourceListMap := util3.ConvertStringSliceToMap(entries)
+
 	for _, node := range responseTreeNodes.(interface{}).([]interface{}) {
 		currNode := node.(interface{}).(map[string]interface{})
 		resName := util3.InterfaceToString(currNode["name"])
@@ -1220,6 +1225,9 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 		resGroup := util3.InterfaceToString(currNode["group"])
 		resVersion := util3.InterfaceToString(currNode["version"])
 		resNamespace := util3.InterfaceToString(currNode["namespace"])
+		if _, ok := resourceListMap[resKind]; !ok {
+			continue
+		}
 		rQuery := &application.ApplicationResourceRequest{
 			Name:         &deploymentAppName,
 			ResourceName: &resName,
