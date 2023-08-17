@@ -1,4 +1,5 @@
 ## Bugs
+- fix: resource tree panic fix (#3775)
 - fix: remove use-buildx flag to use k8s buildx driver (#3773)
 - fix: updated user flow update api unlock condition (#3770)
 - fix: rbac fix terminal connection on view and edit in helm apps (#3723)
