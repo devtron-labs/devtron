@@ -15,6 +15,7 @@ const (
 	SKIP_BUILD_BUILD_TYPE         CiBuildType = "skip-build"
 	BUILDPACK_BUILD_TYPE          CiBuildType = "buildpack-build"
 )
+const Main = "main"
 
 type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`
@@ -27,15 +28,16 @@ type CiBuildConfigBean struct {
 }
 
 type DockerBuildConfig struct {
-	DockerfilePath     string            `json:"dockerfileRelativePath,omitempty"`
-	DockerfileContent  string            `json:"dockerfileContent"`
-	Args               map[string]string `json:"args,omitempty"`
-	TargetPlatform     string            `json:"targetPlatform,omitempty"`
-	Language           string            `json:"language,omitempty"`
-	LanguageFramework  string            `json:"languageFramework,omitempty"`
-	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
-	BuildContext       string            `json:"buildContext,omitempty"`
-	UseBuildx          bool              `json:"useBuildx"`
+	DockerfilePath         string              `json:"dockerfileRelativePath,omitempty"`
+	DockerfileContent      string              `json:"dockerfileContent"`
+	Args                   map[string]string   `json:"args,omitempty"`
+	TargetPlatform         string              `json:"targetPlatform,omitempty"`
+	Language               string              `json:"language,omitempty"`
+	LanguageFramework      string              `json:"languageFramework,omitempty"`
+	DockerBuildOptions     map[string]string   `json:"dockerBuildOptions,omitempty"`
+	BuildContext           string              `json:"buildContext,omitempty"`
+	UseBuildx              bool                `json:"useBuildx"`
+	BuildxK8sDriverOptions []map[string]string `json:"buildxK8SDriverOptions,omitempty"`
 }
 
 type BuildPackConfig struct {

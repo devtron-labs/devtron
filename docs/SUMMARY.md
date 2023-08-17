@@ -7,6 +7,7 @@
   * [Install Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md)
   * [Install Devtron](setup/install/install-devtron.md)
   * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+  * [Backup for Disaster Recovery](setup/install/devtron-backup.md)
   * [FAQ on Installation](setup/install/faq-on-installation.md)
   * [Uninstall Devtron](setup/install/uninstall-devtron.md)
 * [Devtron Kubernetes Client](setup/install/install-devtron-Kubernetes-client.md)
@@ -99,6 +100,7 @@
   * [Notifications](user-guide/integrations/notifications.md)
   * [Monitoring (Grafana)](user-guide/integrations/grafana.md)
 
+
 ## Resources
 
 * [Troubleshooting](FAQs/devtron-troubleshoot.md)
@@ -108,7 +110,5 @@
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
+* [Release Notes](https://github.com/devtron-labs/devtron/releases)
 
-## Deprecated
-
-* [Hyperion](hyperion/devtron.md)

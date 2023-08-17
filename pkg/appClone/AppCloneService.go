@@ -19,23 +19,22 @@ package appClone
 
 import (
 	"context"
+	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/go-pg/pg"
-	"strings"
-
-	"fmt"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type AppCloneService interface {
@@ -82,12 +81,12 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 }
 
 type CloneRequest struct {
-	RefAppId    int            `json:"refAppId"`
-	Name        string         `json:"name"`
-	ProjectId   int            `json:"projectId"`
-	AppLabels   []*bean.Label  `json:"labels,omitempty" validate:"dive"`
-	Description string         `json:"description"`
-	AppType     helper.AppType `json:"appType"`
+	RefAppId    int                            `json:"refAppId"`
+	Name        string                         `json:"name"`
+	ProjectId   int                            `json:"projectId"`
+	AppLabels   []*bean.Label                  `json:"labels,omitempty" validate:"dive"`
+	Description *bean2.GenericNoteResponseBean `json:"description"`
+	AppType     helper.AppType                 `json:"appType"`
 }
 
 func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
@@ -181,18 +180,20 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 			impl.logger.Errorw("error in creating deployment template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 			return nil, err
 		}
-		_, err = impl.CreateGlobalCM(cloneReq.RefAppId, newAppId, userId)
+	}
+	_, err = impl.CreateGlobalCM(cloneReq.RefAppId, newAppId, userId)
 
-		if err != nil {
-			impl.logger.Errorw("error in creating global cm", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-			return nil, err
-		}
-		_, err = impl.CreateGlobalSecret(cloneReq.RefAppId, newAppId, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating global secret", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-			return nil, err
-		}
-		if isSameProject {
+	if err != nil {
+		impl.logger.Errorw("error in creating global cm", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
+		return nil, err
+	}
+	_, err = impl.CreateGlobalSecret(cloneReq.RefAppId, newAppId, userId)
+	if err != nil {
+		impl.logger.Errorw("error in creating global secret", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
+		return nil, err
+	}
+	if isSameProject {
+		if createReq.AppType != helper.Job {
 			_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
 			if err != nil {
 				impl.logger.Errorw("error in creating env cm", "err", err)
@@ -206,6 +207,12 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 			_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
 			if err != nil {
 				impl.logger.Errorw("error in cloning  env override", "err", err)
+				return nil, err
+			}
+		} else {
+			_, err := impl.configMapService.ConfigSecretEnvironmentClone(cloneReq.RefAppId, newAppId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in cloning cm cs env override", "err", err)
 				return nil, err
 			}
 		}
@@ -804,11 +811,16 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					IsDockerConfigOverridden: refCiPipeline.IsDockerConfigOverridden,
 					PreBuildStage:            preStageDetail,
 					PostBuildStage:           postStageDetail,
+					EnvironmentId:            refCiPipeline.EnvironmentId,
 				},
 				AppId:         req.appId,
 				Action:        bean.CREATE,
 				AppWorkflowId: req.wfId,
 				UserId:        req.userId,
+				IsCloneJob:    true,
+			}
+			if refCiPipeline.EnvironmentId != 0 {
+				ciPatchReq.IsJob = true
 			}
 			if !refCiPipeline.IsExternal && refCiPipeline.IsDockerConfigOverridden {
 				//get template override
@@ -905,36 +917,36 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	}
 
-		if refCdPipeline.ParentPipelineType == "WEBHOOK" {
-			cdPipeline := &bean.CDPipelineConfigObject{
-				Id:                            0,
-				EnvironmentId:                 refCdPipeline.EnvironmentId,
-				CiPipelineId:                  0,
-				TriggerType:                   refCdPipeline.TriggerType,
-				Name:                          pipelineName,
-				Strategies:                    refCdPipeline.Strategies,
-				Namespace:                     refCdPipeline.Namespace,
-				AppWorkflowId:                 0,
-				DeploymentTemplate:            refCdPipeline.DeploymentTemplate,
-				PreStage:                      refCdPipeline.PreStage, //FIXME
-				PostStage:                     refCdPipeline.PostStage,
-				PreStageConfigMapSecretNames:  refCdPipeline.PreStageConfigMapSecretNames,
-				PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
-				RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
-				RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
-				DeploymentAppType:             refCdPipeline.DeploymentAppType,
-				ParentPipelineId:              0,
-				ParentPipelineType:            refCdPipeline.ParentPipelineType,
-			}
-			cdPipelineReq := &bean.CdPipelines{
-				Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
-				AppId:     req.appId,
-				UserId:    req.userId,
-			}
-			cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
-			return cdPipelineRes, err
+	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
+		cdPipeline := &bean.CDPipelineConfigObject{
+			Id:                            0,
+			EnvironmentId:                 refCdPipeline.EnvironmentId,
+			CiPipelineId:                  0,
+			TriggerType:                   refCdPipeline.TriggerType,
+			Name:                          pipelineName,
+			Strategies:                    refCdPipeline.Strategies,
+			Namespace:                     refCdPipeline.Namespace,
+			AppWorkflowId:                 0,
+			DeploymentTemplate:            refCdPipeline.DeploymentTemplate,
+			PreStage:                      refCdPipeline.PreStage, //FIXME
+			PostStage:                     refCdPipeline.PostStage,
+			PreStageConfigMapSecretNames:  refCdPipeline.PreStageConfigMapSecretNames,
+			PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
+			RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
+			RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
+			DeploymentAppType:             refCdPipeline.DeploymentAppType,
+			ParentPipelineId:              0,
+			ParentPipelineType:            refCdPipeline.ParentPipelineType,
 		}
+		cdPipelineReq := &bean.CdPipelines{
+			Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
+			AppId:     req.appId,
+			UserId:    req.userId,
+		}
+		cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
+		return cdPipelineRes, err
 	}
 	cdPipeline := &bean.CDPipelineConfigObject{
 		Id:                            0,
@@ -953,6 +965,8 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
 		RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
 		DeploymentAppType:             deploymentAppType,
+		PreDeployStage:                refCdPipeline.PreDeployStage,
+		PostDeployStage:               refCdPipeline.PostDeployStage,
 	}
 	cdPipelineReq := &bean.CdPipelines{
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},

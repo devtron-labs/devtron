@@ -66,6 +66,14 @@ type CiPipelineHistory struct {
 	Manual                    bool     `sql:"manual,notnull"`
 }
 
+type CiEnvMappingHistory struct {
+	tableName     struct{} `sql:"ci_env_mapping_history" pg:",discard_unknown_columns"`
+	Id            int      `sql:"id,pk"`
+	CiPipelineId  int      `sql:"ci_pipeline_id"`
+	EnvironmentId int      `sql:"environment_id"`
+	sql.AuditLog
+}
+
 const (
 	TRIGGER_ADD    = "add"
 	TRIGGER_UPDATE = "update"
@@ -74,6 +82,7 @@ const (
 
 type CiPipelineHistoryRepository interface {
 	Save(ciPipelineHistory *CiPipelineHistory) error
+	SaveCiEnvMappingHistory(CiEnvMappingHistory *CiEnvMappingHistory) error
 }
 
 type CiPipelineHistoryRepositoryImpl struct {
@@ -95,6 +104,16 @@ func (impl *CiPipelineHistoryRepositoryImpl) Save(CiPipelineHistory *CiPipelineH
 
 	if err != nil {
 		impl.logger.Errorw("error in saving history for ci pipeline")
+		return err
+	}
+
+	return nil
+}
+func (impl *CiPipelineHistoryRepositoryImpl) SaveCiEnvMappingHistory(CiEnvMappingHistory *CiEnvMappingHistory) error {
+	err := impl.dbConnection.Insert(CiEnvMappingHistory)
+
+	if err != nil {
+		impl.logger.Errorw("error in saving history for Ci-Env Mapping", "err", err)
 		return err
 	}
 

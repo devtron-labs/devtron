@@ -43,6 +43,7 @@ type DevtronAppBuildRestHandler interface {
 	GetExternalCi(w http.ResponseWriter, r *http.Request)
 	GetExternalCiById(w http.ResponseWriter, r *http.Request)
 	PatchCiPipelines(w http.ResponseWriter, r *http.Request)
+	PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request)
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
@@ -230,6 +231,79 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialPatchRequest, int32, error) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return nil, 0, err
+	}
+	var patchRequest bean.CiMaterialPatchRequest
+	err = decoder.Decode(&patchRequest)
+
+	if err != nil {
+		handler.Logger.Errorw("request err, PatchCiPipeline", "err", err, "PatchCiPipeline", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, 0, err
+	}
+	return &patchRequest, userId, nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) authorizeCiSourceChangeRequest(w http.ResponseWriter, patchRequest *bean.CiMaterialPatchRequest, token string) error {
+	handler.Logger.Debugw("update request ", "req", patchRequest)
+	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return err
+	}
+	if app.AppType != helper.CustomApp {
+		err = fmt.Errorf("only custom apps supported")
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return err
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
+		err = fmt.Errorf("unauthorized user")
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return err
+	}
+	err = handler.validator.Struct(patchRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return err
+	}
+	return nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request) {
+	patchRequest, userId, err := handler.parseSourceChangeRequest(w, r)
+	if err != nil {
+		handler.Logger.Errorw("Parse error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if !(patchRequest.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED || patchRequest.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX) {
+		handler.Logger.Errorw("Unsupported source type, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
+		common.WriteJsonResp(w, err, "source.type not supported", http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	if err = handler.authorizeCiSourceChangeRequest(w, patchRequest, token); err != nil {
+		handler.Logger.Errorw("Authorization error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+
+	createResp, err := handler.pipelineBuilder.PatchCiMaterialSource(patchRequest, userId)
+	if err != nil {
+		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
 func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -301,7 +375,9 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 			return
 		}
 	}
-
+	if app.AppType == helper.Job {
+		patchRequest.IsJob = true
+	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
@@ -465,13 +541,11 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		cdPipelineRbacObjects[i] = envObject
 	}
 	envRbacResultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
-	i := 0
 	for _, rbacResultOk := range envRbacResultMap {
 		if !rbacResultOk {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
-		i++
 	}
 	//RBAC ENDS
 	response := make(map[string]string)

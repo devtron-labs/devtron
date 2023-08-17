@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	bean3 "github.com/devtron-labs/devtron/api/restHandler/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -38,12 +39,15 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s"
+	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
 	"net/http"
 	"regexp"
@@ -91,7 +95,7 @@ type InstalledAppService interface {
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
-	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId int, deploymentAppName string) (map[string]interface{}, error)
+	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -123,9 +127,11 @@ type InstalledAppServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	attributesRepository                 repository3.AttributesRepository
 	appStatusService                     appStatus.AppStatusService
-	K8sUtil                              *util.K8sUtil
+	K8sUtil                              *util4.K8sUtil
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	k8sCommonService                     k8s.K8sCommonService
+	k8sApplicationService                application3.K8sApplicationService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -147,10 +153,10 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
 	attributesRepository repository3.AttributesRepository,
-	appStatusService appStatus.AppStatusService, K8sUtil *util.K8sUtil,
+	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtil,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService) (*InstalledAppServiceImpl, error) {
+	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -183,6 +189,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		K8sUtil:                              K8sUtil,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
+		k8sCommonService:                     k8sCommonService,
+		k8sApplicationService:                k8sApplicationService,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -1070,7 +1078,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 	var resourceTree map[string]interface{}
 	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
 	if util.IsAcdApp(installedApp.DeploymentAppType) {
-		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, deploymentAppName)
+		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, installedApp.Environment.ClusterId, deploymentAppName, installedApp.Environment.Namespace)
 	} else if util.IsHelmApp(installedApp.DeploymentAppType) {
 		config, err := impl.helmAppService.GetClusterConf(installedApp.Environment.ClusterId)
 		if err != nil {
@@ -1092,7 +1100,15 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
 		}
 	}
-	resourceTreeAndNotesContainer.ResourceTree = resourceTree
+	if resourceTree != nil {
+		version, err := impl.k8sCommonService.GetK8sServerVersion(installedApp.Environment.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", installedApp.Environment.ClusterId, "err", err)
+		} else {
+			resourceTree["serverVersion"] = version.String()
+		}
+		resourceTreeAndNotesContainer.ResourceTree = resourceTree
+	}
 	return err
 }
 
@@ -1174,7 +1190,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx co
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	deploymentAppName := fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName)
-	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, deploymentAppName)
+	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
 	appDetail.ResourceTree = resourceTree
 	if err != nil {
 		return *appDetail
@@ -1182,15 +1198,22 @@ func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx co
 	if appDetail.ResourceTree["nodes"] == nil {
 		return *appDetail
 	}
-	appDetail.ResourceTree = checkHibernate(impl, appDetail, ctx)
+	appDetail.ResourceTree, _ = impl.checkHibernate(appDetail.ResourceTree, deploymentAppName, ctx)
 	return *appDetail
 }
-func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer, ctx context.Context) map[string]interface{} {
+func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, deploymentAppName string, ctx context.Context) (map[string]interface{}, string) {
 
-	responseTree := resp.ResourceTree
-	deploymentAppName := resp.AppName + "-" + resp.EnvironmentName
-
-	for _, node := range responseTree["nodes"].(interface{}).([]interface{}) {
+	if resp == nil {
+		return resp, ""
+	}
+	responseTree := resp
+	canBeHibernated := 0
+	hibernated := 0
+	responseTreeNodes, ok := responseTree["nodes"]
+	if !ok {
+		return resp, ""
+	}
+	for _, node := range responseTreeNodes.(interface{}).([]interface{}) {
 		currNode := node.(interface{}).(map[string]interface{})
 		resName := util3.InterfaceToString(currNode["name"])
 		resKind := util3.InterfaceToString(currNode["kind"])
@@ -1218,6 +1241,7 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 				replicas := util3.InterfaceToMapAdapter(manifest["spec"])["replicas"]
 				if replicas != nil {
 					currNode["canBeHibernated"] = true
+					canBeHibernated++
 				}
 				annotations := util3.InterfaceToMapAdapter(manifest["metadata"])["annotations"]
 				if annotations != nil {
@@ -1225,19 +1249,28 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 					if val != nil {
 						if util3.InterfaceToString(val) != "0" && util3.InterfaceToFloat(replicas) == 0 {
 							currNode["isHibernated"] = true
+							hibernated++
 						}
 					}
 				}
-
 			}
 
 		}
 		node = currNode
 	}
-	return responseTree
+	status := ""
+	if hibernated > 0 && canBeHibernated > 0 {
+		if hibernated == canBeHibernated {
+			status = appStatus.HealthStatusHibernating
+		} else if hibernated < canBeHibernated {
+			status = appStatus.HealthStatusPartiallyHibernated
+		}
+	}
+
+	return responseTree, status
 }
 
-func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId int, deploymentAppName string) (map[string]interface{}, error) {
+func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
@@ -1272,10 +1305,28 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 		}
 		return resourceTree, err
 	}
-	// TODO: using this resp.Status to update in app_status table
+	label := fmt.Sprintf("app.kubernetes.io/instance=%s", deploymentAppName)
+	pods, err := impl.k8sApplicationService.GetPodListByLabel(clusterId, namespace, label)
+	if err != nil {
+		impl.logger.Errorw("error in getting pods by label", "err", err, "clusterId", clusterId, "namespace", namespace, "label", label)
+		return resourceTree, err
+	}
+	ephemeralContainersMap := bean3.ExtractEphemeralContainers(pods)
+	for _, metaData := range resp.PodMetadata {
+		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
+	}
 	resourceTree = util3.InterfaceToMapAdapter(resp)
+	resourceTree, hibernationStatus := impl.checkHibernate(resourceTree, deploymentAppName, ctx)
+	appStatus := resp.Status
+	if resourceTree != nil {
+		if hibernationStatus != "" {
+			resourceTree["status"] = hibernationStatus
+			appStatus = hibernationStatus
+		}
+	}
+	// using this resp.Status to update in app_status table
 	go func() {
-		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, appStatus)
 		if err != nil {
 			impl.logger.Warnw("error in updating app status", "err", err, appId, "envId", envId)
 		}

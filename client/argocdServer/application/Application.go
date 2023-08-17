@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/bean"
 	"strings"
 	"time"
 
@@ -98,11 +99,12 @@ type ResourceTreeResponse struct {
 }
 
 type PodMetadata struct {
-	Name           string    `json:"name"`
-	UID            string    `json:"uid"`
-	Containers     []*string `json:"containers"`
-	InitContainers []*string `json:"initContainers"`
-	IsNew          bool      `json:"isNew"`
+	Name                string                         `json:"name"`
+	UID                 string                         `json:"uid"`
+	Containers          []*string                      `json:"containers"`
+	InitContainers      []*string                      `json:"initContainers"`
+	IsNew               bool                           `json:"isNew"`
+	EphemeralContainers []*bean.EphemeralContainerData `json:"ephemeralContainers"`
 }
 
 type Manifests struct {

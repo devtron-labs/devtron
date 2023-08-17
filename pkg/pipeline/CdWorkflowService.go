@@ -25,10 +25,10 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
-	util2 "github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"strconv"
 	"strings"
 	"time"
@@ -50,10 +50,10 @@ import (
 type CdWorkflowService interface {
 	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error
 	DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error)
+	GetWorkflow(name string, namespace string, restConfig *rest.Config, isExtRun bool) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	TerminateWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) error
+	TerminateWorkflow(name string, namespace string, restConfig *rest.Config, isExtRun bool) error
 }
 
 const (
@@ -69,6 +69,7 @@ type CdWorkflowServiceImpl struct {
 	envRepository        repository.EnvironmentRepository
 	globalCMCSService    GlobalCMCSService
 	argoWorkflowExecutor ArgoWorkflowExecutor
+	k8sUtil              *k8s.K8sUtil
 }
 
 type CdWorkflowRequest struct {
@@ -119,24 +120,31 @@ type CdWorkflowRequest struct {
 	DeploymentTriggerTime      time.Time                           `json:"deploymentTriggerTime,omitempty"`
 	DeploymentReleaseCounter   int                                 `json:"deploymentReleaseCounter,omitempty"`
 	WorkflowExecutor           pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
+	PrePostDeploySteps         []*bean3.StepObject                 `json:"prePostDeploySteps"`
+	RefPlugins                 []*bean3.RefPluginObject            `json:"refPlugins"`
 }
 
 const PRE = "PRE"
 const POST = "POST"
 
-func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
-	envRepository repository.EnvironmentRepository,
-	cdConfig *CdConfig,
-	appService app.AppService,
-	globalCMCSService GlobalCMCSService,
-	argoWorkflowExecutor ArgoWorkflowExecutor) *CdWorkflowServiceImpl {
-	return &CdWorkflowServiceImpl{Logger: Logger,
-		config:               cdConfig.ClusterConfig,
+func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, cdConfig *CdConfig,
+	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor ArgoWorkflowExecutor,
+	k8sUtil *k8s.K8sUtil) (*CdWorkflowServiceImpl, error) {
+	cdWorkflowService := &CdWorkflowServiceImpl{Logger: Logger,
 		cdConfig:             cdConfig,
 		appService:           appService,
 		envRepository:        envRepository,
 		globalCMCSService:    globalCMCSService,
-		argoWorkflowExecutor: argoWorkflowExecutor}
+		argoWorkflowExecutor: argoWorkflowExecutor,
+		k8sUtil:              k8sUtil,
+	}
+	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
+	if err != nil {
+		Logger.Errorw("error in getting in cluster rest config", "err", err)
+		return nil, err
+	}
+	cdWorkflowService.config = restConfig
+	return cdWorkflowService, nil
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {
@@ -171,6 +179,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.WorkflowId = workflowRequest.WorkflowId
 	workflowTemplate.WorkflowRunnerId = workflowRequest.WorkflowRunnerId
 	workflowTemplate.WorkflowRequestJson = string(workflowJson)
+	workflowTemplate.PrePostDeploySteps = workflowRequest.PrePostDeploySteps
+	workflowTemplate.RefPlugins = workflowRequest.RefPlugins
 
 	var globalCmCsConfigs []*bean3.GlobalCMCSDto
 	var workflowConfigMaps []bean.ConfigSecretMap
@@ -199,7 +209,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		return err
 	}
 
-	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId)
+	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, false)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
 		return err
@@ -274,10 +284,24 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.ActiveDeadlineSeconds = &workflowRequest.ActiveDeadlineSeconds
 	workflowTemplate.Namespace = workflowRequest.Namespace
 	if workflowRequest.IsExtRun {
-		workflowTemplate.ClusterConfig = env.Cluster.GetClusterConfig()
+		configMap := env.Cluster.Config
+		bearerToken := configMap[k8s.BearerToken]
+		clusterConfig := &k8s.ClusterConfig{
+			ClusterName:           env.Cluster.ClusterName,
+			BearerToken:           bearerToken,
+			Host:                  env.Cluster.ServerUrl,
+			InsecureSkipTLSVerify: true,
+		}
+		restConfig, err2 := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err2 != nil {
+			impl.Logger.Errorw("error in getting rest config from cluster config", "err", err2, "appId", workflowRequest.AppId)
+			return err2
+		}
+		workflowTemplate.ClusterConfig = restConfig
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
+
 	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 	if workflowExecutor == nil {
 		return errors.New("workflow executor not found")
@@ -336,12 +360,12 @@ func (impl *CdWorkflowServiceImpl) getConfiguredCmCs(pipeline *pipelineConfig.Pi
 	return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, nil
 }
 
-func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error) {
+func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, restConfig *rest.Config, isExtRun bool) (*v1alpha1.Workflow, error) {
 	impl.Logger.Debugw("getting wf", "name", name)
 	var wfClient v1alpha12.WorkflowInterface
 	var err error
 	if isExtRun {
-		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, clusterConfig)
+		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, restConfig)
 
 	} else {
 		wfClient, err = impl.getClientInstance(namespace)
@@ -354,12 +378,12 @@ func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, cl
 	return workflow, err
 }
 
-func (impl *CdWorkflowServiceImpl) TerminateWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) error {
+func (impl *CdWorkflowServiceImpl) TerminateWorkflow(name string, namespace string, restConfig *rest.Config, isExtRun bool) error {
 	impl.Logger.Debugw("terminating wf", "name", name)
 	var wfClient v1alpha12.WorkflowInterface
 	var err error
 	if isExtRun {
-		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, clusterConfig)
+		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, restConfig)
 
 	} else {
 		wfClient, err = impl.getClientInstance(namespace)
@@ -417,18 +441,8 @@ func (impl *CdWorkflowServiceImpl) getClientInstance(namespace string) (v1alpha1
 	return wfClient, nil
 }
 
-func (impl *CdWorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, clusterConfig util2.ClusterConfig) (v1alpha12.WorkflowInterface, error) {
-	config := &rest.Config{
-		Host:        clusterConfig.Host,
-		BearerToken: clusterConfig.BearerToken,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: clusterConfig.InsecureSkipTLSVerify,
-			KeyData:  []byte(clusterConfig.KeyData),
-			CAData:   []byte(clusterConfig.CAData),
-			CertData: []byte(clusterConfig.CertData),
-		},
-	}
-	clientSet, err := versioned.NewForConfig(config)
+func (impl *CdWorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, restConfig *rest.Config) (v1alpha12.WorkflowInterface, error) {
+	clientSet, err := versioned.NewForConfig(restConfig)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
