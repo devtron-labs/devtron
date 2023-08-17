@@ -134,8 +134,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *Workflo
 	workflowTemplate.Secrets = workflowSecrets
 	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 
-	nodeConstraints := workflowRequest.GetNodeConstraints(impl.ciCdConfig)
-	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, nodeConstraints)
+	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
 	workflowMainContainer := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, workflowJson, workflowTemplate, workflowConfigMaps, workflowSecrets)
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate)

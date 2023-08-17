@@ -80,11 +80,8 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		return nil, err
 	}
 	if len(templates) > 0 {
-		if workflowTemplate.WorkflowType == CI_WORKFLOW_NAME {
-			entryPoint = CI_WORKFLOW_WITH_STAGES
-		} else {
-			entryPoint = CD_WORKFLOW_WITH_STAGES
-		}
+		//TODO KB: put this logic inside WFTemplate.getEntrypoint
+		entryPoint = workflowTemplate.GetEntrypoint()
 	}
 
 	wfContainer := workflowTemplate.Containers[0]
@@ -98,21 +95,12 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	impl.updateBlobStorageConfig(workflowTemplate, &ciCdTemplate)
 	templates = append(templates, ciCdTemplate)
 
-	objectMeta := v1.ObjectMeta{
-		GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
-		Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
-	}
-	if workflowTemplate.WorkflowType == CdStage {
-		objectMeta = v1.ObjectMeta{
-			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
-			Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
-			Labels:       map[string]string{"devtron.ai/workflow-purpose": "cd"},
-		}
-	}
+	//TODO KB: use func wfTemplate.createObjectMetadata
+	objectMeta := workflowTemplate.CreateObjectMetadata()
 
 	var (
 		ciCdWorkflow = v1alpha1.Workflow{
-			ObjectMeta: objectMeta,
+			ObjectMeta: *objectMeta,
 			Spec: v1alpha1.WorkflowSpec{
 				ServiceAccountName: workflowTemplate.ServiceAccountName,
 				NodeSelector:       workflowTemplate.NodeSelector,

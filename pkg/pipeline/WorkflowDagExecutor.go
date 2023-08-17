@@ -690,10 +690,6 @@ func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVa
 	}
 }
 func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*WorkflowRequest, error) {
-	config, err := GetCdConfig()
-	if err != nil {
-		return nil, err
-	}
 	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -844,7 +840,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		WorkflowRunnerId:      runner.Id,
 		WorkflowNamePrefix:    strconv.Itoa(runner.Id) + "-" + runner.Name,
 		WorkflowPrefixForLog:  strconv.Itoa(cdWf.Id) + string(runner.WorkflowType) + "-" + runner.Name,
-		CdImage:               config.GetDefaultImage(),
+		CdImage:               impl.config.GetDefaultImage(),
 		CdPipelineId:          cdWf.PipelineId,
 		TriggeredBy:           triggeredBy,
 		StageYaml:             stageYaml,

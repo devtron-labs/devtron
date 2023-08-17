@@ -299,10 +299,6 @@ func (impl *CiServiceImpl) BuildPayload(trigger Trigger, pipeline *pipelineConfi
 
 func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, wfConfig *pipelineConfig.CiWorkflowConfig,
 	commitHashes map[int]bean.GitCommit, userId int32, EnvironmentId int, isJob bool) (wf *pipelineConfig.CiWorkflow, error error) {
-	config, err := GetCiConfig()
-	if err != nil {
-		return nil, err
-	}
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 	for k, v := range commitHashes {
 		gitCommit := pipelineConfig.GitCommit{
@@ -334,7 +330,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		Message:            "",
 		StartedOn:          time.Now(),
 		CiPipelineId:       pipeline.Id,
-		Namespace:          config.GetDefaultNamespace(),
+		Namespace:          impl.config.GetDefaultNamespace(),
 		BlobStorageEnabled: impl.config.BlobStorageEnabled,
 		GitTriggers:        gitTriggers,
 		LogLocation:        "",
@@ -344,7 +340,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		ciWorkflow.Namespace = wfConfig.Namespace
 		ciWorkflow.EnvironmentId = EnvironmentId
 	}
-	err = impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
+	err := impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("saving workflow error", "err", err)
 		return &pipelineConfig.CiWorkflow{}, err

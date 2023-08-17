@@ -384,7 +384,7 @@ type CiCdTriggerEvent struct {
 	CommonWorkflowRequest *WorkflowRequest `json:"commonWorkflowRequest"`
 }
 
-func (workflowRequest *WorkflowRequest) CheckForExternal() {
+func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 	pipeline := workflowRequest.Pipeline
 	env := workflowRequest.Env
 	// Check for external in case of PRE-/POST-CD
@@ -430,7 +430,7 @@ func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig
 
 func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]byte, error) {
 	workflowRequest.assignBlobStorageLogsKey(config, config.CiDefaultBuildLogsKeyPrefix)
-	workflowRequest.CheckForExternal()
+	workflowRequest.updateExternalRunMetadata()
 	workflowJson, err := workflowRequest.getWorkflowJson(workflowRequest.GetEventTypeForWorkflowRequest())
 	if err != nil {
 		return nil, err
@@ -499,21 +499,6 @@ func (workflowRequest *WorkflowRequest) getPVCForWorkflowRequest() string {
 	return pvc
 }
 
-func (workflowRequest *WorkflowRequest) assignExternalRunDetail() {
-	pipeline := workflowRequest.Pipeline
-	env := workflowRequest.Env
-	switch workflowRequest.Type {
-	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		if env != nil && env.Id != 0 {
-			workflowRequest.EnvironmentId = env.Id
-			workflowRequest.IsExtRun = true
-		}
-	}
-	if (workflowRequest.StageType == PRE && pipeline.RunPreStageInEnv) || (workflowRequest.StageType == POST && pipeline.RunPostStageInEnv) {
-		workflowRequest.IsExtRun = true
-	}
-
-}
 func (workflowRequest *WorkflowRequest) assignBlobStorageLogsKey(config *CiCdConfig, defaultBuildLogsKeyPrefix string) {
 	workflowRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", defaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
 	workflowRequest.InAppLoggingEnabled = config.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
@@ -532,7 +517,8 @@ func (workflowRequest *WorkflowRequest) getWorkflowJson(eventType string) ([]byt
 	return workflowJson, err
 }
 
-func (workflowRequest *WorkflowRequest) AddNodeConstraintsFromConfig(workflowTemplate *bean.WorkflowTemplate, nodeConstraints *bean.NodeConstraints) {
+func (workflowRequest *WorkflowRequest) AddNodeConstraintsFromConfig(workflowTemplate *bean.WorkflowTemplate, config *CiCdConfig) {
+	nodeConstraints := workflowRequest.GetNodeConstraints(config)
 	if workflowRequest.Type == bean.CD_WORKFLOW_PIPELINE_TYPE {
 		workflowTemplate.NodeSelector = map[string]string{nodeConstraints.TaintKey: nodeConstraints.TaintValue}
 	}
@@ -604,31 +590,41 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 		SkipNodeSelector:  skipNodeSelector,
 	}
 }
-func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) *bean.LimitReqCpuMem {
+
+func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) v12.ResourceRequirements {
+	limitReqCpuMem := &bean.LimitReqCpuMem{}
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
-		return &bean.LimitReqCpuMem{
+		limitReqCpuMem = &bean.LimitReqCpuMem{
 			LimitCpu: config.CiLimitCpu,
 			LimitMem: config.CiLimitMem,
 			ReqCpu:   config.CiReqCpu,
 			ReqMem:   config.CiReqMem,
 		}
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
-		return &bean.LimitReqCpuMem{
+		limitReqCpuMem = &bean.LimitReqCpuMem{
 			LimitCpu: config.CdLimitCpu,
 			LimitMem: config.CdLimitMem,
 			ReqCpu:   config.CdReqCpu,
 			ReqMem:   config.CdReqMem,
 		}
 	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		return &bean.LimitReqCpuMem{
+		limitReqCpuMem = &bean.LimitReqCpuMem{
 			LimitCpu: config.CiLimitCpu,
 			LimitMem: config.CiLimitMem,
 			ReqCpu:   config.CiReqCpu,
 			ReqMem:   config.CiReqMem,
 		}
-	default:
-		return nil
+	}
+	return v12.ResourceRequirements{
+		Limits: v12.ResourceList{
+			v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.LimitCpu),
+			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
+		},
+		Requests: v12.ResourceList{
+			v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.LimitCpu),
+			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
+		},
 	}
 }
 
@@ -648,7 +644,6 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
-	limitReqCpuMem := workflowRequest.GetLimitReqCpuMem(config)
 	workflowMainContainer := v12.Container{
 		Env:   containerEnvVariables,
 		Name:  common.MainContainerName,
@@ -656,16 +651,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		SecurityContext: &v12.SecurityContext{
 			Privileged: &privileged,
 		},
-		Resources: v12.ResourceRequirements{
-			Limits: v12.ResourceList{
-				v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.LimitCpu),
-				v12.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
-			},
-			Requests: v12.ResourceList{
-				v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.LimitCpu),
-				v12.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
-			},
-		},
+		Resources: workflowRequest.GetLimitReqCpuMem(config),
 	}
 	if len(pvc) != 0 {
 		buildPvcCachePath := config.BuildPvcCachePath
