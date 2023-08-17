@@ -28,14 +28,12 @@ type GitProviderRouter interface {
 }
 type GitProviderRouterImpl struct {
 	gitRestHandler restHandler.GitProviderRestHandler
-	userAuth       logger.UserAuth
 }
 
 func NewGitProviderRouterImpl(gitRestHandler restHandler.GitProviderRestHandler, userAuth logger.UserAuth) *GitProviderRouterImpl {
-	return &GitProviderRouterImpl{gitRestHandler: gitRestHandler, userAuth: userAuth}
+	return &GitProviderRouterImpl{gitRestHandler: gitRestHandler}
 }
 func (impl GitProviderRouterImpl) InitGitProviderRouter(configRouter *mux.Router) {
-	configRouter.Use(impl.userAuth.LoggingMiddleware)
 	configRouter.Path("/provider").
 		HandlerFunc(impl.gitRestHandler.SaveGitRepoConfig).
 		Methods("POST")

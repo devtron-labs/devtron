@@ -18,7 +18,6 @@
 package appStoreDeployment
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -28,18 +27,15 @@ type CommonDeploymentRouter interface {
 
 type CommonDeploymentRouterImpl struct {
 	commonDeploymentRestHandler CommonDeploymentRestHandler
-	userAuth                    logger.UserAuth
 }
 
-func NewCommonDeploymentRouterImpl(commonDeploymentRestHandler CommonDeploymentRestHandler, userAuth logger.UserAuth) *CommonDeploymentRouterImpl {
+func NewCommonDeploymentRouterImpl(commonDeploymentRestHandler CommonDeploymentRestHandler) *CommonDeploymentRouterImpl {
 	return &CommonDeploymentRouterImpl{
 		commonDeploymentRestHandler: commonDeploymentRestHandler,
-		userAuth:                    userAuth,
 	}
 }
 
 func (router CommonDeploymentRouterImpl) Init(configRouter *mux.Router) {
-	configRouter.Use(router.userAuth.LoggingMiddleware)
 	configRouter.Path("/deployment-history").
 		HandlerFunc(router.commonDeploymentRestHandler.GetDeploymentHistory).Methods("GET")
 

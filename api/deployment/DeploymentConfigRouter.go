@@ -11,18 +11,15 @@ type DeploymentConfigRouter interface {
 
 type DeploymentConfigRouterImpl struct {
 	deploymentRestHandler DeploymentConfigRestHandler
-	userAuth              logger.UserAuth
 }
 
 func NewDeploymentRouterImpl(deploymentRestHandler DeploymentConfigRestHandler, userAuth logger.UserAuth) *DeploymentConfigRouterImpl {
 	return &DeploymentConfigRouterImpl{
 		deploymentRestHandler: deploymentRestHandler,
-		userAuth:              userAuth,
 	}
 }
 
 func (router DeploymentConfigRouterImpl) Init(configRouter *mux.Router) {
-	configRouter.Use(router.userAuth.LoggingMiddleware)
 	configRouter.Path("/validate").
 		HandlerFunc(router.deploymentRestHandler.CreateChartFromFile).Methods("POST")
 	configRouter.Path("/upload").

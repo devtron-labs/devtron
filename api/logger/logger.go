@@ -1,11 +1,37 @@
 package logger
 
 import (
+	"bytes"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"io"
 	"log"
 	"net/http"
 	"time"
 )
+
+type CapturingReadCloser struct {
+	original io.ReadCloser
+	captured *bytes.Buffer
+}
+
+func NewCapturingReadCloser(original io.ReadCloser) *CapturingReadCloser {
+	return &CapturingReadCloser{
+		original: original,
+		captured: new(bytes.Buffer),
+	}
+}
+
+func (crc *CapturingReadCloser) Read(p []byte) (n int, err error) {
+	n, err = crc.original.Read(p)
+	if n > 0 {
+		crc.captured.Write(p[:n])
+	}
+	return
+}
+
+func (crc *CapturingReadCloser) Close() error {
+	return crc.original.Close()
+}
 
 type UserAuthImpl struct {
 	userService user.UserService
@@ -30,8 +56,11 @@ func (impl UserAuthImpl) LoggingMiddleware(next http.Handler) http.Handler {
 		// Call the next handler in the chain.
 		next.ServeHTTP(w, r)
 
-		// Log the request details.
-		//method := r.Method
+		// Capture the request payload while preserving the original request body.
+		capturingBody := NewCapturingReadCloser(r.Body)
+		r.Body = capturingBody
+
+		//Log the request details.
 		url := r.URL.Path
 
 		status := w.(interface {
@@ -44,6 +73,6 @@ func (impl UserAuthImpl) LoggingMiddleware(next http.Handler) http.Handler {
 			log.Printf("userId does not exists")
 		}
 		log.Printf(userType)
-		NewUserAuthService(url, userId, time.Since(startTime), status)
+		NewUserAuthService(url, userId, time.Since(startTime), status, capturingBody.captured.String())
 	})
 }

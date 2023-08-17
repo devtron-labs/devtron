@@ -8,4 +8,5 @@ type UserAuthDTO struct {
 	updatedBy       int       `json:"updatedBy"`
 	updatedOn       time.Time `json:"updatedOn"`
 	apiResponseCode int       `json:"apiResponseCode"`
+	payload         string    `json:"payload"`
 }

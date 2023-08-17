@@ -15,7 +15,6 @@ type RbacRoleRouterImpl struct {
 	logger              *zap.SugaredLogger
 	validator           *validator.Validate
 	rbacRoleRestHandler RbacRoleRestHandler
-	userAuth            logger.UserAuth
 }
 
 func NewRbacRoleRouterImpl(logger *zap.SugaredLogger,
@@ -24,13 +23,11 @@ func NewRbacRoleRouterImpl(logger *zap.SugaredLogger,
 		logger:              logger,
 		validator:           validator,
 		rbacRoleRestHandler: rbacRoleRestHandler,
-		userAuth:            userAuth,
 	}
 	return rbacRoleRouterImpl
 }
 
 func (router RbacRoleRouterImpl) InitRbacRoleRouter(rbacRoleRouter *mux.Router) {
-	rbacRoleRouter.Use(router.userAuth.LoggingMiddleware)
 	rbacRoleRouter.Path("").
 		HandlerFunc(router.rbacRoleRestHandler.GetAllDefaultRoles).Methods("GET")
 }

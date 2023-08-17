@@ -18,7 +18,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -29,15 +28,13 @@ type ProjectManagementRouter interface {
 
 type ProjectManagementRouterImpl struct {
 	jiraRestHandler restHandler.JiraRestHandler
-	userAuth        logger.UserAuth
 }
 
-func NewProjectManagementRouterImpl(jiraRestHandler restHandler.JiraRestHandler, userAuth logger.UserAuth) *ProjectManagementRouterImpl {
-	return &ProjectManagementRouterImpl{jiraRestHandler: jiraRestHandler, userAuth: userAuth}
+func NewProjectManagementRouterImpl(jiraRestHandler restHandler.JiraRestHandler) *ProjectManagementRouterImpl {
+	return &ProjectManagementRouterImpl{jiraRestHandler: jiraRestHandler}
 }
 
 func (impl ProjectManagementRouterImpl) InitProjectManagementRouter(jiraRouter *mux.Router) {
-	jiraRouter.Use(impl.userAuth.LoggingMiddleware)
 	jiraRouter.Path("/jira/config").
 		Methods("POST").
 		HandlerFunc(impl.jiraRestHandler.SaveAccountConfig)

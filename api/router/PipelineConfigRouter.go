@@ -18,7 +18,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/gorilla/mux"
@@ -33,27 +32,23 @@ type PipelineConfigRouterImpl struct {
 	webhookDataRestHandler            restHandler.WebhookDataRestHandler
 	pipelineHistoryRestHandler        restHandler.PipelineHistoryRestHandler
 	pipelineStatusTimelineRestHandler restHandler.PipelineStatusTimelineRestHandler
-	userAuth                          logger.UserAuth
 }
 
 func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler,
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler,
 	webhookDataRestHandler restHandler.WebhookDataRestHandler,
 	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler,
-	pipelineStatusTimelineRestHandler restHandler.PipelineStatusTimelineRestHandler, userAuth logger.UserAuth) *PipelineConfigRouterImpl {
+	pipelineStatusTimelineRestHandler restHandler.PipelineStatusTimelineRestHandler) *PipelineConfigRouterImpl {
 	return &PipelineConfigRouterImpl{
 		restHandler:                       restHandler,
 		appWorkflowRestHandler:            appWorkflowRestHandler,
 		webhookDataRestHandler:            webhookDataRestHandler,
 		pipelineHistoryRestHandler:        pipelineHistoryRestHandler,
 		pipelineStatusTimelineRestHandler: pipelineStatusTimelineRestHandler,
-		userAuth:                          userAuth,
 	}
-
 }
 
 func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mux.Router) {
-	configRouter.Use(router.userAuth.LoggingMiddleware)
 	configRouter.Path("").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
 	configRouter.Path("/{appId}").HandlerFunc(router.restHandler.DeleteApp).Methods("DELETE")
 	configRouter.Path("/delete/{appId}/{envId}/non-cascade").HandlerFunc(router.restHandler.DeleteACDAppWithNonCascade).Methods("DELETE")

@@ -14,7 +14,6 @@ type PProfRouter interface {
 type PProfRouterImpl struct {
 	logger           *zap.SugaredLogger
 	pprofRestHandler restHandler.PProfRestHandler
-	userAuth         logger.UserAuth
 }
 
 func NewPProfRouter(logger *zap.SugaredLogger,
@@ -22,12 +21,10 @@ func NewPProfRouter(logger *zap.SugaredLogger,
 	return &PProfRouterImpl{
 		logger:           logger,
 		pprofRestHandler: pprofRestHandler,
-		userAuth:         userAuth,
 	}
 }
 
 func (ppr PProfRouterImpl) initPProfRouter(router *mux.Router) {
-	router.Use(ppr.userAuth.LoggingMiddleware)
 	router.HandleFunc("/", ppr.pprofRestHandler.Index)
 	router.HandleFunc("/cmdline", ppr.pprofRestHandler.Cmdline)
 	router.HandleFunc("/profile", ppr.pprofRestHandler.Profile)

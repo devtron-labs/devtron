@@ -18,7 +18,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -29,16 +28,14 @@ type CoreAppRouter interface {
 
 type CoreAppRouterImpl struct {
 	restHandler restHandler.CoreAppRestHandler
-	userAuth    logger.UserAuth
 }
 
-func NewCoreAppRouterImpl(restHandler restHandler.CoreAppRestHandler, userAuth logger.UserAuth) *CoreAppRouterImpl {
-	return &CoreAppRouterImpl{restHandler: restHandler, userAuth: userAuth}
+func NewCoreAppRouterImpl(restHandler restHandler.CoreAppRestHandler) *CoreAppRouterImpl {
+	return &CoreAppRouterImpl{restHandler: restHandler}
 
 }
 
 func (router CoreAppRouterImpl) initCoreAppRouter(configRouter *mux.Router) {
-	configRouter.Use(router.userAuth.LoggingMiddleware)
 	configRouter.Path("/v1beta1/application").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
 	configRouter.Path("/v1beta1/application/{appId}").HandlerFunc(router.restHandler.GetAppAllDetail).Methods("GET")
 	configRouter.Path("/v1beta1/application/workflow").HandlerFunc(router.restHandler.CreateAppWorkflow).Methods("POST")

@@ -18,7 +18,6 @@
 package cluster
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -28,11 +27,10 @@ type EnvironmentRouter interface {
 
 type EnvironmentRouterImpl struct {
 	environmentClusterMappingsRestHandler EnvironmentRestHandler
-	userAuth                              logger.UserAuth
 }
 
-func NewEnvironmentRouterImpl(environmentClusterMappingsRestHandler EnvironmentRestHandler, userAuth logger.UserAuth) *EnvironmentRouterImpl {
-	return &EnvironmentRouterImpl{environmentClusterMappingsRestHandler: environmentClusterMappingsRestHandler, userAuth: userAuth}
+func NewEnvironmentRouterImpl(environmentClusterMappingsRestHandler EnvironmentRestHandler) *EnvironmentRouterImpl {
+	return &EnvironmentRouterImpl{environmentClusterMappingsRestHandler: environmentClusterMappingsRestHandler}
 }
 
 func (impl EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter *mux.Router) {
@@ -40,7 +38,6 @@ func (impl EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environme
 	Methods("GET").
 	Queries("clusterName", "{clusterName}").
 	HandlerFunc(impl.environmentClusterMappingsRestHandler.Get)*/
-	environmentClusterMappingsRouter.Use(impl.userAuth.LoggingMiddleware)
 	environmentClusterMappingsRouter.Path("/name").
 		Methods("GET").
 		Queries("environment", "{environment}").

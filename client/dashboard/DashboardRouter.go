@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/google/wire"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -18,10 +17,9 @@ type DashboardRouter interface {
 type DashboardRouterImpl struct {
 	logger         *zap.SugaredLogger
 	dashboardProxy func(writer http.ResponseWriter, request *http.Request)
-	userAuth       logger.UserAuth
 }
 
-func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *Config, userAuth logger.UserAuth) *DashboardRouterImpl {
+func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *Config) *DashboardRouterImpl {
 	client := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -37,13 +35,11 @@ func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *Config, use
 	router := &DashboardRouterImpl{
 		dashboardProxy: dashboardProxy,
 		logger:         logger,
-		userAuth:       userAuth,
 	}
 	return router
 }
 
 func (router DashboardRouterImpl) InitDashboardRouter(dashboardRouter *mux.Router) {
-	dashboardRouter.Use(router.userAuth.LoggingMiddleware)
 	dashboardRouter.PathPrefix("").HandlerFunc(router.dashboardProxy)
 }
 

@@ -18,7 +18,6 @@
 package user
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -28,20 +27,17 @@ type UserRouter interface {
 
 type UserRouterImpl struct {
 	userRestHandler UserRestHandler
-	userAuth        logger.UserAuth
 }
 
-func NewUserRouterImpl(userRestHandler UserRestHandler, userAuth logger.UserAuth) *UserRouterImpl {
+func NewUserRouterImpl(userRestHandler UserRestHandler) *UserRouterImpl {
 	router := &UserRouterImpl{
 		userRestHandler: userRestHandler,
-		userAuth:        userAuth,
 	}
 	return router
 }
 
 func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 	//User management
-	userAuthRouter.Use(router.userAuth.LoggingMiddleware)
 	userAuthRouter.Path("/{id}").
 		HandlerFunc(router.userRestHandler.GetById).Methods("GET")
 	userAuthRouter.Path("").

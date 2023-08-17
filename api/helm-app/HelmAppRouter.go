@@ -1,7 +1,6 @@
 package client
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -10,18 +9,15 @@ type HelmAppRouter interface {
 }
 type HelmAppRouterImpl struct {
 	helmAppRestHandler HelmAppRestHandler
-	userAuth           logger.UserAuth
 }
 
-func NewHelmAppRouterImpl(helmAppRestHandler HelmAppRestHandler, userAuth logger.UserAuth) *HelmAppRouterImpl {
+func NewHelmAppRouterImpl(helmAppRestHandler HelmAppRestHandler) *HelmAppRouterImpl {
 	return &HelmAppRouterImpl{
 		helmAppRestHandler: helmAppRestHandler,
-		userAuth:           userAuth,
 	}
 }
 
 func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
-	helmRouter.Use(impl.userAuth.LoggingMiddleware)
 	helmRouter.Path("").Queries("clusterIds", "{clusterIds}").
 		HandlerFunc(impl.helmAppRestHandler.ListApplications).Methods("GET")
 	helmRouter.Path("/app").Queries("appId", "{appId}").

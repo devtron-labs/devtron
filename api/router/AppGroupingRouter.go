@@ -1,7 +1,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/gorilla/mux"
@@ -14,22 +13,19 @@ type AppGroupingRouterImpl struct {
 	restHandler            app.PipelineConfigRestHandler
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler
 	appGroupRestHandler    restHandler.AppGroupRestHandler
-	userAuth               logger.UserAuth
 }
 
 func NewAppGroupingRouterImpl(restHandler app.PipelineConfigRestHandler,
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler,
-	appGroupRestHandler restHandler.AppGroupRestHandler, userAuth logger.UserAuth) *AppGroupingRouterImpl {
+	appGroupRestHandler restHandler.AppGroupRestHandler) *AppGroupingRouterImpl {
 	return &AppGroupingRouterImpl{
 		restHandler:            restHandler,
 		appWorkflowRestHandler: appWorkflowRestHandler,
 		appGroupRestHandler:    appGroupRestHandler,
-		userAuth:               userAuth,
 	}
 }
 
 func (router AppGroupingRouterImpl) InitAppGroupingRouter(appGroupingRouter *mux.Router) {
-	appGroupingRouter.Use(router.userAuth.LoggingMiddleware)
 	appGroupingRouter.Path("/{envId}/app-wf").
 		HandlerFunc(router.appWorkflowRestHandler.FindAppWorkflowByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/{envId}/ci-pipeline").HandlerFunc(router.restHandler.GetCiPipelineByEnvironment).Methods("GET")

@@ -28,14 +28,12 @@ type NotificationRouter interface {
 }
 type NotificationRouterImpl struct {
 	notificationRestHandler restHandler.NotificationRestHandler
-	userAuth                logger.UserAuth
 }
 
 func NewNotificationRouterImpl(notificationRestHandler restHandler.NotificationRestHandler, userAuth logger.UserAuth) *NotificationRouterImpl {
-	return &NotificationRouterImpl{notificationRestHandler: notificationRestHandler, userAuth: userAuth}
+	return &NotificationRouterImpl{notificationRestHandler: notificationRestHandler}
 }
 func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.Router) {
-	configRouter.Use(impl.userAuth.LoggingMiddleware)
 	configRouter.Path("").
 		HandlerFunc(impl.notificationRestHandler.SaveNotificationSettings).
 		Methods("POST")

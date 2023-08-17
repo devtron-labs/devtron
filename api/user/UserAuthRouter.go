@@ -18,7 +18,6 @@
 package user
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/pkg/auth"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -33,21 +32,18 @@ type UserAuthRouterImpl struct {
 	logger             *zap.SugaredLogger
 	userAuthHandler    UserAuthHandler
 	userAuthOidcHelper auth.UserAuthOidcHelper
-	userAuth           logger.UserAuth
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userAuthOidcHelper auth.UserAuthOidcHelper, userAuth logger.UserAuth) *UserAuthRouterImpl {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userAuthOidcHelper auth.UserAuthOidcHelper) *UserAuthRouterImpl {
 	router := &UserAuthRouterImpl{
 		logger:             logger,
 		userAuthHandler:    userAuthHandler,
 		userAuthOidcHelper: userAuthOidcHelper,
-		userAuth:           userAuth,
 	}
 	return router
 }
 
 func (router UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) {
-	userAuthRouter.Use(router.userAuth.LoggingMiddleware)
 	userAuthRouter.Path("/").
 		HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			router.writeSuccess("Welcome @Devtron", writer)

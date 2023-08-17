@@ -18,7 +18,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -28,16 +27,13 @@ type TestSuitRouter interface {
 }
 type TestSuitRouterImpl struct {
 	testSuitRouter restHandler.TestSuitRestHandler
-	userAuth       logger.UserAuth
 }
 
-func NewTestSuitRouterImpl(testSuitRouter restHandler.TestSuitRestHandler, userAuth logger.UserAuth) *TestSuitRouterImpl {
-	return &TestSuitRouterImpl{testSuitRouter: testSuitRouter,
-		userAuth: userAuth}
+func NewTestSuitRouterImpl(testSuitRouter restHandler.TestSuitRestHandler) *TestSuitRouterImpl {
+	return &TestSuitRouterImpl{testSuitRouter: testSuitRouter}
 }
 
 func (impl TestSuitRouterImpl) InitTestSuitRouter(configRouter *mux.Router) {
-	configRouter.Use(impl.userAuth.LoggingMiddleware)
 	configRouter.Path("/suites/proxy").HandlerFunc(impl.testSuitRouter.SuitesProxy).Methods("POST")
 	configRouter.Path("/suites/list").HandlerFunc(impl.testSuitRouter.GetTestSuites).Methods("GET")
 	configRouter.Path("/suites/list/detail").HandlerFunc(impl.testSuitRouter.DetailedTestSuites).Methods("GET")
