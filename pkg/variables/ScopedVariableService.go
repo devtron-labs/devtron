@@ -1,11 +1,11 @@
-package scopedVariable
+package variables
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/scopedVariable"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"go.uber.org/zap"
 )
 
@@ -87,14 +87,14 @@ const (
 
 type ScopedVariableServiceImpl struct {
 	logger                   *zap.SugaredLogger
-	scopedVariableRepository scopedVariable.ScopedVariableRepository
+	scopedVariableRepository repository2.ScopedVariableRepository
 	appRepository            app.AppRepository
 	environmentRepository    repository.EnvironmentRepository
 	devtronResourceService   devtronResource.DevtronResourceService
 	clusterRepository        repository.ClusterRepository
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository scopedVariable.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository) (*ScopedVariableServiceImpl, error) {
+func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,
 		scopedVariableRepository: scopedVariableRepository,
@@ -308,7 +308,7 @@ type VariablePriorityMapping struct {
 	Priority int
 }
 
-func (impl *ScopedVariableServiceImpl) filterMatch(scope *scopedVariable.VariableScope, identifierId int, searchableKeyName bean.DevtronResourceSearchableKeyName, parentRefId int) bool {
+func (impl *ScopedVariableServiceImpl) filterMatch(scope *repository2.VariableScope, identifierId int, searchableKeyName bean.DevtronResourceSearchableKeyName, parentRefId int) bool {
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	if identifierId != 0 {
 		if (scope.IdentifierKey == searchableKeyNameIdMap[searchableKeyName] && scope.IdentifierValueInt == identifierId) || scope.IdentifierKey == 0 {
@@ -322,7 +322,7 @@ func (impl *ScopedVariableServiceImpl) filterMatch(scope *scopedVariable.Variabl
 	}
 	return false
 }
-func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*scopedVariable.VariableScope, appId, envId, clusterId int) map[int]*VariablePriorityMapping {
+func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repository2.VariableScope, appId, envId, clusterId int) map[int]*VariablePriorityMapping {
 	variablePriorityMap := make(map[int]*VariablePriorityMapping)
 	if appId == 0 && envId == 0 && clusterId == 0 {
 		return variablePriorityMap
@@ -360,9 +360,9 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*scop
 }
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(appId, envId, clusterId int, varIds []int) (scopedVariableDataObj []*ScopedVariableData, err error) {
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-	var varScope []*scopedVariable.VariableScope
+	var varScope []*repository2.VariableScope
 	var scopedVariableIds map[int]*VariablePriorityMapping
-	scopeIdToVariableScope := make(map[int]*scopedVariable.VariableScope)
+	scopeIdToVariableScope := make(map[int]*repository2.VariableScope)
 	if varIds != nil {
 		varScope, err = impl.scopedVariableRepository.GetScopedVariableDataForVarIds(appId, envId, clusterId, searchableKeyNameIdMap, varIds)
 		if err != nil {
