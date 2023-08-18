@@ -56,12 +56,12 @@ func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
 func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta {
 
 	switch workflowTemplate.WorkflowType {
-	case CiStage:
+	case CI_WORKFLOW_NAME:
 		return &v12.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
 			Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
 		}
-	case CdStage:
+	case CD_WORKFLOW_NAME:
 		return &v12.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
 			Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
