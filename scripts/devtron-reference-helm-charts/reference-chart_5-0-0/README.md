@@ -1,5 +1,5 @@
 
-# Rollout Deployment Chart - v4.18
+# Rollout Deployment Chart - v5.0
 
 ## 1. Yaml File -
 
@@ -142,6 +142,29 @@ ReadinessProbe:
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+
+### Pod Disruption Budget
+
+You can create `PodDisruptionBudget` for each application. A PDB limits the number of pods of a replicated application that are down simultaneously from voluntary disruptions. For example, an application would like to ensure the number of replicas running is never brought below the certain number.
+
+```yaml
+podDisruptionBudget: 
+     minAvailable: 1
+```
+
+or
+
+```yaml
+podDisruptionBudget: 
+     maxUnavailable: 50%
+```
+
+You can specify either `maxUnavailable` or `minAvailable` in a PodDisruptionBudget and it can be expressed as integers or as a percentage
+
+| Key | Description |
+| :--- | :--- |
+| `minAvailable` | Evictions are allowed as long as they leave behind 1 or more healthy pods of the total number of desired replicas. |
+| `maxUnavailable` | Evictions are allowed as long as at most 1 unhealthy replica among the total number of desired replicas. |
 
 ### Ambassador Mappings
 

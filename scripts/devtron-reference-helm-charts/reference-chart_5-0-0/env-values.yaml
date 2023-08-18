@@ -1,3 +1,4 @@
+podDisruptionBudget: {}
 replicaCount: 1
 MaxSurge: 1
 MaxUnavailable: 0
