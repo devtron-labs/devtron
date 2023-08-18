@@ -9,8 +9,10 @@ import (
 )
 
 const (
-	HealthStatusSuspended   string = "Suspended"
-	HealthStatusHibernating string = "HIBERNATING"
+	HealthStatusSuspended           string = "Suspended"
+	HealthStatusHibernatingFilter   string = "HIBERNATING"
+	HealthStatusHibernating         string = "Hibernated"
+	HealthStatusPartiallyHibernated string = "Partially Hibernated"
 )
 
 type AppStatusRequestResponseDto struct {
@@ -53,8 +55,8 @@ func (impl *AppStatusServiceImpl) UpdateStatusWithAppIdEnvId(appId, envId int, s
 		return err
 	}
 
-	if status == HealthStatusSuspended {
-		status = HealthStatusHibernating
+	if status == HealthStatusSuspended || status == HealthStatusHibernating {
+		status = HealthStatusHibernatingFilter
 	}
 	if container.AppId == 0 {
 		container.AppId = appId

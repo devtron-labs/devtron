@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -171,6 +172,14 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
+	if impl.ciConfig != nil && impl.ciConfig.BuildxK8sDriverOptions != "" {
+		err = impl.setBuildxK8sDriverData(workflowRequest)
+		if err != nil {
+			impl.Logger.Errorw("error in setBuildxK8sDriverData", "BUILDX_K8S_DRIVER_OPTIONS", impl.ciConfig.BuildxK8sDriverOptions, "err", err)
+			return 0, err
+		}
+	}
+
 	//savedCiWf.LogLocation = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix + "/main.log"
 	savedCiWf.LogLocation = fmt.Sprintf("%s/%s/main.log", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
 	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
@@ -190,6 +199,25 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
 	return savedCiWf.Id, err
+}
+
+func (impl *CiServiceImpl) setBuildxK8sDriverData(workflowRequest *WorkflowRequest) error {
+	ciBuildConfig := workflowRequest.CiBuildConfig
+	if ciBuildConfig != nil {
+		if dockerBuildConfig := ciBuildConfig.DockerBuildConfig; dockerBuildConfig != nil {
+			buildxK8sDriverOptions := make([]map[string]string, 0)
+			err := json.Unmarshal([]byte(impl.ciConfig.BuildxK8sDriverOptions), &buildxK8sDriverOptions)
+			if err != nil {
+				errMsg := "error in parsing BUILDX_K8S_DRIVER_OPTIONS from the devtron-cm, "
+				err = errors.New(errMsg + "error : " + err.Error())
+				impl.Logger.Errorw(errMsg, "err", err)
+				return err
+			} else {
+				dockerBuildConfig.BuildxK8sDriverOptions = buildxK8sDriverOptions
+			}
+		}
+	}
+	return nil
 }
 
 func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger Trigger) (*repository1.Environment, bool, error) {
