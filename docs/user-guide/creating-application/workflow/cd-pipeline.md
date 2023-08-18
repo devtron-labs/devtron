@@ -1,5 +1,5 @@
 # CD Pipeline
-Once you are done creating your CI pipeline, you can move start building your CD pipeline. Devtron enables you to design your CD pipeline in a way that fully automates your deployments.
+Once you are done creating your CI pipeline, you can start building your CD pipeline. Devtron enables you to design your CD pipeline in a way that fully automates your deployments.
 
 ## Creating CD Pipeline
 
@@ -7,7 +7,7 @@ Once you are done creating your CI pipeline, you can move start building your CD
 
 Click on **“+”** sign on CI Pipeline to attach a CD Pipeline to it. A basic `Create deployment modal` will pop up.
 
-![](../../../.gitbook/assets/ca-workflow-basic.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-basic.png)
 
 This section expects two inputs:
 
@@ -15,7 +15,7 @@ This section expects two inputs:
 * **Deployment Strategy**
 
 ### 1. Select Environment
-This section further including two inputs:
+This section further includes two inputs:
 
 **\(a\) Deploy to Environment**
 
@@ -33,9 +33,9 @@ If you already have one CD pipeline and want to add more, you can add them by cl
 Your CD pipeline can be configured for the pre-deployment stage, the deployment stage, and the post-deployment stage. You can also select the deployment strategy of your choice. You can add your configurations as explained below:
 
 
-To configure the advance CD option click on `Advance Options` at the bottom.
+To configure the advanced CD option click **Advanced Options** at the bottom.
 
-![](../../../.gitbook/assets/ca-workflow-cd-advanced.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-cd-advanced.png)
 
 | Key | Description |
 | :--- | :--- |
@@ -82,7 +82,7 @@ If you want to run it inside your application, then you have to check the `Execu
 
 Make sure your cluster has `devtron-agent` installed if you check the `Execute in the application Environment` option.
 
-![](../../../.gitbook/assets/cd_pre_build%20%282%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd_pre_build_2.jpg)
 
 ### 4. Manual approval for deployment
 
@@ -127,7 +127,7 @@ Post-deployment stages are similar to pre-deployment stages. The difference is, 
 
 You can use Config Map and Secrets in post deployments as well, as defined in the Pre-Deployment stages.
 
-![](../../../.gitbook/assets/cd_post_build.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd_post_build.jpg)
 
 
 Once you have configured the CD pipeline, click on `Create Pipeline` to save it. You can see your newly created CD Pipeline on the Workflow tab attached to the corresponding CI Pipeline.
@@ -188,7 +188,7 @@ You can update the deployment stages and the deployment strategy of the CD Pipel
 
 To Update a CD Pipeline, go to the `App Configurations` section, Click on `Workflow editor` and then click on the CD Pipeline you want to Update.
 
-![](../../../.gitbook/assets/ca-workflow-update.gif)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-update.gif)
 
 
 Make changes as needed and click on `Update Pipeline` to update this CD Pipeline.
@@ -281,7 +281,7 @@ It terminates the old version and releases the new one.
 
 Devtron now supports attaching multiple deployment pipelines to a single build pipeline, in its workflow editor. This feature lets you deploy an image first to stage, run tests and then deploy the same image to production.
 
-Please follow the steps mentioned below to create sequential pipelines :
+Please follow the steps mentioned below to create sequential pipelines:
 
 1. After creating CI/build pipeline, create a CD pipeline by clicking on the `+` sign on CI pipeline and configure the CD pipeline as per your requirements.
 2. To add another CD Pipeline sequentially after previous one, again click on + sign on the last CD pipeline.
