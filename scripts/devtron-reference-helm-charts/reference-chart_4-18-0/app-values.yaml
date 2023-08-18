@@ -108,7 +108,6 @@ StartupProbe:
 
 ingress:
   enabled: false
-  additionalpath: []
   className: ""
   labels: {}
   annotations: {}
@@ -138,7 +137,6 @@ ingress:
 ingressInternal:
   enabled: false
   className: ""
-  additionalpath: []
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
