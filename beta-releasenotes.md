@@ -3,6 +3,7 @@
 ## Enhancements
 - perf: hibernate check optimisation (#3788)
 ## Documentation
+- doc: include the purpose of admin login in Devtron installation doc + FAQ (#3790)
 - doc: manual image approval (#3649)
 - doc: mandatory tags feature (#3630)
 - doc: ci-trigger documentation update (#3629)
