@@ -128,7 +128,7 @@ ingress:
       paths:
         - /example2
         - /example2/healthz
-      additionalbackendpaths: []
+      additionalbackend: []
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
@@ -148,7 +148,7 @@ ingressInternal:
       pathType: "ImplementationSpecific"
       paths:
         - /example1
-      additionalbackendpaths: []
+      additionalbackend: []
     - host: chart-example2.internal
       pathType: "ImplementationSpecific"
       paths:
