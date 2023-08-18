@@ -108,6 +108,7 @@ StartupProbe:
 
 ingress:
   enabled: false
+  additionalpath: []
   className: ""
   labels: {}
   annotations: {}
@@ -128,6 +129,7 @@ ingress:
       paths:
         - /example2
         - /example2/healthz
+      additionalbackendpaths: []
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
@@ -136,6 +138,7 @@ ingress:
 ingressInternal:
   enabled: false
   className: ""
+  additionalpath: []
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
@@ -147,6 +150,7 @@ ingressInternal:
       pathType: "ImplementationSpecific"
       paths:
         - /example1
+      additionalbackendpaths: []
     - host: chart-example2.internal
       pathType: "ImplementationSpecific"
       paths:

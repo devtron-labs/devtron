@@ -85,6 +85,21 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
         {{- end }}
+        {{- if  .additionalbackendpaths }}
+          {{- range  .additionalbackendpaths }}
+          - backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ .serviceName }}
+                port:
+                  number: {{ .servicePort }}
+              {{- else }}
+              serviceName: {{ .serviceName }}
+              servicePort: {{ .servicePort }}
+              {{- end }}
+            path: {{ .path}}
+          {{- end }}
+        {{- end }}
   {{- end }}
   {{- end }}
   {{- if .Values.ingress.tls }}
@@ -160,6 +175,21 @@ spec:
               serviceName: {{ $svcName }}
               servicePort: {{ $svcPort }}
               {{- end }}
+        {{- end }}
+        {{- if  .additionalbackendpaths }}
+          {{- range  .additionalbackendpaths }}
+          - backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ .serviceName }}
+                port:
+                  number: {{ .servicePort }}
+              {{- else }}
+              serviceName: {{ .serviceName }}
+              servicePort: {{ .servicePort }}
+              {{- end }}
+            path: {{ .path}}
+          {{- end }}
         {{- end }}
   {{- end }}
   {{- end }}
