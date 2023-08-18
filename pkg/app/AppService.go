@@ -623,7 +623,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "installedAppVersionHistory", installedAppVersionHistory, "err", err)
 			return isValid, installedAppVersionHistory, appId, envId, err
 		}
-		if installedAppVersionHistoryByHash.FinishedOn.Before(installedAppVersionHistory.FinishedOn) {
+		if installedAppVersionHistoryByHash.StartedOn.Before(installedAppVersionHistory.StartedOn) {
 			//we have received trigger hash which is committed before this apps actual gitHash stored by us
 			// this means that the hash stored by us will be synced later, so we will drop this event
 			return isValid, installedAppVersionHistory, appId, envId, nil
