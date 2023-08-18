@@ -19,7 +19,6 @@ package pipeline
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
@@ -27,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -122,13 +120,13 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *WorkflowRequest) (bean3.WorkflowTemplate, error) {
 	workflowJson, err := workflowRequest.GetWorkflowJson(impl.ciCdConfig)
 	workflowTemplate := workflowRequest.GetWorkflowTemplate(workflowJson, impl.ciCdConfig)
-	workflowConfigMaps, workflowSecrets, err := impl.appendGlobalCMCS(workflowRequest, workflowRequest.GetEventTypeForWorkflowRequest(), workflowRequest.GetGlobalCmCsNamePrefix())
-	pipelineLevelConfigMaps, pipelineLevelSecrets, err := impl.getConfiguredCmCs(workflowRequest.Pipeline, workflowRequest.StageType)
+	workflowConfigMaps, workflowSecrets, err := impl.appendGlobalCMCS(workflowRequest)
+	pipelineLevelConfigMaps, pipelineLevelSecrets, err := workflowRequest.GetConfiguredCmCs()
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", workflowRequest.Pipeline.Id, "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
-	workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflow(workflowRequest, workflowRequest.CheckForJob(), workflowRequest.CheckForJob(), workflowConfigMaps, workflowSecrets, pipelineLevelConfigMaps, pipelineLevelSecrets, workflowRequest.GetExistingCmCsNamePrefix())
+	workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflow(workflowRequest, workflowConfigMaps, workflowSecrets, pipelineLevelConfigMaps, pipelineLevelSecrets)
 
 	workflowTemplate.ConfigMaps = workflowConfigMaps
 	workflowTemplate.Secrets = workflowSecrets
@@ -172,18 +170,18 @@ func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *WorkflowReque
 
 }
 
-func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *WorkflowRequest, pipelineType string, globalConfigNamePrefix string) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
+func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *WorkflowRequest) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
 	var workflowConfigMaps []bean.ConfigSecretMap
 	var workflowSecrets []bean.ConfigSecretMap
 	if !workflowRequest.IsExtRun {
 		// inject global variables only if IsExtRun is false
-		globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(pipelineType)
+		globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(workflowRequest.GetEventTypeForWorkflowRequest())
 		if err != nil {
 			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
 			return nil, nil, err
 		}
 		for i := range globalCmCsConfigs {
-			globalCmCsConfigs[i].Name = strings.ToLower(globalCmCsConfigs[i].Name) + "-" + globalConfigNamePrefix
+			globalCmCsConfigs[i].Name = strings.ToLower(globalCmCsConfigs[i].Name) + "-" + workflowRequest.GetGlobalCmCsNamePrefix()
 		}
 		workflowConfigMaps, workflowSecrets, err = GetFromGlobalCmCsDtos(globalCmCsConfigs)
 		if err != nil {
@@ -194,8 +192,11 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *WorkflowReque
 	return workflowConfigMaps, workflowSecrets, nil
 }
 
-func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *WorkflowRequest, isJob bool, allowAll bool, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap, cdPipelineLevelConfigMaps map[string]bool, cdPipelineLevelSecrets map[string]bool, namePrefix string) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
+func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *WorkflowRequest, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap, cdPipelineLevelConfigMaps map[string]bool, cdPipelineLevelSecrets map[string]bool) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
 
+	isJob := workflowRequest.CheckForJob()
+	allowAll := workflowRequest.CheckForJob()
+	namePrefix := workflowRequest.GetExistingCmCsNamePrefix()
 	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
@@ -222,42 +223,6 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *Work
 		}
 	}
 	return workflowConfigMaps, workflowSecrets, nil
-}
-
-func (impl *WorkflowServiceImpl) getConfiguredCmCs(pipeline *pipelineConfig.Pipeline, stage string) (map[string]bool, map[string]bool, error) {
-
-	cdPipelineLevelConfigMaps := make(map[string]bool)
-	cdPipelineLevelSecrets := make(map[string]bool)
-
-	if stage == "PRE" {
-		preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
-		preStageConfigmapSecrets := bean2.PreStageConfigMapSecretNames{}
-		err := json.Unmarshal([]byte(preStageConfigMapSecretsJson), &preStageConfigmapSecrets)
-		if err != nil {
-			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
-		}
-		for _, cm := range preStageConfigmapSecrets.ConfigMaps {
-			cdPipelineLevelConfigMaps[cm] = true
-		}
-		for _, secret := range preStageConfigmapSecrets.Secrets {
-			cdPipelineLevelSecrets[secret] = true
-		}
-	}
-	if stage == "POST" {
-		postStageConfigMapSecretsJson := pipeline.PostStageConfigMapSecretNames
-		postStageConfigmapSecrets := bean2.PostStageConfigMapSecretNames{}
-		err := json.Unmarshal([]byte(postStageConfigMapSecretsJson), &postStageConfigmapSecrets)
-		if err != nil {
-			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
-		}
-		for _, cm := range postStageConfigmapSecrets.ConfigMaps {
-			cdPipelineLevelConfigMaps[cm] = true
-		}
-		for _, secret := range postStageConfigmapSecrets.Secrets {
-			cdPipelineLevelSecrets[secret] = true
-		}
-	}
-	return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, nil
 }
 
 func (impl *WorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate) {

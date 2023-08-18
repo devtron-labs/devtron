@@ -285,14 +285,6 @@ func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.Workflo
 	return wfClient, nil
 }
 
-func GetContainerEnvVariables(config *CiCdConfig, containerEnvVariables []v12.EnvVar) []v12.EnvVar {
-	if config.CloudProvider == BLOB_STORAGE_S3 && config.BlobStorageS3AccessKey != "" {
-		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: config.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: config.BlobStorageS3SecretKey}}
-		containerEnvVariables = append(containerEnvVariables, miniCred...)
-	}
-	return containerEnvVariables
-}
-
 type WorkflowRequest struct {
 	WorkflowNamePrefix         string                            `json:"workflowNamePrefix"`
 	PipelineName               string                            `json:"pipelineName"`
@@ -416,7 +408,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTemplate(workflowJson []byte,
 	return workflowTemplate
 }
 
-func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig) string {
+func (workflowRequest *WorkflowRequest) checkConfigType(config *CiCdConfig) {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
 		config.Type = CiConfigType
@@ -425,11 +417,14 @@ func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		config.Type = CdConfigType
 	}
+}
+
+func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig) string {
 	return fmt.Sprintf("%s/%s", config.GetDefaultBuildLogsKeyPrefix(), workflowRequest.WorkflowPrefixForLog)
 }
 
 func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]byte, error) {
-	workflowRequest.assignBlobStorageLogsKey(config, config.CiDefaultBuildLogsKeyPrefix)
+	workflowRequest.assignBlobStorageLogsKey(config)
 	workflowRequest.updateExternalRunMetadata()
 	workflowJson, err := workflowRequest.getWorkflowJson(workflowRequest.GetEventTypeForWorkflowRequest())
 	if err != nil {
@@ -499,8 +494,21 @@ func (workflowRequest *WorkflowRequest) getPVCForWorkflowRequest() string {
 	return pvc
 }
 
-func (workflowRequest *WorkflowRequest) assignBlobStorageLogsKey(config *CiCdConfig, defaultBuildLogsKeyPrefix string) {
-	workflowRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", defaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
+func (workflowRequest *WorkflowRequest) getDefaultBuildLogsKeyPrefix(config *CiCdConfig) string {
+	switch workflowRequest.Type {
+	case bean.CI_WORKFLOW_PIPELINE_TYPE:
+		return config.CiDefaultBuildLogsKeyPrefix
+	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
+		return config.CiDefaultBuildLogsKeyPrefix
+	case bean.CD_WORKFLOW_PIPELINE_TYPE:
+		return config.CdDefaultBuildLogsKeyPrefix
+	default:
+		return ""
+	}
+}
+
+func (workflowRequest *WorkflowRequest) assignBlobStorageLogsKey(config *CiCdConfig) {
+	workflowRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", workflowRequest.getDefaultBuildLogsKeyPrefix(config), workflowRequest.WorkflowPrefixForLog)
 	workflowRequest.InAppLoggingEnabled = config.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
 }
 
@@ -549,6 +557,42 @@ func (workflowRequest *WorkflowRequest) GetGlobalCmCsNamePrefix() string {
 	}
 }
 
+func (workflowRequest *WorkflowRequest) GetConfiguredCmCs() (map[string]bool, map[string]bool, error) {
+
+	cdPipelineLevelConfigMaps := make(map[string]bool)
+	cdPipelineLevelSecrets := make(map[string]bool)
+
+	if workflowRequest.StageType == "PRE" {
+		preStageConfigMapSecretsJson := workflowRequest.Pipeline.PreStageConfigMapSecretNames
+		preStageConfigmapSecrets := bean3.PreStageConfigMapSecretNames{}
+		err := json.Unmarshal([]byte(preStageConfigMapSecretsJson), &preStageConfigmapSecrets)
+		if err != nil {
+			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
+		}
+		for _, cm := range preStageConfigmapSecrets.ConfigMaps {
+			cdPipelineLevelConfigMaps[cm] = true
+		}
+		for _, secret := range preStageConfigmapSecrets.Secrets {
+			cdPipelineLevelSecrets[secret] = true
+		}
+	}
+	if workflowRequest.StageType == "POST" {
+		postStageConfigMapSecretsJson := workflowRequest.Pipeline.PostStageConfigMapSecretNames
+		postStageConfigmapSecrets := bean3.PostStageConfigMapSecretNames{}
+		err := json.Unmarshal([]byte(postStageConfigMapSecretsJson), &postStageConfigmapSecrets)
+		if err != nil {
+			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
+		}
+		for _, cm := range postStageConfigmapSecrets.ConfigMaps {
+			cdPipelineLevelConfigMaps[cm] = true
+		}
+		for _, secret := range postStageConfigmapSecrets.Secrets {
+			cdPipelineLevelSecrets[secret] = true
+		}
+	}
+	return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, nil
+}
+
 func (workflowRequest *WorkflowRequest) GetExistingCmCsNamePrefix() string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
@@ -571,23 +615,36 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 	if err != nil {
 		return nil
 	}
-	skipNodeSelector := false
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
-		config.Type = CiConfigType
+		return &bean.NodeConstraints{
+			ServiceAccount:    config.CiWorkflowServiceAccount,
+			TaintKey:          config.CiTaintKey,
+			TaintValue:        config.CiTaintValue,
+			NodeLabel:         nodeLabel,
+			StorageConfigured: workflowRequest.BlobStorageConfigured,
+			SkipNodeSelector:  false,
+		}
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
-		config.Type = CdConfigType
+		return &bean.NodeConstraints{
+			ServiceAccount:    config.CdWorkflowServiceAccount,
+			TaintKey:          config.CdTaintKey,
+			TaintValue:        config.CdTaintValue,
+			NodeLabel:         nodeLabel,
+			StorageConfigured: workflowRequest.BlobStorageConfigured,
+			SkipNodeSelector:  false,
+		}
 	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		config.Type = CiConfigType
-		skipNodeSelector = workflowRequest.IsExtRun
-	}
-	return &bean.NodeConstraints{
-		ServiceAccount:    config.GetWorkflowServiceAccount(),
-		TaintKey:          config.GetTaintKey(),
-		TaintValue:        config.GetTaintValue(),
-		NodeLabel:         nodeLabel,
-		StorageConfigured: workflowRequest.BlobStorageConfigured,
-		SkipNodeSelector:  skipNodeSelector,
+		return &bean.NodeConstraints{
+			ServiceAccount:    config.CiWorkflowServiceAccount,
+			TaintKey:          config.CiTaintKey,
+			TaintValue:        config.CiTaintValue,
+			NodeLabel:         nodeLabel,
+			StorageConfigured: workflowRequest.BlobStorageConfigured,
+			SkipNodeSelector:  workflowRequest.IsExtRun,
+		}
+	default:
+		return nil
 	}
 }
 
