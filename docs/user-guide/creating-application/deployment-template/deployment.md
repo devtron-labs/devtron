@@ -43,14 +43,14 @@ ContainerPort:
 
 | Key | Description |
 | :--- | :--- |
-| `envoyPort` | envoy port for the container. |
-| `idleTimeout` | the duration of time that a connection is idle before the connection is terminated. |
-| `name` | name of the port. |
-| `port` | port for the container. |
-| `servicePort` | port of the corresponding kubernetes service. |
-| `nodePort` | nodeport of the corresponding kubernetes service. |
-| `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
-| `useHTTP2` | Envoy container can accept HTTP2 requests. |
+| `envoyPort` | envoy port for the container |
+| `idleTimeout` | the duration of time that a connection is idle before the connection is terminated |
+| `name` | name of the port |
+| `port` | port for the container |
+| `servicePort` | port of the corresponding kubernetes service |
+| `nodePort` | nodeport of the corresponding kubernetes service |
+| `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled |
+| `useHTTP2` | Envoy container can accept HTTP2 requests |
 
 ### EnvVariables
 ```yaml
@@ -80,13 +80,13 @@ LivenessProbe:
 
 | Key | Description |
 | :--- | :--- |
-| `Path` | It define the path where the liveness needs to be checked. |
-| `initialDelaySeconds` | It defines the time to wait before a given container is checked for liveliness. |
-| `periodSeconds` | It defines the time to check a given container for liveness. |
-| `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
-| `timeoutSeconds` | It defines the time for checking timeout. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
-| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `Path` | It define the path where the liveness needs to be checked |
+| `initialDelaySeconds` | It defines the time to wait before a given container is checked for liveliness |
+| `periodSeconds` | It defines the time to check a given container for liveness |
+| `successThreshold` | It defines the number of successes required before a given container is said to fulfill the liveness probe |
+| `timeoutSeconds` | It defines the time for checking timeout |
+| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers, you can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
@@ -135,13 +135,13 @@ ReadinessProbe:
 
 | Key | Description |
 | :--- | :--- |
-| `Path` | It define the path where the readiness needs to be checked. |
-| `initialDelaySeconds` | It defines the time to wait before a given container is checked for readiness. |
-| `periodSeconds` | It defines the time to check a given container for readiness. |
-| `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
-| `timeoutSeconds` | It defines the time for checking timeout. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
-| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `Path` | It define the path where the readiness needs to be checked |
+| `initialDelaySeconds` | It defines the time to wait before a given container is checked for readiness |
+| `periodSeconds` | It defines the time to check a given container for readiness |
+| `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe |
+| `timeoutSeconds` | It defines the time for checking timeout |
+| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers, you can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
@@ -168,18 +168,18 @@ ambassadorMapping:
 
 | Key | Description |
 | :--- | :--- |
-| `enabled` | Set true to enable ambassador mapping else set false.|
-| `ambassadorId` | used to specify id for specific ambassador mappings controller. |
-| `cors` | used to specify cors policy to access host for this mapping. |
-| `weight` | used to specify weight for canary ambassador mappings. |
-| `hostname` | used to specify hostname for ambassador mapping. |
-| `prefix` | used to specify path for ambassador mapping. |
-| `labels` | used to provide custom labels for ambassador mapping. |
-| `retryPolicy` | used to specify retry policy for ambassador mapping. |
-| `corsPolicy` | Provide cors headers on flagger resource. |
-| `rewrite` | used to specify whether to redirect the path of this mapping and where. |
-| `tls` | used to create or define ambassador TLSContext resource. |
-| `extraSpec` | used to provide extra spec values which not present in deployment template for ambassador resource. |
+| `enabled` | Set true to enable ambassador mapping else set false|
+| `ambassadorId` | used to specify id for specific ambassador mappings controller |
+| `cors` | used to specify cors policy to access host for this mapping |
+| `weight` | used to specify weight for canary ambassador mappings |
+| `hostname` | used to specify hostname for ambassador mapping |
+| `prefix` | used to specify path for ambassador mapping |
+| `labels` | used to provide custom labels for ambassador mapping |
+| `retryPolicy` | used to specify retry policy for ambassador mapping |
+| `corsPolicy` | Provide cors headers on flagger resource |
+| `rewrite` | used to specify whether to redirect the path of this mapping and where |
+| `tls` | used to create or define ambassador TLSContext resource |
+| `extraSpec` | used to provide extra spec values which not present in deployment template for ambassador resource |
 
 ### Autoscaling
 
@@ -197,12 +197,12 @@ autoscaling:
 
 | Key | Description |
 | :--- | :--- |
-| `enabled` | Set true to enable autoscaling else set false.|
-| `MinReplicas` | Minimum number of replicas allowed for scaling. |
-| `MaxReplicas` | Maximum number of replicas allowed for scaling. |
-| `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
-| `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
-| `extraMetrics` | Used to give external metrics for autoscaling. |
+| `enabled` | Set true to enable autoscaling else set false |
+| `MinReplicas` | Minimum number of replicas allowed for scaling |
+| `MaxReplicas` | Maximum number of replicas allowed for scaling |
+| `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container |
+| `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container |
+| `extraMetrics` | Used to give external metrics for autoscaling |
 
 ### Flagger
 
@@ -262,17 +262,17 @@ flaggerCanary:
 
 | Key | Description |
 | :--- | :--- |
-| `enabled` | Set true to enable canary releases using flagger else set false.|
-| `addOtherGateways` | To provide multiple istio gateways for flagger. |
-| `addOtherHosts` | Add multiple hosts for istio service mesh with flagger. |
-| `analysis` | Define how the canary release should progresss and at what interval. |
-| `annotations` | Annotation to add on flagger resource. |
-| `labels` | Labels to add on flagger resource. |
-| `appProtocol` | Protocol to use for canary. |
-| `corsPolicy` | Provide cors headers on flagger resource. |
-| `createIstioGateway` | Set to true if you want to create istio gateway as well with flagger. |
-| `headers` | Add headers if any. |
-| `loadtest` | Enable load testing for your canary release. |
+| `enabled` | Set true to enable canary releases using flagger else set false |
+| `addOtherGateways` | To provide multiple istio gateways for flagger |
+| `addOtherHosts` | Add multiple hosts for istio service mesh with flagger |
+| `analysis` | Define how the canary release should progresss and at what interval |
+| `annotations` | Annotation to add on flagger resource |
+| `labels` | Labels to add on flagger resource |
+| `appProtocol` | Protocol to use for canary |
+| `corsPolicy` | Provide cors headers on flagger resource |
+| `createIstioGateway` | Set to true if you want to create istio gateway as well with flagger |
+| `headers` | Add headers if any |
+| `loadtest` | Enable load testing for your canary release |
 
 
 
@@ -580,8 +580,8 @@ It contains the commands for the server.
 
 | Key | Description |
 | :--- | :--- |
-| `enabled` | To enable or disable the command. |
-| `value` | It contains the commands. |
+| `enabled` | To enable or disable the command |
+| `value` | It contains the commands |
 
 
 ### Containers
@@ -609,6 +609,40 @@ Containers section can be used to run side-car containers along with your main c
           - migrate
 ```
 
+### Container Lifecycle Hooks
+
+Container lifecycle hooks are mechanisms that allow users to define custom actions to be performed at specific stages of a container's lifecycle i.e. PostStart or PreStop.
+
+```yaml
+containerSpec:
+  lifecycle:
+    enabled: false
+    postStart:
+      httpGet:
+        host: example.com
+        path: /example
+        port: 90
+    preStop:
+      exec:
+        command:
+          - sleep
+          - "10"
+```
+
+| Key | Description |
+| :--- | :--- |
+| `containerSpec` | containerSpec to define container lifecycle hooks configuration |
+| `lifecycle` | Lifecycle hooks for the container |
+| `enabled` | Set true to enable lifecycle hooks for the container else set false |
+| `postStart` | The postStart hook is executed immediately after a container is created |
+| `httpsGet` | Sends an HTTP GET request to a specific endpoint on the container |
+| `host` | Specifies the host (example.com) to which the HTTP GET request will be sent |
+| `path` | Specifies the path (/example) of the endpoint to which the HTTP GET request will be sent |
+| `port` | Specifies the port (90) on the host where the HTTP GET request will be sent |
+| `preStop` | The preStop hook is executed just before the container is stopped |
+| `exec` | Executes a specific command, such as pre-stop.sh, inside the cgroups and namespaces of the container |
+| `command` | The command to be executed is sleep 10, which tells the container to sleep for 10 seconds before it is stopped |
+
 ### Prometheus
 
 ```yaml
@@ -616,7 +650,7 @@ Containers section can be used to run side-car containers along with your main c
     release: monitoring
 ```
 
-It is a kubernetes monitoring tool and the name of the file to be monitored as monitoring in the given case.It describes the state of the prometheus.
+It is a kubernetes monitoring tool and the name of the file to be monitored as monitoring in the given case. It describes the state of the Prometheus.
 
 ### rawYaml
 
@@ -762,6 +796,73 @@ kedaAutoscaling:
   authenticationRef: 
     name: keda-trigger-auth-kafka-credential
 ```
+### Winter-Soldier
+Winter Soldier can be used to
+- cleans up (delete) Kubernetes resources
+- reduce workload pods to 0
+
+**_NOTE:_** After deploying this we can create the Hibernator object and provide the custom configuration by which workloads going to delete, sleep and many more.   for more information check [the main repo](https://github.com/devtron-labs/winter-soldier)
+
+Given below is template values you can give in winter-soldier:
+```yaml
+winterSoldier:
+  enabled: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  action: sleep
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: []
+  targetReplicas: []
+  fieldSelector: []
+```
+Here, 
+| Key | values | Description |
+| :--- | :--- | :--- |
+| `enabled` | `fasle`,`true` | decide the enabling factor  |
+| `apiVersion` | `pincher.devtron.ai/v1beta1`, `pincher.devtron.ai/v1alpha1` | specific api version  |
+| `action` | `sleep`,`delete`, `scale` | This specify  the action need to perform.  |
+| `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"US/Pacific"` |  It use to specify the timeZone used. (It uses standard format. please refer [this](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))  |
+| `timeRangesWithZone`:`timeRanges` | array of [ `timeFrom`, `timeTo`, `weekdayFrom`, `weekdayTo`] |  It use to define time period/range on which the user need to perform the specified action. you can have multiple timeRanges. <br /> These settings will take `action` on Sat and Sun from 00:00 to 23:59:59, |
+| `targetReplicas` | `[n]` : n - number of replicas to scale. | These is mandatory field when the `action` is `scale` <br /> Defalut value is `[]`.  |
+| `fieldSelector` | `- AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now()) `  | These value will take a list of methods to select the resources on which we perform specified `action` .  |
+
+
+here is an example,
+```yaml
+winterSoldier:
+  apiVersion: pincher.devtron.ai/v1alpha1 
+  enabled: true
+  annotations: {}
+  labels: {}
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: 
+      - timeFrom: 00:00
+        timeTo: 23:59:59
+        weekdayFrom: Sat
+        weekdayTo: Sun
+      - timeFrom: 00:00
+        timeTo: 08:00
+        weekdayFrom: Mon
+        weekdayTo: Fri
+      - timeFrom: 20:00
+        timeTo: 23:59:59
+        weekdayFrom: Mon
+        weekdayTo: Fri
+  action: scale
+  targetReplicas: [1,1,1]
+  fieldSelector: 
+    - AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '10h'), Now())
+```
+Above settings will take action on `Sat` and `Sun` from 00:00 to 23:59:59, and on `Mon`-`Fri` from 00:00 to 08:00 and 20:00 to 23:59:59. If `action:sleep` then runs hibernate at timeFrom and unhibernate at `timeTo`. If `action: delete` then it will delete workloads at `timeFrom` and `timeTo`. Here the `action:scale` thus it scale the number of resource replicas to  `targetReplicas: [1,1,1]`. Here each element of `targetReplicas` array is mapped with the corresponding elments of array `timeRangesWithZone/timeRanges`. Thus make sure the length of both array is equal, otherwise the cnages cannot be observed.
+
+The above example will select the application objects which have been created 10 hours ago across all namespaces excluding application's namespace. Winter soldier exposes following functions to handle time, cpu and memory.
+
+- ParseTime - This function can be used to parse time. For eg to parse creationTimestamp use ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z')
+- AddTime - This can be used to add time. For eg AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '-10h') ll add 10h to the time. Use d for day, h for hour, m for minutes and s for seconds. Use negative number to get earlier time.
+- Now - This can be used to get current time.
+- CpuToNumber - This can be used to compare CPU. For eg any({{spec.containers.#.resources.requests}}, { MemoryToNumber(.memory) < MemoryToNumber('60Mi')}) will check if any resource.requests is less than 60Mi.
+
 
 ### Security Context
 A security context defines privilege and access control settings for a Pod or Container.
@@ -799,9 +900,9 @@ It gives the realtime metrics of the deployed applications
 | Key | Description |
 | :--- | :--- |
 | `Deployment Frequency` | It shows how often this app is deployed to production |
-| `Change Failure Rate` | It shows how often the respective pipeline fails. |
-| `Mean Lead Time` | It shows the average time taken to deliver a change to production. |
-| `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
+| `Change Failure Rate` | It shows how often the respective pipeline fails |
+| `Mean Lead Time` | It shows the average time taken to deliver a change to production |
+| `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline |
 
 ## 2. Show application metrics
 

@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -90,7 +91,7 @@ type GitOpsConfigServiceImpl struct {
 	randSource           rand.Source
 	logger               *zap.SugaredLogger
 	gitOpsRepository     repository.GitOpsConfigRepository
-	K8sUtil              *util.K8sUtil
+	K8sUtil              *util4.K8sUtil
 	aCDAuthConfig        *util3.ACDAuthConfig
 	clusterService       cluster.ClusterService
 	envService           cluster.EnvironmentService
@@ -102,7 +103,7 @@ type GitOpsConfigServiceImpl struct {
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
-	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
+	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
 	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService, clusterServiceCD cluster2.ServiceClient) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
@@ -220,12 +221,12 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -420,12 +421,12 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	if err != nil {
 		return err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		return err
 	}
 
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err
 	}
