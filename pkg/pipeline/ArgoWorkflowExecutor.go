@@ -74,7 +74,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 
 	entryPoint := workflowTemplate.WorkflowType
 	// get cm and cs argo step templates
-	templates, err := impl.getArgoTemplates(workflowTemplate.ConfigMaps, workflowTemplate.Secrets, workflowTemplate.WorkflowType == CI_WORKFLOW_NAME)
+	templates, err := impl.getArgoTemplates(workflowTemplate.ConfigMaps, workflowTemplate.Secrets, workflowTemplate.WorkflowType == bean.CI_WORKFLOW_NAME)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching argo templates and steps", "err", err)
 		return nil, err
@@ -250,11 +250,11 @@ func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.Config
 		templates = append(templates, argoTemplate)
 		csIndex++
 	}
-	stepName := CD_WORKFLOW_NAME
-	templateName := CD_WORKFLOW_WITH_STAGES
+	stepName := bean.CD_WORKFLOW_NAME
+	templateName := bean.CD_WORKFLOW_WITH_STAGES
 	if isCi {
-		stepName = CI_WORKFLOW_NAME
-		templateName = CI_WORKFLOW_WITH_STAGES
+		stepName = bean.CI_WORKFLOW_NAME
+		templateName = bean.CI_WORKFLOW_WITH_STAGES
 	}
 
 	steps = append(steps, v1alpha1.ParallelSteps{

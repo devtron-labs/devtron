@@ -3,7 +3,6 @@ package bean
 import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
@@ -34,12 +33,21 @@ type WorkflowTemplate struct {
 	WorkflowType           string
 }
 
+const (
+	CI_WORKFLOW_NAME        = "ci"
+	CI_WORKFLOW_WITH_STAGES = "ci-stages-with-env"
+	CiStage                 = "CI"
+	CdStage                 = "CD"
+	CD_WORKFLOW_NAME        = "cd"
+	CD_WORKFLOW_WITH_STAGES = "cd-stages-with-env"
+)
+
 func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
 	switch workflowTemplate.WorkflowType {
-	case pipeline.CI_WORKFLOW_NAME:
-		return pipeline.CI_WORKFLOW_WITH_STAGES
-	case pipeline.CD_WORKFLOW_NAME:
-		return pipeline.CD_WORKFLOW_WITH_STAGES
+	case CI_WORKFLOW_NAME:
+		return CI_WORKFLOW_WITH_STAGES
+	case CD_WORKFLOW_NAME:
+		return CD_WORKFLOW_WITH_STAGES
 	default:
 		return ""
 	}
@@ -48,12 +56,12 @@ func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
 func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta {
 
 	switch workflowTemplate.WorkflowType {
-	case pipeline.CiStage:
+	case CiStage:
 		return &v12.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
 			Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
 		}
-	case pipeline.CdStage:
+	case CdStage:
 		return &v12.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
 			Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},

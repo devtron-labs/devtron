@@ -31,6 +31,7 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
@@ -885,7 +886,7 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	podName := ""
 	logLocation := ""
 	for k, v := range workflowStatus.Nodes {
-		if v.TemplateName == CI_WORKFLOW_NAME {
+		if v.TemplateName == bean3.CI_WORKFLOW_NAME {
 			impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
 			if v.BoundaryID == "" {
 				workflowName = k

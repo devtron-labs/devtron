@@ -436,11 +436,11 @@ func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]b
 func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
-		return CiStage
+		return bean.CiStage
 	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		return CiStage
+		return bean.CiStage
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
-		return CdStage
+		return bean.CdStage
 	default:
 		return ""
 	}
@@ -449,11 +449,11 @@ func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string 
 func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
-		return CI_WORKFLOW_NAME
+		return bean.CI_WORKFLOW_NAME
 	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		return CI_WORKFLOW_NAME
+		return bean.CI_WORKFLOW_NAME
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
-		return CD_WORKFLOW_NAME
+		return bean.CD_WORKFLOW_NAME
 	default:
 		return ""
 	}
@@ -547,11 +547,11 @@ func (workflowRequest *WorkflowRequest) AddNodeConstraintsFromConfig(workflowTem
 func (workflowRequest *WorkflowRequest) GetGlobalCmCsNamePrefix() string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
-		return strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		return strconv.Itoa(workflowRequest.WorkflowId) + "-" + bean.CI_WORKFLOW_NAME
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
-		return strconv.Itoa(workflowRequest.WorkflowRunnerId) + "-" + CD_WORKFLOW_NAME
+		return strconv.Itoa(workflowRequest.WorkflowRunnerId) + "-" + bean.CD_WORKFLOW_NAME
 	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		return strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		return strconv.Itoa(workflowRequest.WorkflowId) + "-" + bean.CI_WORKFLOW_NAME
 	default:
 		return ""
 	}
@@ -596,11 +596,11 @@ func (workflowRequest *WorkflowRequest) GetConfiguredCmCs() (map[string]bool, ma
 func (workflowRequest *WorkflowRequest) GetExistingCmCsNamePrefix() string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE:
-		return strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		return strconv.Itoa(workflowRequest.WorkflowId) + "-" + bean.CI_WORKFLOW_NAME
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return strconv.Itoa(workflowRequest.WorkflowRunnerId) + "-" + strconv.Itoa(workflowRequest.WorkflowRunnerId)
 	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		return strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		return strconv.Itoa(workflowRequest.WorkflowId) + "-" + bean.CI_WORKFLOW_NAME
 	default:
 		return ""
 	}

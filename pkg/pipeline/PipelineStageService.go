@@ -133,19 +133,19 @@ func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopyForPipelineI
 			if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CD {
 				preDeployStage, err = impl.BuildPipelineStageDataDeepCopy(pipelineStage)
 				if err != nil {
-					impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", CdStage)
+					impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", bean.CdStage)
 					return pipelinePrePostStageMappingResp, err
 				}
 				preDeployStage.Name = "Pre-Deployment"
 			} else if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CD {
 				postDeployStage, err = impl.BuildPipelineStageDataDeepCopy(pipelineStage)
 				if err != nil {
-					impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", CdStage)
+					impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", bean.CdStage)
 					return pipelinePrePostStageMappingResp, err
 				}
 				postDeployStage.Name = "Post-Deployment"
 			} else {
-				impl.logger.Errorw("found improper stage mapped with cdPipeline", "cdPipelineId", pipelineId, "stage", CdStage)
+				impl.logger.Errorw("found improper stage mapped with cdPipeline", "cdPipelineId", pipelineId, "stage", bean.CdStage)
 			}
 		}
 		pipelinePrePostStageMappingResp[pipelineId] = append(pipelinePrePostStageMappingResp[pipelineId], preDeployStage)
@@ -1524,7 +1524,7 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 	//get all stages By pipelineId (it can be ciPipelineId or cdPipelineId)
 	var pipelineStages []*repository.PipelineStage
 	var err error
-	if stageType == CiStage {
+	if stageType == bean.CiStage {
 		pipelineStages, err = impl.pipelineStageRepository.GetAllCiStagesByCiPipelineId(pipelineId)
 	} else {
 		//cdEvent
@@ -1578,7 +1578,7 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 			return nil, nil, nil, err
 		}
 	}
-	if stageType == CiStage {
+	if stageType == bean.CiStage {
 		return preCiSteps, postCiSteps, refPluginsData, nil
 	} else {
 		return preCdSteps, postCdSteps, refPluginsData, nil

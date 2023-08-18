@@ -42,6 +42,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -650,7 +651,7 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	podName := ""
 	for k, v := range workflowStatus.Nodes {
 		impl.Logger.Debugw("extractWorkflowStatus", "workflowName", k, "v", v)
-		if v.TemplateName == CD_WORKFLOW_NAME {
+		if v.TemplateName == bean2.CD_WORKFLOW_NAME {
 			if v.BoundaryID == "" {
 				workflowName = k
 			} else {

@@ -91,17 +91,11 @@ const (
 	BLOB_STORAGE_S3                = "S3"
 	BLOB_STORAGE_GCP               = "GCP"
 	BLOB_STORAGE_MINIO             = "MINIO"
-	CI_WORKFLOW_NAME               = "ci"
-	CI_WORKFLOW_WITH_STAGES        = "ci-stages-with-env"
 	CI_NODE_SELECTOR_APP_LABEL_KEY = "devtron.ai/node-selector"
 	CI_NODE_PVC_ALL_ENV            = "devtron.ai/ci-pvc-all"
 	CI_NODE_PVC_PIPELINE_PREFIX    = "devtron.ai/ci-pvc"
 	PRE                            = "PRE"
 	POST                           = "POST"
-	CiStage                        = "CI"
-	CdStage                        = "CD"
-	CD_WORKFLOW_NAME               = "cd"
-	CD_WORKFLOW_WITH_STAGES        = "cd-stages-with-env"
 )
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) error {
