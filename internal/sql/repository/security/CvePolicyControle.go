@@ -46,11 +46,11 @@ const (
 	Inherit PolicyAction = iota
 	Allow
 	Block
-	BlockIfFixed
+	Blockiffixed
 )
 
 func (d PolicyAction) String() string {
-	return [...]string{"inherit", "allow", "block"}[d]
+	return [...]string{"inherit", "allow", "block", "blockiffixed"}[d]
 }
 
 // ------------------
@@ -260,7 +260,7 @@ func (impl *CvePolicyRepositoryImpl) enforceCvePolicy(cves []*CveStore, cvePolic
 			} else {
 				if policy.Action == Block {
 					blockedCVE = append(blockedCVE, cve)
-				} else if policy.Action == BlockIfFixed && cve.FixedVersion != "" {
+				} else if policy.Action == Blockiffixed && cve.FixedVersion != "" {
 					blockedCVE = append(blockedCVE, cve)
 				}
 			}
@@ -270,7 +270,7 @@ func (impl *CvePolicyRepositoryImpl) enforceCvePolicy(cves []*CveStore, cvePolic
 			} else {
 				if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Block {
 					blockedCVE = append(blockedCVE, cve)
-				} else if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == BlockIfFixed && cve.FixedVersion != "" {
+				} else if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Blockiffixed && cve.FixedVersion != "" {
 					blockedCVE = append(blockedCVE, cve)
 				}
 			}

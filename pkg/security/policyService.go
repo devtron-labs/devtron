@@ -335,14 +335,20 @@ func (impl *PolicyServiceImpl) enforceCvePolicy(cves []*security.CveStore, cvePo
 		if policy, ok := cvePolicy[cve.Name]; ok {
 			if policy.Action == security.Allow {
 				continue
-			} else {
+			} else if policy.Action == security.Block {
+				blockedCVE = append(blockedCVE, cve)
+			} else if policy.Action == security.Blockiffixed && cve.FixedVersion != "" {
 				blockedCVE = append(blockedCVE, cve)
 			}
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
 				continue
 			} else {
-				blockedCVE = append(blockedCVE, cve)
+				if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Block {
+					blockedCVE = append(blockedCVE, cve)
+				} else if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "" {
+					blockedCVE = append(blockedCVE, cve)
+				}
 			}
 		}
 	}
@@ -441,6 +447,8 @@ func (impl *PolicyServiceImpl) parsePolicyAction(action string) (security.Policy
 		policyAction = security.Block
 	} else if action == "inherit" {
 		policyAction = security.Inherit
+	} else if action == "blockiffixed" {
+		policyAction = security.Blockiffixed
 	} else {
 		return security.Inherit, fmt.Errorf("unsupported action %s", action)
 	}
@@ -715,14 +723,21 @@ func (impl *PolicyServiceImpl) HasBlockedCVE(cves []*security.CveStore, cvePolic
 		if policy, ok := cvePolicy[cve.Name]; ok {
 			if policy.Action == security.Allow {
 				continue
-			} else {
+			} else if policy.Action == security.Block {
+				return true
+			} else if policy.Action == security.Blockiffixed && cve.FixedVersion != "" {
 				return true
 			}
+
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
 				continue
 			} else {
-				return true
+				if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Block {
+					return true
+				} else if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "" {
+					return true
+				}
 			}
 		}
 	}
