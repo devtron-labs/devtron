@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -650,7 +651,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var envConfigProperties pipeline.EnvironmentProperties
+	var envConfigProperties bean3.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
 	if err != nil {
 		handler.Logger.Errorw("request err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
@@ -752,7 +753,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var envConfigProperties pipeline.EnvironmentProperties
+	var envConfigProperties bean3.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
 	envConfigProperties.UserId = userId
 	if err != nil {
@@ -2124,7 +2125,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreateNamespace(w 
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var envConfigProperties pipeline.EnvironmentProperties
+	var envConfigProperties bean3.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
 	envConfigProperties.UserId = userId
 	envConfigProperties.EnvironmentId = environmentId
