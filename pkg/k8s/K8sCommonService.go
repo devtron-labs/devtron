@@ -145,8 +145,12 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{},
 	validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean {
 	kindsToBeFilteredMap := util.ConvertStringSliceToMap(kindsToBeFiltered)
-	noOfNodes := len(resourceTree["nodes"].([]interface{}))
-	resourceNodeItemss := resourceTree["nodes"].([]interface{})
+	resourceTreeNodes, ok := resourceTree["nodes"]
+	if !ok {
+		return validRequests
+	}
+	noOfNodes := len(resourceTreeNodes.([]interface{}))
+	resourceNodeItemss := resourceTreeNodes.([]interface{})
 	for i := 0; i < noOfNodes; i++ {
 		resourceItem := resourceNodeItemss[i].(map[string]interface{})
 		var kind, name, namespace string
