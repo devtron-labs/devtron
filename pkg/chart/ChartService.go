@@ -151,7 +151,8 @@ type ChartService interface {
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
-	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
+	FetchCustomChartsInfo() ([]*ChartDto, error)
+	FetchChartInfoByChartRefId(id int) (*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
 	CheckCustomChartByChartId(id int) (bool, error)
 	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
@@ -1073,9 +1074,12 @@ type ChartDataInfo struct {
 }
 
 type ChartDto struct {
+	Id               int    `json:"name"`
 	Name             string `json:"name"`
 	ChartDescription string `json:"chartDescription"`
 	Version          string `json:"version"`
+	IsUserUploaded   bool   `json:"isUserUploaded"`
+	Location         string `json:"-"`
 }
 
 func (impl ChartServiceImpl) ChartRefAutocomplete() ([]ChartRef, error) {
@@ -1607,12 +1611,25 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
 
 		location = chartLocation
-
-		exisitingChart, err := impl.chartRefRepository.FetchChart(chartName)
-		if err == nil && exisitingChart != nil {
-			chartInfo.Message = "New Version detected for " + exisitingChart[0].Name
+		isReservedChart := chartName == ReferenceChart
+		if !isReservedChart {
+			exisitingChart, err := impl.chartRefRepository.FetchChart(chartName)
+			if err == nil && exisitingChart != nil {
+				if !exisitingChart[0].UserUploaded {
+					isReservedChart = true
+				}
+				chartInfo.Message = "New Version detected for " + exisitingChart[0].Name
+			}
 		}
-
+		if isReservedChart {
+			impl.logger.Errorw("request err, chart name is reserved by Devtron")
+			err = &util.ApiError{
+				Code:            constants.ChartNameAlreadyReserved,
+				InternalMessage: "Change the name of the chart and try uploading again",
+				UserMessage:     fmt.Sprintf("The name '%s' is reserved for a chart provided by Devtron", chartName),
+			}
+			return chartInfo, err
+		}
 	} else {
 		err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, location)))
 		if err != nil {
@@ -1627,21 +1644,52 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 	return chartInfo, nil
 }
 
-func (impl ChartServiceImpl) FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error) {
-	repo, err := impl.chartRefRepository.FetchChartInfoByUploadFlag(userUploaded)
+func (impl ChartServiceImpl) FetchCustomChartsInfo() ([]*ChartDto, error) {
+	resultsMetadata, err := impl.chartRefRepository.GetAllChartMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart metadata", "err", err)
+		return nil, err
+	}
+	var chartsMetadata map[string]string
+	for _, resultMetadata := range resultsMetadata {
+		chartsMetadata[resultMetadata.ChartName] = resultMetadata.ChartDescription
+	}
+	repo, err := impl.chartRefRepository.GetAll()
 	if err != nil {
 		return nil, err
 	}
 	var chartDtos []*ChartDto
 	for _, ref := range repo {
+		if len(ref.Name) == 0 {
+			ref.Name = RolloutChartType
+		}
+		if description, ok := chartsMetadata[ref.Name]; ref.ChartDescription == "" && ok {
+			ref.ChartDescription = description
+		}
 		chartDto := &ChartDto{
+			Id:               ref.Id,
 			Name:             ref.Name,
 			ChartDescription: ref.ChartDescription,
 			Version:          ref.Version,
+			IsUserUploaded:   ref.UserUploaded,
 		}
 		chartDtos = append(chartDtos, chartDto)
 	}
 	return chartDtos, err
+}
+
+func (impl ChartServiceImpl) FetchChartInfoByChartRefId(id int) (*ChartDto, error) {
+	ref, err := impl.chartRefRepository.FindById(id)
+	if err != nil {
+		return nil, err
+	}
+	chartDto := &ChartDto{
+		Name:             ref.Name,
+		ChartDescription: ref.ChartDescription,
+		Version:          ref.Version,
+		Location:         ref.Location,
+	}
+	return chartDto, err
 }
 
 func (impl ChartServiceImpl) CheckCustomChartByAppId(id int) (bool, error) {

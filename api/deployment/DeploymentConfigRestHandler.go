@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/gorilla/mux"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -16,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,17 +26,19 @@ import (
 type DeploymentConfigRestHandler interface {
 	CreateChartFromFile(w http.ResponseWriter, r *http.Request)
 	SaveChart(w http.ResponseWriter, r *http.Request)
+	DownloadChart(w http.ResponseWriter, r *http.Request)
 	GetUploadedCharts(w http.ResponseWriter, r *http.Request)
 }
 
 type DeploymentConfigRestHandlerImpl struct {
-	Logger             *zap.SugaredLogger
-	userAuthService    user.UserService
-	enforcer           casbin.Enforcer
-	validator          *validator.Validate
-	refChartDir        chartRepoRepository.RefChartDir
-	chartService       chart.ChartService
-	chartRefRepository chartRepoRepository.ChartRefRepository
+	Logger               *zap.SugaredLogger
+	userAuthService      user.UserService
+	enforcer             casbin.Enforcer
+	validator            *validator.Validate
+	refChartDir          chartRepoRepository.RefChartDir
+	chartService         chart.ChartService
+	chartRefRepository   chartRepoRepository.ChartRefRepository
+	chartTemplateService util.ChartTemplateService
 }
 
 type DeploymentChartInfo struct {
@@ -46,15 +51,16 @@ type DeploymentChartInfo struct {
 }
 
 func NewDeploymentConfigRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, enforcer casbin.Enforcer, validator *validator.Validate,
-	refChartDir chartRepoRepository.RefChartDir, chartService chart.ChartService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigRestHandlerImpl {
+	refChartDir chartRepoRepository.RefChartDir, chartService chart.ChartService, chartTemplateService util.ChartTemplateService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigRestHandlerImpl {
 	return &DeploymentConfigRestHandlerImpl{
-		Logger:             Logger,
-		userAuthService:    userAuthService,
-		enforcer:           enforcer,
-		validator:          validator,
-		refChartDir:        refChartDir,
-		chartService:       chartService,
-		chartRefRepository: chartRefRepository,
+		Logger:               Logger,
+		userAuthService:      userAuthService,
+		enforcer:             enforcer,
+		validator:            validator,
+		refChartDir:          refChartDir,
+		chartService:         chartService,
+		chartTemplateService: chartTemplateService,
+		chartRefRepository:   chartRefRepository,
 	}
 }
 
@@ -210,6 +216,42 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 
 }
 
+func (handler *DeploymentConfigRestHandlerImpl) DownloadChart(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	vars := mux.Vars(r)
+	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	if err != nil {
+		handler.Logger.Errorw("error in parsing chartRefId", "chartRefId", chartRefId, "err", err)
+		common.WriteJsonResp(w, fmt.Errorf("error in parsing chartRefId : %s must be integer", chartRefId), nil, http.StatusBadRequest)
+		return
+	}
+	chartRef, err := handler.chartService.FetchChartInfoByChartRefId(chartRefId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	refChartPath := filepath.Join(string(handler.refChartDir), chartRef.Location)
+	manifestByteArr, err := handler.chartTemplateService.LoadChartInBytes(refChartPath, false)
+	if err != nil {
+		handler.Logger.Errorw("error in converting chart to bytes", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteOctetStreamResp(w, r, manifestByteArr, "")
+	return
+}
+
 func (handler *DeploymentConfigRestHandlerImpl) GetUploadedCharts(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -224,7 +266,7 @@ func (handler *DeploymentConfigRestHandlerImpl) GetUploadedCharts(w http.Respons
 		return
 	}
 
-	charts, err := handler.chartService.FetchChartInfoByFlag(true)
+	charts, err := handler.chartService.FetchCustomChartsInfo()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
