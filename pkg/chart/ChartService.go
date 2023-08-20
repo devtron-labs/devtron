@@ -1650,7 +1650,7 @@ func (impl ChartServiceImpl) FetchCustomChartsInfo() ([]*ChartDto, error) {
 		impl.logger.Errorw("error in fetching chart metadata", "err", err)
 		return nil, err
 	}
-	var chartsMetadata map[string]string
+	chartsMetadata := make(map[string]string)
 	for _, resultMetadata := range resultsMetadata {
 		chartsMetadata[resultMetadata.ChartName] = resultMetadata.ChartDescription
 	}
