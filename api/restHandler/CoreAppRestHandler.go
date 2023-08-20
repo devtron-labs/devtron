@@ -855,7 +855,7 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentConfigMaps(appId int, e
 }
 
 // get/build config maps
-func (handler CoreAppRestHandlerImpl) buildAppConfigMaps(appId int, envId int, configMapData *pipeline.ConfigDataRequest) ([]*appBean.ConfigMap, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppConfigMaps(appId int, envId int, configMapData *bean2.ConfigDataRequest) ([]*appBean.ConfigMap, error, int) {
 	handler.logger.Debugw("Getting app detail - config maps", "appId", appId, "envId", envId)
 
 	var configMapsResp []*appBean.ConfigMap
@@ -978,7 +978,7 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentSecrets(appId int, envI
 }
 
 // get/build secrets
-func (handler CoreAppRestHandlerImpl) buildAppSecrets(appId int, envId int, secretData *pipeline.ConfigDataRequest) ([]*appBean.Secret, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppSecrets(appId int, envId int, secretData *bean2.ConfigDataRequest) ([]*appBean.Secret, error, int) {
 	handler.logger.Debugw("Getting app detail - secrets", "appId", appId, "envId", envId)
 
 	var secretsResp []*appBean.Secret
@@ -1412,7 +1412,7 @@ func (handler CoreAppRestHandlerImpl) createGlobalConfigMaps(appId int, userId i
 		}
 
 		// build
-		configMapData := &pipeline.ConfigData{
+		configMapData := &bean2.ConfigData{
 			Name:     configMap.Name,
 			External: configMap.IsExternal,
 			Data:     json.RawMessage(configMapKeyValueData),
@@ -1426,9 +1426,9 @@ func (handler CoreAppRestHandlerImpl) createGlobalConfigMaps(appId int, userId i
 		}
 
 		// service call
-		var configMapDataRequest []*pipeline.ConfigData
+		var configMapDataRequest []*bean2.ConfigData
 		configMapDataRequest = append(configMapDataRequest, configMapData)
-		configMapRequest := &pipeline.ConfigDataRequest{
+		configMapRequest := &bean2.ConfigDataRequest{
 			AppId:      appId,
 			UserId:     userId,
 			Id:         appLevelId,
@@ -1466,7 +1466,7 @@ func (handler CoreAppRestHandlerImpl) createGlobalSecrets(appId int, userId int3
 		}
 
 		// build
-		secretData := &pipeline.ConfigData{
+		secretData := &bean2.ConfigData{
 			Name:               secret.Name,
 			External:           secret.IsExternal,
 			Type:               secret.UsageType,
@@ -1482,9 +1482,9 @@ func (handler CoreAppRestHandlerImpl) createGlobalSecrets(appId int, userId int3
 		}
 
 		if secret.IsExternal {
-			var externalDataRequests []pipeline.ExternalSecret
+			var externalDataRequests []bean2.ExternalSecret
 			for _, externalData := range secret.ExternalSecretData {
-				externalDataRequest := pipeline.ExternalSecret{
+				externalDataRequest := bean2.ExternalSecret{
 					Name:     externalData.Name,
 					IsBinary: externalData.IsBinary,
 					Key:      externalData.Key,
@@ -1503,9 +1503,9 @@ func (handler CoreAppRestHandlerImpl) createGlobalSecrets(appId int, userId int3
 		}
 
 		// service call
-		var secretDataRequest []*pipeline.ConfigData
+		var secretDataRequest []*bean2.ConfigData
 		secretDataRequest = append(secretDataRequest, secretData)
-		secretRequest := &pipeline.ConfigDataRequest{
+		secretRequest := &bean2.ConfigDataRequest{
 			AppId:      appId,
 			UserId:     userId,
 			Id:         appLevelId,
@@ -1789,7 +1789,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		return err
 	}
 	chartRefId := deploymentTemplateOverride.ChartRefId
-	envConfigProperties := &pipeline.EnvironmentProperties{
+	envConfigProperties := &bean2.EnvironmentProperties{
 		IsOverride:        true,
 		Active:            true,
 		ManualReviewed:    true,
@@ -1897,7 +1897,7 @@ func (handler CoreAppRestHandlerImpl) createEnvCM(appId int, userId int32, envId
 		}
 
 		// build
-		configData := &pipeline.ConfigData{
+		configData := &bean2.ConfigData{
 			Name:     cmOverride.Name,
 			External: cmOverride.IsExternal,
 			Type:     cmOverride.UsageType,
@@ -1910,11 +1910,11 @@ func (handler CoreAppRestHandlerImpl) createEnvCM(appId int, userId int32, envId
 			configData.FilePermission = cmOverrideDataVolumeUsageConfig.FilePermission
 		}
 
-		var configDataRequest []*pipeline.ConfigData
+		var configDataRequest []*bean2.ConfigData
 		configDataRequest = append(configDataRequest, configData)
 
 		// service call
-		cmEnvRequest := &pipeline.ConfigDataRequest{
+		cmEnvRequest := &bean2.ConfigDataRequest{
 			AppId:         appId,
 			UserId:        userId,
 			EnvironmentId: envId,
@@ -1957,7 +1957,7 @@ func (handler CoreAppRestHandlerImpl) createEnvSecret(appId int, userId int32, e
 			return err
 		}
 
-		secretData := &pipeline.ConfigData{
+		secretData := &bean2.ConfigData{
 			Name:               secretOverride.Name,
 			External:           secretOverride.IsExternal,
 			ExternalSecretType: secretOverride.ExternalType,
@@ -1972,11 +1972,11 @@ func (handler CoreAppRestHandlerImpl) createEnvSecret(appId int, userId int32, e
 			secretData.SubPath = secretOverrideDataVolumeUsageConfig.SubPath
 			secretData.FilePermission = secretOverrideDataVolumeUsageConfig.FilePermission
 		}
-		var secretDataRequest []*pipeline.ConfigData
+		var secretDataRequest []*bean2.ConfigData
 		secretDataRequest = append(secretDataRequest, secretData)
 
 		// service call
-		secretEnvRequest := &pipeline.ConfigDataRequest{
+		secretEnvRequest := &bean2.ConfigDataRequest{
 			AppId:         appId,
 			UserId:        userId,
 			EnvironmentId: envId,
@@ -1997,10 +1997,10 @@ func (handler CoreAppRestHandlerImpl) createEnvSecret(appId int, userId int32, e
 
 //private methods for data conversion below
 
-func convertCSExternalSecretData(externalSecretsData []*appBean.ExternalSecret) []pipeline.ExternalSecret {
-	var convertedExternalSecretsData []pipeline.ExternalSecret
+func convertCSExternalSecretData(externalSecretsData []*appBean.ExternalSecret) []bean2.ExternalSecret {
+	var convertedExternalSecretsData []bean2.ExternalSecret
 	for _, externalSecretData := range externalSecretsData {
-		convertedExternalSecret := pipeline.ExternalSecret{
+		convertedExternalSecret := bean2.ExternalSecret{
 			Key:      externalSecretData.Key,
 			Name:     externalSecretData.Name,
 			Property: externalSecretData.Property,

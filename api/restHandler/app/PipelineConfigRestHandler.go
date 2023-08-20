@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -122,6 +123,7 @@ type PipelineConfigRestHandlerImpl struct {
 	gitProviderRepo              repository.GitProviderRepository
 	argoUserService              argo.ArgoUserService
 	imageTaggingService          pipeline.ImageTaggingService
+	resourceProtectionService protect.ResourceProtectionService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -144,7 +146,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageTaggingService pipeline.ImageTaggingService) *PipelineConfigRestHandlerImpl {
+	imageTaggingService pipeline.ImageTaggingService, resourceProtectionService protect.ResourceProtectionService) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -174,6 +176,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		imageTaggingService:          imageTaggingService,
+		resourceProtectionService:    resourceProtectionService,
 	}
 }
 

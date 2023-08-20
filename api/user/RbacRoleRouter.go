@@ -36,10 +36,13 @@ func (router RbacRoleRouterImpl) InitRbacRoleRouter(rbacRoleRouter *mux.Router) 
 	rbacRoleRouter.Path("").
 		HandlerFunc(router.rbacRoleRestHandler.UpdateDefaultRole).Methods("PUT")
 
+	rbacRoleRouter.Path("/sync").
+		HandlerFunc(router.rbacRoleRestHandler.SyncDefaultRoles).Methods("POST")
+
 	rbacRoleRouter.Path("/{id}").
 		HandlerFunc(router.rbacRoleRestHandler.GetDefaultRoleDetailById).Methods("GET")
 
-	rbacRoleRouter.Path("/{entity}").
+	rbacRoleRouter.Path("/entity/{entity}").
 		HandlerFunc(router.rbacRoleRestHandler.GetAllDefaultRolesByEntityAccessType).Methods("GET")
 
 	rbacRoleRouter.Path("/policy/resource/list").
