@@ -109,12 +109,11 @@ type GitOptions struct {
 }
 
 type NodeConstraints struct {
-	ServiceAccount    string
-	TaintKey          string
-	TaintValue        string
-	NodeLabel         map[string]string
-	SkipNodeSelector  bool
-	StorageConfigured bool
+	ServiceAccount   string
+	TaintKey         string
+	TaintValue       string
+	NodeLabel        map[string]string
+	SkipNodeSelector bool
 }
 
 type LimitReqCpuMem struct {

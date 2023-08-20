@@ -113,14 +113,21 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *WorkflowRequest) (bean3.WorkflowTemplate, error) {
 	workflowJson, err := workflowRequest.GetWorkflowJson(impl.ciCdConfig)
-	workflowTemplate := workflowRequest.GetWorkflowTemplate(workflowJson, impl.ciCdConfig)
-	workflowConfigMaps, workflowSecrets, err := impl.appendGlobalCMCS(workflowRequest)
-	pipelineLevelConfigMaps, pipelineLevelSecrets, err := workflowRequest.GetConfiguredCmCs()
 	if err != nil {
-		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", workflowRequest.Pipeline.Id, "err", err)
+		impl.Logger.Errorw("error occurred while getting workflow json", "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
-	workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflow(workflowRequest, workflowConfigMaps, workflowSecrets, pipelineLevelConfigMaps, pipelineLevelSecrets)
+	workflowTemplate := workflowRequest.GetWorkflowTemplate(workflowJson, impl.ciCdConfig)
+	workflowConfigMaps, workflowSecrets, err := impl.appendGlobalCMCS(workflowRequest)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while appending CmCs", "err", err)
+		return bean3.WorkflowTemplate{}, err
+	}
+	workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflow(workflowRequest, workflowConfigMaps, workflowSecrets)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while adding existing CmCs", "err", err)
+		return bean3.WorkflowTemplate{}, err
+	}
 
 	workflowTemplate.ConfigMaps = workflowConfigMaps
 	workflowTemplate.Secrets = workflowSecrets
@@ -186,10 +193,15 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *WorkflowReque
 	return workflowConfigMaps, workflowSecrets, nil
 }
 
-func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *WorkflowRequest, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap, cdPipelineLevelConfigMaps map[string]bool, cdPipelineLevelSecrets map[string]bool) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
+func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *WorkflowRequest, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
 
+	pipelineLevelConfigMaps, pipelineLevelSecrets, err := workflowRequest.GetConfiguredCmCs()
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", workflowRequest.Pipeline.Id, "err", err)
+		return nil, nil, err
+	}
 	isJob := workflowRequest.CheckForJob()
-	allowAll := workflowRequest.CheckForJob()
+	allowAll := isJob
 	namePrefix := workflowRequest.GetExistingCmCsNamePrefix()
 	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
 	if err != nil {
@@ -200,7 +212,7 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *Work
 
 	for _, cm := range existingConfigMap.Maps {
 		// HERE we are allowing all existingSecrets in case of JOB
-		if _, ok := cdPipelineLevelConfigMaps[cm.Name]; ok || allowAll {
+		if _, ok := pipelineLevelConfigMaps[cm.Name]; ok || allowAll {
 			if !cm.External {
 				cm.Name = cm.Name + "-" + namePrefix
 			}
@@ -209,7 +221,7 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *Work
 	}
 	for _, secret := range existingSecrets.Secrets {
 		// HERE we are allowing all existingSecrets in case of JOB
-		if _, ok := cdPipelineLevelSecrets[secret.Name]; ok || allowAll {
+		if _, ok := pipelineLevelSecrets[secret.Name]; ok || allowAll {
 			if !secret.External {
 				secret.Name = secret.Name + "-" + namePrefix
 			}
