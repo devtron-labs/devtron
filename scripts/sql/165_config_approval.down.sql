@@ -15,4 +15,3 @@ DROP SEQUENCE IF EXISTS public.id_seq_draft_version_comment;
 
 DELETE from rbac_policy_resource_detail where resource = 'config';
 DELETE from rbac_role_resource_detail where resource = 'approver';
-DELETE from default_rbac_role_data where role = 'configApprover';
