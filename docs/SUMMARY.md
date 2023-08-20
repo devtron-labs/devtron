@@ -31,6 +31,7 @@
     * [API Tokens](user-guide/global-configurations/authorization/api-tokens.md)
   * [Manage Notification](user-guide/global-configurations/manage-notification.md)
   * [External links](user-guide/global-configurations/external-links.md)
+  * [Tags Policy](user-guide/global-configurations/tags-policy.md)
 * [Devtron Upgrade](setup/upgrade/README.md)
   * [Update Devtron from Devtron UI](setup/upgrade/upgrade-devtron-ui.md)
   * [0.5.x-0.6.x](setup/upgrade/devtron-upgrade-0.5.x-0.6.x.md)
@@ -65,6 +66,7 @@
       * [External Secret Operator (ESO)](user-guide/creating-application/eso/README.md)
         * [AWS Secrets Manager](user-guide/creating-application/eso/aws-eso.md)
         * [Google Secrets Manager](user-guide/creating-application/eso/gcp-eso.md)
+        * [HashiCorp Vault](user-guide/creating-application/eso/hashicorp-eso.md)
 
     * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
     * [Deleting Application](user-guide/deleting-application.md)
