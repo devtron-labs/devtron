@@ -1074,7 +1074,7 @@ type ChartDataInfo struct {
 }
 
 type ChartDto struct {
-	Id               int    `json:"name"`
+	Id               int    `json:"id"`
 	Name             string `json:"name"`
 	ChartDescription string `json:"chartDescription"`
 	Version          string `json:"version"`
