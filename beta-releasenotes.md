@@ -11,3 +11,4 @@
 - doc: security feature doc (#3622)
 - doc: HashiCorp external secret operator (#3608)
 ## Others
+- chore: Config approval scripts and refactoring (#3762)
