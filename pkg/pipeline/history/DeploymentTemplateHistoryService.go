@@ -16,7 +16,7 @@ import (
 type DeploymentTemplateHistoryService interface {
 	CreateDeploymentTemplateHistoryFromGlobalTemplate(chart *chartRepoRepository.Chart, tx *pg.Tx, IsAppMetricsEnabled bool) error
 	CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride *chartConfig.EnvConfigOverride, tx *pg.Tx, IsAppMetricsEnabled bool, pipelineId int) error
-	CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error
+	CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) (*repository.DeploymentTemplateHistory, error)
 	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error)
 
 	GetHistoryForDeployedTemplateById(id, pipelineId int) (*HistoryDetailDto, error)
@@ -189,11 +189,11 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	return nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error {
+func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) (*repository.DeploymentTemplateHistory, error) {
 	chartRef, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
 	if err != nil {
 		impl.logger.Errorw("err in getting chartRef, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chartRef", chartRef)
-		return err
+		return nil, err
 	}
 	if len(chartRef.Name) == 0 {
 		chartRef.Name = "Rollout Deployment"
@@ -202,12 +202,12 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
-		return err
+		return nil, err
 	} else if err == pg.ErrNoRows {
 		appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", pipeline.AppId)
-			return err
+			return nil, err
 		} else if err == nil {
 			isAppMetricsEnabled = appLevelAppMetrics.AppMetrics
 		}
@@ -238,12 +238,12 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		historyModel.Template = envOverride.Chart.GlobalOverride
 	}
 	//creating new entry
-	_, err = impl.deploymentTemplateHistoryRepository.CreateHistory(historyModel)
+	history, err := impl.deploymentTemplateHistoryRepository.CreateHistory(historyModel)
 	if err != nil {
 		impl.logger.Errorw("err in creating history entry for deployment template", "err", err, "history", historyModel)
-		return err
+		return nil, err
 	}
-	return nil
+	return history, nil
 }
 
 func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error) {

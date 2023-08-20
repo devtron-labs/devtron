@@ -9,7 +9,7 @@ import (
 
 type VariableSnapshotHistoryService interface {
 	SaveVariableHistoriesForTrigger(variableHistories []*repository2.VariableSnapshotHistoryBean, userId int32) error
-	GetVariableHistoryForReferences(references []repository2.HistoryReference) ([]*repository2.VariableSnapshotHistoryBean, error)
+	GetVariableHistoryForReferences(references []repository2.HistoryReference) (map[repository2.HistoryReference]*repository2.VariableSnapshotHistoryBean, error)
 }
 
 type VariableSnapshotHistoryServiceImpl struct {
@@ -44,18 +44,22 @@ func (impl VariableSnapshotHistoryServiceImpl) SaveVariableHistoriesForTrigger(v
 	return nil
 }
 
-func (impl VariableSnapshotHistoryServiceImpl) GetVariableHistoryForReferences(references []repository2.HistoryReference) ([]*repository2.VariableSnapshotHistoryBean, error) {
+func (impl VariableSnapshotHistoryServiceImpl) GetVariableHistoryForReferences(references []repository2.HistoryReference) (map[repository2.HistoryReference]*repository2.VariableSnapshotHistoryBean, error) {
 	snapshots, err := impl.repository.GetVariableSnapshots(references)
 	if err != nil {
 		return nil, err
 	}
-	variableSnapshotHistories := make([]*repository2.VariableSnapshotHistoryBean, 0)
-
+	//variableSnapshotHistories := make([]*repository2.VariableSnapshotHistoryBean, 0)
+	variableSnapshotHistories := make(map[repository2.HistoryReference]*repository2.VariableSnapshotHistoryBean)
 	for _, snapshot := range snapshots {
-		variableSnapshotHistories = append(variableSnapshotHistories, &repository2.VariableSnapshotHistoryBean{
+		variableSnapshotHistories[snapshot.HistoryReference] = &repository2.VariableSnapshotHistoryBean{
 			VariableSnapshot: snapshot.VariableSnapshot,
 			HistoryReference: snapshot.HistoryReference,
-		})
+		}
+		//variableSnapshotHistories = append(variableSnapshotHistories, &repository2.VariableSnapshotHistoryBean{
+		//	VariableSnapshot: snapshot.VariableSnapshot,
+		//	HistoryReference: snapshot.HistoryReference,
+		//})
 	}
 	return variableSnapshotHistories, nil
 }

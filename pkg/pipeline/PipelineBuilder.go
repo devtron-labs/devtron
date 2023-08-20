@@ -21,6 +21,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"net/http"
 	"net/url"
 	"sort"
@@ -237,6 +240,8 @@ type PipelineBuilderImpl struct {
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
 	imageTaggingService                             ImageTaggingService
+	variableEntityMappingService                    variables.VariableEntityMappingService
+	variableTemplateParser                          parsers.VariableTemplateParser
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -293,7 +298,9 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	manifestPushConfigRepository repository3.ManifestPushConfigRepository,
 	K8sUtil *util4.K8sUtil,
 	attributesRepository repository.AttributesRepository,
-	imageTaggingService ImageTaggingService) *PipelineBuilderImpl {
+	imageTaggingService ImageTaggingService,
+	variableEntityMappingService variables.VariableEntityMappingService,
+	variableTemplateParser parsers.VariableTemplateParser) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -365,6 +372,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		attributesRepository:                            attributesRepository,
 		securityConfig:                                  securityConfig,
 		imageTaggingService:                             imageTaggingService,
+		variableEntityMappingService:                    variableEntityMappingService,
+		variableTemplateParser:                          variableTemplateParser,
 	}
 }
 
@@ -3300,6 +3309,10 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy)
+	if err != nil {
+		return 0, err
+	}
 	// strategies for pipeline ids, there is only one is default
 	defaultCount := 0
 	for _, item := range pipeline.Strategies {
@@ -3378,6 +3391,21 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 
 	impl.logger.Debugw("pipeline created with GitMaterialId ", "id", pipelineId, "pipeline", pipeline)
 	return pipelineId, nil
+}
+
+func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32) error {
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	if err != nil {
+		return err
+	}
+	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository6.Entity{
+		EntityType: entityType,
+		EntityId:   entityId,
+	}, userId)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {

@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Move all this to another file
 type ScopedVariables struct {
 	CreateScopedVariableDTO []*CreateScopedVariableDTO `json:"createScopedVariableDTO"`
 }
@@ -75,6 +76,13 @@ type ScopedVariableData struct {
 type ScopedVariableService interface {
 	//SaveVariables(payload Payload) error
 	GetScopedVariables(appId, envId, clusterId int, varIds []int) (scopedVariableDataObj []*ScopedVariableData, err error)
+	GetScopedVariables2(scope Scope, varIds []string) (scopedVariableDataObj []*ScopedVariableData, err error)
+}
+
+type Scope struct {
+	AppId     int
+	EnvId     int
+	ClusterId int
 }
 
 const (

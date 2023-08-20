@@ -22,6 +22,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 
 	"go.opentelemetry.io/otel"
 
@@ -142,7 +145,7 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
-	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int) (bool, error)
+	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int, scope variables.Scope, entity repository5.Entity) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
@@ -179,6 +182,9 @@ type ChartServiceImpl struct {
 	envLevelAppMetricsRepository     repository3.EnvLevelAppMetricsRepository
 	client                           *http.Client
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	variableEntityMappingService     variables.VariableEntityMappingService
+	variableTemplateParser           parsers.VariableTemplateParser
+	scopedVariableService            variables.ScopedVariableService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -199,7 +205,10 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	envLevelAppMetricsRepository repository3.EnvLevelAppMetricsRepository,
 	client *http.Client,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *ChartServiceImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	variableEntityMappingService variables.VariableEntityMappingService,
+	variableTemplateParser parsers.VariableTemplateParser,
+	scopedVariableService variables.ScopedVariableService) *ChartServiceImpl {
 	return &ChartServiceImpl{
 		chartRepository:                  chartRepository,
 		logger:                           logger,
@@ -220,6 +229,9 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
 		client:                           client,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		variableEntityMappingService:     variableEntityMappingService,
+		variableTemplateParser:           variableTemplateParser,
+		scopedVariableService:            scopedVariableService,
 	}
 }
 
@@ -489,6 +501,10 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
 
 	var appLevelMetrics *repository3.AppLevelMetrics
 	isAppMetricsSupported, err := impl.CheckIsAppMetricsSupported(templateRequest.ChartRefId)
@@ -513,6 +529,21 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
 	return chartVal, err
+}
+
+func (impl ChartServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	if err != nil {
+		return err
+	}
+	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
+		EntityType: entityType,
+		EntityId:   entityId,
+	}, userId)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
@@ -622,6 +653,11 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
+
 	chartVal, err := impl.chartAdaptor(chart, nil)
 	return chartVal, err
 }
@@ -943,7 +979,10 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	}
 
 	//VARIABLE_MAPPING_UPDATE
-
+	err = impl.extractAndMapVariables(template.GlobalOverride, template.Id, repository5.EntityTypeDeploymentTemplateAppLevel, template.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
 	return templateRequest, nil
 }
 
@@ -1273,6 +1312,10 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			return false, err
 		}
 		//VARIABLE_MAPPING_UPDATE
+		err = impl.extractAndMapVariables(envOverrideNew.EnvOverrideValues, envOverrideNew.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverrideNew.CreatedBy)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	return true, nil
@@ -1332,7 +1375,8 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		return nil, err
 	}
 
-	//VARIABLE_MAPPING_UPDATE
+	////VARIABLE_MAPPING_UPDATE - not needed
+	//err = impl.extractAndMapVariables(currentChart.GlobalOverride, currentChart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, currentChart.CreatedBy)
 
 	if appLevelMetrics.Id > 0 {
 		return &appMetricRequest, nil
@@ -1345,7 +1389,25 @@ const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
-func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int) (bool, error) {
+func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope variables.Scope, template string, entity repository5.Entity) (string, map[string]string, error) {
+
+	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository5.Entity{entity})
+	if err != nil {
+		return "", nil, err
+	}
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables2(scope, entityToVariables[entity])
+	if err != nil {
+		return "", nil, err
+	}
+	variableMap := make(map[string]string)
+	for _, variable := range scopedVariables {
+		variableMap[variable.VariableName] = variable.VariableValue
+	}
+	resolvedTemplate := impl.variableTemplateParser.ParseTemplate(template, variableMap)
+	return resolvedTemplate, variableMap, nil
+}
+
+func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope variables.Scope, entity repository5.Entity) (bool, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "JsonSchemaExtractFromFile")
 	schemajson, version, err := impl.JsonSchemaExtractFromFile(chartRefId)
 	span.End()
@@ -1360,6 +1422,13 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, tem
 	//	impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
 	//	return true, nil
 	//}
+
+	//var scope variables.Scope
+	//var entity repository5.Entity
+	templatejson, _, err := impl.extractVariablesAndResolveTemplate(scope, template.(string), entity)
+	if err != nil {
+		return false, err
+	}
 
 	schemaLoader := gojsonschema.NewGoLoader(schemajson)
 	documentLoader := gojsonschema.NewGoLoader(templatejson)
