@@ -21,15 +21,15 @@ type ValueSet struct {
 	// ValueSet is just a thin wrapper around a set.Set with our value-oriented
 	// "rules" applied. We do this so that the caller can work in terms of
 	// cty.Value objects even though the set internals use the raw values.
-	s set.Set
+	s set.Set[interface{}]
 }
 
 // NewValueSet creates and returns a new ValueSet with the given element type.
 func NewValueSet(ety Type) ValueSet {
-	return newValueSet(set.NewSet(setRules{Type: ety}))
+	return newValueSet(set.NewSet(newSetRules(ety)))
 }
 
-func newValueSet(s set.Set) ValueSet {
+func newValueSet(s set.Set[interface{}]) ValueSet {
 	return ValueSet{
 		s: s,
 	}
@@ -119,7 +119,13 @@ func (s ValueSet) SymmetricDifference(other ValueSet) ValueSet {
 }
 
 // requireElementType panics if the given value is not of the set's element type.
+//
+// It also panics if the given value is marked, because marked values cannot
+// be stored in sets.
 func (s ValueSet) requireElementType(v Value) {
+	if v.IsMarked() {
+		panic("cannot store marked value directly in a set (make the set itself unknown instead)")
+	}
 	if !v.Type().Equals(s.ElementType()) {
 		panic(fmt.Errorf("attempt to use %#v value with set of %#v", v.Type(), s.ElementType()))
 	}

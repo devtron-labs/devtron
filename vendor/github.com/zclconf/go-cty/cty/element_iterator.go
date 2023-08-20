@@ -23,6 +23,8 @@ type ElementIterator interface {
 
 func canElementIterator(val Value) bool {
 	switch {
+	case val.IsMarked():
+		return false
 	case val.ty.IsListType():
 		return true
 	case val.ty.IsMapType():
@@ -39,6 +41,7 @@ func canElementIterator(val Value) bool {
 }
 
 func elementIterator(val Value) ElementIterator {
+	val.assertUnmarked()
 	switch {
 	case val.ty.IsListType():
 		return &listElementIterator{
@@ -63,7 +66,7 @@ func elementIterator(val Value) ElementIterator {
 			idx:  -1,
 		}
 	case val.ty.IsSetType():
-		rawSet := val.v.(set.Set)
+		rawSet := val.v.(set.Set[interface{}])
 		return &setElementIterator{
 			ety:   val.ty.ElementType(),
 			setIt: rawSet.Iterator(),
@@ -136,7 +139,7 @@ func (it *mapElementIterator) Next() bool {
 
 type setElementIterator struct {
 	ety   Type
-	setIt *set.Iterator
+	setIt *set.Iterator[interface{}]
 }
 
 func (it *setElementIterator) Element() (Value, Value) {

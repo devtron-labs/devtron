@@ -6,52 +6,63 @@ import (
 )
 
 var NotFunc = function.New(&function.Spec{
+	Description: `Applies the logical NOT operation to the given boolean value.`,
 	Params: []function.Parameter{
 		{
 			Name:             "val",
 			Type:             cty.Bool,
 			AllowDynamicType: true,
+			AllowMarked:      true,
 		},
 	},
-	Type: function.StaticReturnType(cty.Bool),
+	Type:         function.StaticReturnType(cty.Bool),
+	RefineResult: refineNonNull,
 	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		return args[0].Not(), nil
 	},
 })
 
 var AndFunc = function.New(&function.Spec{
+	Description: `Applies the logical AND operation to the given boolean values.`,
 	Params: []function.Parameter{
 		{
 			Name:             "a",
 			Type:             cty.Bool,
 			AllowDynamicType: true,
+			AllowMarked:      true,
 		},
 		{
 			Name:             "b",
 			Type:             cty.Bool,
 			AllowDynamicType: true,
+			AllowMarked:      true,
 		},
 	},
-	Type: function.StaticReturnType(cty.Bool),
+	Type:         function.StaticReturnType(cty.Bool),
+	RefineResult: refineNonNull,
 	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		return args[0].And(args[1]), nil
 	},
 })
 
 var OrFunc = function.New(&function.Spec{
+	Description: `Applies the logical OR operation to the given boolean values.`,
 	Params: []function.Parameter{
 		{
 			Name:             "a",
 			Type:             cty.Bool,
 			AllowDynamicType: true,
+			AllowMarked:      true,
 		},
 		{
 			Name:             "b",
 			Type:             cty.Bool,
 			AllowDynamicType: true,
+			AllowMarked:      true,
 		},
 	},
-	Type: function.StaticReturnType(cty.Bool),
+	Type:         function.StaticReturnType(cty.Bool),
+	RefineResult: refineNonNull,
 	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		return args[0].Or(args[1]), nil
 	},

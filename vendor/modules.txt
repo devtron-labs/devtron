@@ -113,6 +113,9 @@ github.com/antonmedv/expr/vm
 # github.com/apparentlymart/go-textseg v1.0.0
 ## explicit
 github.com/apparentlymart/go-textseg/textseg
+# github.com/apparentlymart/go-textseg/v13 v13.0.0
+## explicit; go 1.16
+github.com/apparentlymart/go-textseg/v13/textseg
 # github.com/argoproj/argo-cd/v2 v2.5.2
 ## explicit; go 1.18
 github.com/argoproj/argo-cd/v2/common
@@ -900,7 +903,7 @@ github.com/valyala/fasttemplate
 # github.com/vmihailenco/go-tinylfu v0.2.1
 ## explicit; go 1.15
 github.com/vmihailenco/go-tinylfu
-# github.com/vmihailenco/msgpack/v5 v5.3.4
+# github.com/vmihailenco/msgpack/v5 v5.3.5
 ## explicit; go 1.11
 github.com/vmihailenco/msgpack/v5
 github.com/vmihailenco/msgpack/v5/msgpcode
@@ -936,10 +939,11 @@ github.com/yannh/kubeconform/pkg/cache
 github.com/yannh/kubeconform/pkg/registry
 github.com/yannh/kubeconform/pkg/resource
 github.com/yannh/kubeconform/pkg/validator
-# github.com/zclconf/go-cty v1.0.0
-## explicit
+# github.com/zclconf/go-cty v1.13.2
+## explicit; go 1.18
 github.com/zclconf/go-cty/cty
 github.com/zclconf/go-cty/cty/convert
+github.com/zclconf/go-cty/cty/ctystrings
 github.com/zclconf/go-cty/cty/function
 github.com/zclconf/go-cty/cty/function/stdlib
 github.com/zclconf/go-cty/cty/gocty

@@ -54,6 +54,7 @@ require (
 	github.com/xanzy/go-gitlab v0.60.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/yannh/kubeconform v0.5.0
+	github.com/zclconf/go-cty v1.13.2
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.37.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.37.0
@@ -108,6 +109,7 @@ require (
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/antonmedv/expr v1.9.0 // indirect
 	github.com/apparentlymart/go-textseg v1.0.0 // indirect
+	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/argoproj/pkg v0.13.6 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bombsimon/logrusr/v2 v2.0.1 // indirect
@@ -222,14 +224,13 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.1 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.1 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
-	github.com/zclconf/go-cty v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.11.2 // indirect
 	go.opentelemetry.io/otel/metric v0.34.0 // indirect

@@ -5,8 +5,7 @@ import (
 	"math/big"
 	"reflect"
 
-	"golang.org/x/text/unicode/norm"
-
+	"github.com/zclconf/go-cty/cty/ctystrings"
 	"github.com/zclconf/go-cty/cty/set"
 )
 
@@ -107,7 +106,7 @@ func StringVal(v string) Value {
 // A return value from this function can be meaningfully compared byte-for-byte
 // with a Value.AsString result.
 func NormalizeString(s string) string {
-	return norm.NFC.String(s)
+	return ctystrings.Normalize(s)
 }
 
 // ObjectVal returns a Value of an object type whose structure is defined
@@ -186,6 +185,20 @@ func ListValEmpty(element Type) Value {
 	}
 }
 
+// CanListVal returns false if the given Values can not be coalesced
+// into a single List due to inconsistent element types.
+func CanListVal(vals []Value) bool {
+	elementType := DynamicPseudoType
+	for _, val := range vals {
+		if elementType == DynamicPseudoType {
+			elementType = val.ty
+		} else if val.ty != DynamicPseudoType && !elementType.Equals(val.ty) {
+			return false
+		}
+	}
+	return true
+}
+
 // MapVal returns a Value of a map type whose element type is defined by
 // the types of the given values, which must be homogenous.
 //
@@ -227,6 +240,20 @@ func MapValEmpty(element Type) Value {
 	}
 }
 
+// CanMapVal returns false if the given Values can not be coalesced into a
+// single Map due to inconsistent element types.
+func CanMapVal(vals map[string]Value) bool {
+	elementType := DynamicPseudoType
+	for _, val := range vals {
+		if elementType == DynamicPseudoType {
+			elementType = val.ty
+		} else if val.ty != DynamicPseudoType && !elementType.Equals(val.ty) {
+			return false
+		}
+	}
+	return true
+}
+
 // SetVal returns a Value of set type whose element type is defined by
 // the types of the given values, which must be homogenous.
 //
@@ -240,8 +267,13 @@ func SetVal(vals []Value) Value {
 	}
 	elementType := DynamicPseudoType
 	rawList := make([]interface{}, len(vals))
+	var markSets []ValueMarks
 
 	for i, val := range vals {
+		if unmarkedVal, marks := val.UnmarkDeep(); len(marks) > 0 {
+			val = unmarkedVal
+			markSets = append(markSets, marks)
+		}
 		if elementType == DynamicPseudoType {
 			elementType = val.ty
 		} else if val.ty != DynamicPseudoType && !elementType.Equals(val.ty) {
@@ -254,12 +286,32 @@ func SetVal(vals []Value) Value {
 		rawList[i] = val.v
 	}
 
-	rawVal := set.NewSetFromSlice(setRules{elementType}, rawList)
+	rawVal := set.NewSetFromSlice(set.Rules[interface{}](setRules{elementType}), rawList)
 
 	return Value{
 		ty: Set(elementType),
 		v:  rawVal,
+	}.WithMarks(markSets...)
+}
+
+// CanSetVal returns false if the given Values can not be coalesced
+// into a single Set due to inconsistent element types.
+func CanSetVal(vals []Value) bool {
+	elementType := DynamicPseudoType
+	var markSets []ValueMarks
+
+	for _, val := range vals {
+		if unmarkedVal, marks := val.UnmarkDeep(); len(marks) > 0 {
+			val = unmarkedVal
+			markSets = append(markSets, marks)
+		}
+		if elementType == DynamicPseudoType {
+			elementType = val.ty
+		} else if val.ty != DynamicPseudoType && !elementType.Equals(val.ty) {
+			return false
+		}
 	}
+	return true
 }
 
 // SetValFromValueSet returns a Value of set type based on an already-constructed
@@ -281,7 +333,7 @@ func SetValFromValueSet(s ValueSet) Value {
 func SetValEmpty(element Type) Value {
 	return Value{
 		ty: Set(element),
-		v:  set.NewSet(setRules{element}),
+		v:  set.NewSet(set.Rules[interface{}](setRules{element})),
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	_ "github.com/hashicorp/hcl2/hcl/hclsyntax"
+	json2 "github.com/zclconf/go-cty/cty/json"
 )
 
 type VariableTemplateParser interface {
@@ -45,24 +46,28 @@ func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]str
 }
 
 func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values map[string]string) string {
+	//TODO KB: need to dilute those variables whose value is not present in map
+	output := template
 	template = impl.convertToHclCompatible(template)
 	//TODO KB: need to check for variables whose value is not present in values map, throw error or ignore variable
 	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
 	if !diagnostics.HasErrors() {
 		hclVarValues := impl.getHclVarValues(values)
-		_, valueDiagnostics := hclExpression.Value(&hcl.EvalContext{
+		opValue, valueDiagnostics := hclExpression.Value(&hcl.EvalContext{
 			Variables: hclVarValues,
 			Functions: map[string]function.Function{
 				"upper": stdlib.UpperFunc,
 			},
 		})
 		if !valueDiagnostics.HasErrors() {
-
+			simpleJSONValue := json2.SimpleJSONValue{opValue}
+			encapsulatedValue, _ := simpleJSONValue.MarshalJSON()
+			output = string(encapsulatedValue)
 		}
 	} else {
 		//TODO KB: handle this case
 	}
-	return template //TODO KB: fix this
+	return output //TODO KB: fix this
 }
 
 func (impl *VariableTemplateParserImpl) convertToHclCompatible(template string) string {

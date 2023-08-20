@@ -16,23 +16,48 @@ func getConversion(in cty.Type, out cty.Type, unsafe bool) conversion {
 
 	// Wrap the conversion in some standard checks that we don't want to
 	// have to repeat in every conversion function.
-	return func(in cty.Value, path cty.Path) (cty.Value, error) {
+	var ret conversion
+	ret = func(in cty.Value, path cty.Path) (cty.Value, error) {
+		if in.IsMarked() {
+			// We must unmark during the conversion and then re-apply the
+			// same marks to the result.
+			in, inMarks := in.Unmark()
+			v, err := ret(in, path)
+			if v != cty.NilVal {
+				v = v.WithMarks(inMarks)
+			}
+			return v, err
+		}
+
 		if out == cty.DynamicPseudoType {
 			// Conversion to DynamicPseudoType always just passes through verbatim.
 			return in, nil
 		}
-		if !in.IsKnown() {
-			return cty.UnknownVal(out), nil
-		}
-		if in.IsNull() {
-			// We'll pass through nulls, albeit type converted, and let
-			// the caller deal with whatever handling they want to do in
-			// case null values are considered valid in some applications.
-			return cty.NullVal(out), nil
+		if isKnown, isNull := in.IsKnown(), in.IsNull(); !isKnown || isNull {
+			// Avoid constructing unknown or null values with types which
+			// include optional attributes. Known or non-null object values
+			// will be passed to a conversion function which drops the optional
+			// attributes from the type. Unknown and null pass through values
+			// must do the same to ensure that homogeneous collections have a
+			// single element type.
+			out = out.WithoutOptionalAttributesDeep()
+
+			if !isKnown {
+				return prepareUnknownResult(in.Range(), dynamicReplace(in.Type(), out)), nil
+			}
+
+			if isNull {
+				// We'll pass through nulls, albeit type converted, and let
+				// the caller deal with whatever handling they want to do in
+				// case null values are considered valid in some applications.
+				return cty.NullVal(dynamicReplace(in.Type(), out)), nil
+			}
 		}
 
 		return conv(in, path)
 	}
+
+	return ret
 }
 
 func getConversionKnown(in cty.Type, out cty.Type, unsafe bool) conversion {
@@ -124,6 +149,39 @@ func getConversionKnown(in cty.Type, out cty.Type, unsafe bool) conversion {
 		outEty := out.ElementType()
 		return conversionObjectToMap(in, outEty, unsafe)
 
+	case out.IsObjectType() && in.IsMapType():
+		if !unsafe {
+			// Converting a map to an object is an "unsafe" conversion,
+			// because we don't know if all the map keys will correspond to
+			// object attributes.
+			return nil
+		}
+		return conversionMapToObject(in, out, unsafe)
+
+	case in.IsCapsuleType() || out.IsCapsuleType():
+		if !unsafe {
+			// Capsule types can only participate in "unsafe" conversions,
+			// because we don't know enough about their conversion behaviors
+			// to be sure that they will always be safe.
+			return nil
+		}
+		if in.Equals(out) {
+			// conversion to self is never allowed
+			return nil
+		}
+		if out.IsCapsuleType() {
+			if fn := out.CapsuleOps().ConversionTo; fn != nil {
+				return conversionToCapsule(in, out, fn)
+			}
+		}
+		if in.IsCapsuleType() {
+			if fn := in.CapsuleOps().ConversionFrom; fn != nil {
+				return conversionFromCapsule(in, out, fn)
+			}
+		}
+		// No conversion operation is available, then.
+		return nil
+
 	default:
 		return nil
 
@@ -140,4 +198,65 @@ func retConversion(conv conversion) Conversion {
 	return func(in cty.Value) (cty.Value, error) {
 		return conv(in, cty.Path(nil))
 	}
+}
+
+// prepareUnknownResult can apply value refinements to a returned unknown value
+// in certain cases where characteristics of the source value or type can
+// transfer into range constraints on the result value.
+func prepareUnknownResult(sourceRange cty.ValueRange, targetTy cty.Type) cty.Value {
+	sourceTy := sourceRange.TypeConstraint()
+
+	ret := cty.UnknownVal(targetTy)
+	if sourceRange.DefinitelyNotNull() {
+		ret = ret.RefineNotNull()
+	}
+
+	switch {
+	case sourceTy.IsObjectType() && targetTy.IsMapType():
+		// A map built from an object type always has the same number of
+		// elements as the source type has attributes.
+		return ret.Refine().CollectionLength(len(sourceTy.AttributeTypes())).NewValue()
+	case sourceTy.IsTupleType() && targetTy.IsListType():
+		// A list built from a typle type always has the same number of
+		// elements as the source type has elements.
+		return ret.Refine().CollectionLength(sourceTy.Length()).NewValue()
+	case sourceTy.IsTupleType() && targetTy.IsSetType():
+		// When building a set from a tuple type we can't exactly constrain
+		// the length because some elements might coalesce, but we can
+		// guarantee an upper limit. We can also guarantee at least one
+		// element if the tuple isn't empty.
+		switch l := sourceTy.Length(); l {
+		case 0, 1:
+			return ret.Refine().CollectionLength(l).NewValue()
+		default:
+			return ret.Refine().
+				CollectionLengthLowerBound(1).
+				CollectionLengthUpperBound(sourceTy.Length()).
+				NewValue()
+		}
+	case sourceTy.IsCollectionType() && targetTy.IsCollectionType():
+		// NOTE: We only reach this function if there is an available
+		// conversion between the source and target type, so we don't
+		// need to repeat element type compatibility checks and such here.
+		//
+		// If the source value already has a refined length then we'll
+		// transfer those refinements to the result, because conversion
+		// does not change length (aside from set element coalescing).
+		b := ret.Refine()
+		if targetTy.IsSetType() {
+			if sourceRange.LengthLowerBound() > 0 {
+				// If the source has at least one element then the result
+				// must always have at least one too, because value coalescing
+				// cannot totally empty the set.
+				b = b.CollectionLengthLowerBound(1)
+			}
+		} else {
+			b = b.CollectionLengthLowerBound(sourceRange.LengthLowerBound())
+		}
+		b = b.CollectionLengthUpperBound(sourceRange.LengthUpperBound())
+		return b.NewValue()
+	default:
+		return ret
+	}
+
 }

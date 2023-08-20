@@ -9,10 +9,12 @@ import (
 )
 
 var ConcatFunc = function.New(&function.Spec{
-	Params: []function.Parameter{},
+	Description: `Concatenates together all of the given lists or tuples into a single sequence, preserving the input order.`,
+	Params:      []function.Parameter{},
 	VarParam: &function.Parameter{
-		Name: "seqs",
-		Type: cty.DynamicPseudoType,
+		Name:        "seqs",
+		Type:        cty.DynamicPseudoType,
+		AllowMarked: true,
 	},
 	Type: func(args []cty.Value) (ret cty.Type, err error) {
 		if len(args) == 0 {
@@ -42,6 +44,10 @@ var ConcatFunc = function.New(&function.Spec{
 
 		etys := make([]cty.Type, 0, len(args))
 		for i, val := range args {
+			// Discard marks for nested values, as we only need to handle types
+			// and lengths.
+			val, _ := val.UnmarkDeep()
+
 			ety := val.Type()
 			switch {
 			case ety.IsTupleType():
@@ -68,6 +74,7 @@ var ConcatFunc = function.New(&function.Spec{
 		}
 		return cty.Tuple(etys), nil
 	},
+	RefineResult: refineNonNull,
 	Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
 		switch {
 		case retType.IsListType():
@@ -75,12 +82,18 @@ var ConcatFunc = function.New(&function.Spec{
 			// given values will be lists and that they will either be of
 			// retType or of something we can convert to retType.
 			vals := make([]cty.Value, 0, len(args))
+			var markses []cty.ValueMarks // remember any marked lists we find
 			for i, list := range args {
 				list, err = convert.Convert(list, retType)
 				if err != nil {
 					// Conversion might fail because we used UnifyUnsafe
 					// to choose our return type.
 					return cty.NilVal, function.NewArgError(i, err)
+				}
+
+				list, listMarks := list.Unmark()
+				if len(listMarks) > 0 {
+					markses = append(markses, listMarks)
 				}
 
 				it := list.ElementIterator()
@@ -90,10 +103,10 @@ var ConcatFunc = function.New(&function.Spec{
 				}
 			}
 			if len(vals) == 0 {
-				return cty.ListValEmpty(retType.ElementType()), nil
+				return cty.ListValEmpty(retType.ElementType()).WithMarks(markses...), nil
 			}
 
-			return cty.ListVal(vals), nil
+			return cty.ListVal(vals).WithMarks(markses...), nil
 		case retType.IsTupleType():
 			// If retType is a tuple type then we could have a mixture of
 			// lists and tuples but we know they all have known values
@@ -101,8 +114,14 @@ var ConcatFunc = function.New(&function.Spec{
 			// concatenating them all together will produce a tuple of
 			// retType because of the work we did in the Type function above.
 			vals := make([]cty.Value, 0, len(args))
+			var markses []cty.ValueMarks // remember any marked seqs we find
 
 			for _, seq := range args {
+				seq, seqMarks := seq.Unmark()
+				if len(seqMarks) > 0 {
+					markses = append(markses, seqMarks)
+				}
+
 				// Both lists and tuples support ElementIterator, so this is easy.
 				it := seq.ElementIterator()
 				for it.Next() {
@@ -111,7 +130,7 @@ var ConcatFunc = function.New(&function.Spec{
 				}
 			}
 
-			return cty.TupleVal(vals), nil
+			return cty.TupleVal(vals).WithMarks(markses...), nil
 		default:
 			// should never happen if Type is working correctly above
 			panic("unsupported return type")
@@ -120,11 +139,13 @@ var ConcatFunc = function.New(&function.Spec{
 })
 
 var RangeFunc = function.New(&function.Spec{
+	Description: `Returns a list of numbers spread evenly over a particular range.`,
 	VarParam: &function.Parameter{
 		Name: "params",
 		Type: cty.Number,
 	},
-	Type: function.StaticReturnType(cty.List(cty.Number)),
+	Type:         function.StaticReturnType(cty.List(cty.Number)),
+	RefineResult: refineNonNull,
 	Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
 		var start, end, step cty.Value
 		switch len(args) {
