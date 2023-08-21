@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -13,7 +12,7 @@ type DeploymentConfigRouterImpl struct {
 	deploymentRestHandler DeploymentConfigRestHandler
 }
 
-func NewDeploymentRouterImpl(deploymentRestHandler DeploymentConfigRestHandler, userAuth logger.UserAuth) *DeploymentConfigRouterImpl {
+func NewDeploymentRouterImpl(deploymentRestHandler DeploymentConfigRestHandler) *DeploymentConfigRouterImpl {
 	return &DeploymentConfigRouterImpl{
 		deploymentRestHandler: deploymentRestHandler,
 	}
