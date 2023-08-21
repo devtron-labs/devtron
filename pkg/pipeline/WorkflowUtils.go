@@ -679,7 +679,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		},
 		Resources: workflowRequest.GetLimitReqCpuMem(config),
 	}
-	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.CD_WORKFLOW_PIPELINE_TYPE {
+	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		workflowMainContainer.Name = ""
 		workflowMainContainer.Ports = []v12.ContainerPort{{
 			//exposed for user specific data from ci container
