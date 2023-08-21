@@ -18,7 +18,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -29,7 +28,6 @@ type AppListingRouter interface {
 
 type AppListingRouterImpl struct {
 	appListingRestHandler restHandler.AppListingRestHandler
-	userAuth              logger.UserAuth
 }
 
 func NewAppListingRouterImpl(appListingRestHandler restHandler.AppListingRestHandler) *AppListingRouterImpl {
