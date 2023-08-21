@@ -124,6 +124,7 @@ type MuxRouter struct {
 	globalTagRouter                    globalTag.GlobalTagRouter
 	rbacRoleRouter                     user.RbacRoleRouter
 	globalPolicyRouter                 globalPolicy.GlobalPolicyRouter
+	scopedVariableRouter               ScopedVariableRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -154,7 +155,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
 	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
 	globalTagRouter globalTag.GlobalTagRouter, rbacRoleRouter user.RbacRoleRouter,
-	globalPolicyRouter globalPolicy.GlobalPolicyRouter) *MuxRouter {
+	globalPolicyRouter globalPolicy.GlobalPolicyRouter, scopedVariableRouter ScopedVariableRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -226,6 +227,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		globalTagRouter:                    globalTagRouter,
 		rbacRoleRouter:                     rbacRoleRouter,
 		globalPolicyRouter:                 globalPolicyRouter,
+		scopedVariableRouter:               scopedVariableRouter,
 	}
 	return r
 }
@@ -368,6 +370,7 @@ func (r MuxRouter) Init() {
 
 	commonRouter := r.Router.PathPrefix("/orchestrator/global").Subrouter()
 	r.commonRouter.InitCommonRouter(commonRouter)
+	r.scopedVariableRouter.InitScopedVariableRouter(commonRouter)
 
 	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)

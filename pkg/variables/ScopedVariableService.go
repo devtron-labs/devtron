@@ -5,85 +5,22 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"go.uber.org/zap"
+	"time"
 )
 
-type ScopedVariables struct {
-	CreateScopedVariableDTO []*CreateScopedVariableDTO `json:"createScopedVariableDTO"`
-}
-type CreateScopedVariableDTO struct {
-	VariableDefinition
-	ApplicationEnvironmentScope []*ApplicationEnvironmentScope `json:"applicationEnvironmentScope"`
-	ApplicationScope            []*ApplicationScope            `json:"applicationScope"`
-	EnvironmentScope            []*EnvironmentScope            `json:"environmentScope"`
-	ClusterScope                []*ClusterScope                `json:"clusterScope"`
-	GlobalScope                 *ScopedVariableValue           `json:"globalScope"`
-}
-type ScopedVariableValue struct {
-	Value string `json:"value"`
-}
-
-type ApplicationEnvironmentScope struct {
-	ScopedVariableValue
-	ApplicationName string `json:"applicationName"`
-	EnvironmentName string `json:"environmentName"`
-}
-
-type ApplicationScope struct {
-	ScopedVariableValue
-	ApplicationName string `json:"applicationName"`
-}
-type EnvironmentScope struct {
-	ScopedVariableValue
-	EnvironmentName string `json:"environmentName"`
-}
-type ClusterScope struct {
-	ScopedVariableValue
-	ClusterName string `json:"clusterName"`
-}
-
-type VariableDefinition struct {
-	Id          int    `json:"id"`
-	Name        string `json:"varName"`
-	DataType    string `json:"dataType"`
-	VarType     string `json:"varType"`
-	Description string `json:"description"`
-}
-
-type VariableScope struct {
-	Id                    int                                   `json:"id"`
-	VariableId            int                                   `json:"variableId"`
-	QualifierId           int                                   `json:"qualifierId"`
-	IdentifierKey         bean.DevtronResourceSearchableKeyName `json:"identifierKey"`
-	IdentifierValueInt    int                                   `json:"identifierValueInt"`
-	Active                bool                                  `json:"active"`
-	IdentifierValueString string                                `json:"identifierValueString"`
-}
-
-type VariableData struct {
-	Id      int    `json:"id"`
-	ScopeId int    `json:"scopeId"`
-	Active  bool   `json:"active"`
-	Data    string `json:"data"`
-}
 type ScopedVariableData struct {
 	VariableName  string `json:"variableName"`
 	VariableValue string `json:"variableValue"`
 }
 
 type ScopedVariableService interface {
-	//SaveVariables(payload Payload) error
-	GetScopedVariables(appId, envId, clusterId int, varIds []int) (scopedVariableDataObj []*ScopedVariableData, err error)
+	CreateVariables(payload repository2.Payload) error
+	GetScopedVariables(scope Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error)
 }
-
-const (
-	APP_AND_ENV_QUALIFIER = 1
-	APP_QUALIFIER         = 2
-	ENV_QUALIFIER         = 3
-	CLUSTER_QUALIFIER     = 4
-	GLOBAL_QUALIFIER      = 5
-)
 
 type ScopedVariableServiceImpl struct {
 	logger                   *zap.SugaredLogger
@@ -92,9 +29,10 @@ type ScopedVariableServiceImpl struct {
 	environmentRepository    repository.EnvironmentRepository
 	devtronResourceService   devtronResource.DevtronResourceService
 	clusterRepository        repository.ClusterRepository
+	pipelineBuilder          pipeline.PipelineBuilder
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository) (*ScopedVariableServiceImpl, error) {
+func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository, pipelineBuilder pipeline.PipelineBuilder) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,
 		scopedVariableRepository: scopedVariableRepository,
@@ -102,201 +40,249 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 		environmentRepository:    environmentRepository,
 		devtronResourceService:   devtronResourceService,
 		clusterRepository:        clusterRepository,
+		pipelineBuilder:          pipelineBuilder,
 	}
 
 	return scopedVariableService, nil
 }
+func getIdentifierKey(identifierType repository2.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) int {
+	switch identifierType {
+	case repository2.ApplicationName:
+		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID]
+	case repository2.ClusterName:
+		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
+	case repository2.EnvName:
+		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
+	default:
+		return 0
+	}
+}
 
-//	type Payload struct {
-//		Variables []*Variables `json:"Variables"`
-//	}
-//
-//	type Variables struct {
-//		Definition      Definition       `json:"definition"`
-//		AttributeValues []AttributeValue `json:"attributeValue"`
-//	}
-//
-//	type AttributeValue struct {
-//		VariableValue
-//		AttributeType   AttributeType
-//		AttributeParams map[IdentifierType]string
-//	}
-//
-//	type Definition struct {
-//		VarName     string `json:"varName"`
-//		DataType    string `json:"dataType" validate:"oneof=json yaml primitive"`
-//		VarType     string `json:"varType" validate:"oneof=private public"`
-//		Description string `json:"description"`
-//	}
-//
-// type AttributeType string
-//
-// const (
-//
-//	ApplicationEnv AttributeType = "ApplicationEnv"
-//	Application    AttributeType = "Application"
-//	Env            AttributeType = "Env"
-//	Cluster        AttributeType = "Cluster"
-//	Global         AttributeType = "Global"
-//
-// )
-//
-// type IdentifierType string
-//
-// const (
-//
-//	ApplicationName IdentifierType = "ApplicationName"
-//	EnvName         IdentifierType = "EnvName"
-//	ClusterName     IdentifierType = "ClusterName"
-//
-// )
-//
-//	type VariableValue struct {
-//		Value string `json:"value"`
-//	}
-//
-//	func (impl *ScopedVariableServiceImpl) SaveVariables(payload Payload) error {
-//		searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-//		n := len(payload.Variables)
-//		m := 0
-//		if len(payload.Variables) == 0 {
-//			return nil
-//		}
-//		tx, err := impl.scopedVariableRepository.StartTx()
-//		if err != nil {
-//			return err
-//		}
-//		variableDefinitions := make([]*scopedVariable.VariableDefinition, 0, n)
-//		for _, variable := range payload.Variables {
-//			variableDefinition := &scopedVariable.VariableDefinition{
-//				Name:        variable.Definition.VarName,
-//				DataType:    variable.Definition.DataType,
-//				VarType:     variable.Definition.VarType,
-//				Description: variable.Definition.Description,
-//				Active:      true,
-//				//AuditLog:&sql.AuditLog{
-//				//	CreatedBy: use
-//				//},
-//			}
-//			variableDefinitions = append(variableDefinitions, variableDefinition)
-//			m += len(variable.ApplicationScope) + len(variable.ApplicationEnvironmentScope) + len(variable.EnvironmentScope) + len(variable.ClusterScope)
-//			if variable.GlobalScope != nil {
-//				m += 1
-//			}
-//		}
-//
-//		//assuming variables have unique names
-//		variableNameToIdMap := make(map[string]int)
-//		for _, variable := range variableDefinitions {
-//			variableNameToIdMap[variable.Name] = variable.Id
-//		}
-//
-//		variableScopes := make([]*scopedVariable.VariableScope, 0, m)
-//		appNames := make([]string, 0)
-//		err = impl.scopedVariableRepository.CreateVariableDefinition(variableDefinitions, tx)
-//		for _, variable := range scopedVariables.CreateScopedVariableDTO {
-//			variableId := variableNameToIdMap[variable.Name]
-//			for _, appScopes := range variable.ApplicationScope {
-//				appNames = append(appNames, appScopes.ApplicationName)
-//			}
-//			appNameToIdMap, err := impl.appRepository.FindIdsByNamesForScopedVariables(appNames)
-//			if err != nil {
-//				return err
-//			}
-//			for _, appScopes := range variable.ApplicationScope {
-//				variableScopes = append(variableScopes, &scopedVariable.VariableScope{
-//					VariableId:            variableId,
-//					QualifierId:           APP_QUALIFIER,
-//					IdentifierKey:         searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID],
-//					IdentifierValueInt:    appNameToIdMap[appScopes.ApplicationName],
-//					Active:                true,
-//					IdentifierValueString: appScopes.ApplicationName,
-//				})
-//			}
-//			appNames = make([]string, 0)
-//			envNames := make([]string, 0)
-//			var envNameToIdMap map[string]int
-//			for _, appEnvScopes := range variable.ApplicationEnvironmentScope {
-//				appNames = append(appNames, appEnvScopes.ApplicationName)
-//				envNames = append(envNames, appEnvScopes.EnvironmentName)
-//			}
-//			appNameToIdMap, err = impl.appRepository.FindIdsByNamesForScopedVariables(appNames)
-//			envNameToIdMap, err = impl.environmentRepository.FindIdsAndNamesByNames(envNames)
-//			for _, appEnvScopes := range variable.ApplicationEnvironmentScope {
-//				variableScopes = append(variableScopes, &scopedVariable.VariableScope{
-//					VariableId:            variableId,
-//					QualifierId:           APP_AND_ENV_QUALIFIER,
-//					IdentifierKey:         searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID],
-//					IdentifierValueInt:    appNameToIdMap[appEnvScopes.ApplicationName],
-//					Active:                true,
-//					IdentifierValueString: appEnvScopes.ApplicationName,
-//				})
-//			}
-//			for _, appEnvScopes := range variable.ApplicationEnvironmentScope {
-//				variableScopes = append(variableScopes, &scopedVariable.VariableScope{
-//					VariableId:            variableId,
-//					QualifierId:           APP_AND_ENV_QUALIFIER,
-//					IdentifierKey:         searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID],
-//					IdentifierValueInt:    envNameToIdMap[appEnvScopes.EnvironmentName],
-//					Active:                true,
-//					IdentifierValueString: appEnvScopes.EnvironmentName,
-//				})
-//			}
-//			envNames = make([]string, 0)
-//
-//			for _, envScopes := range variable.EnvironmentScope {
-//				envNames = append(envNames, envScopes.EnvironmentName)
-//			}
-//			envNameToIdMap, err = impl.environmentRepository.FindIdsAndNamesByNames(envNames)
-//			for _, envScopes := range variable.EnvironmentScope {
-//				variableScopes = append(variableScopes, &scopedVariable.VariableScope{
-//					VariableId:            variableId,
-//					QualifierId:           ENV_QUALIFIER,
-//					IdentifierKey:         searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID],
-//					IdentifierValueInt:    envNameToIdMap[envScopes.EnvironmentName],
-//					Active:                true,
-//					IdentifierValueString: envScopes.EnvironmentName,
-//				})
-//			}
-//			clusterNames := make([]string, 0)
-//
-//			for _, clusterScopes := range variable.ClusterScope {
-//				clusterNames = append(clusterNames, clusterScopes.ClusterName)
-//			}
-//			envNameToIdMap, err = impl.clusterRepository.FindIdsAndNamesByNames(clusterNames)
-//			for _, clusterScopes := range variable.ClusterScope {
-//				variableScopes = append(variableScopes, &scopedVariable.VariableScope{
-//					VariableId:            variableId,
-//					QualifierId:           CLUSTER_QUALIFIER,
-//					IdentifierKey:         searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID],
-//					IdentifierValueInt:    envNameToIdMap[clusterScopes.ClusterName],
-//					Active:                true,
-//					IdentifierValueString: clusterScopes.ClusterName,
-//				})
-//			}
-//
-//		}
-//		//for _, globalScopes := range GlobalScope {
-//		//	variableScopes = append(variableScopes, &scopedVariable.VariableScope{
-//		//		VariableId:  variableId,
-//		//		QualifierId: GLOBAL_QUALIFIER,
-//		//		Active:      true,
-//		//	})
-//		//}
-//
-//		return nil
-//	}
+func getQualifierId(attributeType repository2.AttributeType) int {
+	switch attributeType {
+	case repository2.ApplicationEnv:
+		return repository2.APP_AND_ENV_QUALIFIER
+	case repository2.Application:
+		return repository2.APP_QUALIFIER
+	case repository2.Env:
+		return repository2.ENV_QUALIFIER
+	case repository2.Cluster:
+		return repository2.CLUSTER_QUALIFIER
+
+	default:
+		return repository2.GLOBAL_QUALIFIER
+	}
+}
+
+type ValueMapping struct {
+	Attribute repository2.AttributeType
+	Value     string
+}
+
+func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Payload) error {
+	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	n := len(payload.Variables)
+	if len(payload.Variables) == 0 {
+		return nil
+	}
+	tx, err := impl.scopedVariableRepository.StartTx()
+	if err != nil {
+		return err
+	}
+	variableDefinitions := make([]*repository2.VariableDefinition, 0, n)
+	for _, variable := range payload.Variables {
+		variableDefinition := &repository2.VariableDefinition{
+			Name:        variable.Definition.VarName,
+			DataType:    variable.Definition.DataType,
+			VarType:     variable.Definition.VarType,
+			Description: variable.Definition.Description,
+			Active:      true,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: payload.UserId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: payload.UserId,
+			},
+		}
+		variableDefinitions = append(variableDefinitions, variableDefinition)
+	}
+	variableScopes := make([]*repository2.VariableScope, 0)
+	variableNameToIdMap := make(map[string]int)
+	var vardef []*repository2.VariableDefinition
+	vardef, err = impl.scopedVariableRepository.CreateVariableDefinition(variableDefinitions, tx)
+	for _, variable := range vardef {
+		variableNameToIdMap[variable.Name] = variable.Id
+	}
+	appNames := make([]string, 0)
+	envNames := make([]string, 0)
+	clusterNames := make([]string, 0)
+	var envNameToIdMap map[string]int
+	for _, variable := range payload.Variables {
+		for _, value := range variable.AttributeValues {
+			for identifierType, _ := range value.AttributeParams {
+				if identifierType == repository2.ApplicationName {
+					appNames = append(appNames, value.AttributeParams[identifierType])
+				} else if identifierType == repository2.EnvName {
+					envNames = append(envNames, value.AttributeParams[identifierType])
+				} else if identifierType == repository2.ClusterName {
+					clusterNames = append(clusterNames, value.AttributeParams[identifierType])
+				}
+			}
+
+		}
+	}
+	appNameToId, err := impl.appRepository.FindIdsByNamesForScopedVariables(appNames)
+
+	if err != nil {
+		impl.logger.Errorw("error in getting appNameToId", err)
+		return err
+	}
+	appNameToIdMap := make(map[string]int)
+	for _, name := range appNameToId {
+		appNameToIdMap[name.AppName] = name.Id
+	}
+	var envNameToId []*repository.Environment
+	envNameToId, err = impl.environmentRepository.FindIdsAndNamesByNames(envNames)
+	if err != nil {
+		impl.logger.Errorw("error in getting envNameToIdMap", err)
+		return err
+	}
+	for _, name := range envNameToId {
+		envNameToIdMap[name.Name] = name.Id
+	}
+	var clusterNameToId []*repository.Cluster
+	clusterNameToId, err = impl.clusterRepository.FindIdsAndNamesByNames(clusterNames)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterNameToId", err)
+		return err
+	}
+	clusterNameToIdMap := make(map[string]int)
+	for _, name := range clusterNameToId {
+		clusterNameToIdMap[name.ClusterName] = name.Id
+	}
+
+	for _, variable := range payload.Variables {
+		variableId := variableNameToIdMap[variable.Definition.VarName]
+		for _, value := range variable.AttributeValues {
+			var compositeKey string
+			if getQualifierId(value.AttributeType) == 1 {
+				compositeKey = value.AttributeParams[repository2.ApplicationName] + value.AttributeParams[repository2.EnvName]
+			}
+			for identifierType, s := range value.AttributeParams {
+				var identifierValue int
+				if identifierType == repository2.ApplicationName {
+					identifierValue = appNameToIdMap[s]
+				} else if identifierType == repository2.EnvName {
+					identifierValue = envNameToIdMap[s]
+				} else if identifierType == repository2.ClusterName {
+					identifierValue = clusterNameToIdMap[s]
+				}
+				scope := &repository2.VariableScope{
+					VariableId:            variableId,
+					QualifierId:           getQualifierId(value.AttributeType),
+					IdentifierKey:         getIdentifierKey(identifierType, searchableKeyNameIdMap),
+					IdentifierValueInt:    identifierValue,
+					Active:                true,
+					CompositeKey:          compositeKey,
+					IdentifierValueString: s,
+					AuditLog: sql.AuditLog{
+						CreatedOn: time.Now(),
+						CreatedBy: payload.UserId,
+						UpdatedOn: time.Now(),
+						UpdatedBy: payload.UserId,
+					},
+				}
+				variableScopes = append(variableScopes, scope)
+			}
+		}
+	}
+	parentVariableDefinition := make([]*repository2.VariableScope, 0)
+	childrenVariableDefinition := make([]*repository2.VariableScope, 0)
+	parentScopesMap := make(map[string]*repository2.VariableScope)
+
+	for _, scope := range variableScopes {
+		if scope.QualifierId == 1 && scope.IdentifierKey == searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID] {
+			childrenVariableDefinition = append(childrenVariableDefinition, scope)
+		} else {
+			parentVariableDefinition = append(parentVariableDefinition, scope)
+			if scope.QualifierId == 1 {
+				parentScopesMap[scope.CompositeKey] = scope
+			}
+
+		}
+	}
+	variableNameToVariableValueMap := make(map[int][]*ValueMapping)
+	var parentVarScope []*repository2.VariableScope
+	var childVarScope []*repository2.VariableScope
+	for _, variable := range payload.Variables {
+		variableName := variable.Definition.VarName
+		if id, exists := variableNameToIdMap[variableName]; exists {
+			for _, attrValue := range variable.AttributeValues {
+				variableNameToVariableValueMap[id] = append(variableNameToVariableValueMap[id], &ValueMapping{
+					Attribute: attrValue.AttributeType,
+					Value:     attrValue.VariableValue.Value,
+				})
+			}
+		}
+	}
+	parentVarScope, err = impl.scopedVariableRepository.CreateVariableScope(parentVariableDefinition, tx)
+	if err != nil {
+		impl.logger.Errorw("error in getting parentVarScope", parentVarScope)
+		return err
+	}
+	scopeIdToVarData := make(map[int]string)
+	for _, parentvar := range parentVarScope {
+		if variables, exists := variableNameToVariableValueMap[parentvar.VariableId]; exists {
+			for _, varRange := range variables {
+				if getQualifierId(varRange.Attribute) == parentvar.QualifierId {
+					scopeIdToVarData[parentvar.Id] = varRange.Value
+				}
+			}
+
+		}
+	}
+	for _, childScope := range childrenVariableDefinition {
+		parentScope, exists := parentScopesMap[childScope.CompositeKey]
+		if exists {
+			childScope.ParentIdentifier = parentScope.Id
+		}
+	}
+	childVarScope, err = impl.scopedVariableRepository.CreateVariableScope(childrenVariableDefinition, tx)
+
+	if err != nil {
+		impl.logger.Errorw("error in getting childVarScope", childVarScope)
+		return err
+	}
+	variableDatas := make([]*repository2.VariableData, 0)
+
+	for scopeId, data := range scopeIdToVarData {
+		varData := &repository2.VariableData{
+			ScopeId: scopeId,
+			Data:    data,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: payload.UserId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: payload.UserId,
+			},
+		}
+		variableDatas = append(variableDatas, varData)
+	}
+	err = impl.scopedVariableRepository.CreateVariableData(variableDatas, tx)
+
+	return nil
+}
 func getPriority(qualifier int) int {
 	switch qualifier {
-	case APP_AND_ENV_QUALIFIER:
+	case repository2.APP_AND_ENV_QUALIFIER:
 		return 1
-	case APP_QUALIFIER:
+	case repository2.APP_QUALIFIER:
 		return 2
-	case ENV_QUALIFIER:
+	case repository2.ENV_QUALIFIER:
 		return 3
-	case CLUSTER_QUALIFIER:
+	case repository2.CLUSTER_QUALIFIER:
 		return 4
-	case GLOBAL_QUALIFIER:
+	case repository2.GLOBAL_QUALIFIER:
 		return 5
 	default:
 		return 0
@@ -358,18 +344,31 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repo
 	}
 	return variablePriorityMap
 }
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(appId, envId, clusterId int, varIds []int) (scopedVariableDataObj []*ScopedVariableData, err error) {
+
+type Scope struct {
+	AppId     int `json:"appId"`
+	EnvId     int `json:"env_id"`
+	ClusterId int `json:"clusterId"`
+}
+
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error) {
+	var varDef []*repository2.VariableDefinition
+	var varIds []int
+	varDef, err = impl.scopedVariableRepository.GetVariablesByNames(varNames)
+	for _, def := range varDef {
+		varIds = append(varIds, def.Id)
+	}
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	var varScope []*repository2.VariableScope
 	var scopedVariableIds map[int]*VariablePriorityMapping
 	scopeIdToVariableScope := make(map[int]*repository2.VariableScope)
 	if varIds != nil {
-		varScope, err = impl.scopedVariableRepository.GetScopedVariableDataForVarIds(appId, envId, clusterId, searchableKeyNameIdMap, varIds)
+		varScope, err = impl.scopedVariableRepository.GetScopedVariableDataForVarIds(scope.AppId, scope.EnvId, scope.ClusterId, searchableKeyNameIdMap, varIds)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		varScope, err = impl.scopedVariableRepository.GetScopedVariableData(appId, envId, clusterId, searchableKeyNameIdMap)
+		varScope, err = impl.scopedVariableRepository.GetScopedVariableData(scope.AppId, scope.EnvId, scope.ClusterId, searchableKeyNameIdMap)
 		if err != nil {
 			return nil, err
 		}
@@ -377,7 +376,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(appId, envId, clusterI
 	for _, scope := range varScope {
 		scopeIdToVariableScope[scope.Id] = scope
 	}
-	scopedVariableIds = impl.getMatchedScopedVariable(varScope, appId, envId, clusterId)
+	scopedVariableIds = impl.getMatchedScopedVariable(varScope, scope.AppId, scope.EnvId, scope.ClusterId)
 
 	var scopeIds, scopedVarIds []int
 	for varId, mapping := range scopedVariableIds {
@@ -410,6 +409,3 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(appId, envId, clusterI
 	return scopedVariableDataObj, err
 
 }
-
-//jitna variable id hoga uska particular scope pe data , aur yadi var id nii hoga to jo scope hoga usme sare var ka data  data
-//varibale name list output get all ids
