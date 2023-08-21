@@ -263,7 +263,7 @@ func (impl *CvePolicyRepositoryImpl) enforceCvePolicy(cves []*CveStore, cvePolic
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Allow {
 				continue
-			} else if (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Block) || (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Blockiffixed && cve.FixedVersion != "") {
+			} else if severityPolicy[cve.Severity] != nil && (severityPolicy[cve.Severity].Action == Block || (severityPolicy[cve.Severity].Action == Blockiffixed && cve.FixedVersion != "")) {
 				blockedCVE = append(blockedCVE, cve)
 			}
 		}

@@ -341,7 +341,7 @@ func (impl *PolicyServiceImpl) enforceCvePolicy(cves []*security.CveStore, cvePo
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
 				continue
-			} else if (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Block) || (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "") {
+			} else if severityPolicy[cve.Severity] != nil && (severityPolicy[cve.Severity].Action == security.Block || (severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "")) {
 				blockedCVE = append(blockedCVE, cve)
 			}
 		}
@@ -723,7 +723,7 @@ func (impl *PolicyServiceImpl) HasBlockedCVE(cves []*security.CveStore, cvePolic
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
 				continue
-			} else if (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Block) || (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "") {
+			} else if severityPolicy[cve.Severity] != nil && (severityPolicy[cve.Severity].Action == security.Block || (severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "")) {
 				return true
 			}
 		}
