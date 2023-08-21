@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"go.opentelemetry.io/otel"
 
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -1599,7 +1598,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
 			err = &util.ApiError{
 				Code:            constants.ChartCreatedAlreadyExists,
-				InternalMessage: "Chart exists already, try uploading another chart",
+				InternalMessage: CHART_ALREADY_EXISTS_INTERNAL_ERROR,
 				UserMessage:     fmt.Sprintf("%s of %s exists already in the database", chartVersion, chartName),
 			}
 			return chartInfo, err
@@ -1625,7 +1624,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			impl.logger.Errorw("request err, chart name is reserved by Devtron")
 			err = &util.ApiError{
 				Code:            constants.ChartNameAlreadyReserved,
-				InternalMessage: "Change the name of the chart and try uploading again",
+				InternalMessage: CHART_NAME_RESERVED_INTERNAL_ERROR,
 				UserMessage:     fmt.Sprintf("The name '%s' is reserved for a chart provided by Devtron", chartName),
 			}
 			return chartInfo, err

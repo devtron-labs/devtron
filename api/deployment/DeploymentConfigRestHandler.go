@@ -113,7 +113,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 				handler.Logger.Errorw("error in deleting temp dir ", "err", err1)
 			}
 		}
-		if err.Error() == "Chart exists already, try uploading another chart" {
+		if err.Error() == chart.CHART_ALREADY_EXISTS_INTERNAL_ERROR || err.Error() == chart.CHART_NAME_RESERVED_INTERNAL_ERROR {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
