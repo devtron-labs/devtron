@@ -40,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
+	"github.com/devtron-labs/devtron/api/restHandler/scopedVariable"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
@@ -454,6 +455,9 @@ func InitializeApp() (*App, error) {
 		chartConfig.NewPipelineConfigRepository,
 		wire.Bind(new(chartConfig.PipelineConfigRepository), new(*chartConfig.PipelineConfigRepositoryImpl)),
 
+		repository10.NewScopedVariableRepository,
+		wire.Bind(new(repository10.ScopedVariableRepository), new(*repository10.ScopedVariableRepositoryImpl)),
+
 		repository.NewLinkoutsRepositoryImpl,
 		wire.Bind(new(repository.LinkoutsRepository), new(*repository.LinkoutsRepositoryImpl)),
 
@@ -531,6 +535,8 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewCdWorkflowServiceImpl,
 		wire.Bind(new(pipeline.CdWorkflowService), new(*pipeline.CdWorkflowServiceImpl)),
+		variables.NewScopedVariableServiceImpl,
+		wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
 
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
@@ -650,6 +656,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
 		restHandler.NewCommonRestHandlerImpl,
 		wire.Bind(new(restHandler.CommonRestHandler), new(*restHandler.CommonRestHandlerImpl)),
+
+		router.NewScopedVariableRouterImpl,
+		wire.Bind(new(router.ScopedVariableRouter), new(*router.ScopedVariableRouterImpl)),
+		scopedVariable.NewScopedVariableRestHandlerImpl,
+		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
 
 		util.NewGitCliUtil,
 
