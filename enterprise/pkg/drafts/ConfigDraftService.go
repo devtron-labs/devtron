@@ -12,6 +12,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"time"
@@ -25,7 +27,7 @@ type ConfigDraftService interface {
 	GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) // would return version timestamp and user email id
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
 	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
-	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
+	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) //  need to send ** in case of view only user for Secret data
 	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
@@ -419,7 +421,19 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 		impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
-	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId)
+
+	//VARIABLE_RESOLVE
+	entity := repository.Entity{
+		EntityType: repository.EntityTypeDeploymentTemplateEnvLevel,
+		EntityId:   templateRequest.Id, //TODO verify is this is right through testing
+	}
+	scope := variables.Scope{
+		AppId: appId,
+		EnvId: envId,
+		// ClusterId: envConfigProperties.ClusterId, TODO get clusterID
+	}
+
+	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId, scope, entity)
 	if err != nil {
 		return err
 	}
@@ -447,7 +461,19 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 		envConfigProperties.UserId = userId
 		envConfigProperties.EnvironmentId = envId
 		chartRefId := envConfigProperties.ChartRefId
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId)
+
+		//VARIABLE_RESOLVE
+		entity := repository.Entity{
+			EntityType: repository.EntityTypeDeploymentTemplateEnvLevel,
+			EntityId:   envConfigProperties.Id,
+		}
+		scope := variables.Scope{
+			AppId: appId,
+			EnvId: envId,
+			// ClusterId: envConfigProperties.ClusterId, TODO get clusterID
+		}
+
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId, scope, entity)
 		if err != nil {
 			return err
 		}
@@ -625,7 +651,18 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resour
 			impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "envId", envId, "err", err)
 			return err
 		}
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId)
+
+		//VARIABLE_RESOLVE
+		entity := repository.Entity{
+			EntityType: repository.EntityTypeDeploymentTemplateAppLevel,
+			EntityId:   templateRequest.Id, //TODO verify this ID through testing
+		}
+		scope := variables.Scope{
+			AppId: templateRequest.AppId,
+			EnvId: envId,
+			// ClusterId: envConfigProperties.ClusterId, TODO get clusterID
+		}
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope, entity)
 		if err != nil {
 			return err
 		}
@@ -640,8 +677,20 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resour
 			return err
 		}
 		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
+
+			//VARIABLE_RESOLVE
+			entity := repository.Entity{
+				EntityType: repository.EntityTypeDeploymentTemplateEnvLevel,
+				EntityId:   envConfigProperties.Id, //TODO verify this ID through testing
+			}
+			scope := variables.Scope{
+				//AppId:     templateRe, TODO get app ID here
+				EnvId:     envId,
+				ClusterId: envConfigProperties.ClusterId, //TODO is this even populated here?
+			}
+
 			chartRefId := envConfigProperties.ChartRefId
-			templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId)
+			templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope, entity)
 			if err != nil {
 				return err
 			}

@@ -20,10 +20,10 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"time"
 
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
@@ -596,7 +596,7 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 			return false, err
 		}
 	}
-
+	//VARIABLES
 	return true, nil
 }
 
