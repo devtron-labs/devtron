@@ -62,6 +62,7 @@ type EnforcerUtil interface {
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
 	GetAllActiveTeamNames() ([]string, error)
 	GetTeamNoEnvRBACNameByAppName(appName string) string
+	GetTeamNoEnvRBACNameByAppId(appId int) string
 }
 
 type EnforcerUtilImpl struct {
@@ -210,6 +211,16 @@ func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByAppId(appId int, envId int) str
 		return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), "", strings.ToLower(appName))
 	}
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
+}
+
+func (impl EnforcerUtilImpl) GetTeamNoEnvRBACNameByAppId(appId int) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	var appName = application.AppName
+	var teamName = application.Team.Name
+	return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), strings.ToLower(casbin.ResourceObjectIgnorePlaceholder), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamNoEnvRBACNameByAppName(appName string) string {

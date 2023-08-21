@@ -66,6 +66,7 @@ type UserService interface {
 	SaveLoginAudit(emailId, clientIp string, id int32)
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
+	GetConfigApprovalUsersByEnv(appName, envName string) ([]string, error)
 }
 
 type UserServiceImpl struct {
@@ -466,61 +467,63 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 			return nil, false, err
 		}
 	} else {
-		actionType := roleFilter.Action
 		accessType := roleFilter.AccessType
 		entityNames := strings.Split(roleFilter.EntityName, ",")
 		environments := strings.Split(roleFilter.Environment, ",")
+		actions := strings.Split(roleFilter.Action, ",")
 		for _, environment := range environments {
 			for _, entityName := range entityNames {
-				if managerAuth != nil {
-					// check auth only for apps permission, skip for chart group
-					rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
-					isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
-					if !isValidAuth {
-						continue
+				for _, actionType := range actions {
+					if managerAuth != nil {
+						// check auth only for apps permission, skip for chart group
+						rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+						isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
+						if !isValidAuth {
+							continue
+						}
 					}
-				}
-				entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-				environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false)
-				if err != nil {
-					impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
-					return policiesToBeAdded, rolesChanged, err
-				}
-				if roleModel.Id == 0 {
-					impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-					flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, roleFilter.Approver, userId)
-					if err != nil || flag == false {
-						return policiesToBeAdded, rolesChanged, err
-					}
-					policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
-					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false)
+					entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
+					environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false)
 					if err != nil {
+						impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
 						return policiesToBeAdded, rolesChanged, err
 					}
 					if roleModel.Id == 0 {
-						continue
+						impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
+						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, roleFilter.Approver, userId)
+						if err != nil || flag == false {
+							return policiesToBeAdded, rolesChanged, err
+						}
+						policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false)
+						if err != nil {
+							return policiesToBeAdded, rolesChanged, err
+						}
+						if roleModel.Id == 0 {
+							continue
+						}
 					}
-				}
-				if _, ok := existingRoles[roleModel.Id]; ok {
-					//Adding policies which is removed
-					policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-				} else if roleModel.Id > 0 {
-					rolesChanged = true
-					userRoleModel := &repository2.UserRoleModel{
-						UserId: model.Id,
-						RoleId: roleModel.Id,
-						AuditLog: sql.AuditLog{
-							CreatedBy: userId,
-							CreatedOn: time.Now(),
-							UpdatedBy: userId,
-							UpdatedOn: time.Now(),
-						}}
-					userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-					if err != nil {
-						return nil, rolesChanged, err
+					if _, ok := existingRoles[roleModel.Id]; ok {
+						//Adding policies which is removed
+						policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					} else if roleModel.Id > 0 {
+						rolesChanged = true
+						userRoleModel := &repository2.UserRoleModel{
+							UserId: model.Id,
+							RoleId: roleModel.Id,
+							AuditLog: sql.AuditLog{
+								CreatedBy: userId,
+								CreatedOn: time.Now(),
+								UpdatedBy: userId,
+								UpdatedOn: time.Now(),
+							}}
+						userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+						if err != nil {
+							return nil, rolesChanged, err
+						}
+						policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
 					}
-					policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
 				}
 			}
 		}
@@ -997,7 +1000,7 @@ func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool,
 		}
 		roleFilters = append(roleFilters, *v)
 	}
-
+	roleFilters = impl.userCommonService.MergeCustomRoleFilters(roleFilters)
 	groups, err := casbin2.GetRolesForUser(model.EmailId)
 	if err != nil {
 		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
@@ -1122,11 +1125,31 @@ func (impl UserServiceImpl) CheckForApproverAccess(appName, envName string, user
 	return allowed
 }
 
+func (impl UserServiceImpl) GetConfigApprovalUsersByEnv(appName, envName string) ([]string, error) {
+	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetConfigApprovalUsersByEnv(appName, envName)
+	if err != nil {
+		return emailIds, err
+	}
+	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
+	if err != nil {
+		return emailIds, err
+	}
+	return finalEmails, nil
+}
+
 func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
 	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetApprovalUsersByEnv(appName, envName)
 	if err != nil {
 		return emailIds, err
 	}
+	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
+	if err != nil {
+		return emailIds, err
+	}
+	return finalEmails, nil
+}
+
+func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, emailIds []string) ([]string, error) {
 	for _, groupName := range permissionGroupNames {
 		userEmails, err := casbin2.GetUserByRole(groupName)
 		if err != nil {
@@ -1564,6 +1587,7 @@ func (impl UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]b
 		}
 		roleFilters = append(roleFilters, *v)
 	}
+	roleFilters = impl.userCommonService.MergeCustomRoleFilters(roleFilters)
 	for index, roleFilter := range roleFilters {
 		if roleFilter.Entity == "" {
 			roleFilters[index].Entity = bean2.ENTITY_APPS

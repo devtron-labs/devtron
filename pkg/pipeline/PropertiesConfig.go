@@ -20,6 +20,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"time"
 
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
@@ -38,50 +39,19 @@ import (
 	"go.uber.org/zap"
 )
 
-type EnvironmentProperties struct {
-	Id                int                         `json:"id"`
-	EnvOverrideValues json.RawMessage             `json:"envOverrideValues"`
-	Status            models.ChartStatus          `json:"status" validate:"number,required"` //default new, when its ready for deployment CHARTSTATUS_SUCCESS
-	ManualReviewed    bool                        `json:"manualReviewed" validate:"required"`
-	Active            bool                        `json:"active" validate:"required"`
-	Namespace         string                      `json:"namespace"`
-	EnvironmentId     int                         `json:"environmentId"`
-	EnvironmentName   string                      `json:"environmentName"`
-	Latest            bool                        `json:"latest"`
-	UserId            int32                       `json:"-"`
-	AppMetrics        *bool                       `json:"isAppMetricsEnabled"`
-	ChartRefId        int                         `json:"chartRefId,omitempty"  validate:"number"`
-	IsOverride        bool                        `sql:"isOverride"`
-	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
-	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
-	Description       string                      `json:"description" validate:"max=40"`
-}
-
-type EnvironmentPropertiesResponse struct {
-	EnvironmentConfig EnvironmentProperties `json:"environmentConfig"`
-	GlobalConfig      json.RawMessage       `json:"globalConfig"`
-	AppMetrics        *bool                 `json:"appMetrics"`
-	IsOverride        bool                  `sql:"is_override"`
-	GlobalChartRefId  int                   `json:"globalChartRefId,omitempty"  validate:"number"`
-	ChartRefId        int                   `json:"chartRefId,omitempty"  validate:"number"`
-	Namespace         string                `json:"namespace" validate:"name-space-component"`
-	Schema            json.RawMessage       `json:"schema"`
-	Readme            string                `json:"readme"`
-}
-
 type PropertiesConfigService interface {
-	CreateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
-	UpdateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties, userId int32) (*EnvironmentProperties, error)
+	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
+	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error)
 	//create environment entry for each new environment
 	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
-	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *EnvironmentPropertiesResponse, err error)
-	GetEnvironmentPropertiesById(environmentId int) ([]EnvironmentProperties, error)
+	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *bean.EnvironmentPropertiesResponse, err error)
+	GetEnvironmentPropertiesById(environmentId int) ([]bean.EnvironmentProperties, error)
 
 	GetAppIdByChartEnvId(chartEnvId int) (*chartConfig.EnvConfigOverride, error)
-	GetLatestEnvironmentProperties(appId, environmentId int) (*EnvironmentProperties, error)
+	GetLatestEnvironmentProperties(appId, environmentId int) (*bean.EnvironmentProperties, error)
 	FindEnvLevelAppMetricsByAppIdAndEnvId(appId int, envId int) (*repository.EnvLevelAppMetrics, error)
 	ResetEnvironmentProperties(id int) (bool, error)
-	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
+	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 
 	EnvMetricsEnableDisable(appMetricRequest *chartService.AppMetricEnableDisableRequest) (*chartService.AppMetricEnableDisableRequest, error)
 	FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error)
@@ -127,8 +97,8 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 
 }
 
-func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *EnvironmentPropertiesResponse, err error) {
-	environmentPropertiesResponse = &EnvironmentPropertiesResponse{}
+func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *bean.EnvironmentPropertiesResponse, err error) {
+	environmentPropertiesResponse = &bean.EnvironmentPropertiesResponse{}
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err
@@ -142,7 +112,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 	if err != nil {
 		return nil, err
 	}
-	environmentProperties := &EnvironmentProperties{}
+	environmentProperties := &bean.EnvironmentProperties{}
 	if envOverride.Id > 0 {
 		r := json.RawMessage{}
 		if envOverride.IsOverride {
@@ -157,7 +127,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 				return nil, err
 			}
 		}
-		environmentProperties = &EnvironmentProperties{
+		environmentProperties = &bean.EnvironmentProperties{
 			//Id:                envOverride.Id,
 			Status:            envOverride.Status,
 			EnvOverrideValues: r,
@@ -243,7 +213,7 @@ func (impl PropertiesConfigServiceImpl) FetchEnvProperties(appId, envId, chartRe
 	return impl.envConfigRepo.GetByAppIdEnvIdAndChartRefId(appId, envId, chartRefId)
 }
 
-func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *EnvironmentProperties) (*EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
 	chart, err := impl.chartRepo.FindChartByAppIdAndRefId(appId, environmentProperties.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
@@ -271,7 +241,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	if err != nil {
 		return nil, err
 	}
-	environmentProperties = &EnvironmentProperties{
+	environmentProperties = &bean.EnvironmentProperties{
 		Id:                envOverride.Id,
 		Status:            envOverride.Status,
 		EnvOverrideValues: r,
@@ -313,7 +283,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	return environmentProperties, nil
 }
 
-func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties, userId int32) (*EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error) {
 	//check if exists
 	oldEnvOverride, err := impl.envConfigRepo.Get(propertiesRequest.Id)
 	if err != nil {
@@ -503,9 +473,9 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 	return envOverride, nil
 }
 
-func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) ([]EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) ([]bean.EnvironmentProperties, error) {
 
-	var envProperties []EnvironmentProperties
+	var envProperties []bean.EnvironmentProperties
 	envOverrides, err := impl.envConfigRepo.GetByEnvironment(envId)
 	if err != nil {
 		impl.logger.Error("error fetching override config", "err", err)
@@ -513,7 +483,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) 
 	}
 
 	for _, envOverride := range envOverrides {
-		envProperties = append(envProperties, EnvironmentProperties{
+		envProperties = append(envProperties, bean.EnvironmentProperties{
 			Id:             envOverride.Id,
 			Status:         envOverride.Status,
 			ManualReviewed: envOverride.ManualReviewed,
@@ -540,7 +510,7 @@ func (impl PropertiesConfigServiceImpl) FindEnvLevelAppMetricsByAppIdAndEnvId(ap
 	return impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appId, envId)
 }
 
-func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *EnvironmentProperties, err error) {
+func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *bean.EnvironmentProperties, err error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err
@@ -560,7 +530,7 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 			return nil, err
 		}
 
-		environmentProperties = &EnvironmentProperties{
+		environmentProperties = &bean.EnvironmentProperties{
 			Id:                envOverride.Id,
 			EnvOverrideValues: r,
 			Status:            envOverride.Status,
@@ -609,7 +579,7 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 	return true, nil
 }
 
-func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace(appId int, environmentProperties *EnvironmentProperties) (*EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
 	chart, err := impl.chartRepo.FindChartByAppIdAndRefId(appId, environmentProperties.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
@@ -656,7 +626,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 	if err != nil {
 		return nil, err
 	}
-	environmentProperties = &EnvironmentProperties{
+	environmentProperties = &bean.EnvironmentProperties{
 		Id:                envOverride.Id,
 		Status:            envOverride.Status,
 		EnvOverrideValues: r,
