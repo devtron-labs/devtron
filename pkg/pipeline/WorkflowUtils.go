@@ -679,6 +679,14 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		},
 		Resources: workflowRequest.GetLimitReqCpuMem(config),
 	}
+	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.CD_WORKFLOW_PIPELINE_TYPE {
+		workflowMainContainer.Name = ""
+		workflowMainContainer.Ports = []v12.ContainerPort{{
+			//exposed for user specific data from ci container
+			Name:          "app-data",
+			ContainerPort: 9102,
+		}}
+	}
 	if len(pvc) != 0 {
 		buildPvcCachePath := config.BuildPvcCachePath
 		buildxPvcCachePath := config.BuildxPvcCachePath
