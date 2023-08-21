@@ -142,6 +142,29 @@ ReadinessProbe:
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
+### Pod Disruption Budget
+
+You can create `PodDisruptionBudget` for each application. A PDB limits the number of pods of a replicated application that are down simultaneously from voluntary disruptions. For example, an application would like to ensure the number of replicas running is never brought below the certain number.
+
+```yaml
+podDisruptionBudget: 
+     minAvailable: 1
+```
+
+or
+
+```yaml
+podDisruptionBudget: 
+     maxUnavailable: 50%
+```
+
+You can specify either `maxUnavailable` or `minAvailable` in a PodDisruptionBudget and it can be expressed as integers or as a percentage
+
+| Key | Description |
+| :--- | :--- |
+| `minAvailable` | Evictions are allowed as long as they leave behind 1 or more healthy pods of the total number of desired replicas. |
+| `maxUnavailable` | Evictions are allowed as long as at most 1 unhealthy replica among the total number of desired replicas. |
+
 ### Ambassador Mappings
 
 You can create ambassador mappings to access your applications from outside the cluster. At its core a Mapping resource maps a resource to a service.
