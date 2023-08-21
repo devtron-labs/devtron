@@ -295,7 +295,7 @@ ingress:
   #      - chart-example.local
 
 ingressInternal:
-  enabled: false
+  enabled: true
   className: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
@@ -308,9 +308,13 @@ ingressInternal:
       paths:
         - /example1
       additionalBackends: 
-        - serviceName: ssl-redirect
-          servicePort: use-annotation
-          path: /*
+        - path: /internal
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service-internal
+              port:
+                number: 80
 
     - host: chart-example2.internal
       pathType: "ImplementationSpecific"
