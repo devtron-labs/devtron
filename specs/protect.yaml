@@ -1,0 +1,61 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/protect:
+    post:
+      description: enable/disable resource protection
+      requestBody:
+        description: A JSON object containing the app configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceProtectRequest'
+      responses:
+        '200':
+          description: successfully enabled/disabled resource protection
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    ResourceProtectRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+        envId:
+          type: integer
+        state:
+          $ref: '#/components/schemas/ProtectionState'
+    ProtectionState:
+      description: 0 for enabled, 1 for disabled
+      type: integer
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

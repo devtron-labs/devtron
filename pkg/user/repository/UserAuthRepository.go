@@ -61,6 +61,7 @@ type UserAuthRepository interface {
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
 	GetRolesByEntityAccessTypeAndAction(entity, accessType, action string) ([]*RoleModel, error)
 	GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
+	GetConfigApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -572,6 +573,28 @@ func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string
 	roleGroupQuery := "select rg.casbin_name from role_group rg inner join role_group_role_mapping rgrm on rg.id = rgrm.role_group_id " +
 		"inner join roles r on rgrm.role_id = r.id where r.approver = true  and r.environment=? and r.entity_name=?;"
 	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName)
+	if err != nil && err != pg.ErrNoRows {
+		return emailIds, roleGroups, err
+	}
+
+	return emailIds, roleGroups, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnv(appName, envName string) ([]string, []string, error) {
+	var emailIds []string
+	var roleGroups []string
+
+	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
+		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
+		"and us.id not in (1);"
+	_, err := impl.dbConnection.Query(&emailIds, query, "configApprover", envName, appName, "role:super-admin___")
+	if err != nil && err != pg.ErrNoRows {
+		return emailIds, roleGroups, err
+	}
+
+	roleGroupQuery := "select rg.casbin_name from role_group rg inner join role_group_role_mapping rgrm on rg.id = rgrm.role_group_id " +
+		"inner join roles r on rgrm.role_id = r.id where r.action = ?  and r.environment=? and r.entity_name=?;"
+	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, "configApprover", envName, appName)
 	if err != nil && err != pg.ErrNoRows {
 		return emailIds, roleGroups, err
 	}

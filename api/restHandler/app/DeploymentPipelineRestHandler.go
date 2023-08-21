@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -669,7 +670,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var envConfigProperties pipeline.EnvironmentProperties
+	var envConfigProperties bean3.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
 	if err != nil {
 		handler.Logger.Errorw("request err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
@@ -702,6 +703,14 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, environmentId)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", environmentId)
+		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusLocked)
+		return
+	}
+
 	chartRefId := envConfigProperties.ChartRefId
 	//VARIABLE_RESOLVE
 	entity := repository.Entity{
@@ -781,7 +790,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var envConfigProperties pipeline.EnvironmentProperties
+	var envConfigProperties bean3.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
 	envConfigProperties.UserId = userId
 	if err != nil {
@@ -813,6 +822,12 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusLocked)
 		return
 	}
 	chartRefId := envConfigProperties.ChartRefId
@@ -1407,6 +1422,13 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(templateRequest.AppId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", templateRequest.AppId, "envId", -1)
+		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusLocked)
+		return
+	}
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.UpdateAppOverride")
 	createResp, err := handler.chartService.UpdateAppOverride(ctx, &templateRequest)
 	span.End()
@@ -1648,6 +1670,12 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.Respo
 	object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, environmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, environmentId)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", environmentId)
+		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusLocked)
 		return
 	}
 	isSuccess, err := handler.propertiesConfigService.ResetEnvironmentProperties(id)
@@ -2261,7 +2289,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreateNamespace(w 
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var envConfigProperties pipeline.EnvironmentProperties
+	var envConfigProperties bean3.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
 	envConfigProperties.UserId = userId
 	envConfigProperties.EnvironmentId = environmentId

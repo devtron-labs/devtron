@@ -294,7 +294,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 				return nil, err
 			}
 			if createRequest.EnvironmentId != 0 {
-				createJobEnvOverrideRequest := &CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest := &bean2.CreateJobEnvOverridePayload{
 					AppId:  createRequest.AppId,
 					EnvId:  createRequest.EnvironmentId,
 					UserId: userId,
@@ -689,7 +689,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 
 			if ciPipeline.EnvironmentId != 0 && !createRequest.IsCloneJob {
-				createJobEnvOverrideRequest := &CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest := &bean2.CreateJobEnvOverridePayload{
 					AppId:  createRequest.AppId,
 					EnvId:  ciPipeline.EnvironmentId,
 					UserId: createRequest.UserId,
@@ -1494,7 +1494,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 		}
 	}
 
-	if pipelineRequest.PreDeployStage != nil && len(pipelineRequest.PreDeployStage.Steps) > 0 {
+	if pipelineRequest.PreDeployStage != nil {
 		//updating pre stage
 		err = impl.pipelineStageService.UpdatePipelineStage(pipelineRequest.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, pipelineRequest.Id, userId)
 		if err != nil {
@@ -1502,7 +1502,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 			return pipeline, err
 		}
 	}
-	if pipelineRequest.PostDeployStage != nil && len(pipelineRequest.PostDeployStage.Steps) > 0 {
+	if pipelineRequest.PostDeployStage != nil {
 		//updating post stage
 		err = impl.pipelineStageService.UpdatePipelineStage(pipelineRequest.PostDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, pipelineRequest.Id, userId)
 		if err != nil {

@@ -44,7 +44,9 @@ import (
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
@@ -124,6 +126,8 @@ type MuxRouter struct {
 	globalTagRouter                    globalTag.GlobalTagRouter
 	rbacRoleRouter                     user.RbacRoleRouter
 	globalPolicyRouter                 globalPolicy.GlobalPolicyRouter
+	configDraftRouter                  drafts.ConfigDraftRouter
+	resourceProtectionRouter           protect.ResourceProtectionRouter
 	scopedVariableRouter               ScopedVariableRouter
 }
 
@@ -155,7 +159,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
 	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
 	globalTagRouter globalTag.GlobalTagRouter, rbacRoleRouter user.RbacRoleRouter,
-	globalPolicyRouter globalPolicy.GlobalPolicyRouter, scopedVariableRouter ScopedVariableRouter) *MuxRouter {
+	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
+    scopedVariableRouter ScopedVariableRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -228,6 +233,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		rbacRoleRouter:                     rbacRoleRouter,
 		globalPolicyRouter:                 globalPolicyRouter,
 		scopedVariableRouter:               scopedVariableRouter,
+		configDraftRouter:                  configDraftRouter,
+		resourceProtectionRouter:           resourceProtectionRouter,
 	}
 	return r
 }
@@ -446,4 +453,10 @@ func (r MuxRouter) Init() {
 
 	globalPolicyRouter := r.Router.PathPrefix("/orchestrator/policy").Subrouter()
 	r.globalPolicyRouter.InitGlobalPolicyRouter(globalPolicyRouter)
+
+	draftRouter := r.Router.PathPrefix("/orchestrator/draft").Subrouter()
+	r.configDraftRouter.InitConfigDraftRouter(draftRouter)
+
+	protectRouter := r.Router.PathPrefix("/orchestrator/protect").Subrouter()
+	r.resourceProtectionRouter.InitResourceProtectionRouter(protectRouter)
 }
