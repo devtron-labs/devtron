@@ -373,7 +373,7 @@ func getCdTemplate(workflow v1alpha1.Workflow) v1alpha1.Template {
 	templates := workflow.Spec.Templates
 	for _, template := range templates {
 		templateName := template.Name
-		if templateName == CD_WORKFLOW_NAME {
+		if templateName == bean.CD_WORKFLOW_NAME {
 			cdTemplate = template
 		}
 	}
