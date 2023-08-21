@@ -485,9 +485,11 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 		}
 
 		//VARIABLE_MAPPING_UPDATE
-		err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.CreatedBy)
-		if err != nil {
-			return nil, err
+		if envOverride.EnvOverrideValues != "{}" {
+			err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.CreatedBy)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return envOverride, nil
@@ -597,6 +599,10 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 		}
 	}
 	//VARIABLES
+	err = impl.removeMappedVariables(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy)
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -659,6 +665,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 		Latest:            envOverride.Latest,
 		ChartRefId:        environmentProperties.ChartRefId,
 		IsOverride:        envOverride.IsOverride,
+		ClusterId:         env.ClusterId,
 	}
 	return environmentProperties, nil
 }
@@ -758,6 +765,18 @@ func (impl PropertiesConfigServiceImpl) extractAndMapVariables(template string, 
 		EntityType: entityType,
 		EntityId:   entityId,
 	}, userId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl PropertiesConfigServiceImpl) removeMappedVariables(entityId int, entityType repository5.EntityType, userId int32) error {
+
+	err := impl.variableEntityMappingService.DeleteMappingsForEntities([]repository5.Entity{{
+		EntityType: entityType,
+		EntityId:   entityId,
+	}}, userId)
 	if err != nil {
 		return err
 	}
