@@ -228,6 +228,12 @@ Please wait until the installation is completed.
 
 ## Devtron Admin credentials
 
+When you install Devtron for the first time, it creates a default admin user and password (with unrestricted access to Devtron). You can use that credentials to log in as an administrator. 
+
+After the initial login, we recommend you set up any SSO service like Google, GitHub, etc., and then add other users (including yourself). Subsequently, all the users can use the same SSO (let's say, GitHub) to log in to Devtron's dashboard.
+
+The section below will help you understand the process of getting the administrator credentials.
+
 ### For Devtron version v0.6.0 and higher
 
 **Username**: `admin` <br>
