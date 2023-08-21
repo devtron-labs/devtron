@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Unable to delete chart group with existing helm chart (#3795)
 - fix: fix for deleting all pre-post cd at once didn't delete them  (#3786)
 ## Enhancements
 - perf: hibernate check optimisation (#3788)
