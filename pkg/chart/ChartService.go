@@ -147,7 +147,7 @@ type ChartService interface {
 	CheckChartExists(chartRefId int) error
 	CheckIsAppMetricsSupported(chartRefId int) (bool, error)
 	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
-	FormatChartName(chartName, chartVersion string) string
+	FormatChartName(chartName string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
@@ -1470,7 +1470,7 @@ func (impl ChartServiceImpl) CheckIsAppMetricsSupported(chartRefId int) (bool, e
 
 func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string {
 	var chartLocation string
-	chartname := impl.FormatChartName(chartName, chartVersion)
+	chartname := impl.FormatChartName(chartName)
 	chartversion := strings.ReplaceAll(chartVersion, ".", "-")
 	if !strings.Contains(chartname, chartversion) {
 		chartLocation = chartname + "_" + chartversion
@@ -1480,11 +1480,9 @@ func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName strin
 	return chartLocation
 }
 
-func (impl *ChartServiceImpl) FormatChartName(chartName, chartVersion string) string {
+func (impl *ChartServiceImpl) FormatChartName(chartName string) string {
 	chartname := strings.ReplaceAll(chartName, ".", "-")
 	chartname = strings.ReplaceAll(chartname, " ", "_")
-	chartversion := strings.ReplaceAll(chartVersion, ".", "-")
-	chartname = strings.TrimSuffix(chartname, "_"+chartversion)
 	return chartname
 }
 
@@ -1616,15 +1614,18 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			return chartInfo, err
 		}
 
-		formatedChartName := impl.FormatChartName(chartName, chartVersion)
-		isReservedChart := formatedChartName == impl.FormatChartName(ReferenceChart, "") || formatedChartName == impl.FormatChartName(RolloutChartType, "")
+		formattedChartName := impl.FormatChartName(chartName)
+		isReservedChart := strings.HasPrefix(formattedChartName, impl.FormatChartName(ReferenceChart)) || strings.HasPrefix(formattedChartName, impl.FormatChartName(RolloutChartType))
 		if !isReservedChart {
-			exisitingChart, err := impl.chartRefRepository.FetchChart(chartName)
-			if err == nil && exisitingChart != nil {
-				if !exisitingChart[0].UserUploaded {
-					isReservedChart = true
+			existingCharts, err := impl.chartRefRepository.MatchChartNamePrefix(chartName)
+			if err == nil && existingCharts != nil {
+				for _, existingChart := range existingCharts {
+					if !existingChart.UserUploaded {
+						formattedExistingChartName := impl.FormatChartName(existingChart.Name)
+						isReservedChart = strings.HasPrefix(formattedExistingChartName, formattedExistingChartName)
+					}
+					chartInfo.Message = "New Version detected for " + existingChart.Name
 				}
-				chartInfo.Message = "New Version detected for " + exisitingChart[0].Name
 			}
 		}
 		if isReservedChart {

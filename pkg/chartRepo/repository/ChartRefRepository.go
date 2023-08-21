@@ -40,6 +40,7 @@ type ChartRefRepository interface {
 	FindByVersionAndName(name, version string) (*ChartRef, error)
 	CheckIfDataExists(location string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
+	MatchChartNamePrefix(name string) ([]*ChartRef, error)
 	FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error)
 	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
 }
@@ -111,7 +112,22 @@ func (impl ChartRefRepositoryImpl) CheckIfDataExists(location string) (bool, err
 
 func (impl ChartRefRepositoryImpl) FetchChart(name string) ([]*ChartRef, error) {
 	var chartRefs []*ChartRef
-	err := impl.dbConnection.Model(&chartRefs).Where("lower(name) = ?", strings.ToLower(name)).Select()
+	err := impl.dbConnection.
+		Model(&chartRefs).
+		Where("lower(name) = ?", strings.ToLower(name)).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return chartRefs, err
+}
+
+func (impl ChartRefRepositoryImpl) MatchChartNamePrefix(name string) ([]*ChartRef, error) {
+	var chartRefs []*ChartRef
+	err := impl.dbConnection.
+		Model(&chartRefs).
+		Where("lower(name) LIKE ?", strings.ToLower(name)+"%").
+		Select()
 	if err != nil {
 		return nil, err
 	}
