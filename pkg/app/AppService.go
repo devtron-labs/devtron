@@ -1427,7 +1427,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope variables.S
 	if err != nil {
 		return "", nil, err
 	}
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables2(scope, entityToVariables[entity])
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity])
 	if err != nil {
 		return "", nil, err
 	}

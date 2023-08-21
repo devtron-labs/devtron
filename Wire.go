@@ -120,6 +120,7 @@ import (
 	client2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository10 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -253,6 +254,25 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		util.NewChartDeploymentServiceImpl,
 		wire.Bind(new(util.ChartDeploymentService), new(*util.ChartDeploymentServiceImpl)),
+
+		//scoped variables start
+		variables.NewScopedVariableServiceImpl,
+		wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
+
+		parsers.NewVariableTemplateParserImpl,
+		wire.Bind(new(parsers.VariableTemplateParser), new(*parsers.VariableTemplateParserImpl)),
+		repository10.NewVariableEntityMappingRepository,
+		wire.Bind(new(repository10.VariableEntityMappingRepository), new(*repository10.VariableEntityMappingRepositoryImpl)),
+
+		repository10.NewVariableSnapshotHistoryRepository,
+		wire.Bind(new(repository10.VariableSnapshotHistoryRepository), new(*repository10.VariableSnapshotHistoryRepositoryImpl)),
+		variables.NewVariableEntityMappingServiceImpl,
+		wire.Bind(new(variables.VariableEntityMappingService), new(*variables.VariableEntityMappingServiceImpl)),
+		variables.NewVariableSnapshotHistoryServiceImpl,
+		wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
+
+		//end
+
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
 		bulkAction.NewBulkUpdateServiceImpl,
@@ -535,8 +555,24 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewCdWorkflowServiceImpl,
 		wire.Bind(new(pipeline.CdWorkflowService), new(*pipeline.CdWorkflowServiceImpl)),
-		variables.NewScopedVariableServiceImpl,
-		wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
+
+		////scoped variables start
+		//variables.NewScopedVariableServiceImpl,
+		//wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
+		//
+		//parsers.NewVariableTemplateParserImpl,
+		//wire.Bind(new(parsers.VariableTemplateParser), new(*parsers.VariableTemplateParserImpl)),
+		//repository10.NewVariableEntityMappingRepository,
+		//wire.Bind(new(repository10.VariableEntityMappingRepository), new(*repository10.VariableEntityMappingRepositoryImpl)),
+		//
+		//repository10.NewVariableSnapshotHistoryRepository,
+		//wire.Bind(new(repository10.VariableSnapshotHistoryRepository), new(*repository10.VariableSnapshotHistoryRepositoryImpl)),
+		//variables.NewVariableEntityMappingServiceImpl,
+		//wire.Bind(new(variables.VariableEntityMappingService), new(*variables.VariableEntityMappingServiceImpl)),
+		//variables.NewVariableSnapshotHistoryServiceImpl,
+		//wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
+		//
+		////end
 
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
@@ -792,18 +828,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
 		//plugin ends
 
-		//scoped variables start
-		repository10.NewVariableEntityMappingRepository,
-		wire.Bind(new(repository10.VariableEntityMappingRepository), new(*repository10.VariableEntityMappingRepositoryImpl)),
-
-		repository10.NewVariableSnapshotHistoryRepository,
-		wire.Bind(new(repository10.VariableSnapshotHistoryRepository), new(*repository10.VariableSnapshotHistoryRepositoryImpl)),
-		variables.NewVariableEntityMappingServiceImpl,
-		wire.Bind(new(variables.VariableEntityMappingService), new(*variables.VariableEntityMappingServiceImpl)),
-		variables.NewVariableSnapshotHistoryServiceImpl,
-		wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
-
-		//end
 		argocdServer.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(argocdServer.ArgoCDConnectionManager), new(*argocdServer.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,

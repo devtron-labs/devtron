@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"go.uber.org/zap"
@@ -29,10 +28,9 @@ type ScopedVariableServiceImpl struct {
 	environmentRepository    repository.EnvironmentRepository
 	devtronResourceService   devtronResource.DevtronResourceService
 	clusterRepository        repository.ClusterRepository
-	pipelineBuilder          pipeline.PipelineBuilder
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository, pipelineBuilder pipeline.PipelineBuilder) (*ScopedVariableServiceImpl, error) {
+func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,
 		scopedVariableRepository: scopedVariableRepository,
@@ -40,7 +38,6 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 		environmentRepository:    environmentRepository,
 		devtronResourceService:   devtronResourceService,
 		clusterRepository:        clusterRepository,
-		pipelineBuilder:          pipelineBuilder,
 	}
 
 	return scopedVariableService, nil
