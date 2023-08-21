@@ -384,7 +384,7 @@ func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 		workflowRequest.IsExtRun = true
 	}
 	// Check for external in case of JOB
-	if env != nil && env.Id != 0 && workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
+	if env != nil && env.Id != 0 && workflowRequest.CheckForJob() {
 		workflowRequest.EnvironmentId = env.Id
 		workflowRequest.IsExtRun = true
 	}

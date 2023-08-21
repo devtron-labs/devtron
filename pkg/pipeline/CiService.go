@@ -195,7 +195,11 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	workflowRequest.AppId = pipeline.AppId
 	workflowRequest.AppLabels = appLabels
 	workflowRequest.Env = env
-	workflowRequest.Type = bean2.CI_WORKFLOW_PIPELINE_TYPE
+	if isJob {
+		workflowRequest.Type = bean2.JOB_WORKFLOW_PIPELINE_TYPE
+	} else {
+		workflowRequest.Type = bean2.CI_WORKFLOW_PIPELINE_TYPE
+	}
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
