@@ -42,8 +42,9 @@ func (impl UserAuthImpl) LoggingMiddleware(next http.Handler) http.Handler {
 		r.Body = io.NopCloser(bytes.NewBuffer(payload))
 
 		// Log the request details.
-		//method := r.Method
+		method := r.Method
 		url := r.URL.Path
+		log.Println(method)
 
 		status := w.(interface {
 			Status() int
