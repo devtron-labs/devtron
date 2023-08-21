@@ -379,7 +379,7 @@ func (impl ClusterRestHandlerImpl) FindNoteByClusterId(w http.ResponseWriter, r 
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	authenticated, err := impl.k8sCapacityRestHandler.CheckRbacForCluster(bean.ClusterName, bean.ClusterId, token, userId)
+	authenticated, err := impl.k8sCapacityRestHandler.CheckRbacForClusterOrNodes(bean.ClusterName, bean.ClusterId, token, userId, false)
 	if err != nil {
 		impl.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", bean.ClusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
