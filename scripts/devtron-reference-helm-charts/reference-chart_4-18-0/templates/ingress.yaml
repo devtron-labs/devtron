@@ -85,23 +85,8 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
         {{- end }}
-        {{- if  .additionalbackend }}
-          {{- range  .additionalbackend }}
-          - backend:
-              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
-              service:
-                name: {{ .serviceName }}
-                port:
-                  number: {{ .servicePort }}
-              {{- else }}
-              serviceName: {{ .serviceName }}
-              servicePort: {{ .servicePort }}
-              {{- end }}
-            path: {{ .path}}
-            {{- if (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: {{ $outer.pathType | default "ImplementationSpecific" | quote }}
-            {{- end }}
-          {{- end }}
+        {{- if  .additionalBackends }}
+{{ toYaml .additionalBackends | indent 10 }}
         {{- end }}
   {{- end }}
   {{- end }}
@@ -179,24 +164,10 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
         {{- end }}
-        {{- if  .additionalbackend }}
-          {{- range  .additionalbackend }}
-          - backend:
-              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
-              service:
-                name: {{ .serviceName }}
-                port:
-                  number: {{ .servicePort }}
-              {{- else }}
-              serviceName: {{ .serviceName }}
-              servicePort: {{ .servicePort }}
-              {{- end }}
-            path: {{ .path}}
-            {{- if (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: {{ $outer.pathType | default "ImplementationSpecific" | quote }}
-            {{- end }}
-          {{- end }}
-        {{- end }}
+   {{- if  .additionalBackends }}
+{{ toYaml .additionalBackends | indent 10 }}
+        {{- end }}    
+   
   {{- end }}
   {{- end }}
   {{- if .Values.ingressInternal.tls }}

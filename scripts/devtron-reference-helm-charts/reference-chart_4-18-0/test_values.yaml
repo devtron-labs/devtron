@@ -276,10 +276,14 @@ ingress:
       paths:
         - /example2
         - /example2/healthz
-      additionalbackend: 
-        - serviceName: ssl-redirect
-          servicePort: use-annotation
-          path: /*
+      additionalBackends: 
+        - path: /example1
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service
+              port:
+                number: 80
 
   tls: []
 ### Legacy Ingress Format ##
@@ -303,7 +307,7 @@ ingressInternal:
       pathType: "ImplementationSpecific"
       paths:
         - /example1
-      additionalbackend: 
+      additionalBackends: 
         - serviceName: ssl-redirect
           servicePort: use-annotation
           path: /*

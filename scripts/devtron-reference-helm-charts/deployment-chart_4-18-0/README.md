@@ -369,6 +369,27 @@ ingressInternal:
 | `host` | Host name |
 | `tls` | It contains security details |
 
+### additionalBackends
+
+This defines additional backend path in the ingress .
+
+```yaml
+    hosts:
+    - host: chart-example2.local
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example2
+        - /example2/healthz
+      additionalBackends: 
+        - path: /example1
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service
+              port:
+                number: 80
+```
+
 ### Init Containers
 ```yaml
 initContainers: 
