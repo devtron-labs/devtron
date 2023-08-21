@@ -185,14 +185,14 @@ type CiProjectDetails struct {
 	GitTag          string `json:"gitTag"`
 	CommitTime      string `json:"commitTime"`
 	//Branch        string          `json:"branch"`
-	Type                 string                    `json:"type"`
-	Message              string                    `json:"message"`
-	Author               string                    `json:"author"`
-	GitOptions           GitOptions                `json:"gitOptions"`
-	SourceType           pipelineConfig.SourceType `json:"sourceType"`
-	SourceValue          string                    `json:"sourceValue"`
-	WebhookData          pipelineConfig.WebhookData
-	EnableShallowCloning bool `json:"enableShallowCloning"`
+	Type                     string                    `json:"type"`
+	Message                  string                    `json:"message"`
+	Author                   string                    `json:"author"`
+	GitOptions               GitOptions                `json:"gitOptions"`
+	SourceType               pipelineConfig.SourceType `json:"sourceType"`
+	SourceValue              string                    `json:"sourceValue"`
+	WebhookData              pipelineConfig.WebhookData
+	IsShallowCloningPossible bool `json:"isShallowCloningPossible"`
 }
 
 type GitOptions struct {
