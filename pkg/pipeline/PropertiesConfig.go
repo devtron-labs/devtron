@@ -20,6 +20,9 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"time"
 
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
@@ -55,6 +58,7 @@ type EnvironmentProperties struct {
 	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 	Description       string                      `json:"description" validate:"max=40"`
+	ClusterId         int                         `json:"clusterId"`
 }
 
 type EnvironmentPropertiesResponse struct {
@@ -98,6 +102,8 @@ type PropertiesConfigServiceImpl struct {
 	envLevelAppMetricsRepository     repository.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	variableEntityMappingService     variables.VariableEntityMappingService
+	variableTemplateParser           parsers.VariableTemplateParser
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -110,7 +116,9 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	application application.ServiceClient,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *PropertiesConfigServiceImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	variableEntityMappingService variables.VariableEntityMappingService,
+	variableTemplateParser parsers.VariableTemplateParser) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                           logger,
 		envConfigRepo:                    envConfigRepo,
@@ -123,6 +131,8 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		variableEntityMappingService:     variableEntityMappingService,
+		variableTemplateParser:           variableTemplateParser,
 	}
 
 }
@@ -409,6 +419,10 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, err
 	}
 	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(override.EnvOverrideValues, override.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, override.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
 
 	return propertiesRequest, err
 }
@@ -500,7 +514,12 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 			return nil, err
 		}
+
 		//VARIABLE_MAPPING_UPDATE
+		err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.CreatedBy)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return envOverride, nil
 }
@@ -576,6 +595,7 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 			IsBasicViewLocked: envOverride.IsBasicViewLocked,
 			CurrentViewEditor: envOverride.CurrentViewEditor,
 			ChartRefId:        envOverride.Chart.ChartRefId,
+			ClusterId:         env.ClusterId,
 		}
 	}
 
@@ -751,6 +771,26 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", currentChart)
 		return nil, err
 	}
-	//VARIABLE_MAPPING_UPDATE
+	//VARIABLE_MAPPING_UPDATE - not needed?
+	//err = impl.extractAndMapVariables(override.EnvOverrideValues, override.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, override.CreatedBy)
+	//if err != nil {
+	//	return nil, err
+	//}
+
 	return appMetricRequest, err
+}
+
+func (impl PropertiesConfigServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	if err != nil {
+		return err
+	}
+	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
+		EntityType: entityType,
+		EntityId:   entityId,
+	}, userId)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -4,13 +4,14 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"go.uber.org/zap"
 	"time"
 )
 
 type VariableEntityMappingService interface {
 	UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32) error
-	GetAllMappingsForEntities(entities []repository.Entity) (map[int]string, error)
+	GetAllMappingsForEntities(entities []repository.Entity) (map[repository.Entity][]string, error)
 	DeleteMappingsForEntities(entities []repository.Entity, userId int32) error
 }
 
@@ -35,8 +36,8 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 		existingVarNames = append(existingVarNames, mapping.VariableName)
 	}
 
-	existingVarSet := mapset.NewSetFromSlice(ToInterfaceArray(existingVarNames))
-	newVarSet := mapset.NewSetFromSlice(ToInterfaceArray(variableNames))
+	existingVarSet := mapset.NewSetFromSlice(utils.ToInterfaceArray(existingVarNames))
+	newVarSet := mapset.NewSetFromSlice(utils.ToInterfaceArray(variableNames))
 
 	// If present in existing but not in new, then delete
 	variablesToDelete := existingVarSet.Difference(newVarSet).ToSlice()
@@ -66,7 +67,7 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 	if err != nil {
 		return err
 	}
-	err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, ToStringArray(variablesToDelete), entity, userId)
+	err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, utils.ToStringArray(variablesToDelete), entity, userId)
 	if err != nil {
 		return err
 	}
@@ -82,14 +83,16 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 	return nil
 }
 
-func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities []repository.Entity) (map[int]string, error) {
+func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities []repository.Entity) (map[repository.Entity][]string, error) {
 	variableEntityMappings, err := impl.variableEntityMappingRepository.GetVariablesForEntities(entities)
 	if err != nil {
 		return nil, err
 	}
-	entityIdToVariableNames := make(map[int]string)
+	entityIdToVariableNames := make(map[repository.Entity][]string)
 	for _, mapping := range variableEntityMappings {
-		entityIdToVariableNames[mapping.EntityId] = mapping.VariableName
+		vars := entityIdToVariableNames[mapping.Entity]
+		vars = append(vars, mapping.VariableName)
+		entityIdToVariableNames[mapping.Entity] = vars
 	}
 	return entityIdToVariableNames, nil
 }
@@ -100,22 +103,4 @@ func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities 
 		return err
 	}
 	return nil
-}
-
-// ToInterfaceArray converts an array of string to an array of interface{}
-func ToInterfaceArray(arr []string) []interface{} {
-	interfaceArr := make([]interface{}, len(arr))
-	for i, v := range arr {
-		interfaceArr[i] = v
-	}
-	return interfaceArr
-}
-
-// ToStringArray converts an array of interface{} back to an array of string
-func ToStringArray(interfaceArr []interface{}) []string {
-	stringArr := make([]string, len(interfaceArr))
-	for i, v := range interfaceArr {
-		stringArr[i] = v.(string)
-	}
-	return stringArr
 }

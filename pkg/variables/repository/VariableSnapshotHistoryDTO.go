@@ -13,7 +13,7 @@ type VariableSnapshotHistory struct {
 }
 
 type HistoryReference struct {
-	HistoryReferenceId   string               `sql:"history_reference_id"`
+	HistoryReferenceId   int                  `sql:"history_reference_id"`
 	HistoryReferenceType HistoryReferenceType `sql:"history_reference_type"`
 }
 
@@ -25,5 +25,5 @@ type VariableSnapshotHistoryBean struct {
 type HistoryReferenceType string
 
 const (
-	HistoryReferenceTypeDeploymentTemplate EntityType = "DEPLOYMENT_TEMPLATE"
+	HistoryReferenceTypeDeploymentTemplate HistoryReferenceType = "DEPLOYMENT_TEMPLATE"
 )
