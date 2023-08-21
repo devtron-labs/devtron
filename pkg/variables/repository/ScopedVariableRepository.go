@@ -8,37 +8,37 @@ import (
 )
 
 type VariableDefinition struct {
-	tableName     struct{} `sql:"variable_definition" pg:",discard_unknown_columns"`
-	Id            int      `sql:"id,pk"`
-	Name          string   `sql:"name"`
-	DataType      string   `sql:"data_Type"`
-	VarType       string   `sql:"var_type"`
-	Active        bool     `sql:"active"`
-	Description   string   `sql:"description"`
-	VariableScope *VariableScope
+	tableName   struct{} `sql:"variable_definition" pg:",discard_unknown_columns"`
+	Id          int      `sql:"id,pk"`
+	Name        string   `sql:"name"`
+	DataType    string   `sql:"data_type"`
+	VarType     string   `sql:"var_type"`
+	Active      bool     `sql:"active"`
+	Description string   `sql:"description"`
 	sql.AuditLog
 }
 
 type VariableScope struct {
 	tableName             struct{} `sql:"variable_scope" pg:",discard_unknown_columns"`
 	Id                    int      `sql:"id,pk"`
-	VariableId            int      `sql:"variable_Id"`
-	QualifierId           int      `sql:"qualifier_Id"`
+	VariableDefinitionId  int      `sql:"variable_definition_id"`
+	QualifierId           int      `sql:"qualifier_id"`
 	IdentifierKey         int      `sql:"identifier_key"`
-	IdentifierValueInt    int      `sql:"identifier_Value_Int"`
+	IdentifierValueInt    int      `sql:"identifier_value_int"`
 	Active                bool     `sql:"active"`
 	IdentifierValueString string   `sql:"identifier_value_string"`
 	ParentIdentifier      int      `sql:"parent_identifier"`
-	CompositeKey          string
-	VariableData          *VariableData
+	CompositeKey          string   `sql:"-"`
+	VariableDefinition    *VariableDefinition
 	sql.AuditLog
 }
 
 type VariableData struct {
-	tableName struct{} `sql:"variable_data" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	ScopeId   int      `sql:"scope_Id"`
-	Data      string   `sql:"data"`
+	tableName       struct{} `sql:"variable_data" pg:",discard_unknown_columns"`
+	Id              int      `sql:"id,pk"`
+	VariableScopeId int      `sql:"variable_scope_id"`
+	Data            string   `sql:"data"`
+	VariableScope   *VariableScope
 	sql.AuditLog
 }
 
@@ -78,7 +78,7 @@ func NewScopedVariableRepository(dbConnection *pg.DB) *ScopedVariableRepositoryI
 }
 
 func (impl *ScopedVariableRepositoryImpl) CreateVariableDefinition(variableDefinition []*VariableDefinition, tx *pg.Tx) ([]*VariableDefinition, error) {
-	err := tx.Insert(variableDefinition)
+	err := tx.Insert(&variableDefinition)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (impl *ScopedVariableRepositoryImpl) CreateVariableDefinition(variableDefin
 }
 
 func (impl *ScopedVariableRepositoryImpl) CreateVariableScope(variableScope []*VariableScope, tx *pg.Tx) ([]*VariableScope, error) {
-	err := tx.Insert(variableScope)
+	err := tx.Insert(&variableScope)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (impl *ScopedVariableRepositoryImpl) CreateVariableScope(variableScope []*V
 }
 
 func (impl *ScopedVariableRepositoryImpl) CreateVariableData(variableDefinition []*VariableData, tx *pg.Tx) error {
-	return tx.Insert(variableDefinition)
+	return tx.Insert(&variableDefinition)
 }
 
 func (impl *ScopedVariableRepositoryImpl) GetAllVariables() ([]*VariableDefinition, error) {

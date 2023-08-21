@@ -148,9 +148,9 @@ func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 func (impl ClusterRepositoryImpl) FindIdsAndNamesByNames(clusterNames []string) ([]*Cluster, error) {
 	var cluster []*Cluster
 	err := impl.dbConnection.
-		Model(cluster).
-		Where(" cluster_name in (?)", pg.In(clusterNames)).
-		Where("active =?", true).
+		Model(&cluster).
+		Where("cluster_name in (?)", pg.In(clusterNames)).
+		Where("active = ?", true).
 		Select()
 	return cluster, err
 }

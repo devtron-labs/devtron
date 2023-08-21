@@ -8,7 +8,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"log"
 	"time"
 )
 
@@ -116,7 +118,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	appNames := make([]string, 0)
 	envNames := make([]string, 0)
 	clusterNames := make([]string, 0)
-	var envNameToIdMap map[string]int
+	envNameToIdMap := make(map[string]int)
 	for _, variable := range payload.Variables {
 		for _, value := range variable.AttributeValues {
 			for identifierType, _ := range value.AttributeParams {
@@ -131,31 +133,39 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 
 		}
 	}
-	appNameToId, err := impl.appRepository.FindIdsByNamesForScopedVariables(appNames)
-
-	if err != nil {
-		impl.logger.Errorw("error in getting appNameToId", err)
-		return err
+	var appNameToId []*app.App
+	if len(appNames) != 0 {
+		appNameToId, err = impl.appRepository.FindIdsByNamesForScopedVariables(appNames)
+		if err != nil {
+			impl.logger.Errorw("error in getting appNameToId", err)
+			return err
+		}
 	}
 	appNameToIdMap := make(map[string]int)
 	for _, name := range appNameToId {
 		appNameToIdMap[name.AppName] = name.Id
 	}
 	var envNameToId []*repository.Environment
-	envNameToId, err = impl.environmentRepository.FindIdsAndNamesByNames(envNames)
-	if err != nil {
-		impl.logger.Errorw("error in getting envNameToIdMap", err)
-		return err
+	if len(envNames) != 0 {
+		envNameToId, err = impl.environmentRepository.FindIdsAndNamesByNames(envNames)
+		if err != nil {
+			impl.logger.Errorw("error in getting envNameToIdMap", err)
+			return err
+		}
 	}
 	for _, name := range envNameToId {
 		envNameToIdMap[name.Name] = name.Id
 	}
 	var clusterNameToId []*repository.Cluster
-	clusterNameToId, err = impl.clusterRepository.FindIdsAndNamesByNames(clusterNames)
-	if err != nil {
-		impl.logger.Errorw("error in getting clusterNameToId", err)
-		return err
+	if len(clusterNames) != 0 {
+		clusterNameToId, err = impl.clusterRepository.FindIdsAndNamesByNames(clusterNames)
+		if err != nil {
+			impl.logger.Errorw("error in getting clusterNameToId", err)
+			return err
+		}
+
 	}
+
 	clusterNameToIdMap := make(map[string]int)
 	for _, name := range clusterNameToId {
 		clusterNameToIdMap[name.ClusterName] = name.Id
@@ -178,7 +188,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 					identifierValue = clusterNameToIdMap[s]
 				}
 				scope := &repository2.VariableScope{
-					VariableId:            variableId,
+					VariableDefinitionId:  variableId,
 					QualifierId:           getQualifierId(value.AttributeType),
 					IdentifierKey:         getIdentifierKey(identifierType, searchableKeyNameIdMap),
 					IdentifierValueInt:    identifierValue,
@@ -232,8 +242,10 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	}
 	scopeIdToVarData := make(map[int]string)
 	for _, parentvar := range parentVarScope {
-		if variables, exists := variableNameToVariableValueMap[parentvar.VariableId]; exists {
+		if variables, exists := variableNameToVariableValueMap[parentvar.VariableDefinitionId]; exists {
 			for _, varRange := range variables {
+				tt := getQualifierId(varRange.Attribute) == parentvar.QualifierId
+				log.Print(tt)
 				if getQualifierId(varRange.Attribute) == parentvar.QualifierId {
 					scopeIdToVarData[parentvar.Id] = varRange.Value
 				}
@@ -247,18 +259,21 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 			childScope.ParentIdentifier = parentScope.Id
 		}
 	}
-	childVarScope, err = impl.scopedVariableRepository.CreateVariableScope(childrenVariableDefinition, tx)
+	if childVarScope != nil {
+		childVarScope, err = impl.scopedVariableRepository.CreateVariableScope(childrenVariableDefinition, tx)
 
-	if err != nil {
-		impl.logger.Errorw("error in getting childVarScope", childVarScope)
-		return err
+		if err != nil {
+			impl.logger.Errorw("error in getting childVarScope", childVarScope)
+			return err
+		}
 	}
+
 	variableDatas := make([]*repository2.VariableData, 0)
 
 	for scopeId, data := range scopeIdToVarData {
 		varData := &repository2.VariableData{
-			ScopeId: scopeId,
-			Data:    data,
+			VariableScopeId: scopeId,
+			Data:            data,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: payload.UserId,
@@ -269,7 +284,12 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 		variableDatas = append(variableDatas, varData)
 	}
 	err = impl.scopedVariableRepository.CreateVariableData(variableDatas, tx)
-
+	defer func(scopedVariableRepository repository2.ScopedVariableRepository, tx *pg.Tx) {
+		err = scopedVariableRepository.CommitTx(tx)
+		if err != nil {
+			return
+		}
+	}(impl.scopedVariableRepository, tx)
 	return nil
 }
 func getPriority(qualifier int) int {
@@ -332,10 +352,10 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repo
 			isMatch = impl.filterMatch(scope, clusterId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID, 0)
 		}
 		if isMatch {
-			priority, ok := variablePriorityMap[scope.VariableId]
+			priority, ok := variablePriorityMap[scope.VariableDefinitionId]
 			currentPriority := getPriority(scope.QualifierId)
 			if !ok || priority.Priority > currentPriority {
-				variablePriorityMap[scope.VariableId] = &VariablePriorityMapping{
+				variablePriorityMap[scope.VariableDefinitionId] = &VariablePriorityMapping{
 					ScopeId:  scope.Id,
 					Priority: currentPriority,
 				}
@@ -400,7 +420,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 			}
 		}
 		for _, varData := range varDatas {
-			if varData.ScopeId == mapping.ScopeId {
+			if varData.VariableScopeId == mapping.ScopeId {
 				scopedVariableData.VariableValue = varData.Data
 			}
 		}

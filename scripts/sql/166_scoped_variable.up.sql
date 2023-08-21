@@ -20,7 +20,7 @@ CREATE SEQUENCE IF NOT EXISTS variable_scope_seq;
 CREATE TABLE IF NOT EXISTS "public"."variable_scope"
 (
     "id" integer not null default nextval('variable_scope_seq' :: regclass),
-    "variable_id" int,
+    "variable_definition_id" int,
     "qualifier_id" int,
     "identifier_key" int,
     identifier_value_int int,
@@ -39,7 +39,7 @@ CREATE SEQUENCE IF NOT EXISTS variable_data_seq;
 CREATE TABLE  IF NOT EXISTS "public"."variable_data"
 (
    "id" integer not null default nextval('variable_data_seq' :: regclass),
-   "scope_id" int,
+   "variable_scope_id" int,
    "data" text,
     "created_on"        timestamptz,
     "created_by"        integer,
