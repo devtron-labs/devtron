@@ -44,6 +44,12 @@ func (router ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) 
 		HandlerFunc(router.restHandler.CMGlobalFetch).Methods("GET")
 	configRouter.Path("/environment/cm/{appId}/{envId}").
 		HandlerFunc(router.restHandler.CMEnvironmentFetch).Methods("GET")
+	configRouter.Path("/global/cm/edit/{appId}/{id}").
+		Queries("name", "{name}").
+		HandlerFunc(router.restHandler.CMGlobalFetchForEdit).Methods("GET")
+	configRouter.Path("/environment/cm/edit/{appId}/{envId}/{id}").
+		Queries("name", "{name}").
+		HandlerFunc(router.restHandler.CMEnvironmentFetchForEdit).Methods("GET")
 
 	configRouter.Path("/global/cs").
 		HandlerFunc(router.restHandler.CSGlobalAddUpdate).Methods("POST")
