@@ -38,7 +38,7 @@ type ChartRefRepository interface {
 	GetAll() ([]*ChartRef, error)
 	GetAllChartMetadata() ([]*ChartRefMetaData, error)
 	FindByVersionAndName(name, version string) (*ChartRef, error)
-	CheckIfDataExists(name string, version string) (bool, error)
+	CheckIfDataExists(location string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
 	FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error)
 	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
@@ -102,11 +102,11 @@ func (impl ChartRefRepositoryImpl) GetAllChartMetadata() ([]*ChartRefMetaData, e
 	return chartRefMetaDatas, err
 }
 
-func (impl ChartRefRepositoryImpl) CheckIfDataExists(name string, version string) (bool, error) {
+func (impl ChartRefRepositoryImpl) CheckIfDataExists(location string) (bool, error) {
 	repo := &ChartRef{}
 	return impl.dbConnection.Model(repo).
-		Where("lower(name) = ?", strings.ToLower(name)).
-		Where("version = ? ", version).Exists()
+		Where("location = ?", location).
+		Exists()
 }
 
 func (impl ChartRefRepositoryImpl) FetchChart(name string) ([]*ChartRef, error) {

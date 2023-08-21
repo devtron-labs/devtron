@@ -147,6 +147,7 @@ type ChartService interface {
 	CheckChartExists(chartRefId int) error
 	CheckIsAppMetricsSupported(chartRefId int) (bool, error)
 	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
+	FormatChartName(chartName string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
@@ -1469,9 +1470,7 @@ func (impl ChartServiceImpl) CheckIsAppMetricsSupported(chartRefId int) (bool, e
 
 func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string {
 	var chartLocation string
-
-	chartname := strings.ReplaceAll(chartName, ".", "-")
-	chartname = strings.ReplaceAll(chartname, " ", "_")
+	chartname := impl.FormatChartName(chartName)
 	chartversion := strings.ReplaceAll(chartVersion, ".", "-")
 	if !strings.Contains(chartname, chartversion) {
 		chartLocation = chartname + "_" + chartversion
@@ -1479,6 +1478,12 @@ func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName strin
 		chartLocation = chartname
 	}
 	return chartLocation
+}
+
+func (impl *ChartServiceImpl) FormatChartName(chartName string) string {
+	chartname := strings.ReplaceAll(chartName, ".", "-")
+	chartname = strings.ReplaceAll(chartname, " ", "_")
+	return chartname
 }
 
 func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error {
@@ -1592,8 +1597,9 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		chartName = chartYaml.Name
 		chartVersion = chartYaml.Version
 		chartInfo.Description = chartYaml.Description
-		exists, err := impl.chartRefRepository.CheckIfDataExists(chartName, chartVersion)
-
+		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
+		location = chartLocation
+		exists, err := impl.chartRefRepository.CheckIfDataExists(location)
 		if exists {
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
 			err = &util.ApiError{
@@ -1607,10 +1613,8 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			impl.logger.Errorw("Error in searching the database")
 			return chartInfo, err
 		}
-		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
-
-		location = chartLocation
-		isReservedChart := chartName == ReferenceChart
+		formatedChartName := impl.FormatChartName(chartName)
+		isReservedChart := formatedChartName == impl.FormatChartName(ReferenceChart) || formatedChartName == impl.FormatChartName(RolloutChartType)
 		if !isReservedChart {
 			exisitingChart, err := impl.chartRefRepository.FetchChart(chartName)
 			if err == nil && exisitingChart != nil {
