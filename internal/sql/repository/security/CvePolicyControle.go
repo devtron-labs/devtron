@@ -257,22 +257,14 @@ func (impl *CvePolicyRepositoryImpl) enforceCvePolicy(cves []*CveStore, cvePolic
 		if policy, ok := cvePolicy[cve.Name]; ok {
 			if policy.Action == Allow {
 				continue
-			} else {
-				if policy.Action == Block {
-					blockedCVE = append(blockedCVE, cve)
-				} else if policy.Action == Blockiffixed && cve.FixedVersion != "" {
-					blockedCVE = append(blockedCVE, cve)
-				}
+			} else if (policy.Action == Block) || (policy.Action == Blockiffixed && cve.FixedVersion != "") {
+				blockedCVE = append(blockedCVE, cve)
 			}
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Allow {
 				continue
-			} else {
-				if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Block {
-					blockedCVE = append(blockedCVE, cve)
-				} else if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Blockiffixed && cve.FixedVersion != "" {
-					blockedCVE = append(blockedCVE, cve)
-				}
+			} else if (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Block) || (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Blockiffixed && cve.FixedVersion != "") {
+				blockedCVE = append(blockedCVE, cve)
 			}
 		}
 	}

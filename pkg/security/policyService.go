@@ -335,20 +335,14 @@ func (impl *PolicyServiceImpl) enforceCvePolicy(cves []*security.CveStore, cvePo
 		if policy, ok := cvePolicy[cve.Name]; ok {
 			if policy.Action == security.Allow {
 				continue
-			} else if policy.Action == security.Block {
-				blockedCVE = append(blockedCVE, cve)
-			} else if policy.Action == security.Blockiffixed && cve.FixedVersion != "" {
+			} else if (policy.Action == security.Block) || (policy.Action == security.Blockiffixed && cve.FixedVersion != "") {
 				blockedCVE = append(blockedCVE, cve)
 			}
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
 				continue
-			} else {
-				if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Block {
-					blockedCVE = append(blockedCVE, cve)
-				} else if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "" {
-					blockedCVE = append(blockedCVE, cve)
-				}
+			} else if (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Block) || (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "") {
+				blockedCVE = append(blockedCVE, cve)
 			}
 		}
 	}
@@ -723,21 +717,14 @@ func (impl *PolicyServiceImpl) HasBlockedCVE(cves []*security.CveStore, cvePolic
 		if policy, ok := cvePolicy[cve.Name]; ok {
 			if policy.Action == security.Allow {
 				continue
-			} else if policy.Action == security.Block {
-				return true
-			} else if policy.Action == security.Blockiffixed && cve.FixedVersion != "" {
+			} else if (policy.Action == security.Block) || (policy.Action == security.Blockiffixed && cve.FixedVersion != "") {
 				return true
 			}
-
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
 				continue
-			} else {
-				if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Block {
-					return true
-				} else if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "" {
-					return true
-				}
+			} else if (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Block) || (severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "") {
+				return true
 			}
 		}
 	}
