@@ -42,5 +42,15 @@
   When you install Devtron for the first time, it creates a default admin user and password (with unrestricted access to Devtron). You can use that credentials to log in as an administrator. After the initial login, we recommend you set up any SSO service like Google, GitHub, etc., and then add other users (including yourself). Subsequently, all the users can use the same SSO (let's say, GitHub) to log in to Devtron's dashboard.
 </details>
 
+<details>
+  <summary>5. Why can't I see the GitOps option in the Global Configurations?</summary>
+  If you intend to use GitOps (Argo CD) but unable to see the GitOps settings in 'Global Configurations', chances are that you installed Devtron without the Argo CD module. You can go to 'Devtron Stack Manager' and install GitOps (Argo CD). Post successful installation, the 'GitOps' settings will be available.
+</details>
+
+<details>
+  <summary>6. Why can't I see the Security settings in the left sidebar?</summary>
+  The 'Security' settings primarily exists for two things: one is the scanning of image build generated during the CI process and the other is to create security policies. You can go to 'Devtron Stack Manager' and install either Trivy or Clair (according to your preference). Post successful installation, the 'Security' settings will be available to you in the sidebar.
+</details>
+
 
 Still facing issues, please reach out to us on [Discord](https://discord.gg/jsRG5qx2gp).
