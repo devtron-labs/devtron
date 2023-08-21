@@ -2,9 +2,8 @@ package logger
 
 import (
 	"log"
-	"time"
 )
 
-func NewUserAuthService(action string, updatedBy int32, updatedOn time.Duration, apiResponseCode int, payload string) {
-	log.Printf("Action: %s, UpdatedBy: %d, UpdatedOn: %s, APIResponseCode: %d, payload %s", action, updatedBy, updatedOn, apiResponseCode, payload)
+func NewUserAuthService(auditLogDto *AuditLoggerDTO) {
+	log.Printf("urlPath: %s, queryParams: %s, requestPayload: %s,updatedBy: %d, updatedOn: %s, apiResponseCode: %d", auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.RequestPayload, auditLogDto.UserID, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode)
 }

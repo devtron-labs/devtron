@@ -1,7 +1,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -17,7 +16,7 @@ type PProfRouterImpl struct {
 }
 
 func NewPProfRouter(logger *zap.SugaredLogger,
-	pprofRestHandler restHandler.PProfRestHandler, userAuth logger.UserAuth) *PProfRouterImpl {
+	pprofRestHandler restHandler.PProfRestHandler) *PProfRouterImpl {
 	return &PProfRouterImpl{
 		logger:           logger,
 		pprofRestHandler: pprofRestHandler,

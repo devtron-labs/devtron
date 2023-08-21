@@ -32,16 +32,14 @@ type AppListingRouterImpl struct {
 	userAuth              logger.UserAuth
 }
 
-func NewAppListingRouterImpl(appListingRestHandler restHandler.AppListingRestHandler, userAuth logger.UserAuth) *AppListingRouterImpl {
+func NewAppListingRouterImpl(appListingRestHandler restHandler.AppListingRestHandler) *AppListingRouterImpl {
 	router := &AppListingRouterImpl{
 		appListingRestHandler: appListingRestHandler,
-		userAuth:              userAuth,
 	}
 	return router
 }
 
 func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Router) {
-	appListingRouter.Use(router.userAuth.LoggingMiddleware)
 	appListingRouter.Path("/allApps").HandlerFunc(router.appListingRestHandler.FetchAllDevtronManagedApps).
 		Methods("GET")
 

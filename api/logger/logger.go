@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -12,25 +13,6 @@ import (
 type CapturingReadCloser struct {
 	original io.ReadCloser
 	captured *bytes.Buffer
-}
-
-func NewCapturingReadCloser(original io.ReadCloser) *CapturingReadCloser {
-	return &CapturingReadCloser{
-		original: original,
-		captured: new(bytes.Buffer),
-	}
-}
-
-func (crc *CapturingReadCloser) Read(p []byte) (n int, err error) {
-	n, err = crc.original.Read(p)
-	if n > 0 {
-		crc.captured.Write(p[:n])
-	}
-	return
-}
-
-func (crc *CapturingReadCloser) Close() error {
-	return crc.original.Close()
 }
 
 type UserAuthImpl struct {
@@ -56,23 +38,35 @@ func (impl UserAuthImpl) LoggingMiddleware(next http.Handler) http.Handler {
 		// Call the next handler in the chain.
 		next.ServeHTTP(w, r)
 
-		// Capture the request payload while preserving the original request body.
-		capturingBody := NewCapturingReadCloser(r.Body)
-		r.Body = capturingBody
-
 		//Log the request details.
 		url := r.URL.Path
 
-		status := w.(interface {
-			Status() int
-		}).Status()
+		//status := w.Header().Get("Status")
+		//statusCode, err := strconv.Atoi(status)
+		//if err != nil {
+		//	log.Printf("error in converting status code to int")
+		//}
 
 		token := r.Header.Get("token")
 		userId, userType, err := impl.userService.GetUserByToken(r.Context(), token)
 		if err != nil {
 			log.Printf("userId does not exists")
 		}
+		vars := r.URL.Query().Encode()
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("error reading request body")
+		}
+		// Convert the request body to a string
+		requestPayload := string(body)
 		log.Printf(userType)
-		NewUserAuthService(url, userId, time.Since(startTime), status, capturingBody.captured.String())
+		auditLogDto := &AuditLoggerDTO{
+			UrlPath:        url,
+			UserID:         int(userId),
+			UpdatedOn:      startTime,
+			QueryParams:    vars,
+			RequestPayload: requestPayload,
+		}
+		NewUserAuthService(auditLogDto)
 	})
 }

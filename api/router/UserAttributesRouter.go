@@ -18,7 +18,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	user "github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -31,7 +30,7 @@ type UserAttributesRouterImpl struct {
 	userAttributesRestHandler user.UserAttributesRestHandler
 }
 
-func NewUserAttributesRouterImpl(userAttributesRestHandler user.UserAttributesRestHandler, userAuth logger.UserAuth) *UserAttributesRouterImpl {
+func NewUserAttributesRouterImpl(userAttributesRestHandler user.UserAttributesRestHandler) *UserAttributesRouterImpl {
 	router := &UserAttributesRouterImpl{
 		userAttributesRestHandler: userAttributesRestHandler,
 	}

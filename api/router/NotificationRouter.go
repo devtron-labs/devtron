@@ -18,7 +18,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -30,7 +29,7 @@ type NotificationRouterImpl struct {
 	notificationRestHandler restHandler.NotificationRestHandler
 }
 
-func NewNotificationRouterImpl(notificationRestHandler restHandler.NotificationRestHandler, userAuth logger.UserAuth) *NotificationRouterImpl {
+func NewNotificationRouterImpl(notificationRestHandler restHandler.NotificationRestHandler) *NotificationRouterImpl {
 	return &NotificationRouterImpl{notificationRestHandler: notificationRestHandler}
 }
 func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.Router) {

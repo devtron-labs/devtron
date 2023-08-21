@@ -18,7 +18,6 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
@@ -30,7 +29,7 @@ type DockerRegRouterImpl struct {
 	dockerRestHandler restHandler.DockerRegRestHandler
 }
 
-func NewDockerRegRouterImpl(dockerRestHandler restHandler.DockerRegRestHandler, userAuth logger.UserAuth) *DockerRegRouterImpl {
+func NewDockerRegRouterImpl(dockerRestHandler restHandler.DockerRegRestHandler) *DockerRegRouterImpl {
 	return &DockerRegRouterImpl{dockerRestHandler: dockerRestHandler}
 }
 func (impl DockerRegRouterImpl) InitDockerRegRouter(configRouter *mux.Router) {

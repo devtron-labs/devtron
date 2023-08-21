@@ -1,7 +1,6 @@
 package module
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -13,7 +12,7 @@ type ModuleRouterImpl struct {
 	moduleRestHandler ModuleRestHandler
 }
 
-func NewModuleRouterImpl(moduleRestHandler ModuleRestHandler, userAuth logger.UserAuth) *ModuleRouterImpl {
+func NewModuleRouterImpl(moduleRestHandler ModuleRestHandler) *ModuleRouterImpl {
 	return &ModuleRouterImpl{moduleRestHandler: moduleRestHandler}
 }
 

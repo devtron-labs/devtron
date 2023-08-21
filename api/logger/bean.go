@@ -2,11 +2,11 @@ package logger
 
 import "time"
 
-type UserAuthDTO struct {
-	action          string    `json:"action"`
+type AuditLoggerDTO struct {
+	UrlPath         string    `json:"urlPath"`
 	UserID          int       `json:"userID"`
-	updatedBy       int       `json:"updatedBy"`
-	updatedOn       time.Time `json:"updatedOn"`
-	apiResponseCode int       `json:"apiResponseCode"`
-	payload         string    `json:"payload"`
+	UpdatedOn       time.Time `json:"updatedOn"`
+	QueryParams     string    `json:"queryParams"`
+	ApiResponseCode int       `json:"apiResponseCode"`
+	RequestPayload  string    `json:"requestPayload"`
 }
