@@ -393,6 +393,13 @@ ingressInternal:
               name: test-service-internal
               port:
                 number: 80
+        - path: /internal-01
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service-internal
+              port:
+                number: 80
     - host: chart-example2.internal
       pathType: "ImplementationSpecific"
       paths:
