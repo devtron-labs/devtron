@@ -2,6 +2,7 @@
 - fix: Unable to delete chart group with existing helm chart (#3795)
 - fix: fix for deleting all pre-post cd at once didn't delete them  (#3786)
 ## Enhancements
+- feat: removed additionalBackends from app-values.yaml (#3807)
 - feat: added support for extra backendPath in ingress  (#3793)
 - perf: hibernate check optimisation (#3788)
 ## Documentation
