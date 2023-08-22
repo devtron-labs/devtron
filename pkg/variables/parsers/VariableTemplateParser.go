@@ -1,14 +1,15 @@
 package parsers
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcl/hclsyntax"
 	_ "github.com/hashicorp/hcl2/hcl/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
-	json2 "github.com/zclconf/go-cty/cty/json"
 	"go.uber.org/zap"
 	"regexp"
 	"strings"
@@ -34,9 +35,7 @@ func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]str
 	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
 	if !diagnostics.HasErrors() {
 		hclVariables := hclExpression.Variables()
-		for _, hclVariable := range hclVariables {
-			variables = append(variables, hclVariable.RootName())
-		}
+		variables = impl.extractVarNames(hclVariables)
 	} else {
 		impl.logger.Errorw("error occurred while extracting variables from template", "template", template, "error", diagnostics.Error())
 		//TODO KB: handle this case
@@ -45,24 +44,39 @@ func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]str
 	return variables, nil
 }
 
+func (impl *VariableTemplateParserImpl) extractVarNames(hclVariables []hcl.Traversal) []string {
+	var variables []string
+	for _, hclVariable := range hclVariables {
+		variables = append(variables, hclVariable.RootName())
+	}
+	return variables
+}
+
 func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values map[string]string) string {
-	//TODO KB: need to dilute those variables whose value is not present in map
+	//TODO KB: in case of yaml, need to convert it into JSON structure
 	output := template
 	template = impl.convertToHclCompatible(template)
+	ignoreDefaultedVariables := true
 	//TODO KB: need to check for variables whose value is not present in values map, throw error or ignore variable
 	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
 	if !diagnostics.HasErrors() {
+		hclVariables := hclExpression.Variables()
+		variables := impl.extractVarNames(hclVariables)
 		hclVarValues := impl.getHclVarValues(values)
+		defaultedVars := impl.getDefaultedVariables(variables, values)
+		if !ignoreDefaultedVariables {
+			if len(defaultedVars) > 0 {
+				//TODO return error
+			}
+		}
 		opValue, valueDiagnostics := hclExpression.Value(&hcl.EvalContext{
 			Variables: hclVarValues,
-			Functions: map[string]function.Function{
-				"upper": stdlib.UpperFunc,
-			},
+			Functions: impl.getDefaultMappedFunc(),
 		})
 		if !valueDiagnostics.HasErrors() {
-			simpleJSONValue := json2.SimpleJSONValue{opValue}
-			encapsulatedValue, _ := simpleJSONValue.MarshalJSON()
-			output = string(encapsulatedValue)
+			opValueMap := opValue.AsValueMap()
+			rootValue := opValueMap["root"]
+			output = rootValue.AsString()
 		}
 	} else {
 		//TODO KB: handle this case
@@ -70,7 +84,21 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values ma
 	return output
 }
 
+func (impl *VariableTemplateParserImpl) getDefaultMappedFunc() map[string]function.Function {
+	return map[string]function.Function{
+		"upper": stdlib.UpperFunc,
+	}
+}
+
 func (impl *VariableTemplateParserImpl) convertToHclCompatible(template string) string {
+	jsonStringify, err := json.Marshal(template)
+	if err != nil {
+		impl.logger.Errorw("error occurred while marshalling template", "err", err, "template", template)
+	} else {
+		template = string(jsonStringify)
+	}
+	template = fmt.Sprintf(`{"root":%s}`, template)
+	fmt.Println("template", template)
 	template = impl.diluteExistingHclVars(template)
 	return impl.convertToHclExpression(template)
 }
@@ -104,16 +132,17 @@ func (impl *VariableTemplateParserImpl) convertToHclExpression(deploymentTemplat
 		startIndex := datum[0]
 		endIndex := datum[1]
 		strBuilder.WriteString(deploymentTemplate[currentIndex:startIndex])
-		quoteAdded := false
+		initQuoteAdded := false
 		if startIndex > 0 && deploymentTemplate[startIndex-1] == '"' { // if quotes are already present then ignore
 			strBuilder.WriteString("$")
 		} else {
-			quoteAdded = true
-			strBuilder.WriteString("\"$")
+			initQuoteAdded = true
+			strBuilder.WriteString("$")
+			//strBuilder.WriteString("\"$")
 		}
 		strBuilder.WriteString(deploymentTemplate[startIndex+2 : endIndex-1])
-		if quoteAdded { // adding closing quote
-			strBuilder.WriteString("\"")
+		if initQuoteAdded { // adding closing quote
+			//strBuilder.WriteString("\"")
 		}
 		currentIndex = endIndex
 	}
@@ -130,4 +159,8 @@ func (impl *VariableTemplateParserImpl) getHclVarValues(values map[string]string
 		variables[varName] = cty.StringVal(varValue)
 	}
 	return variables
+}
+
+func (impl *VariableTemplateParserImpl) getDefaultedVariables(variables []string, varvalues map[string]string) []string {
+	return []string{}
 }
