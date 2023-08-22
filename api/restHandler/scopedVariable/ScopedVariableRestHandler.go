@@ -76,24 +76,34 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 }
 func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.ResponseWriter, r *http.Request) {
 	appIdQueryParam := r.URL.Query().Get("appId")
-	appId, err := strconv.Atoi(appIdQueryParam)
-	if err != nil {
-		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
-		return
+	var appId int
+	var err error
+	if appIdQueryParam != "" {
+		appId, err = strconv.Atoi(appIdQueryParam)
+		if err != nil {
+			common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+			return
+		}
 	}
+
 	var envId int
 	envIdQueryParam := r.URL.Query().Get("envId")
-	envId, err = strconv.Atoi(envIdQueryParam)
-	if err != nil {
-		common.WriteJsonResp(w, err, "invalid envId", http.StatusBadRequest)
-		return
+	if envIdQueryParam != "" {
+		envId, err = strconv.Atoi(envIdQueryParam)
+		if err != nil {
+			common.WriteJsonResp(w, err, "invalid envId", http.StatusBadRequest)
+			return
+		}
 	}
+
 	var clusterId int
 	clusterIdQueryParam := r.URL.Query().Get("clusterId")
-	clusterId, err = strconv.Atoi(clusterIdQueryParam)
-	if err != nil {
-		common.WriteJsonResp(w, err, "invalid clusterId", http.StatusBadRequest)
-		return
+	if clusterIdQueryParam != "" {
+		clusterId, err = strconv.Atoi(clusterIdQueryParam)
+		if err != nil {
+			common.WriteJsonResp(w, err, "invalid clusterId", http.StatusBadRequest)
+			return
+		}
 	}
 
 	//vars := mux.Vars(r)

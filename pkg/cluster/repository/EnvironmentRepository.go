@@ -307,7 +307,7 @@ func (repo EnvironmentRepositoryImpl) FindIdsAndNamesByNames(envNames []string) 
 	err := repo.dbConnection.
 		Model(&environment).
 		Where("active = ?", true).
-		Where(" cluster_name in (?)", pg.In(envNames)).
+		Where("environment_name in (?)", pg.In(envNames)).
 		Select()
 	return environment, err
 }
