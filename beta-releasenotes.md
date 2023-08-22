@@ -16,4 +16,5 @@
 - doc: security feature doc (#3622)
 - doc: HashiCorp external secret operator (#3608)
 ## Others
+- chore: adding logs in chart repo code (#3810)
 - chore: Config approval scripts and refactoring (#3762)
