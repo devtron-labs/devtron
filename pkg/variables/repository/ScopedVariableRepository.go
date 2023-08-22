@@ -169,9 +169,8 @@ func (impl *ScopedVariableRepositoryImpl) GetScopedVariableDataForVarIds(appId, 
 	var variableScopes []*VariableScope
 	err := impl.dbConnection.
 		Model(&variableScopes).
-		Column("VariableScope.*").
 		Where("active = ?", true).
-		Where("variable_Id in (?) AND "+
+		Where("variable_definition_id in (?) AND "+
 			"((((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
 			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
 			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
@@ -199,4 +198,14 @@ func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]
 		Select()
 	return variableData, err
 
+}
+
+func (impl *ScopedVariableRepositoryImpl) DeleteForScopeIds() error {
+	_, err := impl.dbConnection.Model(&VariableScope{}).
+		Set("active = ?", false).
+		Update()
+	if err != nil {
+		return err
+	}
+	return nil
 }
