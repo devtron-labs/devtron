@@ -133,7 +133,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	}
 	var appNameToId []*app.App
 	if len(appNames) != 0 {
-		appNameToId, err = impl.appRepository.FindIdsByNamesForScopedVariables(appNames)
+		appNameToId, err = impl.appRepository.FindByNames(appNames)
 		if err != nil {
 			impl.logger.Errorw("error in getting appNameToId", err)
 			return err
@@ -145,7 +145,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	}
 	var envNameToId []*repository.Environment
 	if len(envNames) != 0 {
-		envNameToId, err = impl.environmentRepository.FindIdsAndNamesByNames(envNames)
+		envNameToId, err = impl.environmentRepository.FindByNames(envNames)
 		if err != nil {
 			impl.logger.Errorw("error in getting envNameToIdMap", err)
 			return err
@@ -156,7 +156,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	}
 	var clusterNameToId []*repository.Cluster
 	if len(clusterNames) != 0 {
-		clusterNameToId, err = impl.clusterRepository.FindIdsAndNamesByNames(clusterNames)
+		clusterNameToId, err = impl.clusterRepository.FindByNames(clusterNames)
 		if err != nil {
 			impl.logger.Errorw("error in getting clusterNameToId", err)
 			return err
@@ -170,6 +170,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	}
 
 	for _, variable := range payload.Variables {
+
 		variableId := variableNameToIdMap[variable.Definition.VarName]
 		for _, value := range variable.AttributeValues {
 			var compositeKey string
@@ -257,7 +258,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 			childScope.ParentIdentifier = parentScope.Id
 		}
 	}
-	if childVarScope != nil {
+	if childrenVariableDefinition != nil {
 		childVarScope, err = impl.scopedVariableRepository.CreateVariableScope(childrenVariableDefinition, tx)
 
 		if err != nil {
@@ -329,13 +330,26 @@ func (impl *ScopedVariableServiceImpl) filterMatch(scope *repository2.VariableSc
 func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repository2.VariableScope, appId, envId, clusterId int) map[int]*VariablePriorityMapping {
 	variablePriorityMap := make(map[int]*VariablePriorityMapping)
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-
 	if appId == 0 && envId == 0 && clusterId == 0 {
 		return variablePriorityMap
 	}
+
+	var expectedQualifier int
+	if appId != 0 && envId != 0 {
+		expectedQualifier = repository2.APP_AND_ENV_QUALIFIER
+	} else if appId != 0 {
+		expectedQualifier = repository2.APP_QUALIFIER
+	} else if envId != 0 {
+		expectedQualifier = repository2.ENV_QUALIFIER
+	} else if clusterId != 0 {
+		expectedQualifier = repository2.CLUSTER_QUALIFIER
+	} else {
+		expectedQualifier = repository2.GLOBAL_QUALIFIER
+	}
+
 	for _, scope := range varScope {
 		isMatch := false
-		if appId != 0 && envId != 0 {
+		if appId != 0 && envId != 0 && scope.QualifierId == repository2.APP_AND_ENV_QUALIFIER {
 			isMatch = impl.filterMatch(scope, appId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID, 0)
 			if isMatch && (scope.IdentifierKey != 0 || scope.IdentifierKey == searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]) {
 				for _, envScope := range varScope {
@@ -345,19 +359,19 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repo
 				}
 			}
 		}
-		if !isMatch && appId != 0 {
+		if !isMatch && appId != 0 && scope.QualifierId == repository2.APP_QUALIFIER {
 			isMatch = impl.filterMatch(scope, appId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID, 0)
 		}
-		if !isMatch && envId != 0 {
+		if !isMatch && envId != 0 && scope.QualifierId == repository2.ENV_QUALIFIER {
 			isMatch = impl.filterMatch(scope, envId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID, 0)
 		}
-		if !isMatch && clusterId != 0 {
+		if !isMatch && clusterId != 0 && scope.QualifierId == repository2.CLUSTER_QUALIFIER {
 			isMatch = impl.filterMatch(scope, clusterId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID, 0)
 		}
 		if isMatch {
 			priority, ok := variablePriorityMap[scope.VariableDefinitionId]
 			currentPriority := getPriority(scope.QualifierId)
-			if !ok || priority.Priority > currentPriority {
+			if !ok || (priority.Priority > currentPriority && currentPriority >= getPriority(expectedQualifier)) {
 				variablePriorityMap[scope.VariableDefinitionId] = &VariablePriorityMapping{
 					ScopeId:  scope.Id,
 					Priority: currentPriority,
@@ -375,10 +389,10 @@ type Scope struct {
 }
 
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error) {
-	var varDef []*repository2.VariableDefinition
+	var vDef []*repository2.VariableDefinition
 	var varIds []int
-	varDef, err = impl.scopedVariableRepository.GetVariablesByNames(varNames)
-	for _, def := range varDef {
+	vDef, err = impl.scopedVariableRepository.GetVariablesByNames(varNames)
+	for _, def := range vDef {
 		varIds = append(varIds, def.Id)
 	}
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
@@ -406,14 +420,21 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 		scopeIds = append(scopeIds, mapping.ScopeId)
 		scopedVarIds = append(scopedVarIds, varId)
 	}
-	varDefs, err := impl.scopedVariableRepository.GetVariablesForVarIds(scopedVarIds)
-	if err != nil {
-		return nil, err
+	var varDefs []*repository2.VariableDefinition
+	if scopedVarIds != nil {
+		varDefs, err = impl.scopedVariableRepository.GetVariablesForVarIds(scopedVarIds)
+		if err != nil {
+			return nil, err
+		}
 	}
-	vData, err := impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
-	if err != nil {
-		return nil, err
+	var vData []*repository2.VariableData
+	if scopeIds != nil {
+		vData, err = impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	for varId, mapping := range scopedVariableIds {
 		scopedVariableData := &ScopedVariableData{}
 		for _, varDef := range varDefs {

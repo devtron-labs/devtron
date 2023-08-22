@@ -125,7 +125,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 
 	token := r.Header.Get("token")
 	var app *bean.CreateAppDTO
-	app, err = handler.pipelineBuilder.GetApp(appId)
+	app, err = handler.pipelineBuilder.GetApp(1)
 	if err != nil {
 		handler.logger.Errorw("service err, GetScopedVariables", "err", err, "payload", appId, envId, clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

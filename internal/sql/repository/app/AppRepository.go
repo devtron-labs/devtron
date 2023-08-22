@@ -67,7 +67,7 @@ type AppRepository interface {
 	FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*App, error)
 	FindIdsByTeamIdsAndTeamNames(teamIds []int, teamNames []string) ([]int, error)
 	FindIdsByNames(appNames []string) ([]int, error)
-	FindIdsByNamesForScopedVariables(appNames []string) ([]*App, error)
+	FindByNames(appNames []string) ([]*App, error)
 	FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error)
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
@@ -350,7 +350,7 @@ func (repo AppRepositoryImpl) FindIdsByNames(appNames []string) ([]int, error) {
 	return ids, err
 }
 
-func (repo AppRepositoryImpl) FindIdsByNamesForScopedVariables(appNames []string) ([]*App, error) {
+func (repo AppRepositoryImpl) FindByNames(appNames []string) ([]*App, error) {
 	var appNamesWithIds []*App
 	err := repo.dbConnection.Model(&appNamesWithIds).
 		Where("active=true").

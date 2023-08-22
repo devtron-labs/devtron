@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS "public"."variable_scope"
     "created_by"        integer,
     "updated_on"        timestamptz,
     "updated_by"        integer,
-    CONSTRAINT "variable_scope_variable_id_fkey" FOREIGN KEY ("variable_id") REFERENCES "public"."variable_definition" ("id"),
+    CONSTRAINT "variable_scope_variable_id_fkey" FOREIGN KEY ("variable_definition_id") REFERENCES "public"."variable_definition" ("id"),
     PRIMARY KEY ("id")
 );
 
@@ -45,7 +45,7 @@ CREATE TABLE  IF NOT EXISTS "public"."variable_data"
     "created_by"        integer,
     "updated_on"        timestamptz,
     "updated_by"        integer,
-   CONSTRAINT "variable_data_variable_id_fkey" FOREIGN KEY ("scope_id") REFERENCES "public"."variable_scope" ("id"),
+   CONSTRAINT "variable_data_variable_id_fkey" FOREIGN KEY ("variable_scope_id") REFERENCES "public"."variable_scope" ("id"),
     PRIMARY KEY ("id")
 );
 

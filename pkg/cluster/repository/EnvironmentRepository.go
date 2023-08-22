@@ -71,7 +71,7 @@ type EnvironmentRepository interface {
 	FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error)
 	FindByClusterIds(clusterIds []int) ([]*Environment, error)
 	FindIdsByNames(envNames []string) ([]int, error)
-	FindIdsAndNamesByNames(envNames []string) ([]*Environment, error)
+	FindByNames(envNames []string) ([]*Environment, error)
 
 	FindByEnvName(envName string) ([]*Environment, error)
 	FindByEnvNameAndClusterIds(envName string, clusterIds []int) ([]*Environment, error)
@@ -302,7 +302,7 @@ func (repo EnvironmentRepositoryImpl) FindIdsByNames(envNames []string) ([]int, 
 	_, err := repo.dbConnection.Query(&ids, query, pg.In(envNames), true)
 	return ids, err
 }
-func (repo EnvironmentRepositoryImpl) FindIdsAndNamesByNames(envNames []string) ([]*Environment, error) {
+func (repo EnvironmentRepositoryImpl) FindByNames(envNames []string) ([]*Environment, error) {
 	var environment []*Environment
 	err := repo.dbConnection.
 		Model(&environment).
