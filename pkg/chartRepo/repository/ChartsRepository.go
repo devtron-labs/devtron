@@ -31,7 +31,7 @@ type Chart struct {
 	ReferenceChart          []byte                      `sql:"reference_chart"`
 	IsBasicViewLocked       bool                        `sql:"is_basic_view_locked,notnull"`
 	CurrentViewEditor       models.ChartsViewEditorType `sql:"current_view_editor"`
-	ResolvedGlobalOverride  string
+	ResolvedGlobalOverride  string                      `sql:"-"`
 	sql.AuditLog
 }
 

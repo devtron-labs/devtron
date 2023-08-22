@@ -1391,11 +1391,12 @@ const memory = "memory"
 
 func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope variables.Scope, template string, entity repository5.Entity) (string, map[string]string, error) {
 
-	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository5.Entity{entity})
+	//entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository5.Entity{entity})
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
 	if err != nil {
 		return "", nil, err
 	}
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity])
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1425,8 +1426,15 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, tem
 
 	//var scope variables.Scope
 	//var entity repository5.Entity
-	templatejson, _, err := impl.extractVariablesAndResolveTemplate(scope, template.(string), entity)
+	templateBytes := template.(json.RawMessage)
+	templatejsonstring, _, err := impl.extractVariablesAndResolveTemplate(scope, string(templateBytes), entity)
 	if err != nil {
+		return false, err
+	}
+	var templatejson interface{}
+	err = json.Unmarshal([]byte(templatejsonstring), &templatejson)
+	if err != nil {
+		fmt.Println("Error:", err)
 		return false, err
 	}
 
