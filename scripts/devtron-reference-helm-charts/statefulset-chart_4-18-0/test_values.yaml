@@ -313,6 +313,14 @@ ingress:
       paths:
         - /example2
         - /example2/healthz
+      additionalBackends: 
+        - path: /ingress
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service-ingress
+              port:
+                number: 80
   tls: []
 ### Legacy Ingress Format ##
 #  host: abc.com
@@ -340,6 +348,14 @@ ingressInternal:
       paths:
         - /example2
         - /example2/healthz
+      additionalBackends: 
+        - path: /internal
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service-internal
+              port:
+                number: 80
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:

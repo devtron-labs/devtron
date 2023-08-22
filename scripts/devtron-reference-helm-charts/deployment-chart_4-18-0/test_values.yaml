@@ -348,11 +348,21 @@ ingress:
       pathType: "ImplementationSpecific"
       paths:
         - /example1
+      
     - host: chart-example2.local
       pathType: "ImplementationSpecific"
       paths:
         - /example2
         - /example2/healthz
+      additionalBackends: 
+        - path: /example1
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service
+              port:
+                number: 80
+
   tls: []
 ### Legacy Ingress Format ##
 #  host: abc.com
@@ -375,6 +385,21 @@ ingressInternal:
       pathType: "ImplementationSpecific"
       paths:
         - /example1
+      additionalBackends: 
+        - path: /internal
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service-internal
+              port:
+                number: 80
+        - path: /internal-01
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service-internal
+              port:
+                number: 80
     - host: chart-example2.internal
       pathType: "ImplementationSpecific"
       paths:
