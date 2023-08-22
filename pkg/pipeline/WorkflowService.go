@@ -378,7 +378,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	if isJob {
-		ciTemplate, err = getCiTemplateWithConfigMapsAndSecrets(&configMaps, &secrets, ciTemplate, existingConfigMap, existingSecrets)
+		ciTemplate, err = getCiTemplateWithConfigMapsAndSecrets(existingConfigMap, existingSecrets, ciTemplate)
 	}
 	if impl.ciConfig.UseBlobStorageConfigInCiWorkflow || !workflowRequest.IsExtRun {
 		gcpBlobConfig := workflowRequest.GcpBlobConfig
@@ -590,18 +590,23 @@ func getConfigMapsAndSecrets(workflowRequest *WorkflowRequest, existingConfigMap
 	configMaps := bean3.ConfigMapJson{}
 	secrets := bean3.ConfigSecretJson{}
 	for _, cm := range existingConfigMap.Maps {
-		if !cm.External {
-			cm.Name = cm.Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		if cm.External {
+			continue
 		}
 		configMaps.Maps = append(configMaps.Maps, cm)
-
+	}
+	for i := range configMaps.Maps {
+		configMaps.Maps[i].Name = configMaps.Maps[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
 	}
 
 	for _, s := range existingSecrets.Secrets {
-		if !s.External {
-			s.Name = s.Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		if s.External {
+			continue
 		}
 		secrets.Secrets = append(secrets.Secrets, s)
+	}
+	for i := range secrets.Secrets {
+		secrets.Secrets[i].Name = secrets.Secrets[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
 	}
 	return configMaps, secrets, nil
 }
@@ -746,7 +751,7 @@ func processConfigMap(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson
 	}
 	return configsMapping, nil
 }
-func getCiTemplateWithConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, ciTemplate v1alpha1.Template, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (v1alpha1.Template, error) {
+func getCiTemplateWithConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, ciTemplate v1alpha1.Template) (v1alpha1.Template, error) {
 	var secretMap []bean3.ConfigSecretMap
 	for _, cs := range secrets.Secrets {
 		secretMap = append(secretMap, *cs)
