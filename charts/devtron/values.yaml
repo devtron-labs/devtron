@@ -65,7 +65,7 @@ components:
     cicdImage: "quay.io/devtron/devtron:fe45d347-434-14985"
     imagePullPolicy: IfNotPresent
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:71e590dd-138-14841"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:8a9f8b8c-138-14998"
     serviceMonitor:
       enabled: false
     service:
