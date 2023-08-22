@@ -5,16 +5,18 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 )
 
 type VariableDefinition struct {
-	tableName   struct{} `sql:"variable_definition" pg:",discard_unknown_columns"`
-	Id          int      `sql:"id,pk"`
-	Name        string   `sql:"name"`
-	DataType    string   `sql:"data_type"`
-	VarType     string   `sql:"var_type"`
-	Active      bool     `sql:"active"`
-	Description string   `sql:"description"`
+	tableName     struct{} `sql:"variable_definition" pg:",discard_unknown_columns"`
+	Id            int      `sql:"id,pk"`
+	Name          string   `sql:"name"`
+	DataType      string   `sql:"data_type"`
+	VarType       string   `sql:"var_type"`
+	Active        bool     `sql:"active"`
+	Description   string   `sql:"description"`
+	VariableScope []*VariableScope
 	sql.AuditLog
 }
 
@@ -29,7 +31,7 @@ type VariableScope struct {
 	IdentifierValueString string   `sql:"identifier_value_string"`
 	ParentIdentifier      int      `sql:"parent_identifier"`
 	CompositeKey          string   `sql:"-"`
-	VariableDefinition    *VariableDefinition
+	VariableData          *VariableData
 	sql.AuditLog
 }
 
@@ -38,7 +40,6 @@ type VariableData struct {
 	Id              int      `sql:"id,pk"`
 	VariableScopeId int      `sql:"variable_scope_id"`
 	Data            string   `sql:"data"`
-	VariableScope   *VariableScope
 	sql.AuditLog
 }
 
@@ -59,7 +60,7 @@ type ScopedVariableRepository interface {
 	GetAllVariables() ([]*VariableDefinition, error)
 	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)
 	GetVariablesByNames(vars []string) ([]*VariableDefinition, error)
-	GetDataForJson() ([]*VariableDefinition, error)
+	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
 	GetScopedVariableData(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*VariableScope, error)
 	GetScopedVariableDataForVarIds(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
@@ -124,14 +125,15 @@ func (impl *ScopedVariableRepositoryImpl) GetVariablesByNames(vars []string) ([]
 	return variableDefinition, err
 }
 
-func (impl *ScopedVariableRepositoryImpl) GetDataForJson() ([]*VariableDefinition, error) {
+func (impl *ScopedVariableRepositoryImpl) GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error) {
 	var variableDefinition []*VariableDefinition
 	err := impl.dbConnection.
 		Model(&variableDefinition).
 		Column("variable_definition.*", "VariableScope", "VariableScope.VariableData").
+		Relation("VariableScope", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("variable_scope.active = ?", true), nil
+		}).
 		Where("variable_definition.active = ?", true).
-		Where("VariableScope.active = ?", true).
-		Order("variable_definition.id DESC").
 		Select()
 	if err != nil {
 		return nil, err

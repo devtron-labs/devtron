@@ -19,6 +19,7 @@ import (
 type ScopedVariableRestHandler interface {
 	CreateVariables(w http.ResponseWriter, r *http.Request)
 	GetScopedVariables(w http.ResponseWriter, r *http.Request)
+	GetJsonForVariables(w http.ResponseWriter, r *http.Request)
 }
 
 type ScopedVariableRestHandlerImpl struct {
@@ -125,7 +126,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 
 	token := r.Header.Get("token")
 	var app *bean.CreateAppDTO
-	app, err = handler.pipelineBuilder.GetApp(1)
+	app, err = handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetScopedVariables", "err", err, "payload", appId, envId, clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -147,6 +148,33 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 		ClusterId: clusterId,
 	}
 	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil)
-	common.WriteJsonResp(w, err, scopedVariableData, http.StatusOK)
+	common.WriteJsonResp(w, nil, scopedVariableData, http.StatusOK)
 
+}
+
+func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	// not logging bean object as it contains sensitive data
+	handler.logger.Infow("request payload received for variables")
+
+	// RBAC enforcer applying
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	var paylaod *repository.Payload
+	paylaod, err = handler.scopedVariableService.GetJsonForVariables()
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
+	common.WriteJsonResp(w, nil, paylaod, http.StatusOK)
 }
