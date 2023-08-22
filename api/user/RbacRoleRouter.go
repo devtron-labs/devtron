@@ -1,7 +1,6 @@
 package user
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -18,7 +17,7 @@ type RbacRoleRouterImpl struct {
 }
 
 func NewRbacRoleRouterImpl(logger *zap.SugaredLogger,
-	validator *validator.Validate, rbacRoleRestHandler RbacRoleRestHandler, userAuth logger.UserAuth) *RbacRoleRouterImpl {
+	validator *validator.Validate, rbacRoleRestHandler RbacRoleRestHandler) *RbacRoleRouterImpl {
 	rbacRoleRouterImpl := &RbacRoleRouterImpl{
 		logger:              logger,
 		validator:           validator,

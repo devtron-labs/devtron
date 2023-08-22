@@ -1,7 +1,6 @@
 package dashboardEvent
 
 import (
-	"github.com/devtron-labs/devtron/api/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -13,7 +12,7 @@ type DashboardTelemetryRouterImpl struct {
 	deploymentRestHandler DashboardTelemetryRestHandler
 }
 
-func NewDashboardTelemetryRouterImpl(deploymentRestHandler DashboardTelemetryRestHandler, userAuth logger.UserAuth) *DashboardTelemetryRouterImpl {
+func NewDashboardTelemetryRouterImpl(deploymentRestHandler DashboardTelemetryRestHandler) *DashboardTelemetryRouterImpl {
 	return &DashboardTelemetryRouterImpl{
 		deploymentRestHandler: deploymentRestHandler,
 	}
