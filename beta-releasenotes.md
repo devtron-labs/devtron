@@ -1,4 +1,5 @@
 ## Bugs
+- fix: prevented chart updation when its in use (#3755)
 - fix: Unable to delete chart group with existing helm chart (#3795)
 - fix: fix for deleting all pre-post cd at once didn't delete them  (#3786)
 ## Enhancements
