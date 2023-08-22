@@ -136,8 +136,8 @@ type ChartService interface {
 	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error)
 	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateRequest, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
-	ChartRefAutocomplete() ([]chartRef, error)
-	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error)
+	ChartRefAutocomplete() ([]ChartRef, error)
+	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*ChartRefResponse, error)
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
@@ -1035,7 +1035,7 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 	return isReady, nil
 }
 
-type chartRef struct {
+type ChartRef struct {
 	Id                    int    `json:"id"`
 	Version               string `json:"version"`
 	Name                  string `json:"name"`
@@ -1048,8 +1048,8 @@ type ChartRefMetaData struct {
 	ChartDescription string `json:"chartDescription"`
 }
 
-type chartRefResponse struct {
-	ChartRefs            []chartRef                  `json:"chartRefs"`
+type ChartRefResponse struct {
+	ChartRefs            []ChartRef                  `json:"chartRefs"`
 	LatestChartRef       int                         `json:"latestChartRef"`
 	LatestAppChartRef    int                         `json:"latestAppChartRef"`
 	LatestEnvChartRef    int                         `json:"latestEnvChartRef,omitempty"`
@@ -1078,8 +1078,8 @@ type ChartDto struct {
 	Version          string `json:"version"`
 }
 
-func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
-	var chartRefs []chartRef
+func (impl ChartServiceImpl) ChartRefAutocomplete() ([]ChartRef, error) {
+	var chartRefs []ChartRef
 	results, err := impl.chartRefRepository.GetAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart config", "err", err)
@@ -1087,7 +1087,7 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 	}
 
 	for _, result := range results {
-		chartRefs = append(chartRefs, chartRef{
+		chartRefs = append(chartRefs, ChartRef{
 			Id:                    result.Id,
 			Version:               result.Version,
 			Description:           result.ChartDescription,
@@ -1099,11 +1099,11 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 	return chartRefs, nil
 }
 
-func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error) {
-	chartRefResponse := &chartRefResponse{
+func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*ChartRefResponse, error) {
+	chartRefResponse := &ChartRefResponse{
 		ChartsMetadata: make(map[string]ChartRefMetaData),
 	}
-	var chartRefs []chartRef
+	var chartRefs []ChartRef
 
 	results, err := impl.chartRefRepository.GetAll()
 	if err != nil {
@@ -1127,7 +1127,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 		if len(result.Name) == 0 {
 			result.Name = "Rollout Deployment"
 		}
-		chartRefs = append(chartRefs, chartRef{
+		chartRefs = append(chartRefs, ChartRef{
 			Id:                    result.Id,
 			Version:               result.Version,
 			Name:                  result.Name,
