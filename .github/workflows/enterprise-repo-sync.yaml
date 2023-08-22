@@ -17,6 +17,7 @@ jobs:
     - run: |
          export GIT_USERNAME="${GIT_CONFIG_NAME}"
          export GIT_PASSWORD="${GH_TOKEN}"
+         echo "kamal"
          export ENTERPRISE_REPO="https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/kamal-test/devtron-enterprise.git"
          git clone https://github.com/devtron-labs/devtron
          git clone $ENTERPRISE_REPO
