@@ -9,7 +9,7 @@ import (
 )
 
 type ClusterRbacService interface {
-	CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterOnly bool) (bool, error)
+	CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (bool, error)
 }
 
 type ClusterRbacServiceImpl struct {
