@@ -162,20 +162,24 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in saving chart repo in DB", "err", err)
 		return nil, err
 	}
 
 	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
+		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
 		return nil, err
 	}
 	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err)
 		return nil, err
 	}
 
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
+		impl.logger.Errorw("error in creating kubernetes client", "err", err)
 		return nil, err
 	}
 
@@ -202,6 +206,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		}
 	}
 	if !updateSuccess {
+		impl.logger.Errorw("error in creating secret for chart repository", "err", err)
 		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 	err = tx.Commit()
