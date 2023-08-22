@@ -37,7 +37,17 @@ func TestVariableEntityMappingRepositoryImpl_DeleteAllVariablesForEntities(t *te
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "delete_all_vars",
+			args: args{
+				entities: []Entity{{
+					EntityType: EntityTypeDeploymentTemplateAppLevel,
+					EntityId:   2,
+				}},
+				userId: 1,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

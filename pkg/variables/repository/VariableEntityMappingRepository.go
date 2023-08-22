@@ -64,6 +64,7 @@ func (impl *VariableEntityMappingRepositoryImpl) DeleteVariablesForEntity(tx *pg
 		Set("updated_by = ?", userId).
 		Set("updated_on = ?", time.Now()).
 		Where("variable_name IN (?)", pg.In(variableNames)).
+		Where("is_deleted = ?", false).
 		Where("entity_id = ? AND entity_type = ?", entity.EntityId, entity.EntityType).
 		Update()
 	if err != nil {
@@ -78,6 +79,7 @@ func (impl *VariableEntityMappingRepositoryImpl) DeleteAllVariablesForEntities(e
 		Set("is_deleted = ?", true).
 		Set("updated_by = ?", userId).
 		Set("updated_on = ?", time.Now()).
+		Where("is_deleted = ?", false).
 		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
 			for _, entity := range entities {
 				q = q.WhereOr("entity_id = ? AND entity_type = ?", entity.EntityId, entity.EntityType)
