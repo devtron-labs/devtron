@@ -18,6 +18,7 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -91,13 +92,22 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		}
 		rgName := strings.ToLower(request.Name)
 		object := "group:" + strings.ReplaceAll(rgName, " ", "_")
+
+		exists, err := impl.roleGroupRepository.CheckRoleGroupExistByCasbinName(object)
+		if err != nil {
+			impl.logger.Errorw("error in getting role group by casbin name", "err", err, "casbinName", object)
+			return nil, err
+		} else if exists {
+			impl.logger.Errorw("role group already present", "err", err, "roleGroup", request.Name)
+			return nil, errors.New("role group already exist")
+		}
 		model.CasbinName = object
 		model.CreatedBy = request.UserId
 		model.UpdatedBy = request.UserId
 		model.CreatedOn = time.Now()
 		model.UpdatedOn = time.Now()
 		model.Active = true
-		model, err := impl.roleGroupRepository.CreateRoleGroup(model, tx)
+		model, err = impl.roleGroupRepository.CreateRoleGroup(model, tx)
 		request.Id = model.Id
 		if err != nil {
 			impl.logger.Errorw("error in creating new user group", "error", err)

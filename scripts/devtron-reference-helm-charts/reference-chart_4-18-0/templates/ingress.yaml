@@ -85,6 +85,9 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
         {{- end }}
+        {{- if  .additionalBackends }}
+{{ toYaml .additionalBackends | indent 10 }}
+        {{- end }}
   {{- end }}
   {{- end }}
   {{- if .Values.ingress.tls }}
@@ -161,6 +164,10 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
         {{- end }}
+   {{- if  .additionalBackends }}
+{{ toYaml .additionalBackends | indent 10 }}
+        {{- end }}    
+   
   {{- end }}
   {{- end }}
   {{- if .Values.ingressInternal.tls }}

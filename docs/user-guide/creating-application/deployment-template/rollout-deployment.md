@@ -653,19 +653,26 @@ When you create a pod, if you do not create a service account, it is automatical
 
 ### Pod Disruption Budget
 
-```yaml
-podDisruptionBudget: {}
-     minAvailable: 1
-     maxUnavailable: 1
-```
-
 You can create `PodDisruptionBudget` for each application. A PDB limits the number of pods of a replicated application that are down simultaneously from voluntary disruptions. For example, an application would like to ensure the number of replicas running is never brought below the certain number.
 
-You can specify `maxUnavailable` and `minAvailable` in a `PodDisruptionBudget`.
+```yaml
+podDisruptionBudget: 
+     minAvailable: 1
+```
 
-With `minAvailable` of 1, evictions are allowed as long as they leave behind 1 or more healthy pods of the total number of desired replicas.
+or
 
-With `maxAvailable` of 1, evictions are allowed as long as at most 1 unhealthy replica among the total number of desired replicas.
+```yaml
+podDisruptionBudget: 
+     maxUnavailable: 50%
+```
+
+You can specify either `maxUnavailable` or `minAvailable` in a PodDisruptionBudget and it can be expressed as integers or as a percentage.
+
+| Key | Description |
+| :--- | :--- |
+| `minAvailable` | Evictions are allowed as long as they leave behind 1 or more healthy pods of the total number of desired replicas. |
+| `maxUnavailable` | Evictions are allowed as long as at most 1 unhealthy replica among the total number of desired replicas. |
 
 ### Application metrics Envoy Configurations
 
