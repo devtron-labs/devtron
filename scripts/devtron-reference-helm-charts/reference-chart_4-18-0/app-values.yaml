@@ -1,4 +1,5 @@
 # Mandatory configs
+podDisruptionBudget: {}
 
 rolloutLabels: {}
 rolloutAnnotations: {}

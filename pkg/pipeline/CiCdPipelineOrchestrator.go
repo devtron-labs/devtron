@@ -283,7 +283,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 				return nil, err
 			}
 			if createRequest.EnvironmentId != 0 {
-				createJobEnvOverrideRequest := &CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest := &bean2.CreateJobEnvOverridePayload{
 					AppId:  createRequest.AppId,
 					EnvId:  createRequest.EnvironmentId,
 					UserId: userId,
@@ -678,7 +678,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 
 			if ciPipeline.EnvironmentId != 0 && !createRequest.IsCloneJob {
-				createJobEnvOverrideRequest := &CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest := &bean2.CreateJobEnvOverridePayload{
 					AppId:  createRequest.AppId,
 					EnvId:  ciPipeline.EnvironmentId,
 					UserId: createRequest.UserId,
