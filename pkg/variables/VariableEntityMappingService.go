@@ -58,15 +58,14 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 		})
 	}
 
-	connection := impl.variableEntityMappingRepository.GetConnection()
-	tx, err := connection.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if err != nil {
-		return err
-	}
+	tx, err := impl.variableEntityMappingRepository.StartTx()
+	defer func() {
+		err = impl.variableEntityMappingRepository.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Infow("error in rolling back transaction", "err", err)
+		}
+	}()
+
 	err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, utils.ToStringArray(variablesToDelete), entity, userId)
 	if err != nil {
 		return err
@@ -76,7 +75,8 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 	if err != nil {
 		return err
 	}
-	err = tx.Commit()
+
+	err = impl.variableEntityMappingRepository.CommitTx(tx)
 	if err != nil {
 		return err
 	}

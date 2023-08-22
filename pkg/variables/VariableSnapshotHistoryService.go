@@ -49,17 +49,12 @@ func (impl VariableSnapshotHistoryServiceImpl) GetVariableHistoryForReferences(r
 	if err != nil {
 		return nil, err
 	}
-	//variableSnapshotHistories := make([]*repository2.VariableSnapshotHistoryBean, 0)
 	variableSnapshotHistories := make(map[repository2.HistoryReference]*repository2.VariableSnapshotHistoryBean)
 	for _, snapshot := range snapshots {
 		variableSnapshotHistories[snapshot.HistoryReference] = &repository2.VariableSnapshotHistoryBean{
 			VariableSnapshot: snapshot.VariableSnapshot,
 			HistoryReference: snapshot.HistoryReference,
 		}
-		//variableSnapshotHistories = append(variableSnapshotHistories, &repository2.VariableSnapshotHistoryBean{
-		//	VariableSnapshot: snapshot.VariableSnapshot,
-		//	HistoryReference: snapshot.HistoryReference,
-		//})
 	}
 	return variableSnapshotHistories, nil
 }

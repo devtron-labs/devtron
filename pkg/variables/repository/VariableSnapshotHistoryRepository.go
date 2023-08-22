@@ -12,7 +12,7 @@ type VariableSnapshotHistoryRepository interface {
 }
 
 func (impl VariableSnapshotHistoryRepositoryImpl) SaveVariableSnapshots(variableSnapshotHistories []*VariableSnapshotHistory) error {
-	err := impl.dbConnection.Insert(variableSnapshotHistories)
+	err := impl.dbConnection.Insert(&variableSnapshotHistories)
 	if err != nil {
 		impl.logger.Errorw("err in saving variable snapshot history", "err", err)
 		return err
@@ -21,7 +21,7 @@ func (impl VariableSnapshotHistoryRepositoryImpl) SaveVariableSnapshots(variable
 }
 
 func (impl VariableSnapshotHistoryRepositoryImpl) GetVariableSnapshots(historyReferences []HistoryReference) ([]*VariableSnapshotHistory, error) {
-	var variableSnapshotHistories []*VariableSnapshotHistory
+	variableSnapshotHistories := make([]*VariableSnapshotHistory, 0)
 
 	err := impl.dbConnection.Model(&variableSnapshotHistories).
 		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
@@ -30,10 +30,11 @@ func (impl VariableSnapshotHistoryRepositoryImpl) GetVariableSnapshots(historyRe
 			}
 			return q, nil
 		}).Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting variables for entities", "err", err)
 		return nil, err
 	}
+
 	return variableSnapshotHistories, nil
 }
 
