@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/devtron/api/k8s/capacity"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"net/http"
@@ -71,7 +70,7 @@ type ClusterRestHandlerImpl struct {
 	deleteService             delete2.DeleteService
 	argoUserService           argo.ArgoUserService
 	environmentService        cluster.EnvironmentService
-	k8sCapacityRestHandler    capacity.K8sCapacityRestHandler
+	clusterRbacService        cluster.ClusterRbacService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -84,7 +83,7 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	deleteService delete2.DeleteService,
 	argoUserService argo.ArgoUserService,
 	environmentService cluster.EnvironmentService,
-	k8sCapacityRestHandler capacity.K8sCapacityRestHandler) *ClusterRestHandlerImpl {
+	clusterRbacService cluster.ClusterRbacService) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
 		clusterService:            clusterService,
 		clusterNoteService:        clusterNoteService,
@@ -96,7 +95,7 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 		deleteService:             deleteService,
 		argoUserService:           argoUserService,
 		environmentService:        environmentService,
-		k8sCapacityRestHandler:    k8sCapacityRestHandler,
+		clusterRbacService:        clusterRbacService,
 	}
 }
 
@@ -379,7 +378,7 @@ func (impl ClusterRestHandlerImpl) FindNoteByClusterId(w http.ResponseWriter, r 
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	authenticated, err := impl.k8sCapacityRestHandler.CheckRbacForClusterOrNodes(bean.ClusterName, bean.ClusterId, token, userId, false)
+	authenticated, err := impl.clusterRbacService.CheckAuthorization(bean.ClusterName, bean.ClusterId, token, userId, false)
 	if err != nil {
 		impl.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", bean.ClusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
