@@ -17,7 +17,7 @@ jobs:
     - run: |
          export GIT_USERNAME="${GIT_CONFIG_NAME}"
          export GIT_PASSWORD="${GH_TOKEN}"
-         export ENTERPRISE_REPO="https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/devtron-labs/devtron-enterprise.git"
+         export ENTERPRISE_REPO="https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/kamal-test/devtron-enterprise.git"
          git clone https://github.com/devtron-labs/devtron
          git clone $ENTERPRISE_REPO
 
@@ -28,9 +28,16 @@ jobs:
          git config --global user.email $GIT_CONFIG_EMAIL
          git config --global user.name $GIT_USERNAME
 
-         git status && git checkout main && git pull
+         git status && git checkout main && git pull && rm -rf .github
+         git add .  && git commit -m "removal of .github"
 
          cd ../devtron-enterprise && git status && git checkout main && git pull
+         if git rev-parse --verify origin/release-candidate >/dev/null 2>&1; then
+            echo "Branch exsist"
+         else
+           git checkout -b release-candidate
+           git push -u origin release-candidate
+         fi 
          git remote add oss-devtron ../devtron && git remote -v && git remote update && git merge oss-devtron/main
          export WIRE_GEN_FILE_NAME="wire_gen.go"
          export CONFLICT_FILES=`git diff --name-only --diff-filter=U --relative`
