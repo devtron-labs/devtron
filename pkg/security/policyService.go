@@ -250,7 +250,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				scanResultsIdMap[scanResult.ImageScanExecutionHistoryId] = scanResult.ImageScanExecutionHistoryId
 			}
 		}
-		blockedCves := impl.enforceCvePolicy(cveStores, cvePolicy, severityPolicy)
+		blockedCves := security.EnforceCvePolicy(cveStores, cvePolicy, severityPolicy)
 		impl.logger.Debugw("blocked cve for image", "image", image, "blocked", blockedCves)
 		for _, cve := range blockedCves {
 			vr := &VerifyImageResponse{
@@ -708,7 +708,7 @@ func (impl *PolicyServiceImpl) GetBlockedCVEList(cves []*security.CveStore, clus
 	if err != nil {
 		return nil, err
 	}
-	blockedCve := impl.enforceCvePolicy(cves, cvePolicy, severityPolicy)
+	blockedCve := security.EnforceCvePolicy(cves, cvePolicy, severityPolicy)
 	return blockedCve, nil
 }
 

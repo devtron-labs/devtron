@@ -247,11 +247,11 @@ func (impl *CvePolicyRepositoryImpl) GetBlockedCVEList(cves []*CveStore, cluster
 	if err != nil {
 		return nil, err
 	}
-	blockedCve := impl.enforceCvePolicy(cves, cvePolicy, severityPolicy)
+	blockedCve := EnforceCvePolicy(cves, cvePolicy, severityPolicy)
 	return blockedCve, nil
 }
 
-func (impl *CvePolicyRepositoryImpl) enforceCvePolicy(cves []*CveStore, cvePolicy map[string]*CvePolicy, severityPolicy map[Severity]*CvePolicy) (blockedCVE []*CveStore) {
+func EnforceCvePolicy(cves []*CveStore, cvePolicy map[string]*CvePolicy, severityPolicy map[Severity]*CvePolicy) (blockedCVE []*CveStore) {
 
 	for _, cve := range cves {
 		if policy, ok := cvePolicy[cve.Name]; ok {

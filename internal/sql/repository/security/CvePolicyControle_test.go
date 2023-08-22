@@ -171,11 +171,8 @@ func TestCvePolicyRepositoryImpl_enforceCvePolicy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl := &CvePolicyRepositoryImpl{
-				dbConnection: tt.fields.dbConnection,
-			}
-			if gotBlockedCVE := impl.enforceCvePolicy(tt.args.cves, tt.args.cvePolicy, tt.args.severityPolicy); !reflect.DeepEqual(gotBlockedCVE, tt.wantBlockedCVE) {
-				t.Errorf("enforceCvePolicy() = %v, want %v", gotBlockedCVE, tt.wantBlockedCVE)
+			if gotBlockedCVE := EnforceCvePolicy(tt.args.cves, tt.args.cvePolicy, tt.args.severityPolicy); !reflect.DeepEqual(gotBlockedCVE, tt.wantBlockedCVE) {
+				t.Errorf("EnforceCvePolicy() = %v, want %v", gotBlockedCVE, tt.wantBlockedCVE)
 			}
 		})
 	}
