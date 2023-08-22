@@ -50,35 +50,37 @@ func TestVariableEntityMappingRepositoryImpl_DeleteAllVariablesForEntities(t *te
 }
 
 func TestVariableEntityMappingRepositoryImpl_DeleteVariablesForEntity(t *testing.T) {
-	type fields struct {
-		logger              *zap.SugaredLogger
-		dbConnection        *pg.DB
-		TransactionUtilImpl *sql.TransactionUtilImpl
-	}
 	type args struct {
-		tx            *pg.Tx
 		variableNames []string
 		entity        Entity
 		userId        int32
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "delete_variables_for_entity_deletes_successfully",
+			args: args{
+				variableNames: []string{"test1", "test2"},
+				entity: Entity{
+					EntityType: EntityTypeDeploymentTemplateAppLevel,
+					EntityId:   1,
+				},
+				userId: 1,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl := &VariableEntityMappingRepositoryImpl{
-				logger:              tt.fields.logger,
-				dbConnection:        tt.fields.dbConnection,
-				TransactionUtilImpl: tt.fields.TransactionUtilImpl,
-			}
-			if err := impl.DeleteVariablesForEntity(tt.args.tx, tt.args.variableNames, tt.args.entity, tt.args.userId); (err != nil) != tt.wantErr {
+			impl := getVariableEntityMappingRepositoryImpl(t)
+			tx, _ := impl.StartTx()
+			if err := impl.DeleteVariablesForEntity(tx, tt.args.variableNames, tt.args.entity, tt.args.userId); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteVariablesForEntity() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			impl.CommitTx(tx)
 		})
 	}
 }

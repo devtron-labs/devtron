@@ -63,7 +63,7 @@ func (impl *VariableEntityMappingRepositoryImpl) DeleteVariablesForEntity(tx *pg
 		Set("is_deleted = ?", true).
 		Set("updated_by = ?", userId).
 		Set("updated_on = ?", time.Now()).
-		Where("variable_id IN (?)", pg.In(variableNames)).
+		Where("variable_name IN (?)", pg.In(variableNames)).
 		Where("entity_id = ? AND entity_type = ?", entity.EntityId, entity.EntityType).
 		Update()
 	if err != nil {
