@@ -144,13 +144,12 @@ func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(appId, envId, cl
 	var variableScopes []*VariableScope
 	err := impl.dbConnection.
 		Model(&variableScopes).
-		Column("VariableScope.*").
-		Where("VariableScope.active = ?", true).
-		Where("(((vs.identifier_key = ? AND vs.identifier_value_int = ?) OR (vs.identifier_key = ? AND vs.identifier_value_int = ?)) AND qualifier_id = ?) "+
-			"OR (vs.qualifier_id = ? AND vs.identifier_key = ? AND vs.identifier_value_int = ?) "+
-			"OR (vs.qualifier_id = ? AND vs.identifier_key = ? AND vs.identifier_value_int = ?) "+
-			"OR (vs.qualifier_id = ? AND vs.identifier_key = ? AND vs.identifier_value_int = ?) "+
-			"OR vs.qualifier_id = ?",
+		Where("active = ?", true).
+		Where("(((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR qualifier_id = ?",
 			searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId, APP_AND_ENV_QUALIFIER,
 			APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId,
 			ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId,
@@ -169,14 +168,14 @@ func (impl *ScopedVariableRepositoryImpl) GetScopedVariableDataForVarIds(appId, 
 	err := impl.dbConnection.
 		Model(&variableScopes).
 		Column("VariableScope.*").
-		Where("VariableScope.active = ?", true).
-		Where("variable_Id in ? AND "+
-			"((((vs.identifier_key = ? AND vs.identifier_value_int = ?) OR (vs.identifier_key = ? AND vs.identifier_value_int = ?)) AND qualifier_id = ?) "+
-			"OR (vs.qualifier_id = ? AND vs.identifier_key = ? AND vs.identifier_value_int = ?) "+
-			"OR (vs.qualifier_id = ? AND vs.identifier_key = ? AND vs.identifier_value_int = ?) "+
-			"OR (vs.qualifier_id = ? AND vs.identifier_key = ? AND vs.identifier_value_int = ?) "+
-			"OR vs.qualifier_id = ?)",
-			varIds,
+		Where("active = ?", true).
+		Where("variable_Id in (?) AND "+
+			"((((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR qualifier_id = ?)",
+			pg.In(varIds),
 			searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId, APP_AND_ENV_QUALIFIER,
 			APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId,
 			ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId,
@@ -194,7 +193,7 @@ func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]
 	var variableData []*VariableData
 	err := impl.dbConnection.
 		Model(&variableData).
-		Where("scope_Id in(?)", pg.In(scopeIds)).
+		Where("variable_scope_id in(?)", pg.In(scopeIds)).
 		Select()
 	return variableData, err
 

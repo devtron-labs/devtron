@@ -52,7 +52,7 @@ func getIdentifierKey(identifierType repository2.IdentifierType, searchableKeyNa
 	case repository2.ApplicationName:
 		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID]
 	case repository2.ClusterName:
-		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
+		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]
 	case repository2.EnvName:
 		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
 	default:
@@ -70,9 +70,10 @@ func getQualifierId(attributeType repository2.AttributeType) int {
 		return repository2.ENV_QUALIFIER
 	case repository2.Cluster:
 		return repository2.CLUSTER_QUALIFIER
-
-	default:
+	case repository2.Global:
 		return repository2.GLOBAL_QUALIFIER
+	default:
+		return 0
 	}
 }
 
@@ -330,6 +331,8 @@ func (impl *ScopedVariableServiceImpl) filterMatch(scope *repository2.VariableSc
 }
 func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repository2.VariableScope, appId, envId, clusterId int) map[int]*VariablePriorityMapping {
 	variablePriorityMap := make(map[int]*VariablePriorityMapping)
+	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+
 	if appId == 0 && envId == 0 && clusterId == 0 {
 		return variablePriorityMap
 	}
@@ -337,18 +340,21 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repo
 		isMatch := false
 		if appId != 0 && envId != 0 {
 			isMatch = impl.filterMatch(scope, appId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID, 0)
-			if isMatch && scope.IdentifierKey != 0 {
+			if isMatch && (scope.IdentifierKey != 0 || scope.IdentifierKey == searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]) {
 				for _, envScope := range varScope {
 					if isMatch = impl.filterMatch(envScope, envId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID, scope.Id); isMatch {
 						break
 					}
 				}
 			}
-		} else if appId != 0 {
+		}
+		if !isMatch && appId != 0 {
 			isMatch = impl.filterMatch(scope, appId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID, 0)
-		} else if envId != 0 {
+		}
+		if !isMatch && envId != 0 {
 			isMatch = impl.filterMatch(scope, envId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID, 0)
-		} else if clusterId != 0 {
+		}
+		if !isMatch && clusterId != 0 {
 			isMatch = impl.filterMatch(scope, clusterId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID, 0)
 		}
 		if isMatch {
@@ -405,11 +411,11 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 	}
 	varDefs, err := impl.scopedVariableRepository.GetVariablesForVarIds(scopedVarIds)
 	if err != nil {
-
+		return nil, err
 	}
-	varDatas, err := impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
+	vData, err := impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
 	if err != nil {
-
+		return nil, err
 	}
 	for varId, mapping := range scopedVariableIds {
 		scopedVariableData := &ScopedVariableData{}
@@ -419,7 +425,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 				break
 			}
 		}
-		for _, varData := range varDatas {
+		for _, varData := range vData {
 			if varData.VariableScopeId == mapping.ScopeId {
 				scopedVariableData.VariableValue = varData.Data
 			}
