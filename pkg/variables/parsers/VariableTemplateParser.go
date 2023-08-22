@@ -4,14 +4,14 @@ import (
 	"errors"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcl/hclsyntax"
+	_ "github.com/hashicorp/hcl2/hcl/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
+	json2 "github.com/zclconf/go-cty/cty/json"
 	"go.uber.org/zap"
 	"regexp"
 	"strings"
-	_ "github.com/hashicorp/hcl2/hcl/hclsyntax"
-	json2 "github.com/zclconf/go-cty/cty/json"
 )
 
 type VariableTemplateParser interface {
@@ -67,7 +67,7 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values ma
 	} else {
 		//TODO KB: handle this case
 	}
-	return output //TODO KB: fix this
+	return output
 }
 
 func (impl *VariableTemplateParserImpl) convertToHclCompatible(template string) string {
@@ -103,7 +103,18 @@ func (impl *VariableTemplateParserImpl) convertToHclExpression(deploymentTemplat
 	for _, datum := range indexesData {
 		startIndex := datum[0]
 		endIndex := datum[1]
-		strBuilder.WriteString(deploymentTemplate[currentIndex:startIndex] + "$" + deploymentTemplate[startIndex+2:endIndex-1])
+		strBuilder.WriteString(deploymentTemplate[currentIndex:startIndex])
+		quoteAdded := false
+		if startIndex > 0 && deploymentTemplate[startIndex-1] == '"' { // if quotes are already present then ignore
+			strBuilder.WriteString("$")
+		} else {
+			quoteAdded = true
+			strBuilder.WriteString("\"$")
+		}
+		strBuilder.WriteString(deploymentTemplate[startIndex+2 : endIndex-1])
+		if quoteAdded { // adding closing quote
+			strBuilder.WriteString("\"")
+		}
 		currentIndex = endIndex
 	}
 	if currentIndex <= len(deploymentTemplate) {
