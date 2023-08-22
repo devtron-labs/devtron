@@ -6,7 +6,7 @@ import (
 )
 
 type VariableSnapshotHistory struct {
-	tableName struct{} `sql:"variable-snapshot_history" pg:",discard_unknown_columns"`
+	tableName struct{} `sql:"variable_snapshot_history" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
 	VariableSnapshotHistoryBean
 	sql.AuditLog
@@ -18,7 +18,7 @@ type HistoryReference struct {
 }
 
 type VariableSnapshotHistoryBean struct {
-	VariableSnapshot json.RawMessage
+	VariableSnapshot json.RawMessage `sql:"variable_snapshot"`
 	HistoryReference
 }
 

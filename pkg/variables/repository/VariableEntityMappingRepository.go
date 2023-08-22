@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -8,7 +9,7 @@ import (
 )
 
 type VariableEntityMappingRepository interface {
-	GetConnection() (dbConnection *pg.DB)
+	sql.TransactionWrapper
 	GetVariablesForEntities(entities []Entity) ([]*VariableEntityMapping, error)
 	SaveVariableEntityMappings(tx *pg.Tx, mappings []*VariableEntityMapping) error
 	DeleteAllVariablesForEntities(entities []Entity, userId int32) error
@@ -17,22 +18,20 @@ type VariableEntityMappingRepository interface {
 
 func NewVariableEntityMappingRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *VariableEntityMappingRepositoryImpl {
 	return &VariableEntityMappingRepositoryImpl{
-		logger:       logger,
-		dbConnection: dbConnection,
+		logger:              logger,
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
 	}
 }
 
 type VariableEntityMappingRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 	dbConnection *pg.DB
-}
-
-func (impl *VariableEntityMappingRepositoryImpl) GetConnection() *pg.DB {
-	return impl.dbConnection
+	*sql.TransactionUtilImpl
 }
 
 func (impl *VariableEntityMappingRepositoryImpl) SaveVariableEntityMappings(tx *pg.Tx, mappings []*VariableEntityMapping) error {
-	err := tx.Insert(mappings)
+	err := tx.Insert(&mappings)
 	if err != nil {
 		impl.logger.Errorw("err in saving variable entity mappings", "err", err)
 		return err
@@ -41,7 +40,7 @@ func (impl *VariableEntityMappingRepositoryImpl) SaveVariableEntityMappings(tx *
 }
 
 func (impl *VariableEntityMappingRepositoryImpl) GetVariablesForEntities(entities []Entity) ([]*VariableEntityMapping, error) {
-	var mappings []*VariableEntityMapping
+	mappings := make([]*VariableEntityMapping, 0)
 
 	err := impl.dbConnection.Model(&mappings).
 		Where("is_deleted = ?", false).
@@ -51,7 +50,7 @@ func (impl *VariableEntityMappingRepositoryImpl) GetVariablesForEntities(entitie
 			}
 			return q, nil
 		}).Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting variables for entities", "err", err)
 		return nil, err
 	}
