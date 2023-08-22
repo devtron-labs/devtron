@@ -64,6 +64,7 @@ type ScopedVariableRepository interface {
 	GetScopedVariableData(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*VariableScope, error)
 	GetScopedVariableDataForVarIds(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
+	DeleteVariables() error
 }
 
 type ScopedVariableRepositoryImpl struct {
@@ -200,9 +201,15 @@ func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]
 
 }
 
-func (impl *ScopedVariableRepositoryImpl) DeleteForScopeIds() error {
+func (impl *ScopedVariableRepositoryImpl) DeleteVariables() error {
 	_, err := impl.dbConnection.Model(&VariableScope{}).
 		Set("active = ?", false).
+		Where("active = ?", true).
+		Update()
+
+	_, err = impl.dbConnection.Model(&VariableDefinition{}).
+		Set("active = ?", false).
+		Where("active = ?", true).
 		Update()
 	if err != nil {
 		return err

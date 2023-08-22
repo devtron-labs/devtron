@@ -110,6 +110,10 @@ type ValueMapping struct {
 }
 
 func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Payload) error {
+	err := impl.scopedVariableRepository.DeleteVariables()
+	if err != nil {
+		return err
+	}
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	n := len(payload.Variables)
 	if len(payload.Variables) == 0 {
