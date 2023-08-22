@@ -1,4 +1,5 @@
 # Mandatory configs
+podDisruptionBudget: {}
 
 rolloutLabels: {}
 rolloutAnnotations: {}
@@ -128,6 +129,7 @@ ingress:
       paths:
         - /example2
         - /example2/healthz
+      additionalBackends: []
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
@@ -147,6 +149,7 @@ ingressInternal:
       pathType: "ImplementationSpecific"
       paths:
         - /example1
+      additionalBackends: []
     - host: chart-example2.internal
       pathType: "ImplementationSpecific"
       paths:
