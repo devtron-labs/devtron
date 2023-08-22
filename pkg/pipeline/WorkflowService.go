@@ -590,23 +590,18 @@ func getConfigMapsAndSecrets(workflowRequest *WorkflowRequest, existingConfigMap
 	configMaps := bean3.ConfigMapJson{}
 	secrets := bean3.ConfigSecretJson{}
 	for _, cm := range existingConfigMap.Maps {
-		if cm.External {
-			continue
+		if !cm.External {
+			cm.Name = cm.Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
 		}
 		configMaps.Maps = append(configMaps.Maps, cm)
-	}
-	for i := range configMaps.Maps {
-		configMaps.Maps[i].Name = configMaps.Maps[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+
 	}
 
 	for _, s := range existingSecrets.Secrets {
-		if s.External {
-			continue
+		if !s.External {
+			s.Name = s.Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
 		}
 		secrets.Secrets = append(secrets.Secrets, s)
-	}
-	for i := range secrets.Secrets {
-		secrets.Secrets[i].Name = secrets.Secrets[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
 	}
 	return configMaps, secrets, nil
 }
