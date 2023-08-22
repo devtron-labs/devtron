@@ -328,27 +328,6 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 	return imageBlockedCves, nil
 }
 
-// image(cve), appId, envId
-func (impl *PolicyServiceImpl) enforceCvePolicy(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[security.Severity]*security.CvePolicy) (blockedCVE []*security.CveStore) {
-
-	for _, cve := range cves {
-		if policy, ok := cvePolicy[cve.Name]; ok {
-			if policy.Action == security.Allow {
-				continue
-			} else if (policy.Action == security.Block) || (policy.Action == security.Blockiffixed && cve.FixedVersion != "") {
-				blockedCVE = append(blockedCVE, cve)
-			}
-		} else {
-			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
-				continue
-			} else if severityPolicy[cve.Severity] != nil && (severityPolicy[cve.Severity].Action == security.Block || (severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "")) {
-				blockedCVE = append(blockedCVE, cve)
-			}
-		}
-	}
-	return blockedCVE
-}
-
 func (impl *PolicyServiceImpl) GetApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*security.CvePolicy, map[security.Severity]*security.CvePolicy, error) {
 
 	var policyLevel security.PolicyLevel
