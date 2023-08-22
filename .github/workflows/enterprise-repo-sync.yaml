@@ -36,6 +36,7 @@ jobs:
          if git rev-parse --verify origin/release-candidate >/dev/null 2>&1; then
             echo "Branch exsist"
          else
+           echo "creating branch ************"
            git checkout -b release-candidate
            git push -u origin release-candidate
          fi 
