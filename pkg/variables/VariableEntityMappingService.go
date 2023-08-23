@@ -46,7 +46,7 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 
 	newVariableMappings := make([]*repository.VariableEntityMapping, 0)
 	for _, variableId := range variableToAdd {
-		variableMappings = append(variableMappings, &repository.VariableEntityMapping{
+		newVariableMappings = append(newVariableMappings, &repository.VariableEntityMapping{
 			VariableName: variableId.(string),
 			Entity:       entity,
 			AuditLog: sql.AuditLog{
@@ -66,14 +66,18 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 		}
 	}()
 
-	err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, utils.ToStringArray(variablesToDelete), entity, userId)
-	if err != nil {
-		return err
+	if len(variablesToDelete) > 0 {
+		err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, utils.ToStringArray(variablesToDelete), entity, userId)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = impl.variableEntityMappingRepository.SaveVariableEntityMappings(tx, newVariableMappings)
-	if err != nil {
-		return err
+	if len(newVariableMappings) > 0 {
+		err = impl.variableEntityMappingRepository.SaveVariableEntityMappings(tx, newVariableMappings)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = impl.variableEntityMappingRepository.CommitTx(tx)
