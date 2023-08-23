@@ -1,3 +1,5 @@
+## v0.6.21
+
 ## Bugs
 - fix: deployment timelines fix for helm apps (#3794)
 - fix: duplicate role-group-fix (#3774)
@@ -20,3 +22,5 @@
 ## Others
 - chore: adding logs in chart repo code (#3810)
 - chore: Config approval scripts and refactoring (#3762)
+
+
