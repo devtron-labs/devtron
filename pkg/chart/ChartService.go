@@ -140,7 +140,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *ChartServiceImpl {
 
 	// cache devtron reference charts list
-	devtronChartList, _ := chartRefRepository.FetchChartInfoByUploadFlag(false)
+	devtronChartList, _ := chartRefRepository.FetchAllChartInfoByUploadFlag(false)
 	SetReservedChartList(devtronChartList)
 
 	return &ChartServiceImpl{
@@ -1544,6 +1544,18 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
 		location = chartLocation
 
+		// Validate: chart name shouldn't conflict with Devtron charts (no user uploaded chart names should contain any devtron chart names as the prefix)
+		isReservedChart, _ := impl.ValidateReservedChartName(chartName)
+		if isReservedChart {
+			impl.logger.Errorw("request err, chart name is reserved by Devtron")
+			err = &util.ApiError{
+				Code:            constants.ChartNameAlreadyReserved,
+				InternalMessage: CHART_NAME_RESERVED_INTERNAL_ERROR,
+				UserMessage:     fmt.Sprintf("The name '%s' is reserved for a chart provided by Devtron", chartName),
+			}
+			return chartInfo, err
+		}
+
 		// Validate: chart location should be unique
 		exists, err := impl.chartRefRepository.CheckIfDataExists(location)
 		if err != nil {
@@ -1556,18 +1568,6 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 				Code:            constants.ChartCreatedAlreadyExists,
 				InternalMessage: CHART_ALREADY_EXISTS_INTERNAL_ERROR,
 				UserMessage:     fmt.Sprintf("%s of %s exists already in the database", chartVersion, chartName),
-			}
-			return chartInfo, err
-		}
-
-		// Validate: chart name shouldn't conflict with Devtron charts (no user uploaded chart names should contain any devtron chart names as the prefix)
-		isReservedChart, _ := impl.ValidateReservedChartName(chartName)
-		if isReservedChart {
-			impl.logger.Errorw("request err, chart name is reserved by Devtron")
-			err = &util.ApiError{
-				Code:            constants.ChartNameAlreadyReserved,
-				InternalMessage: CHART_NAME_RESERVED_INTERNAL_ERROR,
-				UserMessage:     fmt.Sprintf("The name '%s' is reserved for a chart provided by Devtron", chartName),
 			}
 			return chartInfo, err
 		}

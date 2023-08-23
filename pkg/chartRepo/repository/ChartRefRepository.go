@@ -41,7 +41,7 @@ type ChartRefRepository interface {
 	CheckIfDataExists(location string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
 	FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error)
-	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
+	FetchAllChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -121,11 +121,11 @@ func (impl ChartRefRepositoryImpl) FetchChart(name string) ([]*ChartRef, error) 
 	return chartRefs, err
 }
 
-func (impl ChartRefRepositoryImpl) FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error) {
+func (impl ChartRefRepositoryImpl) FetchAllChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error) {
 	var repo []*ChartRef
 	err := impl.dbConnection.Model(&repo).
 		Where("user_uploaded = ?", userUploaded).
-		Where("active = ?", true).Select()
+		Select()
 	if err != nil {
 		return repo, err
 	}
