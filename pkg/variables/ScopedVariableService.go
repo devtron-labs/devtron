@@ -109,6 +109,10 @@ type ValueMapping struct {
 	Value     string
 }
 
+//func (impl *ScopedVariableServiceImpl) validatePayload(payload repository2.Payload) {
+//
+//}
+
 func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Payload) error {
 	err := impl.scopedVariableRepository.DeleteVariables()
 	if err != nil {
@@ -366,14 +370,16 @@ type VariablePriorityMapping struct {
 
 func (impl *ScopedVariableServiceImpl) filterMatch(scope *repository2.VariableScope, identifierId int, searchableKeyName bean.DevtronResourceSearchableKeyName, parentRefId int) bool {
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-	if identifierId != 0 {
-		if (scope.IdentifierKey == searchableKeyNameIdMap[searchableKeyName] && scope.IdentifierValueInt == identifierId) || scope.IdentifierKey == 0 {
+	if expectedIdentifierKey, ok := searchableKeyNameIdMap[searchableKeyName]; ok {
+		if scope.IdentifierKey == expectedIdentifierKey && scope.IdentifierValueInt == identifierId {
 			if parentRefId != 0 && scope.ParentIdentifier != parentRefId {
 				return false
 			}
 			return true
-		} else {
-			return false
+		}
+	} else {
+		if scope.IdentifierKey == 0 && scope.IdentifierValueInt == 0 && getQualifierId(repository2.Global) == scope.QualifierId {
+			return true
 		}
 	}
 	return false
@@ -419,6 +425,9 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repo
 		if !isMatch && clusterId != 0 && scope.QualifierId == repository2.CLUSTER_QUALIFIER {
 			isMatch = impl.filterMatch(scope, clusterId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID, 0)
 		}
+		if !isMatch && scope.QualifierId == repository2.GLOBAL_QUALIFIER {
+			isMatch = impl.filterMatch(scope, 0, "", 0)
+		}
 		if isMatch {
 			priority, ok := variablePriorityMap[scope.VariableDefinitionId]
 			currentPriority := getPriority(scope.QualifierId)
@@ -455,6 +464,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 	var varScope []*repository2.VariableScope
 	var scopedVariableIds map[int]*VariablePriorityMapping
 	scopeIdToVariableScope := make(map[int]*repository2.VariableScope)
+	//varIds = []int{57}
 	if varIds != nil {
 		varScope, err = impl.scopedVariableRepository.GetScopedVariableDataForVarIds(scope.AppId, scope.EnvId, scope.ClusterId, searchableKeyNameIdMap, varIds)
 		if err != nil {

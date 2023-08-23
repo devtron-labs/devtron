@@ -202,15 +202,27 @@ func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]
 }
 
 func (impl *ScopedVariableRepositoryImpl) DeleteVariables() error {
-	_, err := impl.dbConnection.Model(&VariableScope{}).
+	tx, err := impl.dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer func(tx *pg.Tx) {
+		err = tx.Rollback()
+		if err != nil {
+			return
+		}
+	}(tx)
+	_, err = tx.Model(&VariableScope{}).
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Update()
 
-	_, err = impl.dbConnection.Model(&VariableDefinition{}).
+	_, err = tx.Model(&VariableDefinition{}).
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Update()
+	err = tx.Commit()
 	if err != nil {
 		return err
 	}
