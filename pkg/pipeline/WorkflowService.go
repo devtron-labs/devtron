@@ -589,19 +589,21 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 func getConfigMapsAndSecrets(workflowRequest *WorkflowRequest, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (bean3.ConfigMapJson, bean3.ConfigSecretJson, error) {
 	configMaps := bean3.ConfigMapJson{}
 	secrets := bean3.ConfigSecretJson{}
-	for _, cm := range existingConfigMap.Maps {
+	for index, cm := range existingConfigMap.Maps {
 		if cm.External {
 			continue
 		}
 		cm.Name = cm.Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		existingConfigMap.Maps[index] = cm
 		configMaps.Maps = append(configMaps.Maps, cm)
 	}
 
-	for _, s := range existingSecrets.Secrets {
+	for index, s := range existingSecrets.Secrets {
 		if s.External {
 			continue
 		}
 		s.Name = s.Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		existingSecrets.Secrets[index] = s
 		secrets.Secrets = append(secrets.Secrets, s)
 	}
 	return configMaps, secrets, nil
