@@ -37,7 +37,7 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 		}
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("error reading request body for ", "urlPath: ", r.URL.Path, " queryParams: ", r.URL.Query().Encode(), " userEmail: ", userEmail)
+			log.Printf("error reading request body for urlPath: %s queryParams: %s userEmail: %s", r.URL.Path, r.URL.Query().Encode(), userEmail)
 		}
 		auditLogDto := &AuditLoggerDTO{
 			UrlPath:         r.URL.Path,
