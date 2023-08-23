@@ -86,6 +86,7 @@ type AppListingService interface {
 
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
+	FetchDeploymentsWithChartRefs(appId int, envId int) (map[string]interface{}, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
@@ -1689,6 +1690,45 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		}
 	}
 	return envs, nil
+}
+func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId int) (map[string]interface{}, error) {
+
+	result := make(map[string]interface{})
+
+	deployedOnEnv, err := impl.appListingRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("err", err)
+		return result, err
+	}
+
+	deployedOnOtherEnvs, err := impl.appListingRepository.FetchLatestDeploymentWithChartRefs(appId, envId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("err", err)
+		return result, err
+	}
+
+	var deployedOnEnvFiltered []interface{}
+	for _, data := range deployedOnEnv {
+		data.State = repository.DEPLOYED_ON_SELF_ENVIRONMENT
+		filteredFields := data.FilteredFields()
+		if filteredFields != nil {
+			deployedOnEnvFiltered = append(deployedOnEnvFiltered, filteredFields)
+		}
+	}
+
+	var deployedOnOtherEnvsFiltered []interface{}
+	for _, data := range deployedOnOtherEnvs {
+		data.State = repository.DEPLOYED_ON_OTHER_ENVIRONMENT
+		filteredFields := data.FilteredFields()
+		if filteredFields != nil {
+			deployedOnOtherEnvsFiltered = append(deployedOnOtherEnvsFiltered, filteredFields)
+		}
+	}
+
+	result[repository.DEPLOYED_ON_SELF_ENVIRONMENT] = deployedOnEnvFiltered
+	result[repository.DEPLOYED_ON_OTHER_ENVIRONMENT] = deployedOnOtherEnvsFiltered
+
+	return result, nil
 }
 
 func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error) {

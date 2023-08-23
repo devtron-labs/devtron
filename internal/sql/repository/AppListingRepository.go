@@ -50,6 +50,8 @@ type AppListingRepository interface {
 	//Not in used
 	PrometheusApiByEnvId(id int) (*string, error)
 
+	FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*ComparisionData, error)
+	FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*ComparisionData, error)
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
@@ -68,6 +70,74 @@ type DeploymentStatus struct {
 	EnvId     int       `sql:"env_id"`
 	CreatedOn time.Time `sql:"created_on"`
 	UpdatedOn time.Time `sql:"updated_on"`
+}
+
+type ComparisionData struct {
+	EnvironmentId      int       `json:"environmentId"`
+	PipelineOverrideId int       `json:"pipelineOverrideId"`
+	ChartId            int       `json:"chartId"`
+	ChartVersion       string    `json:"chartVersion"`
+	StartedOn          time.Time `json:"startedOn"`
+	FinishedOn         time.Time `json:"finishedOn"`
+	Status             string    `json:"status"`
+	State              string    `json:"state"`
+	Id                 int       `json:"id"`
+}
+
+const (
+	DEFAULT_VERSIONS              = "DEFAULT_VERSIONS"
+	PUBLISHED_ON_ENVIRONMENTS     = "PUBLISHED_ON_ENVIRONMENTS"
+	DEPLOYED_ON_SELF_ENVIRONMENT  = "DEPLOYED_ON_SELF_ENVIRONMENT"
+	DEPLOYED_ON_OTHER_ENVIRONMENT = "DEPLOYED_ON_OTHER_ENVIRONMENT"
+)
+
+func (cd *ComparisionData) FilteredFields() interface{} {
+	switch cd.State {
+	case DEFAULT_VERSIONS:
+		return struct {
+			ChartRefId   int    `json:"chartRefId"`
+			State        string `json:"state"`
+			ChartVersion string `json:"chartVersion"`
+		}{
+			ChartRefId:   cd.ChartId,
+			State:        cd.State,
+			ChartVersion: cd.ChartVersion,
+		}
+	case PUBLISHED_ON_ENVIRONMENTS:
+		return struct {
+			ChartRefId    int    `json:"chartRefId"`
+			EnvironmentId int    `json:"environmentId"`
+			State         string `json:"state"`
+		}{
+			ChartRefId:    cd.ChartId,
+			EnvironmentId: cd.EnvironmentId,
+			State:         cd.State,
+		}
+	case DEPLOYED_ON_SELF_ENVIRONMENT:
+		return struct {
+			ChartRefId int       `json:"chartRefId"`
+			StartedOn  time.Time `json:"startedOn"`
+			FinishedOn time.Time `json:"finishedOn"`
+			Status     string    `json:"status"`
+			State      string    `json:"state"`
+		}{
+			ChartRefId: cd.ChartId,
+			StartedOn:  cd.StartedOn,
+			FinishedOn: cd.FinishedOn,
+			Status:     cd.Status,
+			State:      cd.State,
+		}
+	case DEPLOYED_ON_OTHER_ENVIRONMENT:
+		return struct {
+			ChartRefId    int `json:"chartRefId"`
+			EnvironmentId int `json:"environmentId"`
+		}{
+			ChartRefId:    cd.ChartId,
+			EnvironmentId: cd.EnvironmentId,
+		}
+	default:
+		return nil
+	}
 }
 
 type AppNameTypeIdContainerDBResponse struct {
@@ -629,6 +699,41 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 		}(),
 		Required: true,
 	}
+}
+
+func (impl AppListingRepositoryImpl) FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*ComparisionData, error) {
+	var result []*ComparisionData
+	query := "SELECT wfr.finished_on,wfr.started_on, wfr.status, ceco.chart_id, c.chart_version " +
+		"FROM cd_workflow_runner wfr JOIN cd_workflow wf ON wf.id = wfr.cd_workflow_id JOIN pipeline p ON p.id = wf.pipeline_id " +
+		"LEFT JOIN pipeline_config_override pco ON pco.pipeline_id = p.id " +
+		"LEFT JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id " +
+		"LEFT JOIN charts c ON c.id = ceco.chart_id JOIN environment e ON e.id = p.environment_id " +
+		"WHERE p.environment_id = ? AND p.app_id = ? AND p.deleted = false " +
+		"GROUP BY wfr.id, ceco.chart_id, c.chart_version " +
+		"ORDER BY wfr.id DESC LIMIT 15;"
+
+	_, err := impl.dbConnection.Query(&result, query, envId, appId)
+	if err != nil {
+		impl.Logger.Error("error in fetching deployment history", "error", err)
+	}
+	return result, err
+}
+
+func (impl AppListingRepositoryImpl) FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*ComparisionData, error) {
+	var result []*ComparisionData
+	query := "WITH ranked_rows AS (SELECT  p.environment_id, pco.id, ceco.chart_id, c.chart_version," +
+		" ROW_NUMBER() OVER (PARTITION BY p.environment_id ORDER BY pco.id DESC) AS row_num FROM pipeline p" +
+		" LEFT JOIN pipeline_config_override pco ON pco.pipeline_id = p.id" +
+		" LEFT JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id" +
+		" LEFT JOIN      charts c ON c.id = ceco.chart_id  WHERE  p.app_id = ?  AND p.deleted = false AND p.environment_id NOT IN (?))" +
+		"SELECT environment_id, id, chart_id," +
+		" chart_version FROM ranked_rows WHERE row_num = 1 ORDER BY id DESC;"
+
+	_, err := impl.dbConnection.Query(&result, query, appId, envId)
+	if err != nil {
+		impl.Logger.Error("error in fetching deployment history", "error", err)
+	}
+	return result, err
 }
 
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {
