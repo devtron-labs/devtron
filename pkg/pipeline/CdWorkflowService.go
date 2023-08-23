@@ -239,13 +239,17 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 
 	workflowTemplate.ServiceAccountName = impl.cdConfig.WorkflowServiceAccount
 	if workflowRequest.IsExtRun {
-		workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.ExternalTaintKey: impl.cdConfig.ExternalTaintValue}
+		if impl.cdConfig.ExternalTaintKey != "" {
+			workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.ExternalTaintKey: impl.cdConfig.ExternalTaintValue}
+		}
 		workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.ExternalTaintKey, Value: impl.cdConfig.ExternalTaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 		if len(impl.cdConfig.ExternalNodeLabel) > 0 {
 			workflowTemplate.NodeSelector = impl.cdConfig.ExternalNodeLabel
 		}
 	} else {
-		workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue}
+		if impl.cdConfig.TaintKey != "" {
+			workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue}
+		}
 		workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 		if len(impl.cdConfig.NodeLabel) > 0 {
 			workflowTemplate.NodeSelector = impl.cdConfig.NodeLabel
