@@ -104,14 +104,16 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 			return
 		}
 	}
-	queryParams := r.URL.Query()
-	scopeParam := queryParams.Get("scope")
-
 	var scope variables.Scope
-	if err := json.Unmarshal([]byte(scopeParam), &scope); err != nil {
-		http.Error(w, "Invalid JSON format for 'scope' parameter", http.StatusBadRequest)
-		return
+	scopeQueryParam := r.URL.Query().Get("scope")
+	if scopeQueryParam != "" {
+		if err := json.Unmarshal([]byte(scopeQueryParam), &scope); err != nil {
+			http.Error(w, "Invalid JSON format for 'scope' parameter", http.StatusBadRequest)
+			return
+		}
+
 	}
+
 	token := r.Header.Get("token")
 	var app *bean.CreateAppDTO
 	app, err = handler.pipelineBuilder.GetApp(appId)
@@ -127,6 +129,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 		return
 	}
 	if scope.AppId == 0 && scope.EnvId == 0 && scope.ClusterId == 0 {
+		http.Error(w, "scope is empty", http.StatusBadRequest)
 		return
 	}
 	var scopedVariableData []*variables.ScopedVariableData

@@ -108,10 +108,6 @@ type ValueMapping struct {
 	Value     string
 }
 
-//func (impl *ScopedVariableServiceImpl) validatePayload(payload repository2.Payload) {
-//
-//}
-
 func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Payload) error {
 	err := impl.scopedVariableRepository.DeleteVariables()
 	if err != nil {
@@ -452,13 +448,14 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 	for _, def := range vDef {
 		varIds = append(varIds, def.Id)
 	}
-	//var env *repository.Environment
-	//if scope.EnvId != 0 {
-	//	env, err = impl.environmentRepository.FindById(scope.EnvId)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
+	var env *repository.Environment
+	if scope.EnvId != 0 && scope.ClusterId == 0 {
+		env, err = impl.environmentRepository.FindById(scope.EnvId)
+		if err != nil {
+			return nil, err
+		}
+		scope.ClusterId = env.ClusterId
+	}
 
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	var varScope []*repository2.VariableScope
