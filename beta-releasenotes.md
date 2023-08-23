@@ -1,4 +1,5 @@
 ## Bugs
+- fix: deployment timelines fix for helm apps (#3794)
 - fix: duplicate role-group-fix (#3774)
 - fix: prevented chart updation when its in use (#3755)
 - fix: Unable to delete chart group with existing helm chart (#3795)
