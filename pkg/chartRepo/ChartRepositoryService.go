@@ -172,6 +172,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		return nil, err
 	}
 	cfg, err := clusterBean.GetClusterConfig()
+	impl.logger.Debugw("db config", "cfg", cfg)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config", "err", err)
 		return nil, err
