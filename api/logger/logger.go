@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"io/ioutil"
 	"log"
@@ -26,7 +27,8 @@ type LoggingMiddleware interface {
 func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Call the next handler in the chain.
-		next.ServeHTTP(w, r)
+		d := middleware.NewDelegator(w, nil)
+		next.ServeHTTP(d, r)
 
 		token := r.Header.Get("token")
 		userEmail, err := impl.userService.GetEmailFromToken(token)
@@ -38,11 +40,12 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 			log.Printf("error reading request body for ", "urlPath: ", r.URL.Path, " queryParams: ", r.URL.Query().Encode(), " userEmail: ", userEmail)
 		}
 		auditLogDto := &AuditLoggerDTO{
-			UrlPath:        r.URL.Path,
-			UserEmail:      userEmail,
-			UpdatedOn:      time.Now(),
-			QueryParams:    r.URL.Query().Encode(),
-			RequestPayload: body,
+			UrlPath:         r.URL.Path,
+			UserEmail:       userEmail,
+			UpdatedOn:       time.Now(),
+			QueryParams:     r.URL.Query().Encode(),
+			RequestPayload:  body,
+			ApiResponseCode: d.Status(),
 		}
 		LogRequest(auditLogDto)
 	})
