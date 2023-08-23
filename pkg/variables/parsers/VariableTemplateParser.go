@@ -61,13 +61,13 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values ma
 	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
 	if !diagnostics.HasErrors() {
 		hclVariables := hclExpression.Variables()
-		variables := impl.extractVarNames(hclVariables)
+		//variables := impl.extractVarNames(hclVariables)
 		hclVarValues := impl.getHclVarValues(values)
-		defaultedVars := impl.getDefaultedVariables(variables, values)
-		if !ignoreDefaultedVariables {
-			if len(defaultedVars) > 0 {
-				//TODO return error
-			}
+		defaultedVars := impl.getDefaultedVariables(hclVariables, values)
+		if len(defaultedVars) > 0 && ignoreDefaultedVariables {
+			template = impl.ignoreDefaultedVars(template, defaultedVars)
+			fmt.Println("template", template)
+			hclExpression, _ = hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
 		}
 		opValue, valueDiagnostics := hclExpression.Value(&hcl.EvalContext{
 			Variables: hclVarValues,
@@ -122,32 +122,32 @@ func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string) s
 	return output
 }
 
-func (impl *VariableTemplateParserImpl) convertToHclExpression(deploymentTemplate string) string {
+func (impl *VariableTemplateParserImpl) convertToHclExpression(template string) string {
 	var devtronRegexCompiledPattern = regexp.MustCompile(`@\{\{[a-zA-Z0-9-+/*%\s]+\}\}`) //TODO KB: add support of Braces () also
-	indexesData := devtronRegexCompiledPattern.FindAllIndex([]byte(deploymentTemplate), -1)
+	indexesData := devtronRegexCompiledPattern.FindAllIndex([]byte(template), -1)
 	var strBuilder strings.Builder
-	strBuilder.Grow(len(deploymentTemplate))
+	strBuilder.Grow(len(template))
 	currentIndex := 0
 	for _, datum := range indexesData {
 		startIndex := datum[0]
 		endIndex := datum[1]
-		strBuilder.WriteString(deploymentTemplate[currentIndex:startIndex])
+		strBuilder.WriteString(template[currentIndex:startIndex])
 		initQuoteAdded := false
-		if startIndex > 0 && deploymentTemplate[startIndex-1] == '"' { // if quotes are already present then ignore
+		if startIndex > 0 && template[startIndex-1] == '"' { // if quotes are already present then ignore
 			strBuilder.WriteString("$")
 		} else {
 			initQuoteAdded = true
 			strBuilder.WriteString("$")
 			//strBuilder.WriteString("\"$")
 		}
-		strBuilder.WriteString(deploymentTemplate[startIndex+2 : endIndex-1])
+		strBuilder.WriteString(template[startIndex+2 : endIndex-1])
 		if initQuoteAdded { // adding closing quote
 			//strBuilder.WriteString("\"")
 		}
 		currentIndex = endIndex
 	}
-	if currentIndex <= len(deploymentTemplate) {
-		strBuilder.WriteString(deploymentTemplate[currentIndex:])
+	if currentIndex <= len(template) {
+		strBuilder.WriteString(template[currentIndex:])
 	}
 	output := strBuilder.String()
 	return output
@@ -161,6 +161,61 @@ func (impl *VariableTemplateParserImpl) getHclVarValues(values map[string]string
 	return variables
 }
 
-func (impl *VariableTemplateParserImpl) getDefaultedVariables(variables []string, varvalues map[string]string) []string {
-	return []string{}
+func (impl *VariableTemplateParserImpl) getDefaultedVariables(variables []hcl.Traversal, varValues map[string]string) []hcl.Traversal {
+	var defaultedVars []hcl.Traversal
+	for _, traversal := range variables {
+		if _, ok := varValues[traversal.RootName()]; !ok {
+			defaultedVars = append(defaultedVars, traversal)
+		}
+	}
+	return defaultedVars
+}
+
+func (impl *VariableTemplateParserImpl) ignoreDefaultedVars(template string, hclVars []hcl.Traversal) string {
+	var processedDtBuilder strings.Builder
+	fmt.Println("template for ignore case", template)
+	maxSize := len(template) + len(hclVars)
+	processedDtBuilder.Grow(maxSize)
+	currentIndex := 0
+	for _, hclVar := range hclVars {
+		startIndex := hclVar.SourceRange().Start.Column
+		endIndex := hclVar.SourceRange().End.Column
+		//fmt.Println("variable: ", template[startIndex:endIndex])
+		startIndex = impl.getVarStartIndex(template, startIndex-1)
+		if startIndex == -1 {
+			continue
+		}
+		endIndex = impl.getVarEndIndex(template, endIndex-1)
+		if endIndex == -1 {
+			continue
+		}
+		processedDtBuilder.WriteString(template[currentIndex:startIndex] + "@{" + template[startIndex+1:endIndex] + "}")
+		currentIndex = endIndex
+	}
+	if currentIndex <= maxSize {
+		processedDtBuilder.WriteString(template[currentIndex:])
+	}
+	return processedDtBuilder.String()
+}
+
+func (impl *VariableTemplateParserImpl) getVarStartIndex(template string, startIndex int) int {
+	currentIndex := startIndex - 1
+	for ; currentIndex > 0; currentIndex-- {
+		//fmt.Println("value", string(template[currentIndex]))
+		if template[currentIndex] == '{' && template[currentIndex-1] == '$' {
+			return currentIndex - 1
+		}
+	}
+	return -1
+}
+
+func (impl *VariableTemplateParserImpl) getVarEndIndex(template string, endIndex int) int {
+	currentIndex := endIndex
+	for ; currentIndex < len(template); currentIndex++ {
+		//fmt.Println("value", string(template[currentIndex]))
+		if template[currentIndex] == '}' {
+			return currentIndex
+		}
+	}
+	return -1
 }
