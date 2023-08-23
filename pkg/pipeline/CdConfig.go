@@ -80,27 +80,28 @@ func GetCdConfig() (*CdConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = assignNodeLabelSelector(cfg.NodeLabel, cfg.NodeLabelSelector)
+	cfg.NodeLabel, err = assignNodeLabelSelector(cfg.NodeLabelSelector)
 	if err != nil {
 		return nil, err
 	}
-	err = assignNodeLabelSelector(cfg.ExternalNodeLabel, cfg.ExternalNodeLabelSelector)
+	cfg.ExternalNodeLabel, err = assignNodeLabelSelector(cfg.ExternalNodeLabelSelector)
 	if err != nil {
 		return nil, err
 	}
 	return cfg, err
 }
 
-func assignNodeLabelSelector(label map[string]string, labelSelector []string) error {
+func assignNodeLabelSelector(labelSelector []string) (map[string]string, error) {
+	label := make(map[string]string)
 	for _, l := range labelSelector {
 		if l == "" {
 			continue
 		}
 		kv := strings.Split(l, "=")
 		if len(kv) != 2 {
-			return fmt.Errorf("invalid ci node label selector %s, it must be in form key=value, key2=val2", kv)
+			return nil, fmt.Errorf("invalid ci node label selector %s, it must be in form key=value, key2=val2", kv)
 		}
 		label[kv[0]] = kv[1]
 	}
-	return nil
+	return label, nil
 }
