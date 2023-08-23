@@ -236,7 +236,7 @@ func (handler *DeploymentConfigRestHandlerImpl) DownloadChart(w http.ResponseWri
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing chartRefId : %s must be integer", chartRefId), nil, http.StatusBadRequest)
 		return
 	}
-	manifestByteArr, err := handler.chartService.DownloadCustomChart(chartRefId)
+	manifestByteArr, err := handler.chartService.GetCustomChartInBytes(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("error in converting chart to bytes", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

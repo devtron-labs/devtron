@@ -88,13 +88,12 @@ type ChartService interface {
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	FetchCustomChartsInfo() ([]*ChartDto, error)
-	FetchChartInfoByChartRefId(id int) (*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
 	CheckCustomChartByChartId(id int) (bool, error)
 	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
-	DownloadCustomChart(chatRefId int) ([]byte, error)
+	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 }
 
 type ChartServiceImpl struct {
@@ -1022,8 +1021,6 @@ type ChartDto struct {
 	ChartDescription string `json:"chartDescription"`
 	Version          string `json:"version"`
 	IsUserUploaded   bool   `json:"isUserUploaded"`
-	Location         string `json:"-"`
-	ChartData        []byte `json:"-"`
 }
 
 func (impl ChartServiceImpl) ChartRefAutocomplete() ([]ChartRef, error) {
@@ -1638,21 +1635,6 @@ func (impl ChartServiceImpl) FetchCustomChartsInfo() ([]*ChartDto, error) {
 	return chartDtos, err
 }
 
-func (impl ChartServiceImpl) FetchChartInfoByChartRefId(id int) (*ChartDto, error) {
-	ref, err := impl.chartRefRepository.FindById(id)
-	if err != nil {
-		return nil, err
-	}
-	chartDto := &ChartDto{
-		Name:             ref.Name,
-		ChartDescription: ref.ChartDescription,
-		Version:          ref.Version,
-		Location:         ref.Location,
-		ChartData:        ref.ChartData,
-	}
-	return chartDto, err
-}
-
 func (impl ChartServiceImpl) CheckCustomChartByAppId(id int) (bool, error) {
 	chartInfo, err := impl.chartRepository.FindLatestChartForAppByAppId(id)
 	if err != nil {
@@ -1673,28 +1655,39 @@ func (impl ChartServiceImpl) CheckCustomChartByChartId(id int) (bool, error) {
 	return chartData.UserUploaded, nil
 }
 
-func (impl ChartServiceImpl) DownloadCustomChart(chartRefId int) ([]byte, error) {
-	chartRef, err := impl.FetchChartInfoByChartRefId(chartRefId)
+func (impl ChartServiceImpl) GetCustomChartInBytes(chartRefId int) ([]byte, error) {
+	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching chart reference details", "err", err)
+		impl.logger.Errorw("error getting chart data", "chartRefId", chartRefId, "err", err)
 		return nil, err
 	}
-	refChartPath := filepath.Join(string(impl.refChartDir), chartRef.Location)
-	if _, err := os.Stat(refChartPath); os.IsNotExist(err) && chartRef.ChartData != nil {
-		chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
-		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
-			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
-			if err1 != nil {
-				impl.logger.Errorw("error in deleting temp dir ", "err", err)
-			}
+	switch chartRef.UserUploaded {
+	case true:
+		if chartRef.ChartData != nil {
+			return chartRef.ChartData, nil
 		}
-		if err != nil {
-			impl.logger.Errorw("error chart extraction for download", "err", err)
-			return nil, err
-		}
-
+	case false:
+		return impl.GetDevtronRefChartInBytes(chartRef)
 	}
-	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
+	return nil, fmt.Errorf("error in getting chart bytes data")
+}
+
+func (impl ChartServiceImpl) GetDevtronRefChartInBytes(chartRef *chartRepoRepository.ChartRef) ([]byte, error) {
+	refChartPath := filepath.Join(string(impl.refChartDir), chartRef.Location)
+	dir := impl.chartTemplateService.GetDir()
+	temporaryChartWorkingDir := filepath.Clean(filepath.Join(refChartPath, dir))
+	err := os.MkdirAll(temporaryChartWorkingDir, os.ModePerm)
+	if err != nil {
+		impl.logger.Errorw("error in creating directory, CallbackConfigMap", "err", err)
+		return nil, err
+	}
+	err = dirCopy.Copy(refChartPath, temporaryChartWorkingDir)
+	if err != nil {
+		impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
+		return nil, err
+	}
+
+	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(temporaryChartWorkingDir, true)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return nil, err

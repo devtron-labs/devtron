@@ -470,13 +470,13 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
 	} else {
-		//acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		//if err != nil {
-		//	handler.Logger.Errorw("error in getting acd token", "err", err)
-		//	common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		//	return
-		//}
-		ctx = context.WithValue(r.Context(), "token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTIzNTM3MDYsImp0aSI6IjcwNDIzOTRjLTQwNDktNDVjMi05MWE0LTkxZDViYjEwNDJmNCIsImlhdCI6MTY5MjI2NzMwNiwiaXNzIjoiYXJnb2NkIiwibmJmIjoxNjkyMjY3MzA2LCJzdWIiOiJhZG1pbiJ9.gSWm-GbKY4I1Svg5xOGsrVRGSAAvdBC7S8iIlomfL9I")
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
 	triggeredAt := time.Now()
 	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
