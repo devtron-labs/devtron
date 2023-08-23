@@ -452,9 +452,12 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 	for _, def := range vDef {
 		varIds = append(varIds, def.Id)
 	}
-	//var env *repository.Environment //todo add this for getting cluster id
+	//var env *repository.Environment
 	//if scope.EnvId != 0 {
-	//	env, err: = impl.environmentRepository.FindById(scope.EnvId)
+	//	env, err = impl.environmentRepository.FindById(scope.EnvId)
+	//	if err != nil {
+	//		return nil, err
+	//	}
 	//}
 
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()

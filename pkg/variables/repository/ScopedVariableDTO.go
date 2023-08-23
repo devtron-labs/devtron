@@ -1,21 +1,21 @@
 package repository
 
 type Payload struct {
-	Variables []*Variables `json:"variables"`
+	Variables []*Variables `json:"variables" validate:"required,dive"`
 	UserId    int32        `json:"-"`
 }
 type Variables struct {
-	Definition      Definition       `json:"definition"`
-	AttributeValues []AttributeValue `json:"attributeValue"`
+	Definition      Definition       `json:"definition" validate:"required,dive"`
+	AttributeValues []AttributeValue `json:"attributeValue" validate:"required,dive" `
 }
 type AttributeValue struct {
-	VariableValue   VariableValue             `json:"variableValue"`
-	AttributeType   AttributeType             `json:"attributeType"`
+	VariableValue   VariableValue             `json:"variableValue" validate:"required,dive"`
+	AttributeType   AttributeType             `json:"attributeType" validate:"oneof=ApplicationEnv Application Env Cluster Global"`
 	AttributeParams map[IdentifierType]string `json:"attributeParams"`
 }
 
 type Definition struct {
-	VarName     string `json:"varName"`
+	VarName     string `json:"varName" validate:"required"`
 	DataType    string `json:"dataType" validate:"oneof=json yaml primitive"`
 	VarType     string `json:"varType" validate:"oneof=private public"`
 	Description string `json:"description"`
@@ -39,6 +39,8 @@ const (
 	ClusterName     IdentifierType = "ClusterName"
 )
 
+var IdentifiersList = []IdentifierType{ApplicationName, EnvName, ClusterName}
+
 type VariableValue struct {
-	Value string `json:"value"`
+	Value string `json:"value" validate:"required"`
 }
