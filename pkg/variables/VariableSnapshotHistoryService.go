@@ -37,9 +37,11 @@ func (impl VariableSnapshotHistoryServiceImpl) SaveVariableHistoriesForTrigger(v
 			},
 		})
 	}
-	err := impl.repository.SaveVariableSnapshots(variableSnapshotHistoryList)
-	if err != nil {
-		return err
+	if len(variableSnapshotHistoryList) > 0 {
+		err := impl.repository.SaveVariableSnapshots(variableSnapshotHistoryList)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
