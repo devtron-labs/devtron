@@ -752,23 +752,17 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 		return chartBytesArr, err
 	}
 
-	file, err := os.Open(chartZipPath)
-	reader, err := gzip.NewReader(file)
+	chartBytesArr, err = ioutil.ReadFile(chartZipPath)
 	if err != nil {
 		impl.logger.Errorw("There is a problem with os.Open", "err", err)
-		return nil, err
+		return chartBytesArr, err
 	}
 
 	if deleteChart {
 		defer impl.CleanDir(ChartPath)
 	}
-	bs, err := ioutil.ReadAll(reader)
-	if err != nil {
-		impl.logger.Errorw("There is a problem with readAll", "err", err)
-		return nil, err
-	}
 
-	return bs, err
+	return chartBytesArr, err
 }
 
 func IsHelmApp(deploymentAppType string) bool {
