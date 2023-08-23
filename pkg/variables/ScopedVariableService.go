@@ -9,7 +9,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"log"
 	"time"
 )
 
@@ -275,14 +274,14 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 
 		}
 	}
-	variableNameToVariableValueMap := make(map[int][]*ValueMapping) //todo to change name
+	variableIdToVariableValueMap := make(map[int][]*ValueMapping)
 	var parentVarScope []*repository2.VariableScope
 	var childVarScope []*repository2.VariableScope
 	for _, variable := range payload.Variables {
 		variableName := variable.Definition.VarName
 		if id, exists := variableNameToIdMap[variableName]; exists {
 			for _, attrValue := range variable.AttributeValues {
-				variableNameToVariableValueMap[id] = append(variableNameToVariableValueMap[id], &ValueMapping{
+				variableIdToVariableValueMap[id] = append(variableIdToVariableValueMap[id], &ValueMapping{
 					Attribute: attrValue.AttributeType,
 					Value:     attrValue.VariableValue.Value,
 				})
@@ -296,10 +295,8 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	}
 	scopeIdToVarData := make(map[int]string)
 	for _, parentvar := range parentVarScope {
-		if variables, exists := variableNameToVariableValueMap[parentvar.VariableDefinitionId]; exists {
+		if variables, exists := variableIdToVariableValueMap[parentvar.VariableDefinitionId]; exists {
 			for _, varRange := range variables {
-				tt := getQualifierId(varRange.Attribute) == parentvar.QualifierId //todo to remove this
-				log.Print(tt)
 				if getQualifierId(varRange.Attribute) == parentvar.QualifierId {
 					scopeIdToVarData[parentvar.Id] = varRange.Value
 				}
@@ -464,17 +461,9 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 	var varScope []*repository2.VariableScope
 	var scopedVariableIds map[int]*VariablePriorityMapping
 	scopeIdToVariableScope := make(map[int]*repository2.VariableScope)
-	//varIds = []int{57}
-	if varIds != nil {
-		varScope, err = impl.scopedVariableRepository.GetScopedVariableDataForVarIds(scope.AppId, scope.EnvId, scope.ClusterId, searchableKeyNameIdMap, varIds)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		varScope, err = impl.scopedVariableRepository.GetScopedVariableData(scope.AppId, scope.EnvId, scope.ClusterId, searchableKeyNameIdMap)
-		if err != nil {
-			return nil, err
-		}
+	varScope, err = impl.scopedVariableRepository.GetScopedVariableData(scope.AppId, scope.EnvId, scope.ClusterId, searchableKeyNameIdMap, varIds)
+	if err != nil {
+		return nil, err
 	}
 	for _, vScope := range varScope {
 		scopeIdToVariableScope[vScope.Id] = vScope
