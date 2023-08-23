@@ -31,12 +31,12 @@ type CdConfig struct {
 	ReqCpu                           string   `env:"CD_REQ_CI_CPU" envDefault:"0.5"`
 	ReqMem                           string   `env:"CD_REQ_CI_MEM" envDefault:"3G"`
 	TaintKey                         string   `env:"CD_NODE_TAINTS_KEY" envDefault:"dedicated"`
-	ExternalTaintKey                 string   `env:"EXTERNAL_CD_NODE_TAINTS_KEY" envDefault:""`
+	ExternalTaintKey                 string   `env:"EXTERNAL_CD_NODE_TAINTS_KEY" envDefault:"dedicated"`
 	WorkflowServiceAccount           string   `env:"CD_WORKFLOW_SERVICE_ACCOUNT" envDefault:"cd-runner"`
 	DefaultBuildLogsKeyPrefix        string   `env:"DEFAULT_BUILD_LOGS_KEY_PREFIX" `
 	DefaultArtifactKeyPrefix         string   `env:"DEFAULT_CD_ARTIFACT_KEY_LOCATION" `
 	TaintValue                       string   `env:"CD_NODE_TAINTS_VALUE" envDefault:"ci"`
-	ExternalTaintValue               string   `env:"EXTERNAL_CD_NODE_TAINTS_VALUE" envDefault:""`
+	ExternalTaintValue               string   `env:"EXTERNAL_CD_NODE_TAINTS_VALUE" envDefault:"ci"`
 	DefaultBuildLogsBucket           string   `env:"DEFAULT_BUILD_LOGS_BUCKET" `
 	NodeLabelSelector                []string `env:"CD_NODE_LABEL_SELECTOR"`
 	ExternalNodeLabelSelector        []string `env:"EXTERNAL_CD_NODE_LABEL_SELECTOR"`
