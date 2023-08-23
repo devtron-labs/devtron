@@ -4,9 +4,9 @@ import "time"
 
 type AuditLoggerDTO struct {
 	UrlPath         string    `json:"urlPath"`
-	UserID          int       `json:"userID"`
+	UserEmail       string    `json:"userEmail"`
 	UpdatedOn       time.Time `json:"updatedOn"`
 	QueryParams     string    `json:"queryParams"`
 	ApiResponseCode int       `json:"apiResponseCode"`
-	RequestPayload  string    `json:"requestPayload"`
+	RequestPayload  []byte    `json:"requestPayload"`
 }

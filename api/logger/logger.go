@@ -25,34 +25,24 @@ type LoggingMiddleware interface {
 // LoggingMiddleware is a middleware function that logs the incoming request.
 func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		startTime := time.Now()
-
 		// Call the next handler in the chain.
 		next.ServeHTTP(w, r)
 
-		//Log the request details.
-		url := r.URL.Path
-
 		token := r.Header.Get("token")
-		userId, userType, err := impl.userService.GetUserByToken(r.Context(), token)
+		userEmail, err := impl.userService.GetEmailFromToken(token)
 		if err != nil {
-			log.Printf("userId does not exists")
+			log.Printf("user does not exists")
 		}
-		vars := r.URL.Query().Encode()
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("error reading request body")
+			log.Printf("error reading request body for ", "urlPath: ", r.URL.Path, " queryParams: ", r.URL.Query().Encode(), " userEmail: ", userEmail)
 		}
-		// Convert the request body to a string
-		requestPayload := string(body)
-		log.Printf(userType)
 		auditLogDto := &AuditLoggerDTO{
-			UrlPath:        url,
-			UserID:         int(userId),
-			UpdatedOn:      startTime,
-			QueryParams:    vars,
-			RequestPayload: requestPayload,
+			UrlPath:        r.URL.Path,
+			UserEmail:      userEmail,
+			UpdatedOn:      time.Now(),
+			QueryParams:    r.URL.Query().Encode(),
+			RequestPayload: body,
 		}
 		LogRequest(auditLogDto)
 	})
