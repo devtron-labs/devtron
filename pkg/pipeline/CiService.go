@@ -772,11 +772,11 @@ func (impl *CiServiceImpl) updateCiWorkflow(request *WorkflowRequest, savedWf *p
 	ciBuildConfig := request.CiBuildConfig
 	ciBuildType := string(ciBuildConfig.CiBuildType)
 	savedWf.CiBuildType = ciBuildType
-	savedWf.TargetImage = request.DockerRegistryURL + "/" + request.DockerRepository + ":" + request.DockerImageTag
+	savedWf.TargetImageLocation = request.DockerRegistryURL + "/" + request.DockerRepository + ":" + request.DockerImageTag
 	tagUsedStatuses := []string{pipelineConfig.WorkflowSucceeded}
 	tagReleasedStatuses := []string{pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowAborted, string(v1alpha1.NodeError)}
 	return impl.ciWorkflowRepository.UpdateWorkFlowWithValidation(savedWf, func(tx *pg.Tx) error {
-		return impl.CanTargetImagePathBeReused(savedWf.TargetImage, tagReleasedStatuses, tagUsedStatuses, tx)
+		return impl.CanTargetImagePathBeReused(savedWf.TargetImageLocation, tagReleasedStatuses, tagUsedStatuses, tx)
 	})
 }
 
