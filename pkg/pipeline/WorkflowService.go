@@ -323,8 +323,12 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		if err != nil {
 			impl.Logger.Errorw("fail to get config map and secret with new name", err)
 		}
-
-		err = processConfigMapsAndSecrets(impl, &configMaps, &secrets, &entryPoint, &steps, &volumes, &templates)
+		var secretMap []bean3.ConfigSecretMap
+		for _, cs := range existingSecrets.Secrets {
+			secretMap = append(secretMap, *cs)
+		}
+		err = processConfigMapsAndSecrets(impl, &configMaps, &secrets, &entryPoint, &steps, &templates)
+		volumes = ExtractVolumesFromCmCs(existingConfigMap.Maps, secretMap)
 		if err != nil {
 			impl.Logger.Errorw("fail to append cm/cs", err)
 		}
@@ -609,7 +613,7 @@ func getConfigMapsAndSecrets(workflowRequest *WorkflowRequest, existingConfigMap
 	return configMaps, secrets, nil
 }
 
-func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint *string, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
+func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint *string, steps *[]v1alpha1.ParallelSteps, templates *[]v1alpha1.Template) error {
 
 	var configsMapping, secretsMapping map[string]string
 	var err error
@@ -627,12 +631,6 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 			return err
 		}
 	}
-	var secretMap []bean3.ConfigSecretMap
-	for _, cs := range secrets.Secrets {
-		secretMap = append(secretMap, *cs)
-	}
-
-	*volumes = ExtractVolumesFromCmCs(configMaps.Maps, secretMap)
 	if len(configsMapping) > 0 {
 		for i, cm := range configMaps.Maps {
 			*templates = append(*templates, getResourceTemplate("cm-"+strconv.Itoa(i), configsMapping[cm.Name]))
