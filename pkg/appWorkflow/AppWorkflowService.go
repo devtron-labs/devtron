@@ -88,6 +88,8 @@ type AppWorkflowMappingDto struct {
 	ParentType                 string `json:"parentType"`
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 	UserId                     int32  `json:"-"`
+	EnvironmentName            string `json:"environmentName"`
+	HelmPackageName            string `json:"helmPackageName"`
 }
 
 type AllAppWorkflowComponentDetails struct {
@@ -100,6 +102,14 @@ type WorkflowComponentNamesDto struct {
 	CiPipelineId   int      `json:"ciPipelineId"`
 	CiPipelineName string   `json:"ciPipelineName"`
 	CdPipelines    []string `json:"cdPipelines"`
+}
+
+type WorkflowCloneRequest struct {
+	WorkflowName  string `json:"workflowName,omitempty"`
+	AppId         int    `json:"appId,omitempty"`
+	EnvironmentId int    `json:"environmentId,omitempty"`
+	WorkflowId    int    `json:"workflowId,omitempty"`
+	UserId        int32  `json:"-"`
 }
 
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -187,13 +197,19 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]AppWorkflowDto
 func (impl AppWorkflowServiceImpl) FindAppWorkflowById(Id int, appId int) (AppWorkflowDto, error) {
 	appWorkflow, err := impl.appWorkflowRepository.FindByIdAndAppId(Id, appId)
 	if err != nil {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("err", "error", err)
 		return AppWorkflowDto{}, err
 	}
+	wfrIdVsMappings, err := impl.FindAllAppWorkflowMapping([]int{appWorkflow.Id})
+	if err != nil {
+		return AppWorkflowDto{}, err
+	}
+
 	appWorkflowDto := &AppWorkflowDto{
-		AppId: appWorkflow.AppId,
-		Id:    appWorkflow.Id,
-		Name:  appWorkflow.Name,
+		AppId:                 appWorkflow.AppId,
+		Id:                    appWorkflow.Id,
+		Name:                  appWorkflow.Name,
+		AppWorkflowMappingDto: wfrIdVsMappings[appWorkflow.Id],
 	}
 	return *appWorkflowDto, err
 }
@@ -405,6 +421,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(appIds []int) (m
 		}
 		if w.Type == "CD_PIPELINE" {
 			workflow.DeploymentAppDeleteRequest = pipelineMap[w.ComponentId].DeploymentAppDeleteRequest
+			workflow.EnvironmentName = pipelineMap[w.ComponentId].Environment.Name
 		}
 		workflowMappings[w.AppWorkflowId] = append(workflowMappings[w.AppWorkflowId], workflow)
 		workflows[w.AppWorkflowId].AppWorkflowMappingDto = workflowMappings[w.AppWorkflowId]
@@ -427,10 +444,16 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowByName(name string, appId int)
 		impl.Logger.Errorw("err", err)
 		return AppWorkflowDto{}, err
 	}
+	wfrIdVsMappings, err := impl.FindAllAppWorkflowMapping([]int{appWorkflow.Id})
+	if err != nil {
+		return AppWorkflowDto{}, err
+	}
+
 	appWorkflowDto := &AppWorkflowDto{
-		AppId: appWorkflow.AppId,
-		Id:    appWorkflow.Id,
-		Name:  appWorkflow.Name,
+		AppId:                 appWorkflow.AppId,
+		Id:                    appWorkflow.Id,
+		Name:                  appWorkflow.Name,
+		AppWorkflowMappingDto: wfrIdVsMappings[appWorkflow.Id],
 	}
 	return *appWorkflowDto, err
 }

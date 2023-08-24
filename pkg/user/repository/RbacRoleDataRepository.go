@@ -7,6 +7,8 @@ import (
 )
 
 type RbacRoleDataRepository interface {
+	GetById(id int) (*RbacRoleData, error)
+	GetRoleDataByEntityAccessType(entity, accessType string) ([]*RbacRoleData, error)
 	GetRoleDataForAllRoles() ([]*RbacRoleData, error)
 	CreateNewRoleDataForRoleWithTxn(model *RbacRoleData, tx *pg.Tx) (*RbacRoleData, error)
 	UpdateRoleDataForRoleWithTxn(model *RbacRoleData, tx *pg.Tx) (*RbacRoleData, error)
@@ -39,6 +41,29 @@ type RbacRoleData struct {
 	sql.AuditLog
 }
 
+func (repo *RbacRoleDataRepositoryImpl) GetById(id int) (*RbacRoleData, error) {
+	var model RbacRoleData
+	err := repo.dbConnection.Model(&model).Where("id = ?", id).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting role data by id", "id", id, "err", err)
+		return nil, err
+	}
+	return &model, nil
+}
+
+func (repo *RbacRoleDataRepositoryImpl) GetRoleDataByEntityAccessType(entity, accessType string) ([]*RbacRoleData, error) {
+	var models []*RbacRoleData
+	err := repo.dbConnection.Model(&models).Where("deleted = ?", false).
+		Where("entity = ?", entity).Where("access_type = ?", accessType).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting role data for all roles", "err", err)
+		return nil, err
+	}
+	return models, nil
+}
+
 func (repo *RbacRoleDataRepositoryImpl) GetRoleDataForAllRoles() ([]*RbacRoleData, error) {
 	var models []*RbacRoleData
 	err := repo.dbConnection.Model(&models).Where("deleted = ?", false).Select()
@@ -59,7 +84,7 @@ func (repo *RbacRoleDataRepositoryImpl) CreateNewRoleDataForRoleWithTxn(model *R
 }
 
 func (repo *RbacRoleDataRepositoryImpl) UpdateRoleDataForRoleWithTxn(model *RbacRoleData, tx *pg.Tx) (*RbacRoleData, error) {
-	_, err := tx.Model(model).UpdateNotNull()
+	_, err := tx.Model(model).WherePK().UpdateNotNull()
 	if err != nil {
 		repo.logger.Errorw("error in updating role data for a role", "err", err)
 		return nil, err

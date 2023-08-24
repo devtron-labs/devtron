@@ -31,7 +31,7 @@ const (
 
 type EnterpriseEnforcerConfig struct {
 	EnterpriseEnforcerEnabled bool `env:"ENTERPRISE_ENFORCER_ENABLED" envDefault:"true"`
-	UseCustomEnforcer         bool `env:"USE_CUSTOM_ENFORCER" envDefault:"false"`
+	UseCustomEnforcer         bool `env:"USE_CUSTOM_ENFORCER" envDefault:"true"`
 }
 
 func NewEnterpriseEnforcerImpl(enforcer *casbin.SyncedEnforcer,
@@ -67,6 +67,7 @@ func (e *EnterpriseEnforcerImpl) EnforceByEmail(emailId string, resource string,
 }
 
 func (e *EnterpriseEnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, resourceItems []string) map[string]bool {
+	emailId = strings.ToLower(emailId)
 	if e.Config.EnterpriseEnforcerEnabled {
 		timestamp := time.Now()
 		enforcerResponse := e.EnforceForSubjectInBatch(emailId, resource, action, resourceItems)

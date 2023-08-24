@@ -38,6 +38,7 @@ type CiWorkflowRepository interface {
 
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
+	FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
@@ -67,6 +68,7 @@ type CiWorkflow struct {
 	CiArtifactLocation string            `sql:"ci_artifact_location"`
 	PodName            string            `sql:"pod_name"`
 	CiBuildType        string            `sql:"ci_build_type"`
+	EnvironmentId      int               `sql:"environment_id"`
 	CiPipeline         *CiPipeline
 }
 
@@ -91,6 +93,8 @@ type WorkflowWithArtifact struct {
 	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
 	CiBuildType        string            `json:"ci_build_type"`
 	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
+	EnvironmentId      int               `json:"environmentId"`
+	EnvironmentName    string            `json:"environmentName"`
 }
 
 type GitCommit struct {
@@ -162,7 +166,7 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 
 func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
-	queryTemp := "select cia.id as ci_artifact_id, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
+	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
 	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
 	if err != nil {
 		return nil, err
@@ -191,7 +195,7 @@ func (impl *CiWorkflowRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
 func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
-		Column("ci_workflow.git_triggers").
+		Column("ci_workflow.git_triggers", "ci_workflow.triggered_by").
 		Where("ci_workflow.id = ? ", id).
 		Select()
 
@@ -238,10 +242,19 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 	return workflow, err
 }
 
+func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds []int) (ciWorkflows []*CiWorkflow, err error) {
+	err = impl.dbConnection.Model(&ciWorkflows).
+		Column("ci_workflow.git_triggers", "ci_workflow.ci_pipeline_id", "CiPipeline", "cia.id").
+		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
+		Where("cia.id in (?) ", pg.In(ciArtifactIds)).
+		Select()
+	return ciWorkflows, err
+}
+
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
-		Column("ci_workflow.git_triggers").
+		Column("ci_workflow.git_triggers", "ci_workflow.triggered_by").
 		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
 		Where("cia.id = ? ", ciArtifactId).
 		Select()

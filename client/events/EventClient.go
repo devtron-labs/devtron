@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/module"
+	"github.com/devtron-labs/devtron/pkg/notifier"
 	"net/http"
 	"time"
 
@@ -89,6 +90,12 @@ type Payload struct {
 	DownloadLink          string               `json:"downloadLink"`
 	BuildHistoryLink      string               `json:"buildHistoryLink"`
 	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
+	ApprovedByEmail       []string             `json:"approvedByEmail"`
+	FailureReason         string               `json:"failureReason"`
+	Providers             []*notifier.Provider `json:"providers"`
+	ImageTagNames         []string             `json:"imageTagNames"`
+	ImageComment          string               `json:"imageComment"`
+	ImageApprovalLink     string               `json:"imageApprovalLink"`
 }
 
 type CiPipelineMaterialResponse struct {

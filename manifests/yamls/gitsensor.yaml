@@ -16,6 +16,7 @@ data:
   PG_ADDR: postgresql-postgresql.devtroncd
   PG_USER: postgres
   COMMIT_STATS_TIMEOUT_IN_SEC: "2"
+  ENABLE_FILE_STATS: "true"
 ---
 # Source: gitsensor/templates/generic.yaml
 apiVersion: v1
@@ -27,9 +28,14 @@ metadata:
     release: devtron
 spec:
   ports:
-    - port: 80
-      name: sensor
+    - name: sensor
+      port: 80
+      protocol: TCP
       targetPort: 8080
+    - name: grpc
+      port: 90
+      protocol: TCP
+      targetPort: 8081
   selector:
     app: git-sensor
 ---
@@ -54,15 +60,14 @@ spec:
     spec:
       terminationGracePeriodSeconds: 10
       securityContext:
-        fsGroup: 1000
         runAsGroup: 1000
         runAsUser: 1000
       initContainers:
         - command:
           - /bin/sh
           - -c
-          - chown -R devtron:devtron /git-base
-          image: "quay.io/devtron/git-sensor:e5e66474-200-13261"
+          - mkdir -p /git-base/ssh-keys && chown -R devtron:devtron /git-base && chmod 777 /git-base/ssh-keys
+          image: "quay.io/devtron/git-sensor:84389534-200-14705"
           imagePullPolicy: IfNotPresent
           name: chown-git-base
           resources: {}
@@ -75,7 +80,7 @@ spec:
             name: git-volume
       containers:
         - name: git-sensor
-          image: "quay.io/devtron/git-sensor:e5e66474-200-13261"
+          image: "quay.io/devtron/git-sensor:84389534-200-14705"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000
@@ -83,6 +88,8 @@ spec:
           ports:
             - containerPort: 8080
               name: sensor
+            - containerPort: 8081
+              name: grpc
           volumeMounts:
             - name: git-volume
               mountPath: /git-base/

@@ -28,10 +28,11 @@ import (
 )
 
 type EnvCluserInfo struct {
-	Id          int    `sql:"id"`
-	ClusterName string `sql:"cluster_name"`
-	Namespace   string `sql:"namespace"`
-	Name        string `sql:"name"`
+	Id                   int    `sql:"id"`
+	ClusterName          string `sql:"cluster_name"`
+	Namespace            string `sql:"namespace"`
+	Name                 string `sql:"name"`
+	IsVirtualEnvironment bool   `sql:"is_virtual_environment"`
 }
 type Environment struct {
 	tableName             struct{} `sql:"environment" pg:",discard_unknown_columns"`
@@ -45,6 +46,7 @@ type Environment struct {
 	Namespace             string `sql:"namespace"`
 	EnvironmentIdentifier string `sql:"environment_identifier"`
 	Description           string `sql:"description"`
+	IsVirtualEnvironment  bool   `sql:"is_virtual_environment"`
 	sql.AuditLog
 }
 
@@ -75,6 +77,7 @@ type EnvironmentRepository interface {
 	FindByClusterIdsWithFilter(clusterIds []int) ([]*Environment, error)
 	FindAllActiveWithFilter() ([]*Environment, error)
 	FindEnvClusterInfosByIds([]int) ([]*EnvCluserInfo, error)
+	FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -106,7 +109,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindOne(environment string) (*En
 }
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindEnvClusterInfosByIds(envIds []int) ([]*EnvCluserInfo, error) {
-	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace " +
+	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace, env.is_virtual_environment" +
 		" FROM environment env INNER JOIN  cluster ON env.cluster_id = cluster.id "
 	if len(envIds) > 0 {
 		query += fmt.Sprintf(" WHERE env.id IN (%s)", helper.GetCommaSepratedString(envIds))
@@ -340,3 +343,27 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAllActiveWithFilter() ([]*En
 		Order("environment.environment_name ASC").Select()
 	return mappings, err
 }
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*Environment, error) {
+	var mappings []*Environment
+	componentType := "CI_PIPELINE"
+	if externalCi {
+		componentType = "WEBHOOK"
+	}
+	query := "SELECT env.* " +
+		" FROM environment env " +
+		" INNER JOIN pipeline ON pipeline.environment_id=env.id and env.active = true " +
+		" INNER JOIN app_workflow_mapping apf ON component_id=pipeline.id AND type='CD_PIPELINE' AND apf.active=true " +
+		" WHERE apf.app_workflow_id IN (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='%s');"
+	query = fmt.Sprintf(query, componentType)
+	_, err := repositoryImpl.dbConnection.Query(&mappings, query, pg.In(ciPipelineIds))
+	return mappings, err
+}
+
+//query := "SELECT env.* " +
+//" FROM environment env " +
+//" INNER JOIN pipeline ON pipeline.environment_id=env.id and env.active = true " +
+//" INNER JOIN app_workflow_mapping apf ON component_id=pipeline.id AND type='CD_PIPELINE' AND apf.active=true " +
+//" INNER JOIN " +
+//" (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE') sqt " +
+//" ON apf.app_workflow_id = sqt.app_workflow_id;"

@@ -38,7 +38,7 @@ func NewAccountValidatorImpl(logger *zap.SugaredLogger, jiraClient client.JiraCl
 
 func (impl *AccountValidatorImpl) ValidateUserAccount(jiraAccountUrl string, userName string, token string) (bool, error) {
 	if jiraAccountUrl == "" || userName == "" || token == "" {
-		impl.logger.Errorw("cannot validate user account for invalid params", "jiraAccountUrl", jiraAccountUrl, "userName", userName, "token")
+		impl.logger.Errorw("cannot validate user account for invalid params", "jiraAccountUrl", jiraAccountUrl, "userName", userName)
 		return false, errors.New("cannot validate user account for invalid params")
 	}
 

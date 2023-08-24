@@ -23,14 +23,17 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 )
@@ -61,13 +64,16 @@ func NewCiCdPipelineOrchestratorEnterpriseImpl(pipelineGroupRepository app2.AppR
 	ciPipelineHistoryService history3.CiPipelineHistoryService,
 	ciTemplateService pipeline.CiTemplateService,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-	globalTagService globalTag.GlobalTagService) *CiCdPipelineOrchestratorEnterpriseImpl {
+	globalTagService globalTag.GlobalTagService,
+	PipelineOverrideRepository chartConfig.PipelineOverrideRepository, CiArtifactRepository repository.CiArtifactRepository, manifestPushConfigRepository repository5.ManifestPushConfigRepository,
+	configMapService pipeline.ConfigMapService,
+	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorEnterpriseImpl {
 	return &CiCdPipelineOrchestratorEnterpriseImpl{
 		CiCdPipelineOrchestratorImpl: pipeline.NewCiCdPipelineOrchestrator(pipelineGroupRepository, logger, materialRepository, pipelineRepository,
 			ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService,
 			appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService,
 			pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService,
-			dockerArtifactStoreRepository),
+			dockerArtifactStoreRepository, PipelineOverrideRepository, CiArtifactRepository, manifestPushConfigRepository, configMapService, genericNoteService),
 		globalTagService: globalTagService,
 	}
 }

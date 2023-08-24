@@ -135,7 +135,11 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 		},
 	}
 	if isInstalled {
-		res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, clusterId, installReleaseRequest)
+		updateReleaseRequest := &client.UpdateApplicationWithChartInfoRequestDto{
+			InstallReleaseRequest: installReleaseRequest,
+			SourceAppType:         client.SOURCE_HELM_APP,
+		}
+		res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, clusterId, updateReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("Error in updating helm release", "appIdentifier", appIdentifier, "err", err)
 			return nil, common.InternalServerError, err.Error(), http.StatusInternalServerError

@@ -45,21 +45,24 @@ import (
 )
 
 const (
-	SLACK_CONFIG_DELETE_SUCCESS_RESP = "Slack config deleted successfully."
-	SES_CONFIG_DELETE_SUCCESS_RESP   = "SES config deleted successfully."
-	SMTP_CONFIG_DELETE_SUCCESS_RESP  = "SMTP config deleted successfully."
+	SLACK_CONFIG_DELETE_SUCCESS_RESP   = "Slack config deleted successfully."
+	WEBHOOK_CONFIG_DELETE_SUCCESS_RESP = "Webhook config deleted successfully."
+	SES_CONFIG_DELETE_SUCCESS_RESP     = "SES config deleted successfully."
+	SMTP_CONFIG_DELETE_SUCCESS_RESP    = "SMTP config deleted successfully."
 )
 
 type NotificationRestHandler interface {
 	SaveNotificationSettings(w http.ResponseWriter, r *http.Request)
 	UpdateNotificationSettings(w http.ResponseWriter, r *http.Request)
-
 	SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request)
 	FindSESConfig(w http.ResponseWriter, r *http.Request)
 	FindSlackConfig(w http.ResponseWriter, r *http.Request)
 	FindSMTPConfig(w http.ResponseWriter, r *http.Request)
+	FindWebhookConfig(w http.ResponseWriter, r *http.Request)
+	GetWebhookVariables(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfig(w http.ResponseWriter, r *http.Request)
 	GetAllNotificationSettings(w http.ResponseWriter, r *http.Request)
+	IsSesOrSmtpConfigured(w http.ResponseWriter, r *http.Request)
 	DeleteNotificationSettings(w http.ResponseWriter, r *http.Request)
 	DeleteNotificationChannelConfig(w http.ResponseWriter, r *http.Request)
 
@@ -76,6 +79,7 @@ type NotificationRestHandlerImpl struct {
 	validator            *validator.Validate
 	notificationService  notifier.NotificationConfigService
 	slackService         notifier.SlackNotificationService
+	webhookService       notifier.WebhookNotificationService
 	sesService           notifier.SESNotificationService
 	smtpService          notifier.SMTPNotificationService
 	enforcer             casbin.Enforcer
@@ -93,7 +97,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	logger *zap.SugaredLogger, gitRegistryConfig pipeline.GitRegistryConfig,
 	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
-	slackService notifier.SlackNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
+	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
 	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
@@ -105,6 +109,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 		validator:            validator,
 		notificationService:  notificationService,
 		slackService:         slackService,
+		webhookService:       webhookService,
 		sesService:           sesService,
 		smtpService:          smtpService,
 		enforcer:             enforcer,
@@ -427,6 +432,22 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 
 	common.WriteJsonResp(w, err, nsvResponse, http.StatusOK)
 }
+func (impl NotificationRestHandlerImpl) IsSesOrSmtpConfigured(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	sesConfig, fErr := impl.notificationService.IsSesOrSmtpConfigured()
+	if fErr != nil && fErr != pg.ErrNoRows {
+		impl.logger.Errorw("service err, sesConfig", sesConfig, "err", fErr)
+		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	common.WriteJsonResp(w, nil, sesConfig, http.StatusOK)
+}
 
 func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
@@ -551,13 +572,46 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 		}
 		w.Header().Set("Content-Type", "application/json")
 		common.WriteJsonResp(w, nil, res, http.StatusOK)
+	} else if util.Webhook == channelReq.Channel {
+		var webhookReq *notifier.WebhookChannelConfig
+		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&webhookReq)
+		if err != nil {
+			impl.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "webhookReq", webhookReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		err = impl.validator.Struct(webhookReq)
+		if err != nil {
+			impl.logger.Errorw("validation err, SaveNotificationChannelConfig", "err", err, "webhookReq", webhookReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		// RBAC enforcer applying
+		token := r.Header.Get("token")
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			return
+		}
+		//RBAC enforcer Ends
+
+		res, cErr := impl.webhookService.SaveOrEditNotificationConfig(*webhookReq.WebhookConfigDtos, userId)
+		if cErr != nil {
+			impl.logger.Errorw("service err, SaveNotificationChannelConfig", "err", err, "webhookReq", webhookReq)
+			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		common.WriteJsonResp(w, nil, res, http.StatusOK)
 	}
 }
 
 type ChannelResponseDTO struct {
-	SlackConfigs []*notifier.SlackConfigDto `json:"slackConfigs"`
-	SESConfigs   []*notifier.SESConfigDto   `json:"sesConfigs"`
-	SMTPConfigs  []*notifier.SMTPConfigDto  `json:"smtpConfigs"`
+	SlackConfigs   []*notifier.SlackConfigDto   `json:"slackConfigs"`
+	WebhookConfigs []*notifier.WebhookConfigDto `json:"webhookConfigs"`
+	SESConfigs     []*notifier.SESConfigDto     `json:"sesConfigs"`
+	SMTPConfigs    []*notifier.SMTPConfigDto    `json:"smtpConfigs"`
 }
 
 func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.ResponseWriter, r *http.Request) {
@@ -606,6 +660,18 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 	}
 	if pass {
 		channelsResponse.SlackConfigs = slackConfigs
+	}
+	webhookConfigs, fErr := impl.webhookService.FetchAllWebhookNotificationConfig()
+	if fErr != nil && fErr != pg.ErrNoRows {
+		impl.logger.Errorw("service err, FindAllNotificationConfig", "err", err)
+		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
+		return
+	}
+	if webhookConfigs == nil {
+		webhookConfigs = make([]*notifier.WebhookConfigDto, 0)
+	}
+	if pass {
+		channelsResponse.WebhookConfigs = webhookConfigs
 	}
 	sesConfigs, fErr := impl.sesService.FetchAllSESNotificationConfig()
 	if fErr != nil && fErr != pg.ErrNoRows {
@@ -717,6 +783,47 @@ func (impl NotificationRestHandlerImpl) FindSMTPConfig(w http.ResponseWriter, r 
 	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, fErr, smtpConfig, http.StatusOK)
 }
+func (impl NotificationRestHandlerImpl) FindWebhookConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		impl.logger.Errorw("request err, FindWebhookConfig", "err", err, "id", id)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	webhookConfig, fErr := impl.webhookService.FetchWebhookNotificationConfigById(id)
+	if fErr != nil && fErr != pg.ErrNoRows {
+		impl.logger.Errorw("service err, FindWebhookConfig, cannot find webhook config", "err", fErr, "id", id)
+		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	common.WriteJsonResp(w, fErr, webhookConfig, http.StatusOK)
+}
+func (impl NotificationRestHandlerImpl) GetWebhookVariables(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	webhookVariables, fErr := impl.webhookService.GetWebhookVariables()
+	if fErr != nil && fErr != pg.ErrNoRows {
+		impl.logger.Errorw("service err, GetWebhookVariables, cannot find webhook Variables", "err", fErr)
+		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	common.WriteJsonResp(w, fErr, webhookVariables, http.StatusOK)
+}
 
 func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
@@ -783,6 +890,17 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 			}
 		}
 
+	} else if cType == string(util.Webhook) {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			return
+		}
+		channelsResponse, err = impl.webhookService.FetchAllWebhookNotificationConfigAutocomplete()
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("service err, FindAllNotificationConfigAutocomplete", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	} else if cType == string(util.SES) {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
@@ -929,6 +1047,37 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 			return
 		}
 		common.WriteJsonResp(w, nil, SLACK_CONFIG_DELETE_SUCCESS_RESP, http.StatusOK)
+	} else if util.Webhook == channelReq.Channel {
+		var deleteReq *notifier.WebhookConfigDto
+		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
+		if err != nil {
+			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		err = impl.validator.Struct(deleteReq)
+		if err != nil {
+			impl.logger.Errorw("validation err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		// RBAC enforcer applying
+		token := r.Header.Get("token")
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			return
+		}
+		//RBAC enforcer Ends
+
+		cErr := impl.webhookService.DeleteNotificationConfig(deleteReq, userId)
+		if cErr != nil {
+			impl.logger.Errorw("service err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, nil, WEBHOOK_CONFIG_DELETE_SUCCESS_RESP, http.StatusOK)
 	} else if util.SES == channelReq.Channel {
 		var deleteReq *notifier.SESConfigDto
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)

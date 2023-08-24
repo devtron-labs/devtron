@@ -313,7 +313,7 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 }
 
 func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, r *http.Request) {
-	request := &openapi.UpdateReleaseRequest{}
+	request := &UpdateApplicationRequestDto{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(request)
 	if err != nil {
@@ -336,7 +336,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
-
+	request.SourceAppType = SOURCE_EXTERNAL_HELM_APP
 	// update application externally
 	res, err := handler.helmAppService.UpdateApplication(r.Context(), appIdentifier, request)
 	if err != nil {
@@ -464,4 +464,6 @@ type InstalledAppInfo struct {
 	AppStoreChartName     string `json:"appStoreChartName"`
 	TeamId                int    `json:"teamId"`
 	TeamName              string `json:"teamName"`
+	DeploymentType        string `json:"deploymentType"`
+	HelmPackageName       string `json:"helmPackageName"`
 }

@@ -74,6 +74,7 @@ func (client *GrpcApiClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(client.config.MaxSizeOfDataTransferInMb*1024*1024)),
 	)
 	endpoint := fmt.Sprintf("dns:///%s", client.config.Url)
 
@@ -137,6 +138,7 @@ func (client *GrpcApiClientImpl) AddRepo(ctx context.Context, materials []*GitMa
 				CheckoutStatus:   item.CheckoutStatus,
 				CheckoutMsgAny:   item.CheckoutMsgAny,
 				Deleted:          item.Deleted,
+				FilterPattern:    item.FilterPattern,
 			})
 		}
 	}
@@ -166,6 +168,7 @@ func (client *GrpcApiClientImpl) UpdateRepo(ctx context.Context, material *GitMa
 		CheckoutStatus:   material.CheckoutStatus,
 		CheckoutMsgAny:   material.CheckoutMsgAny,
 		Deleted:          material.Deleted,
+		FilterPattern:    material.FilterPattern,
 	}
 
 	_, err = serviceClient.UpdateRepo(ctx, mappedMaterial)
@@ -214,6 +217,7 @@ func (client *GrpcApiClientImpl) FetchChanges(ctx context.Context, req *FetchScm
 		PipelineMaterialId: int64(req.PipelineMaterialId),
 		From:               req.From,
 		To:                 req.To,
+		ShowAll:            req.ShowAll,
 	})
 	if err != nil {
 		return nil, err
@@ -649,10 +653,11 @@ func (client *GrpcApiClientImpl) mapWebhookEventConfigToLocalType(config *pb.Web
 func (client *GrpcApiClientImpl) mapGitCommitToLocalType(commit *pb.GitCommit) GitCommit {
 
 	mappedCommit := GitCommit{
-		Commit:  commit.Commit,
-		Author:  commit.Author,
-		Message: commit.Message,
-		Changes: commit.Changes,
+		Commit:   commit.Commit,
+		Author:   commit.Author,
+		Message:  commit.Message,
+		Changes:  commit.Changes,
+		Excluded: commit.Excluded,
 	}
 	if commit.Date != nil {
 		mappedCommit.Date = commit.Date.AsTime()

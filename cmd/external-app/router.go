@@ -11,6 +11,8 @@ import (
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/k8s/application"
+	"github.com/devtron-labs/devtron/api/k8s/capacity"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router"
@@ -22,7 +24,6 @@ import (
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -39,7 +40,7 @@ type MuxRouter struct {
 	dashboardRouter          dashboard.DashboardRouter
 	helmAppRouter            client.HelmAppRouter
 	environmentRouter        cluster.EnvironmentRouter
-	k8sApplicationRouter     k8s.K8sApplicationRouter
+	k8sApplicationRouter     application.K8sApplicationRouter
 	chartRepositoryRouter    chartRepo.ChartRepositoryRouter
 	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
 	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
@@ -50,13 +51,14 @@ type MuxRouter struct {
 	moduleRouter             module.ModuleRouter
 	serverRouter             server.ServerRouter
 	apiTokenRouter           apiToken.ApiTokenRouter
-	k8sCapacityRouter        k8s.K8sCapacityRouter
+	k8sCapacityRouter        capacity.K8sCapacityRouter
 	webhookHelmRouter        webhookHelm.WebhookHelmRouter
 	userAttributesRouter     router.UserAttributesRouter
 	telemetryRouter          router.TelemetryRouter
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter
 	attributesRouter         router.AttributesRouter
 	appRouter                router.AppRouter
+	rbacRoleRouter           user.RbacRoleRouter
 }
 
 func NewMuxRouter(
@@ -69,7 +71,7 @@ func NewMuxRouter(
 	dashboardRouter dashboard.DashboardRouter,
 	helmAppRouter client.HelmAppRouter,
 	environmentRouter cluster.EnvironmentRouter,
-	k8sApplicationRouter k8s.K8sApplicationRouter,
+	k8sApplicationRouter application.K8sApplicationRouter,
 	chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
@@ -79,13 +81,14 @@ func NewMuxRouter(
 	externalLinkRouter externalLink.ExternalLinkRouter,
 	moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
-	k8sCapacityRouter k8s.K8sCapacityRouter,
+	k8sCapacityRouter capacity.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter,
 	userAttributesRouter router.UserAttributesRouter,
 	telemetryRouter router.TelemetryRouter,
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	attributesRouter router.AttributesRouter,
 	appRouter router.AppRouter,
+	rbacRoleRouter user.RbacRoleRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -116,6 +119,7 @@ func NewMuxRouter(
 		userTerminalAccessRouter: userTerminalAccessRouter,
 		attributesRouter:         attributesRouter,
 		appRouter:                appRouter,
+		rbacRoleRouter:           rbacRoleRouter,
 	}
 	return r
 }
@@ -157,7 +161,8 @@ func (r *MuxRouter) Init() {
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
 	userRouter := baseRouter.PathPrefix("/user").Subrouter()
 	r.userRouter.InitUserRouter(userRouter)
-
+	rbacRoleRouter := baseRouter.PathPrefix("/rbac/role").Subrouter()
+	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
 	clusterRouter := baseRouter.PathPrefix("/cluster").Subrouter()
 	r.clusterRouter.InitClusterRouter(clusterRouter)
 

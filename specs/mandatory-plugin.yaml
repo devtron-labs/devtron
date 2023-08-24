@@ -1,0 +1,373 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/policy/all:
+    get:
+      description: Get all global policies filtered by policyOf and policyVersion
+      parameters:
+        - name: policyOf
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "PLUGIN"
+        - name: policyVersion
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "V1"
+      responses:
+        "200":
+          description: Successfully fetch all active mandatory plugin policies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PolicyDto"
+  /orchestrator/policy/{id}:
+    get:
+      description: Get global policy by id filtered by policyOf and policyVersion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: policyOf
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "PLUGIN"
+        - name: policyVersion
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "V1"
+      responses:
+        "200":
+          description: Successfully fetch mandatory plugin policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyDto"
+    delete:
+      description: Delete global policy filtered by policyOf and policyVersion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully delete plugin policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyDto"
+  /orchestrator/policy:
+    post:
+      description: Create mandatory plugin policy
+      parameters:
+        - name: policyOf
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "PLUGIN"
+        - name: policyVersion
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "V1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyDto"
+      responses:
+        "200":
+          description: Successfully create new plugin policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyDto"
+    put:
+      description: Update mandatory plugin policy
+      parameters:
+        - name: policyOf
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "PLUGIN"
+        - name: policyVersion
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "V1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyDto"
+      responses:
+        "200":
+          description: Successfully update plugin policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyDto"
+  /orchestrator/policy/offending-pipeline/wf/tree/list:
+    get:
+      description: Get workflow tree of all offending pipeline for all mandatory plugin policies
+      parameters:
+        - name: policyOf
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "PLUGIN"
+        - name: policyVersion
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "V1"
+      responses:
+        "200":
+          description: Successfully return all offending pipeline's workflow trees for all policies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OffendingPipelineWfTreeDto"
+  /orchestrator/policy/ci-pipeline:
+    get:
+      description: Get mandatory plugins for a ci pipeline
+      parameters:
+        - name: ciPipelineId
+          in: query
+          required: false
+          description: ci pipeline id (to be used when pipeline is going to be updated)
+          schema:
+            type: integer
+        - name: appId
+          in: query
+          required: false
+          description: app id (to be used when pipeline is going to be created)
+          schema:
+            type: integer
+        - name: policyOf
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "PLUGIN"
+        - name: policyVersion
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "V1"
+        - name: branchValue
+          in: query
+          required: false
+          description: if send, backend will return plugins to be enforced by default independent of branch value
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Return successfully all mandatory plugins for a ci pipeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandatoryPluginDto"
+components:
+  schemas:
+    PolicyDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: id of mandatory plugin policy
+        name:
+          type: string
+          description: name of policy
+        description:
+          type: string
+          description: Description of plugin policy
+        enabled:
+          type: boolean
+        consequences:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsequenceDto"
+        definitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DefinitionDto"
+        selectors:
+          type: object
+          properties:
+            application:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProjectAppDto"
+            environment:
+              type: object
+              properties:
+                allProductionEnvironments:
+                  type: boolean
+                clusterEnv:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ClusterEnvDto"
+            branch:
+              type: array
+              items:
+                $ref: "#/components/schemas/BranchDto"
+    OffendingPipelineWfTreeDto:
+      type: object
+      properties:
+        policyId:
+          type: integer
+        workflows:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowDetailDto"
+    WorkflowDetailDto:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: integer
+          description: id of the workflow
+        appId:
+          type: integer
+        ciPipelineName:
+          type: string
+        ciPipelineId:
+          type: integer
+        cdPipelines:
+          type: array
+          items:
+            type: string
+    BranchDto:
+      type: object
+      properties:
+        branchValueType:
+          type: string
+          enum:
+            - "REGEX"
+            - "FIXED"
+        value:
+          type: string
+    ClusterEnvDto:
+      type: object
+      properties:
+        clusterName:
+          type: string
+        envNames:
+          type: array
+          items:
+            type: string
+    ProjectAppDto:
+      type: object
+      properties:
+        projectName:
+          type: string
+        appNames:
+          type: array
+          items:
+            type: string
+    ConsequenceDto:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+            - "BLOCK"
+            - "ALLOW_UNTIL_TIME"
+            - "ALLOW_FOREVER"
+        metadataField:
+          type: string
+          description: timestamp of allowUntilTime
+    DefinitionDto:
+      type: object
+      properties:
+        attributeType:
+          type: string
+          enum:
+            - "PLUGIN"
+        data:
+          type: object
+          properties:
+            pluginId:
+              type: integer
+              description: id of plugin for which policy is described
+            applyToStage:
+              type: string
+              enum:
+                - "PRE_CI"
+                - "POST_CI"
+                - "PRE_OR_POST_CI"
+    MandatoryPluginDto:
+      type: object
+      properties:
+        definitions:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/DefinitionDto"
+              - $ref: "#/components/schemas/DefinitionSourceDto"
+    DefinitionSourceDto:
+      type: object
+      properties:
+        definitionSources:
+          type: array
+          items:
+            type: object
+            properties:
+              projectName:
+                type: string
+              appName:
+                type: string
+              clusterName:
+                type: string
+              environmentName:
+                type: string
+              isDueToProductionEnvironment:
+                type: boolean
+              isDueToLinkedPipeline:
+                type: boolean
+              linkedCiPipelineName:
+                type: string
+              branchName:
+                type: string
+              branchValueType:
+                type: string

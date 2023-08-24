@@ -52,6 +52,7 @@ func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler,
 func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
 	configRouter.Path("/{appId}").HandlerFunc(router.restHandler.DeleteApp).Methods("DELETE")
+	configRouter.Path("/delete/{appId}/{envId}/non-cascade").HandlerFunc(router.restHandler.DeleteACDAppWithNonCascade).Methods("DELETE")
 	configRouter.Path("/material").HandlerFunc(router.restHandler.CreateMaterial).Methods("POST")
 	configRouter.Path("/material").HandlerFunc(router.restHandler.UpdateMaterial).Methods("PUT")
 	configRouter.Path("/material/delete").HandlerFunc(router.restHandler.DeleteMaterial).Methods("DELETE")
@@ -69,10 +70,14 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd-pipeline").HandlerFunc(router.restHandler.CreateCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch/deployment").HandlerFunc(router.restHandler.HandleChangeDeploymentRequest).Methods("POST")
+	configRouter.Path("/cd-pipeline/patch/deployment/type").HandlerFunc(router.restHandler.HandleChangeDeploymentTypeRequest).Methods("POST")
+	configRouter.Path("/cd-pipeline/patch/deployment/trigger").HandlerFunc(router.restHandler.HandleTriggerDeploymentAfterTypeChange).Methods("POST")
 	configRouter.Path("/cd-pipeline/{appId}").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
+	configRouter.Path("/cd-pipeline/approve").HandlerFunc(router.restHandler.PerformDeploymentApprovalAction).Methods("POST")
 	//save environment specific override
 	configRouter.Path("/env/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreate).Methods("POST")
+	configRouter.Path("/env/patch").HandlerFunc(router.restHandler.ChangeChartRef).Methods("PATCH")
 	configRouter.Path("/env").HandlerFunc(router.restHandler.EnvConfigOverrideUpdate).Methods("PUT")
 	configRouter.Path("/env/{appId}/{environmentId}/{chartRefId}").HandlerFunc(router.restHandler.GetEnvConfigOverride).Methods("GET")
 
@@ -82,6 +87,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/external-ci/{appId}/{externalCiId}").HandlerFunc(router.restHandler.GetExternalCiById).Methods("GET")
 	configRouter.Path("/ci-pipeline/template/patch").HandlerFunc(router.restHandler.UpdateCiTemplate).Methods("POST")
 	configRouter.Path("/ci-pipeline/patch").HandlerFunc(router.restHandler.PatchCiPipelines).Methods("POST")
+	configRouter.Path("/ci-pipeline/patch-source").HandlerFunc(router.restHandler.PatchCiMaterialSourceWithAppIdAndEnvironmentId).Methods("PATCH")
 	configRouter.Path("/ci-pipeline/patch/regex").HandlerFunc(router.restHandler.UpdateBranchCiPipelinesWithRegex).Methods("POST")
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
@@ -98,6 +104,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/{appId}/ci-pipeline/min").HandlerFunc(router.restHandler.GetCiPipelineMin).Methods("GET")
 	configRouter.Path("/ci-pipeline/{pipelineId}/material").HandlerFunc(router.restHandler.FetchMaterials).Methods("GET")
+	configRouter.Path("/ci-pipeline/{pipelineId}/material/{gitMaterialId}").HandlerFunc(router.restHandler.FetchMaterialsByMaterialId).Methods("GET")
 	configRouter.Path("/ci-pipeline/refresh-material/{gitMaterialId}").HandlerFunc(router.restHandler.RefreshMaterials).Methods("GET")
 
 	configRouter.Path("/{appId}/ci-pipeline/{pipelineId}/workflow/{workflowId}").HandlerFunc(router.restHandler.FetchWorkflowDetails).Methods("GET")
@@ -113,9 +120,10 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/{appId}/autocomplete/environment").HandlerFunc(router.restHandler.EnvironmentListAutocomplete).Methods("GET")
 	configRouter.Path("/{appId}/autocomplete/git").HandlerFunc(router.restHandler.GitListAutocomplete).Methods("GET")
-	configRouter.Path("/{appId}/autocomplete/docker").HandlerFunc(router.restHandler.DockerListAutocomplete).Methods("GET")
+	configRouter.Path("/{appId}/autocomplete/docker").HandlerFunc(router.restHandler.RegistriesListAutocomplete).Methods("GET")
 	configRouter.Path("/{appId}/autocomplete/team").HandlerFunc(router.restHandler.TeamListAutocomplete).Methods("GET")
 
+	configRouter.Path("/cd-pipeline/defaultStrategy/{appId}/{envId}").HandlerFunc(router.restHandler.GetDefaultDeploymentPipelineStrategy).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/{envId}/{pipelineId}").HandlerFunc(router.restHandler.IsReadyToTrigger).Methods("GET")
 	configRouter.Path("/cd-pipeline/strategies/{appId}").HandlerFunc(router.restHandler.GetDeploymentPipelineStrategy).Methods("GET")
 
@@ -149,12 +157,14 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd-pipeline/workflow/status/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.GetStageStatus).Methods("GET")
 
 	configRouter.Path("/cd-pipeline/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetCdPipelineById).Methods("GET")
+	configRouter.Path("/v2/cd-pipeline/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetCdPipelineById).Methods("GET")
+
 	configRouter.Path("/cd/configmap-secrets/{pipelineId}").HandlerFunc(router.restHandler.GetConfigmapSecretsForDeploymentStages).Methods("GET")
 
 	configRouter.Path("/workflow/status/{appId}").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerView).Methods("GET")
 	configRouter.Path("/workflow/status/{appId}/{version}").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerView).Methods("GET")
 
-	configRouter.Path("/material-info/{appId}/{ciArtifactId}").HandlerFunc(router.restHandler.FetchMaterialInfo).Methods("GET")
+	configRouter.Path("/material-info/{envId}/{ciArtifactId}").HandlerFunc(router.restHandler.FetchMaterialInfo).Methods("GET")
 	configRouter.Path("/ci-pipeline/webhook-payload/{pipelineMaterialId}").HandlerFunc(router.webhookDataRestHandler.GetWebhookPayloadDataForPipelineMaterialId).Methods("GET")
 	configRouter.Path("/ci-pipeline/webhook-payload/{pipelineMaterialId}/{parsedDataId}").HandlerFunc(router.webhookDataRestHandler.GetWebhookPayloadFilterDataForPipelineMaterialId).Methods("GET")
 	configRouter.Path("/ci-pipeline/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetCIPipelineById).Methods("GET")
@@ -185,5 +195,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/commit-info/{ciPipelineMaterialId}/{gitHash}").HandlerFunc(router.restHandler.GetCommitMetadataForPipelineMaterial).Methods("GET")
 
 	configRouter.Path("/deployment-status/timeline/{appId}/{envId}").HandlerFunc(router.pipelineStatusTimelineRestHandler.FetchTimelines).Methods("GET")
-
+	configRouter.Path("/image-tagging/{ciPipelineId}/{artifactId}").HandlerFunc(router.restHandler.CreateUpdateImageTagging).Methods("POST")
+	configRouter.Path("/image-tagging/{ciPipelineId}/{artifactId}").HandlerFunc(router.restHandler.GetImageTaggingData).Methods("GET")
 }

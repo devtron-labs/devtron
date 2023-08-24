@@ -1,0 +1,87 @@
+name: Validate Pull Request
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - edited
+      - reopened
+    branches:    
+      - 'main'
+      - 'release-**'
+    # paths-ignore:
+    #   - 'docs/**'
+    #   - '.github/'
+    #   - 'CHANGELOG/'
+    #   - 'charts/'
+    #   - 'manifests/'
+    #   - 'sample-docker-templates/'
+  
+jobs:
+  validate-PR-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Validate Issue Reference
+      env:
+        GITHUB_TOKEN: ${{ secrets.GIT_TARGET_TOKEN }}
+        PR_BODY: ${{ github.event.pull_request.body }}
+        url: ${{ github.event.pull_request.url }}
+        PRNUM: ${{ github.event.pull_request.number }}
+        TITLE: ${{ github.event.pull_request.title }}
+      run: |
+        set -x
+        if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* ]]; then
+          echo "Skipping validation as this is a PR for documentation or chore."
+          gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
+          gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
+          exit 0
+        fi
+        pattern="((Fixes|Resolves) #[0-9]+)"
+        # Get the pull request body
+        PR_BODY=$(jq -r '.pull_request.body' $GITHUB_EVENT_PATH)
+
+        issue_num=$(echo "$PR_BODY" | grep -o -P "$pattern" | head -n1 | grep -o -E "[0-9]+")
+        if [[ -z "$issue_num" ]]; then
+            issue_num="No issue number"
+        fi
+        echo "$issue_num"
+        
+        IFS="/" read -r -a url_parts <<< "$url"
+        
+        # Remove the last two elements (repos and the issue number)
+        unset url_parts[-1]
+        unset url_parts[-1]
+        # Reattach the URL pieces
+        url=$(IFS=/; echo "${url_parts[*]}")
+
+        # Add the issue number to the URL
+        url="${url}/issues/${issue_num}"
+        echo "$url"
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+        if [[ "$response_code" -eq 200 ]]; then
+          # Check if issue is open or closed
+          text=$(curl -s "$url")
+          echo "checking status of the issue"
+          if [[ $(echo "$text" | jq -r '.state') == "open" ]]; then
+            echo "Issue #$issue_num is open"
+            echo "Issue reference found in the pull request body."
+            gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
+            gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
+            exit 0
+          else
+            echo "Issue #$issue_num is not open"
+            exit 1
+          fi
+        else
+            echo "Invalid Response Code obtained - error code: $response_code"
+            echo "No valid issue reference found in the pull request body."
+            gh pr comment $PRNUM --body "PR is not linked to any issue, please make the corresponding changes in the body."
+            gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
+            gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
+            exit 1
+        fi

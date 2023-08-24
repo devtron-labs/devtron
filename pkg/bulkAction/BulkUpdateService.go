@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -77,17 +79,18 @@ type BulkUpdateServiceImpl struct {
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
 	workflowDagExecutor              pipeline.WorkflowDagExecutor
-	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
-	pipelineBuilder                  pipeline.PipelineBuilder
-	helmAppService                   client.HelmAppService
-	enforcerUtil                     rbac.EnforcerUtil
-	enforcerUtilHelm                 rbac.EnforcerUtilHelm
-	ciHandler                        pipeline.CiHandler
-	ciPipelineRepository             pipelineConfig.CiPipelineRepository
-	appWorkflowRepository            appWorkflow.AppWorkflowRepository
-	appWorkflowService               appWorkflow2.AppWorkflowService
-	pubsubClient                     *pubsub.PubSubClientServiceImpl
-	argoUserService                  argo.ArgoUserService
+	cdWorkflowRepository      pipelineConfig.CdWorkflowRepository
+	pipelineBuilder           pipeline.PipelineBuilder
+	helmAppService            client.HelmAppService
+	enforcerUtil              rbac.EnforcerUtil
+	enforcerUtilHelm          rbac.EnforcerUtilHelm
+	ciHandler                 pipeline.CiHandler
+	ciPipelineRepository      pipelineConfig.CiPipelineRepository
+	appWorkflowRepository     appWorkflow.AppWorkflowRepository
+	appWorkflowService        appWorkflow2.AppWorkflowService
+	pubsubClient              *pubsub.PubSubClientServiceImpl
+	argoUserService           argo.ArgoUserService
+	resourceProtectionService protect.ResourceProtectionService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -117,7 +120,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	appWorkflowService appWorkflow2.AppWorkflowService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
-	argoUserService argo.ArgoUserService) (*BulkUpdateServiceImpl, error) {
+	argoUserService argo.ArgoUserService, resourceProtectionService protect.ResourceProtectionService) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -151,11 +154,14 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		appWorkflowService:               appWorkflowService,
 		pubsubClient:                     pubsubClient,
 		argoUserService:                  argoUserService,
+		resourceProtectionService:        resourceProtectionService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
 	return impl, err
 }
+
+const SearchString = ""
 
 func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateSeeExampleResponse, error) {
 	bulkUpdateReadme, err := impl.bulkUpdateRepository.FindBulkUpdateReadme(operation)
@@ -412,11 +418,23 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 			} else {
 				for _, chart := range charts {
 					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartId(chart.Id)
+					appId := appDetailsByChart.Id
+					configProtectionEnabled := impl.configProtectionEnabled(appId, -1)
+					if configProtectionEnabled {
+						impl.logger.Warn("not applying json patch, config protection enabled")
+						bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+							AppId:   appId,
+							AppName: appDetailsByChart.AppName,
+							Message: "config protection enabled",
+						}
+						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					modified, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chart.Values)
 					if err != nil {
 						impl.logger.Errorw("error in applying JSON patch", "err", err)
 						bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-							AppId:   appDetailsByChart.Id,
+							AppId:   appId,
 							AppName: appDetailsByChart.AppName,
 							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 						}
@@ -426,14 +444,14 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 						if err != nil {
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
 							}
 							deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
 							bulkUpdateSuccessResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								Message: "Updated Successfully",
 							}
@@ -471,11 +489,24 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 			} else {
 				for _, chartEnv := range chartsEnv {
 					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartEnvId(chartEnv.Id)
+					appId := appDetailsByChart.Id
+					configProtectionEnabled := impl.configProtectionEnabled(appId, envId)
+					if configProtectionEnabled {
+						impl.logger.Warn("not applying json patch, config protection enabled")
+						bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+							AppId:   appId,
+							AppName: appDetailsByChart.AppName,
+							EnvId:   envId,
+							Message: "config protection enabled",
+						}
+						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					modified, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chartEnv.EnvOverrideValues)
 					if err != nil {
 						impl.logger.Errorw("error in applying JSON patch", "err", err)
 						bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-							AppId:   appDetailsByChart.Id,
+							AppId:   appId,
 							AppName: appDetailsByChart.AppName,
 							EnvId:   envId,
 							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
@@ -486,7 +517,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 						if err != nil {
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								EnvId:   envId,
 								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
@@ -494,7 +525,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
 							bulkUpdateSuccessResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								EnvId:   envId,
 								Message: "Updated Successfully",
@@ -561,6 +592,19 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 				configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, "No matching apps to update globally")
 			} else {
 				for _, configMapAppModel := range configMapAppModels {
+					appId := configMapAppModel.AppId
+					protectionEnabled := impl.configProtectionEnabled(appId, -1)
+					if protectionEnabled {
+						appDetailsById, _ := impl.appRepository.FindById(appId)
+						bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+							AppId:   appDetailsById.Id,
+							AppName: appDetailsById.AppName,
+							Names:   []string{},
+							Message: "config protection enabled",
+						}
+						configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					configMapNames := gjson.Get(configMapAppModel.ConfigMapData, "maps.#.name")
 					messageCmNamesMap := make(map[string][]string)
 					for i, configMapName := range configMapNames.Array() {
@@ -614,7 +658,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 						}
 					}
 					if len(messageCmNamesMap) != 0 {
-						appDetailsById, _ := impl.appRepository.FindById(configMapAppModel.AppId)
+						appDetailsById, _ := impl.appRepository.FindById(appId)
 						for key, value := range messageCmNamesMap {
 							if key == "Updated Successfully" {
 								bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
@@ -653,6 +697,19 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 				configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId : %d", envId))
 			} else {
 				for _, configMapEnvModel := range configMapEnvModels {
+					appId := configMapEnvModel.AppId
+					protectionEnabled := impl.configProtectionEnabled(appId, envId)
+					if protectionEnabled {
+						appDetailsById, _ := impl.appRepository.FindById(appId)
+						bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+							AppId:   appDetailsById.Id,
+							AppName: appDetailsById.AppName,
+							Names:   []string{},
+							Message: "config protection enabled",
+						}
+						configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					configMapNames := gjson.Get(configMapEnvModel.ConfigMapData, "maps.#.name")
 					messageCmNamesMap := make(map[string][]string)
 					for i, configMapName := range configMapNames.Array() {
@@ -766,6 +823,19 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 				secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, "No matching apps to update globally")
 			} else {
 				for _, secretAppModel := range secretAppModels {
+					appId := secretAppModel.AppId
+					protectionEnabled := impl.configProtectionEnabled(appId, -1)
+					if protectionEnabled {
+						appDetailsById, _ := impl.appRepository.FindById(appId)
+						bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+							AppId:   appDetailsById.Id,
+							AppName: appDetailsById.AppName,
+							Names:   []string{},
+							Message: "config protection enabled",
+						}
+						secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					secretNames := gjson.Get(secretAppModel.SecretData, "secrets.#.name")
 					messageSecretNamesMap := make(map[string][]string)
 					for i, secretName := range secretNames.Array() {
@@ -825,7 +895,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 						}
 					}
 					if len(messageSecretNamesMap) != 0 {
-						appDetailsById, _ := impl.appRepository.FindById(secretAppModel.AppId)
+						appDetailsById, _ := impl.appRepository.FindById(appId)
 						for key, value := range messageSecretNamesMap {
 							if key == "Updated Successfully" {
 								bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
@@ -864,6 +934,19 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 				secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId : %d", envId))
 			} else {
 				for _, secretEnvModel := range secretEnvModels {
+					appId := secretEnvModel.AppId
+					protectionEnabled := impl.configProtectionEnabled(appId, envId)
+					if protectionEnabled {
+						appDetailsById, _ := impl.appRepository.FindById(appId)
+						bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+							AppId:   appDetailsById.Id,
+							AppName: appDetailsById.AppName,
+							Names:   []string{},
+							Message: "config protection enabled",
+						}
+						secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+						continue
+					}
 					secretNames := gjson.Get(secretEnvModel.SecretData, "secrets.#.name")
 					messageSecretNamesMap := make(map[string][]string)
 					for i, secretName := range secretNames.Array() {
@@ -923,7 +1006,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 						}
 					}
 					if len(messageSecretNamesMap) != 0 {
-						appDetailsById, _ := impl.appRepository.FindById(secretEnvModel.AppId)
+						appDetailsById, _ := impl.appRepository.FindById(appId)
 						for key, value := range messageSecretNamesMap {
 							if key == "Updated Successfully" {
 								bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
@@ -1138,6 +1221,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
 			response[appKey] = pipelineResponse
+			continue
 			//return nil, err
 		}
 		pipelineResponse := response[appKey]
@@ -1149,9 +1233,46 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 	bulkOperationResponse.Response = response
 	return bulkOperationResponse, nil
 }
+
 func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
+
+	if len(request.AppNamesIncludes) > 0 {
+		r, err := impl.appRepository.FindIdsByNames(request.AppNamesIncludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching Ids", "err", err)
+			return nil, err
+		}
+		for _, id := range r {
+			request.AppIdIncludes = append(request.AppIdIncludes, id)
+		}
+	}
+	if len(request.AppNamesExcludes) > 0 {
+		r, err := impl.appRepository.FindIdsByNames(request.AppNamesExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching Ids", "err", err)
+			return nil, err
+		}
+		for _, id := range r {
+			request.AppIdExcludes = append(request.AppIdExcludes, id)
+		}
+	}
+	if len(request.EnvName) > 0 {
+		r, err := impl.environmentRepository.FindByName(request.EnvName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching env details", "err", err)
+			return nil, err
+		}
+		if request.EnvId != 0 && request.EnvId != r.Id {
+			return nil, errors.New("environment id and environment name is different select only one environment")
+		} else if request.EnvId == 0 {
+			request.EnvId = r.Id
+		}
+	}
+	if len(request.EnvName) == 0 && request.EnvId == 0 {
+		return nil, errors.New("please mention environment id or environment name")
+	}
 	if len(request.AppIdIncludes) > 0 {
 		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
 	} else if len(request.AppIdExcludes) > 0 {
@@ -1203,7 +1324,8 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 
-		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		//artifactResponse, err := impl.pipelineBuilder.GetArtifactsByCDPipeline(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY, SearchString, false)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
 			//return nil, err
@@ -1220,7 +1342,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			response[appKey] = pipelineResponse
 			continue
 		}
-		artifact := artifacts[0]
+		artifact := artifacts[0] // fetch latest approved artifact in case of approval node configured
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:     pipeline.Id,
 			AppId:          pipeline.AppId,
@@ -1294,7 +1416,7 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
+		_, _, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1357,7 +1479,9 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				}
 				ciPipelineId = ciPipeline.ParentCiPipeline
 			}
-			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId)
+
+			//if include/exclude configured showAll will include excluded materials also in list, if not configured it will ignore this flag
+			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId, false)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ci pipeline materials", "CiPipelineId", ciPipelineId, "err", err)
 				return nil, err
@@ -1379,7 +1503,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				PipelineId:         ciPipelineId,
 				CiPipelineMaterial: ciMaterials,
 				TriggeredBy:        request.UserId,
-				InvalidateCache:    false,
+				InvalidateCache:    request.InvalidateCache,
 			}
 			latestCommitsMap[ciPipelineId] = ciTriggerRequest
 			ciCompletedStatus[ciPipelineId] = false
@@ -1513,7 +1637,13 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 	ctx context.Context, dryRun bool, impactedAppWfIds []int, impactedCiPipelineIds []int) (*PipelineAndWfBulkActionResponseDto, error) {
 	switch dto.Action {
 	case CD_BULK_DELETE:
-		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
+		deleteAction := bean2.CASCADE_DELETE
+		if dto.ForceDelete {
+			deleteAction = bean2.FORCE_DELETE
+		} else if dto.NonCascadeDelete {
+			deleteAction = bean2.NON_CASCADE_DELETE
+		}
+		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, deleteAction, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in cd pipelines bulk deletion")
 		}
@@ -1523,8 +1653,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 	}
 }
 
-func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context,
-	dryRun, forceDelete, deleteWfAndCiPipeline bool, impactedAppWfIds, impactedCiPipelineIds []int, userId int32) (*PipelineAndWfBulkActionResponseDto, error) {
+func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, deleteAction int, deleteWfAndCiPipeline bool, impactedAppWfIds, impactedCiPipelineIds []int, userId int32) (*PipelineAndWfBulkActionResponseDto, error) {
 	var cdPipelineRespDtos []*CdBulkActionResponseDto
 	var wfRespDtos []*WfBulkActionResponseDto
 	var ciPipelineRespDtos []*CiBulkActionResponseDto
@@ -1545,13 +1674,17 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, forceDelete, true, userId)
+			// Delete Cd pipeline
+			deleteResponse, err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
+			} else if !(deleteResponse.DeleteInitiated || deleteResponse.ClusterReachable) {
+				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %s, piplineId, %v", "cluster connection error", pipeline.Id)
 			} else {
 				respDto.DeletionResult = "Pipeline deleted successfully."
 			}
+
 		}
 		cdPipelineRespDtos = append(cdPipelineRespDtos, respDto)
 	}
@@ -1606,4 +1739,8 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 	}
 	return respDto, nil
 
+}
+
+func (impl BulkUpdateServiceImpl) configProtectionEnabled(appId int, envId int) bool {
+	return impl.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
 }

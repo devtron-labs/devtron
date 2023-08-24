@@ -20,11 +20,12 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -40,6 +41,8 @@ type ConfigMapRestHandler interface {
 	CMEnvironmentAddUpdate(w http.ResponseWriter, r *http.Request)
 	CMGlobalFetch(w http.ResponseWriter, r *http.Request)
 	CMEnvironmentFetch(w http.ResponseWriter, r *http.Request)
+	CMGlobalFetchForEdit(w http.ResponseWriter, r *http.Request)
+	CMEnvironmentFetchForEdit(w http.ResponseWriter, r *http.Request)
 
 	CSGlobalAddUpdate(w http.ResponseWriter, r *http.Request)
 	CSEnvironmentAddUpdate(w http.ResponseWriter, r *http.Request)
@@ -54,34 +57,40 @@ type ConfigMapRestHandler interface {
 	CSGlobalFetchForEdit(w http.ResponseWriter, r *http.Request)
 	CSEnvironmentFetchForEdit(w http.ResponseWriter, r *http.Request)
 	ConfigSecretBulkPatch(w http.ResponseWriter, r *http.Request)
+
+	AddEnvironmentToJob(w http.ResponseWriter, r *http.Request)
+	RemoveEnvironmentFromJob(w http.ResponseWriter, r *http.Request)
+	GetEnvironmentsForJob(w http.ResponseWriter, r *http.Request)
 }
 
 type ConfigMapRestHandlerImpl struct {
-	pipelineBuilder    pipeline.PipelineBuilder
-	Logger             *zap.SugaredLogger
-	chartService       chart.ChartService
-	userAuthService    user.UserService
-	teamService        team.TeamService
-	enforcer           casbin.Enforcer
-	pipelineRepository pipelineConfig.PipelineRepository
-	enforcerUtil       rbac.EnforcerUtil
-	configMapService   pipeline.ConfigMapService
+	pipelineBuilder           pipeline.PipelineBuilder
+	Logger                    *zap.SugaredLogger
+	chartService              chart.ChartService
+	userAuthService           user.UserService
+	teamService               team.TeamService
+	enforcer                  casbin.Enforcer
+	pipelineRepository        pipelineConfig.PipelineRepository
+	enforcerUtil              rbac.EnforcerUtil
+	configMapService          pipeline.ConfigMapService
+	resourceProtectionService protect.ResourceProtectionService
 }
 
 func NewConfigMapRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	chartService chart.ChartService, userAuthService user.UserService, teamService team.TeamService,
 	enforcer casbin.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
-	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService) *ConfigMapRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService, resourceProtectionService protect.ResourceProtectionService) *ConfigMapRestHandlerImpl {
 	return &ConfigMapRestHandlerImpl{
-		pipelineBuilder:    pipelineBuilder,
-		Logger:             Logger,
-		chartService:       chartService,
-		userAuthService:    userAuthService,
-		teamService:        teamService,
-		enforcer:           enforcer,
-		pipelineRepository: pipelineRepository,
-		enforcerUtil:       enforcerUtil,
-		configMapService:   configMapService,
+		pipelineBuilder:           pipelineBuilder,
+		Logger:                    Logger,
+		chartService:              chartService,
+		userAuthService:           userAuthService,
+		teamService:               teamService,
+		enforcer:                  enforcer,
+		pipelineRepository:        pipelineRepository,
+		enforcerUtil:              enforcerUtil,
+		configMapService:          configMapService,
+		resourceProtectionService: resourceProtectionService,
 	}
 }
 
@@ -92,7 +101,7 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var configMapRequest pipeline.ConfigDataRequest
+	var configMapRequest bean.ConfigDataRequest
 
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
@@ -112,6 +121,12 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 	}
 	//RBAC END
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("request err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
+		return
+	}
 	res, err := handler.configMapService.CMGlobalAddUpdate(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
@@ -128,7 +143,7 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var configMapRequest pipeline.ConfigDataRequest
+	var configMapRequest bean.ConfigDataRequest
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, CMEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
@@ -151,6 +166,13 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 		return
 	}
 	//RBAC END
+
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	if protectionEnabled {
+		handler.Logger.Errorw("request err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
+		return
+	}
 
 	res, err := handler.configMapService.CMEnvironmentAddUpdate(&configMapRequest)
 	if err != nil {
@@ -191,6 +213,84 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalFetch(w http.ResponseWriter, r *
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler ConfigMapRestHandlerImpl) CMGlobalFetchForEdit(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	cmId, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "cmId", cmId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	name := vars["name"]
+	response, err := handler.configMapService.CMGlobalFetchForEdit(name, cmId)
+	if err != nil {
+		handler.Logger.Errorw("service err, CMGlobalFetchForEdit", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
+func (handler ConfigMapRestHandlerImpl) CMEnvironmentFetchForEdit(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	cmId, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "cmId", cmId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	name := vars["name"]
+	response, err := handler.configMapService.CMEnvironmentFetchForEdit(name, cmId, appId, envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, CMEnvironmentFetchForEdit", "err", err, "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CMEnvironmentFetch(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +338,7 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var configMapRequest pipeline.ConfigDataRequest
+	var configMapRequest bean.ConfigDataRequest
 
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
@@ -258,6 +358,13 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 	}
 	//RBAC END
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "err", err, "payload", configMapRequest)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
+		return
+	}
+
 	res, err := handler.configMapService.CSGlobalAddUpdate(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalAddUpdate", "err", err, "payload", configMapRequest)
@@ -274,7 +381,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var configMapRequest pipeline.ConfigDataRequest
+	var configMapRequest bean.ConfigDataRequest
 
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
@@ -298,6 +405,13 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 		return
 	}
 	//RBAC END
+
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "err", err, "payload", configMapRequest)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
+		return
+	}
 
 	res, err := handler.configMapService.CSEnvironmentAddUpdate(&configMapRequest)
 	if err != nil {
@@ -409,6 +523,13 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r 
 	}
 	//RBAC END
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "id", id, "name", name)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
+		return
+	}
+
 	res, err := handler.configMapService.CMGlobalDelete(name, id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalDelete", "err", err, "appId", appId, "id", id, "name", name)
@@ -460,6 +581,13 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 	}
 	//RBAC END
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", envId, "id", id, "name", name)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
+		return
+	}
+
 	res, err := handler.configMapService.CMEnvironmentDelete(name, id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMEnvironmentDelete", "err", err, "appId", appId, "envId", envId, "id", id)
@@ -499,6 +627,12 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r 
 		return
 	}
 	//RBAC END
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "id", id, "name", name)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
+		return
+	}
 
 	res, err := handler.configMapService.CSGlobalDelete(name, id, userId)
 	if err != nil {
@@ -551,6 +685,13 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 	}
 	//RBAC END
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", envId, "id", id, "name", name)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusLocked)
+		return
+	}
+
 	res, err := handler.configMapService.CSEnvironmentDelete(name, id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSEnvironmentDelete", "err", err, "appId", appId, "envId", envId, "id", id)
@@ -586,8 +727,11 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalFetchForEdit(w http.ResponseWrit
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
+		object = handler.enforcerUtil.GetTeamNoEnvRBACNameByAppId(appId)
+		if ok = handler.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
 	}
 	//RBAC END
 
@@ -630,13 +774,16 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetchForEdit(w http.Respons
 
 	//RBAC START
 	token := r.Header.Get("token")
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+	object := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(appId, envId)
+	configApprover := handler.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object)
+
+	object = handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok && !configApprover {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok && !configApprover {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -660,24 +807,17 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 	}
 
 	//AUTH - check from casbin db
-	roles, err := handler.userAuthService.CheckUserRoles(userId)
-	if err != nil {
-		common.WriteJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
-		return
-	}
-	superAdmin := false
-	for _, item := range roles {
-		if item == bean.SUPERADMIN {
-			superAdmin = true
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 		}
-	}
-	if superAdmin == false {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//AUTH
 
-	var bulkPatchRequest pipeline.BulkPatchRequest
+	var bulkPatchRequest bean.BulkPatchRequest
 	err = decoder.Decode(&bulkPatchRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
@@ -702,4 +842,118 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 		}
 	}
 	common.WriteJsonResp(w, err, true, http.StatusOK)
+}
+
+func (handler ConfigMapRestHandlerImpl) AddEnvironmentToJob(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	//AUTH - check from casbin db
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//AUTH
+
+	var envOverrideRequest bean.CreateJobEnvOverridePayload
+	err = decoder.Decode(&envOverrideRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, AddEvironmentToJob", "err", err, "payload", envOverrideRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envOverrideRequest.UserId = userId
+	handler.Logger.Infow("request payload, AddEvironmentToJob", "payload", envOverrideRequest)
+	resp, err := handler.configMapService.ConfigSecretEnvironmentCreate(&envOverrideRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, AddEvironmentToJob", "err", err, "payload", envOverrideRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
+func (handler ConfigMapRestHandlerImpl) RemoveEnvironmentFromJob(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	//AUTH - check from casbin db
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//AUTH
+
+	var envOverrideRequest bean.CreateJobEnvOverridePayload
+	err = decoder.Decode(&envOverrideRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, RemoveEnvironmentFromJob", "err", err, "payload", envOverrideRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envOverrideRequest.UserId = userId
+	handler.Logger.Infow("request payload, RemoveEnvironmentFromJob", "payload", envOverrideRequest)
+	resp, err := handler.configMapService.ConfigSecretEnvironmentDelete(&envOverrideRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, RemoveEnvironmentFromJob", "err", err, "payload", envOverrideRequest)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, true, http.StatusOK)
+}
+func (handler ConfigMapRestHandlerImpl) GetEnvironmentsForJob(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetEnvironmentsForJob", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//AUTH - check from casbin db
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//AUTH
+	if err != nil {
+		handler.Logger.Errorw("request err, GetEnvironmentsForJob", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, GetEnvironmentsForJob", "appId", appId)
+	resp, err := handler.configMapService.ConfigSecretEnvironmentGet(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetEnvironmentsForJob", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }

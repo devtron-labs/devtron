@@ -39,6 +39,8 @@ type TeamRepository interface {
 	MarkTeamDeleted(team *Team, tx *pg.Tx) error
 	GetConnection() *pg.DB
 	FindByIds(ids []*int) ([]*Team, error)
+	FindAllActiveTeamNames() ([]string, error)
+	FindAllActiveTeamIds() ([]int, error)
 }
 type TeamRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -47,6 +49,7 @@ type TeamRepositoryImpl struct {
 func NewTeamRepositoryImpl(dbConnection *pg.DB) *TeamRepositoryImpl {
 	return &TeamRepositoryImpl{dbConnection: dbConnection}
 }
+
 const UNASSIGNED_PROJECT = "unassigned"
 
 func (impl TeamRepositoryImpl) Save(team *Team) error {
@@ -58,6 +61,20 @@ func (impl TeamRepositoryImpl) FindAllActive() ([]Team, error) {
 	var teams []Team
 	err := impl.dbConnection.Model(&teams).Where("active = ?", true).Select()
 	return teams, err
+}
+
+func (impl TeamRepositoryImpl) FindAllActiveTeamNames() ([]string, error) {
+	var teamNames []string
+	err := impl.dbConnection.Model((*Team)(nil)).
+		Where("active = ?", true).Select(&teamNames)
+	return teamNames, err
+}
+
+func (impl TeamRepositoryImpl) FindAllActiveTeamIds() ([]int, error) {
+	var teamIds []int
+	err := impl.dbConnection.Model((*Team)(nil)).Column("id").
+		Where("active = ?", true).Select(&teamIds)
+	return teamIds, err
 }
 
 func (impl TeamRepositoryImpl) FindOne(id int) (Team, error) {
@@ -96,7 +113,6 @@ func (repo TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {
 func (repo TeamRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
 }
-
 
 type TeamRbacObjects struct {
 	AppName  string `json:"appName"`

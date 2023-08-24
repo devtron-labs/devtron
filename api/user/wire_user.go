@@ -55,10 +55,26 @@ var UserWireSet = wire.NewSet(
 	auth.NewUserAuthOidcHelperImpl,
 	wire.Bind(new(auth.UserAuthOidcHelper), new(*auth.UserAuthOidcHelperImpl)),
 
+	repository.NewRbacPolicyResourceDetailRepositoryImpl,
+	wire.Bind(new(repository.RbacPolicyResourceDetailRepository), new(*repository.RbacPolicyResourceDetailRepositoryImpl)),
+	repository.NewRbacRoleResourceDetailRepositoryImpl,
+	wire.Bind(new(repository.RbacRoleResourceDetailRepository), new(*repository.RbacRoleResourceDetailRepositoryImpl)),
 	repository.NewRbacPolicyDataRepositoryImpl,
 	wire.Bind(new(repository.RbacPolicyDataRepository), new(*repository.RbacPolicyDataRepositoryImpl)),
 	repository.NewRbacRoleDataRepositoryImpl,
 	wire.Bind(new(repository.RbacRoleDataRepository), new(*repository.RbacRoleDataRepositoryImpl)),
 	repository.NewRbacDataCacheFactoryImpl,
 	wire.Bind(new(repository.RbacDataCacheFactory), new(*repository.RbacDataCacheFactoryImpl)),
+
+	NewRbacRoleRouterImpl,
+	wire.Bind(new(RbacRoleRouter), new(*RbacRoleRouterImpl)),
+	NewRbacRoleHandlerImpl,
+	wire.Bind(new(RbacRoleRestHandler), new(*RbacRoleRestHandlerImpl)),
+	user.NewRbacRoleServiceImpl,
+	wire.Bind(new(user.RbacRoleService), new(*user.RbacRoleServiceImpl)),
+
+	user.NewDefaultRbacRoleServiceImpl,
+	wire.Bind(new(user.DefaultRbacRoleService), new(*user.DefaultRbacRoleServiceImpl)),
+	repository.NewDefaultRbacRoleDataRepositoryImpl,
+	wire.Bind(new(repository.DefaultRbacRoleDataRepository), new(*repository.DefaultRbacRoleDataRepositoryImpl)),
 )

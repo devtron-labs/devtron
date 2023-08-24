@@ -44,6 +44,9 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 		Queries("offset", "{offset}").
 		HandlerFunc(impl.notificationRestHandler.GetAllNotificationSettings).
 		Methods("GET")
+	configRouter.Path("/channel/config").
+		HandlerFunc(impl.notificationRestHandler.IsSesOrSmtpConfigured).
+		Methods("GET")
 	configRouter.Path("").
 		HandlerFunc(impl.notificationRestHandler.DeleteNotificationSettings).
 		Methods("DELETE")
@@ -63,6 +66,13 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 	configRouter.Path("/channel/smtp/{id}").
 		HandlerFunc(impl.notificationRestHandler.FindSMTPConfig).
 		Methods("GET")
+	configRouter.Path("/channel/webhook/{id}").
+		HandlerFunc(impl.notificationRestHandler.FindWebhookConfig).
+		Methods("GET")
+	configRouter.Path("/variables").
+		HandlerFunc(impl.notificationRestHandler.GetWebhookVariables).
+		Methods("GET")
+
 	configRouter.Path("/channel").
 		HandlerFunc(impl.notificationRestHandler.DeleteNotificationChannelConfig).
 		Methods("DELETE")

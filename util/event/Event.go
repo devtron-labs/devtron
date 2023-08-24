@@ -22,6 +22,7 @@ type EventType int
 const Trigger EventType = 1
 const Success EventType = 2
 const Fail EventType = 3
+const Approval EventType = 4
 
 type PipelineType string
 
@@ -33,9 +34,10 @@ type Level string
 type Channel string
 
 const (
-	Slack Channel = "slack"
-	SES   Channel = "ses"
-	SMTP  Channel = "smtp"
+	Slack   Channel = "slack"
+	SES     Channel = "ses"
+	SMTP    Channel = "smtp"
+	Webhook Channel = "webhook"
 )
 
 type UpdateType string

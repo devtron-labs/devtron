@@ -41,6 +41,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
@@ -255,8 +256,21 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	v := r.URL.Query()
 	forceDelete := false
 	force := v.Get("force")
+	cascadeDelete := true
+	cascade := v.Get("cascade")
+	if len(force) > 0 && len(cascade) > 0 {
+		handler.Logger.Errorw("request err, PatchCdPipeline", "err", fmt.Errorf("cannot perform both cascade and force delete"), "installAppId", installAppId)
+		common.WriteJsonResp(w, fmt.Errorf("invalid query params! cannot perform both force and cascade together"), nil, http.StatusBadRequest)
+		return
+	}
 	if len(force) > 0 {
 		forceDelete, err = strconv.ParseBool(force)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	} else if len(cascade) > 0 {
+		cascadeDelete, err = strconv.ParseBool(cascade)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -310,6 +324,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.UserId = userId
 	request.ForceDelete = forceDelete
+	request.NonCascadeDelete = !cascadeDelete
 	request.AppOfferingMode = installedApp.AppOfferingMode
 	request.ClusterId = installedApp.ClusterId
 	request.Namespace = installedApp.Namespace
@@ -463,6 +478,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		}
 		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
+	triggeredAt := time.Now()
 	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
@@ -471,6 +487,11 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+	err1 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, triggeredAt, err)
+	if err1 != nil {
+		handler.Logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", res)
+		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
 
 	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_UPDATE_COUNTER)
@@ -563,13 +584,24 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 			handler.Logger.Errorw("service err, InstalledAppId", "err", err, "InstalledAppId", request.InstalledAppId)
 			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app details"), nil, http.StatusBadRequest)
 		}
-		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
-		rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
-		if !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-			return
+		if installedApp.IsVirtualEnvironment {
+			rbacObjectForCurrentProject, _ := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppId(request.InstalledAppId)
+			ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject)
+			rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppIdAndTeamId(request.InstalledAppId, request.TeamId)
+			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
+			if !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+				return
+			}
+		} else {
+			rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+			ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
+			rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
+			if !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+				return
+			}
 		}
 	}
 	err = handler.appStoreDeploymentService.UpdateProjectHelmApp(&request)

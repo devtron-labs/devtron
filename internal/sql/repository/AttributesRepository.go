@@ -40,6 +40,9 @@ type AttributesRepository interface {
 	GetConnection() (dbConnection *pg.DB)
 }
 
+// TODO:caching because of high traffic calls clean this after proper fix
+var attributeForEnforcedDeploymentTypeConfig *Attributes
+
 type AttributesRepositoryImpl struct {
 	dbConnection *pg.DB
 }
@@ -64,9 +67,17 @@ func (repo AttributesRepositoryImpl) Update(model *Attributes, tx *pg.Tx) error 
 
 func (repo AttributesRepositoryImpl) FindByKey(key string) (*Attributes, error) {
 	model := &Attributes{}
-	err := repo.dbConnection.Model(model).Where("key = ?", key).Where("active = ?", true).
-		Select()
-	return model, err
+
+	if key == "enforceDeploymentTypeConfig" && attributeForEnforcedDeploymentTypeConfig != nil {
+		return attributeForEnforcedDeploymentTypeConfig, nil
+	} else {
+		err := repo.dbConnection.Model(model).Where("key = ?", key).Where("active = ?", true).
+			Select()
+		if key == "enforceDeploymentTypeConfig" && err != nil {
+			attributeForEnforcedDeploymentTypeConfig = model
+		}
+		return model, err
+	}
 }
 
 func (repo AttributesRepositoryImpl) FindById(id int) (*Attributes, error) {

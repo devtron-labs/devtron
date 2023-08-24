@@ -7,6 +7,7 @@
   * [Install Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md)
   * [Install Devtron](setup/install/install-devtron.md)
   * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+  * [Backup for Disaster Recovery](setup/install/devtron-backup.md)
   * [FAQ on Installation](setup/install/faq-on-installation.md)
   * [Uninstall Devtron](setup/install/uninstall-devtron.md)
 * [Devtron Kubernetes Client](setup/install/install-devtron-Kubernetes-client.md)
@@ -30,6 +31,7 @@
     * [API Tokens](user-guide/global-configurations/authorization/api-tokens.md)
   * [Manage Notification](user-guide/global-configurations/manage-notification.md)
   * [External links](user-guide/global-configurations/external-links.md)
+  * [Tags Policy](user-guide/global-configurations/tags-policy.md)
 * [Devtron Upgrade](setup/upgrade/README.md)
   * [Update Devtron from Devtron UI](setup/upgrade/upgrade-devtron-ui.md)
   * [0.5.x-0.6.x](setup/upgrade/devtron-upgrade-0.5.x-0.6.x.md)
@@ -52,6 +54,7 @@
       * [Deployment](user-guide/creating-application/deployment-template/deployment.md)
       * [Rollout Deployment](user-guide/creating-application/deployment-template/rollout-deployment.md)
       * [Job and Cronjob](user-guide/creating-application/deployment-template/job-and-cronjob.md)
+      * [StatefulSets](user-guide/creating-application/deployment-template/statefulset.md)
     * [Workflow Overview](user-guide/creating-application/workflow/README.md)
     * [CI Pipeline](user-guide/creating-application/workflow/ci-pipeline.md)
       * [Pre-Build/Post-Build Stages](user-guide/creating-application/workflow/ci-build-pre-post-plugins.md)
@@ -63,6 +66,7 @@
       * [External Secret Operator (ESO)](user-guide/creating-application/eso/README.md)
         * [AWS Secrets Manager](user-guide/creating-application/eso/aws-eso.md)
         * [Google Secrets Manager](user-guide/creating-application/eso/gcp-eso.md)
+        * [HashiCorp Vault](user-guide/creating-application/eso/hashicorp-eso.md)
 
     * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
     * [Deleting Application](user-guide/deleting-application.md)
@@ -98,6 +102,7 @@
   * [Notifications](user-guide/integrations/notifications.md)
   * [Monitoring (Grafana)](user-guide/integrations/grafana.md)
 
+
 ## Resources
 
 * [Troubleshooting](FAQs/devtron-troubleshoot.md)
@@ -107,7 +112,5 @@
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
+* [Release Notes](https://github.com/devtron-labs/devtron/releases)
 
-## Deprecated
-
-* [Hyperion](hyperion/devtron.md)

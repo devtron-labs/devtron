@@ -28,7 +28,10 @@ import (
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	"github.com/devtron-labs/devtron/api/globalPolicy"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/k8s/application"
+	"github.com/devtron-labs/devtron/api/k8s/capacity"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
@@ -41,10 +44,11 @@ import (
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -102,7 +106,7 @@ type MuxRouter struct {
 	appRouter                          AppRouter
 	coreAppRouter                      CoreAppRouter
 	helmAppRouter                      client.HelmAppRouter
-	k8sApplicationRouter               k8s.K8sApplicationRouter
+	k8sApplicationRouter               application.K8sApplicationRouter
 	pProfRouter                        PProfRouter
 	deploymentConfigRouter             deployment.DeploymentConfigRouter
 	dashboardTelemetryRouter           dashboardEvent.DashboardTelemetryRouter
@@ -113,13 +117,17 @@ type MuxRouter struct {
 	serverRouter                       server.ServerRouter
 	apiTokenRouter                     apiToken.ApiTokenRouter
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
-	k8sCapacityRouter                  k8s.K8sCapacityRouter
+	k8sCapacityRouter                  capacity.K8sCapacityRouter
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 	globalCMCSRouter                   GlobalCMCSRouter
 	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
 	ciStatusUpdateCron                 cron.CiStatusUpdateCron
 	appGroupingRouter                  AppGroupingRouter
 	globalTagRouter                    globalTag.GlobalTagRouter
+	rbacRoleRouter                     user.RbacRoleRouter
+	globalPolicyRouter                 globalPolicy.GlobalPolicyRouter
+	configDraftRouter                  drafts.ConfigDraftRouter
+	resourceProtectionRouter           protect.ResourceProtectionRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -140,15 +148,17 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appRouter AppRouter,
-	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
+	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter application.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
-	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
+	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter capacity.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
-	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter, globalTagRouter globalTag.GlobalTagRouter) *MuxRouter {
+	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
+	globalTagRouter globalTag.GlobalTagRouter, rbacRoleRouter user.RbacRoleRouter,
+	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -218,6 +228,10 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		JobRouter:                          jobRouter,
 		appGroupingRouter:                  appGroupingRouter,
 		globalTagRouter:                    globalTagRouter,
+		rbacRoleRouter:                     rbacRoleRouter,
+		globalPolicyRouter:                 globalPolicyRouter,
+		configDraftRouter:                  configDraftRouter,
+		resourceProtectionRouter:           resourceProtectionRouter,
 	}
 	return r
 }
@@ -429,4 +443,16 @@ func (r MuxRouter) Init() {
 	// global-tags router
 	globalTagSubRouter := r.Router.PathPrefix("/orchestrator/global-tag").Subrouter()
 	r.globalTagRouter.InitGlobalTagRouter(globalTagSubRouter)
+
+	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()
+	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
+
+	globalPolicyRouter := r.Router.PathPrefix("/orchestrator/policy").Subrouter()
+	r.globalPolicyRouter.InitGlobalPolicyRouter(globalPolicyRouter)
+
+	draftRouter := r.Router.PathPrefix("/orchestrator/draft").Subrouter()
+	r.configDraftRouter.InitConfigDraftRouter(draftRouter)
+
+	protectRouter := r.Router.PathPrefix("/orchestrator/protect").Subrouter()
+	r.resourceProtectionRouter.InitResourceProtectionRouter(protectRouter)
 }

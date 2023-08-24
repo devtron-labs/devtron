@@ -27,7 +27,7 @@ import (
 
 func getCr() ChartRepository {
 	return nil
-	//return NewChartRepository(models.GetDbConnection())
+	//return NewChartRepository(models.GetDbTransaction())
 }
 
 func TestChartRepositoryImpl_Save(t *testing.T) {

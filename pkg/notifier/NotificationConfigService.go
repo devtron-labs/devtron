@@ -39,7 +39,7 @@ type NotificationConfigService interface {
 	BuildNotificationSettingsResponse(notificationSettings []*repository.NotificationSettingsViewWithAppEnv) ([]*NotificationSettingsResponse, int, error)
 	DeleteNotificationSettings(request NSDeleteRequest) error
 	FindNotificationSettingOptions(request *repository.SearchRequest) ([]*SearchFilterResponse, error)
-
+	IsSesOrSmtpConfigured() (*ConfigCheck, error)
 	UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error)
 	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
 }
@@ -51,6 +51,7 @@ type NotificationConfigServiceImpl struct {
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	pipelineRepository             pipelineConfig.PipelineRepository
 	slackRepository                repository.SlackNotificationRepository
+	webhookRepository              repository.WebhookNotificationRepository
 	sesRepository                  repository.SESNotificationRepository
 	smtpRepository                 repository.SMTPNotificationRepository
 	teamRepository                 repository2.TeamRepository
@@ -111,6 +112,10 @@ type NSViewResponse struct {
 	Total                        int                             `json:"total"`
 	NotificationSettingsResponse []*NotificationSettingsResponse `json:"settings"`
 }
+type ConfigCheck struct {
+	IsConfigured        bool `json:"isConfigured"`
+	IsDefaultConfigured bool `json:"is_default_configured"`
+}
 
 type NotificationSettingsResponse struct {
 	Id               int                `json:"id"`
@@ -143,16 +148,18 @@ type AppResponse struct {
 }
 
 type EnvResponse struct {
-	Id   *int   `json:"id"`
-	Name string `json:"name"`
+	Id                   *int   `json:"id"`
+	Name                 string `json:"name"`
+	IsVirtualEnvironment bool   `json:"isVirtualEnvironment"`
 }
 
 type PipelineResponse struct {
-	Id              *int     `json:"id"`
-	Name            string   `json:"name"`
-	EnvironmentName string   `json:"environmentName,omitempty"`
-	AppName         string   `json:"appName,omitempty"`
-	Branches        []string `json:"branches,omitempty"`
+	Id                   *int     `json:"id"`
+	Name                 string   `json:"name"`
+	EnvironmentName      string   `json:"environmentName,omitempty"`
+	AppName              string   `json:"appName,omitempty"`
+	Branches             []string `json:"branches,omitempty"`
+	IsVirtualEnvironment bool     `json:"isVirtualEnvironment"`
 }
 
 type ProvidersConfig struct {
@@ -163,7 +170,7 @@ type ProvidersConfig struct {
 }
 
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
 	teamRepository repository2.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
@@ -176,6 +183,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		ciPipelineRepository:           ciPipelineRepository,
 		sesRepository:                  sesRepository,
 		slackRepository:                slackRepository,
+		webhookRepository:              webhookRepository,
 		smtpRepository:                 smtpRepository,
 		teamRepository:                 teamRepository,
 		environmentRepository:          environmentRepository,
@@ -345,7 +353,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			}
 			var envResponse []*EnvResponse
 			for _, item := range environments {
-				envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name})
+				envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name, IsVirtualEnvironment: item.IsVirtualEnvironment})
 			}
 			notificationSettingsResponse.EnvResponse = envResponse
 		}
@@ -365,6 +373,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 
 		if config.Providers != nil && len(config.Providers) > 0 {
 			var slackIds []*int
+			var webhookIds []*int
 			var sesUserIds []int32
 			var smtpUserIds []int32
 			var providerConfigs []*ProvidersConfig
@@ -377,6 +386,8 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 						sesUserIds = append(sesUserIds, int32(item.ConfigId))
 					} else if item.Destination == util.SMTP {
 						smtpUserIds = append(smtpUserIds, int32(item.ConfigId))
+					} else if item.Destination == util.Webhook {
+						webhookIds = append(webhookIds, &item.ConfigId)
 					}
 				} else {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(item.Destination), Recipient: item.Recipient})
@@ -390,6 +401,16 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				}
 				for _, item := range slackConfigs {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Slack)})
+				}
+			}
+			if len(webhookIds) > 0 {
+				webhookConfigs, err := impl.webhookRepository.FindByIds(webhookIds)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in fetching webhook config", "err", err)
+					return notificationSettingsResponses, deletedItemCount, err
+				}
+				for _, item := range webhookConfigs {
+					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Webhook)})
 				}
 			}
 
@@ -434,6 +455,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				if pipeline.App.Id > 0 {
 					pipelineResponse.AppName = pipeline.App.AppName
 				}
+				pipelineResponse.IsVirtualEnvironment = pipeline.Environment.IsVirtualEnvironment
 			} else if config.PipelineType == util.CI {
 				pipeline, err := impl.ciPipelineRepository.FindById(*config.PipelineId)
 				if err != nil && err != pg.ErrNoRows {
@@ -862,4 +884,42 @@ func (impl *NotificationConfigServiceImpl) FetchNSViewByIds(ids []*int) ([]*NSCo
 	}
 
 	return configs, nil
+}
+
+func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck, error) {
+	var configCheck ConfigCheck
+	sesConfig, err := impl.sesRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching sesConfig", "sesConfig", sesConfig, "err", err)
+		return nil, err
+	}
+	if len(sesConfig) > 0 {
+		configCheck.IsConfigured = true
+	}
+	defaultSesConfig, err := impl.sesRepository.FindDefault()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching defaultSesConfig", "defaultSesConfig", defaultSesConfig, "err", err)
+		return nil, err
+	}
+	if defaultSesConfig.Id > 0 {
+		configCheck.IsDefaultConfigured = true
+	}
+	smtpConfig, err := impl.smtpRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching smtpConfig", "smtpConfig", smtpConfig, "err", err)
+		return nil, err
+	}
+	if len(smtpConfig) > 0 {
+		configCheck.IsConfigured = true
+	}
+	defaultSmtpConfig, err := impl.smtpRepository.FindDefault()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching defaultSmtpConfig", "defaultSmtpConfig", defaultSmtpConfig, "err", err)
+		return nil, err
+	}
+	if defaultSmtpConfig.Id > 0 {
+		configCheck.IsDefaultConfigured = true
+	}
+
+	return &configCheck, nil
 }

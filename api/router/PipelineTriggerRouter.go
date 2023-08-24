@@ -59,6 +59,7 @@ type PipelineTriggerRouterImpl struct {
 func (router PipelineTriggerRouterImpl) initPipelineTriggerRouter(pipelineTriggerRouter *mux.Router) {
 	pipelineTriggerRouter.Path("/cd-pipeline/trigger").HandlerFunc(router.restHandler.OverrideConfig).Methods("POST")
 	pipelineTriggerRouter.Path("/update-release-status").HandlerFunc(router.restHandler.ReleaseStatusUpdate).Methods("POST")
+	pipelineTriggerRouter.Path("/rotate-pods").HandlerFunc(router.restHandler.RotatePods).Methods("POST")
 	pipelineTriggerRouter.Path("/stop-start-app").HandlerFunc(router.restHandler.StartStopApp).Methods("POST")
 	pipelineTriggerRouter.Path("/stop-start-dg").HandlerFunc(router.restHandler.StartStopDeploymentGroup).Methods("POST")
 	pipelineTriggerRouter.Path("/release/").
@@ -67,6 +68,8 @@ func (router PipelineTriggerRouterImpl) initPipelineTriggerRouter(pipelineTrigge
 		Queries("name", "{name}")
 
 	pipelineTriggerRouter.Path("/deployment-configuration/latest/saved/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetAllLatestDeploymentConfiguration).Methods("GET")
+	pipelineTriggerRouter.Path("/manifest/download/{appId}/{envId}").Queries("runner", "{runner}").HandlerFunc(router.restHandler.DownloadManifest).Methods("GET")
+	pipelineTriggerRouter.Path("/manifest/download/{appId}/{envId}/{cd_workflow_id}").HandlerFunc(router.restHandler.DownloadManifestForSpecificTrigger).Methods("GET")
 }
 
 func fetchReleaseData(r *http.Request, receive <-chan int, send chan<- int) {

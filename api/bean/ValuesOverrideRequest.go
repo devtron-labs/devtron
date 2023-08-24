@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"time"
 )
 
 type WorkflowType string
@@ -49,9 +50,16 @@ type ValuesOverrideRequest struct {
 	DeploymentWithConfig                  DeploymentConfigurationType `json:"deploymentWithConfig"`
 	WfrIdForDeploymentWithSpecificTrigger int                         `json:"wfrIdForDeploymentWithSpecificTrigger"`
 	CdWorkflowType                        WorkflowType                `json:"cdWorkflowType,notnull"`
+	WfrId                                 int                         `json:"wfrId,notnull"`
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
 	UserId                                int32                       `json:"-"`
 	DeploymentType                        models.DeploymentType       `json:"-"`
+	EnvId                                 int                         `json:"-"`
+	EnvName                               string                      `json:"-"`
+	ClusterId                             int                         `json:"-"`
+	AppName                               string                      `json:"-"`
+	PipelineName                          string                      `json:"-"`
+	DeploymentAppType                     string                      `json:"-"`
 }
 
 type BulkCdDeployEvent struct {
@@ -62,4 +70,14 @@ type BulkCdDeployEvent struct {
 type ReleaseStatusUpdateRequest struct {
 	RequestId string             `json:"requestId"`
 	NewStatus models.ChartStatus `json:"newStatus"`
+}
+
+type TriggerEvent struct {
+	PerformChartPush           bool
+	PerformDeploymentOnCluster bool
+	GetManifestInResponse      bool
+	DeploymentAppType          string
+	ManifestStorageType        string
+	TriggeredBy                int32
+	TriggerdAt                 time.Time
 }

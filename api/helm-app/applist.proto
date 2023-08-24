@@ -9,6 +9,7 @@ message ClusterConfig {
   string token = 2;
   int32 clusterId = 3;
   string clusterName = 4;
+  string proxyUrl = 5;
 }
 
 message AppListRequest {
@@ -34,6 +35,9 @@ service ApplicationService {
   rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
   rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
+  rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
+  rpc ValidateOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
+  rpc PushHelmChartToOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
 }
 
 message DeployedAppList {
@@ -117,6 +121,7 @@ message ResourceNode {
   bool canBeHibernated = 12;
   repeated InfoItem info = 13;
   string createdAt = 14;
+  repeated int64 port = 15;
 }
 
 message InfoItem {
@@ -147,7 +152,12 @@ message PodMetadata {
   repeated string containers = 3;
   repeated string initContainers = 4;
   bool isNew = 5;
-  repeated string ephemeralContainers = 6;
+  repeated EphemeralContainerData ephemeralContainers = 6;
+}
+
+message EphemeralContainerData {
+  string name = 1;
+  bool isExternal = 2;
 }
 
 //--------hibernate
@@ -181,6 +191,8 @@ message  HelmAppDeploymentDetail {
   repeated string dockerImages = 2;
   int32 version = 3;
   google.protobuf.Timestamp deployedAt = 4;
+  string deployedBy = 5;
+  string status = 6;
 }
 
 message HelmAppDeploymentHistory {
@@ -220,6 +232,8 @@ message ReleaseIdentifier {
 message UpgradeReleaseRequest {
   ReleaseIdentifier releaseIdentifier = 1;
   string valuesYaml = 2;
+  int32 historyMax = 3;
+  ChartContent chartContent = 4;
 }
 
 message UpgradeReleaseResponse {
@@ -250,6 +264,7 @@ message InstallReleaseRequest {
   string valuesYaml = 4;
   ChartRepository chartRepository = 5;
   string K8sVersion = 6;
+  int32 historyMax = 7;
 }
 
 message InstallReleaseResponse {
@@ -304,4 +319,29 @@ message ResourceTreeFilter {
 }
 message ChartNotesResponse{
   string notes = 1;
+}
+
+message OCIRegistryRequest {
+  bytes Chart = 1;
+  string ChartName = 2;
+  string ChartVersion = 3;
+  bool IsInsecure = 4;
+  string Username = 5;
+  string Password = 6;
+  string AwsRegion = 7;
+  string AccessKey = 8;
+  string SecretKey = 9;
+  string RegistryURL = 10;
+  string RepoURL = 11;
+  string RegistryType = 12;
+}
+
+message OCIRegistryResponse {
+  bool isLoggedIn = 1;
+  OCIRegistryPushResponse result = 2;
+}
+
+message OCIRegistryPushResponse {
+  string digest = 1;
+  string pushedURL = 2;
 }

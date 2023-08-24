@@ -27,7 +27,7 @@ import (
 
 func getEcr() EnvConfigOverrideRepository {
 	return nil
-	//return NewEnvConfigOverrideRepository(models.GetDbConnection())
+	//return NewEnvConfigOverrideRepository(models.GetDbTransaction())
 }
 
 func TestEnvConfigOverrideRepositoryImpl_Save(t *testing.T) {

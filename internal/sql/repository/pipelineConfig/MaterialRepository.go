@@ -33,7 +33,7 @@ const (
 	SOURCE_TYPE_WEBHOOK      SourceType = "WEBHOOK"
 )
 
-//TODO: add support for submodule
+// TODO: add support for submodule
 type GitMaterial struct {
 	tableName       struct{} `sql:"git_material" pg:",discard_unknown_columns"`
 	Id              int      `sql:"id,pk"`
@@ -44,6 +44,7 @@ type GitMaterial struct {
 	Name            string   `sql:"name, omitempty"`
 	CheckoutPath    string   `sql:"checkout_path, omitempty"`
 	FetchSubmodules bool     `sql:"fetch_submodules,notnull"`
+	FilterPattern   []string `sql:"filter_pattern"`
 	sql.AuditLog
 	App         *app.App
 	GitProvider *repository.GitProvider

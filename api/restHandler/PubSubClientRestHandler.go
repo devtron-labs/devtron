@@ -64,7 +64,7 @@ func (impl *PubSubClientRestHandlerImpl) PublishEventsToNats(w http.ResponseWrit
 	reqToken := r.Header.Get("Authorization")
 	splitToken := strings.Split(reqToken, "Bearer")
 	if len(splitToken) != 2 {
-		impl.logger.Debugw("request err, HandleExternalCiWebhook", "payload", publishRequest, "token", reqToken)
+		impl.logger.Debugw("request err, HandleExternalCiWebhook", "payload", publishRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

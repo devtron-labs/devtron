@@ -452,7 +452,7 @@ func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error
 func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) {
 	token := r.Header.Get("token")
 	if token == "" {
-		impl.logger.Infow("no token provided", "token", token)
+		impl.logger.Infow("no token provided")
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,
 			Code:            constants.UserNoTokenProvided,
