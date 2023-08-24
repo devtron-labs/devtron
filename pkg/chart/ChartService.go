@@ -1665,19 +1665,6 @@ func (impl ChartServiceImpl) GetCustomChartInBytes(chartRefId int) ([]byte, erro
 		return chartRef.ChartData, nil
 	}
 	refChartPath := filepath.Join(string(impl.refChartDir), chartRef.Location)
-	//if _, err := os.Stat(refChartPath); os.IsNotExist(err) && chartRef.ChartData != nil {
-	//	chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
-	//	if chartInfo != nil && chartInfo.TemporaryFolder != "" {
-	//		err1 := os.RemoveAll(chartInfo.TemporaryFolder)
-	//		if err1 != nil {
-	//			impl.logger.Errorw("error in deleting temp dir ", "err", err)
-	//		}
-	//	}
-	//	if err != nil {
-	//		impl.logger.Errorw("error chart extraction for download", "err", err)
-	//		return nil, err
-	//	}
-	//}
 	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
