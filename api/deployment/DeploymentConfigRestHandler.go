@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -31,14 +30,13 @@ type DeploymentConfigRestHandler interface {
 }
 
 type DeploymentConfigRestHandlerImpl struct {
-	Logger               *zap.SugaredLogger
-	userAuthService      user.UserService
-	enforcer             casbin.Enforcer
-	validator            *validator.Validate
-	refChartDir          chartRepoRepository.RefChartDir
-	chartService         chart.ChartService
-	chartRefRepository   chartRepoRepository.ChartRefRepository
-	chartTemplateService util.ChartTemplateService
+	Logger             *zap.SugaredLogger
+	userAuthService    user.UserService
+	enforcer           casbin.Enforcer
+	validator          *validator.Validate
+	refChartDir        chartRepoRepository.RefChartDir
+	chartService       chart.ChartService
+	chartRefRepository chartRepoRepository.ChartRefRepository
 }
 
 type DeploymentChartInfo struct {
@@ -51,16 +49,15 @@ type DeploymentChartInfo struct {
 }
 
 func NewDeploymentConfigRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, enforcer casbin.Enforcer, validator *validator.Validate,
-	refChartDir chartRepoRepository.RefChartDir, chartService chart.ChartService, chartTemplateService util.ChartTemplateService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigRestHandlerImpl {
+	refChartDir chartRepoRepository.RefChartDir, chartService chart.ChartService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigRestHandlerImpl {
 	return &DeploymentConfigRestHandlerImpl{
-		Logger:               Logger,
-		userAuthService:      userAuthService,
-		enforcer:             enforcer,
-		validator:            validator,
-		refChartDir:          refChartDir,
-		chartService:         chartService,
-		chartTemplateService: chartTemplateService,
-		chartRefRepository:   chartRefRepository,
+		Logger:             Logger,
+		userAuthService:    userAuthService,
+		enforcer:           enforcer,
+		validator:          validator,
+		refChartDir:        refChartDir,
+		chartService:       chartService,
+		chartRefRepository: chartRefRepository,
 	}
 }
 
@@ -224,7 +221,7 @@ func (handler *DeploymentConfigRestHandlerImpl) DownloadChart(w http.ResponseWri
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}

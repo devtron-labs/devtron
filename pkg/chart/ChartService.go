@@ -1661,9 +1661,11 @@ func (impl ChartServiceImpl) GetCustomChartInBytes(chartRefId int) ([]byte, erro
 		impl.logger.Errorw("error getting chart data", "chartRefId", chartRefId, "err", err)
 		return nil, err
 	}
+	// For user uploaded charts ChartData will be retrieved from DB
 	if chartRef.ChartData != nil {
 		return chartRef.ChartData, nil
 	}
+	// For Devtron reference charts the chart will be load from the directory location
 	refChartPath := filepath.Join(string(impl.refChartDir), chartRef.Location)
 	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
 	if err != nil {
