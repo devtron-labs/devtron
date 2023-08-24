@@ -51,6 +51,7 @@ type AppListingRepository interface {
 	PrometheusApiByEnvId(id int) (*string, error)
 
 	FetchDeploymentHistoryWithChartRefs(appId int, envId int) (interface{}, error)
+	FetchPipelineOverrideValues(Id int) (string, error)
 	FetchLatestDeploymentWithChartRefs(appId int, envId int) (interface{}, error)
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
@@ -687,6 +688,22 @@ func (impl AppListingRepositoryImpl) FetchLatestDeploymentWithChartRefs(appId in
 		impl.Logger.Error("error in fetching deployment history", "error", err)
 	}
 	return result, err
+}
+
+func (impl AppListingRepositoryImpl) FetchPipelineOverrideValues(Id int) (string, error) {
+
+	type value struct {
+		pipelineOverrideYaml string `sql:"pipeline_override_yaml"`
+	}
+
+	var result *value
+
+	query := "select pipeline_override_yaml from pipeline_config_override where id = ? ; "
+	_, err := impl.dbConnection.Query(&result, query, Id)
+	if err != nil {
+		impl.Logger.Error("error", "error", err)
+	}
+	return result.pipelineOverrideYaml, err
 }
 
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {

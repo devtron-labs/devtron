@@ -133,7 +133,7 @@ type ChartService interface {
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error)
-	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error)
+	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error)
 	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateRequest, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	ChartRefAutocomplete() ([]ChartRef, error)
@@ -288,16 +288,16 @@ func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefI
 	return schemaByte, readmeByte, nil
 }
 
-func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error) {
+func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error) {
 	err := impl.CheckChartExists(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
-		return nil, err
+		return nil, "", err
 	}
 
 	refChart, _, err, _, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	var appOverrideByte, envOverrideByte []byte
 	appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
@@ -306,7 +306,7 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	} else {
 		appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
@@ -316,14 +316,14 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	} else {
 		envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
 	messages := make(map[string]interface{})
 	var merged []byte
 	if appOverrideByte == nil && envOverrideByte == nil {
-		return messages, nil
+		return messages, "", nil
 	} else if appOverrideByte == nil || envOverrideByte == nil {
 		if appOverrideByte == nil {
 			merged = envOverrideByte
@@ -333,13 +333,13 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	} else {
 		merged, err = impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
 	appOverride := json.RawMessage(merged)
 	messages["defaultAppOverride"] = appOverride
-	return messages, nil
+	return messages, string(merged), nil
 }
 
 type AppMetricsEnabled struct {

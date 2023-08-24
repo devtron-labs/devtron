@@ -1777,6 +1777,42 @@ func (handler AppListingRestHandlerImpl) GetDeploymentsWithCharts(w http.Respons
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
+func (handler AppListingRestHandlerImpl) GetYaluesAndManifest(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+
+	var request app.ValuesAndManifestRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, GetYaluesAndManifest by API", "err", err, "GetYaluesAndManifest", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	app, err := handler.pipeline.GetApp(request.AppId)
+	if err != nil {
+		handler.logger.Errorw("bad request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	resp, err := handler.appListingService.GetValuesAndManifest(request)
+	if err != nil {
+		handler.logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+
+}
+
 func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)

@@ -95,6 +95,7 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
+	GetValuesAndManifest(request ValuesAndManifestRequest) (map[string]string, error)
 }
 
 const (
@@ -107,6 +108,15 @@ const (
 	DEPLOYED_ON_SELF_ENVIRONMENT  string = "DEPLOYED_ON_SELF_ENVIRONMENT"
 	DEPLOYED_ON_OTHER_ENVIRONMENT string = "DEPLOYED_ON_OTHER_ENVIRONMENT"
 )
+
+type ValuesAndManifestRequest struct {
+	AppId                    int    `json:"appId"`
+	envId                    int    `json:"envId,omitempty"`
+	chartRefId               int    `json:"chartRefId"`
+	GetYalues                bool   `json:"getYalues"`
+	Type                     string `json:"type"`
+	PipelineConfigOverrideId int    `json:"pipelineConfigOverrideId,omitempty"`
+}
 
 type FetchAppListingRequest struct {
 	Environments      []int            `json:"environments"`
@@ -1730,6 +1740,54 @@ func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId
 	result[DEPLOYED_ON_SELF_ENVIRONMENT] = deployedOnEnv
 	result[DEPLOYED_ON_OTHER_ENVIRONMENT] = deployedOnOtherEnvs
 	result[PUBLISHED_ON_ENVIRONMENTS] = publishedOnEnvs
+
+	return result, nil
+}
+
+func (impl AppListingServiceImpl) GetValuesAndManifest(request ValuesAndManifestRequest) (map[string]string, error) {
+
+	result := make(map[string]string)
+	if request.Type == DEFAULT_VERSIONS {
+		_, values, err := impl.chartService.GetAppOverrideForDefaultTemplate(request.chartRefId)
+		if err != nil {
+			return nil, err
+		}
+
+		if request.GetYalues {
+			result["values"] = values
+			return result, nil
+		}
+		// generate manifest
+	}
+
+	if request.Type == PUBLISHED_ON_ENVIRONMENTS {
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(request.AppId)
+		if err != nil {
+			return nil, err
+		}
+		if chart != nil && chart.Id > 0 {
+			if request.GetYalues {
+				result["values"] = chart.GlobalOverride
+				return result, nil
+			}
+		}
+
+		// generate manifest
+	}
+
+	if request.Type == DEPLOYED_ON_SELF_ENVIRONMENT || request.Type == DEPLOYED_ON_OTHER_ENVIRONMENT {
+
+		values, err := impl.appListingRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("err", err)
+			return result, err
+		}
+		if request.GetYalues {
+			result["values"] = values
+			return result, nil
+		}
+		// generate manifest
+	}
 
 	return result, nil
 }
