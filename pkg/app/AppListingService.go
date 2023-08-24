@@ -88,7 +88,7 @@ type AppListingService interface {
 
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
-	FetchDeploymentsWithChartRefs(appId int, envId int) (map[string]interface{}, error)
+	FetchDeploymentsWithChartRefs(appId int, envId int) (map[ComparisionOption]interface{}, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
@@ -100,23 +100,28 @@ type AppListingService interface {
 }
 
 const (
-	Initiate                      string = "Initiate"
-	ScalingReplicaSetDown         string = "ScalingReplicaSetDown"
-	APIVersionV1                  string = "v1"
-	APIVersionV2                  string = "v2"
-	DEFAULT_VERSIONS              string = "DEFAULT_VERSIONS"
-	PUBLISHED_ON_ENVIRONMENTS     string = "PUBLISHED_ON_ENVIRONMENTS"
-	DEPLOYED_ON_SELF_ENVIRONMENT  string = "DEPLOYED_ON_SELF_ENVIRONMENT"
-	DEPLOYED_ON_OTHER_ENVIRONMENT string = "DEPLOYED_ON_OTHER_ENVIRONMENT"
+	Initiate              string = "Initiate"
+	ScalingReplicaSetDown string = "ScalingReplicaSetDown"
+	APIVersionV1          string = "v1"
+	APIVersionV2          string = "v2"
+)
+
+type ComparisionOption string
+
+const (
+	DEFAULT_VERSIONS              ComparisionOption = "DEFAULT_VERSIONS"
+	PUBLISHED_ON_ENVIRONMENTS     ComparisionOption = "PUBLISHED_ON_ENVIRONMENTS"
+	DEPLOYED_ON_SELF_ENVIRONMENT  ComparisionOption = "DEPLOYED_ON_SELF_ENVIRONMENT"
+	DEPLOYED_ON_OTHER_ENVIRONMENT ComparisionOption = "DEPLOYED_ON_OTHER_ENVIRONMENT"
 )
 
 type ValuesAndManifestRequest struct {
-	AppId                    int    `json:"appId"`
-	EnvId                    int    `json:"envId,omitempty"`
-	ChartRefId               int    `json:"chartRefId"`
-	GetYalues                bool   `json:"getYalues"`
-	Type                     string `json:"type"`
-	PipelineConfigOverrideId int    `json:"pipelineConfigOverrideId,omitempty"`
+	AppId                    int               `json:"appId"`
+	EnvId                    int               `json:"envId,omitempty"`
+	ChartRefId               int               `json:"chartRefId"`
+	GetYalues                bool              `json:"getYalues"`
+	Type                     ComparisionOption `json:"type"`
+	PipelineConfigOverrideId int               `json:"pipelineConfigOverrideId,omitempty"`
 }
 
 type FetchAppListingRequest struct {
@@ -1711,9 +1716,9 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 	}
 	return envs, nil
 }
-func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId int) (map[string]interface{}, error) {
+func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId int) (map[ComparisionOption]interface{}, error) {
 
-	result := make(map[string]interface{})
+	result := make(map[ComparisionOption]interface{})
 
 	deployedOnEnv, err := impl.appListingRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -1748,63 +1753,43 @@ func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId
 }
 
 func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (map[string]string, error) {
-
 	result := make(map[string]string)
-	if request.Type == DEFAULT_VERSIONS {
-		_, values, err := impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
-		if err != nil {
-			return nil, err
-		}
+	var values string
+	var err error
 
-		if request.GetYalues {
-			result["values"] = values
-			return result, nil
-		}
-
-		manifest, err := impl.helmAppService.GetManifest(ctx, request.ChartRefId, values)
-		if err != nil {
-			return nil, err
-		}
-		result["manifest"] = *manifest.Manifest
-	}
-
-	if request.Type == PUBLISHED_ON_ENVIRONMENTS {
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(request.AppId)
-		if err != nil {
-			return nil, err
-		}
-		if chart != nil && chart.Id > 0 {
-			if request.GetYalues {
-				result["values"] = chart.GlobalOverride
-				return result, nil
-			}
-		}
-
-		manifest, err := impl.helmAppService.GetManifest(ctx, request.ChartRefId, chart.GlobalOverride)
-		if err != nil {
-			return nil, err
-		}
-		result["manifest"] = *manifest.Manifest
-	}
-
-	if request.Type == DEPLOYED_ON_SELF_ENVIRONMENT || request.Type == DEPLOYED_ON_OTHER_ENVIRONMENT {
-
-		values, err := impl.appListingRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
+	switch request.Type {
+	case DEFAULT_VERSIONS:
+		_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 		if err != nil {
 			impl.Logger.Errorw("err", err)
 			return result, err
 		}
-		if request.GetYalues {
-			result["values"] = values
-			return result, nil
+	case PUBLISHED_ON_ENVIRONMENTS:
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(request.AppId)
+		if chart != nil && chart.Id > 0 {
+			values = chart.GlobalOverride
 		}
-		manifest, err := impl.helmAppService.GetManifest(ctx, request.ChartRefId, values)
 		if err != nil {
-			return nil, err
+			impl.Logger.Errorw("err", err)
+			return result, err
 		}
-		result["manifest"] = *manifest.Manifest
+	case DEPLOYED_ON_SELF_ENVIRONMENT, DEPLOYED_ON_OTHER_ENVIRONMENT:
+		values, err = impl.appListingRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
+		if err != nil {
+			impl.Logger.Errorw("err", err)
+			return result, err
+		}
 	}
 
+	if request.GetYalues {
+		result["values"] = values
+		return result, nil
+	}
+	manifest, err := impl.helmAppService.GetManifest(ctx, request.ChartRefId, values)
+	if err != nil {
+		return nil, err
+	}
+	result["manifest"] = *manifest.Manifest
 	return result, nil
 }
 
