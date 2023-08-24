@@ -80,7 +80,7 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 	if !protectionEnabled {
 		return nil, errors.New(ConfigProtectionDisabled)
 	}
-	err := impl.validateDraftData(envId, resourceType, resourceAction, request.Data)
+	err := impl.validateDraftData(request.AppId, envId, resourceType, resourceAction, request.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
-		err := impl.validateDraftData(draftDto.EnvId, draftDto.Resource, request.Action, request.Data)
+		err := impl.validateDraftData(draftDto.AppId, draftDto.EnvId, draftDto.Resource, request.Action, request.Data)
 		if err != nil {
 			return 0, err
 		}
@@ -421,11 +421,12 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 		return err
 	}
 
+	env, _ := impl.envRepository.FindById(envId)
 	//VARIABLE_RESOLVE
 	scope := variables.Scope{
-		AppId: appId,
-		EnvId: envId,
-		// ClusterId: envConfigProperties.ClusterId, TODO get clusterID
+		AppId:     appId,
+		EnvId:     envId,
+		ClusterId: env.ClusterId,
 	}
 
 	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
@@ -458,10 +459,11 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 		chartRefId := envConfigProperties.ChartRefId
 
 		//VARIABLE_RESOLVE
+		env, _ := impl.envRepository.FindById(envId)
 		scope := variables.Scope{
-			AppId: appId,
-			EnvId: envId,
-			// ClusterId: envConfigProperties.ClusterId, TODO get clusterID
+			AppId:     appId,
+			EnvId:     envId,
+			ClusterId: env.ClusterId,
 		}
 
 		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId, scope)
@@ -606,11 +608,11 @@ func (impl *ConfigDraftServiceImpl) GetDraftsCount(appId int, envIds []int) ([]*
 	return draftCountResponse, nil
 }
 
-func (impl *ConfigDraftServiceImpl) validateDraftData(envId int, resourceType DraftResourceType, action ResourceAction, draftData string) error {
+func (impl *ConfigDraftServiceImpl) validateDraftData(appId int, envId int, resourceType DraftResourceType, action ResourceAction, draftData string) error {
 	if resourceType == CMDraftResource || resourceType == CSDraftResource {
 		return impl.validateCmCs(action, draftData)
 	}
-	return impl.validateDeploymentTemplate(envId, action, draftData)
+	return impl.validateDeploymentTemplate(appId, envId, action, draftData)
 }
 
 func (impl *ConfigDraftServiceImpl) validateCmCs(resourceAction ResourceAction, draftData string) error {
@@ -633,7 +635,7 @@ func (impl *ConfigDraftServiceImpl) validateCmCs(resourceAction ResourceAction, 
 	return err
 }
 
-func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resourceAction ResourceAction, draftData string) error {
+func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId int, resourceAction ResourceAction, draftData string) error {
 	if envId == protect.BASE_CONFIG_ENV_ID {
 		templateRequest := chart.TemplateRequest{}
 		var templateValidated bool
@@ -644,10 +646,11 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resour
 		}
 
 		//VARIABLE_RESOLVE
+		env, _ := impl.envRepository.FindById(envId)
 		scope := variables.Scope{
-			AppId: templateRequest.AppId,
-			EnvId: envId,
-			// ClusterId: envConfigProperties.ClusterId, TODO get clusterID
+			AppId:     templateRequest.AppId,
+			EnvId:     envId,
+			ClusterId: env.ClusterId,
 		}
 		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
 		if err != nil {
@@ -666,10 +669,11 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resour
 		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
 
 			//VARIABLE_RESOLVE
+			env, _ := impl.envRepository.FindById(envId)
 			scope := variables.Scope{
-				//AppId:     templateRe, TODO get app ID here
+				AppId:     appId,
 				EnvId:     envId,
-				ClusterId: envConfigProperties.ClusterId, //TODO is this even populated here?
+				ClusterId: env.ClusterId,
 			}
 
 			chartRefId := envConfigProperties.ChartRefId
