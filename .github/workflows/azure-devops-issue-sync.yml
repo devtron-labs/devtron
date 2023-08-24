@@ -44,7 +44,7 @@ jobs:
 
         uses: devtron-labs/action-discord@master
         with:
-          args: " ${{ github.event.issue.title }} ${{ github.event.issue.html_url }}"  
+          args: " ${{ github.event.issue.title }} ${{ github.event.issue.html_url }}"
   potentialDuplicates:
     runs_on: ubuntu-latest
     steps:
