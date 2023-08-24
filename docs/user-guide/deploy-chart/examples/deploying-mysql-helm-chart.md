@@ -1,4 +1,4 @@
-# Deploying Mysql Helm Chart
+# Deploying MySQL Helm Chart
 
 ## Introduction
 

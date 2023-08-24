@@ -161,7 +161,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
 ```
 
-*  **Configure using access-key and secret-key for aws S3 authentication:**
+*  **Configure using access-key and secret-key for AWS S3 authentication:**
 
 ```bash
 helm repo update

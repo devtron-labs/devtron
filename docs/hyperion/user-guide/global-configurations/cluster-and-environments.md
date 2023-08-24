@@ -6,9 +6,9 @@ Select the Cluster & Environment section of global configuration and click on `A
 
 ## Add Cluster:
 
-To add a cluster on devtron, you must have superadmin access.
+To add a cluster on Devtron, you must have superadmin access.
 
-Navigate to the `Global Configurations` → `Clusters and Environments` on devtron and click on `Add Cluster`. Provide the below informations to add your kubernetes cluster:
+Navigate to the `Global Configurations` → `Clusters and Environments` on Devtron and click on `Add Cluster`. Provide the below informations to add your Kubernetes cluster:
 
 1. Name
 2. Kubernetes Cluster Info
@@ -32,11 +32,11 @@ Give a name to your cluster inside the name box.
 
 ### 2. Kubernetes Cluster Info
 
-Provide your kubernetes cluster’s credentials.
+Provide your Kubernetes cluster’s credentials.
 
 * **Server URL**
 
-Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a self-hosted URL instead of cloud hosted. Self-hosted URL will provide the following benefits.
+Provide the endpoint/URL of your Kubernetes cluster. It is recommended to use a self-hosted URL instead of cloud hosted. Self-hosted URL will provide the following benefits.
 
 **\(a\) Disaster Recovery -** It is not possible to edit the server-url of a cluster. So if you're using an eks url, For eg- ` *****.eu-west-1.elb.amazonaws.com` it will be a tedious task to add a new cluster and migrate all the services one by one. While using a self-hosted url For eg- `clear.example.com` you can just point to the new cluster's server url in DNS manager and update the new cluster token and sync all the deployments.
 
@@ -44,7 +44,7 @@ Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a s
 
 * **Bearer token**
 
-Provide your kubernetes cluster’s Bearer token for authentication purposes so that the Devtron tool will be able to talk to your kubernetes cluster and can deploy your application in your kubernetes cluster.Generate the admin token to add the cluster on devtron by running the following command. Please ensure that you have kubectl and jq installed on the bastion that you’re running the command.
+Provide your Kubernetes cluster’s Bearer token for authentication purposes so that the Devtron tool will be able to talk to your Kubernetes cluster and can deploy your application in your Kubernetes cluster. Generate the admin token to add the cluster on Devtron by running the following command. Please ensure that you have kubectl and jq installed on the bastion that you’re running the command.
 
 ```bash
 curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
@@ -52,15 +52,15 @@ curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig
 
 ### 3. Prometheus Info
 
-Prometheus is a powerful solution to provide graphical insight into your application behavior. If you want to see your application matrix against your applications deployed in kubernetes, install Prometheus in your kubernetes cluster. The below inputs are required to configure your prometheus into Devtron’s tool.
+Prometheus is a powerful solution to provide graphical insight into your application behavior. If you want to see your application matrix against your applications deployed in Kubernetes, install Prometheus in your Kubernetes cluster. The below inputs are required to configure your Prometheus into Devtron’s tool.
 
 * **Prometheus endpoint**
 
-Provide the URL of your prometheus. Prometheus supports two types of authentication `Basic` and `Anonymous`. Select the authentication type for your Prometheus setup.
+Provide the URL of your Prometheus. Prometheus supports two types of authentication `Basic` and `Anonymous`. Select the authentication type for your Prometheus setup.
 
 * **Basic**
 
-If you select the `basic` type of authentication then you have to provide the `Username` and `Password` of prometheus for authentication.
+If you select the `basic` type of authentication then you have to provide the `Username` and `Password` of Prometheus for authentication.
 
 * **Anonymous**
 
@@ -72,7 +72,7 @@ TLS key and TLS certificate both options are optional, these options are used wh
 
 
 ### K8s Version
-on saving or update a cluster there is a call to fetch k8s version, it will store corresponding to cluster on db. used in listing api's and app detail page for grafana url.
+on saving or update a cluster there is a call to fetch k8s version, it will store corresponding to cluster on db. used in listing api's and app detail page for Grafana url.
 
 
 Check the below screenshots to know how it looks like If you select the `Basic` authentication type
@@ -87,7 +87,7 @@ Now click on `Save Cluster` to save your cluster information.
 
 ### Note:
 
-Your kubernetes cluster gets mapped with the Devtron when you save your kubernetes cluster Configuration. Now the agents of devtron will be installed on your cluster so that the components of devtron can communicate to your cluster. When the agent starts installing on your cluster, you can check the status of the agents in the Cluster & Environment tab also.
+Your Kubernetes cluster gets mapped with the Devtron when you save your Kubernetes cluster configuration. Now the Devtron agents will be installed on your cluster so that the components of Devtron can communicate to your cluster. When the agent starts installing on your cluster, you can check the status of the agents in the Cluster & Environment tab also.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/gc-cluster-agents.jpg)
 

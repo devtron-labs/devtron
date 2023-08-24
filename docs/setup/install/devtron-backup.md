@@ -2,7 +2,7 @@
 
 Regular backups for Devtron PostgreSQL and ArgoCD are crucial components of a disaster recovery plan, as they protect against potential data loss due to unforeseen circumstances. This documentation provides instructions on how to take backups of Devtron and store them either on AWS S3 or Azure containers.
 
-1. Go to the devtron chart store and search for `devtron-backups` chart.
+1. Go to the Devtron chart store and search for `devtron-backups` chart.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/install-devtron/backup/backup-chart-search.jpg)
 

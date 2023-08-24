@@ -1,28 +1,28 @@
 # Introduction
 
-Devtron is an open source software delivery workflow for kubernetes written in go.  
+Devtron is an open source software delivery workflow for Kubernetes written in go.  
   
  [Website](https://devtron.ai/) · [Blog](https://devtron.ai/blog/) · [Join Discord](https://discord.gg/jsRG5qx2gp) · [Twitter](https://twitter.com/DevtronL)
 
 ## Why Devtron?
 
-It is designed as a self-serve platform for operationalizing and maintaining applications \(AppOps\) on kubernetes in a developer friendly way.   
+It is designed as a self-serve platform for operationalizing and maintaining applications \(AppOps\) on Kubernetes in a developer friendly way.   
    
  ![](../.gitbook/assets/preview.gif)   
    
 
 
-### Some of the benefits  provided by devtron are:
+### Some of the benefits provided by Devtron are:
 
 #### Zero code software delivery workflow
 
-* Workflow which understands the domain of **kubernetes, testing, CD, SecOps** so that you don't have to write scripts
+* Workflow which understands the domain of **Kubernetes, Testing, CD, SecOps** so that you don't have to write scripts
 * Reusable and composable components so that workflows are easy to construct and reason through
 
 #### Multi cloud deployment
 
-* deploy to multiple kubernetes cluster
-* test on aws cloud 
+* Deploy to multiple Kubernetes cluster
+* Test on AWS cloud 
 
   > coming soon: support for GCP and microsoft azure
 
@@ -30,12 +30,12 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 * Multi level security policy at global, cluster, environment and application for efficient hierarchical policy management
 * Behavior driven security policy
-* Define policies and exception for kubernetes resources
+* Define policies and exception for Kubernetes resources
 * Define policies for events for faster resolution
 
 #### Application debugging dashboard
 
-* One place for all historical kubernetes events 
+* One place for all historical Kubernetes events 
 * Access all manifests securely for eg secret obfuscation 
 * _**Application metrics**_ for cpu, ram, http status code and latency with comparison between new and old 
 * _**Advanced logging**_ with grep and json search 
@@ -65,7 +65,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## Compatibility notes
 
-* Only AWS kubernetes cluster is supported as of now
+* Only AWS Kubernetes cluster is supported as of now
 * It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/).
 * application metrics only works for k8s 1.16+
 

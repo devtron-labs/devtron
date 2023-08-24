@@ -19,7 +19,7 @@ contribution. No action from you is required, but it's a good idea to see the
 
 The project uses discord for communication:
 
-To join the conversation, simply join the **[discord](https://discord.gg/jsRG5qx2gp)**  and use the __#contrib__ channel.
+To join the conversation, simply join the **[Discord](https://discord.gg/jsRG5qx2gp)**  and use the __#contrib__ channel.
 
 ## Code Structure
 
@@ -28,14 +28,14 @@ Devtron has following components
 - [devtron](https://github.com/devtron-labs/devtron.git) main co-ordinating engine
 - [git-sensor](https://github.com/devtron-labs/git-sensor.git) microservice for watching and interacting with git
 - [ci-runner](https://github.com/devtron-labs/ci-runner.git) Devtron runner for executing jobs
-- [guard](https://github.com/devtron-labs/guard.git) A kubernetes validating webhook for policy inforcement
+- [guard](https://github.com/devtron-labs/guard.git) A Kubernetes validating webhook for policy inforcement
 - [imge-scanner](https://github.com/devtron-labs/image-scanner.git) microservice for docker image vulnerability scanning
 - [kubewatch](https://github.com/devtron-labs/kubewatch.git) microservice for k8s event filtering and recording 
 - [lens](https://github.com/devtron-labs/lens.git) microservice for performing analytical task
-- [dashboard](https://github.com/devtron-labs/dashboard.git) UI for devtron written in react js
+- [dashboard](https://github.com/devtron-labs/dashboard.git) UI for Devtron written in React.js
 
 
 ### Contribute Helm Charts
 
-[Contribute your helm charts](https://github.com/devtron-labs/devtron/tree/main/contrib-chart) for the devtron community for upcoming `community charts` feature
+[Contribute your helm charts](https://github.com/devtron-labs/devtron/tree/main/contrib-chart) for the Devtron community for upcoming `community charts` feature
 

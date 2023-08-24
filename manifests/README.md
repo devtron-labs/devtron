@@ -1,4 +1,4 @@
-this repo holds manifest and scripts used for devtron installation 
+this repo holds manifest and scripts used for Devtron installation 
 
 for usages instruction please refer our [documentation](https://docs.devtron.ai/setup/install) 
 

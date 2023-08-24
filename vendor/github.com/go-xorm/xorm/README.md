@@ -30,7 +30,7 @@ Xorm is a simple and powerful ORM for Go.
 
 * SQL Builder support via [xorm.io/builder](https://xorm.io/builder)
 
-* Automatical Read/Write seperatelly
+* Automatical Read/Write separately
 
 * Postgres schema support
 
@@ -454,7 +454,7 @@ Support this project by becoming a sponsor. Your logo will show up here with a l
     * Some bugs fixed
 
 * **v0.6.4**
-    * Automatical Read/Write seperatelly
+    * Automatical Read/Write separately
     * Query/QueryString/QueryInterface and action with Where/And
     * Get support non-struct variables
     * BufferSize on Iterate

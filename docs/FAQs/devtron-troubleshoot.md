@@ -2,7 +2,7 @@
 
 We always try to make your experience of using Devtron as smooth as possible but still if you face any issues, follow the troubleshooting guide given below or join our [discord channel](https://discord.gg/jsRG5qx2gp) if you couldn't find the solution for the issue you are facing.
 
-#### 1. How to resolve unauthorized errors, while trying to save global configurations like hostname, GitOps etc. after successful devtron installation
+#### 1. How to resolve unauthorized errors, while trying to save global configurations like hostname, GitOps etc. after successful Devtron installation
 
 This occurs most of the time because any one or multiple jobs get failed during installation. To resolve this, you'll need to first check which jobs have failed. Follow these steps:
 
@@ -52,7 +52,7 @@ Delete devtron pod once to reload the configurations using:
 kubectl delete pod -n devtroncd -l app=devtron
 ```
 
-#### 4. Logs are not Visible on UI while running the build and not even able to abort the same
+#### 4. Logs are not visible on UI while running the build and not even able to abort the same
 
 Check if the pods are being created when you start a new build, run the command and look if a new pod is created when you started the build:
 ```bash
@@ -71,14 +71,14 @@ kubectl delete pod -n devtroncd -l app=kubewatch
 ```
 Again wait for 5 minutes and your issue should be resolved
 
-#### 5. Grafana dashboards not visible in App Details page even after adding prometheus endpoint or Graphs showing error panel with id 2 not found
+#### 5. Grafana dashboards not visible in App Details page even after adding Prometheus endpoint or Graphs showing error panel with id 2 not found
 
-If the graphs are not visible check if prometheus is configured properly. Then go to Global Configurations > Clusters & Environments > Click on any environment for the cluster where you added prometheus endpoint and simply click `Update`.  
+If the graphs are not visible check if Prometheus is configured properly. Then go to Global Configurations > Clusters & Environments > Click on any environment for the cluster where you added Prometheus endpoint and simply click `Update`.  
 If the charts are still not visible, try visiting the url: <devtron-url>/grafana?orgId=2  
 If you see `Not Found` on this page, then follow all the given steps or if the page is accessible and you are getting `panel with id 2 not found` then follow from step 6:  
-1. Get grafana password using `kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.GRAFANA_PASSWORD}' | base64 -d`
+1. Get Grafana password using `kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.GRAFANA_PASSWORD}' | base64 -d`
 2. `kubectl run --rm -it --image quay.io/devtron/k8s-utils:tutum-curl curl` Run this command and it will create a pod for using `curl`
-3. Copy the following and change `grafana-password` with your password of grafana and change the value of `prometheusUrl` with your prometheus endpoint
+3. Copy the following and change `grafana-password` with your password of Grafana and change the value of `prometheusUrl` with your Prometheus endpoint
 ```
 cat << EOF
 grafanaUrl="http://admin:grafana-password@devtron-grafana.devtroncd/grafana"
@@ -105,8 +105,8 @@ curl "${grafanaUrl}/api/datasources/2" -X PUT \
 EOF
 ```
 and run in the pod that we created above in step 2.
-4. Now visit <devtron-url>/grafana?orgId=2 again and you'll see grafana login page. Login using username `admin` and password from step 1 and check if prometheus url is updated in datasources. If not, update it in the default datasource.
-5. Now from devtron UI, update any of the environment again and it's datasource will be created automatically.
+4. Now visit <devtron-url>/grafana?orgId=2 again and you'll see grafana login page. Login using username `admin` and password from step 1 and check if prometheusUrl is updated in datasources. If not, update it in the default datasource.
+5. Now from Devtron UI, update any of the environment again and its datasource will be created automatically.
 6. In Grafana UI you need to be logged in and Go to Dashboards > Manage then click `Import` and Import the given dashboards one by one.
 ```
 https://grafana.com/api/dashboards/13322/revisions/4/download
@@ -130,7 +130,7 @@ If using Firefox -
 4. Now right click on token, and click on `Delete All Session Cookies` option.
 
 If using Chrome -
-1. Goto login page of Devtron and open inspect.
+1. Go to the login page of Devtron and open inspect.
 2. Navigate to Application tab, and under `Storage` tab click on `Cookies`.
 3. Click on url under `Cookie` and you would be able tto see an argocd token with its value, as shown in the image below.
 
@@ -143,7 +143,7 @@ If using Safari -
 
 ![safari-preferences](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-preferences.png)
 
-2. Now goto login page of Devtron and press `option+command+I`. It will open inspect element.
+2. Now go to login page of Devtron and press `option+command+I`. It will open inspect element.
 3. Then navigate to `Storage`, click on `Cookies` and you would be able to see an argocd token with its value as shown in the image below.
 
 ![safari-cookie](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-cookie.png)
@@ -166,14 +166,14 @@ In `Global Configurations` >> `Cluters & Environments`, if you try to update a c
 
 1. Edit the changes you want to make in respective cluster
 2. Click on save after making changes and you may get error message stated above.
-3. Go to cluster where devtron has been installed and execute - `kubectl -ndevtroncd delete po -l app=devtron`
+3. Go to cluster where Devtron has been installed and execute - `kubectl -ndevtroncd delete po -l app=devtron`
 4. Now refresh the page and you should be able to save it.
 
 [Note: If you already have created some environments in that cluster, it needs to be updated again]
 
-#### 9. Postgresql is in crashloop with error - Failed to pull image
+#### 9. PostgreSQL is in crashloop with error - Failed to pull image
     
-There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](../setup/upgrade/README.md) or run the following commands to fix instantly on the same version you are using: 
+There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update Devtron to latest version](../setup/upgrade/README.md) or run the following commands to fix instantly on the same version you are using: 
 ```bash
 kubectl patch -n devtroncd statefulset postgresql-postgresql -p '{"spec":{"template":{"spec":{"initContainers":[{"name":"init-chmod-data","image":"quay.io/devtron/minideb:latest"}],"containers":[{"name":"postgresql-postgresql","image":"quay.io/devtron/postgres:11.3.0-debian-9-r28"}]}}}}'
 ```
@@ -215,12 +215,12 @@ nginx.ingress.kubernetes.io/proxy-body-size: 100m
 
 [IAM policy](https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.3.1/docs/install/iam_policy.json)
 
-#### 15. When app metrics is not coming on grafana and devtron dashboard, set the value of the following parameter as false in kube prometheus stack values.
+#### 15. When app metrics is not coming on Grafana and Devtron dashboard, set the value of the following parameter as false in kube prometheus stack values.
 
 ```
 serviceMonitorSelectorNilUsesHelmValues: false
 ```
-#### 16. Unable to deploy metrics-server using chart on devtron
+#### 16. Unable to deploy metrics-server using chart on Devtron
 
 To solve
 
@@ -239,7 +239,7 @@ SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg
 ```
 Then run the command to delete database - `drop databases <db-name>`
 
-#### 18. Unable to login with admin password or reset devtron admin password
+#### 18. Unable to login with admin password or reset Devtron admin password
 
 `Debug`
 
@@ -253,13 +253,13 @@ If you are getting an error message of "invalid username or password" or you wan
 
 `Solution:`
 
-1. Make sure you are on latest version or atleast you are using devtron version v0.6.9 or above. You can check your devtron version using `kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.data}' | grep "^LTAG=" | cut -d"=" -f2-`
+1. Make sure you are on latest version or at least you are using Devtron version v0.6.9 or above. You can check your Devtron version using `kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.data}' | grep "^LTAG=" | cut -d"=" -f2-`
 1. Take a backup of devtron secret using `kubectl get secret devtron-secret -n devtroncd -o yaml > devtron-secret-backup.yaml`
 2. Edit devtron secret using `kubectl edit secret devtron-secret -n devtroncd` and remove the key value pairs of ADMIN_PASSWORD, admin.password and admin.passwordMtime
 3. Restart argocd dex server to create new admin password for devtron using `kubectl delete po -n devtroncd -l app.kubernetes.io/name=argocd-dex-server`
 4. Run the command given above to get the new admin password
 
-#### 19. After installing Devtron using Helm, getting the admin password does not work.(if using windows)
+#### 19. After installing Devtron using Helm, getting 'the admin password does not work' (if using Windows)
 
 `Debug`
 
@@ -317,7 +317,7 @@ This configuration will use AWS S3 bucket for storing build logs and cache. Refe
 
 *  **Configure using S3 IAM policy:**
 
->NOTE: Pleasee ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
+>NOTE: Please ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
 
 ```bash
 helm repo update
@@ -330,7 +330,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
 ```
 
-*  **Configure using access-key and secret-key for aws S3 authentication:**
+*  **Configure using access-key and secret-key for AWS S3 authentication:**
 
 ```bash
 helm repo update
@@ -405,7 +405,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 This can occur if you are using or recently upgraded to Kubernetes version 1.22 or above and you are using rollout controller version 0.13.0 from chart `devtron-charts/rollout` or `devtron/rollout`. The issue can be because of CRDs which were updated in later versions of rollout chart.
 
 1. Check which chart repo and version of rollout controller are you using on that cluster from Helm Apps section
-2. Update the rollout chart version to latest and re-deploy. If your rollout controller is deployed from `devtron-charts` helm repo then change the repo to `devtron/rollout` and then update the version to latest. Also, if devtron helm repo is not showing on your devtron then go to Global Configurations > Chart Repositories and add a new repo with the name `devtron` and url `https://helm.devtron.ai`. Wait for few minutes and then charts from devtron repo will be there on your devtron. This should resolve your issue
+2. Update the rollout chart version to latest and re-deploy. If your rollout controller is deployed from `devtron-charts` helm repo then change the repo to `devtron/rollout` and then update the version to latest. Also, if Devtron helm repo is not showing on your Devtron then go to Global Configurations > Chart Repositories and add a new repo with the name `devtron` and url `https://helm.devtron.ai`. Wait for few minutes and then charts from the Devtron repo will be there on your Devtron. This should resolve your issue
 
 
 

@@ -47,8 +47,8 @@ ContainerPort:
 | `idleTimeout` | the duration of time that a connection is idle before the connection is terminated |
 | `name` | name of the port |
 | `port` | port for the container |
-| `servicePort` | port of the corresponding kubernetes service |
-| `nodePort` | nodeport of the corresponding kubernetes service |
+| `servicePort` | port of the corresponding Kubernetes service |
+| `nodePort` | nodeport of the corresponding Kubernetes service |
 | `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled |
 | `useHTTP2` | Envoy container can accept HTTP2 requests |
 
@@ -60,7 +60,7 @@ To set environment variables for the containers that run in the Pod.
 
 ### Liveness Probe
 
-If this check fails, kubernetes restarts the pod. This should return error code in case of non-recoverable error.
+If this check fails, Kubernetes restarts the pod. This should return error code in case of non-recoverable error.
 
 ```yaml
 LivenessProbe:
@@ -115,7 +115,7 @@ This specifies the minimum number of seconds for which a newly created Pod shoul
 
 ### Readiness Probe
 
-If this check fails, kubernetes stops sending traffic to the application. This should return error code in case of errors which can be recovered from if traffic is stopped.
+If this check fails, Kubernetes stops sending traffic to the application. This should return error code in case of errors which can be recovered from if traffic is stopped.
 
 ```yaml
 ReadinessProbe:
@@ -304,7 +304,7 @@ flaggerCanary:
 ```yaml
 fullnameOverride: app-name
 ```
-`fullnameOverride` replaces the release fullname created by default by devtron, which is used to construct Kubernetes object names. By default, devtron uses {app-name}-{environment-name} as release fullname.
+`fullnameOverride` replaces the release fullname created by default by Devtron, which is used to construct Kubernetes object names. By default, Devtron uses {app-name}-{environment-name} as release fullname.
 
 ### Image
 
@@ -313,7 +313,7 @@ image:
   pullPolicy: IfNotPresent
 ```
 
-Image is used to access images in kubernetes, pullpolicy is used to define the instances calling the image, here the image is pulled when the image is not present,it can also be set as "Always".
+Image is used to access images in Kubernetes, pullpolicy is used to define the instances calling the image, here the image is pulled when the image is not present,it can also be set as "Always".
 
 ### imagePullSecrets
 
@@ -673,7 +673,7 @@ containerSpec:
     release: monitoring
 ```
 
-It is a kubernetes monitoring tool and the name of the file to be monitored as monitoring in the given case. It describes the state of the Prometheus.
+It is a Kubernetes monitoring tool and the name of the file to be monitored as monitoring in the given case. It describes the state of the Prometheus.
 
 ### rawYaml
 
@@ -692,7 +692,7 @@ rawYaml:
           targetPort: 9376
       type: ClusterIP
 ```
-Accepts an array of Kubernetes objects. You can specify any kubernetes yaml here and it will be applied when your app gets deployed.
+Accepts an array of Kubernetes objects. You can specify any Kubernetes yaml here and it will be applied when your app gets deployed.
 
 ### Grace Period
 

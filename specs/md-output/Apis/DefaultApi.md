@@ -15,7 +15,7 @@ Method | HTTP request | Description
 
 
 
-    this api gives all devtron applications.
+    this api gives all Devtron applications.
 
 ### Parameters
 
@@ -72,7 +72,7 @@ No authorization required
 
 
 
-    this api gives all external application+ devtron helm chart applications.
+    this api gives all external application+ Devtron helm chart applications.
 
 ### Parameters
 

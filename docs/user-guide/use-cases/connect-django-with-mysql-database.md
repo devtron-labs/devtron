@@ -1,12 +1,12 @@
-# Connect Django With Mysql Database
+# Connect Django With MySQL Database
 
 ## Introduction
 
 Django is a free, open-source web framework written in Python programming language. It allows for scalability, re-usability, and rapid development. Django can be connected to different databases like MySQL, PostgreSQL, etc.
 
-### **1. Deploy a mysql Helm Chart**
+### **1. Deploy a MySQL Helm Chart**
 
-To deploy mysql Helm Chart, you can refer to our documentation on [Deploy mysql Helm Chart](../deploy-chart/examples/deploying-mysql-helm-chart.md)
+To deploy MySQL Helm Chart, you can refer to our documentation on [Deploy MySQL Helm Chart](../deploy-chart/examples/deploying-mysql-helm-chart.md)
 
 ### **2. Fork the Git Repository**
 
@@ -16,7 +16,7 @@ For this example, we are using the following [GitHub Repo](https://github.com/de
 
 Go to mysite/settings.py.
 
-The `settings.py` contains the configuration for your SQL database. Make sure the configurations in `settings.py` matches the configurations of the mysql Helm Chart, that you have deployed in Step 1.
+The `settings.py` contains the configuration for your SQL database. Make sure the configurations in `settings.py` matches the configurations of the MySQL Helm Chart, that you have deployed in Step 1.
 
 ```python
  DATABASES = {
@@ -61,7 +61,7 @@ Trigger the CI Pipeline, build should be **Successful**, then trigger the CD Pip
 
 ### **4. Final Step**
 
-Check the Django app connected to mysql database, running successfully by hitting your application url.
+Check the Django app connected to MySQL database, running successfully by hitting your application url.
 
 The syntax is: `http://<hostname>/<path>/`
 

@@ -20,7 +20,7 @@ Use the [GJSON Playground](https://gjson.dev) to experiment with the syntax onli
 
 ## Path structure
 
-A GJSON Path is intended to be easily expressed as a series of components seperated by a `.` character. 
+A GJSON Path is intended to be easily expressed as a series of components separated by a `.` character. 
 
 Along with `.` character, there are a few more that have special meaning, including `|`, `#`, `@`, `\`, `*`, `!`, and `?`.
 

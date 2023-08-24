@@ -1,12 +1,12 @@
-# Connect SpringBoot with Mysql Database
+# Connect SpringBoot with MySQL Database
 
 ## Introduction
 
-This document will help you to deploy a sample Spring Boot Application, using **mysql Helm Chart**
+This document will help you to deploy a sample Spring Boot Application, using **MySQL Helm Chart**
 
-### **1. Deploy a mysql Helm Chart**
+### **1. Deploy a MySQL Helm Chart**
 
-To deploy mysql Helm Chart, you can refer to our documentation on [Deploy mysql Helm Chart](../deploy-chart/examples/deploying-mysql-helm-chart.md)
+To deploy MySQL Helm Chart, you can refer to our documentation on [Deploy MySQL Helm Chart](../deploy-chart/examples/deploying-mysql-helm-chart.md)
 
 ### **2. Fork the Git Repository**
 

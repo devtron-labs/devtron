@@ -9,4 +9,4 @@ Your Devtron stack is completely setup. Let's get started by deploying a simple 
 
 This is a sample Nodejs application which we are going to deploy using Devtron. For a detailed step-wise procedure, please have a look at the link below - 
 
-[Getting Started with Deploying application through devtron](https://github.com/devtron-labs/getting-started-nodejs#getting-started-with-deploying-application-through-devtron)
+[Getting Started with Deploying application through Devtron](https://github.com/devtron-labs/getting-started-nodejs#getting-started-with-deploying-application-through-devtron)

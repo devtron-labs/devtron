@@ -18,7 +18,7 @@ kubectl apply -f migrator.yaml -n devtroncd
 - If your problem is still not resolved, you can post your query in our [discord](https://discord.gg/jsRG5qx2gp) channel
 
 
-## 2. What to do if devtron dashboard is not accessible on browser even after successful completion of all the jobs and all pods are in running mode
+## 2. What to do if Devtron dashboard is not accessible on browser even after successful completion of all the jobs and all pods are in running mode
 
 
 - For this, you need to check if nats-cluster is created or not, you can check it using the following command:
@@ -29,5 +29,5 @@ kubectl get natscluster -n devtroncd
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/nats-server.yaml -n devtroncd
 ```
-- Wait till all the nats pods are created and the pods are in running condition. After that delete devtron and dashboard pods once and then you should be able to access the devtron dashboard without any issues.
+- Wait till all the nats pods are created and the pods are in running condition. After that delete Devtron and dashboard pods once and then you should be able to access the Devtron dashboard without any issues.
 - If your problem is still not resolved, you can post your query in our [discord](https://discord.gg/jsRG5qx2gp) channel

@@ -1,14 +1,14 @@
-# Connect Expressjs With Mongodb Database
+# Connect Express.js With MongoDB Database
 
 ## Introduction
 
-In this application, you will learn about how to create a Expressjs Application that connects to mongoDb.
+In this application, you will learn about how to create a Express.js application that connects to MongoDB.
 
-Follow the below-mentioned steps, to deploy the application on Devtron using mongoDb Helm Chart.
+Follow the below-mentioned steps, to deploy the application on Devtron using MongoDB Helm Chart.
 
-## **1. Deploy mongoDb Helm Chart**
+## **1. Deploy MongoDB Helm Chart**
 
-To deploy mongoDb Helm Chart, you can refer to our documentation on [Deploy mongoDb Helm Chart](../deploy-chart/examples/deploying-mongodb-helm-chart.md)
+To deploy MongoDB Helm Chart, you can refer to our documentation on [Deploy MongoDB Helm Chart](../deploy-chart/examples/deploying-mongodb-helm-chart.md)
 
 ## **2. Fork the Git Repository**
 
@@ -16,7 +16,7 @@ For this example, we are using the following [GitHub Repo](https://github.com/de
 
 ### _\*Dockerfile_
 
-This is the Dockerfile. This exposes our expressjs application to port number 8080
+This is the Dockerfile. This exposes our Express.js application to port number 8080
 
 ```bash
 FROM node:7
@@ -30,13 +30,13 @@ EXPOSE 8080
 
 ### _\*db.js File_
 
-This file will be used to connect to our database. This will include the `service-name` of the mongoDb Helm Chart, that you have deployed in Step1.
+This file will be used to connect to our database. This will include the `service-name` of the MongoDB Helm Chart, that you have deployed in Step1.
 
 The syntax is as follows:
 
 `<service-name>:27017/<database-name>`
 
-This maps our service name to mongoDb's port number 27017.
+This maps our service name to MongoDB's port number 27017.
 
 ```bash
 module.exports = {
@@ -74,7 +74,7 @@ Trigger the CI Pipeline, build should be **Successful**, then trigger the CD Pip
 
 ## **4. Final Step**
 
-Check the Expressjs app connected to mongodb database, running successfully by hitting your application url.
+Check the Express.js app connected to MongoDB database, running successfully by hitting your application url.
 
 The syntax is: `http://<hostname>/<path>/`
 
@@ -84,5 +84,5 @@ The output of our application would be as follows:
 
 ![](../../.gitbook/assets/use-case-expressjs-view-demo-data%20%281%29.jpg)
 
-You can see that we are getting the JSON response. We have successfully connected our expressjs application to the mongoDb database.
+You can see that we are getting the JSON response. We have successfully connected our Express.js application to the MongoDB database.
 

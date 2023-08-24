@@ -25,7 +25,7 @@ Once you create the group, you can now select and add the charts to this chart g
 
 2. Click on `Group Detail` to see all the running instances and group details. You can also edit the chart group from here.
 
-## 3.Bulk Deploy and Edit Option for Charts
+## 3. Bulk Deploy and Edit Option for Charts
 
 You can see all the charts in the chart group in the right panel. 
 1. Select `Deploy to..`.

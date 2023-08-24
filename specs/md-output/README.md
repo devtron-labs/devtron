@@ -7,9 +7,9 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
-*DefaultApi* | [**orchestratorAppListGet**](Apis/DefaultApi.md#orchestratorapplistget) | **GET** /orchestrator/app/list/ | this api gives all devtron applications.
+*DefaultApi* | [**orchestratorAppListGet**](Apis/DefaultApi.md#orchestratorapplistget) | **GET** /orchestrator/app/list/ | this api gives all Devtron applications.
 *DefaultApi* | [**orchestratorApplicationClusterEnvDetailsGet**](Apis/DefaultApi.md#orchestratorapplicationclusterenvdetailsget) | **GET** /orchestrator/application/cluster-env-details | returns cluster environment namespace mappings
-*DefaultApi* | [**orchestratorApplicationGet**](Apis/DefaultApi.md#orchestratorapplicationget) | **GET** /orchestrator/application/ | this api gives all external application+ devtron helm chart applications.
+*DefaultApi* | [**orchestratorApplicationGet**](Apis/DefaultApi.md#orchestratorapplicationget) | **GET** /orchestrator/application/ | this api gives all external application+ Devtron helm chart applications.
 
 
 <a name="documentation-for-models"></a>

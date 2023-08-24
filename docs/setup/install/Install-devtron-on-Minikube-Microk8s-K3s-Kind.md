@@ -23,7 +23,7 @@ Before we get started and install Devtron, you must set up the cluster in you se
 
 {% tab title=" Minikube/Kind cluster" %}
 
- To install devtron on ``Minikube/kind`` cluster, run the following command:
+ To install Devtron on ``Minikube/kind`` cluster, run the following command:
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -36,7 +36,7 @@ helm install devtron devtron/devtron-operator \
 {% endtab %}
 
 {% tab title="k3s Cluster" %}
-To install devtron on ``k3s`` cluster, run the following command:
+To install Devtron on ``k3s`` cluster, run the following command:
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
@@ -115,7 +115,7 @@ echo "alias helm='microk8s helm3 '" >> .bashrc
 source .bashrc
 ```
 
-### Install devtron
+### Install Devtron
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -136,4 +136,4 @@ Make sure that the port on which the devtron-service runs remain open in the VM'
 **Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
 
 
-If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
+If you have questions, please let us know on our Discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)

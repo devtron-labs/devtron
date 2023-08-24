@@ -90,16 +90,16 @@ To add clusters using kubeconfig, follow these steps:
 If you want to see application metrics against the applications deployed in the  cluster, Prometheus must be deployed in the cluster. Prometheus is a powerful tool to provide graphical insight into your application behavior.
 
 >**Note:** Make sure that you install `Monitoring (Grafana)` from the `Devtron Stack Manager` to configure prometheus.
-If you do not install `Monitoring (Grafana)`, then the option to configure prometheus will not be available. 
+If you do not install `Monitoring (Grafana)`, then the option to configure Prometheus will not be available. 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/enable-app-metrics.png)
 
-Enable the application metrics to configure prometheus and provide the information in the following fields:
+Enable the application metrics to configure Prometheus and provide the information in the following fields:
 
 | Field | Description |
 | :--- | :--- |
 | `Prometheus endpoint` | Provide the URL of your prometheus. |
-| `Authentication Type` | Prometheus supports two authentication types:<ul><li>**Basic:** If you select the `Basic` authentication type, then you must provide the `Username` and `Password` of prometheus for authentication.</li></ul> <ul><li>**Anonymous:** If you select the `Anonymous` authentication type, then you do not need to provide the `Username` and `Password`.<br>Note: The fields `Username` and `Password` will not be available by default.</li></ul> |
+| `Authentication Type` | Prometheus supports two authentication types:<ul><li>**Basic:** If you select the `Basic` authentication type, then you must provide the `Username` and `Password` of Prometheus for authentication.</li></ul> <ul><li>**Anonymous:** If you select the `Anonymous` authentication type, then you do not need to provide the `Username` and `Password`.<br>Note: The fields `Username` and `Password` will not be available by default.</li></ul> |
 | `TLS Key` & `TLS Certificate` | `TLS Key` and `TLS Certificate` are optional, these options are used when you use a customized URL. |
 
 Now, click `Save Cluster` to save your cluster on Devtron.

@@ -1,6 +1,6 @@
 # Host URL
 
-Host URL is the domain address at which your devtron dashboard can be reached.  
+Host URL is the domain address at which your Devtron dashboard can be reached.  
 
 ### Add Host URL
 

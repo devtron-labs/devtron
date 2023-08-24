@@ -22,7 +22,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 {% endtab %}
 
 {% tab title="Install with AWS S3 Buckets" %}
-This installation will use AWS s3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+This installation will use AWS S3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -69,7 +69,7 @@ If you are planning to use Devtron for `production deployments`, please refer to
 
 ## Installing Devtron (Beta) using Helm
 
-We also release beta versions of devtron every few days before the stable release for people who would like to explore and test beta features before everyone else. If you want to install a fresh devtron from beta release channel, use the chart in our official devtron repository.
+We also release beta versions of Devtron every few days before the stable release for people who would like to explore and test beta features before everyone else. If you want to install a fresh Devtron from beta release channel, use the chart in our official Devtron repository.
 
 This chart is currently not available on the official helm repository therefore you need to download it to install it.
 
@@ -87,7 +87,7 @@ $ helm install devtron . --create-namespace --namespace devtroncd \
 
 ```
 {% tab title="Install with AWS S3 Buckets" %}
-This installation will use AWS s3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+This installation will use AWS S3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
 ```bash
 $ git clone [https://github.com/devtron-labs/devtron.git](https://github.com/devtron-labs/devtron.git)
 $ cd devtron/charts/devtron

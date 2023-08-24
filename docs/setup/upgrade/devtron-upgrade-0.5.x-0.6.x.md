@@ -8,7 +8,7 @@ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync
 
 ## Follow the below mentioned steps to upgrade the Devtron version using Helm
 
-### 1. Check the devtron release name
+### 1. Check the Devtron release name
 
 ```bash
 helm list --namespace devtroncd

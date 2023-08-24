@@ -121,11 +121,11 @@ spec:
 
 ## Enable HTTPS For Devtron
 
-Once ingress setup for devtron is done and you want to run Devtron over `https`, you need to add different annotations for different ingress controllers and load balancers.
+Once ingress setup for Devtron is done and you want to run Devtron over `https`, you need to add different annotations for different ingress controllers and load balancers.
 
 ### 1. Nginx Ingress Controller
 
-In case of `nginx ingress controller`, add the following annotations under `service.annotations` under nginx ingress controller to run devtron over `https`.
+In case of `nginx ingress controller`, add the following annotations under `service.annotations` under nginx ingress controller to run Devtron over `https`.
 
 (i) Amazon Web Services (AWS)
 
@@ -153,7 +153,7 @@ annotations:
 
 ### 2. AWS Application Load Balancer (AWS ALB)
 
-In case of AWS application load balancer, add following annotations under `ingress.annotations` to run devtron over `https`.
+In case of AWS application load balancer, add following annotations under `ingress.annotations` to run Devtron over `https`.
 
 ```bash
   annotations:
@@ -164,7 +164,7 @@ In case of AWS application load balancer, add following annotations under `ingre
 
 ### 3. Azure Application Gateway
 
-In case of AWS application load balancer, the following annotations need to be added under `ingress.annotations` to run devtron over `https`.
+In case of AWS application load balancer, the following annotations need to be added under `ingress.annotations` to run Devtron over `https`.
 
 ```bash
  annotations:

@@ -28,7 +28,7 @@ helm install devtron devtron/devtron-operator \
 If you are using EKS version 1.23 or above, you must install [aws-ebs-csi-driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html).
 
 
-Run the following command to install aws ebs csi driver using Helm:
+Run the following command to install AWS EBS CSI driver using Helm:
 
 ```bash
 helm repo add aws-ebs-csi-driver \

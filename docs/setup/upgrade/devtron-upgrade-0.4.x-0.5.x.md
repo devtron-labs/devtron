@@ -23,7 +23,7 @@ and then only upgrade to `Devtron v0.5.x`.
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/utilities/main/scripts/jobs/argocd-2.4.0-prerequisites-patch-job.yaml
 ```
 
-### 2. Check the devtron release name
+### 2. Check the Devtron release name
 
 ```bash
 helm list --namespace devtroncd

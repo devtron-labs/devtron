@@ -1,4 +1,4 @@
-# Upgrading existing devtron to beta
+# Upgrading existing Devtron to beta
 
 If you want to check the current version of Devtron you are using, please use the following command.
 
@@ -6,7 +6,7 @@ If you want to check the current version of Devtron you are using, please use th
 kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.data}' | grep "^LTAG=" | cut -d"=" -f2-
 ```
 
-### To upgrade your existing devtron installation to beta, use helm upgrade.
+### To upgrade your existing Devtron installation to beta, use helm upgrade.
 
 ```bash 
 $ git clone [https://github.com/devtron-labs/devtron.git](https://github.com/devtron-labs/devtron.git)

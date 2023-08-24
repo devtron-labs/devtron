@@ -79,7 +79,7 @@ Use this option to mount an existing Kuberentes Secret in your application pods.
 
 ### Kubernetes External Secret (Deprecated)
 
-The secret that is already created and stored in the environment and being used by Devtron externally is referred here as `Kubernetes External Secret`. For this option, Devtron will not create any secret by itself but they can be used within the pods. Before adding secret from kubernetes external secret, please make sure that secret with the same name is present in the environment. To add secret from kubernetes external secret, follow the steps mentioned below:
+The secret that is already created and stored in the environment and being used by Devtron externally is referred here as `Kubernetes External Secret`. For this option, Devtron will not create any secret by itself but they can be used within the pods. Before adding secret from Kubernetes external secret, please make sure that secret with the same name is present in the environment. To add secret from Kubernetes external secret, follow the steps mentioned below:
 
 1. Navigate to `Secrets` of the application.
 2. Click `Add Secret` to add a new secret.

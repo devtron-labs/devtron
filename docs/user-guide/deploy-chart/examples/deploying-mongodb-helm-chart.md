@@ -2,16 +2,16 @@
 
 ## Introduction
 
-Let's assume that you are creating an application and want to use mongodb to store data of your application. You can deploy mongodb using `stable/mongodb-replicaset` Helm chart and connect it to your application.
+Let's assume that you are creating an application and want to use MongoDB to store data of your application. You can deploy MongoDB using `stable/mongodb-replicaset` Helm chart and connect it to your application.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-1.jpg)
 
-This guide will introduce you to how to deploy the mongoDB's Helm chart.
+This guide will introduce you to how to deploy the MongoDB's Helm chart.
 
 ## 1. Discover the Chart from the Chart Store
 
 Visit the `Chart Store` page by clicking on `Charts` present on left panel and find `stable/mongodb-replicaset` Helm Chart.
-You also can search mongodb chart using the search bar.
+You also can search MongoDB chart using the search bar.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-2.jpg)
 
@@ -21,7 +21,7 @@ After selecting the `stable/mongodb` Helm chart, click on `Deploy`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-3.jpg)
 
-Enter the following details before deploying the mongoDB chart:
+Enter the following details before deploying the MongoDB chart:
 
 | Key | Description |
 | :--- | :--- |
@@ -34,7 +34,7 @@ Enter the following details before deploying the mongoDB chart:
 ### Configure `values.yaml`
 
 You can configure the `values.yaml` according to your project's requirements.
-To learn about different parameters used in the chart, you can check [Documentation of mongodb Helm chart](https://hub.helm.sh/charts/bitnami/mongodb)
+To learn about different parameters used in the chart, you can check [Documentation of MongoDB Helm chart](https://hub.helm.sh/charts/bitnami/mongodb)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-4.jpg)
 
@@ -50,7 +50,7 @@ In case the status of the deployment is `Degraded` or takes a long time to get d
 
 ## 4. Extract the Service name
 
-Copy the service name, it will be used to connect your application to mongoDB.
+Copy the service name, it will be used to connect your application to MongoDB.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-6.jpg)
 

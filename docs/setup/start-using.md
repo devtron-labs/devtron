@@ -1,4 +1,4 @@
-# Start Using devtron
+# Start Using Devtron
 
 #### configure docker registry
 

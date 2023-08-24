@@ -26,7 +26,7 @@ For examples see
 
 Login as a user with super-admin privileges and go to `Global Configurations` -&gt; `SSO Login Services` and click on any `Identity Provider` and fill the configuration. 
 
-Add valid devtron application `URL` where it is hosted.
+Add valid Devtron application `URL` where it is hosted.
 
 Fill correct `redirect URL` or `callback URL` from which you have registered with the identity provider in the previous step along with the `client id` and `client secret` shared by the identity provider.
 
