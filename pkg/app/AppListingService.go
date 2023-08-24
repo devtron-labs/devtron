@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -97,10 +98,14 @@ type AppListingService interface {
 }
 
 const (
-	Initiate              string = "Initiate"
-	ScalingReplicaSetDown string = "ScalingReplicaSetDown"
-	APIVersionV1          string = "v1"
-	APIVersionV2          string = "v2"
+	Initiate                      string = "Initiate"
+	ScalingReplicaSetDown         string = "ScalingReplicaSetDown"
+	APIVersionV1                  string = "v1"
+	APIVersionV2                  string = "v2"
+	DEFAULT_VERSIONS              string = "DEFAULT_VERSIONS"
+	PUBLISHED_ON_ENVIRONMENTS     string = "PUBLISHED_ON_ENVIRONMENTS"
+	DEPLOYED_ON_SELF_ENVIRONMENT  string = "DEPLOYED_ON_SELF_ENVIRONMENT"
+	DEPLOYED_ON_OTHER_ENVIRONMENT string = "DEPLOYED_ON_OTHER_ENVIRONMENT"
 )
 
 type FetchAppListingRequest struct {
@@ -166,6 +171,7 @@ type AppListingServiceImpl struct {
 	chartRepository                chartRepoRepository.ChartRepository
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
+	chartService                   chart.ChartService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -174,7 +180,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
+	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository, chartService chart.ChartService,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
@@ -191,6 +197,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		pipelineOverrideRepository:     pipelineOverrideRepository,
 		environmentRepository:          environmentRepository,
 		argoUserService:                argoUserService,
+		chartService:                   chartService,
 		envOverrideRepository:          envOverrideRepository,
 		chartRepository:                chartRepository,
 		ciPipelineRepository:           ciPipelineRepository,
@@ -1707,26 +1714,22 @@ func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId
 		return result, err
 	}
 
-	var deployedOnEnvFiltered []interface{}
-	for _, data := range deployedOnEnv {
-		data.State = repository.DEPLOYED_ON_SELF_ENVIRONMENT
-		filteredFields := data.FilteredFields()
-		if filteredFields != nil {
-			deployedOnEnvFiltered = append(deployedOnEnvFiltered, filteredFields)
-		}
+	publishedOnEnvs, err := impl.FetchMinDetailOtherEnvironment(appId)
+	if err != nil {
+		impl.Logger.Errorw("err", err)
+		return result, err
 	}
 
-	var deployedOnOtherEnvsFiltered []interface{}
-	for _, data := range deployedOnOtherEnvs {
-		data.State = repository.DEPLOYED_ON_OTHER_ENVIRONMENT
-		filteredFields := data.FilteredFields()
-		if filteredFields != nil {
-			deployedOnOtherEnvsFiltered = append(deployedOnOtherEnvsFiltered, filteredFields)
-		}
+	defaultVersions, err := impl.chartService.ChartRefAutocompleteForAppOrEnv(appId, 0)
+	if err != nil {
+		impl.Logger.Errorw("err", err)
+		return result, err
 	}
 
-	result[repository.DEPLOYED_ON_SELF_ENVIRONMENT] = deployedOnEnvFiltered
-	result[repository.DEPLOYED_ON_OTHER_ENVIRONMENT] = deployedOnOtherEnvsFiltered
+	result[DEFAULT_VERSIONS] = defaultVersions
+	result[DEPLOYED_ON_SELF_ENVIRONMENT] = deployedOnEnv
+	result[DEPLOYED_ON_OTHER_ENVIRONMENT] = deployedOnOtherEnvs
+	result[PUBLISHED_ON_ENVIRONMENTS] = publishedOnEnvs
 
 	return result, nil
 }
