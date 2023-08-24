@@ -157,6 +157,7 @@ type ChartService interface {
 	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
+	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -265,7 +266,7 @@ func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartT
 }
 
 func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {
-	refChart, _, err, _, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChart, _, err, _, _ := impl.GetRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, nil, err
@@ -295,7 +296,7 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 		return nil, "", err
 	}
 
-	refChart, _, err, _, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChart, _, err, _, _ := impl.GetRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		return nil, "", err
 	}
@@ -365,7 +366,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	refChart, templateName, err, _, pipelineStrategyPath := impl.getRefChart(templateRequest)
+	refChart, templateName, err, _, pipelineStrategyPath := impl.GetRefChart(templateRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -533,7 +534,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 
-	refChart, templateName, err, _, pipelineStrategyPath := impl.getRefChart(templateRequest)
+	refChart, templateName, err, _, pipelineStrategyPath := impl.GetRefChart(templateRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -667,7 +668,7 @@ func (impl ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (
 	}
 	return metadata, err
 }
-func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (string, string, error, string, string) {
+func (impl ChartServiceImpl) GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string) {
 	var template string
 	var version string
 	//path of file in chart from where strategy config is to be taken
@@ -1404,7 +1405,7 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		return nil, "", err
 	}
 
-	refChartDir, _, err, version, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChartDir, _, err, version, _ := impl.GetRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
 		return nil, "", err

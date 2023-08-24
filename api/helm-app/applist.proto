@@ -262,6 +262,7 @@ message InstallReleaseRequest {
   ChartRepository chartRepository = 5;
   string K8sVersion = 6;
   int32 historyMax = 7;
+  ChartContent chartContent = 8;
 }
 
 message InstallReleaseResponse {

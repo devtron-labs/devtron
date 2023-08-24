@@ -81,7 +81,7 @@ type ChartTemplateService interface {
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
-	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
+	LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, string, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -736,39 +736,38 @@ func (impl ChartTemplateServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGi
 	return nil
 }
 
-func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error) {
+func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, string, error) {
 
 	var chartBytesArr []byte
 	//this function is removed in latest helm release and is replaced by Loader in loader package
 	chart, err := chartutil.LoadDir(ChartPath)
 	if err != nil {
 		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
-		return chartBytesArr, err
+		return chartBytesArr, "", err
+	}
+
+	if len(chartName) > 0 && len(chartVersion) > 0 {
+		chart.Metadata.Name = chartName
+		chart.Metadata.Version = chartVersion
 	}
 
 	chartZipPath, err := chartutil.Save(chart, ChartPath)
 	if err != nil {
 		impl.logger.Errorw("error in saving", "err", err, "dir")
-		return chartBytesArr, err
+		return chartBytesArr, "", err
 	}
 
-	file, err := os.Open(chartZipPath)
-	reader, err := gzip.NewReader(file)
+	chartBytesArr, err = ioutil.ReadFile(chartZipPath)
 	if err != nil {
 		impl.logger.Errorw("There is a problem with os.Open", "err", err)
-		return nil, err
+		return nil, "", err
 	}
 
 	if deleteChart {
 		defer impl.CleanDir(ChartPath)
 	}
-	bs, err := ioutil.ReadAll(reader)
-	if err != nil {
-		impl.logger.Errorw("There is a problem with readAll", "err", err)
-		return nil, err
-	}
 
-	return bs, err
+	return chartBytesArr, chartZipPath, err
 }
 
 func IsHelmApp(deploymentAppType string) bool {

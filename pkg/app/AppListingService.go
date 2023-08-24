@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -95,7 +96,7 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
-	GetValuesAndManifest(request ValuesAndManifestRequest) (map[string]string, error)
+	GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (map[string]string, error)
 }
 
 const (
@@ -111,8 +112,8 @@ const (
 
 type ValuesAndManifestRequest struct {
 	AppId                    int    `json:"appId"`
-	envId                    int    `json:"envId,omitempty"`
-	chartRefId               int    `json:"chartRefId"`
+	EnvId                    int    `json:"envId,omitempty"`
+	ChartRefId               int    `json:"chartRefId"`
 	GetYalues                bool   `json:"getYalues"`
 	Type                     string `json:"type"`
 	PipelineConfigOverrideId int    `json:"pipelineConfigOverrideId,omitempty"`
@@ -182,6 +183,7 @@ type AppListingServiceImpl struct {
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
 	chartService                   chart.ChartService
+	helmAppService                 client.HelmAppService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -191,7 +193,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
 	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository, chartService chart.ChartService,
-	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, helmAppService client.HelmAppService,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
@@ -211,6 +213,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		envOverrideRepository:          envOverrideRepository,
 		chartRepository:                chartRepository,
 		ciPipelineRepository:           ciPipelineRepository,
+		helmAppService:                 helmAppService,
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
 	}
 	return serviceImpl
@@ -1744,11 +1747,11 @@ func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId
 	return result, nil
 }
 
-func (impl AppListingServiceImpl) GetValuesAndManifest(request ValuesAndManifestRequest) (map[string]string, error) {
+func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (map[string]string, error) {
 
 	result := make(map[string]string)
 	if request.Type == DEFAULT_VERSIONS {
-		_, values, err := impl.chartService.GetAppOverrideForDefaultTemplate(request.chartRefId)
+		_, values, err := impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 		if err != nil {
 			return nil, err
 		}
@@ -1757,7 +1760,12 @@ func (impl AppListingServiceImpl) GetValuesAndManifest(request ValuesAndManifest
 			result["values"] = values
 			return result, nil
 		}
-		// generate manifest
+
+		manifest, err := impl.helmAppService.GetManifest(ctx, request.ChartRefId, values)
+		if err != nil {
+			return nil, err
+		}
+		result["manifest"] = *manifest.Manifest
 	}
 
 	if request.Type == PUBLISHED_ON_ENVIRONMENTS {
@@ -1772,7 +1780,11 @@ func (impl AppListingServiceImpl) GetValuesAndManifest(request ValuesAndManifest
 			}
 		}
 
-		// generate manifest
+		manifest, err := impl.helmAppService.GetManifest(ctx, request.ChartRefId, chart.GlobalOverride)
+		if err != nil {
+			return nil, err
+		}
+		result["manifest"] = *manifest.Manifest
 	}
 
 	if request.Type == DEPLOYED_ON_SELF_ENVIRONMENT || request.Type == DEPLOYED_ON_OTHER_ENVIRONMENT {
@@ -1786,7 +1798,11 @@ func (impl AppListingServiceImpl) GetValuesAndManifest(request ValuesAndManifest
 			result["values"] = values
 			return result, nil
 		}
-		// generate manifest
+		manifest, err := impl.helmAppService.GetManifest(ctx, request.ChartRefId, values)
+		if err != nil {
+			return nil, err
+		}
+		result["manifest"] = *manifest.Manifest
 	}
 
 	return result, nil

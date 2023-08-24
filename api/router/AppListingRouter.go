@@ -92,6 +92,10 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.GetDeploymentsWithCharts).
 		Methods("GET")
 
+	appListingRouter.Path("/data").
+		HandlerFunc(router.appListingRestHandler.GetYaluesAndManifest).
+		Methods("POST")
+
 	appListingRouter.Path("/linkouts/{Id}/{appId}/{envId}").Queries("podName", "{podName}").
 		Queries("containerName", "{containerName}").
 		HandlerFunc(router.appListingRestHandler.RedirectToLinkouts).

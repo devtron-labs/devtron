@@ -690,20 +690,20 @@ func (impl AppListingRepositoryImpl) FetchLatestDeploymentWithChartRefs(appId in
 	return result, err
 }
 
-func (impl AppListingRepositoryImpl) FetchPipelineOverrideValues(Id int) (string, error) {
+func (impl AppListingRepositoryImpl) FetchPipelineOverrideValues(id int) (string, error) {
 
 	type value struct {
-		pipelineOverrideYaml string `sql:"pipeline_override_yaml"`
+		PipelineOverrideYaml string `sql:"pipeline_override_yaml"`
 	}
 
-	var result *value
+	var result value
 
 	query := "select pipeline_override_yaml from pipeline_config_override where id = ? ; "
-	_, err := impl.dbConnection.Query(&result, query, Id)
+	_, err := impl.dbConnection.Query(&result, query, id)
 	if err != nil {
 		impl.Logger.Error("error", "error", err)
 	}
-	return result.pipelineOverrideYaml, err
+	return result.PipelineOverrideYaml, err
 }
 
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {

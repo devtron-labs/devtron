@@ -79,6 +79,7 @@ type AppListingRestHandler interface {
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 
 	GetDeploymentsWithCharts(w http.ResponseWriter, r *http.Request)
+	GetYaluesAndManifest(w http.ResponseWriter, r *http.Request)
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
 	GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
@@ -1803,7 +1804,9 @@ func (handler AppListingRestHandlerImpl) GetYaluesAndManifest(w http.ResponseWri
 	}
 	//RBAC enforcer Ends
 
-	resp, err := handler.appListingService.GetValuesAndManifest(request)
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	resp, err := handler.appListingService.GetValuesAndManifest(ctx, request)
 	if err != nil {
 		handler.logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

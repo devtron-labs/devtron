@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"reflect"
@@ -61,6 +62,7 @@ type HelmAppService interface {
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
+	GetManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error)
 	GetRevisionHistoryMaxValue(appType SourceAppType) int32
 }
 
@@ -80,6 +82,8 @@ type HelmAppServiceImpl struct {
 	clusterRepository                    clusterRepository.ClusterRepository
 	K8sUtil                              *k8s.K8sUtil
 	helmReleaseConfig                    *HelmReleaseConfig
+	chartService                         chart.ChartService
+	chartTemplateServiceImpl             util.ChartTemplateService
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
@@ -89,6 +93,8 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
 	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtil,
+	chartService chart.ChartService,
+	chartTemplateServiceImpl util.ChartTemplateService,
 	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
@@ -106,6 +112,8 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 		clusterRepository:                    clusterRepository,
 		K8sUtil:                              K8sUtil,
 		helmReleaseConfig:                    helmReleaseConfig,
+		chartService:                         chartService,
+		chartTemplateServiceImpl:             chartTemplateServiceImpl,
 	}
 }
 
@@ -875,6 +883,64 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 
 	}
 	return appList
+}
+
+func (impl HelmAppServiceImpl) GetManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
+	refChart, template, err, version, _ := impl.chartService.GetRefChart(chart.TemplateRequest{ChartRefId: chartRefId})
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, err
+	}
+
+	chartBytes, chartZipPath, err := impl.chartTemplateServiceImpl.LoadChartInBytes(refChart, false, "", "")
+	if err != nil {
+		impl.logger.Errorw("error in getting chart", "err", err)
+		return nil, err
+	}
+	defer impl.chartTemplateServiceImpl.CleanDir(chartZipPath)
+
+	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+	installReleaseRequest := &InstallReleaseRequest{
+		ChartName:    template,
+		ChartVersion: version,
+		ValuesYaml:   valuesYaml,
+		K8SVersion:   k8sServerVersion.String(),
+		ChartRepository: &ChartRepository{
+			Name:     "repo",
+			Url:      "http://localhost:8080/",
+			Username: "admin",
+			Password: "password",
+		},
+		ReleaseIdentifier: &ReleaseIdentifier{
+			ReleaseNamespace: "devtron-demo",
+			ReleaseName:      "release-name",
+		},
+		ChartContent: &ChartContent{
+			Content: chartBytes,
+		},
+	}
+	config, err := impl.GetClusterConf(1)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
+		return nil, err
+	}
+
+	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+
+	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in templating chart", "err", err)
+		return nil, err
+	}
+	response := &openapi2.TemplateChartResponse{
+		Manifest: &templateChartResponse.GeneratedManifest,
+	}
+
+	return response, nil
 }
 
 func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType SourceAppType) int32 {
