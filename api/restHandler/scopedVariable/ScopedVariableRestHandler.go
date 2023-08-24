@@ -140,6 +140,10 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 	var scopedVariableData []*variables.ScopedVariableData
 
 	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	common.WriteJsonResp(w, nil, scopedVariableData, http.StatusOK)
 
 }
@@ -168,6 +172,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 	paylaod, jsonSchema, err = handler.scopedVariableService.GetJsonForVariables()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	jsonResponse := JsonResponse{
 		Payload:    paylaod,
