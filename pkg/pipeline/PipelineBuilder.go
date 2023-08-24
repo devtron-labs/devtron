@@ -4151,6 +4151,12 @@ func (impl *PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 	}
+	if pipeline.CustomTagObject != nil {
+		ciPipeline.CustomTagObject = &bean.CustomTagData{
+			TagPattern: pipeline.CustomTagObject.CustomTagFormat,
+			CounterX:   pipeline.CustomTagObject.AutoIncreasingNumber,
+		}
+	}
 	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipelineId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching ci env mapping", "pipelineId", pipelineId, "err", err)

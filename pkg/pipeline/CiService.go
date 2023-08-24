@@ -172,6 +172,14 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
+	savedCiWf.TargetImage = workflowRequest.DockerRegistryURL + "/" + workflowRequest.DockerRepository + ":" + workflowRequest.DockerImageTag
+	tagUsedStatuses := []string{pipelineConfig.WorkflowSucceeded}
+	tagReleasedStatuses := []string{pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowAborted, string(v1alpha1.NodeError)}
+	err = impl.CanTargetImagePathBeReused(savedCiWf.TargetImage, tagReleasedStatuses, tagUsedStatuses)
+	if err != nil {
+		return 0, err
+	}
+
 	if impl.ciConfig != nil && impl.ciConfig.BuildxK8sDriverOptions != "" {
 		err = impl.setBuildxK8sDriverData(workflowRequest)
 		if err != nil {
@@ -450,7 +458,27 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			return nil, err
 		}
 	}
-	dockerImageTag := impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
+
+	var dockerImageTag string
+	if pipeline.CustomTagObject != nil {
+		customTagObjectLatest, err := impl.ciPipelineRepository.IncrementCustomTagCounter(pipeline.CustomTagObject.Id)
+		if err != nil {
+			return nil, err
+		}
+		err = validateCustomTagFormat(dockerImageTag)
+		if err != nil {
+			return nil, err
+		}
+		pipeline.CustomTagObject = customTagObjectLatest
+		dockerImageTag = strings.ReplaceAll(customTagObjectLatest.CustomTagFormat, "{x}", strconv.Itoa(customTagObjectLatest.AutoIncreasingNumber-1)) //-1 because number is already incremented, current value will be used next time
+		err = ValidateTag(dockerImageTag)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
+	}
+
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.ciConfig.DefaultCacheBucket
 	}
@@ -769,4 +797,30 @@ func _getTruncatedImageTag(imageTag string) string {
 		return imageTag[:_truncatedLength]
 	}
 
+}
+
+func (impl *CiServiceImpl) CanTargetImagePathBeReused(targetImageURL string, tagUsedStatuses []string, tagReleasedStatuses []string) error {
+	allWfs, err := impl.ciWorkflowRepository.FindWorkFlowsByTargetImage(targetImageURL)
+	if err != nil && err != pg.ErrNoRows {
+		return err
+	}
+	for _, wf := range allWfs {
+		if arrayContains(tagUsedStatuses, wf.Status) {
+			return fmt.Errorf("image path is already used")
+		} else if arrayContains(tagReleasedStatuses, wf.Status) {
+			continue
+		} else {
+			return fmt.Errorf("image path tag is reserved")
+		}
+	}
+	return nil
+}
+
+func arrayContains(arr []string, str string) bool {
+	for _, s := range arr {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }

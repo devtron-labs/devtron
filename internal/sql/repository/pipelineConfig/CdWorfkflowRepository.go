@@ -202,6 +202,7 @@ type CdWorkflowWithArtifact struct {
 	WorkflowType       string                       `json:"workflow_type,omitempty"`
 	ExecutorType       string                       `json:"executor_type,omitempty"`
 	BlobStorageEnabled bool                         `json:"blobStorageEnabled"`
+	TargetImageURL     bool                         `json:"target_image_location"`
 	GitTriggers        map[int]GitCommit            `json:"gitTriggers"`
 	CiMaterials        []CiPipelineMaterialResponse `json:"ciMaterials"`
 	ImageReleaseTags   []*repository2.ImageTag      `json:"imageReleaseTags"`

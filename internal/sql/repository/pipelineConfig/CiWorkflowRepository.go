@@ -43,6 +43,7 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
+	FindWorkFlowsByTargetImage(targetImage string) ([]*CiWorkflow, error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -69,6 +70,7 @@ type CiWorkflow struct {
 	PodName            string            `sql:"pod_name"`
 	CiBuildType        string            `sql:"ci_build_type"`
 	EnvironmentId      int               `sql:"environment_id"`
+	TargetImage        string            `sql:"target_image_location"`
 	CiPipeline         *CiPipeline
 }
 
@@ -142,6 +144,15 @@ func NewCiWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger)
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindWorkFlowsByTargetImage(targetImage string) ([]*CiWorkflow, error) {
+	var ciWorkFlows []*CiWorkflow
+	err := impl.dbConnection.Model(&ciWorkFlows).
+		Column("ci_workflow.*").
+		Where("ci_workflow.target_image_location = ?", targetImage).
+		Select()
+	return ciWorkFlows, err
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflow(pipelineId int) (ciWorkflow *CiWorkflow, err error) {

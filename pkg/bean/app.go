@@ -118,6 +118,8 @@ type CiPipeline struct {
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
 	EnvironmentId            int                    `json:"environmentId,omitempty"`
 	LastTriggeredEnvId       int                    `json:"lastTriggeredEnvId"`
+	CustomTagObject          *CustomTagData         `json:"customTagObject,omitempty"`
+	DefaultTag               []string               `json:"defaultTag,omitempty"`
 }
 
 type DockerConfigOverride struct {
@@ -217,6 +219,11 @@ type CiMaterialPatchRequest struct {
 	AppId         int               `json:"appId" validate:"required"`
 	EnvironmentId int               `json:"environmentId" validate:"required"`
 	Source        *SourceTypeConfig `json:"source" validate:"required"`
+}
+
+type CustomTagData struct {
+	TagPattern string `json:"tagPattern"`
+	CounterX   int    `json:"counterX"`
 }
 
 type CiPatchRequest struct {
