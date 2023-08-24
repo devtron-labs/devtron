@@ -172,14 +172,6 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	savedCiWf.TargetImage = workflowRequest.DockerRegistryURL + "/" + workflowRequest.DockerRepository + ":" + workflowRequest.DockerImageTag
-	tagUsedStatuses := []string{pipelineConfig.WorkflowSucceeded}
-	tagReleasedStatuses := []string{pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowAborted, string(v1alpha1.NodeError)}
-	err = impl.CanTargetImagePathBeReused(savedCiWf.TargetImage, tagReleasedStatuses, tagUsedStatuses)
-	if err != nil {
-		return 0, err
-	}
-
 	if impl.ciConfig != nil && impl.ciConfig.BuildxK8sDriverOptions != "" {
 		err = impl.setBuildxK8sDriverData(workflowRequest)
 		if err != nil {
@@ -780,7 +772,12 @@ func (impl *CiServiceImpl) updateCiWorkflow(request *WorkflowRequest, savedWf *p
 	ciBuildConfig := request.CiBuildConfig
 	ciBuildType := string(ciBuildConfig.CiBuildType)
 	savedWf.CiBuildType = ciBuildType
-	return impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+	savedWf.TargetImage = request.DockerRegistryURL + "/" + request.DockerRepository + ":" + request.DockerImageTag
+	tagUsedStatuses := []string{pipelineConfig.WorkflowSucceeded}
+	tagReleasedStatuses := []string{pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowAborted, string(v1alpha1.NodeError)}
+	return impl.ciWorkflowRepository.UpdateWorkFlowWithValidation(savedWf, func(tx *pg.Tx) error {
+		return impl.CanTargetImagePathBeReused(savedWf.TargetImage, tagReleasedStatuses, tagUsedStatuses, tx)
+	})
 }
 
 func _getTruncatedImageTag(imageTag string) string {
@@ -799,8 +796,8 @@ func _getTruncatedImageTag(imageTag string) string {
 
 }
 
-func (impl *CiServiceImpl) CanTargetImagePathBeReused(targetImageURL string, tagUsedStatuses []string, tagReleasedStatuses []string) error {
-	allWfs, err := impl.ciWorkflowRepository.FindWorkFlowsByTargetImage(targetImageURL)
+func (impl *CiServiceImpl) CanTargetImagePathBeReused(targetImageURL string, tagUsedStatuses []string, tagReleasedStatuses []string, tx *pg.Tx) error {
+	allWfs, err := impl.ciWorkflowRepository.FindWorkFlowsByTargetImage(targetImageURL, tx)
 	if err != nil && err != pg.ErrNoRows {
 		return err
 	}

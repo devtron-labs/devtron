@@ -43,7 +43,8 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
-	FindWorkFlowsByTargetImage(targetImage string) ([]*CiWorkflow, error)
+	FindWorkFlowsByTargetImage(targetImage string, tx *pg.Tx) ([]*CiWorkflow, error)
+	UpdateWorkFlowWithValidation(wf *CiWorkflow, fn func(tx *pg.Tx) error) error
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -146,9 +147,9 @@ func NewCiWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger)
 	}
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindWorkFlowsByTargetImage(targetImage string) ([]*CiWorkflow, error) {
+func (impl *CiWorkflowRepositoryImpl) FindWorkFlowsByTargetImage(targetImage string, tx *pg.Tx) ([]*CiWorkflow, error) {
 	var ciWorkFlows []*CiWorkflow
-	err := impl.dbConnection.Model(&ciWorkFlows).
+	err := tx.Model(&ciWorkFlows).
 		Column("ci_workflow.*").
 		Where("ci_workflow.target_image_location = ?", targetImage).
 		Select()
@@ -227,6 +228,28 @@ func (impl *CiWorkflowRepositoryImpl) FindConfigByPipelineId(pipelineId int) (*C
 func (impl *CiWorkflowRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
 	err := impl.dbConnection.Insert(wf)
 	return err
+}
+
+func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlowWithValidation(wf *CiWorkflow, fn func(tx *pg.Tx) error) error {
+	connection := impl.dbConnection
+	tx, err := connection.Begin()
+	defer tx.Rollback()
+	if err != nil {
+		return err
+	}
+	err = fn(tx)
+	if err != nil {
+		return err
+	}
+	err = tx.Update(wf)
+	if err != nil {
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
