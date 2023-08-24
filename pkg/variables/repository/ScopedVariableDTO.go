@@ -18,7 +18,7 @@ type Definition struct {
 	VarName     string `json:"varName" validate:"required"`
 	DataType    string `json:"dataType" validate:"oneof=json yaml primitive"`
 	VarType     string `json:"varType" validate:"oneof=private public"`
-	Description string `json:"description"`
+	Description string `json:"description" validate:"max=300"`
 }
 
 type AttributeType string

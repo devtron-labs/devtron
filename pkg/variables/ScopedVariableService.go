@@ -135,11 +135,11 @@ func complexTypeValidator(payload repository2.Payload) bool {
 }
 
 func isValidYAML(input string) bool {
-	json, err := yaml.YAMLToJSONStrict([]byte(input))
+	jsonInput, err := yaml.YAMLToJSONStrict([]byte(input))
 	if err != nil {
 		return false
 	}
-	validJson := isValidJSON(string(json))
+	validJson := isValidJSON(string(jsonInput))
 	return validJson
 }
 func isValidJSON(input string) bool {

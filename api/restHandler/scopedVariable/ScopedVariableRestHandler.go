@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"regexp"
 	"strconv"
 )
 
@@ -183,6 +184,18 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 
 func validateVariableScopeRequest(payload repository.Payload) error {
 	for _, variable := range payload.Variables {
+		exp := `^[a-zA-Z0-9_-]{1,64}$`
+		rExp := regexp.MustCompile(exp)
+		if !rExp.MatchString(variable.Definition.VarName) {
+			return fmt.Errorf("invalid variable name")
+		}
+		if variable.Definition.VarName[0] == '_' ||
+			variable.Definition.VarName[0] == '-' ||
+			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '_' ||
+			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '-' {
+			return fmt.Errorf("invalid variable name")
+		}
+
 		for _, attributeValue := range variable.AttributeValues {
 			for key, _ := range attributeValue.AttributeParams {
 				match := false
