@@ -1,6 +1,7 @@
 package history
 
 import (
+	"encoding/json"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -8,6 +9,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -37,6 +40,7 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	appLevelMetricsRepository           repository2.AppLevelMetricsRepository
 	userService                         user.UserService
 	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
+	variableSnapshotHistoryService      variables.VariableSnapshotHistoryService
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
@@ -46,7 +50,8 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 	envLevelAppMetricsRepository repository2.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository2.AppLevelMetricsRepository,
 	userService user.UserService,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *DeploymentTemplateHistoryServiceImpl {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
 		logger:                              logger,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
@@ -57,6 +62,7 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 		appLevelMetricsRepository:           appLevelMetricsRepository,
 		userService:                         userService,
 		cdWorkflowRepository:                cdWorkflowRepository,
+		variableSnapshotHistoryService:      variableSnapshotHistoryService,
 	}
 }
 
@@ -311,6 +317,22 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
+
+	reference := repository6.HistoryReference{
+		HistoryReferenceId:   history.Id,
+		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+	}
+	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
+	if err != nil {
+		return nil, err
+	}
+	variableSnapshotMap := make(map[string]string)
+	if _, ok := references[reference]; ok {
+		err = json.Unmarshal(references[reference].VariableSnapshot, &variableSnapshotMap)
+		if err != nil {
+			return nil, err
+		}
+	}
 	historyDto := &HistoryDetailDto{
 		TemplateName:        history.TemplateName,
 		TemplateVersion:     history.TemplateVersion,
@@ -319,6 +341,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 			DisplayName: "values.yaml",
 			Value:       history.Template,
 		},
+		VariableSnapshot: variableSnapshotMap,
 	}
 	return historyDto, nil
 }
@@ -350,6 +373,22 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 		impl.logger.Errorw("error in getting deployment template history", "err", err, "id", id, "pipelineId", pipelineId)
 		return nil, err
 	}
+
+	reference := repository6.HistoryReference{
+		HistoryReferenceId:   history.Id,
+		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+	}
+	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
+	if err != nil {
+		return nil, err
+	}
+	variableSnapshotMap := make(map[string]string)
+	if _, ok := references[reference]; ok {
+		err = json.Unmarshal(references[reference].VariableSnapshot, &variableSnapshotMap)
+		if err != nil {
+			return nil, err
+		}
+	}
 	historyDto := &HistoryDetailDto{
 		TemplateName:        history.TemplateName,
 		TemplateVersion:     history.TemplateVersion,
@@ -358,6 +397,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 			DisplayName: "values.yaml",
 			Value:       history.Template,
 		},
+		VariableSnapshot: variableSnapshotMap,
 	}
 	return historyDto, nil
 }
