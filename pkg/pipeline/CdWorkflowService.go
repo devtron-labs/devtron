@@ -238,7 +238,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.Secrets = workflowSecrets
 
 	workflowTemplate.ServiceAccountName = impl.cdConfig.WorkflowServiceAccount
-	if workflowRequest.IsExtRun {
+	if workflowRequest.IsExtRun && impl.cdConfig.UseExternalNode {
 		if impl.cdConfig.ExternalTaintKey != "" {
 			workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.ExternalTaintKey: impl.cdConfig.ExternalTaintValue}
 		}
