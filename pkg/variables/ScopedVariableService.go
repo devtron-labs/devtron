@@ -10,9 +10,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
-	"github.com/go-yaml/yaml"
 	"github.com/invopop/jsonschema"
 	"go.uber.org/zap"
+	"sigs.k8s.io/yaml"
 	"time"
 )
 
@@ -135,13 +135,15 @@ func complexTypeValidator(payload repository2.Payload) bool {
 }
 
 func isValidYAML(input string) bool {
-	var data interface{}
-	err := yaml.Unmarshal([]byte(input), &data)
-	return err == nil
+	json, err := yaml.YAMLToJSONStrict([]byte(input))
+	if err != nil {
+		return false
+	}
+	validJson := isValidJSON(string(json))
+	return validJson
 }
-
 func isValidJSON(input string) bool {
-	var data interface{}
+	data := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(input), &data); err != nil {
 		return false
 	}
