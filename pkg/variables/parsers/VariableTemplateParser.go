@@ -67,7 +67,10 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values ma
 		if len(defaultedVars) > 0 && ignoreDefaultedVariables {
 			template = impl.ignoreDefaultedVars(template, defaultedVars)
 			fmt.Println("template", template)
-			hclExpression, _ = hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
+			hclExpression, diagnostics = hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
+			if diagnostics.HasErrors() {
+				//TODO KB: throw error with proper variable names creating problem
+			}
 		}
 		opValue, valueDiagnostics := hclExpression.Value(&hcl.EvalContext{
 			Variables: hclVarValues,
