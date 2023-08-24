@@ -160,7 +160,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	n := len(payload.Variables)
 	if len(payload.Variables) == 0 {
-		return fmt.Errorf("no variables defined")
+		return nil
 	}
 	tx, err := impl.scopedVariableRepository.StartTx()
 	if err != nil {
@@ -557,7 +557,6 @@ func getSchema() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return string(schemaData), nil
 }
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Payload, string, error) {
@@ -614,5 +613,8 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 		return nil, "", nil
 	}
 	payload.Variables = variables
+	if len(payload.Variables) == 0 {
+		return nil, jsonSchema, nil
+	}
 	return payload, jsonSchema, nil
 }

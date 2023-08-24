@@ -94,6 +94,7 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	err = handler.scopedVariableService.CreateVariables(paylaod)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
