@@ -45,6 +45,7 @@ jobs:
         uses: devtron-labs/action-discord@master
         with:
           args: " ${{ github.event.issue.title }} ${{ github.event.issue.html_url }}"
+  # reference: https://github.com/marketplace/actions/potential-duplicates
   potentialDuplicates:
     runs_on: ubuntu-latest
     steps:
