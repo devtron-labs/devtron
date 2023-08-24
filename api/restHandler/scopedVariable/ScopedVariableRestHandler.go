@@ -32,6 +32,10 @@ type ScopedVariableRestHandlerImpl struct {
 	enforcer              casbin.Enforcer
 	scopedVariableService variables.ScopedVariableService
 }
+type JsonResponse struct {
+	Payload    *repository.Payload `json:"payload"`
+	JsonSchema string              `json:"jsonSchema"`
+}
 
 func NewScopedVariableRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, pipelineBuilder pipeline.PipelineBuilder, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, scopedVariableService variables.ScopedVariableService) *ScopedVariableRestHandlerImpl {
 	return &ScopedVariableRestHandlerImpl{
@@ -158,11 +162,17 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 	}
 	//RBAC enforcer Ends
 	var paylaod *repository.Payload
-	paylaod, err = handler.scopedVariableService.GetJsonForVariables()
+	var jsonSchema string
+
+	paylaod, jsonSchema, err = handler.scopedVariableService.GetJsonForVariables()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	common.WriteJsonResp(w, nil, paylaod, http.StatusOK)
+	jsonResponse := JsonResponse{
+		Payload:    paylaod,
+		JsonSchema: jsonSchema,
+	}
+	common.WriteJsonResp(w, nil, jsonResponse, http.StatusOK)
 }
 
 func validateVariableScopeRequest(payload repository.Payload) error {

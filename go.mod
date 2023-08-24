@@ -22,6 +22,7 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/go-pg/pg v6.15.1+incompatible
 	github.com/go-resty/resty/v2 v2.7.0
+	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/golang/mock v1.6.0
@@ -37,6 +38,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/hcl2 v0.0.0-20191002203319-fb75b3253c80
+	github.com/invopop/jsonschema v0.7.0
 	github.com/juju/errors v0.0.0-20200330140219-3fe23663418f
 	github.com/ktrysmt/go-bitbucket v0.9.40
 	github.com/lib/pq v1.10.4
@@ -165,6 +167,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.0 // indirect
 	github.com/hashicorp/go-uuid v1.0.2 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
+	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0 // indirect
 	github.com/igm/sockjs-go v3.0.0+incompatible // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect

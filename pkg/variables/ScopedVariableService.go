@@ -1,6 +1,8 @@
 package variables
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
@@ -8,6 +10,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
+	"github.com/go-yaml/yaml"
+	"github.com/invopop/jsonschema"
 	"go.uber.org/zap"
 	"time"
 )
@@ -20,7 +24,7 @@ type ScopedVariableData struct {
 type ScopedVariableService interface {
 	CreateVariables(payload repository2.Payload) error
 	GetScopedVariables(scope Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error)
-	GetJsonForVariables() (*repository2.Payload, error)
+	GetJsonForVariables() (*repository2.Payload, string, error)
 }
 
 type ScopedVariableServiceImpl struct {
@@ -108,7 +112,47 @@ type ValueMapping struct {
 	Value     string
 }
 
+func complexTypeValidator(payload repository2.Payload) bool {
+	for _, variable := range payload.Variables {
+		variableType := variable.Definition.DataType
+		if variableType == "yaml" || variableType == "json" {
+			for _, attributeValue := range variable.AttributeValues {
+				if attributeValue.VariableValue.Value != "" {
+					if variable.Definition.DataType == "yaml" {
+						if !isValidYAML(attributeValue.VariableValue.Value) {
+							return false
+						}
+					} else if variable.Definition.DataType == "json" {
+						if !isValidJSON(attributeValue.VariableValue.Value) {
+							return false
+						}
+					}
+				}
+			}
+		}
+	}
+	return true
+}
+
+func isValidYAML(input string) bool {
+	var data interface{}
+	err := yaml.Unmarshal([]byte(input), &data)
+	return err == nil
+}
+
+func isValidJSON(input string) bool {
+	var data interface{}
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		return false
+	}
+	return true
+}
 func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Payload) error {
+	validValue := complexTypeValidator(payload)
+	if !validValue {
+		impl.logger.Errorw("variable value is not valid", validValue)
+		return fmt.Errorf("invalid variable value")
+	}
 	err := impl.scopedVariableRepository.DeleteVariables()
 	if err != nil {
 		return err
@@ -116,7 +160,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	n := len(payload.Variables)
 	if len(payload.Variables) == 0 {
-		return nil
+		return fmt.Errorf("no variables defined")
 	}
 	tx, err := impl.scopedVariableRepository.StartTx()
 	if err != nil {
@@ -507,10 +551,19 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 	}
 	return scopedVariableDataObj, err
 }
-func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Payload, error) {
+func getSchema() (string, error) {
+	schema := jsonschema.Reflect(repository2.Payload{})
+	schemaData, err := json.MarshalIndent(schema, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	return string(schemaData), nil
+}
+func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Payload, string, error) {
 	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	payload := &repository2.Payload{
 		Variables: make([]*repository2.Variables, 0),
@@ -556,6 +609,10 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 		}
 		variables = append(variables, variable)
 	}
+	jsonSchema, err := getSchema()
+	if err != nil {
+		return nil, "", nil
+	}
 	payload.Variables = variables
-	return payload, nil
+	return payload, jsonSchema, nil
 }
