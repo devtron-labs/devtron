@@ -1,4 +1,4 @@
-package logger
+package util
 
 import (
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -59,8 +59,7 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 
 		auditLogDto.ApiResponseCode = d.Status()
 		LogRequest(auditLogDto)
-		elapsed := time.Since(startTime)
-		log.Printf("AUDIT_LOG: elapsed time is %s ", elapsed.String())
+		log.Printf("AUDIT_LOG: elapsed time is %s ", time.Since(startTime))
 	})
 }
 

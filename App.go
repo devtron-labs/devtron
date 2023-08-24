@@ -21,7 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/logger"
+	"github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/otel"
 	"log"
@@ -55,7 +55,7 @@ type App struct {
 	serveTls           bool
 	sessionManager2    *authMiddleware.SessionManager
 	OtelTracingService *otel.OtelTracingServiceImpl
-	loggingMiddleware  logger.LoggingMiddleware
+	loggingMiddleware  util.LoggingMiddleware
 }
 
 func NewApp(router *router.MuxRouter,
@@ -66,7 +66,7 @@ func NewApp(router *router.MuxRouter,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
-	loggingMiddleware logger.LoggingMiddleware,
+	loggingMiddleware util.LoggingMiddleware,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
