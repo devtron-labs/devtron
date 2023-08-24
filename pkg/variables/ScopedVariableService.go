@@ -1,6 +1,8 @@
 package variables
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
@@ -8,8 +10,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
+	"github.com/invopop/jsonschema"
 	"go.uber.org/zap"
-	"log"
+	"sigs.k8s.io/yaml"
 	"time"
 )
 
@@ -21,7 +24,7 @@ type ScopedVariableData struct {
 type ScopedVariableService interface {
 	CreateVariables(payload repository2.Payload) error
 	GetScopedVariables(scope Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error)
-	GetJsonForVariables() (*repository2.Payload, error)
+	GetJsonForVariables() (*repository2.Payload, string, error)
 }
 
 type ScopedVariableServiceImpl struct {
@@ -109,7 +112,49 @@ type ValueMapping struct {
 	Value     string
 }
 
+func complexTypeValidator(payload repository2.Payload) bool {
+	for _, variable := range payload.Variables {
+		variableType := variable.Definition.DataType
+		if variableType == "yaml" || variableType == "json" {
+			for _, attributeValue := range variable.AttributeValues {
+				if attributeValue.VariableValue.Value != "" {
+					if variable.Definition.DataType == "yaml" {
+						if !isValidYAML(attributeValue.VariableValue.Value) {
+							return false
+						}
+					} else if variable.Definition.DataType == "json" {
+						if !isValidJSON(attributeValue.VariableValue.Value) {
+							return false
+						}
+					}
+				}
+			}
+		}
+	}
+	return true
+}
+
+func isValidYAML(input string) bool {
+	jsonInput, err := yaml.YAMLToJSONStrict([]byte(input))
+	if err != nil {
+		return false
+	}
+	validJson := isValidJSON(string(jsonInput))
+	return validJson
+}
+func isValidJSON(input string) bool {
+	data := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		return false
+	}
+	return true
+}
 func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Payload) error {
+	validValue := complexTypeValidator(payload)
+	if !validValue {
+		impl.logger.Errorw("variable value is not valid", validValue)
+		return fmt.Errorf("invalid variable value")
+	}
 	err := impl.scopedVariableRepository.DeleteVariables()
 	if err != nil {
 		return err
@@ -271,14 +316,14 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 
 		}
 	}
-	variableNameToVariableValueMap := make(map[int][]*ValueMapping) //todo to change name
+	variableIdToVariableValueMap := make(map[int][]*ValueMapping)
 	var parentVarScope []*repository2.VariableScope
 	var childVarScope []*repository2.VariableScope
 	for _, variable := range payload.Variables {
 		variableName := variable.Definition.VarName
 		if id, exists := variableNameToIdMap[variableName]; exists {
 			for _, attrValue := range variable.AttributeValues {
-				variableNameToVariableValueMap[id] = append(variableNameToVariableValueMap[id], &ValueMapping{
+				variableIdToVariableValueMap[id] = append(variableIdToVariableValueMap[id], &ValueMapping{
 					Attribute: attrValue.AttributeType,
 					Value:     attrValue.VariableValue.Value,
 				})
@@ -292,10 +337,8 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	}
 	scopeIdToVarData := make(map[int]string)
 	for _, parentvar := range parentVarScope {
-		if variables, exists := variableNameToVariableValueMap[parentvar.VariableDefinitionId]; exists {
+		if variables, exists := variableIdToVariableValueMap[parentvar.VariableDefinitionId]; exists {
 			for _, varRange := range variables {
-				tt := getQualifierId(varRange.Attribute) == parentvar.QualifierId //todo to remove this
-				log.Print(tt)
 				if getQualifierId(varRange.Attribute) == parentvar.QualifierId {
 					scopeIdToVarData[parentvar.Id] = varRange.Value
 				}
@@ -366,14 +409,16 @@ type VariablePriorityMapping struct {
 
 func (impl *ScopedVariableServiceImpl) filterMatch(scope *repository2.VariableScope, identifierId int, searchableKeyName bean.DevtronResourceSearchableKeyName, parentRefId int) bool {
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-	if identifierId != 0 {
-		if (scope.IdentifierKey == searchableKeyNameIdMap[searchableKeyName] && scope.IdentifierValueInt == identifierId) || scope.IdentifierKey == 0 {
+	if expectedIdentifierKey, ok := searchableKeyNameIdMap[searchableKeyName]; ok {
+		if scope.IdentifierKey == expectedIdentifierKey && scope.IdentifierValueInt == identifierId {
 			if parentRefId != 0 && scope.ParentIdentifier != parentRefId {
 				return false
 			}
 			return true
-		} else {
-			return false
+		}
+	} else {
+		if scope.IdentifierKey == 0 && scope.IdentifierValueInt == 0 && getQualifierId(repository2.Global) == scope.QualifierId {
+			return true
 		}
 	}
 	return false
@@ -419,6 +464,9 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repo
 		if !isMatch && clusterId != 0 && scope.QualifierId == repository2.CLUSTER_QUALIFIER {
 			isMatch = impl.filterMatch(scope, clusterId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID, 0)
 		}
+		if !isMatch && scope.QualifierId == repository2.GLOBAL_QUALIFIER {
+			isMatch = impl.filterMatch(scope, 0, "", 0)
+		}
 		if isMatch {
 			priority, ok := variablePriorityMap[scope.VariableDefinitionId]
 			currentPriority := getPriority(scope.QualifierId)
@@ -446,25 +494,22 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 	for _, def := range vDef {
 		varIds = append(varIds, def.Id)
 	}
-	//var env *repository.Environment //todo add this for getting cluster id
-	//if scope.EnvId != 0 {
-	//	env, err: = impl.environmentRepository.FindById(scope.EnvId)
-	//}
+	var env *repository.Environment
+	if scope.EnvId != 0 && scope.ClusterId == 0 {
+		env, err = impl.environmentRepository.FindById(scope.EnvId)
+		if err != nil {
+			return nil, err
+		}
+		scope.ClusterId = env.ClusterId
+	}
 
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	var varScope []*repository2.VariableScope
 	var scopedVariableIds map[int]*VariablePriorityMapping
 	scopeIdToVariableScope := make(map[int]*repository2.VariableScope)
-	if varIds != nil {
-		varScope, err = impl.scopedVariableRepository.GetScopedVariableDataForVarIds(scope.AppId, scope.EnvId, scope.ClusterId, searchableKeyNameIdMap, varIds)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		varScope, err = impl.scopedVariableRepository.GetScopedVariableData(scope.AppId, scope.EnvId, scope.ClusterId, searchableKeyNameIdMap)
-		if err != nil {
-			return nil, err
-		}
+	varScope, err = impl.scopedVariableRepository.GetScopedVariableData(scope.AppId, scope.EnvId, scope.ClusterId, searchableKeyNameIdMap, varIds)
+	if err != nil {
+		return nil, err
 	}
 	for _, vScope := range varScope {
 		scopeIdToVariableScope[vScope.Id] = vScope
@@ -508,10 +553,18 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 	}
 	return scopedVariableDataObj, err
 }
-func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Payload, error) {
+func getSchema() (string, error) {
+	schema := jsonschema.Reflect(repository2.Payload{})
+	schemaData, err := json.MarshalIndent(schema, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(schemaData), nil
+}
+func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Payload, string, error) {
 	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	payload := &repository2.Payload{
 		Variables: make([]*repository2.Variables, 0),
@@ -557,6 +610,13 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 		}
 		variables = append(variables, variable)
 	}
+	jsonSchema, err := getSchema()
+	if err != nil {
+		return nil, "", nil
+	}
 	payload.Variables = variables
-	return payload, nil
+	if len(payload.Variables) == 0 {
+		return nil, jsonSchema, nil
+	}
+	return payload, jsonSchema, nil
 }

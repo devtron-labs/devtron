@@ -58,6 +58,7 @@ type HistoryDetailDto struct {
 	SubPath            *bool                `json:"subPath,omitempty"`
 	FilePermission     string               `json:"filePermission,omitempty"`
 	CodeEditorValue    *HistoryDetailConfig `json:"codeEditorValue"`
+	VariableSnapshot   map[string]string    `json:"variableSnapshot"`
 }
 
 type HistoryDetailConfig struct {

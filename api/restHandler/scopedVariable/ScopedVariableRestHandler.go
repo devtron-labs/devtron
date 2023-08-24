@@ -12,7 +12,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"regexp"
 	"strconv"
 )
 
@@ -25,16 +27,22 @@ type ScopedVariableRestHandler interface {
 type ScopedVariableRestHandlerImpl struct {
 	logger                *zap.SugaredLogger
 	userAuthService       user.UserService
+	validator             *validator.Validate
 	pipelineBuilder       pipeline.PipelineBuilder
 	enforcerUtil          rbac.EnforcerUtil
 	enforcer              casbin.Enforcer
 	scopedVariableService variables.ScopedVariableService
 }
+type JsonResponse struct {
+	Payload    *repository.Payload `json:"payload"`
+	JsonSchema string              `json:"jsonSchema"`
+}
 
-func NewScopedVariableRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, pipelineBuilder pipeline.PipelineBuilder, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, scopedVariableService variables.ScopedVariableService) *ScopedVariableRestHandlerImpl {
+func NewScopedVariableRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, pipelineBuilder pipeline.PipelineBuilder, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, scopedVariableService variables.ScopedVariableService) *ScopedVariableRestHandlerImpl {
 	return &ScopedVariableRestHandlerImpl{
 		logger:                logger,
 		userAuthService:       userAuthService,
+		validator:             validator,
 		pipelineBuilder:       pipelineBuilder,
 		enforcerUtil:          enforcerUtil,
 		enforcer:              enforcer,
@@ -56,6 +64,21 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 		return
 	}
 	paylaod.UserId = userId
+	// validate request
+	err = handler.validator.Struct(paylaod)
+	if err != nil {
+		handler.logger.Errorw("struct validation err in CreateVariables", "err", err, "request", paylaod)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	err = validateVariableScopeRequest(paylaod)
+	if err != nil {
+		handler.logger.Errorw("custom validation err in CreateVariables", "err", err, "request", paylaod)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
 	// not logging bean object as it contains sensitive data
 	handler.logger.Infow("request payload received for variables")
 
@@ -72,6 +95,7 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	err = handler.scopedVariableService.CreateVariables(paylaod)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
@@ -86,72 +110,44 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 			return
 		}
 	}
-
-	var envId int
-	envIdQueryParam := r.URL.Query().Get("envId")
-	if envIdQueryParam != "" {
-		envId, err = strconv.Atoi(envIdQueryParam)
-		if err != nil {
-			common.WriteJsonResp(w, err, "invalid envId", http.StatusBadRequest)
+	var scope variables.Scope
+	scopeQueryParam := r.URL.Query().Get("scope")
+	if scopeQueryParam != "" {
+		if err := json.Unmarshal([]byte(scopeQueryParam), &scope); err != nil {
+			http.Error(w, "Invalid JSON format for 'scope' parameter", http.StatusBadRequest)
 			return
 		}
-	}
 
-	var clusterId int
-	clusterIdQueryParam := r.URL.Query().Get("clusterId")
-	if clusterIdQueryParam != "" {
-		clusterId, err = strconv.Atoi(clusterIdQueryParam)
-		if err != nil {
-			common.WriteJsonResp(w, err, "invalid clusterId", http.StatusBadRequest)
-			return
-		}
 	}
-
-	//vars := mux.Vars(r)
-	//environmentId, err := strconv.Atoi(vars["environmentId"])
-	//if err != nil {
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
-	//appId, err := strconv.Atoi(vars["appId"])
-	//if err != nil {
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
-	//clusterId, err := strconv.Atoi(vars["clusterId"])
-	//if err != nil {
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
 
 	token := r.Header.Get("token")
 	var app *bean.CreateAppDTO
 	app, err = handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		handler.logger.Errorw("service err, GetScopedVariables", "err", err, "payload", appId, envId, clusterId)
+		handler.logger.Errorw("service err, GetScopedVariables", "err", err, "payload", scope.AppId, scope.EnvId, scope.ClusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.logger.Infow("request payload, GetScopedVariables", "payload", appId, envId, clusterId)
+	handler.logger.Infow("request payload, GetScopedVariables", "payload", scope.AppId, scope.EnvId, scope.ClusterId)
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if appId == 0 && envId == 0 && clusterId == 0 {
+	if scope.AppId == 0 && scope.EnvId == 0 && scope.ClusterId == 0 {
+		http.Error(w, "scope is empty", http.StatusBadRequest)
 		return
 	}
 	var scopedVariableData []*variables.ScopedVariableData
-	scope := variables.Scope{
-		AppId:     appId,
-		EnvId:     envId,
-		ClusterId: clusterId,
-	}
+
 	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	common.WriteJsonResp(w, nil, scopedVariableData, http.StatusOK)
 
 }
-
 func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -172,9 +168,47 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 	}
 	//RBAC enforcer Ends
 	var paylaod *repository.Payload
-	paylaod, err = handler.scopedVariableService.GetJsonForVariables()
+	var jsonSchema string
+
+	paylaod, jsonSchema, err = handler.scopedVariableService.GetJsonForVariables()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	common.WriteJsonResp(w, nil, paylaod, http.StatusOK)
+	jsonResponse := JsonResponse{
+		Payload:    paylaod,
+		JsonSchema: jsonSchema,
+	}
+	common.WriteJsonResp(w, nil, jsonResponse, http.StatusOK)
+}
+
+func validateVariableScopeRequest(payload repository.Payload) error {
+	for _, variable := range payload.Variables {
+		exp := `^[a-zA-Z0-9_-]{1,64}$`
+		rExp := regexp.MustCompile(exp)
+		if !rExp.MatchString(variable.Definition.VarName) {
+			return fmt.Errorf("invalid variable name")
+		}
+		if variable.Definition.VarName[0] == '_' ||
+			variable.Definition.VarName[0] == '-' ||
+			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '_' ||
+			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '-' {
+			return fmt.Errorf("invalid variable name")
+		}
+
+		for _, attributeValue := range variable.AttributeValues {
+			for key, _ := range attributeValue.AttributeParams {
+				match := false
+				for _, identifier := range repository.IdentifiersList {
+					if identifier == key {
+						match = true
+					}
+				}
+				if !match {
+					return fmt.Errorf("invalid identifier key %s for variable %s", key, variable.Definition.VarName)
+				}
+			}
+		}
+	}
+	return nil
 }

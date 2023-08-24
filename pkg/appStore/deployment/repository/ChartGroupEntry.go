@@ -110,8 +110,7 @@ func (impl *ChartGroupEntriesRepositoryImpl) MarkChartGroupEntriesDeleted(chartG
 	var chartGroupEntries []*ChartGroupEntry
 	_, err := tx.Model(&chartGroupEntries).
 		Where("id in (?)", pg.In(chartGroupId)).
-		Set("deleted = ", true).
+		Set("deleted = ?", true).
 		Update()
 	return chartGroupEntries, err
 }
-

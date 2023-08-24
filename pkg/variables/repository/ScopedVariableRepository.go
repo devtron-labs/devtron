@@ -61,8 +61,7 @@ type ScopedVariableRepository interface {
 	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)
 	GetVariablesByNames(vars []string) ([]*VariableDefinition, error)
 	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
-	GetScopedVariableData(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*VariableScope, error)
-	GetScopedVariableDataForVarIds(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
+	GetScopedVariableData(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
 	DeleteVariables() error
 }
@@ -142,52 +141,33 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableScopeAndDefinition() ([]
 	return variableDefinition, err
 
 }
-
-func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*VariableScope, error) {
+func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error) {
 	var variableScopes []*VariableScope
-	err := impl.dbConnection.
-		Model(&variableScopes).
+	query := impl.dbConnection.Model(&variableScopes).
 		Where("active = ?", true).
-		Where("(((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
-			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
-			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
-			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
-			"OR qualifier_id = ?",
+		Where(
+			"(((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
+				"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+				"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+				"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+				"OR (qualifier_id = ?)",
 			searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId, APP_AND_ENV_QUALIFIER,
 			APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId,
 			ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId,
 			CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], clusterId,
-			GLOBAL_QUALIFIER).
-		Select()
+			GLOBAL_QUALIFIER,
+		)
+
+	if len(varIds) > 0 {
+		query = query.Where("variable_definition_id IN (?)", pg.In(varIds))
+	}
+
+	err := query.Select()
 
 	if err != nil {
 		return nil, err
 	}
-	return variableScopes, nil
-}
 
-func (impl *ScopedVariableRepositoryImpl) GetScopedVariableDataForVarIds(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error) {
-	var variableScopes []*VariableScope
-	err := impl.dbConnection.
-		Model(&variableScopes).
-		Where("active = ?", true).
-		Where("variable_definition_id in (?) AND "+
-			"((((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
-			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
-			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
-			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
-			"OR qualifier_id = ?)",
-			pg.In(varIds),
-			searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId, APP_AND_ENV_QUALIFIER,
-			APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId,
-			ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId,
-			CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], clusterId,
-			GLOBAL_QUALIFIER).
-		Select()
-
-	if err != nil {
-		return nil, err
-	}
 	return variableScopes, nil
 }
 
@@ -202,15 +182,27 @@ func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]
 }
 
 func (impl *ScopedVariableRepositoryImpl) DeleteVariables() error {
-	_, err := impl.dbConnection.Model(&VariableScope{}).
+	tx, err := impl.dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer func(tx *pg.Tx) {
+		err = tx.Rollback()
+		if err != nil {
+			return
+		}
+	}(tx)
+	_, err = tx.Model(&VariableScope{}).
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Update()
 
-	_, err = impl.dbConnection.Model(&VariableDefinition{}).
+	_, err = tx.Model(&VariableDefinition{}).
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Update()
+	err = tx.Commit()
 	if err != nil {
 		return err
 	}

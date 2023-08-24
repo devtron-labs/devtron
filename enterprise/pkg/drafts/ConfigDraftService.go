@@ -13,7 +13,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"time"
@@ -423,17 +422,13 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 	}
 
 	//VARIABLE_RESOLVE
-	entity := repository.Entity{
-		EntityType: repository.EntityTypeDeploymentTemplateEnvLevel,
-		EntityId:   templateRequest.Id, //TODO verify is this is right through testing
-	}
 	scope := variables.Scope{
 		AppId: appId,
 		EnvId: envId,
 		// ClusterId: envConfigProperties.ClusterId, TODO get clusterID
 	}
 
-	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId, scope, entity)
+	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
 	if err != nil {
 		return err
 	}
@@ -463,17 +458,13 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 		chartRefId := envConfigProperties.ChartRefId
 
 		//VARIABLE_RESOLVE
-		entity := repository.Entity{
-			EntityType: repository.EntityTypeDeploymentTemplateEnvLevel,
-			EntityId:   envConfigProperties.Id,
-		}
 		scope := variables.Scope{
 			AppId: appId,
 			EnvId: envId,
 			// ClusterId: envConfigProperties.ClusterId, TODO get clusterID
 		}
 
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId, scope, entity)
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId, scope)
 		if err != nil {
 			return err
 		}
@@ -653,16 +644,12 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resour
 		}
 
 		//VARIABLE_RESOLVE
-		entity := repository.Entity{
-			EntityType: repository.EntityTypeDeploymentTemplateAppLevel,
-			EntityId:   templateRequest.Id, //TODO verify this ID through testing
-		}
 		scope := variables.Scope{
 			AppId: templateRequest.AppId,
 			EnvId: envId,
 			// ClusterId: envConfigProperties.ClusterId, TODO get clusterID
 		}
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope, entity)
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
 		if err != nil {
 			return err
 		}
@@ -679,10 +666,6 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resour
 		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
 
 			//VARIABLE_RESOLVE
-			entity := repository.Entity{
-				EntityType: repository.EntityTypeDeploymentTemplateEnvLevel,
-				EntityId:   envConfigProperties.Id, //TODO verify this ID through testing
-			}
 			scope := variables.Scope{
 				//AppId:     templateRe, TODO get app ID here
 				EnvId:     envId,
@@ -690,7 +673,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(envId int, resour
 			}
 
 			chartRefId := envConfigProperties.ChartRefId
-			templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope, entity)
+			templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
 			if err != nil {
 				return err
 			}
