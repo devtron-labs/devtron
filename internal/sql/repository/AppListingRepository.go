@@ -693,17 +693,17 @@ func (impl AppListingRepositoryImpl) FetchLatestDeploymentWithChartRefs(appId in
 func (impl AppListingRepositoryImpl) FetchPipelineOverrideValues(id int) (string, error) {
 
 	type value struct {
-		PipelineOverrideYaml string `sql:"pipeline_override_yaml"`
+		MergedValuesYaml string `sql:"merged_values_yaml"`
 	}
 
 	var result value
 
-	query := "select pipeline_override_yaml from pipeline_config_override where id = ? ; "
+	query := "select merged_values_yaml from pipeline_config_override where id = ? ; "
 	_, err := impl.dbConnection.Query(&result, query, id)
 	if err != nil {
 		impl.Logger.Error("error", "error", err)
 	}
-	return result.PipelineOverrideYaml, err
+	return result.MergedValuesYaml, err
 }
 
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {

@@ -1790,7 +1790,7 @@ func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, requ
 	if request.Type == DEPLOYED_ON_SELF_ENVIRONMENT || request.Type == DEPLOYED_ON_OTHER_ENVIRONMENT {
 
 		values, err := impl.appListingRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
-		if err != nil && !util.IsErrNoRows(err) {
+		if err != nil {
 			impl.Logger.Errorw("err", err)
 			return result, err
 		}
