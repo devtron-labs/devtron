@@ -1007,7 +1007,7 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRe
 			return err
 		}
 	} else {
-		//since no step is present in update request, deleting the stage and all the related
+		//since no step is present in update request, deleting the stage and all the related data of this stage
 		err = impl.deletePipelineStageWithTx(stageReq, userId)
 		if err != nil {
 			impl.logger.Errorw("error in marking all steps deleted by stageId", "err", err, "stageId", stageReq.Id)
