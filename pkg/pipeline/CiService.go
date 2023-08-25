@@ -803,7 +803,6 @@ func _getTruncatedImageTag(imageTag string) string {
 	} else {
 		return imageTag[:_truncatedLength]
 	}
-
 }
 
 func (impl *CiServiceImpl) CanTargetImagePathBeReused(targetImageURL string, tagUsedStatuses []string, tagReleasedStatuses []string, tx *pg.Tx) error {
