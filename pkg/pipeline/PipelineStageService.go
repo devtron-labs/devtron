@@ -946,6 +946,24 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 	return nil
 }
 
+func (impl *PipelineStageServiceImpl) deletePipelineStageWithTx(stageReq *bean.PipelineStageDto, userId int32) error {
+	tx, err := impl.pipelineStageRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction", "err", err, "stageReq", stageReq, "userId", userId)
+		return err
+	}
+	defer tx.Rollback()
+	err = impl.DeletePipelineStage(stageReq, userId, tx)
+	if err != nil {
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err, "stageReq", stageReq, "userId", userId)
+	}
+	return err
+}
+
 func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq *bean.PipelineStageDto, userId int32) error {
 	//getting all stepIds for current active (steps not deleted) steps
 	activeStepIds, err := impl.pipelineStageRepository.GetStepIdsByStageId(stageReq.Id)
@@ -989,8 +1007,8 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRe
 			return err
 		}
 	} else {
-		//deleting all current steps since no step is present in update request
-		err = impl.pipelineStageRepository.MarkStepsDeletedByStageId(stageReq.Id)
+		//since no step is present in update request, deleting the stage and all the related
+		err = impl.deletePipelineStageWithTx(stageReq, userId)
 		if err != nil {
 			impl.logger.Errorw("error in marking all steps deleted by stageId", "err", err, "stageId", stageReq.Id)
 			return err
