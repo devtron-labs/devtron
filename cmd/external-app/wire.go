@@ -5,6 +5,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
@@ -179,6 +180,7 @@ func InitializeApp() (*App, error) {
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
+		pubsub_lib.NewPubSubClientServiceImpl,
 	)
 	return &App{}, nil
 }
