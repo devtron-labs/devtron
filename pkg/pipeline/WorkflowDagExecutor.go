@@ -864,10 +864,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				impl.logger.Errorw("could not fetch git materials", "err", err)
 				return nil, err
 			}
-			isShallowCloningPossible := false
-			if impl.cdConfig.CloningMode == CloningModeShallow && (strings.Contains(ciMaterialCurrent.Material.GitConfiguration.URL, GITHUB_PROVIDER) || strings.Contains(ciMaterialCurrent.Material.GitConfiguration.URL, GITLAB_PROVIDER)) {
-				isShallowCloningPossible = true
-			}
 
 			ciProjectDetail := CiProjectDetails{
 				GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
@@ -884,7 +880,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 					AccessToken:   gitMaterial.GitProvider.AccessToken,
 					AuthMode:      gitMaterial.GitProvider.AuthMode,
 				},
-				IsShallowCloningPossible: isShallowCloningPossible,
+				IsShallowCloningPossible: IsShallowClonePossible(m, impl.cdConfig.GitProviders, impl.cdConfig.CloningMode),
 			}
 
 			if len(ciMaterialCurrent.Modifications) > 0 {

@@ -5,11 +5,13 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
+	"strings"
 )
 
 var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
@@ -262,4 +264,14 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 	}
 
 	return nil
+}
+
+func IsShallowClonePossible(ciMaterial *pipelineConfig.CiPipelineMaterial, gitProviders, cloningMode string) bool {
+	gitProvidersList := strings.Split(gitProviders, ",")
+	for _, gitProvider := range gitProvidersList {
+		if strings.Contains(strings.ToLower(ciMaterial.GitMaterial.Url), strings.ToLower(gitProvider)) && cloningMode == CloningModeShallow {
+			return true
+		}
+	}
+	return false
 }

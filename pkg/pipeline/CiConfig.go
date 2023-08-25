@@ -86,6 +86,7 @@ type CiConfig struct {
 	OrchestratorToken                string `env:"ORCH_TOKEN" envDefault:""`
 	CloningMode                      string `env:"CLONING_MODE" envDefault:"SHALLOW"`
 	BuildxK8sDriverOptions           string `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
+	GitProviders                     string `env:"GIT_PROVIDERS" envDefault:"github,gitlab"`
 }
 
 type CiVolumeMount struct {
