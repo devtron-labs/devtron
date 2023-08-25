@@ -132,6 +132,7 @@ type CiPipelineRepository interface {
 	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 
+	GetCustomTagByCiPipelineId(ciPipelineId int) (*CustomTagObject, error)
 	InsertCustomTag(customTagObject *CustomTagObject, tx *pg.Tx) error
 	UpdateCustomTag(customTagObject *CustomTagObject, tx *pg.Tx) error
 	DeleteCustomTag(customTagObject *CustomTagObject, tx *pg.Tx) error
@@ -147,6 +148,14 @@ func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger)
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
+}
+
+func (impl CiPipelineRepositoryImpl) GetCustomTagByCiPipelineId(ciPipelineId int) (*CustomTagObject, error) {
+	var customTag CustomTagObject
+	err := impl.dbConnection.Model(&customTag).
+		Where("ci_pipeline_id = ?", ciPipelineId).
+		Select()
+	return &customTag, err
 }
 
 func (impl CiPipelineRepositoryImpl) FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error) {
