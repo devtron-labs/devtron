@@ -35,7 +35,6 @@ type LoggingMiddleware interface {
 // LoggingMiddleware is a middleware function that logs the incoming request.
 func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		startTime := time.Now()
 		d := middleware.NewDelegator(w, nil)
 
 		token := r.Header.Get("token")
@@ -59,7 +58,6 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 
 		auditLogDto.ApiResponseCode = d.Status()
 		LogRequest(auditLogDto)
-		log.Printf("AUDIT_LOG: elapsed time is %s ", time.Since(startTime))
 	})
 }
 
