@@ -73,7 +73,11 @@ type CiServiceImpl struct {
 }
 
 var (
-	ImagePathUnavailable = fmt.Errorf("image path tag is reserved/reserved")
+	ErrImagePathUnavailable = fmt.Errorf("image path tag is reserved/reserved")
+)
+
+const (
+	ImageTagUnavailableMessage = "Desired image tag already exists"
 )
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -782,9 +786,9 @@ func (impl *CiServiceImpl) updateCiWorkflow(request *WorkflowRequest, savedWf *p
 	err := impl.ciWorkflowRepository.UpdateWorkFlowWithValidation(savedWf, func(tx *pg.Tx) error {
 		return impl.CanTargetImagePathBeReused(savedWf.TargetImageLocation, tagReleasedStatuses, tagUsedStatuses, tx)
 	})
-	if err == ImagePathUnavailable {
-		savedWf.Status = pipelineConfig.WorkflowAborted
-		savedWf.Message = err.Error()
+	if err == ErrImagePathUnavailable {
+		savedWf.Status = pipelineConfig.WorkflowFailed
+		savedWf.Message = ImageTagUnavailableMessage
 		return impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 	}
 	return nil
@@ -812,11 +816,11 @@ func (impl *CiServiceImpl) CanTargetImagePathBeReused(targetImageURL string, tag
 	}
 	for _, wf := range allWfs {
 		if arrayContains(tagUsedStatuses, wf.Status) {
-			return ImagePathUnavailable
+			return ErrImagePathUnavailable
 		} else if arrayContains(tagReleasedStatuses, wf.Status) {
 			continue
 		} else {
-			return ImagePathUnavailable
+			return ErrImagePathUnavailable
 		}
 	}
 	return nil

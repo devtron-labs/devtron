@@ -157,6 +157,7 @@ type WorkflowResponse struct {
 	EnvironmentName      string                                      `json:"environmentName"`
 	ImageReleaseTags     []*repository2.ImageTag                     `json:"imageReleaseTags"`
 	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
+	CustomTag            *bean.CustomTagData                         `json:"customTag,omitempty"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -500,6 +501,16 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			IsArtifactUploaded: w.IsArtifactUploaded,
 			EnvironmentId:      w.EnvironmentId,
 			EnvironmentName:    w.EnvironmentName,
+		}
+		if w.Message == ImageTagUnavailableMessage {
+			customTag, err := impl.ciPipelineRepository.GetCustomTagByCiPipelineId(w.CiPipelineId)
+			if err != nil {
+				return nil, err
+			}
+			wfResponse.CustomTag = &bean.CustomTagData{
+				TagPattern: customTag.CustomTagFormat,
+				CounterX:   customTag.AutoIncreasingNumber,
+			}
 		}
 		if imageTagsDataMap[w.CiArtifactId] != nil {
 			wfResponse.ImageReleaseTags = imageTagsDataMap[w.CiArtifactId] //if artifact is not yet created,empty list will be sent
