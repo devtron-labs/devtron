@@ -72,6 +72,10 @@ type CiServiceImpl struct {
 	appRepository                 appRepository.AppRepository
 }
 
+var (
+	ImagePathUnavailable = fmt.Errorf("image path tag is reserved/reserved")
+)
+
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient,
@@ -775,9 +779,15 @@ func (impl *CiServiceImpl) updateCiWorkflow(request *WorkflowRequest, savedWf *p
 	savedWf.TargetImageLocation = request.DockerRegistryURL + "/" + request.DockerRepository + ":" + request.DockerImageTag
 	tagUsedStatuses := []string{pipelineConfig.WorkflowSucceeded}
 	tagReleasedStatuses := []string{pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowAborted, string(v1alpha1.NodeError)}
-	return impl.ciWorkflowRepository.UpdateWorkFlowWithValidation(savedWf, func(tx *pg.Tx) error {
+	err := impl.ciWorkflowRepository.UpdateWorkFlowWithValidation(savedWf, func(tx *pg.Tx) error {
 		return impl.CanTargetImagePathBeReused(savedWf.TargetImageLocation, tagReleasedStatuses, tagUsedStatuses, tx)
 	})
+	if err == ImagePathUnavailable {
+		savedWf.Status = pipelineConfig.WorkflowAborted
+		savedWf.Message = err.Error()
+		return impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+	}
+	return nil
 }
 
 func _getTruncatedImageTag(imageTag string) string {
@@ -803,11 +813,11 @@ func (impl *CiServiceImpl) CanTargetImagePathBeReused(targetImageURL string, tag
 	}
 	for _, wf := range allWfs {
 		if arrayContains(tagUsedStatuses, wf.Status) {
-			return fmt.Errorf("image path is already used")
+			return ImagePathUnavailable
 		} else if arrayContains(tagReleasedStatuses, wf.Status) {
 			continue
 		} else {
-			return fmt.Errorf("image path tag is reserved")
+			return ImagePathUnavailable
 		}
 	}
 	return nil
