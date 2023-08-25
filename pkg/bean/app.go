@@ -118,7 +118,7 @@ type CiPipeline struct {
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
 	EnvironmentId            int                    `json:"environmentId,omitempty"`
 	LastTriggeredEnvId       int                    `json:"lastTriggeredEnvId"`
-	CustomTagObject          *CustomTagData         `json:"customTagObject,omitempty"`
+	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
 	DefaultTag               []string               `json:"defaultTag,omitempty"`
 }
 

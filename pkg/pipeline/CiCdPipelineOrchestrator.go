@@ -279,9 +279,11 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			}
 		}
 	} else {
-		err := impl.ciPipelineRepository.DeleteCustomTag(oldPipeline.CustomTagObject, tx)
-		if err != nil {
-			return nil, err
+		if oldPipeline.CustomTagObject != nil {
+			err := impl.ciPipelineRepository.DeleteCustomTag(oldPipeline.CustomTagObject, tx)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
