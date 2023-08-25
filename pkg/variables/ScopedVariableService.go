@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 	"sigs.k8s.io/yaml"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -334,6 +335,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 					value = string(marshal)
 				case string:
 					value = attrValue.VariableValue.Value.(string)
+					value = "\"" + value + "\""
 				case bool:
 					value = strconv.FormatBool(attrValue.VariableValue.Value.(bool))
 				}
@@ -579,7 +581,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 				} else if boolValue, err := strconv.ParseBool(varData.Data); err == nil {
 					value = boolValue
 				} else {
-					value = varData.Data
+					value = strings.Trim(varData.Data, "\"")
 				}
 				scopedVariableData.VariableValue = value
 			}
@@ -662,7 +664,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 					} else if boolValue, err := strconv.ParseBool(scope.VariableData.Data); err == nil {
 						value = boolValue
 					} else {
-						value = scope.VariableData.Data
+						value = strings.Trim(scope.VariableData.Data, "\"")
 					}
 					attribute.VariableValue = repository2.VariableValue{
 
