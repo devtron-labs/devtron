@@ -57,6 +57,7 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 		return
 	}
 	paylaod := repository.Payload{}
+	decoder.UseNumber()
 	err = decoder.Decode(&paylaod)
 	if err != nil {
 		handler.logger.Errorw("request err, Save", "error", err, "payload", paylaod)

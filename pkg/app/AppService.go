@@ -1445,7 +1445,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope variables.S
 	}
 	variableMap := make(map[string]string)
 	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue
+		variableMap[variable.VariableName] = variable.VariableValue.(string)
 	}
 	resolvedTemplate := impl.variableTemplateParser.ParseTemplate(template, variableMap)
 	return resolvedTemplate, variableMap, nil

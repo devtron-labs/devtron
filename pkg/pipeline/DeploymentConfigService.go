@@ -110,7 +110,7 @@ func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(s
 	}
 
 	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue
+		variableMap[variable.VariableName] = variable.VariableValue.(string)
 	}
 	return variableMap, nil
 }

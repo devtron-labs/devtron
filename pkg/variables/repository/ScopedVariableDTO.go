@@ -6,7 +6,7 @@ type Payload struct {
 }
 type Variables struct {
 	Definition      Definition       `json:"definition" validate:"required,dive"`
-	AttributeValues []AttributeValue `json:"attributeValue" validate:"required,dive" `
+	AttributeValues []AttributeValue `json:"attributeValue" validate:"dive" `
 }
 type AttributeValue struct {
 	VariableValue   VariableValue             `json:"variableValue" validate:"required,dive"`
@@ -42,5 +42,5 @@ const (
 var IdentifiersList = []IdentifierType{ApplicationName, EnvName, ClusterName}
 
 type VariableValue struct {
-	Value string `json:"value" validate:"required"`
+	Value interface{} `json:"value" validate:"required"`
 }

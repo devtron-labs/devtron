@@ -13,12 +13,13 @@ import (
 	"github.com/invopop/jsonschema"
 	"go.uber.org/zap"
 	"sigs.k8s.io/yaml"
+	"strconv"
 	"time"
 )
 
 type ScopedVariableData struct {
-	VariableName  string `json:"variableName"`
-	VariableValue string `json:"variableValue"`
+	VariableName  string      `json:"variableName"`
+	VariableValue interface{} `json:"variableValue,omitempty"`
 }
 
 type ScopedVariableService interface {
@@ -119,11 +120,11 @@ func complexTypeValidator(payload repository2.Payload) bool {
 			for _, attributeValue := range variable.AttributeValues {
 				if attributeValue.VariableValue.Value != "" {
 					if variable.Definition.DataType == "yaml" {
-						if !isValidYAML(attributeValue.VariableValue.Value) {
+						if !isValidYAML(attributeValue.VariableValue.Value.(string)) {
 							return false
 						}
 					} else if variable.Definition.DataType == "json" {
-						if !isValidJSON(attributeValue.VariableValue.Value) {
+						if !isValidJSON(attributeValue.VariableValue.Value.(string)) {
 							return false
 						}
 					}
@@ -323,18 +324,35 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 		variableName := variable.Definition.VarName
 		if id, exists := variableNameToIdMap[variableName]; exists {
 			for _, attrValue := range variable.AttributeValues {
+				var value string
+				switch attrValue.VariableValue.Value.(type) {
+				case json.Number:
+					marshal, err := json.Marshal(attrValue.VariableValue.Value)
+					if err != nil {
+						return err
+					}
+					value = string(marshal)
+				case string:
+					value = attrValue.VariableValue.Value.(string)
+				case bool:
+					value = strconv.FormatBool(attrValue.VariableValue.Value.(bool))
+				}
+
 				variableIdToVariableValueMap[id] = append(variableIdToVariableValueMap[id], &ValueMapping{
 					Attribute: attrValue.AttributeType,
-					Value:     attrValue.VariableValue.Value,
+					Value:     value,
 				})
 			}
 		}
 	}
-	parentVarScope, err = impl.scopedVariableRepository.CreateVariableScope(parentVariableDefinition, tx)
-	if err != nil {
-		impl.logger.Errorw("error in getting parentVarScope", parentVarScope)
-		return err
+	if len(parentVariableDefinition) > 0 {
+		parentVarScope, err = impl.scopedVariableRepository.CreateVariableScope(parentVariableDefinition, tx)
+		if err != nil {
+			impl.logger.Errorw("error in getting parentVarScope", parentVarScope)
+			return err
+		}
 	}
+
 	scopeIdToVarData := make(map[int]string)
 	for _, parentvar := range parentVarScope {
 		if variables, exists := variableIdToVariableValueMap[parentvar.VariableDefinitionId]; exists {
@@ -376,7 +394,14 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 		}
 		variableDatas = append(variableDatas, varData)
 	}
-	err = impl.scopedVariableRepository.CreateVariableData(variableDatas, tx)
+	if len(variableDatas) > 0 {
+		err = impl.scopedVariableRepository.CreateVariableData(variableDatas, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving variable data", parentVarScope)
+			return err
+		}
+	}
+
 	defer func(scopedVariableRepository repository2.ScopedVariableRepository, tx *pg.Tx) {
 		err = scopedVariableRepository.CommitTx(tx)
 		if err != nil {
@@ -546,10 +571,42 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope Scope, varNames 
 		}
 		for _, varData := range vData {
 			if varData.VariableScopeId == mapping.ScopeId {
-				scopedVariableData.VariableValue = varData.Data
+				var value interface{}
+				if intValue, err := strconv.Atoi(varData.Data); err == nil {
+					value = intValue
+				} else if floatValue, err := strconv.ParseFloat(varData.Data, 64); err == nil {
+					value = floatValue
+				} else if boolValue, err := strconv.ParseBool(varData.Data); err == nil {
+					value = boolValue
+				} else {
+					value = varData.Data
+				}
+				scopedVariableData.VariableValue = value
 			}
 		}
 		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
+	}
+	var variableList []*repository2.VariableDefinition
+	if varNames == nil {
+		variableList, err = impl.scopedVariableRepository.GetAllVariables()
+		if err != nil {
+			return nil, err
+		}
+		for _, existing := range variableList {
+			found := false
+			for _, variable := range scopedVariableDataObj {
+				if variable.VariableName == existing.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				newData := &ScopedVariableData{
+					VariableName: existing.Name,
+				}
+				scopedVariableDataObj = append(scopedVariableDataObj, newData)
+			}
+		}
 	}
 	return scopedVariableDataObj, err
 }
@@ -593,13 +650,29 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 				AttributeParams: make(map[repository2.IdentifierType]string),
 			}
 			for _, scope := range scopes {
-				attribute.AttributeParams[impl.getIdentifierType(scope.IdentifierKey)] = scope.IdentifierValueString
+				if impl.getIdentifierType(scope.IdentifierKey) != "" {
+					attribute.AttributeParams[impl.getIdentifierType(scope.IdentifierKey)] = scope.IdentifierValueString
+				}
 				if parentScopeId == scope.Id {
+					var value interface{}
+					if intValue, err := strconv.Atoi(scope.VariableData.Data); err == nil {
+						value = intValue
+					} else if floatValue, err := strconv.ParseFloat(scope.VariableData.Data, 64); err == nil {
+						value = floatValue
+					} else if boolValue, err := strconv.ParseBool(scope.VariableData.Data); err == nil {
+						value = boolValue
+					} else {
+						value = scope.VariableData.Data
+					}
 					attribute.VariableValue = repository2.VariableValue{
-						Value: scope.VariableData.Data,
+
+						Value: value,
 					}
 					attribute.AttributeType = getAttributeType(scope.QualifierId)
 				}
+			}
+			if len(attribute.AttributeParams) == 0 {
+				attribute.AttributeParams = nil
 			}
 			attributes = append(attributes, attribute)
 		}
