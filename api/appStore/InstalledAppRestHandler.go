@@ -576,11 +576,11 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		return
 	}
 	//rback block ends here
-	resourceTreeAndNotesContainer := bean2.ResourceTreeAndNotesContainer{}
+	resourceTreeAndNotesContainer := bean2.AppDetailsContainer{}
 	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
 
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
-		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp)
+		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, "")
 		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
@@ -691,11 +691,11 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 		return
 	}
 
-	resourceTreeAndNotesContainer := bean2.ResourceTreeAndNotesContainer{}
+	resourceTreeAndNotesContainer := bean2.AppDetailsContainer{}
 	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
 
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
-		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp)
+		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, appDetail.HelmReleaseInstallStatus)
 		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			//resource tree has been fetched now prepare to sync application deployment status with this resource tree call
 			handler.syncDeploymentStatusWithResourceTreeCall(appDetail)
@@ -786,10 +786,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeForACDApp(w http.Re
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository.InstalledApps) error {
+func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer *bean2.AppDetailsContainer, installedApp repository.InstalledApps, helmReleaseInstallStatus string) error {
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	err := handler.installedAppService.FetchResourceTree(ctx, cn, resourceTreeAndNotesContainer, installedApp)
+	err := handler.installedAppService.FetchResourceTree(ctx, cn, resourceTreeAndNotesContainer, installedApp, helmReleaseInstallStatus)
 	return err
 }
 

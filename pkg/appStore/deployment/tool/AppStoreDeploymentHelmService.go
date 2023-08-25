@@ -92,6 +92,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 			ReleaseNamespace: installAppVersionRequest.Namespace,
 			ReleaseName:      installAppVersionRequest.AppName,
 		},
+		InstallAppVersionHistoryId: int32(installAppVersionRequest.InstalledAppVersionHistoryId),
 	}
 
 	_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)

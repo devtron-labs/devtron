@@ -327,7 +327,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.0-20230407072229-d4f665f5ca12
+# github.com/devtron-labs/common-lib v0.0.0-20230821120530-56d8ed4bc327
 ## explicit; go 1.18
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/pubsub-lib
@@ -1060,8 +1060,6 @@ golang.org/x/crypto/ssh/knownhosts
 ## explicit; go 1.18
 golang.org/x/exp/maps
 golang.org/x/exp/rand
-# golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
-## explicit; go 1.17
 # golang.org/x/net v0.7.0
 ## explicit; go 1.17
 golang.org/x/net/context
@@ -1118,8 +1116,6 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20220922220347-f3bd1da661af
 ## explicit
 golang.org/x/time/rate
-# golang.org/x/tools v0.1.12
-## explicit; go 1.18
 # golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2
 ## explicit; go 1.17
 golang.org/x/xerrors

@@ -169,6 +169,7 @@ type DeploymentDetailContainer struct {
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 	Description                   string          `json:"description" validate:"max=40"`
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
+	HelmReleaseInstallStatus      string          `json:"-"`
 }
 
 type AppDetailContainer struct {
@@ -179,9 +180,10 @@ type AppDetailContainer struct {
 	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
 	Notes                     string                 `json:"notes,omitempty"`
 }
-type ResourceTreeAndNotesContainer struct {
-	ResourceTree map[string]interface{} `json:"resourceTree,omitempty"`
-	Notes        string                 `json:"notes,omitempty"`
+type AppDetailsContainer struct {
+	ResourceTree  map[string]interface{} `json:"resourceTree,omitempty"`
+	Notes         string                 `json:"notes,omitempty"`
+	ReleaseStatus map[string]interface{} `json:"releaseStatus"`
 }
 type Notes struct {
 	Notes string `json:"gitOpsNotes,omitempty"`
