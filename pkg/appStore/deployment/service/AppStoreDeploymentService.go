@@ -285,23 +285,21 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersions.Id
 	installAppVersionRequest.Id = installedAppVersions.Id
 
-	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD || installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-		installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
-		installedAppVersionHistory.InstalledAppVersionId = installedAppVersions.Id
-		installedAppVersionHistory.ValuesYamlRaw = installAppVersionRequest.ValuesOverrideYaml
-		installedAppVersionHistory.CreatedBy = installAppVersionRequest.UserId
-		installedAppVersionHistory.CreatedOn = time.Now()
-		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
-		installedAppVersionHistory.UpdatedOn = time.Now()
-		installedAppVersionHistory.StartedOn = time.Now()
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
-		_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
-		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
-			return nil, err
-		}
-		installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
+	installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
+	installedAppVersionHistory.InstalledAppVersionId = installedAppVersions.Id
+	installedAppVersionHistory.ValuesYamlRaw = installAppVersionRequest.ValuesOverrideYaml
+	installedAppVersionHistory.CreatedBy = installAppVersionRequest.UserId
+	installedAppVersionHistory.CreatedOn = time.Now()
+	installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
+	installedAppVersionHistory.UpdatedOn = time.Now()
+	installedAppVersionHistory.StartedOn = time.Now()
+	installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
+	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
 	}
+	installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
 
 	if installAppVersionRequest.DefaultClusterComponent {
 		clusterInstalledAppsModel := &repository.ClusterInstalledApps{
@@ -1070,14 +1068,6 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 		}
 	}
 
-	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		err = impl.UpdateInstallAppVersionHistory(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -1706,6 +1696,7 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(helmInstallNatsMessage.InstallAppVersionHistoryId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
+			return
 		}
 
 		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data

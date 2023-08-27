@@ -1123,7 +1123,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 					releaseStatus.Message = "Release for this app doesn't exist"
 				}
 			}
-			releaseStatusMap := util3.InterfaceToMapAdapter(detail.ReleaseStatus)
+			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
 			appDetailsContainer.ReleaseStatus = releaseStatusMap
 		}
 	}

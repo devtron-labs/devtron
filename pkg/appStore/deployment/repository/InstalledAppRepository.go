@@ -662,8 +662,8 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLast
 
 func (impl InstalledAppRepositoryImpl) GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, error) {
 	var helmReleaseStatusConfig string
-	queryString := `select helm_release_status_config  from installed_app_version_history inner join installed_app_versions on installed_app_version_history.installed_app_version_id=installed_app_versions.id inner join installed_apps on installed_apps.id=installed_app_versions.installed_app_id where installed_apps.id=? order by installed_app_version_history.created_on desc limit 1;`
-	_, err := impl.dbConnection.Query(&helmReleaseStatusConfig, queryString)
+	queryString := `select helm_release_status_config  from installed_app_version_history inner join installed_app_versions on installed_app_version_history.installed_app_version_id=installed_app_versions.id inner join installed_apps on installed_apps.id=installed_app_versions.installed_app_id where installed_apps.id = ? order by installed_app_version_history.created_on desc limit 1;`
+	_, err := impl.dbConnection.Query(&helmReleaseStatusConfig, queryString, installedAppVersionHistoryId)
 	if err != nil {
 		impl.Logger.Errorw("error in GetAllGitOpsDeploymentAppName", "err", err)
 		return helmReleaseStatusConfig, err
