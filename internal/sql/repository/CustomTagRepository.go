@@ -29,7 +29,7 @@ type ImageTagRepository interface {
 	FetchCustomTagData(entityType int, entityValue string) (*CustomTag, error)
 	IncrementAndFetchByEntityKeyAndValue(tx *pg.Tx, entityKey int, entityValue string) (*CustomTag, error)
 	FindByImagePath(tx *pg.Tx, path string) ([]*ImagePathReservation, error)
-	InsertImagePath(tx *pg.Tx, reservation ImagePathReservation) error
+	InsertImagePath(tx *pg.Tx, reservation *ImagePathReservation) error
 	UpdateImageTag(customTag *CustomTag) error
 	DeleteByEntityKeyAndValue(entityKey int, entityValue string) error
 }
@@ -71,7 +71,7 @@ func (impl *ImageTagRepositoryImpl) FetchCustomTagData(entityType int, entityVal
 
 func (impl *ImageTagRepositoryImpl) IncrementAndFetchByEntityKeyAndValue(tx *pg.Tx, entityKey int, entityValue string) (*CustomTag, error) {
 	var customTag CustomTag
-	query := `update custom_tag set auto_increasing_number=auto_increasing_number+1 where entity_key=? and entity_value=? returning id, custom_tag_format, auto_increasing_number, metadata, entity_key, entity_value`
+	query := `update custom_tag set auto_increasing_number=auto_increasing_number+1 where entity_key=? and entity_value=? returning id, tag_pattern, auto_increasing_number, entity_key, entity_value`
 	_, err := tx.Query(&customTag, query, entityKey, entityValue)
 	return &customTag, err
 }
@@ -84,6 +84,6 @@ func (impl *ImageTagRepositoryImpl) FindByImagePath(tx *pg.Tx, path string) ([]*
 	return imagePaths, err
 }
 
-func (impl *ImageTagRepositoryImpl) InsertImagePath(tx *pg.Tx, reservation ImagePathReservation) error {
+func (impl *ImageTagRepositoryImpl) InsertImagePath(tx *pg.Tx, reservation *ImagePathReservation) error {
 	return tx.Insert(reservation)
 }

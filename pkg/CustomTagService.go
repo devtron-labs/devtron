@@ -94,7 +94,7 @@ func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue s
 	if len(imagePathReservations) > 0 {
 		return nil, ErrImagePathInUse
 	}
-	imagePathReservation := repository.ImagePathReservation{
+	imagePathReservation := &repository.ImagePathReservation{
 		ImagePath:   imagePath,
 		CustomTagId: customTagData.Id,
 	}
@@ -106,7 +106,7 @@ func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue s
 	if err != nil {
 		return nil, err
 	}
-	return &imagePathReservation, nil
+	return imagePathReservation, nil
 }
 
 func validateAndConstructTag(customTagData *repository.CustomTag) (string, error) {

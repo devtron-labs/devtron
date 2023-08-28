@@ -460,7 +460,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if customTag.Id == 0 {
+	if customTag.Id != 0 {
 		imagePathReservation, err := impl.customTagService.GenerateImagePath(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository)
 		if err != nil {
 			if errors.Is(err, pkg.ErrImagePathInUse) {
