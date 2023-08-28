@@ -250,7 +250,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				scanResultsIdMap[scanResult.ImageScanExecutionHistoryId] = scanResult.ImageScanExecutionHistoryId
 			}
 		}
-		blockedCves := impl.enforceCvePolicy(cveStores, cvePolicy, severityPolicy)
+		blockedCves := security.EnforceCvePolicy(cveStores, cvePolicy, severityPolicy)
 		impl.logger.Debugw("blocked cve for image", "image", image, "blocked", blockedCves)
 		for _, cve := range blockedCves {
 			vr := &VerifyImageResponse{
@@ -326,27 +326,6 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		}
 	}
 	return imageBlockedCves, nil
-}
-
-// image(cve), appId, envId
-func (impl *PolicyServiceImpl) enforceCvePolicy(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[security.Severity]*security.CvePolicy) (blockedCVE []*security.CveStore) {
-
-	for _, cve := range cves {
-		if policy, ok := cvePolicy[cve.Name]; ok {
-			if policy.Action == security.Allow {
-				continue
-			} else {
-				blockedCVE = append(blockedCVE, cve)
-			}
-		} else {
-			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
-				continue
-			} else {
-				blockedCVE = append(blockedCVE, cve)
-			}
-		}
-	}
-	return blockedCVE
 }
 
 func (impl *PolicyServiceImpl) GetApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*security.CvePolicy, map[security.Severity]*security.CvePolicy, error) {
@@ -441,6 +420,8 @@ func (impl *PolicyServiceImpl) parsePolicyAction(action string) (security.Policy
 		policyAction = security.Block
 	} else if action == "inherit" {
 		policyAction = security.Inherit
+	} else if action == "blockiffixed" {
+		policyAction = security.Blockiffixed
 	} else {
 		return security.Inherit, fmt.Errorf("unsupported action %s", action)
 	}
@@ -706,7 +687,7 @@ func (impl *PolicyServiceImpl) GetBlockedCVEList(cves []*security.CveStore, clus
 	if err != nil {
 		return nil, err
 	}
-	blockedCve := impl.enforceCvePolicy(cves, cvePolicy, severityPolicy)
+	blockedCve := security.EnforceCvePolicy(cves, cvePolicy, severityPolicy)
 	return blockedCve, nil
 }
 
@@ -715,13 +696,13 @@ func (impl *PolicyServiceImpl) HasBlockedCVE(cves []*security.CveStore, cvePolic
 		if policy, ok := cvePolicy[cve.Name]; ok {
 			if policy.Action == security.Allow {
 				continue
-			} else {
+			} else if (policy.Action == security.Block) || (policy.Action == security.Blockiffixed && cve.FixedVersion != "") {
 				return true
 			}
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
 				continue
-			} else {
+			} else if severityPolicy[cve.Severity] != nil && (severityPolicy[cve.Severity].Action == security.Block || (severityPolicy[cve.Severity].Action == security.Blockiffixed && cve.FixedVersion != "")) {
 				return true
 			}
 		}
