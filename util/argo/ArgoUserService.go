@@ -175,7 +175,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		//here acd token only required in context for argo cd calls
 		return "", nil
 	}
-	k8sClient, err := impl.k8sUtil.GetCoreV1ClientInCluster()
+	k8sClient, err := impl.k8sUtil.GetClientForInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 		return "", err

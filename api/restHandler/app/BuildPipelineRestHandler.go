@@ -282,11 +282,18 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndEn
 	patchRequest, userId, err := handler.parseSourceChangeRequest(w, r)
 	if err != nil {
 		handler.Logger.Errorw("Parse error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if !(patchRequest.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED || patchRequest.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX) {
+		handler.Logger.Errorw("Unsupported source type, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
+		common.WriteJsonResp(w, err, "source.type not supported", http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	if err = handler.authorizeCiSourceChangeRequest(w, patchRequest, token); err != nil {
 		handler.Logger.Errorw("Authorization error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 
@@ -536,13 +543,11 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		cdPipelineRbacObjects[i] = envObject
 	}
 	envRbacResultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
-	i := 0
 	for _, rbacResultOk := range envRbacResultMap {
 		if !rbacResultOk {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
-		i++
 	}
 	//RBAC ENDS
 	response := make(map[string]string)
