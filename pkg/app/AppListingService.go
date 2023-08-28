@@ -96,7 +96,7 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
-	GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (map[string]string, error)
+	GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (ValuesAndManifestResponse, error)
 }
 
 const (
@@ -110,9 +110,13 @@ type ValuesAndManifestRequest struct {
 	AppId                    int                         `json:"appId"`
 	EnvId                    int                         `json:"envId,omitempty"`
 	ChartRefId               int                         `json:"chartRefId"`
-	GetYalues                bool                        `json:"getYalues"`
+	GetValues                bool                        `json:"getValues"`
 	Type                     bean.DeploymentTemplateType `json:"type"`
 	PipelineConfigOverrideId int                         `json:"pipelineConfigOverrideId,omitempty"`
+}
+
+type ValuesAndManifestResponse struct {
+	Data string `json:"data"`
 }
 
 type FetchAppListingRequest struct {
@@ -1769,8 +1773,8 @@ func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId
 	return responseList, nil
 }
 
-func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (map[string]string, error) {
-	result := make(map[string]string)
+func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (ValuesAndManifestResponse, error) {
+	var result ValuesAndManifestResponse
 	var values string
 	var err error
 
@@ -1798,15 +1802,15 @@ func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, requ
 		}
 	}
 
-	if request.GetYalues {
-		result["values"] = values
+	if request.GetValues {
+		result.Data = values
 		return result, nil
 	}
 	manifest, err := impl.helmAppService.GetManifest(ctx, request.ChartRefId, values)
 	if err != nil {
-		return nil, err
+		return result, err
 	}
-	result["manifest"] = *manifest.Manifest
+	result.Data = *manifest.Manifest
 	return result, nil
 }
 
