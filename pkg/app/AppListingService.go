@@ -88,7 +88,7 @@ type AppListingService interface {
 
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
-	FetchDeploymentsWithChartRefs(appId int, envId int) (map[ComparisionOption]interface{}, error)
+	FetchDeploymentsWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
@@ -106,22 +106,13 @@ const (
 	APIVersionV2          string = "v2"
 )
 
-type ComparisionOption string
-
-const (
-	DEFAULT_VERSIONS              ComparisionOption = "DEFAULT_VERSIONS"
-	PUBLISHED_ON_ENVIRONMENTS     ComparisionOption = "PUBLISHED_ON_ENVIRONMENTS"
-	DEPLOYED_ON_SELF_ENVIRONMENT  ComparisionOption = "DEPLOYED_ON_SELF_ENVIRONMENT"
-	DEPLOYED_ON_OTHER_ENVIRONMENT ComparisionOption = "DEPLOYED_ON_OTHER_ENVIRONMENT"
-)
-
 type ValuesAndManifestRequest struct {
-	AppId                    int               `json:"appId"`
-	EnvId                    int               `json:"envId,omitempty"`
-	ChartRefId               int               `json:"chartRefId"`
-	GetYalues                bool              `json:"getYalues"`
-	Type                     ComparisionOption `json:"type"`
-	PipelineConfigOverrideId int               `json:"pipelineConfigOverrideId,omitempty"`
+	AppId                    int                         `json:"appId"`
+	EnvId                    int                         `json:"envId,omitempty"`
+	ChartRefId               int                         `json:"chartRefId"`
+	GetYalues                bool                        `json:"getYalues"`
+	Type                     bean.DeploymentTemplateType `json:"type"`
+	PipelineConfigOverrideId int                         `json:"pipelineConfigOverrideId,omitempty"`
 }
 
 type FetchAppListingRequest struct {
@@ -1716,40 +1707,66 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 	}
 	return envs, nil
 }
-func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId int) (map[ComparisionOption]interface{}, error) {
+func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error) {
 
-	result := make(map[ComparisionOption]interface{})
+	var responseList []*bean.FetchTemplateComparisonList
 
-	deployedOnEnv, err := impl.appListingRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
-	if err != nil && !util.IsErrNoRows(err) {
+	defaultVersions, err := impl.chartService.ChartRefAutocompleteForAppOrEnv(appId, 0)
+	if err != nil {
 		impl.Logger.Errorw("err", err)
-		return result, err
+		return nil, err
 	}
 
-	deployedOnOtherEnvs, err := impl.appListingRepository.FetchLatestDeploymentWithChartRefs(appId, envId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", err)
-		return result, err
+	for _, item := range defaultVersions.ChartRefs {
+		res := &bean.FetchTemplateComparisonList{
+			ChartId:      item.Id,
+			ChartVersion: item.Version,
+			ChartType:    item.Name,
+			Type:         bean.DefaultVersions,
+		}
+		responseList = append(responseList, res)
 	}
 
 	publishedOnEnvs, err := impl.FetchMinDetailOtherEnvironment(appId)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
-		return result, err
+		return nil, err
 	}
 
-	defaultVersions, err := impl.chartService.ChartRefAutocompleteForAppOrEnv(appId, 0)
-	if err != nil {
+	for _, env := range publishedOnEnvs {
+		item := &bean.FetchTemplateComparisonList{
+			ChartId:         env.ChartRefId,
+			EnvironmentId:   env.EnvironmentId,
+			EnvironmentName: env.EnvironmentName,
+			Type:            bean.PublishedOnEnvironments,
+		}
+		responseList = append(responseList, item)
+	}
+
+	deployedOnEnv, err := impl.appListingRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
+	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", err)
-		return result, err
+		return nil, err
 	}
 
-	result[DEFAULT_VERSIONS] = defaultVersions
-	result[DEPLOYED_ON_SELF_ENVIRONMENT] = deployedOnEnv
-	result[DEPLOYED_ON_OTHER_ENVIRONMENT] = deployedOnOtherEnvs
-	result[PUBLISHED_ON_ENVIRONMENTS] = publishedOnEnvs
+	for _, deployedItem := range deployedOnEnv {
+		deployedItem.Type = bean.DeployedOnSelfEnvironment
+		deployedItem.EnvironmentId = envId
+		responseList = append(responseList, deployedItem)
+	}
 
-	return result, nil
+	deployedOnOtherEnvs, err := impl.appListingRepository.FetchLatestDeploymentWithChartRefs(appId, envId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("err", err)
+		return nil, err
+	}
+
+	for _, deployedItem := range deployedOnOtherEnvs {
+		deployedItem.Type = bean.DeployedOnOtherEnvironment
+		responseList = append(responseList, deployedItem)
+	}
+
+	return responseList, nil
 }
 
 func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (map[string]string, error) {
@@ -1758,13 +1775,13 @@ func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, requ
 	var err error
 
 	switch request.Type {
-	case DEFAULT_VERSIONS:
+	case bean.DefaultVersions:
 		_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 		if err != nil {
 			impl.Logger.Errorw("err", err)
 			return result, err
 		}
-	case PUBLISHED_ON_ENVIRONMENTS:
+	case bean.PublishedOnEnvironments:
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(request.AppId)
 		if chart != nil && chart.Id > 0 {
 			values = chart.GlobalOverride
@@ -1773,7 +1790,7 @@ func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, requ
 			impl.Logger.Errorw("err", err)
 			return result, err
 		}
-	case DEPLOYED_ON_SELF_ENVIRONMENT, DEPLOYED_ON_OTHER_ENVIRONMENT:
+	case bean.DeployedOnSelfEnvironment, bean.DeployedOnOtherEnvironment:
 		values, err = impl.appListingRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
 		if err != nil {
 			impl.Logger.Errorw("err", err)

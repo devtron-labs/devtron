@@ -50,9 +50,9 @@ type AppListingRepository interface {
 	//Not in used
 	PrometheusApiByEnvId(id int) (*string, error)
 
-	FetchDeploymentHistoryWithChartRefs(appId int, envId int) (interface{}, error)
+	FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error)
 	FetchPipelineOverrideValues(Id int) (string, error)
-	FetchLatestDeploymentWithChartRefs(appId int, envId int) (interface{}, error)
+	FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error)
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
@@ -71,24 +71,6 @@ type DeploymentStatus struct {
 	EnvId     int       `sql:"env_id"`
 	CreatedOn time.Time `sql:"created_on"`
 	UpdatedOn time.Time `sql:"updated_on"`
-}
-
-type BaseFields struct {
-	ChartId                  int    `sql:"chart_id"`
-	ChartVersion             string `sql:"chart_version"`
-	PipelineConfigOverrideId int    `sql:"pipeline_config_override_id"`
-}
-
-type DeployedOnSelfEnvironmentFields struct {
-	*BaseFields
-	StartedOn  time.Time `sql:"started_on"`
-	FinishedOn time.Time `sql:"finished_on"`
-	Status     string    `sql:"status"`
-}
-
-type DeployedOnOtherEnvironmentFields struct {
-	*BaseFields
-	EnvironmentId int `sql:"environment_id"`
 }
 
 type AppNameTypeIdContainerDBResponse struct {
@@ -652,9 +634,9 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 	}
 }
 
-func (impl AppListingRepositoryImpl) FetchDeploymentHistoryWithChartRefs(appId int, envId int) (interface{}, error) {
+func (impl AppListingRepositoryImpl) FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error) {
 
-	var result []*DeployedOnSelfEnvironmentFields
+	var result []*bean.FetchTemplateComparisonList
 
 	query := "SELECT pco.id as pipeline_config_override_id, wfr.started_on,   wfr.finished_on, wfr.status, ceco.chart_id, c.chart_version " +
 		"FROM cd_workflow_runner wfr JOIN cd_workflow wf ON wf.id = wfr.cd_workflow_id " +
@@ -671,9 +653,9 @@ func (impl AppListingRepositoryImpl) FetchDeploymentHistoryWithChartRefs(appId i
 	return result, err
 }
 
-func (impl AppListingRepositoryImpl) FetchLatestDeploymentWithChartRefs(appId int, envId int) (interface{}, error) {
+func (impl AppListingRepositoryImpl) FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error) {
 
-	var result []*DeployedOnOtherEnvironmentFields
+	var result []*bean.FetchTemplateComparisonList
 
 	query := "WITH ranked_rows AS ( SELECT p.environment_id, pco.id as pipeline_config_override_id, ceco.chart_id, " +
 		"c.chart_version, ROW_NUMBER() OVER (PARTITION BY p.environment_id ORDER BY pco.id DESC) AS row_num FROM pipeline p " +
