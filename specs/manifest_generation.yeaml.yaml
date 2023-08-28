@@ -1,0 +1,68 @@
+openapi: 3.0.3
+info:
+  title: App Deployment API
+  version: 1.0.0
+paths:
+  /orchestrator/app/deployments/{app-id}/{env-id}:
+    get:
+      summary: Fetch Deployment Template Comparison List
+      parameters:
+        - name: app-id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application.
+        - name: env-id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The ID of the environment.
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FetchTemplateComparisonList'
+components:
+  schemas:
+    FetchTemplateComparisonList:
+      type: object
+      properties:
+        chartId:
+          type: integer
+          description: The ID of the chart reference.
+        chartVersion:
+          type: string
+          description: The version of the chart.
+        chartType:
+          type: string
+          description: The type of the chart.
+        environmentId:
+          type: integer
+          description: The ID of the environment.
+        environmentName:
+          type: string
+          description: The name of the environment.
+        pipelineConfigOverrideId:
+          type: integer
+          description: The ID of the pipeline configuration override.
+        startedOn:
+          type: string
+          format: date-time
+          description: The timestamp when the deployment started.
+        finishedOn:
+          type: string
+          format: date-time
+          description: The timestamp when the deployment finished.
+        status:
+          type: string
+          description: The status of the deployment.
+        type:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: The type of deployment template.
