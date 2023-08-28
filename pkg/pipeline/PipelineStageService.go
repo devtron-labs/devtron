@@ -21,6 +21,11 @@ type PipelineStageService interface {
 	GetCiPipelineStageDataDeepCopy(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
 	GetCdPipelineStageDataDeepCopy(cdPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error)
 	GetCdPipelineStageDataDeepCopyForPipelineIds(cdPipelineIds []int) (map[int][]*bean.PipelineStageDto, error)
+
+	// DeletePipelineStageIfReq function is used to delete corrupted pipelineStage data
+	// , there was a bug(https://github.com/devtron-labs/devtron/issues/3826) where we were not deleting pipeline stage entry even after deleting all the pipelineStageSteps
+	// , this will delete those pipelineStage entry
+	DeletePipelineStageIfReq(stageReq *bean.PipelineStageDto, userId int32) (error, bool)
 }
 
 func NewPipelineStageService(logger *zap.SugaredLogger,
@@ -915,7 +920,20 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting stageId by pipelineId and stageType", "err", err, "pipelineId", pipelineId, "stageType", stageType)
 		return err
-	} else if err == pg.ErrNoRows {
+	}
+
+	//if stage is present with 0 stage steps, delete the stage and create new stage
+	createNewPipStage := false
+	if err == nil && stageOld != nil {
+		stageReq.Id = stageOld.Id
+		err, createNewPipStage = impl.DeletePipelineStageIfReq(stageReq, userId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting the corrupted pipeline stage", "err", err, "pipelineStageReq", stageReq)
+			return err
+		}
+	}
+
+	if err == pg.ErrNoRows || createNewPipStage {
 		//no stage found, creating new stage
 		stageReq.Id = 0
 		err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
@@ -946,6 +964,26 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 	return nil
 }
 
+// DeletePipelineStageIfReq function is used to delete corrupted pipelineStage data
+// , there was a bug (https://github.com/devtron-labs/devtron/issues/3826) where we were not deleting pipeline stage entry even after deleting all the pipelineStageSteps
+// , this will delete those pipelineStage entry
+func (impl *PipelineStageServiceImpl) DeletePipelineStageIfReq(stageReq *bean.PipelineStageDto, userId int32) (error, bool) {
+	steps, err := impl.pipelineStageRepository.GetAllStepsByStageId(stageReq.Id)
+	if err == pg.ErrNoRows {
+		err = impl.deletePipelineStageWithTx(stageReq, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating the corrupted pipeline stage", "err", err, "pipelineStageId", stageReq.Id)
+			return err, false
+		}
+	}
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline stage steps by pipelineStageId", "err", err, "pipelineStageID", stageReq.Id)
+		return err, false
+	}
+	return nil, len(steps) == 0
+}
+
+// deletePipelineStageWithTx transaction wrapper method around DeletePipelineStage method
 func (impl *PipelineStageServiceImpl) deletePipelineStageWithTx(stageReq *bean.PipelineStageDto, userId int32) error {
 	tx, err := impl.pipelineStageRepository.GetConnection().Begin()
 	if err != nil {

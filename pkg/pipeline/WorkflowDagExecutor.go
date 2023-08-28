@@ -367,7 +367,20 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipeline.Id, "err", err)
 		return err
 	}
-	if len(pipeline.PreStageConfig) > 0 || preStageStepType != nil {
+
+	deleted := false
+	if preStageStepType != nil {
+		stageReq := &bean3.PipelineStageDto{
+			Id: preStageStepType.Id,
+		}
+		err, deleted = impl.pipelineStageService.DeletePipelineStageIfReq(stageReq, triggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error in deleting the corrupted pipeline stage", "err", err, "pipelineStageReq", stageReq)
+			return err
+		}
+	}
+
+	if len(pipeline.PreStageConfig) > 0 || (preStageStepType != nil && !deleted) {
 		// pre stage exists
 		if pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
