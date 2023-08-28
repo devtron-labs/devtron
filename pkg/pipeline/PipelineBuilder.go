@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/devtron-labs/devtron/pkg"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -231,6 +232,7 @@ type PipelineBuilderImpl struct {
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
 	imageTaggingService                             ImageTaggingService
+	customTagService                                pkg.CustomTagService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -285,7 +287,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	chartDeploymentService util.ChartDeploymentService,
 	K8sUtil *util4.K8sUtil,
 	attributesRepository repository.AttributesRepository,
-	imageTaggingService ImageTaggingService) *PipelineBuilderImpl {
+	imageTaggingService ImageTaggingService,
+	customTagService pkg.CustomTagService) *PipelineBuilderImpl {
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {
@@ -354,6 +357,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		attributesRepository:                            attributesRepository,
 		securityConfig:                                  securityConfig,
 		imageTaggingService:                             imageTaggingService,
+		customTagService:                                customTagService,
 	}
 }
 
@@ -4151,10 +4155,14 @@ func (impl *PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 	}
-	if pipeline.CustomTagObject != nil {
+	customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	if err != nil {
+		return nil, err
+	}
+	if customTag.Id != 0 {
 		ciPipeline.CustomTagObject = &bean.CustomTagData{
-			TagPattern: pipeline.CustomTagObject.CustomTagFormat,
-			CounterX:   pipeline.CustomTagObject.AutoIncreasingNumber,
+			TagPattern: customTag.TagPattern,
+			CounterX:   customTag.AutoIncreasingNumber,
 		}
 	}
 	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipelineId)
