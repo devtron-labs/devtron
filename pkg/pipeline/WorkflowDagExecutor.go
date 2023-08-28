@@ -373,7 +373,8 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 	deleted := false
 	if preStageStepType != nil {
 		stageReq := &bean3.PipelineStageDto{
-			Id: preStageStepType.Id,
+			Id:   preStageStepType.Id,
+			Type: preStageStepType.Type,
 		}
 		err, deleted = impl.pipelineStageService.DeletePipelineStageIfReq(stageReq, triggeredBy)
 		if err != nil {
@@ -1140,7 +1141,8 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 	deleted := false
 	if postStageStepType != nil {
 		stageReq := &bean3.PipelineStageDto{
-			Id: postStageStepType.Id,
+			Id:   postStageStepType.Id,
+			Type: postStageStepType.Type,
 		}
 		err, deleted = impl.pipelineStageService.DeletePipelineStageIfReq(stageReq, triggeredByUser)
 		if err != nil {
