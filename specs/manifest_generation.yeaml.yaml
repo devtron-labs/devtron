@@ -109,7 +109,6 @@ components:
         - chartRefId
         - getValues
         - type
-        - values
     ValuesAndManifestResponse:
       type: object
       properties:
