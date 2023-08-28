@@ -64,7 +64,7 @@ func (impl *ImageTagRepositoryImpl) DeleteByEntityKeyAndValue(entityKey int, ent
 func (impl *ImageTagRepositoryImpl) FetchCustomTagData(entityType int, entityValue string) (*CustomTag, error) {
 	var customTagData CustomTag
 	err := impl.dbConnection.Model(&customTagData).
-		Where("entity_type = ?", entityType).
+		Where("entity_key = ?", entityType).
 		Where("entity_value = ?", entityValue).Select()
 	return &customTagData, err
 }
