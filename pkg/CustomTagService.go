@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	EntityTypeCiPipelineId = iota
+	EntityNull = iota
+	EntityTypeCiPipelineId
 )
 
 const (
