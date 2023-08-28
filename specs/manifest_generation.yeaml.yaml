@@ -28,6 +28,22 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FetchTemplateComparisonList'
+  /orchestrator/app/deployment/template/data:
+    post:
+      summary: Get Values and Manifest for Deployment Template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentTemplateRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValuesAndManifestResponse'
 components:
   schemas:
     FetchTemplateComparisonList:
@@ -66,3 +82,37 @@ components:
           type: integer
           enum: [1, 2, 3, 4]
           description: The type of deployment template.
+    DeploymentTemplateRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: The ID of the application.
+        chartRefId:
+          type: integer
+          description: The ID of the chart reference.
+        getValues:
+          type: boolean
+          description: Whether to include values in the response.
+        type:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: The type of deployment template.
+        values:
+          type: boolean
+          description: Whether to include values in the response.
+        pipelineConfigOverrideId:
+          type: integer
+          description: The ID of the pipeline configuration override.
+      required:
+        - appId
+        - chartRefId
+        - getValues
+        - type
+        - values
+    ValuesAndManifestResponse:
+      type: object
+      properties:
+        data:
+          type: string
+          description: The values and manifest data for the deployment template.
