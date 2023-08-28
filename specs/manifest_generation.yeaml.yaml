@@ -115,4 +115,4 @@ components:
       properties:
         data:
           type: string
-          description: The values and manifest data for the deployment template.
+          description: The values or manifest data for the deployment template.
