@@ -923,6 +923,7 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 	}
 
 	//if stage is present with 0 stage steps, delete the stage and create new stage
+	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
 	createNewPipStage := false
 	if err == nil && stageOld != nil {
 		stageReq.Id = stageOld.Id

@@ -368,6 +368,8 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 		return err
 	}
 
+	//if stage is present with 0 stage steps, delete the stage
+	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
 	deleted := false
 	if preStageStepType != nil {
 		stageReq := &bean3.PipelineStageDto{
