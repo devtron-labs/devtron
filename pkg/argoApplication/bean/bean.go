@@ -31,6 +31,7 @@ type ArgoApplicationListDto struct {
 type ArgoApplicationDetailDto struct {
 	*ArgoApplicationListDto
 	ResourceTree *client.ResourceTreeResponse `json:"resourceTree"`
+	Manifest     map[string]interface{}       `json:"manifest"`
 }
 
 type ArgoManagedResource struct {

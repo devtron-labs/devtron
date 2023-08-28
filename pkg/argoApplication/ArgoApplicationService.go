@@ -125,6 +125,7 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 	}
 	var argoManagedResources []*bean.ArgoManagedResource
 	if resp != nil && resp.Manifest.Object != nil {
+		appDetail.Manifest = resp.Manifest.Object
 		appDetail.HealthStatus, appDetail.SyncStatus, argoManagedResources =
 			getHealthSyncStatusAndManagedResourcesForArgoK8sRawObject(resp.Manifest.Object)
 	}
