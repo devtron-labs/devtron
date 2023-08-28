@@ -557,13 +557,6 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
 			return nil, err
 		}
-	} else {
-		// create build history for chart on default component deployed via helm
-		err = impl.appStoreDeploymentService.UpdateInstallAppVersionHistory(installedAppVersion)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
-		}
 	}
 
 	return installedAppVersion, nil
