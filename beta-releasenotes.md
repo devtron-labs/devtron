@@ -1,4 +1,5 @@
 ## Bugs
+- fix: External cm and secret in jobs not getting added as env variable in container (#3815)
 - fix: pre-cd pod not getting scheduled when node affinity is not present in external cluster. (#3806)
 - fix: k8s permission and chart-group permission not getting deleted from orchestrator (#3824)
 - fix: added missing audit logs while deleting cd pipeline (#3822)
