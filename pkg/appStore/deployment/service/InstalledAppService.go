@@ -1095,7 +1095,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}
 
-		if detail != nil {
+		if detail != nil && detail.ReleaseExist {
 			resourceTree = util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ApplicationStatus
 			appDetailsContainer.Notes = detail.ChartMetadata.Notes
@@ -1111,10 +1111,14 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 					impl.logger.Errorw("error in unmarshalling helm release install status")
 				}
 				if !helmInstallStatus.IsReleaseInstalled {
-					releaseStatus.Status = "Release Install Failed"
+					releaseStatus.Status = "Failed"
 					releaseStatus.Description = helmInstallStatus.Message
 					releaseStatus.Message = "Release for this app doesn't exist"
 				}
+			} else {
+				releaseStatus.Status = "Unknown"
+				releaseStatus.Description = "Release not found"
+				releaseStatus.Message = "Release not found "
 			}
 			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
 			appDetailsContainer.ReleaseStatus = releaseStatusMap

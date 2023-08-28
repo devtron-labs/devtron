@@ -76,6 +76,7 @@ message AppDetail{
   ChartMetadata chartMetadata = 7;
   ResourceTreeResponse resourceTreeResponse = 8;
   EnvironmentDetails environmentDetails = 9;
+  bool ReleaseExist = 10;
 }
 
 message AppStatus{
