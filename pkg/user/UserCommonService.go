@@ -258,20 +258,12 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 								impl.logger.Errorw("Error in fetching roles by filter", "roleFilter", roleFilter)
 								return nil, err
 							}
-							oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true)
-							if err != nil {
-								return nil, err
-							}
-							if roleModel.Id == 0 && oldRoleModel.Id == 0 {
+							if roleModel.Id == 0 {
 								impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
 								continue
 							}
 							if _, ok := existingRoleIds[roleModel.Id]; ok {
 								delete(eliminatedRoleIds, roleModel.Id)
-							}
-							if _, ok := existingRoleIds[oldRoleModel.Id]; ok {
-								//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
-								delete(existingRoleIds, oldRoleModel.Id)
 							}
 						}
 					}
@@ -321,7 +313,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 					if _, ok := existingRoleIds[roleModel.Id]; ok {
 						delete(eliminatedRoleIds, roleModel.Id)
 					}
-					if _, ok := existingRoleIds[oldRoleModel.Id]; ok {
+					isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
+					if _, ok := existingRoleIds[oldRoleModel.Id]; ok && !isChartGroupEntity {
 						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
 						delete(existingRoleIds, oldRoleModel.Id)
 					}
