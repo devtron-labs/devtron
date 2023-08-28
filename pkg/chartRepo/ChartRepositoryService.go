@@ -70,6 +70,7 @@ type ChartRepositoryService interface {
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error)
 	GetChartRepoListMin() ([]*ChartRepoDto, error)
+	ValidateDeploymentCount(request *ChartRepoDto) error
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
@@ -161,20 +162,24 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in saving chart repo in DB", "err", err)
 		return nil, err
 	}
 
 	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
+		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
 		return nil, err
 	}
 	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err)
 		return nil, err
 	}
 
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
+		impl.logger.Errorw("error in creating kubernetes client", "err", err)
 		return nil, err
 	}
 
@@ -201,6 +206,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		}
 	}
 	if !updateSuccess {
+		impl.logger.Errorw("error in creating secret for chart repository", "err", err)
 		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 	err = tx.Commit()
@@ -209,6 +215,19 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	}
 
 	return chartRepo, nil
+}
+
+func (impl *ChartRepositoryServiceImpl) ValidateDeploymentCount(request *ChartRepoDto) error {
+	activeDeploymentCount, err := impl.repoRepository.FindDeploymentCountByChartRepoId(request.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment count, CheckDeploymentCount", "err", err, "payload", request)
+		return err
+	}
+	if activeDeploymentCount > 0 {
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update, found charts deployed using this repo"}
+		return err
+	}
+	return err
 }
 
 func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
