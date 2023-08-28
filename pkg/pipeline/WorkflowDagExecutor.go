@@ -1134,12 +1134,27 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 		return err
 	}
 
-	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 || postStageStepType != nil {
+	var triggeredByUser int32 = 1
+	//if stage is present with 0 stage steps, delete the stage
+	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	deleted := false
+	if postStageStepType != nil {
+		stageReq := &bean3.PipelineStageDto{
+			Id: postStageStepType.Id,
+		}
+		err, deleted = impl.pipelineStageService.DeletePipelineStageIfReq(stageReq, triggeredByUser)
+		if err != nil {
+			impl.logger.Errorw("error in deleting the corrupted pipeline stage", "err", err, "pipelineStageReq", stageReq)
+			return err
+		}
+	}
+
+	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 || (postStageStepType != nil && !deleted) {
 		if pipelineOverride.Pipeline.PostTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_STOP &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_START {
 
-			err = impl.TriggerPostStage(cdWorkflow, pipelineOverride.Pipeline, 1)
+			err = impl.TriggerPostStage(cdWorkflow, pipelineOverride.Pipeline, triggeredByUser)
 			if err != nil {
 				impl.logger.Errorw("error in triggering post stage after successful deployment event", "err", err, "cdWorkflow", cdWorkflow)
 				return err
