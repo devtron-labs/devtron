@@ -880,7 +880,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 					AccessToken:   gitMaterial.GitProvider.AccessToken,
 					AuthMode:      gitMaterial.GitProvider.AuthMode,
 				},
-				IsShallowCloningPossible: IsShallowClonePossible(m, impl.cdConfig.GitProviders, impl.cdConfig.CloningMode),
+			}
+			if IsShallowClonePossible(m, impl.cdConfig.GitProviders, impl.cdConfig.CloningMode) {
+				ciProjectDetail.CloningMode = CloningModeShallow
 			}
 
 			if len(ciMaterialCurrent.Modifications) > 0 {
