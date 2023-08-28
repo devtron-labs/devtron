@@ -128,7 +128,6 @@ ingress:
       paths:
         - /example2
         - /example2/healthz
-      additionalBackends: []
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
@@ -153,7 +152,6 @@ ingressInternal:
       paths:
         - /example2
         - /example2/healthz
-      additionalBackends: []
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
