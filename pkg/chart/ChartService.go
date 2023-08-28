@@ -96,6 +96,12 @@ type ChartUpgradeRequest struct {
 	UserId     int32 `json:"-"`
 }
 
+type ChartRefChangeRequest struct {
+	AppId            int `json:"appId" validate:"required"`
+	EnvId            int `json:"envId" validate:"required"`
+	TargetChartRefId int `json:"targetChartRefId" validate:"required"`
+}
+
 type PipelineConfigRequest struct {
 	Id                   int             `json:"id"  validate:"number"`
 	AppId                int             `json:"appId,omitempty"  validate:"number,required"`
@@ -130,8 +136,8 @@ type ChartService interface {
 	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error)
 	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateRequest, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
-	ChartRefAutocomplete() ([]chartRef, error)
-	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error)
+	ChartRefAutocomplete() ([]ChartRef, error)
+	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*ChartRefResponse, error)
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
@@ -148,6 +154,9 @@ type ChartService interface {
 	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
 	CheckCustomChartByChartId(id int) (bool, error)
+	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
+	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
+	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -211,6 +220,48 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		client:                           client,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 	}
+}
+
+func (impl ChartServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string) {
+	oldChart, err := impl.chartRefRepository.FindById(oldChartRefId)
+	if err != nil {
+		return false, "", ""
+	}
+	newChart, err := impl.chartRefRepository.FindById(newChartRefId)
+	if err != nil {
+		return false, "", ""
+	}
+	if len(oldChart.Name) == 0 {
+		oldChart.Name = RolloutChartType
+	}
+	if len(newChart.Name) == 0 {
+		newChart.Name = RolloutChartType
+	}
+	return CheckCompatibility(oldChart.Name, newChart.Name), oldChart.Name, newChart.Name
+}
+
+func (impl ChartServiceImpl) FlaggerCanaryEnabled(values json.RawMessage) (bool, error) {
+	var jsonMap map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(values), &jsonMap); err != nil {
+		return false, err
+	}
+
+	flaggerCanary, found := jsonMap["flaggerCanary"]
+	if !found {
+		return false, nil
+	}
+	var flaggerCanaryUnmarshalled map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(flaggerCanary), &flaggerCanaryUnmarshalled); err != nil {
+		return false, err
+	}
+	enabled, found := flaggerCanaryUnmarshalled["enabled"]
+	if !found {
+		return true, fmt.Errorf("flagger canary enabled field must be set and be equal to false")
+	}
+	return string(enabled) == "true", nil
+}
+func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error) {
+	return PatchWinterSoldierConfig(values, newChartType)
 }
 
 func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {
@@ -888,6 +939,31 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	return templateRequest, nil
 }
 
+func (impl ChartServiceImpl) handleChartTypeChange(currentLatestChart *chartRepoRepository.Chart, templateRequest *TemplateRequest) (json.RawMessage, error) {
+	var oldChartRef, newChartRef *chartRepoRepository.ChartRef
+	var err error
+	if oldChartRef, err = impl.chartRefRepository.FindById(currentLatestChart.ChartRefId); err != nil {
+		return nil, fmt.Errorf("chartRef not found for %v", currentLatestChart.ChartRefId)
+	}
+	if newChartRef, err = impl.chartRefRepository.FindById(templateRequest.ChartRefId); err != nil {
+		return nil, fmt.Errorf("chartRef not found for %v", templateRequest.ChartRefId)
+	}
+	if len(oldChartRef.Name) == 0 {
+		oldChartRef.Name = RolloutChartType
+	}
+	if len(newChartRef.Name) == 0 {
+		oldChartRef.Name = RolloutChartType
+	}
+	if !CheckCompatibility(oldChartRef.Name, newChartRef.Name) {
+		return nil, fmt.Errorf("charts are not compatible")
+	}
+	updatedOverride, err := PatchWinterSoldierConfig(templateRequest.ValuesOverride, newChartRef.Name)
+	if err != nil {
+		return nil, err
+	}
+	return updatedOverride, nil
+}
+
 func (impl ChartServiceImpl) updateAppLevelMetrics(appMetricRequest *AppMetricEnableDisableRequest) (*repository3.AppLevelMetrics, error) {
 	existingAppLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appMetricRequest.AppId)
 	if err != nil && err != pg.ErrNoRows {
@@ -959,7 +1035,7 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 	return isReady, nil
 }
 
-type chartRef struct {
+type ChartRef struct {
 	Id                    int    `json:"id"`
 	Version               string `json:"version"`
 	Name                  string `json:"name"`
@@ -972,12 +1048,13 @@ type ChartRefMetaData struct {
 	ChartDescription string `json:"chartDescription"`
 }
 
-type chartRefResponse struct {
-	ChartRefs         []chartRef                  `json:"chartRefs"`
-	LatestChartRef    int                         `json:"latestChartRef"`
-	LatestAppChartRef int                         `json:"latestAppChartRef"`
-	LatestEnvChartRef int                         `json:"latestEnvChartRef,omitempty"`
-	ChartsMetadata    map[string]ChartRefMetaData `json:"chartMetadata"` // chartName vs Metadata
+type ChartRefResponse struct {
+	ChartRefs            []ChartRef                  `json:"chartRefs"`
+	LatestChartRef       int                         `json:"latestChartRef"`
+	LatestAppChartRef    int                         `json:"latestAppChartRef"`
+	LatestEnvChartRef    int                         `json:"latestEnvChartRef,omitempty"`
+	ChartsMetadata       map[string]ChartRefMetaData `json:"chartMetadata"` // chartName vs Metadata
+	CompatibleChartTypes []string                    `json:"compatibleChartTypes,omitempty"`
 }
 
 type ChartYamlStruct struct {
@@ -1001,8 +1078,8 @@ type ChartDto struct {
 	Version          string `json:"version"`
 }
 
-func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
-	var chartRefs []chartRef
+func (impl ChartServiceImpl) ChartRefAutocomplete() ([]ChartRef, error) {
+	var chartRefs []ChartRef
 	results, err := impl.chartRefRepository.GetAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart config", "err", err)
@@ -1010,7 +1087,7 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 	}
 
 	for _, result := range results {
-		chartRefs = append(chartRefs, chartRef{
+		chartRefs = append(chartRefs, ChartRef{
 			Id:                    result.Id,
 			Version:               result.Version,
 			Description:           result.ChartDescription,
@@ -1022,11 +1099,11 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 	return chartRefs, nil
 }
 
-func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error) {
-	chartRefResponse := &chartRefResponse{
+func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*ChartRefResponse, error) {
+	chartRefResponse := &ChartRefResponse{
 		ChartsMetadata: make(map[string]ChartRefMetaData),
 	}
-	var chartRefs []chartRef
+	var chartRefs []ChartRef
 
 	results, err := impl.chartRefRepository.GetAll()
 	if err != nil {
@@ -1050,7 +1127,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 		if len(result.Name) == 0 {
 			result.Name = "Rollout Deployment"
 		}
-		chartRefs = append(chartRefs, chartRef{
+		chartRefs = append(chartRefs, ChartRef{
 			Id:                    result.Id,
 			Version:               result.Version,
 			Name:                  result.Name,
