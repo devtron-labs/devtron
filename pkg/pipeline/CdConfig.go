@@ -74,6 +74,8 @@ type CdConfig struct {
 	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	InAppLoggingEnabled              bool                                `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
 	TerminationGracePeriod           int                                 `env:"TERMINATION_GRACE_PERIOD_SECS" envDefault:"180"`
+	CloningMode                      string                              `env:"CLONING_MODE" envDefault:"SHALLOW"`
+	GitProviders                     string                              `env:"GIT_PROVIDERS" envDefault:"github,gitlab"`
 }
 
 func GetCdConfig() (*CdConfig, error) {

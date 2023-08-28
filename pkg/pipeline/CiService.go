@@ -51,7 +51,11 @@ import (
 	"go.uber.org/zap"
 )
 
-const MandatoryPluginCiTriggerBlockError = "ci trigger request blocked, mandatory plugins not configured"
+const (
+	MandatoryPluginCiTriggerBlockError = "ci trigger request blocked, mandatory plugins not configured"
+	CloningModeShallow                 = "SHALLOW"
+	CloningModeFull                    = "FULL"
+)
 
 type CiService interface {
 	TriggerCiPipeline(trigger Trigger) (int, error)
@@ -428,6 +432,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			continue
 		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
+
 		ciProjectDetail := CiProjectDetails{
 			GitRepository:   ciMaterial.GitMaterial.Url,
 			MaterialName:    ciMaterial.GitMaterial.Name,
@@ -448,6 +453,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 				AccessToken:   ciMaterial.GitMaterial.GitProvider.AccessToken,
 				AuthMode:      ciMaterial.GitMaterial.GitProvider.AuthMode,
 			},
+		}
+		if IsShallowClonePossible(ciMaterial, impl.ciConfig.GitProviders, impl.ciConfig.CloningMode) {
+			ciProjectDetail.CloningMode = CloningModeShallow
 		}
 
 		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {

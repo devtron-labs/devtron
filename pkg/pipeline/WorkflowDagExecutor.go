@@ -881,6 +881,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 					AuthMode:      gitMaterial.GitProvider.AuthMode,
 				},
 			}
+			if IsShallowClonePossible(m, impl.cdConfig.GitProviders, impl.cdConfig.CloningMode) {
+				ciProjectDetail.CloningMode = CloningModeShallow
+			}
 
 			if len(ciMaterialCurrent.Modifications) > 0 {
 				ciProjectDetail.CommitHash = ciMaterialCurrent.Modifications[0].Revision
