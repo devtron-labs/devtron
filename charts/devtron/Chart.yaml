@@ -1,6 +1,6 @@
 apiVersion: v2
 name: devtron-operator
-appVersion: 0.6.20
+appVersion: 0.6.21
 description: Chart to configure and install Devtron. Devtron is a Kubernetes Orchestration system.
 keywords:
   - Devtron
@@ -11,7 +11,7 @@ keywords:
   - argocd
   - Hyperion
 engine: gotpl
-version: 0.22.59
+version: 0.22.60
 sources:
   - https://github.com/devtron-labs/charts
 dependencies:
