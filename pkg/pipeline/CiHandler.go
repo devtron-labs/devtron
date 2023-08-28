@@ -507,7 +507,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 		}
 		if w.Message == pkg.ImageTagUnavailableMessage {
 			customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(w.CiPipelineId))
-			if err != nil {
+			if err != nil && err != pg.ErrNoRows {
 				return nil, err
 			}
 			wfResponse.CustomTag = &bean2.CustomTagErrorResponse{

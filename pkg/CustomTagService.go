@@ -51,7 +51,7 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 		Metadata:             tag.Metadata,
 	}
 	oldTagObject, err := impl.customTagRepository.FetchCustomTagData(customTagData.EntityKey, customTagData.EntityValue)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		return err
 	}
 	if oldTagObject.Id == 0 {
