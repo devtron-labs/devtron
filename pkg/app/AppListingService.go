@@ -111,6 +111,7 @@ type ValuesAndManifestRequest struct {
 	EnvId                    int                         `json:"envId,omitempty"`
 	ChartRefId               int                         `json:"chartRefId"`
 	GetValues                bool                        `json:"getValues"`
+	Values                   string                      `json:"values"`
 	Type                     bean.DeploymentTemplateType `json:"type"`
 	PipelineConfigOverrideId int                         `json:"pipelineConfigOverrideId,omitempty"`
 }
@@ -1778,27 +1779,31 @@ func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, requ
 	var values string
 	var err error
 
-	switch request.Type {
-	case bean.DefaultVersions:
-		_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
-		if err != nil {
-			impl.Logger.Errorw("err", err)
-			return result, err
-		}
-	case bean.PublishedOnEnvironments:
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(request.AppId)
-		if chart != nil && chart.Id > 0 {
-			values = chart.GlobalOverride
-		}
-		if err != nil {
-			impl.Logger.Errorw("err", err)
-			return result, err
-		}
-	case bean.DeployedOnSelfEnvironment, bean.DeployedOnOtherEnvironment:
-		values, err = impl.appListingRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
-		if err != nil {
-			impl.Logger.Errorw("err", err)
-			return result, err
+	if request.Values != "" {
+		values = request.Values
+	} else {
+		switch request.Type {
+		case bean.DefaultVersions:
+			_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
+			if err != nil {
+				impl.Logger.Errorw("err", err)
+				return result, err
+			}
+		case bean.PublishedOnEnvironments:
+			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(request.AppId)
+			if chart != nil && chart.Id > 0 {
+				values = chart.GlobalOverride
+			}
+			if err != nil {
+				impl.Logger.Errorw("err", err)
+				return result, err
+			}
+		case bean.DeployedOnSelfEnvironment, bean.DeployedOnOtherEnvironment:
+			values, err = impl.appListingRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
+			if err != nil {
+				impl.Logger.Errorw("err", err)
+				return result, err
+			}
 		}
 	}
 
