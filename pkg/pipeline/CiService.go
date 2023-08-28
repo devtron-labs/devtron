@@ -24,6 +24,7 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg"
 	"github.com/devtron-labs/devtron/pkg/app"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -70,15 +71,8 @@ type CiServiceImpl struct {
 	appCrudOperationService       app.AppCrudOperationService
 	envRepository                 repository1.EnvironmentRepository
 	appRepository                 appRepository.AppRepository
+	customTagService              pkg.CustomTagService
 }
-
-var (
-	ErrImagePathUnavailable = fmt.Errorf("image path tag is reserved/reserved")
-)
-
-const (
-	ImageTagUnavailableMessage = "Desired image tag already exists"
-)
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -87,6 +81,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
+	customTagService pkg.CustomTagService,
 	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
@@ -105,6 +100,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		appCrudOperationService:       appCrudOperationService,
 		envRepository:                 envRepository,
 		appRepository:                 appRepository,
+		customTagService:              customTagService,
 	}
 }
 
@@ -460,21 +456,23 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	var dockerImageTag string
-	if pipeline.CustomTagObject != nil {
-		customTagObjectLatest, err := impl.ciPipelineRepository.IncrementCustomTagCounter(pipeline.CustomTagObject.Id)
+	customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	if err != nil {
+		return nil, err
+	}
+	if customTag.Id == 0 {
+		imagePathReservation, err := impl.customTagService.GenerateImagePath(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository)
 		if err != nil {
+			if errors.Is(err, pkg.ErrImagePathInUse) {
+				savedWf.Status = pipelineConfig.WorkflowFailed
+				savedWf.Message = pkg.ImageTagUnavailableMessage
+				return nil, impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+			}
 			return nil, err
 		}
-		err = validateCustomTagFormat(dockerImageTag)
-		if err != nil {
-			return nil, err
-		}
-		pipeline.CustomTagObject = customTagObjectLatest
-		dockerImageTag = strings.ReplaceAll(customTagObjectLatest.CustomTagFormat, "{x}", strconv.Itoa(customTagObjectLatest.AutoIncreasingNumber-1)) //-1 because number is already incremented, current value will be used next time
-		err = ValidateTag(dockerImageTag)
-		if err != nil {
-			return nil, err
-		}
+		savedWf.ImagePathReservationId = imagePathReservation.Id
+		//imagePath = docker.io/avd0/dashboard:fd23414b
+		dockerImageTag = strings.Split(imagePathReservation.ImagePath, ":")[1]
 	} else {
 		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	}
@@ -780,18 +778,7 @@ func (impl *CiServiceImpl) updateCiWorkflow(request *WorkflowRequest, savedWf *p
 	ciBuildConfig := request.CiBuildConfig
 	ciBuildType := string(ciBuildConfig.CiBuildType)
 	savedWf.CiBuildType = ciBuildType
-	savedWf.TargetImageLocation = request.DockerRegistryURL + "/" + request.DockerRepository + ":" + request.DockerImageTag
-	tagUsedStatuses := []string{pipelineConfig.WorkflowSucceeded}
-	tagReleasedStatuses := []string{pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowAborted, string(v1alpha1.NodeError)}
-	err := impl.ciWorkflowRepository.UpdateWorkFlowWithValidation(savedWf, func(tx *pg.Tx) error {
-		return impl.CanTargetImagePathBeReused(savedWf.TargetImageLocation, tagReleasedStatuses, tagUsedStatuses, tx)
-	})
-	if err == ErrImagePathUnavailable {
-		savedWf.Status = pipelineConfig.WorkflowFailed
-		savedWf.Message = ImageTagUnavailableMessage
-		return impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-	}
-	return nil
+	return impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 }
 
 func _getTruncatedImageTag(imageTag string) string {
@@ -807,30 +794,4 @@ func _getTruncatedImageTag(imageTag string) string {
 	} else {
 		return imageTag[:_truncatedLength]
 	}
-}
-
-func (impl *CiServiceImpl) CanTargetImagePathBeReused(targetImageURL string, tagUsedStatuses []string, tagReleasedStatuses []string, tx *pg.Tx) error {
-	allWfs, err := impl.ciWorkflowRepository.FindWorkFlowsByTargetImage(targetImageURL, tx)
-	if err != nil && err != pg.ErrNoRows {
-		return err
-	}
-	for _, wf := range allWfs {
-		if arrayContains(tagUsedStatuses, wf.Status) {
-			return ErrImagePathUnavailable
-		} else if arrayContains(tagReleasedStatuses, wf.Status) {
-			continue
-		} else {
-			return ErrImagePathUnavailable
-		}
-	}
-	return nil
-}
-
-func arrayContains(arr []string, str string) bool {
-	for _, s := range arr {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }

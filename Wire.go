@@ -75,6 +75,7 @@ import (
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
+	"github.com/devtron-labs/devtron/pkg"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appClone"
@@ -244,6 +245,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
 		bulkAction.NewBulkUpdateServiceImpl,
 		wire.Bind(new(bulkAction.BulkUpdateService), new(*bulkAction.BulkUpdateServiceImpl)),
+
+		repository.NewImageTagRepository,
+		wire.Bind(new(repository.ImageTagRepository), new(*repository.ImageTagRepositoryImpl)),
+
+		pkg.NewCustomTagService,
+		wire.Bind(new(pkg.CustomTagService), new(*pkg.CustomTagServiceImpl)),
 
 		repository.NewGitProviderRepositoryImpl,
 		wire.Bind(new(repository.GitProviderRepository), new(*repository.GitProviderRepositoryImpl)),

@@ -26,10 +26,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
@@ -110,6 +112,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	configMapService              ConfigMapService
 	genericNoteService            genericNotes.GenericNoteService
+	customTagService              pkg.CustomTagService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -135,6 +138,7 @@ func NewCiCdPipelineOrchestrator(
 	ciTemplateService CiTemplateService,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	configMapService ConfigMapService,
+	customTagService pkg.CustomTagService,
 	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
@@ -161,6 +165,7 @@ func NewCiCdPipelineOrchestrator(
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		configMapService:              configMapService,
 		genericNoteService:            genericNoteService,
+		customTagService:              customTagService,
 	}
 }
 
@@ -255,35 +260,24 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 
 	if createRequest.CustomTagObject != nil {
-		err := validateCustomTagFormat(createRequest.CustomTagObject.TagPattern)
+		customTag := bean4.CustomTag{
+			EntityKey:            pkg.EntityTypeCiPipelineId,
+			EntityValue:          strconv.Itoa(ciPipelineObject.Id),
+			TagPattern:           createRequest.CustomTagObject.TagPattern,
+			AutoIncreasingNumber: createRequest.CustomTagObject.CounterX,
+		}
+		err = impl.customTagService.CreateOrUpdateCustomTag(&customTag)
 		if err != nil {
 			return nil, err
 		}
-		if oldPipeline.CustomTagObject != nil {
-			ciPipelineObject.CustomTagObject = oldPipeline.CustomTagObject
-			ciPipelineObject.CustomTagObject.CustomTagFormat = createRequest.CustomTagObject.TagPattern
-			ciPipelineObject.CustomTagObject.AutoIncreasingNumber = createRequest.CustomTagObject.CounterX
-			err := impl.ciPipelineRepository.UpdateCustomTag(ciPipelineObject.CustomTagObject, tx)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			ciPipelineObject.CustomTagObject = &pipelineConfig.CustomTagObject{
-				CiPipelineId:         oldPipeline.Id,
-				CustomTagFormat:      createRequest.CustomTagObject.TagPattern,
-				AutoIncreasingNumber: createRequest.CustomTagObject.CounterX,
-			}
-			err = impl.ciPipelineRepository.InsertCustomTag(ciPipelineObject.CustomTagObject, tx)
-			if err != nil {
-				return nil, err
-			}
-		}
 	} else {
-		if oldPipeline.CustomTagObject != nil {
-			err := impl.ciPipelineRepository.DeleteCustomTag(oldPipeline.CustomTagObject, tx)
-			if err != nil {
-				return nil, err
-			}
+		customTag := bean4.CustomTag{
+			EntityKey:   pkg.EntityTypeCiPipelineId,
+			EntityValue: strconv.Itoa(ciPipelineObject.Id),
+		}
+		err := impl.customTagService.DeleteCustomTagIfExists(customTag)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -700,16 +694,13 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 
 		if ciPipeline.CustomTagObject != nil {
-			err = validateCustomTagFormat(ciPipeline.CustomTagObject.TagPattern)
-			if err != nil {
-				return nil, err
-			}
-			ciPipelineObject.CustomTagObject = &pipelineConfig.CustomTagObject{
-				CiPipelineId:         ciPipeline.Id,
-				CustomTagFormat:      ciPipeline.CustomTagObject.TagPattern,
+			customTag := &bean4.CustomTag{
+				EntityKey:            pkg.EntityTypeCiPipelineId,
+				EntityValue:          strconv.Itoa(ciPipeline.Id),
+				TagPattern:           ciPipeline.CustomTagObject.TagPattern,
 				AutoIncreasingNumber: ciPipeline.CustomTagObject.CounterX,
 			}
-			err := impl.ciPipelineRepository.InsertCustomTag(ciPipelineObject.CustomTagObject, tx)
+			err := impl.customTagService.CreateOrUpdateCustomTag(customTag)
 			if err != nil {
 				return nil, err
 			}
@@ -880,34 +871,6 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 	}
 	return createRequest, nil
-}
-
-func ValidateTag(imageTag string) error {
-	if len(imageTag) == 0 || len(imageTag) > 128 {
-		return fmt.Errorf("image tag should be of len 1-128 only, imageTag: %s", imageTag)
-	}
-	allowedSymbols := ".abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ-0987654321"
-	allowedCharSet := make(map[int32]struct{})
-	for _, c := range allowedSymbols {
-		allowedCharSet[c] = struct{}{}
-	}
-	firstChar := imageTag[0:1]
-	if firstChar == "." || firstChar == "-" {
-		fmt.Errorf("image tag can not start with a period or a hyphen, imageTag: %s", imageTag)
-	}
-	return nil
-}
-
-func validateCustomTagFormat(customTagPattern string) error {
-	allowedVariables := []string{"{x}", "{X}"}
-	totalX := 0
-	for _, variable := range allowedVariables {
-		totalX += strings.Count(customTagPattern, variable)
-	}
-	if totalX != 1 {
-		return fmt.Errorf("variable {x} is allowed exactly once")
-	}
-	return nil
 }
 
 func (impl CiCdPipelineOrchestratorImpl) BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript {

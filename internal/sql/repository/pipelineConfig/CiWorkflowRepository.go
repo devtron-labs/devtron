@@ -43,8 +43,6 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
-	FindWorkFlowsByTargetImage(targetImage string, tx *pg.Tx) ([]*CiWorkflow, error)
-	UpdateWorkFlowWithValidation(wf *CiWorkflow, fn func(tx *pg.Tx) error) error
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -53,52 +51,52 @@ type CiWorkflowRepositoryImpl struct {
 }
 
 type CiWorkflow struct {
-	tableName           struct{}          `sql:"ci_workflow" pg:",discard_unknown_columns"`
-	Id                  int               `sql:"id,pk"`
-	Name                string            `sql:"name"`
-	Status              string            `sql:"status"`
-	PodStatus           string            `sql:"pod_status"`
-	Message             string            `sql:"message"`
-	StartedOn           time.Time         `sql:"started_on"`
-	FinishedOn          time.Time         `sql:"finished_on"`
-	CiPipelineId        int               `sql:"ci_pipeline_id"`
-	Namespace           string            `sql:"namespace"`
-	BlobStorageEnabled  bool              `sql:"blob_storage_enabled,notnull"`
-	LogLocation         string            `sql:"log_file_path"`
-	GitTriggers         map[int]GitCommit `sql:"git_triggers"`
-	TriggeredBy         int32             `sql:"triggered_by"`
-	CiArtifactLocation  string            `sql:"ci_artifact_location"`
-	PodName             string            `sql:"pod_name"`
-	CiBuildType         string            `sql:"ci_build_type"`
-	EnvironmentId       int               `sql:"environment_id"`
-	TargetImageLocation string            `sql:"target_image_location"`
-	CiPipeline          *CiPipeline
+	tableName              struct{}          `sql:"ci_workflow" pg:",discard_unknown_columns"`
+	Id                     int               `sql:"id,pk"`
+	Name                   string            `sql:"name"`
+	Status                 string            `sql:"status"`
+	PodStatus              string            `sql:"pod_status"`
+	Message                string            `sql:"message"`
+	StartedOn              time.Time         `sql:"started_on"`
+	FinishedOn             time.Time         `sql:"finished_on"`
+	CiPipelineId           int               `sql:"ci_pipeline_id"`
+	Namespace              string            `sql:"namespace"`
+	BlobStorageEnabled     bool              `sql:"blob_storage_enabled,notnull"`
+	LogLocation            string            `sql:"log_file_path"`
+	GitTriggers            map[int]GitCommit `sql:"git_triggers"`
+	TriggeredBy            int32             `sql:"triggered_by"`
+	CiArtifactLocation     string            `sql:"ci_artifact_location"`
+	PodName                string            `sql:"pod_name"`
+	CiBuildType            string            `sql:"ci_build_type"`
+	EnvironmentId          int               `sql:"environment_id"`
+	ImagePathReservationId int               `sql:"image_path_reservation_id"`
+	CiPipeline             *CiPipeline
 }
 
 type WorkflowWithArtifact struct {
-	Id                  int               `json:"id"`
-	Name                string            `json:"name"`
-	PodName             string            `json:"podName"`
-	Status              string            `json:"status"`
-	PodStatus           string            `json:"pod_status"`
-	Message             string            `json:"message"`
-	StartedOn           time.Time         `json:"started_on"`
-	FinishedOn          time.Time         `json:"finished_on"`
-	CiPipelineId        int               `json:"ci_pipeline_id"`
-	Namespace           string            `json:"namespace"`
-	LogFilePath         string            `json:"log_file_path"`
-	GitTriggers         map[int]GitCommit `json:"git_triggers"`
-	TriggeredBy         int32             `json:"triggered_by"`
-	EmailId             string            `json:"email_id"`
-	Image               string            `json:"image"`
-	CiArtifactLocation  string            `json:"ci_artifact_location"`
-	CiArtifactId        int               `json:"ci_artifact_d"`
-	BlobStorageEnabled  bool              `json:"blobStorageEnabled"`
-	CiBuildType         string            `json:"ci_build_type"`
-	IsArtifactUploaded  bool              `json:"is_artifact_uploaded"`
-	EnvironmentId       int               `json:"environmentId"`
-	EnvironmentName     string            `json:"environmentName"`
-	TargetImageLocation string            `json:"targetImageLocation"`
+	Id                     int               `json:"id"`
+	Name                   string            `json:"name"`
+	PodName                string            `json:"podName"`
+	Status                 string            `json:"status"`
+	PodStatus              string            `json:"pod_status"`
+	Message                string            `json:"message"`
+	StartedOn              time.Time         `json:"started_on"`
+	FinishedOn             time.Time         `json:"finished_on"`
+	CiPipelineId           int               `json:"ci_pipeline_id"`
+	Namespace              string            `json:"namespace"`
+	LogFilePath            string            `json:"log_file_path"`
+	GitTriggers            map[int]GitCommit `json:"git_triggers"`
+	TriggeredBy            int32             `json:"triggered_by"`
+	EmailId                string            `json:"email_id"`
+	Image                  string            `json:"image"`
+	CiArtifactLocation     string            `json:"ci_artifact_location"`
+	CiArtifactId           int               `json:"ci_artifact_d"`
+	BlobStorageEnabled     bool              `json:"blobStorageEnabled"`
+	CiBuildType            string            `json:"ci_build_type"`
+	IsArtifactUploaded     bool              `json:"is_artifact_uploaded"`
+	EnvironmentId          int               `json:"environmentId"`
+	EnvironmentName        string            `json:"environmentName"`
+	ImagePathReservationId int               `json:"image_path_reservation_id"`
 }
 
 type GitCommit struct {
@@ -146,15 +144,6 @@ func NewCiWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger)
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
-}
-
-func (impl *CiWorkflowRepositoryImpl) FindWorkFlowsByTargetImage(targetImage string, tx *pg.Tx) ([]*CiWorkflow, error) {
-	var ciWorkFlows []*CiWorkflow
-	err := tx.Model(&ciWorkFlows).
-		Column("ci_workflow.*").
-		Where("ci_workflow.target_image_location = ?", targetImage).
-		Select()
-	return ciWorkFlows, err
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflow(pipelineId int) (ciWorkflow *CiWorkflow, err error) {
@@ -229,28 +218,6 @@ func (impl *CiWorkflowRepositoryImpl) FindConfigByPipelineId(pipelineId int) (*C
 func (impl *CiWorkflowRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
 	err := impl.dbConnection.Insert(wf)
 	return err
-}
-
-func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlowWithValidation(wf *CiWorkflow, fn func(tx *pg.Tx) error) error {
-	connection := impl.dbConnection
-	tx, err := connection.Begin()
-	defer tx.Rollback()
-	if err != nil {
-		return err
-	}
-	err = fn(tx)
-	if err != nil {
-		return err
-	}
-	err = tx.Update(wf)
-	if err != nil {
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {

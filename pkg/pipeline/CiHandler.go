@@ -28,6 +28,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+	"github.com/devtron-labs/devtron/pkg"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -104,9 +105,10 @@ type CiHandlerImpl struct {
 	appGroupService              appGroup2.AppGroupService
 	envRepository                repository3.EnvironmentRepository
 	imageTaggingService          ImageTaggingService
+	customTagService             pkg.CustomTagService
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, customTagService pkg.CustomTagService) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -128,6 +130,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		appGroupService:              appGroupService,
 		envRepository:                envRepository,
 		imageTaggingService:          imageTaggingService,
+		customTagService:             customTagService,
 	}
 }
 
@@ -157,7 +160,7 @@ type WorkflowResponse struct {
 	EnvironmentName      string                                      `json:"environmentName"`
 	ImageReleaseTags     []*repository2.ImageTag                     `json:"imageReleaseTags"`
 	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
-	CustomTag            *bean.CustomTagData                         `json:"customTag,omitempty"`
+	CustomTag            *bean2.CustomTagErrorResponse               `json:"customTag,omitempty"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -502,14 +505,15 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			EnvironmentId:      w.EnvironmentId,
 			EnvironmentName:    w.EnvironmentName,
 		}
-		if w.Message == ImageTagUnavailableMessage {
-			customTag, err := impl.ciPipelineRepository.GetCustomTagByCiPipelineId(w.CiPipelineId)
+		if w.Message == pkg.ImageTagUnavailableMessage {
+			customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(w.CiPipelineId))
 			if err != nil {
 				return nil, err
 			}
-			wfResponse.CustomTag = &bean.CustomTagData{
-				TagPattern: customTag.CustomTagFormat,
-				CounterX:   customTag.AutoIncreasingNumber,
+			wfResponse.CustomTag = &bean2.CustomTagErrorResponse{
+				TagPattern:           customTag.TagPattern,
+				AutoIncreasingNumber: customTag.AutoIncreasingNumber,
+				Message:              pkg.ImageTagUnavailableMessage,
 			}
 		}
 		if imageTagsDataMap[w.CiArtifactId] != nil {

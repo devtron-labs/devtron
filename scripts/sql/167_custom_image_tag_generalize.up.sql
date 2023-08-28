@@ -1,8 +1,11 @@
 ALTER TABLE custom_tag
-    ADD COLUMN entity_key varchar(30);
+    ADD COLUMN entity_key int;
 ALTER TABLE custom_tag
     ADD COLUMN entity_value varchar(100);
 
+CREATE INDEX IF NOT EXISTS entity_key_value ON custom_tag (entity_key, entity_value);
+
 ALTER TABLE custom_tag
-    ADD COLUMN metadata jsonb;
+     ADD CONSTRAINT constraint_name UNIQUE (entity_key, entity_value)
+
 

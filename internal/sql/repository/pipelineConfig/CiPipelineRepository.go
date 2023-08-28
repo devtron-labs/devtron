@@ -47,15 +47,6 @@ type CiPipeline struct {
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
-	CustomTagObject     *CustomTagObject
-}
-
-type CustomTagObject struct {
-	tableName            struct{} `sql:"custom_tag" pg:",discard_unknown_columns"`
-	Id                   int      `sql:"id,pk""`
-	CiPipelineId         int      `sql:"ci_pipeline_id" pg:",discard_unknown_columns"`
-	CustomTagFormat      string   `sql:"custom_tag_format" pg:",discard_unknown_columns"`
-	AutoIncreasingNumber int      `sql:"auto_increasing_number" pg:",discard_unknown_columns"`
 }
 
 type CiEnvMapping struct {
@@ -131,12 +122,6 @@ type CiPipelineRepository interface {
 	FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error)
 	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
-
-	GetCustomTagByCiPipelineId(ciPipelineId int) (*CustomTagObject, error)
-	InsertCustomTag(customTagObject *CustomTagObject, tx *pg.Tx) error
-	UpdateCustomTag(customTagObject *CustomTagObject, tx *pg.Tx) error
-	DeleteCustomTag(customTagObject *CustomTagObject, tx *pg.Tx) error
-	IncrementCustomTagCounter(customTagObjectId int) (*CustomTagObject, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -148,14 +133,6 @@ func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger)
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
-}
-
-func (impl CiPipelineRepositoryImpl) GetCustomTagByCiPipelineId(ciPipelineId int) (*CustomTagObject, error) {
-	var customTag CustomTagObject
-	err := impl.dbConnection.Model(&customTag).
-		Where("ci_pipeline_id = ?", ciPipelineId).
-		Select()
-	return &customTag, err
 }
 
 func (impl CiPipelineRepositoryImpl) FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error) {
@@ -217,28 +194,6 @@ func (impl CiPipelineRepositoryImpl) MarkCiPipelineScriptsInactiveByCiPipelineId
 
 	}
 	return nil
-}
-
-func (impl CiPipelineRepositoryImpl) InsertCustomTag(customTagObject *CustomTagObject, tx *pg.Tx) error {
-	return tx.Insert(customTagObject)
-}
-
-func (impl CiPipelineRepositoryImpl) DeleteCustomTag(customTagObject *CustomTagObject, tx *pg.Tx) error {
-	return tx.Delete(customTagObject)
-}
-
-func (impl CiPipelineRepositoryImpl) UpdateCustomTag(customTagObject *CustomTagObject, tx *pg.Tx) error {
-	return tx.Update(customTagObject)
-}
-
-func (impl CiPipelineRepositoryImpl) IncrementCustomTagCounter(customTagObjectId int) (*CustomTagObject, error) {
-	customTagObject := &CustomTagObject{}
-	query := `update custom_tag set auto_increasing_number=auto_increasing_number+1 where id=? returning id, ci_pipeline_id, custom_tag_format, auto_increasing_number`
-	_, err := impl.dbConnection.Query(customTagObject, query, customTagObjectId)
-	if err != nil {
-		return nil, err
-	}
-	return customTagObject, nil
 }
 
 func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipeline, err error) {
@@ -327,7 +282,7 @@ func (impl CiPipelineRepositoryImpl) SaveCiPipelineScript(ciPipelineScript *CiPi
 func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{Id: id}
 	err = impl.dbConnection.Model(pipeline).
-		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial", "CustomTagObject").
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").
 		Where("ci_pipeline.id= ?", id).
 		Where("ci_pipeline.deleted =? ", false).
 		Select()
