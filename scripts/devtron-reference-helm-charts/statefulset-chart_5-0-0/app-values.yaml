@@ -41,7 +41,6 @@ statefulSetConfig:
   annotations: {}
   serviceheadless: 
     enabled: false
-    #name: "test-service_headless"
 
   #serviceName: "test-service_headless"
   #revisionHistoryLimit: 3
