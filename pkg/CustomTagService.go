@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -126,6 +127,9 @@ func validateAndConstructTag(customTagData *repository.CustomTag) (string, error
 	if err != nil {
 		return "", err
 	}
+	if customTagData.AutoIncreasingNumber < 0 {
+		return "", fmt.Errorf("counter {x} can not be negative")
+	}
 	dockerImageTag := strings.ReplaceAll(customTagData.TagPattern, "{x}", strconv.Itoa(customTagData.AutoIncreasingNumber-1)) //-1 because number is already incremented, current value will be used next time
 	err = validateTag(dockerImageTag)
 	if err != nil {
@@ -142,6 +146,15 @@ func validateTagPattern(customTagPattern string) error {
 	}
 	if totalX != 1 {
 		return fmt.Errorf("variable {x} is allowed exactly once")
+	}
+	regex := "^([A-Za-z0-9{x}{X}]?)[A-Za-z0-9.-{x}{X}]*[A-Za-z0-9_{x}{X}]$"
+	matched, err := regexp.MatchString(regex, customTagPattern)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return fmt.Errorf("could not match the pattern against allowed regex")
+	}
+	if !matched {
+		return fmt.Errorf("allowed: Alphanumeric characters, including (_) (.) (-) but cannot begin or end with (.) or (-)")
 	}
 	return nil
 }
