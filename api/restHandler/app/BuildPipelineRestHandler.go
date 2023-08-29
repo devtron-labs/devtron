@@ -1073,6 +1073,9 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineByPipelineId(w http.Re
 			response.WriteResponse(http.StatusBadRequest, "please send valid pipelineId", w, errors.New("pipelineId id invalid"))
 			return
 		}
+	} else {
+		response.WriteResponse(http.StatusBadRequest, "please send valid pipelineId", w, errors.New("pipelineId id invalid"))
+		return
 	}
 
 	handler.Logger.Infow("request payload, GetCIPipelineByPipelineId", "pipelineId", pipelineId)
@@ -1093,7 +1096,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineByPipelineId(w http.Re
 	ciPipeline.AppName = app.AppName
 	ciPipeline.AppType = app.AppType
 
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(app.Id)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
