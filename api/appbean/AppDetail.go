@@ -9,12 +9,12 @@ import (
 
 type AppDetail struct {
 	Metadata                 *AppMetadata                    `json:"metadata,notnull" validate:"dive,required"`
-	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull"`
-	DockerConfig             *DockerConfig                   `json:"dockerConfig"`
-	GlobalDeploymentTemplate *DeploymentTemplate             `json:"globalDeploymentTemplate,notnull"`
+	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull" validate:"dive"`
+	DockerConfig             *DockerConfig                   `json:"dockerConfig" validate:"dive"`
+	GlobalDeploymentTemplate *DeploymentTemplate             `json:"globalDeploymentTemplate,notnull" validate:"dive"`
 	AppWorkflows             []*AppWorkflow                  `json:"workflows,omitempty" validate:"dive"`
-	GlobalConfigMaps         []*ConfigMap                    `json:"globalConfigMaps"`
-	GlobalSecrets            []*Secret                       `json:"globalSecrets"`
+	GlobalConfigMaps         []*ConfigMap                    `json:"globalConfigMaps,omitempty" validate:"dive"`
+	GlobalSecrets            []*Secret                       `json:"globalSecrets,omitempty" validate:"dive"`
 	EnvironmentOverrides     map[string]*EnvironmentOverride `json:"environmentOverride,omitempty" validate:"dive"`
 }
 
