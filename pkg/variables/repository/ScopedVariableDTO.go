@@ -45,3 +45,9 @@ var IdentifiersList = []IdentifierType{ApplicationName, EnvName, ClusterName}
 type VariableValue struct {
 	Value interface{} `json:"value" validate:"required"`
 }
+
+type Scope struct {
+	AppId     int `json:"appId"`
+	EnvId     int `json:"env_id"`
+	ClusterId int `json:"clusterId"`
+}

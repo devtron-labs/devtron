@@ -94,7 +94,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	return configResp, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(scope variables.Scope, entity repository6.Entity) (map[string]string, error) {
+func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(scope repository6.Scope, entity repository6.Entity) (map[string]string, error) {
 
 	variableMap := make(map[string]string)
 	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
@@ -144,7 +144,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 				impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 				return nil, err
 			}
-			scope := variables.Scope{
+			scope := repository6.Scope{
 				AppId:     pipeline.AppId,
 				EnvId:     envOverride.Environment.Id,
 				ClusterId: envOverride.Environment.ClusterId,
@@ -180,7 +180,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 			return nil, err
 		}
-		scope := variables.Scope{
+		scope := repository6.Scope{
 			AppId:     pipeline.AppId,
 			EnvId:     envOverride.Environment.Id,
 			ClusterId: envOverride.Environment.ClusterId,

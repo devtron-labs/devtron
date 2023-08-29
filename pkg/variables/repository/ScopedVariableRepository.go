@@ -43,13 +43,17 @@ type VariableData struct {
 	sql.AuditLog
 }
 
+type Qualifier int
+
 const (
-	APP_AND_ENV_QUALIFIER = 1
-	APP_QUALIFIER         = 2
-	ENV_QUALIFIER         = 3
-	CLUSTER_QUALIFIER     = 4
-	GLOBAL_QUALIFIER      = 5
+	APP_AND_ENV_QUALIFIER Qualifier = 1
+	APP_QUALIFIER         Qualifier = 2
+	ENV_QUALIFIER         Qualifier = 3
+	CLUSTER_QUALIFIER     Qualifier = 4
+	GLOBAL_QUALIFIER      Qualifier = 5
 )
+
+var CompoundQualifiers = []Qualifier{APP_AND_ENV_QUALIFIER}
 
 type ScopedVariableRepository interface {
 	//transaction util funcs
@@ -61,7 +65,7 @@ type ScopedVariableRepository interface {
 	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)
 	GetVariablesByNames(vars []string) ([]*VariableDefinition, error)
 	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
-	GetScopedVariableData(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
+	GetScopedVariableData(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
 	DeleteVariables() error
 }
@@ -141,7 +145,7 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableScopeAndDefinition() ([]
 	return variableDefinition, err
 
 }
-func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(appId, envId, clusterId int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error) {
+func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error) {
 	var variableScopes []*VariableScope
 	query := impl.dbConnection.Model(&variableScopes).
 		Where("active = ?", true).
@@ -151,10 +155,10 @@ func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(appId, envId, cl
 				"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
 				"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
 				"OR (qualifier_id = ?)",
-			searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId, APP_AND_ENV_QUALIFIER,
-			APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], appId,
-			ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId,
-			CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], clusterId,
+			searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId, APP_AND_ENV_QUALIFIER,
+			APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId,
+			ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId,
+			CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], scope.ClusterId,
 			GLOBAL_QUALIFIER,
 		)
 

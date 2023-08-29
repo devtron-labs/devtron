@@ -15,6 +15,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 )
 
@@ -111,7 +112,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 			return
 		}
 	}
-	var scope variables.Scope
+	var scope repository.Scope
 	scopeQueryParam := r.URL.Query().Get("scope")
 	if scopeQueryParam != "" {
 		if err := json.Unmarshal([]byte(scopeQueryParam), &scope); err != nil {
@@ -135,10 +136,10 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if scope.AppId == 0 && scope.EnvId == 0 && scope.ClusterId == 0 {
-		http.Error(w, "scope is empty", http.StatusBadRequest)
-		return
-	}
+	//if scope.AppId == 0 && scope.EnvId == 0 && scope.ClusterId == 0 {
+	//	http.Error(w, "scope is empty", http.StatusBadRequest)
+	//	return
+	//}
 	var scopedVariableData []*variables.ScopedVariableData
 
 	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil)
@@ -182,14 +183,26 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 	}
 	common.WriteJsonResp(w, nil, jsonResponse, http.StatusOK)
 }
-
-func validateVariableScopeRequest(payload repository.Payload) error {
-
-	if payload.SpecVersion != "v1" {
-		return fmt.Errorf("invalid or no spec version specified. Please use v1")
+func getIdentifierType(attribute repository.AttributeType) []repository.IdentifierType {
+	switch attribute {
+	case repository.ApplicationEnv:
+		return []repository.IdentifierType{repository.ApplicationName, repository.EnvName}
+	case repository.Application:
+		return []repository.IdentifierType{repository.ApplicationName}
+	case repository.Env:
+		return []repository.IdentifierType{repository.EnvName}
+	case repository.Cluster:
+		return []repository.IdentifierType{repository.ClusterName}
+	default:
+		return nil
 	}
-
+}
+func validateVariableScopeRequest(payload repository.Payload) error {
+	variableNamesList := make([]string, 0)
 	for _, variable := range payload.Variables {
+		if slices.Contains(variableNamesList, variable.Definition.VarName) {
+			return fmt.Errorf("duplicate variable name")
+		}
 		exp := `^[a-zA-Z0-9_-]{1,64}$`
 		rExp := regexp.MustCompile(exp)
 		if !rExp.MatchString(variable.Definition.VarName) {
@@ -201,9 +214,17 @@ func validateVariableScopeRequest(payload repository.Payload) error {
 			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '-' {
 			return fmt.Errorf("invalid variable name")
 		}
-
+		variableNamesList = append(variableNamesList, variable.Definition.VarName)
+		uniqueVariableMap := make(map[string]interface{})
 		for _, attributeValue := range variable.AttributeValues {
+			validIdentifierTypeList := getIdentifierType(attributeValue.AttributeType)
+			if len(validIdentifierTypeList) != len(attributeValue.AttributeParams) {
+				return fmt.Errorf("length of AttributeParams is not valid")
+			}
 			for key, _ := range attributeValue.AttributeParams {
+				if !slices.Contains(validIdentifierTypeList, key) {
+					return fmt.Errorf("invalid IdentifierType %s for validIdentifierTypeList %s", key, validIdentifierTypeList)
+				}
 				match := false
 				for _, identifier := range repository.IdentifiersList {
 					if identifier == key {
@@ -214,6 +235,14 @@ func validateVariableScopeRequest(payload repository.Payload) error {
 					return fmt.Errorf("invalid identifier key %s for variable %s", key, variable.Definition.VarName)
 				}
 			}
+			identifierString := fmt.Sprintf("%s-%s", variable.Definition.VarName, string(attributeValue.AttributeType))
+			for _, key := range validIdentifierTypeList {
+				identifierString = fmt.Sprintf("%s-%s", identifierString, attributeValue.AttributeParams[key])
+			}
+			if _, ok := uniqueVariableMap[identifierString]; ok {
+				return fmt.Errorf("duplicate AttributeParams found for AttributeType %v", attributeValue.AttributeType)
+			}
+			uniqueVariableMap[identifierString] = attributeValue.VariableValue.Value
 		}
 	}
 	return nil

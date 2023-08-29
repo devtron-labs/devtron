@@ -1259,7 +1259,7 @@ func (impl *AppServiceImpl) GetDeploymentStrategyByTriggerType(overrideRequest *
 func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
 
 	//VARIABLE different cases for variable resolution
-	scope := variables.Scope{
+	scope := repository6.Scope{
 		AppId:     overrideRequest.AppId,
 		EnvId:     overrideRequest.EnvId,
 		ClusterId: overrideRequest.ClusterId,
@@ -1433,7 +1433,7 @@ func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHi
 	return resolvedTemplate, variableSnapshotMap, nil
 }
 
-func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope variables.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
+func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope repository6.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
 
 	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
 	if err != nil {
