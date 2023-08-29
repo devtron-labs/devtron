@@ -78,7 +78,7 @@ type AppWorkflow struct {
 
 type CiPipelineDetails struct {
 	Name                      string                      `json:"name" validate:"required"` //name suffix of corresponding pipeline
-	IsManual                  bool                        `json:"isManual" validate:"required"`
+	IsManual                  bool                        `json:"isManual"`
 	CiPipelineMaterialsConfig []*CiPipelineMaterialConfig `json:"ciPipelineMaterialsConfig" validate:"dive,min=1"`
 	DockerBuildArgs           map[string]string           `json:"dockerBuildArgs"`
 	BeforeDockerBuildScripts  []*BuildScript              `json:"beforeDockerBuildScripts"`
