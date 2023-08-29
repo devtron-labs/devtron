@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"io"
@@ -42,16 +43,23 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 		if err != nil {
 			log.Printf("AUDIT_LOG: user does not exists")
 		}
-		body, err := io.ReadAll(r.Body)
+
+		// Read the request body into a buffer
+		var bodyBuffer bytes.Buffer
+		_, err = io.Copy(&bodyBuffer, r.Body)
 		if err != nil {
 			log.Printf("AUDIT_LOG: error reading request body for urlPath: %s queryParams: %s userEmail: %s", r.URL.Path, r.URL.Query().Encode(), userEmail)
 		}
+
+		// Restore the request body for downstream handlers
+		r.Body = io.NopCloser(&bodyBuffer)
+
 		auditLogDto := &AuditLoggerDTO{
 			UrlPath:        r.URL.Path,
 			UserEmail:      userEmail,
 			UpdatedOn:      time.Now(),
 			QueryParams:    r.URL.Query().Encode(),
-			RequestPayload: body,
+			RequestPayload: bodyBuffer.Bytes(),
 		}
 		// Call the next handler in the chain.
 		next.ServeHTTP(d, r)
