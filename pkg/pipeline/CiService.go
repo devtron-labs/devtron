@@ -466,7 +466,16 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			if errors.Is(err, pkg.ErrImagePathInUse) {
 				savedWf.Status = pipelineConfig.WorkflowFailed
 				savedWf.Message = pkg.ImageTagUnavailableMessage
-				impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+				go func() {
+					err := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+					if err != nil {
+						impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+					}
+					err = impl.customTagService.DeactivateImagePathReservation(imagePathReservation.Id)
+					if err != nil {
+						impl.Logger.Errorw("could not clear the image path reservation")
+					}
+				}()
 				return nil, err
 			}
 			return nil, err

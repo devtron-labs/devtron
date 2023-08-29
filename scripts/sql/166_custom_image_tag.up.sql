@@ -11,7 +11,7 @@ CREATE TABLE "public"."custom_tag"
 CREATE INDEX IF NOT EXISTS entity_key_value ON custom_tag (entity_key, entity_value);
 
 ALTER TABLE custom_tag
-    ADD CONSTRAINT unique_entity_key_entity_value UNIQUE (entity_key, entity_value)
+    ADD CONSTRAINT unique_entity_key_entity_value UNIQUE (entity_key, entity_value);
 
 
 CREATE TABLE IF not exists "public"."image_path_reservation"
@@ -28,4 +28,4 @@ CREATE INDEX IF NOT EXISTS image_path_index ON image_path_reservation (image_pat
 ALTER TABLE ci_workflow
     ADD column IF NOT EXISTS image_path_reservation_id int;
 ALTER TABLE ci_workflow
-    ADD CONSTRAINT fk_image_path_reservation_id FOREIGN KEY (image_path_reservation_id) REFERENCES image_path (id)
+    ADD CONSTRAINT fk_image_path_reservation_id FOREIGN KEY (image_path_reservation_id) REFERENCES image_path (id);
