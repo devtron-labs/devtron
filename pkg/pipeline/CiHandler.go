@@ -511,10 +511,6 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 				//err == pg.ErrNoRows should never happen
 				return nil, err
 			}
-			err = impl.customTagService.DeactivateImagePathReservation(w.ImagePathReservationId)
-			if err != nil {
-				return nil, err
-			}
 			wfResponse.CustomTag = &bean2.CustomTagErrorResponse{
 				TagPattern:           customTag.TagPattern,
 				AutoIncreasingNumber: customTag.AutoIncreasingNumber,
