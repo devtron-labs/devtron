@@ -2100,7 +2100,9 @@ func (handler CoreAppRestHandlerImpl) validateCdPipelines(cdPipelines []*appBean
 		if err != nil || envModel == nil {
 			return fmt.Errorf("invalid environment name %s for cd pipeline", envName), http.StatusBadRequest
 		}
-
+		if envModel.IsVirtualEnvironment {
+			return fmt.Errorf("virtual environment '%s' for cd pipeline is not supported yet", envName), http.StatusUnprocessableEntity
+		}
 		// validation RBAC starts
 		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, envModel.Id)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
