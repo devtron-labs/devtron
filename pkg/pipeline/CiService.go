@@ -456,7 +456,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	var dockerImageTag string
-	customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
@@ -466,11 +466,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			if errors.Is(err, pkg.ErrImagePathInUse) {
 				savedWf.Status = pipelineConfig.WorkflowFailed
 				savedWf.Message = pkg.ImageTagUnavailableMessage
+				err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+				if err != nil {
+					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+					return nil, err
+				}
 				go func() {
-					err := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-					if err != nil {
-						impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
-					}
 					err = impl.customTagService.DeactivateImagePathReservation(imagePathReservation.Id)
 					if err != nil {
 						impl.Logger.Errorw("could not clear the image path reservation")

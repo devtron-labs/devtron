@@ -27,6 +27,7 @@ var (
 type CustomTagService interface {
 	CreateOrUpdateCustomTag(tag *bean.CustomTag) error
 	GetCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error)
+	GetActiveCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error)
 	GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error)
 	DeleteCustomTagIfExists(tag bean.CustomTag) error
 	DeactivateImagePathReservation(id int) error
@@ -55,6 +56,7 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 		TagPattern:           strings.ReplaceAll(tag.TagPattern, "{X}", "{x}"),
 		AutoIncreasingNumber: tag.AutoIncreasingNumber,
 		Metadata:             tag.Metadata,
+		Active:               true,
 	}
 	oldTagObject, err := impl.customTagRepository.FetchCustomTagData(customTagData.EntityKey, customTagData.EntityValue)
 	if err != nil && err != pg.ErrNoRows {
@@ -64,6 +66,7 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 		return impl.customTagRepository.CreateImageTag(&customTagData)
 	} else {
 		customTagData.Id = oldTagObject.Id
+		customTagData.Active = true
 		return impl.customTagRepository.UpdateImageTag(&customTagData)
 	}
 }
@@ -74,6 +77,10 @@ func (impl *CustomTagServiceImpl) DeleteCustomTagIfExists(tag bean.CustomTag) er
 
 func (impl *CustomTagServiceImpl) GetCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error) {
 	return impl.customTagRepository.FetchCustomTagData(entityKey, entityValue)
+}
+
+func (impl *CustomTagServiceImpl) GetActiveCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error) {
+	return impl.customTagRepository.FetchActiveCustomTagData(entityKey, entityValue)
 }
 
 func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error) {

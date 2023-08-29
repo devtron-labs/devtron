@@ -12,6 +12,7 @@ type CustomTag struct {
 	EntityValue          string   `sql:"entity_value"`
 	TagPattern           string   `sql:"tag_pattern"`
 	AutoIncreasingNumber int      `sql:"auto_increasing_number"`
+	Active               bool     `sql:"active"`
 	Metadata             string   `sql:"metadata"`
 }
 
@@ -33,6 +34,7 @@ type ImageTagRepository interface {
 	UpdateImageTag(customTag *CustomTag) error
 	DeleteByEntityKeyAndValue(entityKey int, entityValue string) error
 	DeactivateImagePathReservation(id int) error
+	FetchActiveCustomTagData(entityKey int, entityValue string) (*CustomTag, error)
 }
 
 type ImageTagRepositoryImpl struct {
@@ -57,7 +59,7 @@ func (impl *ImageTagRepositoryImpl) UpdateImageTag(customTag *CustomTag) error {
 }
 
 func (impl *ImageTagRepositoryImpl) DeleteByEntityKeyAndValue(entityKey int, entityValue string) error {
-	query := `delete from table custom_tag where entity_key = ? and entity_value = ?`
+	query := `update custom_tag set active = false where entity_key = ? and entity_value = ?`
 	_, err := impl.dbConnection.Exec(query, entityKey, entityValue)
 	return err
 }
@@ -76,10 +78,19 @@ func (impl *ImageTagRepositoryImpl) FetchCustomTagData(entityType int, entityVal
 	return &customTagData, err
 }
 
+func (impl *ImageTagRepositoryImpl) FetchActiveCustomTagData(entityType int, entityValue string) (*CustomTag, error) {
+	var customTagData CustomTag
+	err := impl.dbConnection.Model(&customTagData).
+		Where("entity_key = ?", entityType).
+		Where("entity_value = ?", entityValue).
+		Where("active = ?", true).Select()
+	return &customTagData, err
+}
+
 func (impl *ImageTagRepositoryImpl) IncrementAndFetchByEntityKeyAndValue(tx *pg.Tx, entityKey int, entityValue string) (*CustomTag, error) {
 	var customTag CustomTag
-	query := `update custom_tag set auto_increasing_number=auto_increasing_number+1 where entity_key=? and entity_value=? returning id, tag_pattern, auto_increasing_number, entity_key, entity_value`
-	_, err := tx.Query(&customTag, query, entityKey, entityValue)
+	query := `update custom_tag set auto_increasing_number=auto_increasing_number+1 where entity_key=? and entity_value=? and active = ? returning id, tag_pattern, auto_increasing_number, entity_key, entity_value`
+	_, err := tx.Query(&customTag, query, entityKey, entityValue, true)
 	return &customTag, err
 }
 

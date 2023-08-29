@@ -4155,7 +4155,7 @@ func (impl *PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 	}
-	customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}

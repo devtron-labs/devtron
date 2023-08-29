@@ -27,6 +27,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/pkg"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
@@ -106,9 +107,10 @@ type CiHandlerImpl struct {
 	envRepository                repository3.EnvironmentRepository
 	imageTaggingService          ImageTaggingService
 	customTagService             pkg.CustomTagService
+	appWorkflowRepository        appWorkflow.AppWorkflowRepository
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, customTagService pkg.CustomTagService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, customTagService pkg.CustomTagService, appWorkflowRepository appWorkflow.AppWorkflowRepository) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -131,6 +133,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		envRepository:                envRepository,
 		imageTaggingService:          imageTaggingService,
 		customTagService:             customTagService,
+		appWorkflowRepository:        appWorkflowRepository,
 	}
 }
 
@@ -160,6 +163,7 @@ type WorkflowResponse struct {
 	EnvironmentName      string                                      `json:"environmentName"`
 	ImageReleaseTags     []*repository2.ImageTag                     `json:"imageReleaseTags"`
 	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
+	AppWorkflowId        int                                         `json:"appWorkflowId"`
 	CustomTag            *bean2.CustomTagErrorResponse               `json:"customTag,omitempty"`
 }
 
@@ -511,6 +515,11 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 				//err == pg.ErrNoRows should never happen
 				return nil, err
 			}
+			appWorkflows, err := impl.appWorkflowRepository.FindWFCIMappingByCIPipelineId(w.CiPipelineId)
+			if err != nil && err != pg.ErrNoRows {
+				return nil, err
+			}
+			wfResponse.AppWorkflowId = appWorkflows[0].AppWorkflowId //it is guaranteed there will always be 1 entry (in case of ci_pipeline_id)
 			wfResponse.CustomTag = &bean2.CustomTagErrorResponse{
 				TagPattern:           customTag.TagPattern,
 				AutoIncreasingNumber: customTag.AutoIncreasingNumber,
