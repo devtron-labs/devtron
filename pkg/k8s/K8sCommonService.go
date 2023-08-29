@@ -380,13 +380,22 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 					continue
 				}
 				for _, portItem := range portList {
-					if portItem.(map[string]interface{}) != nil {
-						portNumbers, ok := portItem.(map[string]interface{})[Port]
+					portItems, ok := portItem.(map[string]interface{})
+					if !ok {
+						impl.logger.Warnw("portItems not found in resource tree, unable to extract port no")
+						continue
+					}
+					if portItems != nil {
+						portNumbers, ok := portItems[Port]
 						if !ok {
 							impl.logger.Warnw("ports number found in resource tree, unable to extract port no")
 							continue
 						}
-						portNumber := portNumbers.(int64)
+						portNumber, ok := portNumbers.(int64)
+						if !ok {
+							impl.logger.Warnw("portNumber(int64) not found in resource tree, unable to extract port no")
+							continue
+						}
 						if portNumber != 0 {
 							portsService = append(portsService, portNumber)
 						}
@@ -433,7 +442,11 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 								continue
 							}
 							if portsIfObj != nil {
-								port := portsIfObj[Port].(int64)
+								port, ok := portsIfObj[Port].(int64)
+								if !ok {
+									impl.logger.Warnw("port not found in resource tree, unable to extract port no")
+									continue
+								}
 								portsEndpoint = append(portsEndpoint, port)
 							}
 						}
@@ -459,7 +472,11 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 						impl.logger.Warnw("endPointsSlicePorts not found in resource tree endpoint, unable to extract port no")
 						continue
 					}
-					portNumber := portNumbers.(int64)
+					portNumber, ok := portNumbers.(int64)
+					if !ok {
+						impl.logger.Warnw("portNumber(int64) not found in resource tree endpoint, unable to extract port no")
+						continue
+					}
 					if portNumber != 0 {
 						portEndpointSlice = append(portEndpointSlice, portNumber)
 					}
@@ -468,9 +485,17 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 		}
 	}
 	if val, ok := resourceTree[Nodes]; ok {
-		resourceTreeVal := val.([]interface{})
+		resourceTreeVal, ok := val.([]interface{})
+		if !ok {
+			impl.logger.Warnw("resourceTreeVal not found in resourceTree, unable to extract port no")
+			return resourceTree
+		}
 		for _, val := range resourceTreeVal {
-			value := val.(map[string]interface{})
+			value, ok := val.(map[string]interface{})
+			if !ok {
+				impl.logger.Warnw("value not found in resourceTreeVal, unable to extract port no")
+				continue
+			}
 			for key, _type := range value {
 				if key == Kind && _type == EndpointsKind {
 					value[Port] = portsEndpoint
