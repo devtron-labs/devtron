@@ -1,15 +1,31 @@
-
-ALTER TABLE ci_workflow
-    ADD COLUMN IF NOT EXISTS target_image_location text default null;
-CREATE INDEX IF NOT EXISTS target_image_path ON ci_workflow (target_image_location);
-
-
 CREATE TABLE "public"."custom_tag"
 (
-    id serial PRIMARY KEY,
-    ci_pipeline_id int NOT NULL UNIQUE,
-    custom_tag_format text,
+    id                     serial PRIMARY KEY,
+    custom_tag_format      text,
     auto_increasing_number int DEFAULT 0,
-
-    FOREIGN KEY (ci_pipeline_id) REFERENCES ci_pipeline (id)
+    entity_key             int,
+    entity_value           text,
+    metadata               jsonb
 );
+
+CREATE INDEX IF NOT EXISTS entity_key_value ON custom_tag (entity_key, entity_value);
+
+ALTER TABLE custom_tag
+    ADD CONSTRAINT unique_entity_key_entity_value UNIQUE (entity_key, entity_value)
+
+
+CREATE TABLE IF not exists "public"."image_path_reservation"
+(
+    id            serial PRIMARY KEY,
+    custom_tag_id int,
+    image_path    text,
+    active        boolean default true,
+    FOREIGN KEY (custom_tag_id) REFERENCES custom_tag (id)
+);
+
+CREATE INDEX IF NOT EXISTS image_path_index ON image_path_reservation (image_path);
+
+ALTER TABLE ci_workflow
+    ADD column IF NOT EXISTS image_path_reservation_id int;
+ALTER TABLE ci_workflow
+    ADD CONSTRAINT fk_image_path_reservation_id FOREIGN KEY (image_path_reservation_id) REFERENCES image_path (id)
