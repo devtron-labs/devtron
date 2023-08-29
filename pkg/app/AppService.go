@@ -1424,10 +1424,20 @@ func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHi
 	if err != nil {
 		return "", nil, err
 	}
+
 	variableSnapshotMap := make(map[string]string)
+
+	if _, ok := variableSnapshot[reference]; !ok {
+		return template, variableSnapshotMap, nil
+	}
+
 	err = json.Unmarshal(variableSnapshot[reference].VariableSnapshot, &variableSnapshotMap)
 	if err != nil {
 		return "", nil, err
+	}
+
+	if len(variableSnapshotMap) == 0 {
+		return template, variableSnapshotMap, nil
 	}
 	resolvedTemplate := impl.variableTemplateParser.ParseTemplate(template, variableSnapshotMap)
 	return resolvedTemplate, variableSnapshotMap, nil
@@ -1439,11 +1449,16 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope repository6
 	if err != nil {
 		return "", nil, err
 	}
+
+	variableMap := make(map[string]string)
+	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
+		return template, variableMap, nil
+	}
 	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity])
 	if err != nil {
 		return "", nil, err
 	}
-	variableMap := make(map[string]string)
+
 	for _, variable := range scopedVariables {
 		variableMap[variable.VariableName] = variable.VariableValue.(string)
 	}
@@ -3103,17 +3118,19 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		}
 	}
 	//VARIABLE_SNAPSHOT_SAVE
-	variableMapBytes, _ := json.Marshal(envOverride.VariableSnapshot)
-	variableSnapshotHistory := &repository6.VariableSnapshotHistoryBean{
-		VariableSnapshot: variableMapBytes,
-		HistoryReference: repository6.HistoryReference{
-			HistoryReferenceId:   deploymentTemplateHistory.Id,
-			HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
-		},
-	}
-	err = impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository6.VariableSnapshotHistoryBean{variableSnapshotHistory}, deployedBy)
-	if err != nil {
-		return err
+	if envOverride.VariableSnapshot != nil && len(envOverride.VariableSnapshot) > 0 {
+		variableMapBytes, _ := json.Marshal(envOverride.VariableSnapshot)
+		variableSnapshotHistory := &repository6.VariableSnapshotHistoryBean{
+			VariableSnapshot: variableMapBytes,
+			HistoryReference: repository6.HistoryReference{
+				HistoryReferenceId:   deploymentTemplateHistory.Id,
+				HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+			},
+		}
+		err = impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository6.VariableSnapshotHistoryBean{variableSnapshotHistory}, deployedBy)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

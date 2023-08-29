@@ -1391,16 +1391,21 @@ const memory = "memory"
 
 func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope repository5.Scope, template string) (string, map[string]string, error) {
 
-	//entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository5.Entity{entity})
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
 	if err != nil {
 		return "", nil, err
 	}
+
+	variableMap := make(map[string]string)
+	if len(usedVariables) == 0 {
+		return template, variableMap, nil
+	}
+
 	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables)
 	if err != nil {
 		return "", nil, err
 	}
-	variableMap := make(map[string]string)
+
 	for _, variable := range scopedVariables {
 		variableMap[variable.VariableName] = variable.VariableValue.(string)
 	}
