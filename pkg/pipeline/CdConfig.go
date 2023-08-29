@@ -19,11 +19,10 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/caarlos0/env"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"strings"
-
-	"github.com/caarlos0/env"
 )
 
 type CdConfig struct {
@@ -32,12 +31,16 @@ type CdConfig struct {
 	ReqCpu                           string   `env:"CD_REQ_CI_CPU" envDefault:"0.5"`
 	ReqMem                           string   `env:"CD_REQ_CI_MEM" envDefault:"3G"`
 	TaintKey                         string   `env:"CD_NODE_TAINTS_KEY" envDefault:"dedicated"`
+	ExternalTaintKey                 string   `env:"EXTERNAL_CD_NODE_TAINTS_KEY" envDefault:"dedicated"`
+	UseExternalNode                  bool     `env:"USE_EXTERNAL_NODE" envDefault:"false"`
 	WorkflowServiceAccount           string   `env:"CD_WORKFLOW_SERVICE_ACCOUNT" envDefault:"cd-runner"`
 	DefaultBuildLogsKeyPrefix        string   `env:"DEFAULT_BUILD_LOGS_KEY_PREFIX" `
 	DefaultArtifactKeyPrefix         string   `env:"DEFAULT_CD_ARTIFACT_KEY_LOCATION" `
 	TaintValue                       string   `env:"CD_NODE_TAINTS_VALUE" envDefault:"ci"`
+	ExternalTaintValue               string   `env:"EXTERNAL_CD_NODE_TAINTS_VALUE" envDefault:"ci"`
 	DefaultBuildLogsBucket           string   `env:"DEFAULT_BUILD_LOGS_BUCKET" `
 	NodeLabelSelector                []string `env:"CD_NODE_LABEL_SELECTOR"`
+	ExternalNodeLabelSelector        []string `env:"EXTERNAL_CD_NODE_LABEL_SELECTOR"`
 	CdArtifactLocationFormat         string   `env:"CD_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	DefaultNamespace                 string   `env:"DEFAULT_CD_NAMESPACE"`
 	DefaultImage                     string   `env:"DEFAULT_CI_IMAGE"`
@@ -47,6 +50,7 @@ type CdConfig struct {
 	OrchestratorHost                 string   `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
 	OrchestratorToken                string   `env:"ORCH_TOKEN" envDefault:""`
 	NodeLabel                        map[string]string
+	ExternalNodeLabel                map[string]string
 	CloudProvider                    blob_storage.BlobStorageType        `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
 	BlobStorageEnabled               bool                                `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
 	BlobStorageS3AccessKey           string                              `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
@@ -70,13 +74,30 @@ type CdConfig struct {
 	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	InAppLoggingEnabled              bool                                `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
 	TerminationGracePeriod           int                                 `env:"TERMINATION_GRACE_PERIOD_SECS" envDefault:"180"`
+	CloningMode                      string                              `env:"CLONING_MODE" envDefault:"SHALLOW"`
+	GitProviders                     string                              `env:"GIT_PROVIDERS" envDefault:"github,gitlab"`
 }
 
 func GetCdConfig() (*CdConfig, error) {
 	cfg := &CdConfig{}
 	err := env.Parse(cfg)
-	cfg.NodeLabel = make(map[string]string)
-	for _, l := range cfg.NodeLabelSelector {
+	if err != nil {
+		return nil, err
+	}
+	cfg.NodeLabel, err = assignNodeLabelSelector(cfg.NodeLabelSelector)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ExternalNodeLabel, err = assignNodeLabelSelector(cfg.ExternalNodeLabelSelector)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, err
+}
+
+func assignNodeLabelSelector(labelSelector []string) (map[string]string, error) {
+	label := make(map[string]string)
+	for _, l := range labelSelector {
 		if l == "" {
 			continue
 		}
@@ -84,8 +105,7 @@ func GetCdConfig() (*CdConfig, error) {
 		if len(kv) != 2 {
 			return nil, fmt.Errorf("invalid ci node label selector %s, it must be in form key=value, key2=val2", kv)
 		}
-		cfg.NodeLabel[kv[0]] = kv[1]
+		label[kv[0]] = kv[1]
 	}
-
-	return cfg, err
+	return label, nil
 }
