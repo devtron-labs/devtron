@@ -970,17 +970,18 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 // , this will delete those pipelineStage entry
 func (impl *PipelineStageServiceImpl) DeletePipelineStageIfReq(stageReq *bean.PipelineStageDto, userId int32) (error, bool) {
 	steps, err := impl.pipelineStageRepository.GetAllStepsByStageId(stageReq.Id)
-	if err == pg.ErrNoRows {
-		err = impl.deletePipelineStageWithTx(stageReq, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating the corrupted pipeline stage", "err", err, "pipelineStageId", stageReq.Id)
-			return err, false
-		}
-	}
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching pipeline stage steps by pipelineStageId", "err", err, "pipelineStageID", stageReq.Id)
 		return err, false
 	}
+	if err == pg.ErrNoRows || len(steps) == 0 {
+		err = impl.deletePipelineStageWithTx(stageReq, userId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting the corrupted pipeline stage", "err", err, "pipelineStageId", stageReq.Id)
+			return err, false
+		}
+	}
+
 	return nil, len(steps) == 0
 }
 
@@ -994,6 +995,7 @@ func (impl *PipelineStageServiceImpl) deletePipelineStageWithTx(stageReq *bean.P
 	defer tx.Rollback()
 	err = impl.DeletePipelineStage(stageReq, userId, tx)
 	if err != nil {
+		impl.logger.Errorw("error in DeletePipelineStage", "err", err, "stageReq", stageReq, "userId", userId)
 		return err
 	}
 	err = tx.Commit()
