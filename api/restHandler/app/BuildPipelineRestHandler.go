@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -550,6 +551,11 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	//RBAC ENDS
 	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
+	if errors.Is(err, pkg.ErrImagePathInUse) {
+		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, err, response, http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		handler.Logger.Errorw("service err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
