@@ -35,6 +35,7 @@ type K8sCommonService interface {
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
+	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}, err error) (map[string]interface{}, error)
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -341,4 +342,113 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 		return nil, v1Client, err
 	}
 	return clientSet, v1Client, nil
+}
+
+func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}, err error) (map[string]interface{}, error) {
+	portsService := make([]int64, 0)
+	portsEndpoint := make([]int64, 0)
+	portEndpointSlice := make([]int64, 0)
+	for _, portHolder := range resp {
+		if portHolder.ManifestResponse == nil {
+			continue
+		}
+		kind, ok := portHolder.ManifestResponse.Manifest.Object["kind"]
+		if !ok {
+			impl.logger.Errorw("kind not found in resource tree, unable to extract port no")
+			return resourceTree, nil
+		}
+		if kind == ServiceKind {
+			specField, ok := portHolder.ManifestResponse.Manifest.Object["spec"]
+			if !ok {
+				impl.logger.Errorw("spec not found in resource tree, unable to extract port no")
+				return resourceTree, nil
+			}
+			spec := specField.(map[string]interface{})
+			if spec != nil {
+				ports, ok := spec["ports"]
+				if !ok {
+					impl.logger.Errorw("ports not found in resource tree, unable to extract port no")
+					return resourceTree, nil
+				}
+				portList := ports.([]interface{})
+				for _, portItem := range portList {
+					if portItem.(map[string]interface{}) != nil {
+						portNumbers := portItem.(map[string]interface{})["port"]
+						portNumber := portNumbers.(int64)
+						if portNumber != 0 {
+							portsService = append(portsService, portNumber)
+						}
+					}
+				}
+			} else {
+				impl.logger.Errorw("spec doest not contain data", "err", spec)
+			}
+		}
+		if kind == EndpointsKind {
+			subsetsField, ok := portHolder.ManifestResponse.Manifest.Object["subsets"]
+			if !ok {
+				impl.logger.Errorw("spec not found in resource tree, unable to extract port no")
+				return resourceTree, nil
+			}
+			if subsetsField != nil {
+				subsets := subsetsField.([]interface{})
+				for _, subset := range subsets {
+					subsetObj := subset.(map[string]interface{})
+					if subsetObj != nil {
+						ports, ok := subsetObj["ports"]
+						if !ok {
+							impl.logger.Errorw("ports not found in resource tree endpoints, unable to extract port no")
+							return resourceTree, nil
+						}
+						portsIfs := ports.([]interface{})
+						for _, portsIf := range portsIfs {
+							portsIfObj := portsIf.(map[string]interface{})
+							if portsIfObj != nil {
+								port := portsIfObj["port"].(int64)
+								portsEndpoint = append(portsEndpoint, port)
+							}
+						}
+					}
+				}
+			}
+		}
+		if kind == "EndpointSlice" {
+			portsField, ok := portHolder.ManifestResponse.Manifest.Object["ports"]
+			if !ok {
+				impl.logger.Errorw("ports not found in resource tree endpoint, unable to extract port no")
+				return resourceTree, nil
+			}
+			if portsField != nil {
+				endPointsSlicePorts := portsField.([]interface{})
+				for _, val := range endPointsSlicePorts {
+					portNumbers := val.(map[string]interface{})["port"]
+					portNumber := portNumbers.(int64)
+					if portNumber != 0 {
+						portEndpointSlice = append(portEndpointSlice, portNumber)
+					}
+				}
+			}
+		}
+	}
+	if err != nil {
+		impl.logger.Errorw("error in fetching manifest", "err", err)
+	}
+	if val, ok := resourceTree["nodes"]; ok {
+		resourceTreeVal := val.([]interface{})
+		for _, val := range resourceTreeVal {
+			value := val.(map[string]interface{})
+			for key, _type := range value {
+				if key == "kind" && _type == EndpointsKind {
+					value["port"] = portsEndpoint
+				}
+				if key == "kind" && _type == ServiceKind {
+					value["port"] = portsService
+				}
+				if key == "kind" && _type == EndPointsSlice {
+					value["port"] = portEndpointSlice
+				}
+			}
+		}
+	}
+	return resourceTree, nil
 }
