@@ -123,7 +123,6 @@ statefulSetConfig:
   mountPath: "/tmp"
   serviceheadless: 
     enabled: false
-    name: "test-service_headless"
 
   volumeClaimTemplates: []
   # - spec:
