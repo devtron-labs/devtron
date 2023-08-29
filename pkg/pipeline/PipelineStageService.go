@@ -975,6 +975,7 @@ func (impl *PipelineStageServiceImpl) DeletePipelineStageIfReq(stageReq *bean.Pi
 		return err, false
 	}
 	if err == pg.ErrNoRows || len(steps) == 0 {
+		impl.logger.Infow("deletePipelineStageWithTx ", "stageReq", stageReq, "userId", userId)
 		err = impl.deletePipelineStageWithTx(stageReq, userId)
 		if err != nil {
 			impl.logger.Errorw("error in deleting the corrupted pipeline stage", "err", err, "pipelineStageId", stageReq.Id)

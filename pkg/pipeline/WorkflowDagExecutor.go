@@ -360,6 +360,24 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 	return hasAnyTriggered, err
 }
 
+// if stage is present with 0 stage steps, delete the stage
+// handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage *repository4.PipelineStage, triggeredBy int32) (error, bool) {
+	if pipelineStage != nil {
+		stageReq := &bean3.PipelineStageDto{
+			Id:   pipelineStage.Id,
+			Type: pipelineStage.Type,
+		}
+		err, deleted := impl.pipelineStageService.DeletePipelineStageIfReq(stageReq, triggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error in deleting the corrupted pipeline stage", "err", err, "pipelineStageReq", stageReq)
+			return err, false
+		}
+		return nil, deleted
+	}
+	return nil, false
+}
+
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
 	var err error
 	preStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
@@ -368,19 +386,11 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 		return err
 	}
 
-	//if stage is present with 0 stage steps, delete the stage
 	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
-	deleted := false
-	if preStage != nil {
-		stageReq := &bean3.PipelineStageDto{
-			Id:   preStage.Id,
-			Type: preStage.Type,
-		}
-		err, deleted = impl.pipelineStageService.DeletePipelineStageIfReq(stageReq, triggeredBy)
-		if err != nil {
-			impl.logger.Errorw("error in deleting the corrupted pipeline stage", "err", err, "pipelineStageReq", stageReq)
-			return err
-		}
+	err, deleted := impl.deleteCorruptedPipelineStage(preStage, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "cdPipelineId", pipeline.Id, "err", err, "preStage", preStage, "triggeredBy", triggeredBy)
+		return err
 	}
 
 	if len(pipeline.PreStageConfig) > 0 || (preStage != nil && !deleted) {
@@ -1136,19 +1146,11 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 	}
 
 	var triggeredByUser int32 = 1
-	//if stage is present with 0 stage steps, delete the stage
 	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
-	deleted := false
-	if postStage != nil {
-		stageReq := &bean3.PipelineStageDto{
-			Id:   postStage.Id,
-			Type: postStage.Type,
-		}
-		err, deleted = impl.pipelineStageService.DeletePipelineStageIfReq(stageReq, triggeredByUser)
-		if err != nil {
-			impl.logger.Errorw("error in deleting the corrupted pipeline stage", "err", err, "pipelineStageReq", stageReq)
-			return err
-		}
+	err, deleted := impl.deleteCorruptedPipelineStage(postStage, triggeredByUser)
+	if err != nil {
+		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "err", err, "preStage", postStage, "triggeredBy", triggeredByUser)
+		return err
 	}
 
 	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 || (postStage != nil && !deleted) {
