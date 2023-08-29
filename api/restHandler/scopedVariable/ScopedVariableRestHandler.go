@@ -12,10 +12,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"regexp"
-	"slices"
 	"strconv"
 )
 

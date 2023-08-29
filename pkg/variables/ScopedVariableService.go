@@ -12,8 +12,9 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/invopop/jsonschema"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"sigs.k8s.io/yaml"
-	"slices"
+
 	"strconv"
 	"strings"
 	"time"
