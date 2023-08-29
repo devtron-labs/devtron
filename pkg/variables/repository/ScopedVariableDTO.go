@@ -1,8 +1,9 @@
 package repository
 
 type Payload struct {
-	Variables []*Variables `json:"variables" validate:"required,dive"`
-	UserId    int32        `json:"-"`
+	SpecVersion string       `json:"specVersion"`
+	Variables   []*Variables `json:"variables" validate:"required,dive"`
+	UserId      int32        `json:"-"`
 }
 type Variables struct {
 	Definition      Definition       `json:"definition" validate:"required,dive"`

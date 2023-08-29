@@ -690,6 +690,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 		return nil, "", nil
 	}
 	payload.Variables = variables
+	payload.SpecVersion = "v1"
 	if len(payload.Variables) == 0 {
 		return nil, jsonSchema, nil
 	}

@@ -184,6 +184,11 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 }
 
 func validateVariableScopeRequest(payload repository.Payload) error {
+
+	if payload.SpecVersion != "v1" {
+		return fmt.Errorf("invalid or no spec version specified. Please use v1")
+	}
+
 	for _, variable := range payload.Variables {
 		exp := `^[a-zA-Z0-9_-]{1,64}$`
 		rExp := regexp.MustCompile(exp)
