@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	ErrImagePathInUse = fmt.Errorf("image path is already being used by someone")
+	ErrImagePathInUse = fmt.Errorf(ImageTagUnavailableMessage)
 )
 
 type CustomTagService interface {
