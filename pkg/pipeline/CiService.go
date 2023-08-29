@@ -466,7 +466,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			if errors.Is(err, pkg.ErrImagePathInUse) {
 				savedWf.Status = pipelineConfig.WorkflowFailed
 				savedWf.Message = pkg.ImageTagUnavailableMessage
-				return nil, impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+				impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+				return nil, err
 			}
 			return nil, err
 		}
