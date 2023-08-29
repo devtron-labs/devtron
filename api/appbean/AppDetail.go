@@ -9,7 +9,7 @@ import (
 
 type AppDetail struct {
 	Metadata                 *AppMetadata                    `json:"metadata,notnull" validate:"dive,required"`
-	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull" validate:"dive"`
+	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull" validate:"dive,min=1"`
 	DockerConfig             *DockerConfig                   `json:"dockerConfig" validate:"dive"`
 	GlobalDeploymentTemplate *DeploymentTemplate             `json:"globalDeploymentTemplate,notnull" validate:"dive"`
 	AppWorkflows             []*AppWorkflow                  `json:"workflows,omitempty" validate:"dive"`
