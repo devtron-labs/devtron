@@ -73,28 +73,6 @@ type JobContainer struct {
 	JobCiPipelines []JobCIPipeline         `json:"ciPipelines"'`
 }
 
-type DeploymentTemplateType int
-
-const (
-	DefaultVersions            DeploymentTemplateType = 1
-	PublishedOnEnvironments    DeploymentTemplateType = 2
-	DeployedOnSelfEnvironment  DeploymentTemplateType = 3
-	DeployedOnOtherEnvironment DeploymentTemplateType = 4
-)
-
-type FetchTemplateComparisonList struct {
-	ChartId                  int                    `json:"chartRefId"`
-	ChartVersion             string                 `json:"chartVersion"`
-	ChartType                string                 `json:"chartType"`
-	EnvironmentId            int                    `json:"environmentId"`
-	EnvironmentName          string                 `json:"environmentName"`
-	PipelineConfigOverrideId int                    `json:"pipelineConfigOverrideId"`
-	StartedOn                time.Time              `json:"startedOn"`
-	FinishedOn               time.Time              `json:"finishedOn"`
-	Status                   string                 `json:"status"`
-	Type                     DeploymentTemplateType `json:"type"`
-}
-
 type JobCIPipeline struct {
 	CiPipelineId                 int       `json:"ciPipelineId"`
 	CiPipelineName               string    `json:"ciPipelineName"`

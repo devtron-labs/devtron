@@ -22,10 +22,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -88,7 +86,6 @@ type AppListingService interface {
 
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
-	FetchDeploymentsWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
@@ -96,7 +93,6 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
-	GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (ValuesAndManifestResponse, error)
 }
 
 const (
@@ -105,20 +101,6 @@ const (
 	APIVersionV1          string = "v1"
 	APIVersionV2          string = "v2"
 )
-
-type ValuesAndManifestRequest struct {
-	AppId                    int                         `json:"appId"`
-	EnvId                    int                         `json:"envId,omitempty"`
-	ChartRefId               int                         `json:"chartRefId"`
-	GetValues                bool                        `json:"getValues"`
-	Values                   string                      `json:"values"`
-	Type                     bean.DeploymentTemplateType `json:"type"`
-	PipelineConfigOverrideId int                         `json:"pipelineConfigOverrideId,omitempty"`
-}
-
-type ValuesAndManifestResponse struct {
-	Data string `json:"data"`
-}
 
 type FetchAppListingRequest struct {
 	Environments      []int            `json:"environments"`
@@ -183,8 +165,6 @@ type AppListingServiceImpl struct {
 	chartRepository                chartRepoRepository.ChartRepository
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
-	chartService                   chart.ChartService
-	helmAppService                 client.HelmAppService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -193,8 +173,8 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository, chartService chart.ChartService,
-	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, helmAppService client.HelmAppService,
+	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
+	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
@@ -210,11 +190,9 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		pipelineOverrideRepository:     pipelineOverrideRepository,
 		environmentRepository:          environmentRepository,
 		argoUserService:                argoUserService,
-		chartService:                   chartService,
 		envOverrideRepository:          envOverrideRepository,
 		chartRepository:                chartRepository,
 		ciPipelineRepository:           ciPipelineRepository,
-		helmAppService:                 helmAppService,
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
 	}
 	return serviceImpl
@@ -1711,112 +1689,6 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		}
 	}
 	return envs, nil
-}
-func (impl AppListingServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error) {
-
-	var responseList []*bean.FetchTemplateComparisonList
-
-	defaultVersions, err := impl.chartService.ChartRefAutocompleteForAppOrEnv(appId, 0)
-	if err != nil {
-		impl.Logger.Errorw("err", err)
-		return nil, err
-	}
-
-	for _, item := range defaultVersions.ChartRefs {
-		res := &bean.FetchTemplateComparisonList{
-			ChartId:      item.Id,
-			ChartVersion: item.Version,
-			ChartType:    item.Name,
-			Type:         bean.DefaultVersions,
-		}
-		responseList = append(responseList, res)
-	}
-
-	publishedOnEnvs, err := impl.FetchMinDetailOtherEnvironment(appId)
-	if err != nil {
-		impl.Logger.Errorw("err", err)
-		return nil, err
-	}
-
-	for _, env := range publishedOnEnvs {
-		item := &bean.FetchTemplateComparisonList{
-			ChartId:         env.ChartRefId,
-			EnvironmentId:   env.EnvironmentId,
-			EnvironmentName: env.EnvironmentName,
-			Type:            bean.PublishedOnEnvironments,
-		}
-		responseList = append(responseList, item)
-	}
-
-	deployedOnEnv, err := impl.appListingRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", err)
-		return nil, err
-	}
-
-	for _, deployedItem := range deployedOnEnv {
-		deployedItem.Type = bean.DeployedOnSelfEnvironment
-		deployedItem.EnvironmentId = envId
-		responseList = append(responseList, deployedItem)
-	}
-
-	deployedOnOtherEnvs, err := impl.appListingRepository.FetchLatestDeploymentWithChartRefs(appId, envId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", err)
-		return nil, err
-	}
-
-	for _, deployedItem := range deployedOnOtherEnvs {
-		deployedItem.Type = bean.DeployedOnOtherEnvironment
-		responseList = append(responseList, deployedItem)
-	}
-
-	return responseList, nil
-}
-
-func (impl AppListingServiceImpl) GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (ValuesAndManifestResponse, error) {
-	var result ValuesAndManifestResponse
-	var values string
-	var err error
-
-	if request.Values != "" {
-		values = request.Values
-	} else {
-		switch request.Type {
-		case bean.DefaultVersions:
-			_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
-			if err != nil {
-				impl.Logger.Errorw("err", err)
-				return result, err
-			}
-		case bean.PublishedOnEnvironments:
-			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(request.AppId)
-			if chart != nil && chart.Id > 0 {
-				values = chart.GlobalOverride
-			}
-			if err != nil {
-				impl.Logger.Errorw("err", err)
-				return result, err
-			}
-		case bean.DeployedOnSelfEnvironment, bean.DeployedOnOtherEnvironment:
-			values, err = impl.appListingRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
-			if err != nil {
-				impl.Logger.Errorw("err", err)
-				return result, err
-			}
-		}
-	}
-
-	if request.GetValues {
-		result.Data = values
-		return result, nil
-	}
-	manifest, err := impl.helmAppService.GetManifest(ctx, request.ChartRefId, values)
-	if err != nil {
-		return result, err
-	}
-	result.Data = *manifest.Manifest
-	return result, nil
 }
 
 func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error) {

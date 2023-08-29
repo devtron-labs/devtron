@@ -50,9 +50,6 @@ type AppListingRepository interface {
 	//Not in used
 	PrometheusApiByEnvId(id int) (*string, error)
 
-	FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error)
-	FetchPipelineOverrideValues(Id int) (string, error)
-	FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error)
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
@@ -632,60 +629,6 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 		}(),
 		Required: true,
 	}
-}
-
-func (impl AppListingRepositoryImpl) FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error) {
-
-	var result []*bean.FetchTemplateComparisonList
-
-	query := "SELECT pco.id as pipeline_config_override_id, wfr.started_on,   wfr.finished_on, wfr.status, ceco.chart_id, c.chart_version " +
-		"FROM cd_workflow_runner wfr JOIN cd_workflow wf ON wf.id = wfr.cd_workflow_id " +
-		"JOIN pipeline p ON p.id = wf.pipeline_id JOIN pipeline_config_override pco ON pco.cd_workflow_id = wf.id " +
-		"JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id JOIN charts c ON c.id = ceco.chart_id " +
-		" WHERE p.environment_id = ?  AND p.app_id = ?  AND " +
-		"p.deleted = false  AND wfr.workflow_type = 'DEPLOY' ORDER BY" +
-		" wfr.id DESC LIMIT 15;"
-
-	_, err := impl.dbConnection.Query(&result, query, envId, appId)
-	if err != nil {
-		impl.Logger.Error("error in fetching deployment history", "error", err)
-	}
-	return result, err
-}
-
-func (impl AppListingRepositoryImpl) FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*bean.FetchTemplateComparisonList, error) {
-
-	var result []*bean.FetchTemplateComparisonList
-
-	query := "WITH ranked_rows AS ( SELECT p.environment_id, pco.id as pipeline_config_override_id, ceco.chart_id, " +
-		"c.chart_version, ROW_NUMBER() OVER (PARTITION BY p.environment_id ORDER BY pco.id DESC) AS row_num FROM pipeline p " +
-		"JOIN pipeline_config_override pco ON pco.pipeline_id = p.id JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id" +
-		" JOIN charts c ON c.id = ceco.chart_id WHERE  p.app_id = ? AND p.deleted = false AND p.environment_id NOT IN (?)) " +
-		"SELECT environment_id, pipeline_config_override_id, chart_id,  chart_version" +
-		" FROM ranked_rows " +
-		"WHERE row_num = 1;"
-
-	_, err := impl.dbConnection.Query(&result, query, appId, envId)
-	if err != nil {
-		impl.Logger.Error("error in fetching deployment history", "error", err)
-	}
-	return result, err
-}
-
-func (impl AppListingRepositoryImpl) FetchPipelineOverrideValues(id int) (string, error) {
-
-	type value struct {
-		MergedValuesYaml string `sql:"merged_values_yaml"`
-	}
-
-	var result value
-
-	query := "select merged_values_yaml from pipeline_config_override where id = ? ; "
-	_, err := impl.dbConnection.Query(&result, query, id)
-	if err != nil {
-		impl.Logger.Error("error", "error", err)
-	}
-	return result.MergedValuesYaml, err
 }
 
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {

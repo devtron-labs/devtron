@@ -42,6 +42,7 @@ import (
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -112,6 +113,7 @@ type AppListingRestHandlerImpl struct {
 	genericNoteService                genericNotes.GenericNoteService
 	cfg                               *bean.Config
 	k8sApplicationService             application3.K8sApplicationService
+	deploymentTemplateService         generateManifest.DeploymentTemplateService
 }
 
 type AppStatus struct {
@@ -142,7 +144,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
 	environmentClusterMappingsService cluster.EnvironmentService,
 	genericNoteService genericNotes.GenericNoteService,
-	k8sApplicationService application3.K8sApplicationService,
+	k8sApplicationService application3.K8sApplicationService, deploymentTemplateService generateManifest.DeploymentTemplateService,
 ) *AppListingRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
@@ -175,6 +177,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		genericNoteService:                genericNoteService,
 		cfg:                               cfg,
 		k8sApplicationService:             k8sApplicationService,
+		deploymentTemplateService:         deploymentTemplateService,
 	}
 	return appListingHandler
 }
@@ -1768,7 +1771,7 @@ func (handler AppListingRestHandlerImpl) GetDeploymentsWithCharts(w http.Respons
 	}
 	//RBAC enforcer Ends
 
-	resp, err := handler.appListingService.FetchDeploymentsWithChartRefs(appId, envId)
+	resp, err := handler.deploymentTemplateService.FetchDeploymentsWithChartRefs(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchDeploymentsWithChartRefs", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1781,7 +1784,7 @@ func (handler AppListingRestHandlerImpl) GetDeploymentsWithCharts(w http.Respons
 func (handler AppListingRestHandlerImpl) GetYaluesAndManifest(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var request app.ValuesAndManifestRequest
+	var request generateManifest.ValuesAndManifestRequest
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, GetYaluesAndManifest by API", "err", err, "GetYaluesAndManifest", request)
@@ -1806,7 +1809,7 @@ func (handler AppListingRestHandlerImpl) GetYaluesAndManifest(w http.ResponseWri
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
-	resp, err := handler.appListingService.GetValuesAndManifest(ctx, request)
+	resp, err := handler.deploymentTemplateService.GetValuesAndManifest(ctx, request)
 	if err != nil {
 		handler.logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
