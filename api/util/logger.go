@@ -70,5 +70,5 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 }
 
 func LogRequest(auditLogDto *AuditLoggerDTO) {
-	log.Printf("AUDIT_LOG: urlPath: %s, queryParams: %s, requestPayload: %s,updatedBy: %s, updatedOn: %s, apiResponseCode: %d", auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.RequestPayload, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode)
+	log.Printf("AUDIT_LOG: urlPath: %s, queryParams: %s,updatedBy: %s, updatedOn: %s, apiResponseCode: %d,requestPayload: %s", auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode, auditLogDto.RequestPayload)
 }
