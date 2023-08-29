@@ -1460,8 +1460,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		return
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
-	validRequests := make([]k8s.ResourceRequestBean, 0)
-	validRequests = handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, appDetail, "", []string{k8s.ServiceKind, k8s.IngressKind})
+	validRequests := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, appDetail, "", []string{k8s.ServiceKind, k8s.IngressKind})
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for", "appId", appIdParam, "envId", envIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
@@ -1614,7 +1613,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			resourceTree["serverVersion"] = version.String()
 		}
 	}
-	validRequests := make([]k8s.ResourceRequestBean, 0)
 	k8sAppDetail := bean.AppDetailContainer{
 		DeploymentDetailContainer: bean.DeploymentDetailContainer{
 			ClusterId: cdPipeline.Environment.ClusterId,
@@ -1622,17 +1620,13 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		},
 	}
 	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
-	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
+	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
 	if err != nil {
 		handler.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
 		return nil, err
 	}
-	newResourceTree, err := handler.k8sCommonService.PortNumberExtraction(resp, resourceTree, err)
-	if err != nil {
-		handler.logger.Errorw("error in port number in new Resource Tree", "err", err, "clusterId", clusterIdString)
-		return nil, err
-	}
+	newResourceTree := handler.k8sCommonService.PortNumberExtraction(resp, resourceTree)
 	return newResourceTree, nil
 }
 
