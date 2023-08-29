@@ -8,14 +8,14 @@ import (
 )
 
 type AppDetail struct {
-	Metadata                 *AppMetadata                    `json:"metadata,notnull" validate:"required"`
+	Metadata                 *AppMetadata                    `json:"metadata,notnull" validate:"dive,required"`
 	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull"`
 	DockerConfig             *DockerConfig                   `json:"dockerConfig"`
 	GlobalDeploymentTemplate *DeploymentTemplate             `json:"globalDeploymentTemplate,notnull"`
-	AppWorkflows             []*AppWorkflow                  `json:"workflows"`
+	AppWorkflows             []*AppWorkflow                  `json:"workflows,omitempty" validate:"dive"`
 	GlobalConfigMaps         []*ConfigMap                    `json:"globalConfigMaps"`
 	GlobalSecrets            []*Secret                       `json:"globalSecrets"`
-	EnvironmentOverrides     map[string]*EnvironmentOverride `json:"environmentOverride"`
+	EnvironmentOverrides     map[string]*EnvironmentOverride `json:"environmentOverride,omitempty" validate:"dive"`
 }
 
 type AppWorkflowCloneDto struct {
