@@ -32,6 +32,7 @@ type ImageTagRepository interface {
 	InsertImagePath(tx *pg.Tx, reservation *ImagePathReservation) error
 	UpdateImageTag(customTag *CustomTag) error
 	DeleteByEntityKeyAndValue(entityKey int, entityValue string) error
+	DeactivateImagePathReservation(id int) error
 }
 
 type ImageTagRepositoryImpl struct {
@@ -58,6 +59,12 @@ func (impl *ImageTagRepositoryImpl) UpdateImageTag(customTag *CustomTag) error {
 func (impl *ImageTagRepositoryImpl) DeleteByEntityKeyAndValue(entityKey int, entityValue string) error {
 	query := `delete from table custom_tag where entity_key = ? and entity_value = ?`
 	_, err := impl.dbConnection.Exec(query, entityKey, entityValue)
+	return err
+}
+
+func (impl *ImageTagRepositoryImpl) DeactivateImagePathReservation(id int) error {
+	query := `update image_path_reservation set active=? where id=?`
+	_, err := impl.dbConnection.Exec(query, false, id)
 	return err
 }
 

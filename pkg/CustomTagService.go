@@ -29,6 +29,7 @@ type CustomTagService interface {
 	GetCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error)
 	GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error)
 	DeleteCustomTagIfExists(tag bean.CustomTag) error
+	DeactivateImagePathReservation(id int) error
 }
 
 type CustomTagServiceImpl struct {
@@ -41,6 +42,10 @@ func NewCustomTagService(logger *zap.SugaredLogger, customTagRepo repository.Ima
 		Logger:              logger,
 		customTagRepository: customTagRepo,
 	}
+}
+
+func (impl *CustomTagServiceImpl) DeactivateImagePathReservation(id int) error {
+	return impl.customTagRepository.DeactivateImagePathReservation(id)
 }
 
 func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) error {
