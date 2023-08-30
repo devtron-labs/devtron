@@ -14,10 +14,8 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
-	"golang.org/x/exp/slices"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
-	"regexp"
 	"strconv"
 )
 
@@ -79,14 +77,6 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 
 	payload := utils.ManifestToPayload(manifest)
 
-	//TODO Aditya move to service layer
-	//err = validateVariableScopeRequest(payload)
-	//if err != nil {
-	//	handler.logger.Errorw("custom validation err in CreateVariables", "err", err, "request", payload)
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
-
 	// not logging bean object as it contains sensitive data
 	handler.logger.Infow("request payload received for variables")
 
@@ -142,10 +132,6 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//if scope.AppId == 0 && scope.EnvId == 0 && scope.ClusterId == 0 {
-	//	http.Error(w, "scope is empty", http.StatusBadRequest)
-	//	return
-	//}
 	var scopedVariableData []*variables.ScopedVariableData
 
 	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil)
@@ -193,68 +179,4 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 		JsonSchema: schema,
 	}
 	common.WriteJsonResp(w, nil, jsonResponse, http.StatusOK)
-}
-func getIdentifierType(attribute models.AttributeType) []models.IdentifierType {
-	switch attribute {
-	case models.ApplicationEnv:
-		return []models.IdentifierType{models.ApplicationName, models.EnvName}
-	case models.Application:
-		return []models.IdentifierType{models.ApplicationName}
-	case models.Env:
-		return []models.IdentifierType{models.EnvName}
-	case models.Cluster:
-		return []models.IdentifierType{models.ClusterName}
-	default:
-		return nil
-	}
-}
-func validateVariableScopeRequest(payload models.Payload) error {
-	variableNamesList := make([]string, 0)
-	for _, variable := range payload.Variables {
-		if slices.Contains(variableNamesList, variable.Definition.VarName) {
-			return fmt.Errorf("duplicate variable name")
-		}
-		exp := `^[a-zA-Z0-9_-]{1,64}$`
-		rExp := regexp.MustCompile(exp)
-		if !rExp.MatchString(variable.Definition.VarName) {
-			return fmt.Errorf("invalid variable name")
-		}
-		if variable.Definition.VarName[0] == '_' ||
-			variable.Definition.VarName[0] == '-' ||
-			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '_' ||
-			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '-' {
-			return fmt.Errorf("invalid variable name")
-		}
-		variableNamesList = append(variableNamesList, variable.Definition.VarName)
-		uniqueVariableMap := make(map[string]interface{})
-		for _, attributeValue := range variable.AttributeValues {
-			validIdentifierTypeList := getIdentifierType(attributeValue.AttributeType)
-			if len(validIdentifierTypeList) != len(attributeValue.AttributeParams) {
-				return fmt.Errorf("length of AttributeParams is not valid")
-			}
-			for key, _ := range attributeValue.AttributeParams {
-				if !slices.Contains(validIdentifierTypeList, key) {
-					return fmt.Errorf("invalid IdentifierType %s for validIdentifierTypeList %s", key, validIdentifierTypeList)
-				}
-				match := false
-				for _, identifier := range models.IdentifiersList {
-					if identifier == key {
-						match = true
-					}
-				}
-				if !match {
-					return fmt.Errorf("invalid identifier key %s for variable %s", key, variable.Definition.VarName)
-				}
-			}
-			identifierString := fmt.Sprintf("%s-%s", variable.Definition.VarName, string(attributeValue.AttributeType))
-			for _, key := range validIdentifierTypeList {
-				identifierString = fmt.Sprintf("%s-%s", identifierString, attributeValue.AttributeParams[key])
-			}
-			if _, ok := uniqueVariableMap[identifierString]; ok {
-				return fmt.Errorf("duplicate AttributeParams found for AttributeType %v", attributeValue.AttributeType)
-			}
-			uniqueVariableMap[identifierString] = attributeValue.VariableValue.Value
-		}
-	}
-	return nil
 }
