@@ -50,9 +50,11 @@ func PayloadToManifest(payload models.Payload) models.ScopedVariableManifest {
 		}
 		for _, attribute := range variable.AttributeValues {
 			valueSpec := models.VariableValueSpec{
-				Value:     attribute.VariableValue.Value,
-				Category:  attribute.AttributeType,
-				Selectors: models.Selector{AttributeSelectors: attribute.AttributeParams},
+				Value:    attribute.VariableValue.Value,
+				Category: attribute.AttributeType,
+			}
+			if attribute.AttributeParams != nil {
+				valueSpec.Selectors = &models.Selector{AttributeSelectors: attribute.AttributeParams}
 			}
 			spec.Values = append(spec.Values, valueSpec)
 		}
