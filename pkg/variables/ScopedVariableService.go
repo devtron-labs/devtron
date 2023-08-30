@@ -13,8 +13,8 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
+	"regexp"
 	"sigs.k8s.io/yaml"
-
 	"strconv"
 	"strings"
 	"time"
@@ -188,12 +188,16 @@ func validateVariableToSaveData(data interface{}) (string, error) {
 	return value, nil
 }
 func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) error {
-	validValue := complexTypeValidator(payload)
-	if !validValue {
-		impl.logger.Errorw("variable value is not valid", validValue)
-		return fmt.Errorf("invalid variable value")
+	//validValue := complexTypeValidator(payload)
+	//if !validValue {
+	//	impl.logger.Errorw("variable value is not valid", validValue)
+	//	return fmt.Errorf("invalid variable value")
+	//}
+	err := validateVariableScopeRequest(payload)
+	if err != nil {
+		return fmt.Errorf("custom validation err in CreateVariables")
 	}
-	err := impl.scopedVariableRepository.DeleteVariables()
+	err = impl.scopedVariableRepository.DeleteVariables()
 	if err != nil {
 		return err
 	}
@@ -299,20 +303,9 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 			for _, attrValue := range variable.AttributeValues {
 				var value string
 				value, err = validateVariableToSaveData(attrValue.VariableValue.Value)
-				//switch attrValue.VariableValue.Value.(type) {
-				//case json.Number:
-				//	marshal, err := json.Marshal(attrValue.VariableValue.Value)
-				//	if err != nil {
-				//		return err
-				//	}
-				//	value = string(marshal)
-				//case string:
-				//	value = attrValue.VariableValue.Value.(string)
-				//	value = "\"" + value + "\""
-				//case bool:
-				//	value = strconv.FormatBool(attrValue.VariableValue.Value.(bool))
-				//}
-
+				if err != nil {
+					return err
+				}
 				variableIdToValueMappings[id] = append(variableIdToValueMappings[id], &ValueMapping{
 					Attribute: attrValue.AttributeType,
 					Value:     value,
@@ -491,28 +484,12 @@ type VariableScopeMapping struct {
 	ScopeId int
 }
 
-//	func (impl *ScopedVariableServiceImpl) filterMatch(scope *repository2.VariableScope, identifierId int, searchableKeyName bean.DevtronResourceSearchableKeyName, parentRefId int) bool {
-//		searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-//		if expectedIdentifierKey, ok := searchableKeyNameIdMap[searchableKeyName]; ok {
-//			if scope.IdentifierKey == expectedIdentifierKey && scope.IdentifierValueInt == identifierId {
-//				if parentRefId != 0 && scope.ParentIdentifier != parentRefId {
-//					return false
-//				}
-//				return true
-//			}
-//		} else {
-//			if scope.IdentifierKey == 0 && scope.IdentifierValueInt == 0 && int(getQualifierId(repository2.Global)) == scope.QualifierId {
-//				return true
-//			}
-//		}
-//		return false
-//	}
 func customComparator(a, b repository2.Qualifier) bool {
 	return getPriority(a) < getPriority(b)
 }
 func findMinWithComparator(variableScope []*repository2.VariableScope, comparator func(a, b repository2.Qualifier) bool) *repository2.VariableScope {
 	if len(variableScope) == 0 {
-		panic("variableScope is empty")
+		return nil
 	}
 	min := variableScope[0]
 	for _, val := range variableScope {
@@ -570,68 +547,8 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*rep
 			ScopeId: minScope.Id,
 		}
 	}
-	return nil
+	return variableScopeMapping
 }
-
-//func (impl *ScopedVariableServiceImpl) getMatchedScopedVariable(varScope []*repository2.VariableScope, scope repository2.Scope) map[int]*VariablePriorityMapping {
-//	variablePriorityMap := make(map[int]*VariablePriorityMapping)
-//
-//	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-//	if scope.AppId == 0 && scope.EnvId == 0 && scope.ClusterId == 0 {
-//		return variablePriorityMap //todo in this case have to return global variable scope id
-//	}
-//
-//	var expectedQualifier int
-//	if scope.AppId != 0 && scope.EnvId != 0 {
-//		expectedQualifier = repository2.APP_AND_ENV_QUALIFIER
-//	} else if scope.AppId != 0 {
-//		expectedQualifier = repository2.APP_QUALIFIER
-//	} else if scope.EnvId != 0 {
-//		expectedQualifier = repository2.ENV_QUALIFIER
-//	} else if scope.ClusterId != 0 {
-//		expectedQualifier = repository2.CLUSTER_QUALIFIER
-//	} else {
-//		expectedQualifier = repository2.GLOBAL_QUALIFIER
-//	}
-//
-//	for _, vScope := range varScope {
-//		isMatch := false
-//		if scope.AppId != 0 && scope.EnvId != 0 && vScope.QualifierId == repository2.APP_AND_ENV_QUALIFIER {
-//			isMatch = impl.filterMatch(vScope, scope.AppId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID, 0)
-//			if isMatch && (vScope.IdentifierKey != 0 || vScope.IdentifierKey == searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]) {
-//				for _, envScope := range varScope {
-//					if isMatch = impl.filterMatch(envScope, scope.EnvId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID, vScope.Id); isMatch {
-//						break
-//					}
-//				}
-//			}
-//		}
-//		if !isMatch && scope.AppId != 0 && vScope.QualifierId == repository2.APP_QUALIFIER {
-//			isMatch = impl.filterMatch(vScope, scope.AppId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID, 0)
-//		}
-//		if !isMatch && scope.EnvId != 0 && vScope.QualifierId == repository2.ENV_QUALIFIER {
-//			isMatch = impl.filterMatch(vScope, scope.EnvId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID, 0)
-//		}
-//		if !isMatch && scope.ClusterId != 0 && vScope.QualifierId == repository2.CLUSTER_QUALIFIER {
-//			isMatch = impl.filterMatch(vScope, scope.ClusterId, bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID, 0)
-//		}
-//		if !isMatch && vScope.QualifierId == repository2.GLOBAL_QUALIFIER {
-//			isMatch = impl.filterMatch(vScope, 0, "", 0)
-//		}
-//		if isMatch {
-//			priority, ok := variablePriorityMap[vScope.VariableDefinitionId]
-//			currentPriority := getPriority(vScope.QualifierId)
-//			if !ok || (priority.Priority > currentPriority && currentPriority >= getPriority(expectedQualifier)) {
-//				variablePriorityMap[vScope.VariableDefinitionId] = &VariablePriorityMapping{
-//					ScopeId:  vScope.Id,
-//					Priority: currentPriority,
-//				}
-//			}
-//		}
-//	}
-//	return variablePriorityMap
-//}
-
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error) {
 	var vDef []*repository2.VariableDefinition
 	var varIds []int
@@ -780,15 +697,6 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 					if err != nil {
 						return nil, err
 					}
-					//if intValue, err := strconv.Atoi(scope.VariableData.Data); err == nil {
-					//	value = intValue
-					//} else if floatValue, err := strconv.ParseFloat(scope.VariableData.Data, 64); err == nil {
-					//	value = floatValue
-					//} else if boolValue, err := strconv.ParseBool(scope.VariableData.Data); err == nil {
-					//	value = boolValue
-					//} else {
-					//	value = strings.Trim(scope.VariableData.Data, "\"")
-					//}
 					attribute.VariableValue = models.VariableValue{
 						Value: value,
 					}
@@ -809,9 +717,73 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 	}
 
 	payload.Variables = variables
-	//payload.SpecVersion = "v1"
 	if len(payload.Variables) == 0 {
 		return nil, nil
 	}
 	return payload, nil
+}
+func getIdentifierType(attribute models.AttributeType) []models.IdentifierType {
+	switch attribute {
+	case models.ApplicationEnv:
+		return []models.IdentifierType{models.ApplicationName, models.EnvName}
+	case models.Application:
+		return []models.IdentifierType{models.ApplicationName}
+	case models.Env:
+		return []models.IdentifierType{models.EnvName}
+	case models.Cluster:
+		return []models.IdentifierType{models.ClusterName}
+	default:
+		return nil
+	}
+}
+
+func validateVariableScopeRequest(payload models.Payload) error {
+	variableNamesList := make([]string, 0)
+	for _, variable := range payload.Variables {
+		if slices.Contains(variableNamesList, variable.Definition.VarName) {
+			return fmt.Errorf("duplicate variable name")
+		}
+		exp := `^[a-zA-Z0-9_-]{1,64}$`
+		rExp := regexp.MustCompile(exp)
+		if !rExp.MatchString(variable.Definition.VarName) {
+			return fmt.Errorf("invalid variable name %s", variable.Definition.VarName)
+		}
+		if variable.Definition.VarName[0] == '_' ||
+			variable.Definition.VarName[0] == '-' ||
+			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '_' ||
+			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '-' {
+			return fmt.Errorf("invalid variable name")
+		}
+		variableNamesList = append(variableNamesList, variable.Definition.VarName)
+		uniqueVariableMap := make(map[string]interface{})
+		for _, attributeValue := range variable.AttributeValues {
+			validIdentifierTypeList := getIdentifierType(attributeValue.AttributeType)
+			if len(validIdentifierTypeList) != len(attributeValue.AttributeParams) {
+				return fmt.Errorf("length of AttributeParams is not valid")
+			}
+			for key, _ := range attributeValue.AttributeParams {
+				if !slices.Contains(validIdentifierTypeList, key) {
+					return fmt.Errorf("invalid IdentifierType %s for validIdentifierTypeList %s", key, validIdentifierTypeList)
+				}
+				match := false
+				for _, identifier := range models.IdentifiersList {
+					if identifier == key {
+						match = true
+					}
+				}
+				if !match {
+					return fmt.Errorf("invalid identifier key %s for variable %s", key, variable.Definition.VarName)
+				}
+			}
+			identifierString := fmt.Sprintf("%s-%s", variable.Definition.VarName, string(attributeValue.AttributeType))
+			for _, key := range validIdentifierTypeList {
+				identifierString = fmt.Sprintf("%s-%s", identifierString, attributeValue.AttributeParams[key])
+			}
+			if _, ok := uniqueVariableMap[identifierString]; ok {
+				return fmt.Errorf("duplicate AttributeParams found for AttributeType %v", attributeValue.AttributeType)
+			}
+			uniqueVariableMap[identifierString] = attributeValue.VariableValue.Value
+		}
+	}
+	return nil
 }
