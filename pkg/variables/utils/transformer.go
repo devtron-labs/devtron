@@ -12,9 +12,12 @@ func ManifestToPayload(manifest models.ScopedVariableManifest, userId int32) mod
 		attributes := make([]models.AttributeValue, 0)
 		for _, value := range spec.Values {
 			attribute := models.AttributeValue{
-				VariableValue:   models.VariableValue{Value: value.Value},
-				AttributeType:   value.Category,
-				AttributeParams: value.Selectors.AttributeSelectors,
+				VariableValue: models.VariableValue{Value: value.Value},
+				AttributeType: value.Category,
+			}
+
+			if value.Selectors != nil && value.Selectors.AttributeSelectors != nil {
+				attribute.AttributeParams = value.Selectors.AttributeSelectors
 			}
 			attributes = append(attributes, attribute)
 		}
