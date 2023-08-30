@@ -14,7 +14,6 @@ CREATE INDEX IF NOT EXISTS entity_key_value ON custom_tag (entity_key, entity_va
 ALTER TABLE custom_tag
     ADD CONSTRAINT unique_entity_key_entity_value UNIQUE (entity_key, entity_value);
 
-
 CREATE TABLE IF not exists "public"."image_path_reservation"
 (
     id            serial PRIMARY KEY,
