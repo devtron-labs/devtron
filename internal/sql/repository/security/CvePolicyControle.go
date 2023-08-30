@@ -46,10 +46,11 @@ const (
 	Inherit PolicyAction = iota
 	Allow
 	Block
+	Blockiffixed
 )
 
 func (d PolicyAction) String() string {
-	return [...]string{"inherit", "allow", "block"}[d]
+	return [...]string{"inherit", "allow", "block", "blockiffixed"}[d]
 }
 
 // ------------------
@@ -246,23 +247,23 @@ func (impl *CvePolicyRepositoryImpl) GetBlockedCVEList(cves []*CveStore, cluster
 	if err != nil {
 		return nil, err
 	}
-	blockedCve := impl.enforceCvePolicy(cves, cvePolicy, severityPolicy)
+	blockedCve := EnforceCvePolicy(cves, cvePolicy, severityPolicy)
 	return blockedCve, nil
 }
 
-func (impl *CvePolicyRepositoryImpl) enforceCvePolicy(cves []*CveStore, cvePolicy map[string]*CvePolicy, severityPolicy map[Severity]*CvePolicy) (blockedCVE []*CveStore) {
+func EnforceCvePolicy(cves []*CveStore, cvePolicy map[string]*CvePolicy, severityPolicy map[Severity]*CvePolicy) (blockedCVE []*CveStore) {
 
 	for _, cve := range cves {
 		if policy, ok := cvePolicy[cve.Name]; ok {
 			if policy.Action == Allow {
 				continue
-			} else {
+			} else if (policy.Action == Block) || (policy.Action == Blockiffixed && cve.FixedVersion != "") {
 				blockedCVE = append(blockedCVE, cve)
 			}
 		} else {
 			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Allow {
 				continue
-			} else {
+			} else if severityPolicy[cve.Severity] != nil && (severityPolicy[cve.Severity].Action == Block || (severityPolicy[cve.Severity].Action == Blockiffixed && cve.FixedVersion != "")) {
 				blockedCVE = append(blockedCVE, cve)
 			}
 		}
@@ -346,6 +347,7 @@ func (impl *CvePolicyRepositoryImpl) getHighestPolicy(allPolicies map[string][]*
 	}
 	return applicablePolicies
 }
+
 func (impl *CvePolicyRepositoryImpl) getHighestPolicyS(allPolicies map[Severity][]*CvePolicy) map[Severity]*CvePolicy {
 	applicablePolicies := make(map[Severity]*CvePolicy)
 	for key, policies := range allPolicies {
