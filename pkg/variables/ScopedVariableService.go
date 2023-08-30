@@ -45,7 +45,7 @@ type ScopedVariableServiceImpl struct {
 	environmentRepository    repository.EnvironmentRepository
 	devtronResourceService   devtronResource.DevtronResourceService
 	clusterRepository        repository.ClusterRepository
-	variableNameConfig       *VariableNameConfig
+	variableNameConfig       *VariableConfig
 }
 
 func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository) (*ScopedVariableServiceImpl, error) {
@@ -65,12 +65,12 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 	return scopedVariableService, nil
 }
 
-type VariableNameConfig struct {
-	VariableNameValidator string `env:"VARIABLE_NAME_VALIDATOR" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$"`
+type VariableConfig struct {
+	VariableNameRegex string `env:"SCOPED_VARIABLE_NAME_REGEX" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$"`
 }
 
-func GetVariableNameConfig() (*VariableNameConfig, error) {
-	cfg := &VariableNameConfig{}
+func GetVariableNameConfig() (*VariableConfig, error) {
+	cfg := &VariableConfig{}
 	err := env.Parse(cfg)
 	return cfg, err
 }
@@ -165,12 +165,15 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 	//	impl.logger.Errorw("variable value is not valid", validValue)
 	//	return fmt.Errorf("invalid variable value")
 	//}
-	err := impl.validateVariableScopeRequest(payload)
+	auditLog := getAuditLog(payload)
+
+	err, _ := impl.isValidPayload(payload)
 	if err != nil {
 		return fmt.Errorf("custom validation err in CreateVariables")
 	}
-	err = impl.scopedVariableRepository.DeleteVariables()
+	err = impl.scopedVariableRepository.DeleteVariables(auditLog)
 	if err != nil {
+		impl.logger.Errorw("error in deleting variable", err)
 		return err
 	}
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
@@ -187,19 +190,18 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 			VarType:     variable.Definition.VarType,
 			Description: variable.Definition.Description,
 			Active:      true,
-			AuditLog:    getAuditLog(payload),
+			AuditLog:    auditLog,
 		}
 		variableDefinitions = append(variableDefinitions, variableDefinition)
 	}
 	variableScopes := make([]*repository2.VariableScope, 0)
 	variableNameToId := make(map[string]int)
-	var varDef []*repository2.VariableDefinition
-
 	tx, err := impl.scopedVariableRepository.StartTx()
 	if err != nil {
+		impl.logger.Errorw("error in starting transaction", err)
 		return err
 	}
-	varDef, err = impl.scopedVariableRepository.CreateVariableDefinition(variableDefinitions, tx)
+	varDef, err := impl.scopedVariableRepository.CreateVariableDefinition(variableDefinitions, tx)
 	for _, variable := range varDef {
 		variableNameToId[variable.Name] = variable.Id
 	}
@@ -210,6 +212,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 	appNames, envNames, clusterNames := getAttributeNames(payload)
 	appNameToIdMap, envNameToIdMap, clusterNameToIdMap, err = impl.getAttributeNameToIdMappings(appNames, envNames, clusterNames)
 	if err != nil {
+		impl.logger.Errorw("error in getting  variable AttributeNameToIdMappings", err)
 		return err
 	}
 
@@ -218,7 +221,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		variableId := variableNameToId[variable.Definition.VarName]
 		for _, value := range variable.AttributeValues {
 			var compositeString string
-			if utils.GetQualifierId(value.AttributeType) == 1 {
+			if value.AttributeType == models.ApplicationEnv {
 				compositeString = value.AttributeParams[models.ApplicationName] + value.AttributeParams[models.EnvName]
 			}
 			if value.AttributeType == models.Global {
@@ -226,7 +229,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 					VariableDefinitionId: variableId,
 					QualifierId:          int(utils.GetQualifierId(value.AttributeType)),
 					Active:               true,
-					AuditLog:             getAuditLog(payload),
+					AuditLog:             auditLog,
 				}
 				variableScopes = append(variableScopes, scope)
 			} else {
@@ -234,6 +237,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 					var identifierValue int
 					identifierValue, err = getIdentifierValue(identifierType, appNameToIdMap, IdentifierName, envNameToIdMap, clusterNameToIdMap)
 					if err != nil {
+						impl.logger.Errorw("error in getting  identifierValue", err)
 						return err
 					}
 					scope := &repository2.VariableScope{
@@ -244,7 +248,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 						Active:                true,
 						CompositeKey:          compositeString,
 						IdentifierValueString: IdentifierName,
-						AuditLog:              getAuditLog(payload),
+						AuditLog:              auditLog,
 					}
 					variableScopes = append(variableScopes, scope)
 				}
@@ -278,6 +282,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 				var value string
 				value, err = validateVariableToSaveData(attrValue.VariableValue.Value)
 				if err != nil {
+					impl.logger.Errorw("error in validating dataType", err)
 					return err
 				}
 				variableIdToValueMappings[id] = append(variableIdToValueMappings[id], &ValueMapping{
@@ -316,7 +321,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		childVarScope, err = impl.scopedVariableRepository.CreateVariableScope(childrenVariableScope, tx)
 
 		if err != nil {
-			impl.logger.Errorw("error in getting childVarScope", childVarScope)
+			impl.logger.Errorw("error in getting childVarScope", err, childVarScope)
 			return err
 		}
 	}
@@ -328,14 +333,14 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 
 			VariableScopeId: scopeId,
 			Data:            data,
-			AuditLog:        getAuditLog(payload),
+			AuditLog:        auditLog,
 		}
 		VariableDataList = append(VariableDataList, varData)
 	}
 	if len(VariableDataList) > 0 {
 		err = impl.scopedVariableRepository.CreateVariableData(VariableDataList, tx)
 		if err != nil {
-			impl.logger.Errorw("error in saving variable data", parentVarScope)
+			impl.logger.Errorw("error in saving variable data", err)
 			return err
 		}
 	}
@@ -343,6 +348,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 	defer func(scopedVariableRepository repository2.ScopedVariableRepository, tx *pg.Tx) {
 		err = scopedVariableRepository.CommitTx(tx)
 		if err != nil {
+			impl.logger.Errorw("error in committing transaction", err)
 			return
 		}
 	}(impl.scopedVariableRepository, tx)
@@ -420,17 +426,17 @@ func getIdentifierValue(identifierType models.IdentifierType, appNameToIdMap map
 	if identifierType == models.ApplicationName {
 		identifierValue, found = appNameToIdMap[identifierName]
 		if !found {
-			return 0, fmt.Errorf("ApplicationName mapping not found")
+			return 0, fmt.Errorf("ApplicationName mapping not found %s", identifierName)
 		}
 	} else if identifierType == models.EnvName {
 		identifierValue, found = envNameToIdMap[identifierName]
 		if !found {
-			return 0, fmt.Errorf("EnvName mapping not found")
+			return 0, fmt.Errorf("EnvName mapping not found %s", identifierName)
 		}
 	} else if identifierType == models.ClusterName {
 		identifierValue, found = clusterNameToIdMap[identifierName]
 		if !found {
-			return 0, fmt.Errorf("ClusterName mapping not found")
+			return 0, fmt.Errorf("ClusterName mapping not found %s", identifierName)
 		}
 	} else {
 		return 0, fmt.Errorf("invalid identifierType")
@@ -518,6 +524,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	if scope.EnvId != 0 && scope.ClusterId == 0 {
 		env, err = impl.environmentRepository.FindById(scope.EnvId)
 		if err != nil {
+			impl.logger.Errorw("error in getting env", err)
 			return nil, err
 		}
 		scope.ClusterId = env.ClusterId
@@ -529,6 +536,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	scopeIdToVariableScope := make(map[int]*repository2.VariableScope)
 	varScope, err = impl.scopedVariableRepository.GetScopedVariableData(scope, searchableKeyNameIdMap, varIds)
 	if err != nil {
+		impl.logger.Errorw("error in getting varScope", err)
 		return nil, err
 	}
 	for _, vScope := range varScope {
@@ -545,6 +553,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	if scopedVarIds != nil {
 		varDefs, err = impl.scopedVariableRepository.GetVariablesForVarIds(scopedVarIds)
 		if err != nil {
+			impl.logger.Errorw("error in getting variable definition", err)
 			return nil, err
 		}
 	}
@@ -552,6 +561,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	if scopeIds != nil {
 		vData, err = impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
 		if err != nil {
+			impl.logger.Errorw("error in getting variable data", err)
 			return nil, err
 		}
 	}
@@ -569,6 +579,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 				var value interface{}
 				value, err = variableDataTypeValidation(varData.Data)
 				if err != nil {
+					impl.logger.Errorw("error in validating value", err)
 					return nil, err
 				}
 				scopedVariableData.VariableValue = value
@@ -580,6 +591,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	if varNames == nil {
 		variableList, err = impl.scopedVariableRepository.GetAllVariables()
 		if err != nil {
+			impl.logger.Errorw("error in getting variable list", err)
 			return nil, err
 		}
 		for _, existing := range variableList {
@@ -617,6 +629,7 @@ func variableDataTypeValidation(Data string) (interface{}, error) {
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {
 	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
 	if err != nil {
+		impl.logger.Errorw("error in getting data for json", err)
 		return nil, err
 	}
 	payload := &models.Payload{
@@ -695,48 +708,48 @@ func getIdentifierType(attribute models.AttributeType) []models.IdentifierType {
 	}
 }
 
-func (impl *ScopedVariableServiceImpl) validateVariableScopeRequest(payload models.Payload) error {
+func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (error, bool) {
 	variableNamesList := make([]string, 0)
 	for _, variable := range payload.Variables {
 		if slices.Contains(variableNamesList, variable.Definition.VarName) {
-			return fmt.Errorf("duplicate variable name")
+			return fmt.Errorf("duplicate variable name"), false
 		}
-		exp := impl.variableNameConfig.VariableNameValidator
+		regex := impl.variableNameConfig.VariableNameRegex
 
-		rExp := regexp.MustCompile(exp)
-		if !rExp.MatchString(variable.Definition.VarName) {
-			return fmt.Errorf("invalid variable name %s", variable.Definition.VarName)
+		regexExpression := regexp.MustCompile(regex)
+		if !regexExpression.MatchString(variable.Definition.VarName) {
+			return fmt.Errorf("variable name %s doesnot match regex %s", variable.Definition.VarName, regex), false
 		}
 		variableNamesList = append(variableNamesList, variable.Definition.VarName)
 		uniqueVariableMap := make(map[string]interface{})
 		for _, attributeValue := range variable.AttributeValues {
 			validIdentifierTypeList := getIdentifierType(attributeValue.AttributeType)
 			if len(validIdentifierTypeList) != len(attributeValue.AttributeParams) {
-				return fmt.Errorf("length of AttributeParams is not valid")
+				return fmt.Errorf("length of AttributeParams is not valid"), false
 			}
 			for key, _ := range attributeValue.AttributeParams {
 				if !slices.Contains(validIdentifierTypeList, key) {
-					return fmt.Errorf("invalid IdentifierType %s for validIdentifierTypeList %s", key, validIdentifierTypeList)
+					return fmt.Errorf("invalid IdentifierType %s for validIdentifierTypeList %s", key, validIdentifierTypeList), false
 				}
-				match := false
-				for _, identifier := range models.IdentifiersList {
-					if identifier == key {
-						match = true
-					}
-				}
-				if !match {
-					return fmt.Errorf("invalid identifier key %s for variable %s", key, variable.Definition.VarName)
-				}
+				//match := false
+				//for _, identifier := range models.IdentifiersList {
+				//	if identifier == key {
+				//		match = true
+				//	}
+				//}
+				//if !match {
+				//	return fmt.Errorf("invalid identifier key %s for variable %s", key, variable.Definition.VarName),false
+				//}
 			}
 			identifierString := fmt.Sprintf("%s-%s", variable.Definition.VarName, string(attributeValue.AttributeType))
 			for _, key := range validIdentifierTypeList {
 				identifierString = fmt.Sprintf("%s-%s", identifierString, attributeValue.AttributeParams[key])
 			}
 			if _, ok := uniqueVariableMap[identifierString]; ok {
-				return fmt.Errorf("duplicate AttributeParams found for AttributeType %v", attributeValue.AttributeType)
+				return fmt.Errorf("duplicate AttributeParams found for AttributeType %v", attributeValue.AttributeType), false
 			}
 			uniqueVariableMap[identifierString] = attributeValue.VariableValue.Value
 		}
 	}
-	return nil
+	return nil, true
 }

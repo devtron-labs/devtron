@@ -68,7 +68,7 @@ type ScopedVariableRepository interface {
 	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
 	GetScopedVariableData(scope models.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
-	DeleteVariables() error
+	DeleteVariables(auditLog sql.AuditLog) error
 }
 
 type ScopedVariableRepositoryImpl struct {
@@ -186,7 +186,7 @@ func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]
 
 }
 
-func (impl *ScopedVariableRepositoryImpl) DeleteVariables() error {
+func (impl *ScopedVariableRepositoryImpl) DeleteVariables(auditLog sql.AuditLog) error {
 	tx, err := impl.dbConnection.Begin()
 	if err != nil {
 		return err
@@ -199,11 +199,15 @@ func (impl *ScopedVariableRepositoryImpl) DeleteVariables() error {
 		}
 	}(tx)
 	_, err = tx.Model(&VariableScope{}).
+		Set("updated_by = ?", auditLog.UpdatedBy).
+		Set("updated_on = ?", auditLog.UpdatedOn).
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Update()
 
 	_, err = tx.Model(&VariableDefinition{}).
+		Set("updated_by = ?", auditLog.UpdatedBy).
+		Set("updated_on = ?", auditLog.UpdatedOn).
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Update()
