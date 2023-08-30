@@ -50,6 +50,9 @@ func (impl *CustomTagServiceImpl) DeactivateImagePathReservation(id int) error {
 }
 
 func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) error {
+	if err := validateTagPattern(tag.TagPattern); err != nil {
+		return err
+	}
 	customTagData := repository.CustomTag{
 		EntityKey:            tag.EntityKey,
 		EntityValue:          tag.EntityValue,
@@ -138,6 +141,9 @@ func validateAndConstructTag(customTagData *repository.CustomTag) (string, error
 }
 
 func validateTagPattern(customTagPattern string) error {
+	if len(customTagPattern) == 0 {
+		return fmt.Errorf("tag length can not be zero")
+	}
 	allowedVariables := []string{"{x}", "{X}"}
 	totalX := 0
 	for _, variable := range allowedVariables {
@@ -145,6 +151,16 @@ func validateTagPattern(customTagPattern string) error {
 	}
 	if totalX != 1 {
 		return fmt.Errorf("variable {x} is allowed exactly once")
+	}
+	remainingString := strings.ReplaceAll(customTagPattern, "{x}", "")
+	remainingString = strings.ReplaceAll(remainingString, "{X}", "")
+
+	if len(remainingString) == 0 {
+		return nil
+	}
+	n := len(remainingString)
+	if remainingString[0] == '.' || remainingString[n-1] == '.' || remainingString[0] == '-' || remainingString[n-1] == '-' {
+		return fmt.Errorf("tag can not start or end with an hyphen or a period")
 	}
 	return nil
 }
