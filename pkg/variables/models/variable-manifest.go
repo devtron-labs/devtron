@@ -19,7 +19,7 @@ type VariableSpec struct {
 type VariableValueSpec struct {
 	Category  AttributeType `json:"category" validate:"oneof=ApplicationEnv Application Env Cluster Global"`
 	Value     interface{}   `json:"value" validate:"required"`
-	Selectors *Selector     `json:"selectors,omitempty" validate:"dive"`
+	Selectors *Selector     `json:"selectors,omitempty"`
 }
 
 type Selector struct {
