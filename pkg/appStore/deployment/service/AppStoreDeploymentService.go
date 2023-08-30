@@ -535,7 +535,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(install
 	installedAppVersionHistory.Status = "Unknown"
 	installedAppVersionHistory, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
+		impl.logger.Errorw("error while creating installed app version history", "error", err)
 		return nil, err
 	}
 	err = tx.Commit()
@@ -1399,36 +1399,29 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	installAppVersionRequest.EnvironmentName = installedApp.Environment.Name
 	installAppVersionRequest.Environment = &installedApp.Environment
 
+	// creating installed app version history
 	installAppVersionHistoryStatus := "Unknown"
 	if util.IsAcdApp(installedApp.DeploymentAppType) || util.IsManifestDownload(installedApp.DeploymentAppType) {
 		installAppVersionHistoryStatus = pipelineConfig.WorkflowInProgress
-		installedAppVersionHistory := &repository.InstalledAppVersionHistory{
-			InstalledAppVersionId: installedAppVersion.Id,
-			ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
-			StartedOn:             time.Now(),
-			Status:                installAppVersionHistoryStatus,
-			AuditLog: sql.AuditLog{
-				CreatedOn: time.Now(),
-				CreatedBy: installAppVersionRequest.UserId,
-				UpdatedOn: time.Now(),
-				UpdatedBy: installAppVersionRequest.UserId,
-			},
-		}
-		_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
-		if err != nil {
-			impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
-			return nil, err
-		}
-		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", tx)
-	} else {
-		// create build history for chart on default component deployed via helm
-		installedAppVersionHistory, err := impl.UpdateInstallAppVersionHistory(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
-		}
-		installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
 	}
+	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
+		InstalledAppVersionId: installedAppVersion.Id,
+		ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
+		StartedOn:             time.Now(),
+		Status:                installAppVersionHistoryStatus,
+		AuditLog: sql.AuditLog{
+			CreatedOn: time.Now(),
+			CreatedBy: installAppVersionRequest.UserId,
+			UpdatedOn: time.Now(),
+			UpdatedBy: installAppVersionRequest.UserId,
+		},
+	}
+	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+	if err != nil {
+		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
+		return nil, err
+	}
+	_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", tx)
 
 	manifest, err := impl.appStoreDeploymentCommonService.GenerateManifest(installAppVersionRequest)
 	if err != nil {
