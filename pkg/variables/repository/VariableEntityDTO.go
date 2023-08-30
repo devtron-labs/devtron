@@ -16,9 +16,9 @@ type Entity struct {
 	EntityId   int        `sql:"entity_id"`
 }
 
-type EntityType string
+type EntityType int
 
 const (
-	EntityTypeDeploymentTemplateAppLevel EntityType = "DEPLOYMENT_TEMPLATE_APP_LEVEL"
-	EntityTypeDeploymentTemplateEnvLevel EntityType = "DEPLOYMENT_TEMPLATE_ENV_LEVEL"
+	EntityTypeDeploymentTemplateAppLevel EntityType = 1
+	EntityTypeDeploymentTemplateEnvLevel EntityType = 2
 )

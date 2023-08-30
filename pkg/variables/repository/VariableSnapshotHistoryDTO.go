@@ -22,8 +22,8 @@ type VariableSnapshotHistoryBean struct {
 	HistoryReference
 }
 
-type HistoryReferenceType string
+type HistoryReferenceType int
 
 const (
-	HistoryReferenceTypeDeploymentTemplate HistoryReferenceType = "DEPLOYMENT_TEMPLATE"
+	HistoryReferenceTypeDeploymentTemplate HistoryReferenceType = 1
 )

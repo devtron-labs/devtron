@@ -49,6 +49,36 @@ CREATE TABLE  IF NOT EXISTS "public"."variable_data"
     PRIMARY KEY ("id")
 );
 
+CREATE SEQUENCE IF NOT EXISTS variable_entity_mapping_seq;
+CREATE TABLE IF NOT EXISTS "public"."variable_entity_mapping"
+(
+    "id"  integer NOT NULL default nextval('variable_entity_mapping_seq' :: regclass),
+    "variable_name"  varchar(300)     NOT NULL,
+    "entity_type"  int    NOT NULL,
+    "entity_id"  int     NOT NULL,
+    "is_deleted" bool     NOT NULL,
+    "created_on"        timestamptz,
+    "created_by"        integer,
+    "updated_on"        timestamptz,
+    "updated_by"        integer,
+    PRIMARY KEY ("id")
+    );
+
+CREATE SEQUENCE IF NOT EXISTS variable_snapshot_history_seq;
+CREATE TABLE IF NOT EXISTS "public"."variable_snapshot_history"
+(
+    "id"  integer NOT NULL default nextval('variable_snapshot_history_seq' :: regclass),
+    "variable_snapshot"  jsonb     NOT NULL,
+    "history_reference_type"  int     NOT NULL,
+    "history_reference_id"  int     NOT NULL,
+    "created_on"        timestamptz,
+    "created_by"        integer,
+    "updated_on"        timestamptz,
+    "updated_by"        integer,
+    PRIMARY KEY ("id")
+    );
+
+
 INSERT INTO devtron_resource_searchable_key(name, is_removed, created_on, created_by, updated_on, updated_by)
 VALUES ('APP_ID', false, now(), 1, now(), 1),
        ('ENV_ID', false, now(), 1, now(), 1),
