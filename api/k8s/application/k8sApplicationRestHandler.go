@@ -262,7 +262,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 			Namespace: appIdentifier.Namespace,
 		},
 	}
-	validRequests := make([]k8s.ResourceRequestBean, 0)
 	var resourceTreeInf map[string]interface{}
 	bytes, _ := json.Marshal(appDetail.ResourceTreeResponse)
 	err = json.Unmarshal(bytes, &resourceTreeInf)
@@ -270,7 +269,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("unmarshal error of resource tree response"), nil, http.StatusInternalServerError)
 		return
 	}
-	validRequests = handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTreeInf, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.IngressKind})
+	validRequests := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTreeInf, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.IngressKind})
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for this app", "appId", clusterIdString)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
