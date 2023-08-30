@@ -1390,7 +1390,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			if err != nil {
 				return nil, err
 			}
-			envOverride.EnvOverrideValues = resolvedTemplate
+			envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 			envOverride.VariableSnapshot = variableMap
 		} else {
 			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, chart.GlobalOverride, repository6.Entity{

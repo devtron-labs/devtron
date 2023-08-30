@@ -147,8 +147,8 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			}
 			scope := models.Scope{
 				AppId:     pipeline.AppId,
-				EnvId:     envOverride.Environment.Id,
-				ClusterId: envOverride.Environment.ClusterId,
+				EnvId:     pipeline.EnvironmentId,
+				ClusterId: pipeline.Environment.ClusterId,
 			}
 			entity := repository6.Entity{
 				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
