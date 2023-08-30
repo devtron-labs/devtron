@@ -57,7 +57,7 @@ type MaterialRepository interface {
 	Update(materials []*GitMaterial) error
 	FindByAppId(appId int) ([]*GitMaterial, error)
 	FindById(Id int) (*GitMaterial, error)
-	FindByAppIdAndId(appId, id int) (*GitMaterial, error)
+	FindByAppIdAndGitMaterialId(appId, id int) (*GitMaterial, error)
 	UpdateMaterialScmId(material *GitMaterial) error
 	FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error)
 	FindByGitProviderId(gitProviderId int) (materials []*GitMaterial, err error)
@@ -93,7 +93,7 @@ func (repo MaterialRepositoryImpl) FindById(Id int) (*GitMaterial, error) {
 	return material, err
 }
 
-func (repo MaterialRepositoryImpl) FindByAppIdAndId(appId, id int) (*GitMaterial, error) {
+func (repo MaterialRepositoryImpl) FindByAppIdAndGitMaterialId(appId, id int) (*GitMaterial, error) {
 	material := &GitMaterial{}
 	err := repo.dbConnection.Model(material).
 		Column("git_material.*", "GitProvider").

@@ -1608,7 +1608,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			gitMaterial, err = handler.materialRepository.FindByAppIdAndCheckoutPath(appId, ciMaterial.CheckoutPath)
 		} else {
 			//if linked CI find git material by it's parentAppId and Id
-			gitMaterial, err = handler.materialRepository.FindByAppIdAndId(ciPipelineData.ParentAppId, ciMaterial.GitMaterialId)
+			gitMaterial, err = handler.materialRepository.FindByAppIdAndGitMaterialId(ciPipelineData.ParentAppId, ciMaterial.GitMaterialId)
 		}
 		if err != nil {
 			handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateWorkflows", "err", err, "appId", appId)
