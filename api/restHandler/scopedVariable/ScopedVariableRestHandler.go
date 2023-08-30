@@ -35,8 +35,8 @@ type ScopedVariableRestHandlerImpl struct {
 	scopedVariableService variables.ScopedVariableService
 }
 type JsonResponse struct {
-	Manifest   models.ScopedVariableManifest `json:"manifest"`
-	JsonSchema string                        `json:"jsonSchema"`
+	Manifest   *models.ScopedVariableManifest `json:"manifest"`
+	JsonSchema string                         `json:"jsonSchema"`
 }
 
 func NewScopedVariableRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, pipelineBuilder pipeline.PipelineBuilder, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, scopedVariableService variables.ScopedVariableService) *ScopedVariableRestHandlerImpl {
@@ -57,25 +57,25 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	manifest := models.ScopedVariableManifest{}
+	request := models.VariableRequest{}
 	decoder.UseNumber()
-	err = decoder.Decode(&manifest)
+	err = decoder.Decode(&request)
 	if err != nil {
-		handler.logger.Errorw("request err, Save", "error", err, "manifest", manifest)
+		handler.logger.Errorw("request err, Save", "error", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	manifest.UserId = userId
+	request.UserId = userId
 
 	// validate request
-	err = handler.validator.Struct(manifest)
+	err = handler.validator.Struct(request)
 	if err != nil {
-		handler.logger.Errorw("struct validation err in CreateVariables", "err", err, "request", manifest)
+		handler.logger.Errorw("struct validation err in CreateVariables", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	payload := utils.ManifestToPayload(manifest)
+	payload := utils.ManifestToPayload(request.Manifest, userId)
 
 	// not logging bean object as it contains sensitive data
 	handler.logger.Infow("request payload received for variables")
@@ -174,9 +174,14 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 		common.WriteJsonResp(w, err, "schema cannot be generated for manifest type", http.StatusInternalServerError)
 		return
 	}
+
 	jsonResponse := JsonResponse{
-		Manifest:   utils.PayloadToManifest(*payload),
 		JsonSchema: schema,
+	}
+
+	if payload != nil {
+		manifest := utils.PayloadToManifest(*payload)
+		jsonResponse.Manifest = &manifest
 	}
 	common.WriteJsonResp(w, nil, jsonResponse, http.StatusOK)
 }

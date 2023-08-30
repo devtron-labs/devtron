@@ -4,7 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 )
 
-func ManifestToPayload(manifest models.ScopedVariableManifest) models.Payload {
+func ManifestToPayload(manifest models.ScopedVariableManifest, userId int32) models.Payload {
 
 	variableList := make([]*models.Variables, 0)
 
@@ -31,7 +31,7 @@ func ManifestToPayload(manifest models.ScopedVariableManifest) models.Payload {
 	}
 	payload := models.Payload{
 		Variables: variableList,
-		UserId:    manifest.UserId,
+		UserId:    userId,
 	}
 	return payload
 }

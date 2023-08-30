@@ -1,14 +1,17 @@
 package models
 
+type VariableRequest struct {
+	Manifest ScopedVariableManifest `json:"manifest"`
+	UserId   int32                  `json:"-"`
+}
 type ScopedVariableManifest struct {
 	ApiVersion string         `json:"apiVersion" validate:"oneof=devtron.ai/v1beta1"`
 	Kind       string         `json:"kind" validate:"oneof=Variable"`
 	Spec       []VariableSpec `json:"spec" validate:"required,dive"`
-	UserId     int32          `json:"-"`
 }
 
 type VariableSpec struct {
-	Description string              `json:"description" validate:"required, max=300"`
+	Description string              `json:"description" validate:"max=300"`
 	Name        string              `json:"name" validate:"required"`
 	Values      []VariableValueSpec `json:"values" validate:"dive"`
 }
