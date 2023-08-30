@@ -12,7 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"time"
@@ -423,7 +423,7 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 
 	env, _ := impl.envRepository.FindById(envId)
 	//VARIABLE_RESOLVE
-	scope := repository.Scope{
+	scope := models.Scope{
 		AppId:     appId,
 		EnvId:     envId,
 		ClusterId: env.ClusterId,
@@ -460,7 +460,7 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 
 		//VARIABLE_RESOLVE
 		env, _ := impl.envRepository.FindById(envId)
-		scope := repository.Scope{
+		scope := models.Scope{
 			AppId:     appId,
 			EnvId:     envId,
 			ClusterId: env.ClusterId,
@@ -647,7 +647,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 
 		//VARIABLE_RESOLVE
 		env, _ := impl.envRepository.FindById(envId)
-		scope := repository.Scope{
+		scope := models.Scope{
 			AppId:     templateRequest.AppId,
 			EnvId:     envId,
 			ClusterId: env.ClusterId,
@@ -670,7 +670,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 
 			//VARIABLE_RESOLVE
 			env, _ := impl.envRepository.FindById(envId)
-			scope := repository.Scope{
+			scope := models.Scope{
 				AppId:     appId,
 				EnvId:     envId,
 				ClusterId: env.ClusterId,

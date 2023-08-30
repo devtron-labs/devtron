@@ -9,7 +9,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
+	"github.com/devtron-labs/devtron/pkg/variables/utils"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
@@ -35,8 +37,8 @@ type ScopedVariableRestHandlerImpl struct {
 	scopedVariableService variables.ScopedVariableService
 }
 type JsonResponse struct {
-	Payload    *repository.Payload `json:"payload"`
-	JsonSchema string              `json:"jsonSchema"`
+	Manifest   models.ScopedVariableManifest `json:"manifest"`
+	JsonSchema string                        `json:"jsonSchema"`
 }
 
 func NewScopedVariableRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, pipelineBuilder pipeline.PipelineBuilder, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, scopedVariableService variables.ScopedVariableService) *ScopedVariableRestHandlerImpl {
@@ -57,29 +59,33 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	paylaod := repository.Payload{}
+	manifest := models.ScopedVariableManifest{}
 	decoder.UseNumber()
-	err = decoder.Decode(&paylaod)
+	err = decoder.Decode(&manifest)
 	if err != nil {
-		handler.logger.Errorw("request err, Save", "error", err, "payload", paylaod)
+		handler.logger.Errorw("request err, Save", "error", err, "manifest", manifest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	paylaod.UserId = userId
+	manifest.UserId = userId
+
 	// validate request
-	err = handler.validator.Struct(paylaod)
+	err = handler.validator.Struct(manifest)
 	if err != nil {
-		handler.logger.Errorw("struct validation err in CreateVariables", "err", err, "request", paylaod)
+		handler.logger.Errorw("struct validation err in CreateVariables", "err", err, "request", manifest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	err = validateVariableScopeRequest(paylaod)
-	if err != nil {
-		handler.logger.Errorw("custom validation err in CreateVariables", "err", err, "request", paylaod)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+	payload := utils.ManifestToPayload(manifest)
+
+	//TODO Aditya move to service layer
+	//err = validateVariableScopeRequest(payload)
+	//if err != nil {
+	//	handler.logger.Errorw("custom validation err in CreateVariables", "err", err, "request", payload)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
 
 	// not logging bean object as it contains sensitive data
 	handler.logger.Infow("request payload received for variables")
@@ -94,7 +100,7 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 		return
 	}
 	//RBAC enforcer Ends
-	err = handler.scopedVariableService.CreateVariables(paylaod)
+	err = handler.scopedVariableService.CreateVariables(payload)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -112,7 +118,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 			return
 		}
 	}
-	var scope repository.Scope
+	var scope models.Scope
 	scopeQueryParam := r.URL.Query().Get("scope")
 	if scopeQueryParam != "" {
 		if err := json.Unmarshal([]byte(scopeQueryParam), &scope); err != nil {
@@ -169,35 +175,40 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 		return
 	}
 	//RBAC enforcer Ends
-	var paylaod *repository.Payload
-	var jsonSchema string
+	//var payload *repository.Payload
 
-	paylaod, jsonSchema, err = handler.scopedVariableService.GetJsonForVariables()
+	payload, err := handler.scopedVariableService.GetJsonForVariables()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	schema, err := util.GetSchemaFromType(models.ScopedVariableManifest{})
+	if err != nil {
+		common.WriteJsonResp(w, err, "schema cannot be generated for manifest type", http.StatusInternalServerError)
+		return
+	}
 	jsonResponse := JsonResponse{
-		Payload:    paylaod,
-		JsonSchema: jsonSchema,
+		Manifest:   utils.PayloadToManifest(*payload),
+		JsonSchema: schema,
 	}
 	common.WriteJsonResp(w, nil, jsonResponse, http.StatusOK)
 }
-func getIdentifierType(attribute repository.AttributeType) []repository.IdentifierType {
+func getIdentifierType(attribute models.AttributeType) []models.IdentifierType {
 	switch attribute {
-	case repository.ApplicationEnv:
-		return []repository.IdentifierType{repository.ApplicationName, repository.EnvName}
-	case repository.Application:
-		return []repository.IdentifierType{repository.ApplicationName}
-	case repository.Env:
-		return []repository.IdentifierType{repository.EnvName}
-	case repository.Cluster:
-		return []repository.IdentifierType{repository.ClusterName}
+	case models.ApplicationEnv:
+		return []models.IdentifierType{models.ApplicationName, models.EnvName}
+	case models.Application:
+		return []models.IdentifierType{models.ApplicationName}
+	case models.Env:
+		return []models.IdentifierType{models.EnvName}
+	case models.Cluster:
+		return []models.IdentifierType{models.ClusterName}
 	default:
 		return nil
 	}
 }
-func validateVariableScopeRequest(payload repository.Payload) error {
+func validateVariableScopeRequest(payload models.Payload) error {
 	variableNamesList := make([]string, 0)
 	for _, variable := range payload.Variables {
 		if slices.Contains(variableNamesList, variable.Definition.VarName) {
@@ -226,7 +237,7 @@ func validateVariableScopeRequest(payload repository.Payload) error {
 					return fmt.Errorf("invalid IdentifierType %s for validIdentifierTypeList %s", key, validIdentifierTypeList)
 				}
 				match := false
-				for _, identifier := range repository.IdentifiersList {
+				for _, identifier := range models.IdentifiersList {
 					if identifier == key {
 						match = true
 					}

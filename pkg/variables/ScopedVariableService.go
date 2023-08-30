@@ -8,9 +8,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
-	"github.com/invopop/jsonschema"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"sigs.k8s.io/yaml"
@@ -31,9 +31,9 @@ const (
 )
 
 type ScopedVariableService interface {
-	CreateVariables(payload repository2.Payload) error
-	GetScopedVariables(scope repository2.Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error)
-	GetJsonForVariables() (*repository2.Payload, string, error)
+	CreateVariables(payload models.Payload) error
+	GetScopedVariables(scope models.Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error)
+	GetJsonForVariables() (*models.Payload, error)
 }
 
 type ScopedVariableServiceImpl struct {
@@ -57,71 +57,71 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 
 	return scopedVariableService, nil
 }
-func getIdentifierKey(identifierType repository2.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) int {
+func getIdentifierKey(identifierType models.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) int {
 	switch identifierType {
-	case repository2.ApplicationName:
+	case models.ApplicationName:
 		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID]
-	case repository2.ClusterName:
+	case models.ClusterName:
 		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]
-	case repository2.EnvName:
+	case models.EnvName:
 		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
 	default:
 		return 0
 	}
 }
-func (impl *ScopedVariableServiceImpl) getIdentifierType(searchableKeyId int) repository2.IdentifierType {
+func (impl *ScopedVariableServiceImpl) getIdentifierType(searchableKeyId int) models.IdentifierType {
 	SearchableKeyIdNameMap := impl.devtronResourceService.GetAllSearchableKeyIdNameMap()
 	switch SearchableKeyIdNameMap[searchableKeyId] {
 	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID:
-		return repository2.ApplicationName
+		return models.ApplicationName
 	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID:
-		return repository2.EnvName
+		return models.EnvName
 	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID:
-		return repository2.ClusterName
+		return models.ClusterName
 	default:
 		return ""
 	}
 }
 
-func getQualifierId(attributeType repository2.AttributeType) repository2.Qualifier {
+func getQualifierId(attributeType models.AttributeType) repository2.Qualifier {
 	switch attributeType {
-	case repository2.ApplicationEnv:
+	case models.ApplicationEnv:
 		return repository2.APP_AND_ENV_QUALIFIER
-	case repository2.Application:
+	case models.Application:
 		return repository2.APP_QUALIFIER
-	case repository2.Env:
+	case models.Env:
 		return repository2.ENV_QUALIFIER
-	case repository2.Cluster:
+	case models.Cluster:
 		return repository2.CLUSTER_QUALIFIER
-	case repository2.Global:
+	case models.Global:
 		return repository2.GLOBAL_QUALIFIER
 	default:
 		return 0
 	}
 }
-func getAttributeType(qualifier repository2.Qualifier) repository2.AttributeType {
+func getAttributeType(qualifier repository2.Qualifier) models.AttributeType {
 	switch qualifier {
 	case repository2.APP_AND_ENV_QUALIFIER:
-		return repository2.ApplicationEnv
+		return models.ApplicationEnv
 	case repository2.APP_QUALIFIER:
-		return repository2.Application
+		return models.Application
 	case repository2.ENV_QUALIFIER:
-		return repository2.Env
+		return models.Env
 	case repository2.CLUSTER_QUALIFIER:
-		return repository2.Cluster
+		return models.Cluster
 	case repository2.GLOBAL_QUALIFIER:
-		return repository2.Global
+		return models.Global
 	default:
 		return ""
 	}
 }
 
 type ValueMapping struct {
-	Attribute repository2.AttributeType
+	Attribute models.AttributeType
 	Value     string
 }
 
-func complexTypeValidator(payload repository2.Payload) bool {
+func complexTypeValidator(payload models.Payload) bool {
 	for _, variable := range payload.Variables {
 		variableType := variable.Definition.DataType
 		if variableType == YAML_TYPE || variableType == JSON_TYPE {
@@ -160,7 +160,7 @@ func isValidJSON(input string) bool {
 	}
 	return true
 }
-func getAuditLog(payload repository2.Payload) sql.AuditLog {
+func getAuditLog(payload models.Payload) sql.AuditLog {
 	var auditLog sql.AuditLog
 	auditLog = sql.AuditLog{
 		CreatedOn: time.Now(),
@@ -187,7 +187,7 @@ func validateVariableToSaveData(data interface{}) (string, error) {
 	}
 	return value, nil
 }
-func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Payload) error {
+func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) error {
 	validValue := complexTypeValidator(payload)
 	if !validValue {
 		impl.logger.Errorw("variable value is not valid", validValue)
@@ -241,9 +241,9 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 		for _, value := range variable.AttributeValues {
 			var compositeString string
 			if getQualifierId(value.AttributeType) == 1 {
-				compositeString = value.AttributeParams[repository2.ApplicationName] + value.AttributeParams[repository2.EnvName]
+				compositeString = value.AttributeParams[models.ApplicationName] + value.AttributeParams[models.EnvName]
 			}
-			if value.AttributeType == repository2.Global {
+			if value.AttributeType == models.Global {
 				scope := &repository2.VariableScope{
 					VariableDefinitionId: variableId,
 					QualifierId:          int(getQualifierId(value.AttributeType)),
@@ -382,18 +382,18 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload repository2.Paylo
 	return nil
 }
 
-func getAttributeNames(payload repository2.Payload) ([]string, []string, []string) {
+func getAttributeNames(payload models.Payload) ([]string, []string, []string) {
 	appNames := make([]string, 0)
 	envNames := make([]string, 0)
 	clusterNames := make([]string, 0)
 	for _, variable := range payload.Variables {
 		for _, value := range variable.AttributeValues {
 			for identifierType, _ := range value.AttributeParams {
-				if identifierType == repository2.ApplicationName {
+				if identifierType == models.ApplicationName {
 					appNames = append(appNames, value.AttributeParams[identifierType])
-				} else if identifierType == repository2.EnvName {
+				} else if identifierType == models.EnvName {
 					envNames = append(envNames, value.AttributeParams[identifierType])
-				} else if identifierType == repository2.ClusterName {
+				} else if identifierType == models.ClusterName {
 					clusterNames = append(clusterNames, value.AttributeParams[identifierType])
 				}
 			}
@@ -447,20 +447,20 @@ func (impl *ScopedVariableServiceImpl) getAttributeNameToIdMappings(appNames []s
 	return appNameToIdMap, envNameToIdMap, clusterNameToIdMap, nil
 }
 
-func getIdentifierValue(identifierType repository2.IdentifierType, appNameToIdMap map[string]int, identifierName string, envNameToIdMap map[string]int, clusterNameToIdMap map[string]int) (int, error) {
+func getIdentifierValue(identifierType models.IdentifierType, appNameToIdMap map[string]int, identifierName string, envNameToIdMap map[string]int, clusterNameToIdMap map[string]int) (int, error) {
 	var found bool
 	var identifierValue int
-	if identifierType == repository2.ApplicationName {
+	if identifierType == models.ApplicationName {
 		identifierValue, found = appNameToIdMap[identifierName]
 		if !found {
 			return 0, fmt.Errorf("ApplicationName mapping not found")
 		}
-	} else if identifierType == repository2.EnvName {
+	} else if identifierType == models.EnvName {
 		identifierValue, found = envNameToIdMap[identifierName]
 		if !found {
 			return 0, fmt.Errorf("EnvName mapping not found")
 		}
-	} else if identifierType == repository2.ClusterName {
+	} else if identifierType == models.ClusterName {
 		identifierValue, found = clusterNameToIdMap[identifierName]
 		if !found {
 			return 0, fmt.Errorf("ClusterName mapping not found")
@@ -632,7 +632,7 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*rep
 //	return variablePriorityMap
 //}
 
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope repository2.Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error) {
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string) (scopedVariableDataObj []*ScopedVariableData, err error) {
 	var vDef []*repository2.VariableDefinition
 	var varIds []int
 	vDef, err = impl.scopedVariableRepository.GetVariablesByNames(varNames)
@@ -725,14 +725,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope repository2.Scop
 	}
 	return scopedVariableDataObj, err
 }
-func getSchema() (string, error) {
-	schema := jsonschema.Reflect(repository2.Payload{})
-	schemaData, err := json.MarshalIndent(schema, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(schemaData), nil
-}
+
 func variableDataTypeValidation(Data string) (interface{}, error) {
 	var value interface{}
 	if intValue, err := strconv.Atoi(Data); err == nil {
@@ -746,24 +739,24 @@ func variableDataTypeValidation(Data string) (interface{}, error) {
 	}
 	return value, nil
 }
-func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Payload, string, error) {
+func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {
 	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	payload := &repository2.Payload{
-		Variables: make([]*repository2.Variables, 0),
+	payload := &models.Payload{
+		Variables: make([]*models.Variables, 0),
 	}
 
-	variables := make([]*repository2.Variables, 0)
+	variables := make([]*models.Variables, 0)
 	for _, data := range dataForJson {
-		definition := repository2.Definition{
+		definition := models.Definition{
 			VarName:     data.Name,
 			DataType:    data.DataType,
 			VarType:     data.VarType,
 			Description: data.Description,
 		}
-		attributes := make([]repository2.AttributeValue, 0)
+		attributes := make([]models.AttributeValue, 0)
 
 		scopeIdToVarScopes := make(map[int][]*repository2.VariableScope)
 		for _, scope := range data.VariableScope {
@@ -774,8 +767,8 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 			}
 		}
 		for parentScopeId, scopes := range scopeIdToVarScopes {
-			attribute := repository2.AttributeValue{
-				AttributeParams: make(map[repository2.IdentifierType]string),
+			attribute := models.AttributeValue{
+				AttributeParams: make(map[models.IdentifierType]string),
 			}
 			for _, scope := range scopes {
 				if impl.getIdentifierType(scope.IdentifierKey) != "" {
@@ -785,7 +778,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 					var value interface{}
 					value, err = variableDataTypeValidation(scope.VariableData.Data)
 					if err != nil {
-						return nil, "", err
+						return nil, err
 					}
 					//if intValue, err := strconv.Atoi(scope.VariableData.Data); err == nil {
 					//	value = intValue
@@ -796,7 +789,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 					//} else {
 					//	value = strings.Trim(scope.VariableData.Data, "\"")
 					//}
-					attribute.VariableValue = repository2.VariableValue{
+					attribute.VariableValue = models.VariableValue{
 						Value: value,
 					}
 					attribute.AttributeType = getAttributeType(repository2.Qualifier(scope.QualifierId))
@@ -808,20 +801,17 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*repository2.Paylo
 			attributes = append(attributes, attribute)
 		}
 
-		variable := &repository2.Variables{
+		variable := &models.Variables{
 			Definition:      definition,
 			AttributeValues: attributes,
 		}
 		variables = append(variables, variable)
 	}
-	jsonSchema, err := getSchema()
-	if err != nil {
-		return nil, "", nil
-	}
+
 	payload.Variables = variables
-	payload.SpecVersion = "v1"
+	//payload.SpecVersion = "v1"
 	if len(payload.Variables) == 0 {
-		return nil, jsonSchema, nil
+		return nil, nil
 	}
-	return payload, jsonSchema, nil
+	return payload, nil
 }

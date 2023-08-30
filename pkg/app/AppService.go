@@ -39,6 +39,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
+	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -1259,7 +1260,7 @@ func (impl *AppServiceImpl) GetDeploymentStrategyByTriggerType(overrideRequest *
 func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
 
 	//VARIABLE different cases for variable resolution
-	scope := repository6.Scope{
+	scope := models2.Scope{
 		AppId:     overrideRequest.AppId,
 		EnvId:     overrideRequest.EnvId,
 		ClusterId: overrideRequest.ClusterId,
@@ -1443,7 +1444,7 @@ func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHi
 	return resolvedTemplate, variableSnapshotMap, nil
 }
 
-func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope repository6.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
+func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope models2.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
 
 	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
 	if err != nil {

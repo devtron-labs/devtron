@@ -1,0 +1,62 @@
+package utils
+
+import (
+	"github.com/devtron-labs/devtron/pkg/variables/models"
+)
+
+func ManifestToPayload(manifest models.ScopedVariableManifest) models.Payload {
+
+	variableList := make([]*models.Variables, 0)
+
+	for _, spec := range manifest.Spec {
+		attributes := make([]models.AttributeValue, 0)
+		for _, value := range spec.Values {
+			attribute := models.AttributeValue{
+				VariableValue:   models.VariableValue{Value: value.Value},
+				AttributeType:   value.Category,
+				AttributeParams: value.Selectors.AttributeSelectors,
+			}
+			attributes = append(attributes, attribute)
+		}
+		variable := models.Variables{
+			Definition: models.Definition{
+				VarName:     spec.Name,
+				DataType:    "primitive",
+				VarType:     "public",
+				Description: spec.Description,
+			},
+			AttributeValues: attributes,
+		}
+		variableList = append(variableList, &variable)
+	}
+	payload := models.Payload{
+		Variables: variableList,
+		UserId:    manifest.UserId,
+	}
+	return payload
+}
+
+func PayloadToManifest(payload models.Payload) models.ScopedVariableManifest {
+	manifest := models.ScopedVariableManifest{
+		ApiVersion: "devtron.ai/v1beta1",
+		Kind:       "Variable",
+		Spec:       make([]models.VariableSpec, 0),
+	}
+	for _, variable := range payload.Variables {
+		spec := models.VariableSpec{
+			Name:        variable.Definition.VarName,
+			Description: variable.Definition.Description,
+			Values:      make([]models.VariableValueSpec, 0),
+		}
+		for _, attribute := range variable.AttributeValues {
+			valueSpec := models.VariableValueSpec{
+				Value:     attribute.VariableValue.Value,
+				Category:  attribute.AttributeType,
+				Selectors: models.Selector{AttributeSelectors: attribute.AttributeParams},
+			}
+			spec.Values = append(spec.Values, valueSpec)
+		}
+		manifest.Spec = append(manifest.Spec, spec)
+	}
+	return manifest
+}

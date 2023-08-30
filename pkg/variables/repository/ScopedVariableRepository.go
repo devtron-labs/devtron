@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 )
@@ -65,7 +66,7 @@ type ScopedVariableRepository interface {
 	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)
 	GetVariablesByNames(vars []string) ([]*VariableDefinition, error)
 	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
-	GetScopedVariableData(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
+	GetScopedVariableData(scope models.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
 	DeleteVariables() error
 }
@@ -145,7 +146,7 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableScopeAndDefinition() ([]
 	return variableDefinition, err
 
 }
-func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error) {
+func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(scope models.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error) {
 	var variableScopes []*VariableScope
 	query := impl.dbConnection.Model(&variableScopes).
 		Where("active = ?", true).
