@@ -520,6 +520,10 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	for _, def := range vDef {
 		varIds = append(varIds, def.Id)
 	}
+	if len(varNames) > 0 && len(varIds) == 0 {
+		return make([]*ScopedVariableData, 0), nil
+	}
+
 	var env *repository.Environment
 	if scope.EnvId != 0 && scope.ClusterId == 0 {
 		env, err = impl.environmentRepository.FindById(scope.EnvId)
