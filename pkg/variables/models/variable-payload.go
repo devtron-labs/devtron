@@ -34,9 +34,9 @@ const (
 type IdentifierType string
 
 const (
-	ApplicationName IdentifierType = "ApplicationName"
 	EnvName         IdentifierType = "EnvName"
 	ClusterName     IdentifierType = "ClusterName"
+	ApplicationName IdentifierType = "ApplicationName"
 )
 
 var IdentifiersList = []IdentifierType{ApplicationName, EnvName, ClusterName}

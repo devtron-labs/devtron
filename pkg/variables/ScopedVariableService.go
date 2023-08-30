@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
@@ -57,18 +58,6 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 
 	return scopedVariableService, nil
 }
-func getIdentifierKey(identifierType models.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) int {
-	switch identifierType {
-	case models.ApplicationName:
-		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID]
-	case models.ClusterName:
-		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]
-	case models.EnvName:
-		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
-	default:
-		return 0
-	}
-}
 func (impl *ScopedVariableServiceImpl) getIdentifierType(searchableKeyId int) models.IdentifierType {
 	SearchableKeyIdNameMap := impl.devtronResourceService.GetAllSearchableKeyIdNameMap()
 	switch SearchableKeyIdNameMap[searchableKeyId] {
@@ -78,39 +67,6 @@ func (impl *ScopedVariableServiceImpl) getIdentifierType(searchableKeyId int) mo
 		return models.EnvName
 	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID:
 		return models.ClusterName
-	default:
-		return ""
-	}
-}
-
-func getQualifierId(attributeType models.AttributeType) repository2.Qualifier {
-	switch attributeType {
-	case models.ApplicationEnv:
-		return repository2.APP_AND_ENV_QUALIFIER
-	case models.Application:
-		return repository2.APP_QUALIFIER
-	case models.Env:
-		return repository2.ENV_QUALIFIER
-	case models.Cluster:
-		return repository2.CLUSTER_QUALIFIER
-	case models.Global:
-		return repository2.GLOBAL_QUALIFIER
-	default:
-		return 0
-	}
-}
-func getAttributeType(qualifier repository2.Qualifier) models.AttributeType {
-	switch qualifier {
-	case repository2.APP_AND_ENV_QUALIFIER:
-		return models.ApplicationEnv
-	case repository2.APP_QUALIFIER:
-		return models.Application
-	case repository2.ENV_QUALIFIER:
-		return models.Env
-	case repository2.CLUSTER_QUALIFIER:
-		return models.Cluster
-	case repository2.GLOBAL_QUALIFIER:
-		return models.Global
 	default:
 		return ""
 	}
@@ -206,10 +162,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 	if len(payload.Variables) == 0 {
 		return nil
 	}
-	tx, err := impl.scopedVariableRepository.StartTx()
-	if err != nil {
-		return err
-	}
+
 	variableDefinitions := make([]*repository2.VariableDefinition, 0, n)
 	for _, variable := range payload.Variables {
 		variableDefinition := &repository2.VariableDefinition{
@@ -225,6 +178,11 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 	variableScopes := make([]*repository2.VariableScope, 0)
 	variableNameToId := make(map[string]int)
 	var varDef []*repository2.VariableDefinition
+
+	tx, err := impl.scopedVariableRepository.StartTx()
+	if err != nil {
+		return err
+	}
 	varDef, err = impl.scopedVariableRepository.CreateVariableDefinition(variableDefinitions, tx)
 	for _, variable := range varDef {
 		variableNameToId[variable.Name] = variable.Id
@@ -244,13 +202,13 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		variableId := variableNameToId[variable.Definition.VarName]
 		for _, value := range variable.AttributeValues {
 			var compositeString string
-			if getQualifierId(value.AttributeType) == 1 {
+			if utils.GetQualifierId(value.AttributeType) == 1 {
 				compositeString = value.AttributeParams[models.ApplicationName] + value.AttributeParams[models.EnvName]
 			}
 			if value.AttributeType == models.Global {
 				scope := &repository2.VariableScope{
 					VariableDefinitionId: variableId,
-					QualifierId:          int(getQualifierId(value.AttributeType)),
+					QualifierId:          int(utils.GetQualifierId(value.AttributeType)),
 					Active:               true,
 					AuditLog:             getAuditLog(payload),
 				}
@@ -264,8 +222,8 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 					}
 					scope := &repository2.VariableScope{
 						VariableDefinitionId:  variableId,
-						QualifierId:           int(getQualifierId(value.AttributeType)),
-						IdentifierKey:         getIdentifierKey(identifierType, searchableKeyNameIdMap),
+						QualifierId:           int(utils.GetQualifierId(value.AttributeType)),
+						IdentifierKey:         utils.GetIdentifierKey(identifierType, searchableKeyNameIdMap),
 						IdentifierValueInt:    identifierValue,
 						Active:                true,
 						CompositeKey:          compositeString,
@@ -325,7 +283,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 	for _, parentVar := range parentVarScope {
 		if variables, exists := variableIdToValueMappings[parentVar.VariableDefinitionId]; exists {
 			for _, varRange := range variables {
-				if int(getQualifierId(varRange.Attribute)) == parentVar.QualifierId {
+				if int(utils.GetQualifierId(varRange.Attribute)) == parentVar.QualifierId {
 					scopeIdToVarData[parentVar.Id] = varRange.Value
 				}
 			}
@@ -463,29 +421,13 @@ func getIdentifierValue(identifierType models.IdentifierType, appNameToIdMap map
 	}
 	return identifierValue, nil
 }
-func getPriority(qualifier repository2.Qualifier) int {
-	switch qualifier {
-	case repository2.APP_AND_ENV_QUALIFIER:
-		return 1
-	case repository2.APP_QUALIFIER:
-		return 2
-	case repository2.ENV_QUALIFIER:
-		return 3
-	case repository2.CLUSTER_QUALIFIER:
-		return 4
-	case repository2.GLOBAL_QUALIFIER:
-		return 5
-	default:
-		return 0
-	}
-}
 
 type VariableScopeMapping struct {
 	ScopeId int
 }
 
 func customComparator(a, b repository2.Qualifier) bool {
-	return getPriority(a) < getPriority(b)
+	return utils.GetPriority(a) < utils.GetPriority(b)
 }
 func findMinWithComparator(variableScope []*repository2.VariableScope, comparator func(a, b repository2.Qualifier) bool) *repository2.VariableScope {
 	if len(variableScope) == 0 {
@@ -700,7 +642,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 					attribute.VariableValue = models.VariableValue{
 						Value: value,
 					}
-					attribute.AttributeType = getAttributeType(repository2.Qualifier(scope.QualifierId))
+					attribute.AttributeType = utils.GetAttributeType(repository2.Qualifier(scope.QualifierId))
 				}
 			}
 			if len(attribute.AttributeParams) == 0 {
@@ -743,16 +685,10 @@ func validateVariableScopeRequest(payload models.Payload) error {
 		if slices.Contains(variableNamesList, variable.Definition.VarName) {
 			return fmt.Errorf("duplicate variable name")
 		}
-		exp := `^[a-zA-Z0-9_-]{1,64}$`
+		exp := `^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$`
 		rExp := regexp.MustCompile(exp)
 		if !rExp.MatchString(variable.Definition.VarName) {
 			return fmt.Errorf("invalid variable name %s", variable.Definition.VarName)
-		}
-		if variable.Definition.VarName[0] == '_' ||
-			variable.Definition.VarName[0] == '-' ||
-			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '_' ||
-			variable.Definition.VarName[len(variable.Definition.VarName)-1] == '-' {
-			return fmt.Errorf("invalid variable name")
 		}
 		variableNamesList = append(variableNamesList, variable.Definition.VarName)
 		uniqueVariableMap := make(map[string]interface{})
