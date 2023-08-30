@@ -230,6 +230,7 @@ type CiWorkflowStatus struct {
 	CiPipelineName    string `json:"ciPipelineName,omitempty"`
 	CiStatus          string `json:"ciStatus"`
 	StorageConfigured bool   `json:"storageConfigured"`
+	CiWorkflowId      int    `json:"ciWorkflowId,omitempty"`
 }
 
 type AppDeploymentStatus struct {

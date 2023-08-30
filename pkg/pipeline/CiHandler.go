@@ -1605,6 +1605,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request app
 		ciWorkflowStatus.CiPipelineName = ciWorkflow.CiPipeline.Name
 		ciWorkflowStatus.CiStatus = ciWorkflow.Status
 		ciWorkflowStatus.StorageConfigured = ciWorkflow.BlobStorageEnabled
+		ciWorkflowStatus.CiWorkflowId = ciWorkflow.Id
 		ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
 		notTriggeredWorkflows[ciWorkflowStatus.CiPipelineId] = true
 	}
