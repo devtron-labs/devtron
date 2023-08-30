@@ -3,6 +3,7 @@ package variables
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
@@ -44,6 +45,7 @@ type ScopedVariableServiceImpl struct {
 	environmentRepository    repository.EnvironmentRepository
 	devtronResourceService   devtronResource.DevtronResourceService
 	clusterRepository        repository.ClusterRepository
+	variableNameConfig       *VariableNameConfig
 }
 
 func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository) (*ScopedVariableServiceImpl, error) {
@@ -55,8 +57,22 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 		devtronResourceService:   devtronResourceService,
 		clusterRepository:        clusterRepository,
 	}
-
+	cfg, err := GetVariableNameConfig()
+	if err != nil {
+		return nil, err
+	}
+	scopedVariableService.variableNameConfig = cfg
 	return scopedVariableService, nil
+}
+
+type VariableNameConfig struct {
+	VariableNameValidator string `env:"VARIABLE_NAME_VALIDATOR" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$"`
+}
+
+func GetVariableNameConfig() (*VariableNameConfig, error) {
+	cfg := &VariableNameConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
 }
 func (impl *ScopedVariableServiceImpl) getIdentifierType(searchableKeyId int) models.IdentifierType {
 	SearchableKeyIdNameMap := impl.devtronResourceService.GetAllSearchableKeyIdNameMap()
@@ -149,7 +165,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 	//	impl.logger.Errorw("variable value is not valid", validValue)
 	//	return fmt.Errorf("invalid variable value")
 	//}
-	err := validateVariableScopeRequest(payload)
+	err := impl.validateVariableScopeRequest(payload)
 	if err != nil {
 		return fmt.Errorf("custom validation err in CreateVariables")
 	}
@@ -679,13 +695,14 @@ func getIdentifierType(attribute models.AttributeType) []models.IdentifierType {
 	}
 }
 
-func validateVariableScopeRequest(payload models.Payload) error {
+func (impl *ScopedVariableServiceImpl) validateVariableScopeRequest(payload models.Payload) error {
 	variableNamesList := make([]string, 0)
 	for _, variable := range payload.Variables {
 		if slices.Contains(variableNamesList, variable.Definition.VarName) {
 			return fmt.Errorf("duplicate variable name")
 		}
-		exp := `^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$`
+		exp := impl.variableNameConfig.VariableNameValidator
+
 		rExp := regexp.MustCompile(exp)
 		if !rExp.MatchString(variable.Definition.VarName) {
 			return fmt.Errorf("invalid variable name %s", variable.Definition.VarName)
