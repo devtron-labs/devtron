@@ -1399,11 +1399,8 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	installAppVersionRequest.EnvironmentName = installedApp.Environment.Name
 	installAppVersionRequest.Environment = &installedApp.Environment
 
-	// creating installed app version history
 	installAppVersionHistoryStatus := "Unknown"
-	if util.IsAcdApp(installedApp.DeploymentAppType) || util.IsManifestDownload(installedApp.DeploymentAppType) {
-		installAppVersionHistoryStatus = pipelineConfig.WorkflowInProgress
-	}
+	installAppVersionHistoryStatus = pipelineConfig.WorkflowInProgress
 	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
 		InstalledAppVersionId: installedAppVersion.Id,
 		ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
@@ -1421,6 +1418,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
 		return nil, err
 	}
+	installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
 	_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", tx)
 
 	manifest, err := impl.appStoreDeploymentCommonService.GenerateManifest(installAppVersionRequest)
