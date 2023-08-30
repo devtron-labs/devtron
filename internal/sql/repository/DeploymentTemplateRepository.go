@@ -17,14 +17,14 @@ const (
 
 type FetchTemplateComparisonList struct {
 	ChartId                  int                    `json:"chartRefId"`
-	ChartVersion             string                 `json:"chartVersion"`
-	ChartType                string                 `json:"chartType"`
-	EnvironmentId            int                    `json:"environmentId"`
-	EnvironmentName          string                 `json:"environmentName"`
-	PipelineConfigOverrideId int                    `json:"pipelineConfigOverrideId"`
-	StartedOn                time.Time              `json:"startedOn"`
-	FinishedOn               time.Time              `json:"finishedOn"`
-	Status                   string                 `json:"status"`
+	ChartVersion             string                 `json:"chartVersion,omitempty"`
+	ChartType                string                 `json:"chartType,omitempty"`
+	EnvironmentId            int                    `json:"environmentId,omitempty"`
+	EnvironmentName          string                 `json:"environmentName,omitempty"`
+	PipelineConfigOverrideId int                    `json:"pipelineConfigOverrideId,omitempty"`
+	StartedOn                *time.Time             `json:"startedOn,omitempty"`
+	FinishedOn               *time.Time             `json:"finishedOn,omitempty"`
+	Status                   string                 `json:"status,omitempty"`
 	Type                     DeploymentTemplateType `json:"type"`
 }
 
