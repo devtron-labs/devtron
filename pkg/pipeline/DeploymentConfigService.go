@@ -181,10 +181,11 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 			return nil, err
 		}
+		//Scope contains env and cluster ID because a pipeline will always have those even if inheriting base template
 		scope := models.Scope{
 			AppId:     pipeline.AppId,
-			EnvId:     envOverride.Environment.Id,
-			ClusterId: envOverride.Environment.ClusterId,
+			EnvId:     pipeline.EnvironmentId,
+			ClusterId: pipeline.Environment.ClusterId,
 		}
 		entity := repository6.Entity{
 			EntityType: repository6.EntityTypeDeploymentTemplateAppLevel,
