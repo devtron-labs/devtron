@@ -1,12 +1,12 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"go.uber.org/zap"
 )
 
 type VariableDefinition struct {
@@ -75,11 +75,13 @@ type ScopedVariableRepository interface {
 type ScopedVariableRepositoryImpl struct {
 	dbConnection *pg.DB
 	*sql.TransactionUtilImpl
+	logger *zap.SugaredLogger
 }
 
-func NewScopedVariableRepository(dbConnection *pg.DB) *ScopedVariableRepositoryImpl {
+func NewScopedVariableRepository(dbConnection *pg.DB, logger *zap.SugaredLogger) *ScopedVariableRepositoryImpl {
 	return &ScopedVariableRepositoryImpl{
 		dbConnection:        dbConnection,
+		logger:              logger,
 		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
 	}
 }
@@ -140,7 +142,8 @@ func (impl *ScopedVariableRepositoryImpl) GetVariablesForVarIds(ids []int) ([]*V
 func (impl *ScopedVariableRepositoryImpl) GetVariablesByNames(vars []string) ([]*VariableDefinition, error) {
 	var variableDefinition []*VariableDefinition
 	err := impl.dbConnection.Model(&variableDefinition).Where("active = ?", true).
-		Where("name in (?)", helper.GetCommaSepratedString(vars)).Select()
+		Where("name in (?)", pg.In(vars)).Select()
+	impl.logger.Info("variableDefinition: ", variableDefinition)
 	return variableDefinition, err
 }
 
@@ -182,11 +185,9 @@ func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(scope models.Sco
 	}
 
 	err := query.Select()
-
 	if err != nil {
 		return nil, err
 	}
-
 	return variableScopes, nil
 }
 

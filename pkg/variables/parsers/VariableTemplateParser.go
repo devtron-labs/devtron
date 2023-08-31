@@ -41,6 +41,7 @@ func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]str
 		//TODO KB: handle this case
 		return variables, errors.New("invalid-template")
 	}
+	impl.logger.Info("variables:", variables)
 	return variables, nil
 }
 
@@ -57,6 +58,7 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values ma
 	output := template
 	template = impl.convertToHclCompatible(template)
 	ignoreDefaultedVariables := true
+	impl.logger.Debug("valueMap", values)
 	//TODO KB: need to check for variables whose value is not present in values map, throw error or ignore variable
 	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
 	if !diagnostics.HasErrors() {
@@ -66,7 +68,6 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values ma
 		defaultedVars := impl.getDefaultedVariables(hclVariables, values)
 		if len(defaultedVars) > 0 && ignoreDefaultedVariables {
 			template = impl.ignoreDefaultedVars(template, defaultedVars)
-			//fmt.Println("template", template)
 			hclExpression, diagnostics = hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
 			if diagnostics.HasErrors() {
 				//TODO KB: throw error with proper variable names creating problem
@@ -133,7 +134,7 @@ func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string) s
 }
 
 func (impl *VariableTemplateParserImpl) convertToHclExpression(template string) string {
-	var devtronRegexCompiledPattern = regexp.MustCompile(`@\{\{[a-zA-Z0-9-+/*%\s]+\}\}`) //TODO KB: add support of Braces () also
+	var devtronRegexCompiledPattern = regexp.MustCompile(`@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}`) //TODO KB: add support of Braces () also
 	indexesData := devtronRegexCompiledPattern.FindAllIndex([]byte(template), -1)
 	var strBuilder strings.Builder
 	strBuilder.Grow(len(template))

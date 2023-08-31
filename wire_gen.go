@@ -364,7 +364,7 @@ func InitializeApp() (*App, error) {
 	variableEntityMappingRepositoryImpl := repository8.NewVariableEntityMappingRepository(sugaredLogger, db)
 	variableEntityMappingServiceImpl := variables.NewVariableEntityMappingServiceImpl(variableEntityMappingRepositoryImpl, sugaredLogger)
 	variableTemplateParserImpl := parsers.NewVariableTemplateParserImpl(sugaredLogger)
-	scopedVariableRepositoryImpl := repository8.NewScopedVariableRepository(db)
+	scopedVariableRepositoryImpl := repository8.NewScopedVariableRepository(db, sugaredLogger)
 	devtronResourceSearchableKeyRepositoryImpl := repository10.NewDevtronResourceSearchableKeyRepositoryImpl(sugaredLogger, db)
 	devtronResourceSearchableKeyServiceImpl, err := devtronResource.NewDevtronResourceSearchableKeyServiceImpl(sugaredLogger, devtronResourceSearchableKeyRepositoryImpl)
 	if err != nil {

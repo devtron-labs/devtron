@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -58,7 +59,7 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 		environmentRepository:    environmentRepository,
 		devtronResourceService:   devtronResourceService,
 		clusterRepository:        clusterRepository,
-		VariableCache:            &cache.VariableCacheObj{},
+		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
 	}
 	cfg, err := GetVariableNameConfig()
 	if err != nil {
@@ -82,6 +83,8 @@ func GetVariableNameConfig() (*VariableConfig, error) {
 func (impl *ScopedVariableServiceImpl) loadVarCache() {
 	variableCache := impl.VariableCache
 	variableCache.ResetCache()
+	variableCache.TakeLock()
+	defer variableCache.ReleaseLock()
 	variableMetadata, err := impl.scopedVariableRepository.GetAllVariableMetadata()
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching variable metadata", "err", err)
@@ -369,6 +372,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 			return
 		}
 	}(impl.scopedVariableRepository, tx)
+	go impl.loadVarCache()
 	return nil
 }
 
