@@ -12,6 +12,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function/stdlib"
 	"go.uber.org/zap"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -89,7 +90,9 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values ma
 
 func (impl *VariableTemplateParserImpl) getDefaultMappedFunc() map[string]function.Function {
 	return map[string]function.Function{
-		"upper": stdlib.UpperFunc,
+		"upper":  stdlib.UpperFunc,
+		"toInt":  stdlib.IntFunc,
+		"toBool": ParseBoolFunc,
 	}
 }
 
@@ -221,4 +224,26 @@ func (impl *VariableTemplateParserImpl) getVarEndIndex(template string, endIndex
 		}
 	}
 	return -1
+}
+
+var ParseBoolFunc = function.New(&function.Spec{
+	Description: `convert to bool value`,
+	Params: []function.Parameter{
+		{
+			Name:             "val",
+			Type:             cty.String,
+			AllowDynamicType: true,
+			AllowMarked:      true,
+		},
+	},
+	Type:         function.StaticReturnType(cty.Bool),
+	RefineResult: refineNonNull,
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		boolVal, err := strconv.ParseBool(args[0].AsString())
+		return cty.BoolVal(boolVal), err
+	},
+})
+
+func refineNonNull(b *cty.RefinementBuilder) *cty.RefinementBuilder {
+	return b.NotNull()
 }
