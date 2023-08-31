@@ -259,6 +259,8 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 
+	//If customTagObject has been passed, create or update the resource
+	//Otherwise deleteIfExists
 	if createRequest.CustomTagObject != nil {
 		customTag := bean4.CustomTag{
 			EntityKey:            pkg.EntityTypeCiPipelineId,
@@ -693,6 +695,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			return nil, err
 		}
 
+		//If customTagObejct has been passed, save it
 		if ciPipeline.CustomTagObject != nil {
 			customTag := &bean4.CustomTag{
 				EntityKey:            pkg.EntityTypeCiPipelineId,
