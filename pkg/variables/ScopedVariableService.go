@@ -524,9 +524,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		return make([]*ScopedVariableData, 0), nil
 	}
 
-	var env *repository.Environment
 	if scope.EnvId != 0 && scope.ClusterId == 0 {
-		env, err = impl.environmentRepository.FindById(scope.EnvId)
+		env, err := impl.environmentRepository.FindById(scope.EnvId)
 		if err != nil {
 			impl.logger.Errorw("error in getting env", err)
 			return nil, err

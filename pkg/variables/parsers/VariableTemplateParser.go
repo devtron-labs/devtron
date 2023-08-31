@@ -1,9 +1,7 @@
 package parsers
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcl/hclsyntax"
 	_ "github.com/hashicorp/hcl2/hcl/hclsyntax"
@@ -67,7 +65,7 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values ma
 		defaultedVars := impl.getDefaultedVariables(hclVariables, values)
 		if len(defaultedVars) > 0 && ignoreDefaultedVariables {
 			template = impl.ignoreDefaultedVars(template, defaultedVars)
-			fmt.Println("template", template)
+			//fmt.Println("template", template)
 			hclExpression, diagnostics = hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
 			if diagnostics.HasErrors() {
 				//TODO KB: throw error with proper variable names creating problem
@@ -97,14 +95,14 @@ func (impl *VariableTemplateParserImpl) getDefaultMappedFunc() map[string]functi
 }
 
 func (impl *VariableTemplateParserImpl) convertToHclCompatible(template string) string {
-	jsonStringify, err := json.Marshal(template)
-	if err != nil {
-		impl.logger.Errorw("error occurred while marshalling template", "err", err, "template", template)
-	} else {
-		template = string(jsonStringify)
-	}
-	template = fmt.Sprintf(`{"root":%s}`, template)
-	fmt.Println("template", template)
+	//jsonStringify, err := json.Marshal(template)
+	//if err != nil {
+	//	impl.logger.Errorw("error occurred while marshalling template", "err", err, "template", template)
+	//} else {
+	//	template = string(jsonStringify)
+	//}
+	//template = fmt.Sprintf(`{"root":%s}`, template)
+	//fmt.Println("template", template)
 	template = impl.diluteExistingHclVars(template)
 	return impl.convertToHclExpression(template)
 }
@@ -179,7 +177,7 @@ func (impl *VariableTemplateParserImpl) getDefaultedVariables(variables []hcl.Tr
 
 func (impl *VariableTemplateParserImpl) ignoreDefaultedVars(template string, hclVars []hcl.Traversal) string {
 	var processedDtBuilder strings.Builder
-	fmt.Println("template for ignore case", template)
+	//impl.logger.Info("template for ignore case", template)
 	maxSize := len(template) + len(hclVars)
 	processedDtBuilder.Grow(maxSize)
 	currentIndex := 0
