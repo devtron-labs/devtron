@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/variables/cache"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
@@ -46,6 +47,7 @@ type ScopedVariableServiceImpl struct {
 	devtronResourceService   devtronResource.DevtronResourceService
 	clusterRepository        repository.ClusterRepository
 	variableNameConfig       *VariableConfig
+	VariableCache            *cache.VariableCacheObj
 }
 
 func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository) (*ScopedVariableServiceImpl, error) {
@@ -56,12 +58,14 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 		environmentRepository:    environmentRepository,
 		devtronResourceService:   devtronResourceService,
 		clusterRepository:        clusterRepository,
+		VariableCache:            &cache.VariableCacheObj{},
 	}
 	cfg, err := GetVariableNameConfig()
 	if err != nil {
 		return nil, err
 	}
 	scopedVariableService.variableNameConfig = cfg
+	go scopedVariableService.loadVarCache()
 	return scopedVariableService, nil
 }
 
@@ -74,6 +78,19 @@ func GetVariableNameConfig() (*VariableConfig, error) {
 	err := env.Parse(cfg)
 	return cfg, err
 }
+
+func (impl *ScopedVariableServiceImpl) loadVarCache() {
+	variableCache := impl.VariableCache
+	variableCache.ResetCache()
+	variableMetadata, err := impl.scopedVariableRepository.GetAllVariableMetadata()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching variable metadata", "err", err)
+		return
+	}
+	variableCache.SetData(variableMetadata)
+	impl.logger.Info("variable cache loaded successfully")
+}
+
 func (impl *ScopedVariableServiceImpl) getIdentifierType(searchableKeyId int) models.IdentifierType {
 	SearchableKeyIdNameMap := impl.devtronResourceService.GetAllSearchableKeyIdNameMap()
 	switch SearchableKeyIdNameMap[searchableKeyId] {

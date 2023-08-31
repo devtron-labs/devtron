@@ -8,6 +8,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
+	"github.com/zclconf/go-cty/cty/json"
 	"go.uber.org/zap"
 	"regexp"
 	"strconv"
@@ -76,9 +77,14 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values ma
 			Functions: impl.getDefaultMappedFunc(),
 		})
 		if !valueDiagnostics.HasErrors() {
-			opValueMap := opValue.AsValueMap()
-			rootValue := opValueMap["root"]
-			output = rootValue.AsString()
+			//opValueMap := opValue.AsValueMap()
+			//rootValue := opValueMap["root"]
+			//output = rootValue.AsString()
+			simpleJSONValue := json.SimpleJSONValue{Value: opValue}
+			marshalJSON, err := simpleJSONValue.MarshalJSON()
+			if err == nil {
+				output = string(marshalJSON)
+			}
 		}
 	} else {
 		//TODO KB: handle this case

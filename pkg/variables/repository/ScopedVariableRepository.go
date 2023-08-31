@@ -63,6 +63,7 @@ type ScopedVariableRepository interface {
 	CreateVariableScope(variableDefinition []*VariableScope, tx *pg.Tx) ([]*VariableScope, error)
 	CreateVariableData(variableDefinition []*VariableData, tx *pg.Tx) error
 	GetAllVariables() ([]*VariableDefinition, error)
+	GetAllVariableMetadata() ([]*VariableDefinition, error)
 	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)
 	GetVariablesByNames(vars []string) ([]*VariableDefinition, error)
 	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
@@ -110,6 +111,19 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariables() ([]*VariableDefiniti
 		dbConnection.Model(&variableDefinition).
 		Where("variable_definition.active = ?", true).
 		Select()
+	return variableDefinition, err
+}
+
+func (impl *ScopedVariableRepositoryImpl) GetAllVariableMetadata() ([]*VariableDefinition, error) {
+	var variableDefinition []*VariableDefinition
+	err := impl.
+		dbConnection.Model(&variableDefinition).
+		Column("id", "name", "data_type", "var_type").
+		Where("active = ?", true).
+		Select()
+	if err == pg.ErrNoRows {
+		err = nil
+	}
 	return variableDefinition, err
 }
 
