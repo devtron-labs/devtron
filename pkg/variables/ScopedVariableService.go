@@ -108,11 +108,6 @@ func (impl *ScopedVariableServiceImpl) getIdentifierType(searchableKeyId int) mo
 	}
 }
 
-type ValueMapping struct {
-	Attribute models.AttributeType
-	Value     string
-}
-
 func complexTypeValidator(payload models.Payload) bool {
 	for _, variable := range payload.Variables {
 		variableType := variable.Definition.DataType
@@ -244,11 +239,18 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 			if value.AttributeType == models.ApplicationEnv {
 				compositeString = fmt.Sprintf("%v-%s-%s", variableId, value.AttributeParams[models.ApplicationName], value.AttributeParams[models.EnvName])
 			}
+			var varValue string
+			varValue, err = validateVariableToSaveData(value.VariableValue.Value)
+			if err != nil {
+				impl.logger.Errorw("error in validating dataType", err)
+				return err
+			}
 			if value.AttributeType == models.Global {
 				scope := &repository2.VariableScope{
 					VariableDefinitionId: variableId,
 					QualifierId:          int(utils.GetQualifierId(value.AttributeType)),
 					Active:               true,
+					Data:                 varValue,
 					AuditLog:             auditLog,
 				}
 				variableScopes = append(variableScopes, scope)
@@ -268,6 +270,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 						Active:                true,
 						CompositeKey:          compositeString,
 						IdentifierValueString: IdentifierName,
+						Data:                  varValue,
 						AuditLog:              auditLog,
 					}
 					variableScopes = append(variableScopes, scope)
@@ -292,26 +295,8 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 
 		}
 	}
-	variableIdToValueMappings := make(map[int][]*ValueMapping)
 	var parentVarScope []*repository2.VariableScope
 	var childVarScope []*repository2.VariableScope
-	for _, variable := range payload.Variables {
-		variableName := variable.Definition.VarName
-		if id, ok := variableNameToId[variableName]; ok {
-			for _, attrValue := range variable.AttributeValues {
-				var value string
-				value, err = validateVariableToSaveData(attrValue.VariableValue.Value)
-				if err != nil {
-					impl.logger.Errorw("error in validating dataType", err)
-					return err
-				}
-				variableIdToValueMappings[id] = append(variableIdToValueMappings[id], &ValueMapping{
-					Attribute: attrValue.AttributeType,
-					Value:     value,
-				})
-			}
-		}
-	}
 	if len(parentVariableScope) > 0 {
 		parentVarScope, err = impl.scopedVariableRepository.CreateVariableScope(parentVariableScope, tx)
 		if err != nil {
@@ -319,17 +304,9 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 			return err
 		}
 	}
-
 	scopeIdToVarData := make(map[int]string)
 	for _, parentVar := range parentVarScope {
-		if variables, exists := variableIdToValueMappings[parentVar.VariableDefinitionId]; exists {
-			for _, varRange := range variables {
-				if int(utils.GetQualifierId(varRange.Attribute)) == parentVar.QualifierId {
-					scopeIdToVarData[parentVar.Id] = varRange.Value
-				}
-			}
-
-		}
+		scopeIdToVarData[parentVar.Id] = parentVar.Data
 	}
 	for _, childScope := range childrenVariableScope {
 		parentScope, exists := parentScopesMap[childScope.CompositeKey]

@@ -32,6 +32,7 @@ type VariableScope struct {
 	IdentifierValueString string   `sql:"identifier_value_string"`
 	ParentIdentifier      int      `sql:"parent_identifier"`
 	CompositeKey          string   `sql:"-"`
+	Data                  string   `sql:"-"`
 	VariableData          *VariableData
 	sql.AuditLog
 }
