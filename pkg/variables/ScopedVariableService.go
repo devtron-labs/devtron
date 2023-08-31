@@ -560,7 +560,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	scopeIdToVariableScope := make(map[int]*repository2.VariableScope)
 	varScope, err = impl.scopedVariableRepository.GetScopedVariableData(scope, searchableKeyNameIdMap, varIds)
 	if err != nil {
-		impl.logger.Errorw("error in getting varScope", err)
+		impl.logger.Errorw("error in getting varScope", "err", err)
 		return nil, err
 	}
 	for _, vScope := range varScope {
@@ -577,7 +577,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	if scopedVarIds != nil {
 		varDefs, err = impl.scopedVariableRepository.GetVariablesForVarIds(scopedVarIds)
 		if err != nil {
-			impl.logger.Errorw("error in getting variable definition", err)
+			impl.logger.Errorw("error in getting variable definition", "err", err)
 			return nil, err
 		}
 	}
@@ -585,7 +585,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	if scopeIds != nil {
 		vData, err = impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
 		if err != nil {
-			impl.logger.Errorw("error in getting variable data", err)
+			impl.logger.Errorw("error in getting variable data", "err", err)
 			return nil, err
 		}
 	}
@@ -603,7 +603,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 				var value interface{}
 				value, err = variableDataTypeValidation(varData.Data)
 				if err != nil {
-					impl.logger.Errorw("error in validating value", err)
+					impl.logger.Errorw("error in validating value", "err", err)
 					return nil, err
 				}
 				scopedVariableData.VariableValue = models.VariableValue{Value: value}
@@ -615,7 +615,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	if varNames == nil {
 		variableList, err = impl.scopedVariableRepository.GetAllVariables()
 		if err != nil {
-			impl.logger.Errorw("error in getting variable list", err)
+			impl.logger.Errorw("error in getting variable list", "err", err)
 			return nil, err
 		}
 		for _, existing := range variableList {
@@ -653,7 +653,7 @@ func variableDataTypeValidation(Data string) (interface{}, error) {
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {
 	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
 	if err != nil {
-		impl.logger.Errorw("error in getting data for json", err)
+		impl.logger.Errorw("error in getting data for json", "err", err)
 		return nil, err
 	}
 	payload := &models.Payload{
