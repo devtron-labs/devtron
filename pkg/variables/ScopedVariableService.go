@@ -222,7 +222,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		for _, value := range variable.AttributeValues {
 			var compositeString string
 			if value.AttributeType == models.ApplicationEnv {
-				compositeString = value.AttributeParams[models.ApplicationName] + value.AttributeParams[models.EnvName]
+				compositeString = fmt.Sprintf("%v-%s-%s", variableId, value.AttributeParams[models.ApplicationName], value.AttributeParams[models.EnvName])
 			}
 			if value.AttributeType == models.Global {
 				scope := &repository2.VariableScope{
