@@ -1,5 +1,10 @@
 package models
 
+import (
+	"reflect"
+	"strconv"
+)
+
 type Payload struct {
 	Variables []*Variables `json:"variables" validate:"required,dive"`
 	UserId    int32        `json:"-"`
@@ -43,6 +48,18 @@ var IdentifiersList = []IdentifierType{ApplicationName, EnvName, ClusterName}
 
 type VariableValue struct {
 	Value interface{} `json:"value" validate:"required"`
+}
+
+func (value VariableValue) StringValue() string {
+	switch reflect.TypeOf(value.Value).Kind() {
+	case reflect.Int:
+		return strconv.Itoa(value.Value.(int))
+	case reflect.Float64:
+		return strconv.FormatFloat(value.Value.(float64), 'f', -1, 64)
+	case reflect.Bool:
+		return strconv.FormatBool(value.Value.(bool))
+	}
+	return value.Value.(string)
 }
 
 type Scope struct {

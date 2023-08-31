@@ -1408,7 +1408,7 @@ func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope models2.Sc
 	}
 
 	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.(string)
+		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
 	}
 	resolvedTemplate := impl.variableTemplateParser.ParseTemplate(template, variableMap)
 	return resolvedTemplate, variableMap, nil

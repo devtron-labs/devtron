@@ -1461,7 +1461,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope models2.Sco
 	}
 
 	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.(string)
+		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
 	}
 	resolvedTemplate := impl.variableTemplateParser.ParseTemplate(template, variableMap)
 	return resolvedTemplate, variableMap, nil

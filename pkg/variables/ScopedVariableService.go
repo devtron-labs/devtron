@@ -23,8 +23,8 @@ import (
 )
 
 type ScopedVariableData struct {
-	VariableName  string      `json:"variableName"`
-	VariableValue interface{} `json:"variableValue,omitempty"`
+	VariableName  string               `json:"variableName"`
+	VariableValue models.VariableValue `json:"variableValue,omitempty"`
 }
 
 const (
@@ -586,7 +586,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 					impl.logger.Errorw("error in validating value", err)
 					return nil, err
 				}
-				scopedVariableData.VariableValue = value
+				scopedVariableData.VariableValue = models.VariableValue{Value: value}
 			}
 		}
 		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
