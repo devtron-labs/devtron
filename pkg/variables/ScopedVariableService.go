@@ -328,16 +328,6 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	if len(varNames) > 0 && len(varIds) == 0 {
 		return make([]*models.ScopedVariableData, 0), nil
 	}
-
-	if scope.EnvId != 0 && scope.ClusterId == 0 {
-		env, err := impl.environmentRepository.FindById(scope.EnvId)
-		if err != nil {
-			impl.logger.Errorw("error in getting env", err)
-			return nil, err
-		}
-		scope.ClusterId = env.ClusterId
-	}
-
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	var varScope []*repository2.VariableScope
 	var scopedVariableIds map[int]*models.VariableScopeMapping
