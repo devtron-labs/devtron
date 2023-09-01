@@ -160,7 +160,6 @@ func (r *MuxRouter) Init() {
 		}
 		_, _ = writer.Write(b)
 	})
-
 	ssoLoginRouter := baseRouter.PathPrefix("/sso").Subrouter()
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 	teamRouter := baseRouter.PathPrefix("/team").Subrouter()
