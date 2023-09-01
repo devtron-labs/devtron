@@ -1745,13 +1745,13 @@ func (handler AppListingRestHandlerImpl) PortNumberExtraction(resp []k8s.BatchRe
 func (handler AppListingRestHandlerImpl) GetDeploymentsWithCharts(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
-	appId, err := strconv.Atoi(vars["app-id"])
+	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	envId, err := strconv.Atoi(vars["env-id"])
+	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
