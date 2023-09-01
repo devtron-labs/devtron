@@ -24,6 +24,18 @@ type DeploymentTemplateRequest struct {
 	ResourceName             string                            `json:"resourceName"`
 }
 
+var ChartRepository = &client.ChartRepository{
+	Name:     "repo",
+	Url:      "http://localhost:8080/",
+	Username: "admin",
+	Password: "password",
+}
+
+var ReleaseIdentifier = &client.ReleaseIdentifier{
+	ReleaseNamespace: "devtron-demo",
+	ReleaseName:      "release-name",
+}
+
 type DeploymentTemplateResponse struct {
 	Data string `json:"data"`
 }
@@ -193,20 +205,12 @@ func (impl DeploymentTemplateServiceImpl) GetManifest(ctx context.Context, chart
 		return nil, err
 	}
 	installReleaseRequest := &client.InstallReleaseRequest{
-		ChartName:    template,
-		ChartVersion: version,
-		ValuesYaml:   valuesYaml,
-		K8SVersion:   k8sServerVersion.String(),
-		ChartRepository: &client.ChartRepository{
-			Name:     "repo",
-			Url:      "http://localhost:8080/",
-			Username: "admin",
-			Password: "password",
-		},
-		ReleaseIdentifier: &client.ReleaseIdentifier{
-			ReleaseNamespace: "devtron-demo",
-			ReleaseName:      "release-name",
-		},
+		ChartName:         template,
+		ChartVersion:      version,
+		ValuesYaml:        valuesYaml,
+		K8SVersion:        k8sServerVersion.String(),
+		ChartRepository:   ChartRepository,
+		ReleaseIdentifier: ReleaseIdentifier,
 		ChartContent: &client.ChartContent{
 			Content: chartBytes,
 		},
