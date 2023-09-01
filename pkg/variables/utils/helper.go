@@ -6,23 +6,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 )
 
-func GetPriority(qualifier repository.Qualifier) int {
-	switch qualifier {
-	case repository.APP_AND_ENV_QUALIFIER:
-		return 1
-	case repository.APP_QUALIFIER:
-		return 2
-	case repository.ENV_QUALIFIER:
-		return 3
-	case repository.CLUSTER_QUALIFIER:
-		return 4
-	case repository.GLOBAL_QUALIFIER:
-		return 5
-	default:
-		return 0
-	}
-}
-
 func GetIdentifierKey(identifierType models.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) int {
 	switch identifierType {
 	case models.ApplicationName:

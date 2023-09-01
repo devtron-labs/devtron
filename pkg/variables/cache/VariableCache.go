@@ -31,3 +31,10 @@ func (cache *VariableCacheObj) SetData(defns []*repository.VariableDefinition) {
 	cache.definitions = defns
 	cache.loaded = true
 }
+
+func (cache *VariableCacheObj) GetData() []*repository.VariableDefinition {
+	if cache.loaded {
+		return cache.definitions
+	}
+	return nil
+}

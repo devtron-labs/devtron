@@ -132,7 +132,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	var scopedVariableData []*variables.ScopedVariableData
+	var scopedVariableData []*models.ScopedVariableData
 
 	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil)
 	if err != nil {
