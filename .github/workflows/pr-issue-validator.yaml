@@ -62,12 +62,6 @@ jobs:
             exit 1
         fi
 
-        # issue_num=$(echo "$PR_BODY" | grep -o -P "$pattern" | head -n1 | grep -o -E "[0-9]+")
-        # if [[ -z "$issue_num" ]]; then
-        #     issue_num="No issue number"
-        # fi
-        # echo "$issue_num"
-
         ### Here we are setting the Internal Field Separator to "/"
         ### read -r -> reads input from variable $url
         ### -a url_parts -> tells read command to store input into an array named url_parts[]
