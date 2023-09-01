@@ -1,6 +1,8 @@
 package dashboardEvent
 
-import "github.com/gorilla/mux"
+import (
+	"github.com/gorilla/mux"
+)
 
 type DashboardTelemetryRouter interface {
 	Init(configRouter *mux.Router)

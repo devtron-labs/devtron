@@ -128,7 +128,7 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 		g := currentRequestGauge.WithLabelValues(path, method)
 		g.Inc()
 		defer g.Dec()
-		d := newDelegator(w, nil)
+		d := NewDelegator(w, nil)
 		next.ServeHTTP(d, r)
 		httpDuration.WithLabelValues(path, method, strconv.Itoa(d.Status())).Observe(time.Since(start).Seconds())
 		requestCounter.WithLabelValues(path, method, strconv.Itoa(d.Status())).Inc()

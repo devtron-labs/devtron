@@ -237,7 +237,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 }
 
 func (r MuxRouter) Init() {
-
 	r.Router.PathPrefix("/orchestrator/api/vi/pod/exec/ws").Handler(terminal.CreateAttachHandler("/orchestrator/api/vi/pod/exec/ws"))
 
 	r.Router.StrictSlash(true)
