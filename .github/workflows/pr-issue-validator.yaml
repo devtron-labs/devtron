@@ -44,13 +44,33 @@ jobs:
         pattern="((Fixes|Resolves) #[0-9]+)"
         # Get the pull request body
         PR_BODY=$(jq -r '.pull_request.body' $GITHUB_EVENT_PATH)
+        echo "PR_BODY = $PR_BODY"
 
-        issue_num=$(echo "$PR_BODY" | grep -o -P "$pattern" | head -n1 | grep -o -E "[0-9]+")
-        if [[ -z "$issue_num" ]]; then
-            issue_num="No issue number"
+        ### Checks if PR_BODY has Fixes #<issue_number> or not
+        ### grep -i (case insensitive) -E (enables extended regular expression in grep) -q (this option suppresses normal output)
+        if echo "$PR_BODY" | grep -iEq "$pattern"; then
+        # if [[ "$PR_BODY" =~ "$pattern" ]]; then
+            ### Here we are taking only the numerical value ie. issue number
+            ### head -n1 only prints the 1st line.
+            ### grep -o -E "[0-9]+ basically outputs only the number between [0-9]+
+            issue_num=$(echo "$PR_BODY" | grep -iE "$pattern" | head -n1 | grep -o -E "[0-9]+")
+            echo "issue_num is : $issue_num"
+        else
+            echo "No Issue number detected hence failing the PR Validation check."
+            gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
+            gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
+            exit 1
         fi
-        echo "$issue_num"
-        
+
+        # issue_num=$(echo "$PR_BODY" | grep -o -P "$pattern" | head -n1 | grep -o -E "[0-9]+")
+        # if [[ -z "$issue_num" ]]; then
+        #     issue_num="No issue number"
+        # fi
+        # echo "$issue_num"
+
+        ### Here we are setting the Internal Field Separator to "/"
+        ### read -r -> reads input from variable $url
+        ### -a url_parts -> tells read command to store input into an array named url_parts[]
         IFS="/" read -r -a url_parts <<< "$url"
         
         # Remove the last two elements (repos and the issue number)
