@@ -192,7 +192,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 			if value.AttributeType == models.Global {
 				scope := &repository2.VariableScope{
 					VariableDefinitionId: variableId,
-					QualifierId:          int(utils.GetQualifierId(value.AttributeType)),
+					QualifierId:          int(helper.GetQualifierId(value.AttributeType)),
 					Active:               true,
 					Data:                 varValue,
 					AuditLog:             auditLog,
@@ -212,8 +212,8 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 					}
 					scope := &repository2.VariableScope{
 						VariableDefinitionId:  variableId,
-						QualifierId:           int(utils.GetQualifierId(value.AttributeType)),
-						IdentifierKey:         utils.GetIdentifierKey(identifierType, searchableKeyNameIdMap),
+						QualifierId:           int(helper.GetQualifierId(value.AttributeType)),
+						IdentifierKey:         helper.GetIdentifierKey(identifierType, searchableKeyNameIdMap),
 						IdentifierValueInt:    identifierValue,
 						Active:                true,
 						CompositeKey:          compositeString,
@@ -453,7 +453,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 					attribute.VariableValue = models.VariableValue{
 						Value: value,
 					}
-					attribute.AttributeType = utils.GetAttributeType(repository2.Qualifier(scope.QualifierId))
+					attribute.AttributeType = helper.GetAttributeType(repository2.Qualifier(scope.QualifierId))
 				}
 			}
 			if len(attribute.AttributeParams) == 0 {
