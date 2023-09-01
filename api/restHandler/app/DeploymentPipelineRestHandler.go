@@ -14,6 +14,7 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -24,6 +25,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DeploymentHistoryResp struct {
@@ -60,6 +62,8 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetDefaultDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
+	GetDeploymentsWithCharts(w http.ResponseWriter, r *http.Request)
+	GetValuesAndManifest(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request)
 	EnvConfigOverrideUpdate(w http.ResponseWriter, r *http.Request)
@@ -849,6 +853,71 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 	env.Schema = schema
 	env.Readme = string(readme)
 	common.WriteJsonResp(w, err, env, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetDeploymentsWithCharts(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := r.Header.Get("token")
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	resp, err := handler.deploymentTemplateService.FetchDeploymentsWithChartRefs(appId, envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchDeploymentsWithChartRefs", "err", err, "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetValuesAndManifest(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+
+	var request generateManifest.ValuesAndManifestRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, GetValuesAndManifest by API", "err", err, "GetYaluesAndManifest", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	resp, err := handler.deploymentTemplateService.GetValuesAndManifest(ctx, request)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.ResponseWriter, r *http.Request) {

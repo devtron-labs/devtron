@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
@@ -122,6 +123,7 @@ type PipelineConfigRestHandlerImpl struct {
 	gitProviderRepo              repository.GitProviderRepository
 	argoUserService              argo.ArgoUserService
 	imageTaggingService          pipeline.ImageTaggingService
+	deploymentTemplateService    generateManifest.DeploymentTemplateService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -140,6 +142,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	gitRegistryConfig pipeline.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandler pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
+	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
@@ -174,6 +177,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		imageTaggingService:          imageTaggingService,
+		deploymentTemplateService:    deploymentTemplateService,
 	}
 }
 

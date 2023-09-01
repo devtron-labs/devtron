@@ -66,6 +66,8 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/template/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDeploymentTemplate).Methods("GET")
 	configRouter.Path("/template/default/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDefaultDeploymentTemplate).Methods("GET")
 	configRouter.Path("/template/update").HandlerFunc(router.restHandler.UpdateAppOverride).Methods("POST")
+	configRouter.Path("/deployments").Queries("appId", "{appId}").Queries("envId", "{envId}").HandlerFunc(router.restHandler.GetDeploymentsWithCharts).Methods("GET")
+	configRouter.Path("/data").HandlerFunc(router.restHandler.GetValuesAndManifest).Methods("POST")
 
 	configRouter.Path("/cd-pipeline").HandlerFunc(router.restHandler.CreateCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")

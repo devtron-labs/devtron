@@ -79,8 +79,6 @@ type AppListingRestHandler interface {
 	RedirectToLinkouts(w http.ResponseWriter, r *http.Request)
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 
-	GetDeploymentsWithCharts(w http.ResponseWriter, r *http.Request)
-	GetValuesAndManifest(w http.ResponseWriter, r *http.Request)
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
 	GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
@@ -1741,72 +1739,6 @@ func (handler AppListingRestHandlerImpl) PortNumberExtraction(resp []k8s.BatchRe
 	}
 	return resourceTree, nil
 }
-
-func (handler AppListingRestHandlerImpl) GetDeploymentsWithCharts(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	token := r.Header.Get("token")
-	appId, err := strconv.Atoi(vars["app-id"])
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	envId, err := strconv.Atoi(vars["env-id"])
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	// RBAC enforcer applying
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	resp, err := handler.deploymentTemplateService.FetchDeploymentsWithChartRefs(appId, envId)
-	if err != nil {
-		handler.logger.Errorw("service err, FetchDeploymentsWithChartRefs", "err", err, "appId", appId, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, nil, resp, http.StatusOK)
-}
-
-func (handler AppListingRestHandlerImpl) GetValuesAndManifest(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-
-	var request generateManifest.ValuesAndManifestRequest
-	err := decoder.Decode(&request)
-	if err != nil {
-		handler.logger.Errorw("request err, GetValuesAndManifest by API", "err", err, "GetYaluesAndManifest", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	token := r.Header.Get("token")
-	// RBAC enforcer applying
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
-	defer cancel()
-	resp, err := handler.deploymentTemplateService.GetValuesAndManifest(ctx, request)
-	if err != nil {
-		handler.logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, resp, http.StatusOK)
-
-}
-
 func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
