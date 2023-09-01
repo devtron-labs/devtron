@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type ValuesAndManifestRequest struct {
+type DeploymentTemplateRequest struct {
 	AppId                    int                               `json:"appId"`
 	EnvId                    int                               `json:"envId,omitempty"`
 	ChartRefId               int                               `json:"chartRefId"`
@@ -24,13 +24,13 @@ type ValuesAndManifestRequest struct {
 	ResourceName             string                            `json:"resourceName"`
 }
 
-type ValuesAndManifestResponse struct {
+type DeploymentTemplateResponse struct {
 	Data string `json:"data"`
 }
 
 type DeploymentTemplateService interface {
-	FetchDeploymentsWithChartRefs(appId int, envId int) ([]*repository.FetchTemplateComparisonList, error)
-	GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (ValuesAndManifestResponse, error)
+	FetchDeploymentsWithChartRefs(appId int, envId int) ([]*repository.DeploymentTemplateComparisonMetadata, error)
+	GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
 	GetManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error)
 }
 type DeploymentTemplateServiceImpl struct {
@@ -70,9 +70,9 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	}
 }
 
-func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId int) ([]*repository.FetchTemplateComparisonList, error) {
+func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId int) ([]*repository.DeploymentTemplateComparisonMetadata, error) {
 
-	var responseList []*repository.FetchTemplateComparisonList
+	var responseList []*repository.DeploymentTemplateComparisonMetadata
 
 	defaultVersions, err := impl.chartService.ChartRefAutocompleteForAppOrEnv(appId, 0)
 	if err != nil {
@@ -81,7 +81,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 	}
 
 	for _, item := range defaultVersions.ChartRefs {
-		res := &repository.FetchTemplateComparisonList{
+		res := &repository.DeploymentTemplateComparisonMetadata{
 			ChartId:      item.Id,
 			ChartVersion: item.Version,
 			ChartType:    item.Name,
@@ -97,7 +97,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 	}
 
 	for _, env := range publishedOnEnvs {
-		item := &repository.FetchTemplateComparisonList{
+		item := &repository.DeploymentTemplateComparisonMetadata{
 			ChartId:         env.ChartRefId,
 			EnvironmentId:   env.EnvironmentId,
 			EnvironmentName: env.EnvironmentName,
@@ -132,8 +132,8 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 	return responseList, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) GetValuesAndManifest(ctx context.Context, request ValuesAndManifestRequest) (ValuesAndManifestResponse, error) {
-	var result ValuesAndManifestResponse
+func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error) {
+	var result DeploymentTemplateResponse
 	var values string
 	var err error
 
@@ -143,26 +143,22 @@ func (impl DeploymentTemplateServiceImpl) GetValuesAndManifest(ctx context.Conte
 		switch request.Type {
 		case repository.DefaultVersions:
 			_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
-			if err != nil {
-				impl.Logger.Errorw("err", err)
-				return result, err
-			}
 		case repository.PublishedOnEnvironments:
 			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(request.AppId)
+			if err != nil {
+				impl.Logger.Errorw("error in getting chart", "err", err)
+				return result, err
+			}
 			if chart != nil && chart.Id > 0 {
 				values = chart.GlobalOverride
 			}
-			if err != nil {
-				impl.Logger.Errorw("err", err)
-				return result, err
-			}
 		case repository.DeployedOnSelfEnvironment, repository.DeployedOnOtherEnvironment:
 			values, err = impl.deploymentTemplateRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
-			if err != nil {
-				impl.Logger.Errorw("err", err)
-				return result, err
-			}
 		}
+	}
+	if err != nil {
+		impl.Logger.Errorw("error in getting values", "err", err)
+		return result, err
 	}
 
 	if request.GetValues {

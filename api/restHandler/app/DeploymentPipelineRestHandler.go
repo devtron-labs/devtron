@@ -62,8 +62,8 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetDefaultDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
-	GetDeploymentsWithCharts(w http.ResponseWriter, r *http.Request)
-	GetValuesAndManifest(w http.ResponseWriter, r *http.Request)
+	GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request)
+	GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request)
 	EnvConfigOverrideUpdate(w http.ResponseWriter, r *http.Request)
@@ -855,7 +855,7 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 	common.WriteJsonResp(w, err, env, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetDeploymentsWithCharts(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	appId, err := strconv.Atoi(vars["appId"])
@@ -888,13 +888,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentsWithCharts(w http.Res
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetValuesAndManifest(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var request generateManifest.ValuesAndManifestRequest
+	var request generateManifest.DeploymentTemplateRequest
 	err := decoder.Decode(&request)
 	if err != nil {
-		handler.Logger.Errorw("request err, GetValuesAndManifest by API", "err", err, "GetYaluesAndManifest", request)
+		handler.Logger.Errorw("request err, GetDeploymentTemplate by API", "err", err, "GetYaluesAndManifest", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -910,7 +910,7 @@ func (handler PipelineConfigRestHandlerImpl) GetValuesAndManifest(w http.Respons
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
-	resp, err := handler.deploymentTemplateService.GetValuesAndManifest(ctx, request)
+	resp, err := handler.deploymentTemplateService.GetDeploymentTemplate(ctx, request)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

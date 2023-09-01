@@ -15,7 +15,7 @@ const (
 	DeployedOnOtherEnvironment DeploymentTemplateType = 4
 )
 
-type FetchTemplateComparisonList struct {
+type DeploymentTemplateComparisonMetadata struct {
 	ChartId                  int                    `json:"chartRefId"`
 	ChartVersion             string                 `json:"chartVersion,omitempty"`
 	ChartType                string                 `json:"chartType,omitempty"`
@@ -29,9 +29,9 @@ type FetchTemplateComparisonList struct {
 }
 
 type DeploymentTemplateRepository interface {
-	FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*FetchTemplateComparisonList, error)
+	FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*DeploymentTemplateComparisonMetadata, error)
 	FetchPipelineOverrideValues(id int) (string, error)
-	FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*FetchTemplateComparisonList, error)
+	FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*DeploymentTemplateComparisonMetadata, error)
 }
 
 type DeploymentTemplateRepositoryImpl struct {
@@ -46,9 +46,9 @@ func NewDeploymentTemplateRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 	}
 }
 
-func (impl DeploymentTemplateRepositoryImpl) FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*FetchTemplateComparisonList, error) {
+func (impl DeploymentTemplateRepositoryImpl) FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*DeploymentTemplateComparisonMetadata, error) {
 
-	var result []*FetchTemplateComparisonList
+	var result []*DeploymentTemplateComparisonMetadata
 
 	query := "SELECT pco.id as pipeline_config_override_id, wfr.started_on,   wfr.finished_on, wfr.status, ceco.chart_id, c.chart_version " +
 		"FROM cd_workflow_runner wfr JOIN cd_workflow wf ON wf.id = wfr.cd_workflow_id " +
@@ -65,9 +65,9 @@ func (impl DeploymentTemplateRepositoryImpl) FetchDeploymentHistoryWithChartRefs
 	return result, err
 }
 
-func (impl DeploymentTemplateRepositoryImpl) FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*FetchTemplateComparisonList, error) {
+func (impl DeploymentTemplateRepositoryImpl) FetchLatestDeploymentWithChartRefs(appId int, envId int) ([]*DeploymentTemplateComparisonMetadata, error) {
 
-	var result []*FetchTemplateComparisonList
+	var result []*DeploymentTemplateComparisonMetadata
 
 	query := "WITH ranked_rows AS ( SELECT p.environment_id, pco.id as pipeline_config_override_id, ceco.chart_id, " +
 		"c.chart_version, ROW_NUMBER() OVER (PARTITION BY p.environment_id ORDER BY pco.id DESC) AS row_num FROM pipeline p " +
