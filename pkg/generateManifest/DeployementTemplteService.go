@@ -76,7 +76,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	defaultVersions, err := impl.chartService.ChartRefAutocompleteForAppOrEnv(appId, 0)
 	if err != nil {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("error in getting defaultVersions", "err", err, "appId", appId, "envId", envId)
 		return nil, err
 	}
 
@@ -92,7 +92,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	publishedOnEnvs, err := impl.appListingService.FetchMinDetailOtherEnvironment(appId)
 	if err != nil {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("error in getting publishedOnEnvs", "err", err, "appId", appId, "envId", envId)
 		return nil, err
 	}
 
@@ -108,7 +108,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	deployedOnEnv, err := impl.deploymentTemplateRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("error in getting deployedOnEnv", "err", err, "appId", appId, "envId", envId)
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	deployedOnOtherEnvs, err := impl.deploymentTemplateRepository.FetchLatestDeploymentWithChartRefs(appId, envId)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("error in getting deployedOnOtherEnvs", "err", err, "appId", appId, "envId", envId)
 		return nil, err
 	}
 
