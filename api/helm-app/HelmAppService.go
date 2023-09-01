@@ -876,6 +876,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 	}
 	return appList
 }
+
 func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType SourceAppType) int32 {
 	switch appType {
 	case SOURCE_DEVTRON_APP:
