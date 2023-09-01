@@ -9,3 +9,4 @@
 - feat: Capability to block deployments in case of vulnerabilities only if FIXED IN VERSION available  (#3796)
 ## Documentation
 ## Others
+- chore: Update pr-issue-validator.yaml (#3849)
