@@ -66,7 +66,7 @@ func (impl *ScopedVariableRepositoryImpl) CreateVariableData(variableDefinition 
 }
 
 func (impl *ScopedVariableRepositoryImpl) GetAllVariables() ([]*VariableDefinition, error) {
-	var variableDefinition []*VariableDefinition
+	variableDefinition := make([]*VariableDefinition, 0)
 	err := impl.
 		dbConnection.Model(&variableDefinition).
 		Where("variable_definition.active = ?", true).
@@ -75,7 +75,7 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariables() ([]*VariableDefiniti
 }
 
 func (impl *ScopedVariableRepositoryImpl) GetAllVariableMetadata() ([]*VariableDefinition, error) {
-	var variableDefinition []*VariableDefinition
+	variableDefinition := make([]*VariableDefinition, 0)
 	err := impl.
 		dbConnection.Model(&variableDefinition).
 		Column("id", "name", "data_type", "var_type").

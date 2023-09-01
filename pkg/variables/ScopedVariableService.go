@@ -324,6 +324,11 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
 	}
 
+	//No variables found case
+	if len(allVariableDefinitions) == 0 {
+		return nil, nil
+	}
+
 	// filtering out variables whose name is not present in varNames
 	var variableDefinitions []*repository2.VariableDefinition
 	for _, definition := range allVariableDefinitions {
@@ -405,6 +410,12 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 }
 
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {
+
+	// getting all variables from cache, if empty then no variables exist
+	allVariableDefinitions := impl.VariableCache.GetData()
+	if len(allVariableDefinitions) == 0 {
+		return nil, nil
+	}
 
 	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
 	if err != nil {
