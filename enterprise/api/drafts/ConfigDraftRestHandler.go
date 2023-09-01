@@ -356,12 +356,13 @@ func (impl *ConfigDraftRestHandlerImpl) enforceForAppAndEnv(appId int, envId int
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
 		return false
 	}
-	if envId != -1 {
-		object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, action, object); !ok {
-			return false
-		}
-	}
+	//TODO ignoring env check, to match it with CM/CS Enforcer handling
+	//if envId != -1 {
+	//	object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	//	if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, action, object); !ok {
+	//		return false
+	//	}
+	//}
 	return true
 }
 
