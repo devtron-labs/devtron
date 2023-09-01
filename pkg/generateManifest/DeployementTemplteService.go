@@ -215,7 +215,7 @@ func (impl DeploymentTemplateServiceImpl) GetManifest(ctx context.Context, chart
 			Content: chartBytes,
 		},
 	}
-	config, err := impl.helmAppService.GetClusterConf(1)
+	config, err := impl.helmAppService.GetClusterConf(client.DEFAULT_CLUSTER_ID)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err
