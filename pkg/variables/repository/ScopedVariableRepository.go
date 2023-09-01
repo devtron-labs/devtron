@@ -9,20 +9,24 @@ import (
 	"go.uber.org/zap"
 )
 
-
 type ScopedVariableRepository interface {
 	//transaction util funcs
 	sql.TransactionWrapper
+	// Create
 	CreateVariableDefinition(variableDefinition []*VariableDefinition, tx *pg.Tx) ([]*VariableDefinition, error)
 	CreateVariableScope(variableDefinition []*VariableScope, tx *pg.Tx) ([]*VariableScope, error)
 	CreateVariableData(variableDefinition []*VariableData, tx *pg.Tx) error
-	GetAllVariables() ([]*VariableDefinition, error)
-	GetAllVariableMetadata() ([]*VariableDefinition, error)
-	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)
-	GetVariablesByNames(vars []string) ([]*VariableDefinition, error)
+
+	// Get
+	GetAllVariables() ([]*VariableDefinition, error)                  //add cache
+	GetAllVariableMetadata() ([]*VariableDefinition, error)           //cache impl
+	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)   // add cache
+	GetVariablesByNames(vars []string) ([]*VariableDefinition, error) //added cache
 	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
 	GetScopedVariableData(scope models.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
+
+	// Delete
 	DeleteVariables(auditLog sql.AuditLog, tx *pg.Tx) error
 }
 

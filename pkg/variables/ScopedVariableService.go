@@ -269,9 +269,9 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	return scopeIdToVarData, nil
 }
 
-func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*repository2.VariableScope) map[int]*models.VariableScopeMapping {
+func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*repository2.VariableScope) map[int]int {
 	variableIdToVariableScopes := make(map[int][]*repository2.VariableScope)
-	variableScopeMapping := make(map[int]*models.VariableScopeMapping)
+	variableIdToSelectedScopeId := make(map[int]int)
 	for _, vScope := range varScope {
 		variableId := vScope.VariableDefinitionId
 		variableIdToVariableScopes[variableId] = append(variableIdToVariableScopes[variableId], vScope)
@@ -312,106 +312,100 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*rep
 	var minScope *repository2.VariableScope
 	for variableId, scopes := range variableIdToVariableScopes {
 		minScope = helper.FindMinWithComparator(scopes, helper.QualifierComparator)
-		variableScopeMapping[variableId] = &models.VariableScopeMapping{
-			ScopeId: minScope.Id,
-		}
+		variableIdToSelectedScopeId[variableId] = minScope.Id
 	}
-	return variableScopeMapping
+	return variableIdToSelectedScopeId
 }
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
-	var vDef []*repository2.VariableDefinition
-	var varIds []int
-	vDef, err = impl.scopedVariableRepository.GetVariablesByNames(varNames)
-	for _, def := range vDef {
-		varIds = append(varIds, def.Id)
+
+	// getting all variables from cache, if nil get from repo
+	allVariableDefinitions := impl.VariableCache.GetData()
+	if allVariableDefinitions == nil {
+		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
 	}
-	if len(varNames) > 0 && len(varIds) == 0 {
+
+	// filtering out variables whose name is not present in varNames
+	var variableDefinitions []*repository2.VariableDefinition
+	for _, definition := range allVariableDefinitions {
+		// we don't apply filter logic when provided varNames is nil
+		if varNames == nil || slices.Contains(varNames, definition.Name) {
+			variableDefinitions = append(variableDefinitions, definition)
+		}
+	}
+
+	var variableIds []int
+	variableIdToDefinition := make(map[int]*repository2.VariableDefinition)
+	for _, definition := range variableDefinitions {
+		variableIds = append(variableIds, definition.Id)
+		variableIdToDefinition[definition.Id] = definition
+	}
+
+	// This to prevent corner case where no variables were found for the provided names
+	if len(varNames) > 0 && len(variableIds) == 0 {
 		return make([]*models.ScopedVariableData, 0), nil
 	}
+
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-	var varScope []*repository2.VariableScope
-	var scopedVariableIds map[int]*models.VariableScopeMapping
-	scopeIdToVariableScope := make(map[int]*repository2.VariableScope)
-	varScope, err = impl.scopedVariableRepository.GetScopedVariableData(scope, searchableKeyNameIdMap, varIds)
+
+	varScope, err := impl.scopedVariableRepository.GetScopedVariableData(scope, searchableKeyNameIdMap, variableIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting varScope", "err", err)
 		return nil, err
 	}
-	for _, vScope := range varScope {
-		scopeIdToVariableScope[vScope.Id] = vScope
-	}
-	scopedVariableIds = impl.getMatchedScopedVariables(varScope)
 
-	var scopeIds, scopedVarIds []int
-	for varId, mapping := range scopedVariableIds {
-		scopeIds = append(scopeIds, mapping.ScopeId)
-		scopedVarIds = append(scopedVarIds, varId)
+	variableIdToSelectedScopeId := impl.getMatchedScopedVariables(varScope)
+
+	scopeIds := make([]int, 0)
+	foundVarIds := make([]int, 0) // the variable IDs which have data
+	for varId, scopeId := range variableIdToSelectedScopeId {
+		scopeIds = append(scopeIds, scopeId)
+		foundVarIds = append(foundVarIds, varId)
 	}
-	var varDefs []*repository2.VariableDefinition
-	if scopedVarIds != nil {
-		varDefs, err = impl.scopedVariableRepository.GetVariablesForVarIds(scopedVarIds)
-		if err != nil {
-			impl.logger.Errorw("error in getting variable definition", "err", err)
-			return nil, err
-		}
-	}
-	var vData []*repository2.VariableData
-	if scopeIds != nil {
-		vData, err = impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
+
+	var variableData []*repository2.VariableData
+	if len(scopeIds) != 0 {
+		variableData, err = impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
 		if err != nil {
 			impl.logger.Errorw("error in getting variable data", "err", err)
 			return nil, err
 		}
 	}
-
-	for varId, mapping := range scopedVariableIds {
-		scopedVariableData := &models.ScopedVariableData{}
-		for _, varDef := range varDefs {
-			if varDef.Id == varId {
-				scopedVariableData.VariableName = varDef.Name
-				break
-			}
-		}
-		for _, varData := range vData {
-			if varData.VariableScopeId == mapping.ScopeId {
-				var value interface{}
-				value, err = utils.DestringifyValue(varData.Data)
-				if err != nil {
-					impl.logger.Errorw("error in validating value", "err", err)
-					return nil, err
-				}
-				scopedVariableData.VariableValue = models.VariableValue{Value: value}
-			}
-		}
-		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
+	scopeIdToVarData := make(map[int]*repository2.VariableData)
+	for _, varData := range variableData {
+		scopeIdToVarData[varData.VariableScopeId] = varData
 	}
-	var variableList []*repository2.VariableDefinition
-	if varNames == nil {
-		variableList, err = impl.scopedVariableRepository.GetAllVariables()
+
+	for varId, scopeId := range variableIdToSelectedScopeId {
+		var value interface{}
+		value, err = utils.DestringifyValue(scopeIdToVarData[scopeId].Data)
 		if err != nil {
-			impl.logger.Errorw("error in getting variable list", "err", err)
+			impl.logger.Errorw("error in validating value", "err", err)
 			return nil, err
 		}
-		for _, existing := range variableList {
-			found := false
-			for _, variable := range scopedVariableDataObj {
-				if variable.VariableName == existing.Name {
-					found = true
-					break
-				}
-			}
-			if !found {
-				newData := &models.ScopedVariableData{
-					VariableName: existing.Name,
-				}
-				scopedVariableDataObj = append(scopedVariableDataObj, newData)
+		scopedVariableData := &models.ScopedVariableData{
+			VariableName:  variableIdToDefinition[varId].Name,
+			VariableValue: models.VariableValue{Value: value}}
+
+		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
+	}
+
+	//adding variable def for variables which don't have any scoped data defined
+	// This only happens when passed var names is null (called from UI to get all variables with or without data)
+	if varNames == nil {
+		for _, definition := range allVariableDefinitions {
+			if !slices.Contains(foundVarIds, definition.Id) {
+				scopedVariableDataObj = append(scopedVariableDataObj, &models.ScopedVariableData{
+					VariableName: definition.Name,
+				})
 			}
 		}
 	}
+
 	return scopedVariableDataObj, err
 }
 
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {
+
 	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
 	if err != nil {
 		impl.logger.Errorw("error in getting data for json", "err", err)
