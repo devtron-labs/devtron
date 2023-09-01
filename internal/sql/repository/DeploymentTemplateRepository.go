@@ -49,6 +49,7 @@ func NewDeploymentTemplateRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 func (impl DeploymentTemplateRepositoryImpl) FetchDeploymentHistoryWithChartRefs(appId int, envId int) ([]*DeploymentTemplateComparisonMetadata, error) {
 
 	var result []*DeploymentTemplateComparisonMetadata
+	limit := 15
 
 	query := "SELECT pco.id as pipeline_config_override_id, wfr.started_on,   wfr.finished_on, wfr.status, ceco.chart_id, c.chart_version " +
 		"FROM cd_workflow_runner wfr JOIN cd_workflow wf ON wf.id = wfr.cd_workflow_id " +
@@ -56,9 +57,9 @@ func (impl DeploymentTemplateRepositoryImpl) FetchDeploymentHistoryWithChartRefs
 		"JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id JOIN charts c ON c.id = ceco.chart_id " +
 		" WHERE p.environment_id = ?  AND p.app_id = ?  AND " +
 		"p.deleted = false  AND wfr.workflow_type = 'DEPLOY' ORDER BY" +
-		" wfr.id DESC LIMIT 15;"
+		" wfr.id DESC LIMIT ? ;"
 
-	_, err := impl.dbConnection.Query(&result, query, envId, appId)
+	_, err := impl.dbConnection.Query(&result, query, envId, appId, limit)
 	if err != nil {
 		impl.Logger.Error("error in fetching deployment history", "error", err)
 	}
