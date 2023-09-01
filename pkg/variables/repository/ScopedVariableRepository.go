@@ -9,53 +9,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type VariableDefinition struct {
-	tableName     struct{} `sql:"variable_definition" pg:",discard_unknown_columns"`
-	Id            int      `sql:"id,pk"`
-	Name          string   `sql:"name"`
-	DataType      string   `sql:"data_type"`
-	VarType       string   `sql:"var_type"`
-	Active        bool     `sql:"active"`
-	Description   string   `sql:"description"`
-	VariableScope []*VariableScope
-	sql.AuditLog
-}
-
-type VariableScope struct {
-	tableName             struct{} `sql:"variable_scope" pg:",discard_unknown_columns"`
-	Id                    int      `sql:"id,pk"`
-	VariableDefinitionId  int      `sql:"variable_definition_id"`
-	QualifierId           int      `sql:"qualifier_id"`
-	IdentifierKey         int      `sql:"identifier_key"`
-	IdentifierValueInt    int      `sql:"identifier_value_int"`
-	Active                bool     `sql:"active"`
-	IdentifierValueString string   `sql:"identifier_value_string"`
-	ParentIdentifier      int      `sql:"parent_identifier"`
-	CompositeKey          string   `sql:"-"`
-	Data                  string   `sql:"-"`
-	VariableData          *VariableData
-	sql.AuditLog
-}
-
-type VariableData struct {
-	tableName       struct{} `sql:"variable_data" pg:",discard_unknown_columns"`
-	Id              int      `sql:"id,pk"`
-	VariableScopeId int      `sql:"variable_scope_id"`
-	Data            string   `sql:"data"`
-	sql.AuditLog
-}
-
-type Qualifier int
-
-const (
-	APP_AND_ENV_QUALIFIER Qualifier = 1
-	APP_QUALIFIER         Qualifier = 2
-	ENV_QUALIFIER         Qualifier = 3
-	CLUSTER_QUALIFIER     Qualifier = 4
-	GLOBAL_QUALIFIER      Qualifier = 5
-)
-
-var CompoundQualifiers = []Qualifier{APP_AND_ENV_QUALIFIER}
 
 type ScopedVariableRepository interface {
 	//transaction util funcs
@@ -70,7 +23,7 @@ type ScopedVariableRepository interface {
 	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
 	GetScopedVariableData(scope models.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
-	DeleteVariables(auditLog sql.AuditLog) error
+	DeleteVariables(auditLog sql.AuditLog, tx *pg.Tx) error
 }
 
 type ScopedVariableRepositoryImpl struct {
@@ -202,34 +155,21 @@ func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]
 
 }
 
-func (impl *ScopedVariableRepositoryImpl) DeleteVariables(auditLog sql.AuditLog) error {
-	tx, err := impl.dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer func(tx *pg.Tx) {
-		err = tx.Rollback()
-		if err != nil {
-			return
-		}
-	}(tx)
-	_, err = tx.Model(&VariableScope{}).
+func (impl *ScopedVariableRepositoryImpl) DeleteVariables(auditLog sql.AuditLog, tx *pg.Tx) error {
+	_, err := tx.Model(&VariableScope{}).
 		Set("updated_by = ?", auditLog.UpdatedBy).
 		Set("updated_on = ?", auditLog.UpdatedOn).
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Update()
-
+	if err != nil {
+		return err
+	}
 	_, err = tx.Model(&VariableDefinition{}).
 		Set("updated_by = ?", auditLog.UpdatedBy).
 		Set("updated_on = ?", auditLog.UpdatedOn).
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Update()
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }

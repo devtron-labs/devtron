@@ -94,156 +94,114 @@ func (impl *ScopedVariableServiceImpl) loadVarCache() {
 	impl.logger.Info("variable cache loaded successfully")
 }
 
-func (impl *ScopedVariableServiceImpl) getIdentifierType(searchableKeyId int) models.IdentifierType {
-	SearchableKeyIdNameMap := impl.devtronResourceService.GetAllSearchableKeyIdNameMap()
-	switch SearchableKeyIdNameMap[searchableKeyId] {
-	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID:
-		return models.ApplicationName
-	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID:
-		return models.EnvName
-	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID:
-		return models.ClusterName
-	default:
-		return ""
-	}
-}
-
-func complexTypeValidator(payload models.Payload) bool {
-	for _, variable := range payload.Variables {
-		variableType := variable.Definition.DataType
-		if variableType == YAML_TYPE || variableType == JSON_TYPE {
-			for _, attributeValue := range variable.AttributeValues {
-				if attributeValue.VariableValue.Value != "" {
-					if variable.Definition.DataType == YAML_TYPE {
-						if !isValidYAML(attributeValue.VariableValue.Value.(string)) {
-							return false
-						}
-					} else if variable.Definition.DataType == JSON_TYPE {
-						if !isValidJSON(attributeValue.VariableValue.Value.(string)) {
-							return false
-						}
-					}
-				} else {
-					return false
-				}
-			}
-		}
-	}
-	return true
-}
-
-func isValidYAML(input string) bool {
-	jsonInput, err := yaml.YAMLToJSONStrict([]byte(input))
-	if err != nil {
-		return false
-	}
-	validJson := isValidJSON(string(jsonInput))
-	return validJson
-}
-func isValidJSON(input string) bool {
-	data := make(map[string]interface{})
-	if err := json.Unmarshal([]byte(input), &data); err != nil {
-		return false
-	}
-	return true
-}
-func getAuditLog(payload models.Payload) sql.AuditLog {
-	var auditLog sql.AuditLog
-	auditLog = sql.AuditLog{
-		CreatedOn: time.Now(),
-		CreatedBy: payload.UserId,
-		UpdatedOn: time.Now(),
-		UpdatedBy: payload.UserId,
-	}
-	return auditLog
-}
-func validateVariableToSaveData(data interface{}) (string, error) {
-	var value string
-	switch data.(type) {
-	case json.Number:
-		marshal, err := json.Marshal(data)
-		if err != nil {
-			return "", err
-		}
-		value = string(marshal)
-	case string:
-		value = data.(string)
-		value = "\"" + value + "\""
-	case bool:
-		value = strconv.FormatBool(data.(bool))
-	}
-	return value, nil
-}
 func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) error {
-	//validValue := complexTypeValidator(payload)
-	//if !validValue {
-	//	impl.logger.Errorw("variable value is not valid", validValue)
-	//	return fmt.Errorf("invalid variable value")
-	//}
-	auditLog := getAuditLog(payload)
-
 	err, _ := impl.isValidPayload(payload)
 	if err != nil {
-		return fmt.Errorf("custom validation err in CreateVariables")
-	}
-	err = impl.scopedVariableRepository.DeleteVariables(auditLog)
-	if err != nil {
-		impl.logger.Errorw("error in deleting variable", err)
+		impl.logger.Errorw("error in variable payload validation", "err", err)
 		return err
 	}
-	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-	n := len(payload.Variables)
 	if len(payload.Variables) == 0 {
 		return nil
 	}
-
-	variableDefinitions := make([]*repository2.VariableDefinition, 0, n)
-	for _, variable := range payload.Variables {
-		variableDefinition := &repository2.VariableDefinition{
-			Name:        variable.Definition.VarName,
-			DataType:    variable.Definition.DataType,
-			VarType:     variable.Definition.VarType,
-			Description: variable.Definition.Description,
-			Active:      true,
-			AuditLog:    auditLog,
-		}
-		variableDefinitions = append(variableDefinitions, variableDefinition)
-	}
-	variableScopes := make([]*repository2.VariableScope, 0)
-	variableNameToId := make(map[string]int)
+	auditLog := getAuditLog(payload)
+	// Begin Transaction
 	tx, err := impl.scopedVariableRepository.StartTx()
 	if err != nil {
-		impl.logger.Errorw("error in starting transaction", err)
+		impl.logger.Errorw("error in starting transaction of variable creation", "err", err)
 		return err
 	}
+	// Rollback Transaction in case of any error
+	defer func(scopedVariableRepository repository2.ScopedVariableRepository, tx *pg.Tx) {
+		err = scopedVariableRepository.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Errorw("error in rollback transaction of variable creation", "err", err)
+			return
+		}
+	}(impl.scopedVariableRepository, tx)
+
+	err = impl.scopedVariableRepository.DeleteVariables(auditLog, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting variables", "err", err)
+		return err
+	}
+
+	varNameIdMap, err := impl.storeVariableDefinitions(payload, auditLog, tx)
+	if err != nil {
+		return err
+	}
+
+	scopeIdToVarData, err := impl.createVariableScopes(payload, varNameIdMap, auditLog, tx)
+	if err != nil {
+		return err
+	}
+	err = impl.storeVariableData(scopeIdToVarData, auditLog, tx)
+	if err != nil {
+		return err
+	}
+	err = impl.scopedVariableRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction of variable creation", "err", err)
+		return err
+	}
+	go impl.loadVarCache()
+	return nil
+}
+
+func (impl *ScopedVariableServiceImpl) storeVariableData(scopeIdToVarData map[int]string, auditLog sql.AuditLog, tx *pg.Tx) error {
+	VariableDataList := make([]*repository2.VariableData, 0)
+	for scopeId, data := range scopeIdToVarData {
+		varData := &repository2.VariableData{
+			VariableScopeId: scopeId,
+			Data:            data,
+			AuditLog:        auditLog,
+		}
+		VariableDataList = append(VariableDataList, varData)
+	}
+	if len(VariableDataList) > 0 {
+		err := impl.scopedVariableRepository.CreateVariableData(VariableDataList, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving variable data", "err", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *ScopedVariableServiceImpl) storeVariableDefinitions(payload models.Payload, auditLog sql.AuditLog, tx *pg.Tx) (map[string]int, error) {
+	variableDefinitions := make([]*repository2.VariableDefinition, 0, len(payload.Variables))
+	for _, variable := range payload.Variables {
+		variableDefinition := repository2.CreateFromDefinition(variable.Definition, auditLog)
+		variableDefinitions = append(variableDefinitions, variableDefinition)
+	}
 	varDef, err := impl.scopedVariableRepository.CreateVariableDefinition(variableDefinitions, tx)
+	if err != nil {
+		impl.logger.Errorw("error occurred while saving variable definition", "err", err)
+		return nil, err
+	}
+	variableNameToId := make(map[string]int)
 	for _, variable := range varDef {
 		variableNameToId[variable.Name] = variable.Id
 	}
+	return variableNameToId, nil
+}
 
-	envNameToIdMap := make(map[string]int)
-	clusterNameToIdMap := make(map[string]int)
-	appNameToIdMap := make(map[string]int)
-	appNames, envNames, clusterNames := getAttributeNames(payload)
-	appNameToIdMap, envNameToIdMap, clusterNameToIdMap, err = impl.getAttributeNameToIdMappings(appNames, envNames, clusterNames)
+func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Payload, variableNameToId map[string]int, auditLog sql.AuditLog, tx *pg.Tx) (map[int]string, error) {
+	appNameToIdMap, envNameToIdMap, clusterNameToIdMap, err := impl.getAttributesIdMapping(payload)
 	if err != nil {
-		impl.logger.Errorw("error in getting  variable AttributeNameToIdMappings", err)
-		return err
+		impl.logger.Errorw("error in getting  variable AttributeNameToIdMappings", "err", err)
+		return nil, err
 	}
-
+	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	variableScopes := make([]*repository2.VariableScope, 0)
 	for _, variable := range payload.Variables {
 
 		variableId := variableNameToId[variable.Definition.VarName]
 		for _, value := range variable.AttributeValues {
-			var compositeString string
-			if value.AttributeType == models.ApplicationEnv {
-				compositeString = fmt.Sprintf("%v-%s-%s", variableId, value.AttributeParams[models.ApplicationName], value.AttributeParams[models.EnvName])
-			}
 			var varValue string
 			varValue, err = validateVariableToSaveData(value.VariableValue.Value)
 			if err != nil {
-				impl.logger.Errorw("error in validating dataType", err)
-				return err
+				impl.logger.Errorw("error in validating dataType", "err", err)
+				return nil, err
 			}
 			if value.AttributeType == models.Global {
 				scope := &repository2.VariableScope{
@@ -255,12 +213,16 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 				}
 				variableScopes = append(variableScopes, scope)
 			} else {
+				var compositeString string
+				if value.AttributeType == models.ApplicationEnv {
+					compositeString = fmt.Sprintf("%v-%s-%s", variableId, value.AttributeParams[models.ApplicationName], value.AttributeParams[models.EnvName])
+				}
 				for identifierType, IdentifierName := range value.AttributeParams {
 					var identifierValue int
 					identifierValue, err = getIdentifierValue(identifierType, appNameToIdMap, IdentifierName, envNameToIdMap, clusterNameToIdMap)
 					if err != nil {
-						impl.logger.Errorw("error in getting  identifierValue", err)
-						return err
+						impl.logger.Errorw("error in getting identifierValue", "err", err)
+						return nil, err
 					}
 					scope := &repository2.VariableScope{
 						VariableDefinitionId:  variableId,
@@ -275,9 +237,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 					}
 					variableScopes = append(variableScopes, scope)
 				}
-
 			}
-
 		}
 	}
 	parentVariableScope := make([]*repository2.VariableScope, 0)
@@ -292,7 +252,6 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 			if scope.QualifierId == 1 {
 				parentScopesMap[scope.CompositeKey] = scope
 			}
-
 		}
 	}
 	var parentVarScope []*repository2.VariableScope
@@ -301,7 +260,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		parentVarScope, err = impl.scopedVariableRepository.CreateVariableScope(parentVariableScope, tx)
 		if err != nil {
 			impl.logger.Errorw("error in getting parentVarScope", parentVarScope)
-			return err
+			return nil, err
 		}
 	}
 	scopeIdToVarData := make(map[int]string)
@@ -316,41 +275,12 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 	}
 	if len(childrenVariableScope) > 0 {
 		childVarScope, err = impl.scopedVariableRepository.CreateVariableScope(childrenVariableScope, tx)
-
 		if err != nil {
 			impl.logger.Errorw("error in getting childVarScope", err, childVarScope)
-			return err
+			return nil, err
 		}
 	}
-
-	VariableDataList := make([]*repository2.VariableData, 0)
-
-	for scopeId, data := range scopeIdToVarData {
-		varData := &repository2.VariableData{
-
-			VariableScopeId: scopeId,
-			Data:            data,
-			AuditLog:        auditLog,
-		}
-		VariableDataList = append(VariableDataList, varData)
-	}
-	if len(VariableDataList) > 0 {
-		err = impl.scopedVariableRepository.CreateVariableData(VariableDataList, tx)
-		if err != nil {
-			impl.logger.Errorw("error in saving variable data", err)
-			return err
-		}
-	}
-
-	defer func(scopedVariableRepository repository2.ScopedVariableRepository, tx *pg.Tx) {
-		err = scopedVariableRepository.CommitTx(tx)
-		if err != nil {
-			impl.logger.Errorw("error in committing transaction", err)
-			return
-		}
-	}(impl.scopedVariableRepository, tx)
-	go impl.loadVarCache()
-	return nil
+	return scopeIdToVarData, nil
 }
 
 func getAttributeNames(payload models.Payload) ([]string, []string, []string) {
@@ -374,7 +304,8 @@ func getAttributeNames(payload models.Payload) ([]string, []string, []string) {
 	return appNames, envNames, clusterNames
 }
 
-func (impl *ScopedVariableServiceImpl) getAttributeNameToIdMappings(appNames []string, envNames []string, clusterNames []string) (map[string]int, map[string]int, map[string]int, error) {
+func (impl *ScopedVariableServiceImpl) getAttributesIdMapping(payload models.Payload) (map[string]int, map[string]int, map[string]int, error) {
+	appNames, envNames, clusterNames := getAttributeNames(payload)
 	var appNameToId []*app.App
 	var err error
 	if len(appNames) != 0 {
@@ -732,15 +663,6 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 				if !slices.Contains(validIdentifierTypeList, key) {
 					return fmt.Errorf("invalid IdentifierType %s for validIdentifierTypeList %s", key, validIdentifierTypeList), false
 				}
-				//match := false
-				//for _, identifier := range models.IdentifiersList {
-				//	if identifier == key {
-				//		match = true
-				//	}
-				//}
-				//if !match {
-				//	return fmt.Errorf("invalid identifier key %s for variable %s", key, variable.Definition.VarName),false
-				//}
 			}
 			identifierString := fmt.Sprintf("%s-%s", variable.Definition.VarName, string(attributeValue.AttributeType))
 			for _, key := range validIdentifierTypeList {
@@ -753,4 +675,85 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 		}
 	}
 	return nil, true
+}
+
+func (impl *ScopedVariableServiceImpl) getIdentifierType(searchableKeyId int) models.IdentifierType {
+	SearchableKeyIdNameMap := impl.devtronResourceService.GetAllSearchableKeyIdNameMap()
+	switch SearchableKeyIdNameMap[searchableKeyId] {
+	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID:
+		return models.ApplicationName
+	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID:
+		return models.EnvName
+	case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID:
+		return models.ClusterName
+	default:
+		return ""
+	}
+}
+
+func complexTypeValidator(payload models.Payload) bool {
+	for _, variable := range payload.Variables {
+		variableType := variable.Definition.DataType
+		if variableType == YAML_TYPE || variableType == JSON_TYPE {
+			for _, attributeValue := range variable.AttributeValues {
+				if attributeValue.VariableValue.Value != "" {
+					if variable.Definition.DataType == YAML_TYPE {
+						if !isValidYAML(attributeValue.VariableValue.Value.(string)) {
+							return false
+						}
+					} else if variable.Definition.DataType == JSON_TYPE {
+						if !isValidJSON(attributeValue.VariableValue.Value.(string)) {
+							return false
+						}
+					}
+				} else {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+func isValidYAML(input string) bool {
+	jsonInput, err := yaml.YAMLToJSONStrict([]byte(input))
+	if err != nil {
+		return false
+	}
+	validJson := isValidJSON(string(jsonInput))
+	return validJson
+}
+func isValidJSON(input string) bool {
+	data := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		return false
+	}
+	return true
+}
+func getAuditLog(payload models.Payload) sql.AuditLog {
+	var auditLog sql.AuditLog
+	auditLog = sql.AuditLog{
+		CreatedOn: time.Now(),
+		CreatedBy: payload.UserId,
+		UpdatedOn: time.Now(),
+		UpdatedBy: payload.UserId,
+	}
+	return auditLog
+}
+func validateVariableToSaveData(data interface{}) (string, error) {
+	var value string
+	switch data.(type) {
+	case json.Number:
+		marshal, err := json.Marshal(data)
+		if err != nil {
+			return "", err
+		}
+		value = string(marshal)
+	case string:
+		value = data.(string)
+		value = "\"" + value + "\""
+	case bool:
+		value = strconv.FormatBool(data.(bool))
+	}
+	return value, nil
 }
