@@ -95,7 +95,7 @@ func (impl DeploymentTemplateRepositoryImpl) FetchPipelineOverrideValues(id int)
 	query := "select merged_values_yaml from pipeline_config_override where id = ? ; "
 	_, err := impl.dbConnection.Query(&result, query, id)
 	if err != nil {
-		impl.Logger.Error("error", "error", err)
+		impl.Logger.Error("error in fetching merged values yaml", "error", err)
 	}
 	return result.MergedValuesYaml, err
 }
