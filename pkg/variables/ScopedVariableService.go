@@ -333,7 +333,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		}
 	}
 
-	var variableIds []int
+	variableIds := make([]int, 0)
 	variableIdToDefinition := make(map[int]*repository2.VariableDefinition)
 	for _, definition := range variableDefinitions {
 		variableIds = append(variableIds, definition.Id)
