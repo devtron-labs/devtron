@@ -278,33 +278,24 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*rep
 	}
 	// Filter out the unneeded scoped which were fetched from DB for the same variable and qualifier
 	for variableId, scopes := range variableIdToVariableScopes {
-		scopeIdToScope := make(map[int]*repository2.VariableScope)
-		var matchedScope *repository2.VariableScope
+
 		selectedScopes := make([]*repository2.VariableScope, 0)
+		compoundQualifierToScopes := make(map[repository2.Qualifier][]*repository2.VariableScope)
+
 		for _, variableScope := range scopes {
-			if slices.Contains(repository2.CompoundQualifiers, repository2.Qualifier(variableScope.QualifierId)) && matchedScope == nil {
-				if _, ok := scopeIdToScope[variableScope.Id]; ok {
-					// when child was found first, it would be present in map
-					// we'll select the scope of parent which is the current scope
-					matchedScope = variableScope
-				} else {
-					scopeIdToScope[variableScope.Id] = variableScope
-				}
-				if variableScope.ParentIdentifier > 0 {
-					if foundScope, ok := scopeIdToScope[variableScope.ParentIdentifier]; ok {
-						// when parent was found first, it would be present in map
-						// we'll select the scope of parent which is found in the map
-						matchedScope = foundScope
-					} else {
-						scopeIdToScope[variableScope.ParentIdentifier] = variableScope
-					}
-				}
+			qualifier := repository2.Qualifier(variableScope.QualifierId)
+			if slices.Contains(repository2.CompoundQualifiers, qualifier) {
+				compoundQualifierToScopes[qualifier] = append(compoundQualifierToScopes[qualifier], variableScope)
 			} else {
 				selectedScopes = append(selectedScopes, variableScope)
 			}
 		}
-		if matchedScope != nil {
-			selectedScopes = append(selectedScopes, matchedScope)
+
+		for _, qualifier := range repository2.CompoundQualifiers {
+			selectedScope := impl.selectScopeForCompoundQualifier(compoundQualifierToScopes[qualifier], repository2.GetNumOfChildQualifiers(qualifier))
+			if selectedScope != nil {
+				selectedScopes = append(selectedScopes, selectedScope)
+			}
 		}
 		variableIdToVariableScopes[variableId] = selectedScopes
 	}
@@ -316,6 +307,43 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*rep
 	}
 	return variableIdToSelectedScopeId
 }
+
+func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []*repository2.VariableScope, numQualifiers int) *repository2.VariableScope {
+	parentIdToChildScopes := make(map[int][]*repository2.VariableScope)
+	parentScopeIdToScope := make(map[int]*repository2.VariableScope, 0)
+	parentScopeIds := make([]int, 0)
+	for _, scope := range scopes {
+		// is not parent so append it to the list in the map with key as its parent scopeID
+		if scope.ParentIdentifier > 0 {
+			parentIdToChildScopes[scope.ParentIdentifier] = append(parentIdToChildScopes[scope.ParentIdentifier], scope)
+		} else {
+			//is parent so collect IDs and put it in a map for easy retrieval
+			parentScopeIds = append(parentScopeIds, scope.Id)
+			parentScopeIdToScope[scope.Id] = scope
+		}
+	}
+
+	for parentScopeId, _ := range parentIdToChildScopes {
+		// this deletes the keys in the map where the key does not exist in the collected IDs for parent
+		if !slices.Contains(parentScopeIds, parentScopeId) {
+			delete(parentIdToChildScopes, parentScopeId)
+		}
+	}
+
+	// app=1 env=1 cluster=1
+	// app=1 env=1 Xcluster=2X
+
+	// Now in the map only those will exist with all child matched or partial matches.
+	// Because only one will entry exist with all matched we'll return that scope.
+	var selectedParentScope *repository2.VariableScope
+	for parentScopeId, childScopes := range parentIdToChildScopes {
+		if len(childScopes) == numQualifiers {
+			selectedParentScope = parentScopeIdToScope[parentScopeId]
+		}
+	}
+	return selectedParentScope
+}
+
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	// getting all variables from cache, if nil get from repo

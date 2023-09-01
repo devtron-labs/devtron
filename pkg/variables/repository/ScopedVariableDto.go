@@ -53,6 +53,14 @@ const (
 
 var CompoundQualifiers = []Qualifier{APP_AND_ENV_QUALIFIER}
 
+func GetNumOfChildQualifiers(qualifier Qualifier) int {
+	switch qualifier {
+	case APP_AND_ENV_QUALIFIER:
+		return 1
+	}
+	return 0
+}
+
 func CreateFromDefinition(definition models.Definition, auditLog sql.AuditLog) *VariableDefinition {
 	varDefinition := &VariableDefinition{}
 	varDefinition.Name = definition.VarName
