@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Makefile correction (#3852)
 - fix: deleting pipeline stage and related data if no stage steps are found (#3832)
 - fix: Port number fix in helm app (#3843)
 - fix: External cm and secret in jobs not getting added as env variable in container (#3815)
