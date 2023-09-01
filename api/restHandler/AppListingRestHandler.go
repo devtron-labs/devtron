@@ -1757,14 +1757,8 @@ func (handler AppListingRestHandlerImpl) GetDeploymentsWithCharts(w http.Respons
 		return
 	}
 
-	app, err := handler.pipeline.GetApp(appId)
-	if err != nil {
-		handler.logger.Errorw("bad request", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	// RBAC enforcer applying
-	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
