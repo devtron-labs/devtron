@@ -18,10 +18,10 @@ type ScopedVariableRepository interface {
 	CreateVariableData(variableDefinition []*VariableData, tx *pg.Tx) error
 
 	// Get
-	GetAllVariables() ([]*VariableDefinition, error)                  //add cache
-	GetAllVariableMetadata() ([]*VariableDefinition, error)           //cache impl
-	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)   // add cache
-	GetVariablesByNames(vars []string) ([]*VariableDefinition, error) //added cache
+	GetAllVariables() ([]*VariableDefinition, error)
+	GetAllVariableMetadata() ([]*VariableDefinition, error)
+	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)
+	GetVariablesByNames(vars []string) ([]*VariableDefinition, error)
 	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
 	GetScopedVariableData(scope models.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
