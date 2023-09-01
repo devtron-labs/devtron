@@ -93,7 +93,7 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		Methods("GET")
 
 	appListingRouter.Path("/data").
-		HandlerFunc(router.appListingRestHandler.GetYaluesAndManifest).
+		HandlerFunc(router.appListingRestHandler.GetValuesAndManifest).
 		Methods("POST")
 
 	appListingRouter.Path("/linkouts/{Id}/{appId}/{envId}").Queries("podName", "{podName}").

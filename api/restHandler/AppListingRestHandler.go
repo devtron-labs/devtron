@@ -80,7 +80,7 @@ type AppListingRestHandler interface {
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 
 	GetDeploymentsWithCharts(w http.ResponseWriter, r *http.Request)
-	GetYaluesAndManifest(w http.ResponseWriter, r *http.Request)
+	GetValuesAndManifest(w http.ResponseWriter, r *http.Request)
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
 	GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
@@ -1775,7 +1775,7 @@ func (handler AppListingRestHandlerImpl) GetDeploymentsWithCharts(w http.Respons
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) GetYaluesAndManifest(w http.ResponseWriter, r *http.Request) {
+func (handler AppListingRestHandlerImpl) GetValuesAndManifest(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	var request generateManifest.ValuesAndManifestRequest
@@ -1787,14 +1787,8 @@ func (handler AppListingRestHandlerImpl) GetYaluesAndManifest(w http.ResponseWri
 	}
 
 	token := r.Header.Get("token")
-	app, err := handler.pipeline.GetApp(request.AppId)
-	if err != nil {
-		handler.logger.Errorw("bad request", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	// RBAC enforcer applying
-	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
