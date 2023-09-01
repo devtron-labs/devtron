@@ -1781,7 +1781,7 @@ func (handler AppListingRestHandlerImpl) GetValuesAndManifest(w http.ResponseWri
 	var request generateManifest.ValuesAndManifestRequest
 	err := decoder.Decode(&request)
 	if err != nil {
-		handler.logger.Errorw("request err, GetYaluesAndManifest by API", "err", err, "GetYaluesAndManifest", request)
+		handler.logger.Errorw("request err, GetValuesAndManifest by API", "err", err, "GetYaluesAndManifest", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
