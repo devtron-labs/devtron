@@ -1,4 +1,4 @@
-package sourceController
+package main
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/sourceController/bean"
 	"github.com/devtron-labs/devtron/pkg/sourceController/oci"
-	repository "github.com/devtron-labs/devtron/pkg/sourceController/repo"
+	repository "github.com/devtron-labs/devtron/pkg/sourceController/sql/repo"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -38,12 +38,11 @@ type SourceControllerServiceImpl struct {
 
 type SourceControllerConfig struct {
 	ImageShowCount int    `env:"IMAGE_COUNT_FROM_REPO" envDefault:"20"`
-	AppId          int    `env:"APP_ID_EXTERNAL_CI" envDefault:"18"`
-	EnvId          int    `env:"ENV_ID_EXTERNAL_CI" envDefault:"1"`
 	ExternalCiId   int    `env:"EXTERNAL_CI_ID" envDefault:"6"`
 	RepoName       string `env:"REPO_NAME_EXTERNAL_CI" envDefault:"stefanprodan/manifests/podinfo"`
 	RegistryURL    string `env:"REGISTRY_URL_EXTERNAL_CI" envDefault:"ghcr.io"`
 	Insecure       bool   `env:"INSECURE_EXTERNAL_CI" envDefault:"true"`
+	ApiToken       string `env:"API_TOKEN_EXTERNAL_CI" envDefault:""`
 }
 
 var UserAgent = "flux/v2"
@@ -77,13 +76,6 @@ func GetSourceControllerConfig() (*SourceControllerConfig, error) {
 	}
 	return cfg, err
 }
-
-//// OCIRepository is the Schema for the ocirepositories API
-//type OCIRepository struct {
-//	Spec bean.OCIRepositorySpec `json:"spec,omitempty"`
-//	// +kubebuilder:default={"observedGeneration":-1}
-//	Status bean.OCIRepositoryStatus `json:"status,omitempty"`
-//}
 
 type ExternalCI struct {
 	DockerImage  string `json:"dockerImage" validate:"required,image-validator"`
@@ -184,9 +176,9 @@ func (impl *SourceControllerServiceImpl) CallExternalCIWebHook(digest, tag strin
 		impl.logger.Errorw("error in marshalling golang struct", "err", err)
 		return err
 	}
-	bearer := ""
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(b))
-	req.Header.Set("api-token", bearer)
+	req.Header.Set("api-token", impl.SCSconfig.ApiToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	client := &http.Client{}

@@ -1,4 +1,4 @@
-package sourceController
+package main
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 
 type SourceControllerCronService interface {
 }
-type SourceControllerCronImpl struct {
+type SourceControllerCronServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	sourceControllerService SourceControllerService
 }
@@ -19,8 +19,8 @@ type SourceControllerCronConfig struct {
 }
 
 func NewSourceControllerCronServiceImpl(logger *zap.SugaredLogger,
-	sourceControllerService SourceControllerService) (*SourceControllerCronImpl, error) {
-	sourceControllerServiceImpl := &SourceControllerCronImpl{
+	sourceControllerService SourceControllerService) (*SourceControllerCronServiceImpl, error) {
+	sourceControllerServiceImpl := &SourceControllerCronServiceImpl{
 		logger:                  logger,
 		sourceControllerService: sourceControllerService,
 	}

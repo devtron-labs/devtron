@@ -1,4 +1,4 @@
-package sourceController
+package main
 
 import (
 	"bytes"
@@ -18,8 +18,6 @@ var (
 	Insecure       bool   = true
 	RepoName       string = "addon-resizer-amd64"
 	ExternalCiId   int    = 3
-	AppId          int    = 18
-	EnvId          int    = 1
 	ImageShowCount int    = 20
 )
 
