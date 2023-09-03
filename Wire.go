@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
+	"github.com/devtron-labs/devtron/api/restHandler/scopedVariable"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
@@ -112,6 +113,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository10 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util4 "github.com/devtron-labs/devtron/util/k8s"
@@ -243,6 +247,25 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		util.NewChartDeploymentServiceImpl,
 		wire.Bind(new(util.ChartDeploymentService), new(*util.ChartDeploymentServiceImpl)),
+
+		//scoped variables start
+		variables.NewScopedVariableServiceImpl,
+		wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
+
+		parsers.NewVariableTemplateParserImpl,
+		wire.Bind(new(parsers.VariableTemplateParser), new(*parsers.VariableTemplateParserImpl)),
+		repository10.NewVariableEntityMappingRepository,
+		wire.Bind(new(repository10.VariableEntityMappingRepository), new(*repository10.VariableEntityMappingRepositoryImpl)),
+
+		repository10.NewVariableSnapshotHistoryRepository,
+		wire.Bind(new(repository10.VariableSnapshotHistoryRepository), new(*repository10.VariableSnapshotHistoryRepositoryImpl)),
+		variables.NewVariableEntityMappingServiceImpl,
+		wire.Bind(new(variables.VariableEntityMappingService), new(*variables.VariableEntityMappingServiceImpl)),
+		variables.NewVariableSnapshotHistoryServiceImpl,
+		wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
+
+		//end
+
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
 		bulkAction.NewBulkUpdateServiceImpl,
@@ -445,6 +468,9 @@ func InitializeApp() (*App, error) {
 		chartConfig.NewPipelineConfigRepository,
 		wire.Bind(new(chartConfig.PipelineConfigRepository), new(*chartConfig.PipelineConfigRepositoryImpl)),
 
+		repository10.NewScopedVariableRepository,
+		wire.Bind(new(repository10.ScopedVariableRepository), new(*repository10.ScopedVariableRepositoryImpl)),
+
 		repository.NewLinkoutsRepositoryImpl,
 		wire.Bind(new(repository.LinkoutsRepository), new(*repository.LinkoutsRepositoryImpl)),
 
@@ -522,6 +548,24 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewCdWorkflowServiceImpl,
 		wire.Bind(new(pipeline.CdWorkflowService), new(*pipeline.CdWorkflowServiceImpl)),
+
+		////scoped variables start
+		//variables.NewScopedVariableServiceImpl,
+		//wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
+		//
+		//parsers.NewVariableTemplateParserImpl,
+		//wire.Bind(new(parsers.VariableTemplateParser), new(*parsers.VariableTemplateParserImpl)),
+		//repository10.NewVariableEntityMappingRepository,
+		//wire.Bind(new(repository10.VariableEntityMappingRepository), new(*repository10.VariableEntityMappingRepositoryImpl)),
+		//
+		//repository10.NewVariableSnapshotHistoryRepository,
+		//wire.Bind(new(repository10.VariableSnapshotHistoryRepository), new(*repository10.VariableSnapshotHistoryRepositoryImpl)),
+		//variables.NewVariableEntityMappingServiceImpl,
+		//wire.Bind(new(variables.VariableEntityMappingService), new(*variables.VariableEntityMappingServiceImpl)),
+		//variables.NewVariableSnapshotHistoryServiceImpl,
+		//wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
+		//
+		////end
 
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
@@ -641,6 +685,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
 		restHandler.NewCommonRestHanlderImpl,
 		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
+
+		router.NewScopedVariableRouterImpl,
+		wire.Bind(new(router.ScopedVariableRouter), new(*router.ScopedVariableRouterImpl)),
+		scopedVariable.NewScopedVariableRestHandlerImpl,
+		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
 
 		util.NewGitCliUtil,
 
