@@ -1,8 +1,6 @@
 package pg
 
 import (
-	"context"
-	"io"
 	"log"
 	"os"
 	"strconv"
@@ -15,8 +13,6 @@ import (
 // Discard is used with Query and QueryOne to discard rows.
 var Discard orm.Discard
 
-type NullTime = types.NullTime
-
 func init() {
 	SetLogger(log.New(os.Stderr, "pg: ", log.LstdFlags|log.Lshortfile))
 }
@@ -24,10 +20,6 @@ func init() {
 // Model returns new query for the optional model.
 func Model(model ...interface{}) *orm.Query {
 	return orm.NewQuery(nil, model...)
-}
-
-func ModelContext(c context.Context, model ...interface{}) *orm.Query {
-	return orm.NewQueryContext(c, nil, model...)
 }
 
 // Scan returns ColumnScanner that copies the columns in the
@@ -68,7 +60,7 @@ func In(slice interface{}) types.ValueAppender {
 //
 //    WHERE (id1, id2) IN ((1, 2), (3, 4))
 func InMulti(values ...interface{}) types.ValueAppender {
-	return types.InMulti(values...)
+	return types.In(values...)
 }
 
 // Array accepts a slice and returns a wrapper for working with PostgreSQL
@@ -118,14 +110,8 @@ func (Strings) AddModel(_ orm.ColumnScanner) error {
 	return nil
 }
 
-func (strings *Strings) ScanColumn(colIdx int, _ string, rd types.Reader, n int) error {
-	b := make([]byte, n)
-	_, err := io.ReadFull(rd, b)
-	if err != nil {
-		return err
-	}
-
-	*strings = append(*strings, internal.BytesToString(b))
+func (strings *Strings) ScanColumn(colIdx int, _ string, b []byte) error {
+	*strings = append(*strings, string(b))
 	return nil
 }
 
@@ -164,13 +150,12 @@ func (Ints) AddModel(_ orm.ColumnScanner) error {
 	return nil
 }
 
-func (ints *Ints) ScanColumn(colIdx int, colName string, rd types.Reader, n int) error {
-	num, err := types.ScanInt64(rd, n)
+func (ints *Ints) ScanColumn(colIdx int, colName string, b []byte) error {
+	n, err := strconv.ParseInt(internal.BytesToString(b), 10, 64)
 	if err != nil {
 		return err
 	}
-
-	*ints = append(*ints, num)
+	*ints = append(*ints, n)
 	return nil
 }
 
@@ -208,18 +193,17 @@ func (IntSet) AddModel(_ orm.ColumnScanner) error {
 	return nil
 }
 
-func (setptr *IntSet) ScanColumn(colIdx int, colName string, rd types.Reader, n int) error {
-	num, err := types.ScanInt64(rd, n)
-	if err != nil {
-		return err
-	}
-
+func (setptr *IntSet) ScanColumn(colIdx int, colName string, b []byte) error {
 	set := *setptr
 	if set == nil {
 		*setptr = make(IntSet)
 		set = *setptr
 	}
 
-	set[num] = struct{}{}
+	n, err := strconv.ParseInt(internal.BytesToString(b), 10, 64)
+	if err != nil {
+		return err
+	}
+	set[n] = struct{}{}
 	return nil
 }

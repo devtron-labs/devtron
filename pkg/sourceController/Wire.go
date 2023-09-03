@@ -4,29 +4,29 @@
 package main
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sourceController/api"
 	"github.com/devtron-labs/devtron/pkg/sourceController/internal/logger"
 	"github.com/devtron-labs/devtron/pkg/sourceController/sql"
-	repository "github.com/devtron-labs/devtron/pkg/sourceController/sql/repo"
 	"github.com/google/wire"
 )
 
 func InitializeApp() (*App, error) {
 	wire.Build(
 		NewApp,
-		logger.NewSugardLogger(),
-		logger.NewHttpClient,
-		sql.GetConfig(),
+		logger.NewSugardLogger,
+		api.NewRouter,
+		sql.GetConfig,
 		sql.NewDbConnection,
-		GetSourceControllerConfig(),
+		//GetSourceControllerConfig,
 
-		repository.NewCiArtifactRepositoryImpl,
-		wire.Bind(new(repository.CiArtifactRepository), new(*repository.CiArtifactRepositoryImpl)),
+		//repository.NewCiArtifactRepositoryImpl,
+		//wire.Bind(new(repository.CiArtifactRepository), new(*repository.CiArtifactRepositoryImpl)),
 
-		sourceController.NewSourceControllerServiceImpl,
-		wire.Bind(new(sourceController.SourceControllerService), new(*sourceController.SourceControllerServiceImpl)),
-
-		sourceController.NewSourceControllerCronServiceImpl,
-		wire.Bind(new(sourceController.SourceControllerCronService), new(*sourceController.SourceControllerCronServiceImpl)),
+		//NewSourceControllerServiceImpl,
+		//wire.Bind(new(SourceControllerService), new(*SourceControllerServiceImpl)),
+		//
+		//NewSourceControllerCronServiceImpl,
+		//wire.Bind(new(SourceControllerCronService), new(*SourceControllerCronServiceImpl)),
 	)
 	return &App{}, nil
 }

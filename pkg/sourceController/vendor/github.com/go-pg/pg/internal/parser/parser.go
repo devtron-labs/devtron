@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 
 	"github.com/go-pg/pg/internal"
@@ -9,7 +10,6 @@ import (
 
 type Parser struct {
 	b []byte
-	i int
 }
 
 func New(b []byte) *Parser {
@@ -23,16 +23,16 @@ func NewString(s string) *Parser {
 }
 
 func (p *Parser) Bytes() []byte {
-	return p.b[p.i:]
+	return p.b
 }
 
 func (p *Parser) Valid() bool {
-	return p.i < len(p.b)
+	return len(p.b) > 0
 }
 
 func (p *Parser) Read() byte {
 	if p.Valid() {
-		c := p.b[p.i]
+		c := p.b[0]
 		p.Advance()
 		return c
 	}
@@ -41,84 +41,125 @@ func (p *Parser) Read() byte {
 
 func (p *Parser) Peek() byte {
 	if p.Valid() {
-		return p.b[p.i]
+		return p.b[0]
 	}
 	return 0
 }
 
 func (p *Parser) Advance() {
-	p.i++
+	p.b = p.b[1:]
 }
 
-func (p *Parser) Skip(skip byte) bool {
-	if p.Peek() == skip {
+func (p *Parser) Skip(c byte) bool {
+	if p.Peek() == c {
 		p.Advance()
 		return true
 	}
 	return false
 }
 
-func (p *Parser) SkipBytes(skip []byte) bool {
-	if len(skip) > len(p.b[p.i:]) {
+func (p *Parser) MustSkip(c byte) error {
+	if p.Skip(c) {
+		return nil
+	}
+	return fmt.Errorf("expecting '%c', got %q", c, p.Bytes())
+}
+
+func (p *Parser) SkipBytes(b []byte) bool {
+	if len(b) > len(p.b) {
 		return false
 	}
-	if !bytes.Equal(p.b[p.i:p.i+len(skip)], skip) {
+	if !bytes.Equal(p.b[:len(b)], b) {
 		return false
 	}
-	p.i += len(skip)
+	p.b = p.b[len(b):]
 	return true
 }
 
-func (p *Parser) ReadSep(sep byte) ([]byte, bool) {
-	ind := bytes.IndexByte(p.b[p.i:], sep)
+func (p *Parser) ReadSep(c byte) ([]byte, bool) {
+	ind := bytes.IndexByte(p.b, c)
 	if ind == -1 {
-		b := p.b[p.i:]
-		p.i = len(p.b)
+		b := p.b
+		p.b = p.b[len(p.b):]
 		return b, false
 	}
 
-	b := p.b[p.i : p.i+ind]
-	p.i += ind + 1
+	b := p.b[:ind]
+	p.b = p.b[ind+1:]
 	return b, true
 }
 
-func (p *Parser) ReadIdentifier() (string, bool) {
-	ind := len(p.b) - p.i
-	var alpha bool
-	for i, c := range p.b[p.i:] {
-		if isNum(c) {
+func (p *Parser) ReadIdentifier() (s string, numeric bool) {
+	end := len(p.b)
+	numeric = true
+	for i, ch := range p.b {
+		if isNum(ch) {
 			continue
 		}
-		if isAlpha(c) || (i > 0 && alpha && c == '_') {
-			alpha = true
+		if isAlpha(ch) || (i > 0 && ch == '_') {
+			numeric = false
 			continue
 		}
-		ind = i
+		end = i
 		break
 	}
-	if ind == 0 {
+	if end == 0 {
 		return "", false
 	}
-	b := p.b[p.i : p.i+ind]
-	p.i += ind
-	return internal.BytesToString(b), !alpha
+	b := p.b[:end]
+	p.b = p.b[end:]
+	return internal.BytesToString(b), numeric
 }
 
 func (p *Parser) ReadNumber() int {
-	ind := len(p.b) - p.i
-	for i, c := range p.b[p.i:] {
-		if !isNum(c) {
-			ind = i
+	end := len(p.b)
+	for i, ch := range p.b {
+		if !isNum(ch) {
+			end = i
 			break
 		}
 	}
-	if ind == 0 {
+	if end <= 0 {
 		return 0
 	}
-	n, err := strconv.Atoi(string(p.b[p.i : p.i+ind]))
-	if err != nil {
-		panic(err)
-	}
-	p.i += ind
+	n, _ := strconv.Atoi(string(p.b[:end]))
+	p.b = p.b[end:]
 	return n
+}
+
+func (p *Parser) ReadSubstring() ([]byte, error) {
+	if !p.Skip('"') {
+		return nil, fmt.Errorf("pg: substring: can't find opening quote: %q", p.Bytes())
+	}
+
+	var b []byte
+	for p.Valid() {
+		c := p.Read()
+		switch c {
+		case '\\':
+			switch p.Peek() {
+			case '\\':
+				p.Advance()
+				b = append(b, '\\')
+			case '"':
+				p.Advance()
+				b = append(b, '"')
+			default:
+				b = append(b, c)
+			}
+		case '\'':
+			if p.Peek() == '\'' {
+				p.Advance()
+				b = append(b, '\'')
+			} else {
+				b = append(b, c)
+			}
+		case '"':
+			return b, nil
+		default:
+			b = append(b, c)
+		}
+	}
+
+	return nil, fmt.Errorf("pg: substring: can't find closing quote: %q", p.Bytes())
 }

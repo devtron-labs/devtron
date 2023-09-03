@@ -18,6 +18,7 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sourceController/sql"
 	"time"
 
 	"github.com/go-pg/pg"
@@ -42,7 +43,7 @@ type CiArtifact struct {
 	Deployed             bool      `sql:"-"`
 	Latest               bool      `sql:"-"`
 	RunningOnParent      bool      `sql:"-"`
-	//sql.AuditLog
+	sql.AuditLog
 }
 
 type CiArtifactRepository interface {

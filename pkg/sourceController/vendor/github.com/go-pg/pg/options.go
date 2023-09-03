@@ -26,7 +26,7 @@ type Options struct {
 	Dialer func(network, addr string) (net.Conn, error)
 
 	// Hook that is called when new connection is established.
-	OnConnect func(*Conn) error
+	OnConnect func(*DB) error
 
 	User     string
 	Password string
@@ -230,16 +230,13 @@ func (opt *Options) getDialer() func() (net.Conn, error) {
 
 func newConnPool(opt *Options) *pool.ConnPool {
 	return pool.NewConnPool(&pool.Options{
-		Dialer: opt.getDialer(),
-		OnClose: func(cn *pool.Conn) error {
-			return terminateConn(cn)
-		},
-
+		Dialer:             opt.getDialer(),
 		PoolSize:           opt.PoolSize,
-		MinIdleConns:       opt.MinIdleConns,
-		MaxConnAge:         opt.MaxConnAge,
 		PoolTimeout:        opt.PoolTimeout,
 		IdleTimeout:        opt.IdleTimeout,
 		IdleCheckFrequency: opt.IdleCheckFrequency,
+		OnClose: func(cn *pool.Conn) error {
+			return terminateConn(cn)
+		},
 	})
 }

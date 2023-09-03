@@ -4,24 +4,16 @@ import (
 	"reflect"
 
 	"github.com/go-pg/pg/internal"
-	"github.com/go-pg/pg/types"
 )
 
 type sliceModel struct {
 	Discard
 	slice    reflect.Value
 	nextElem func() reflect.Value
-	scan     func(reflect.Value, types.Reader, int) error
+	scan     func(reflect.Value, []byte) error
 }
 
 var _ Model = (*sliceModel)(nil)
-
-func newSliceModel(slice reflect.Value, elemType reflect.Type) *sliceModel {
-	return &sliceModel{
-		slice: slice,
-		scan:  types.Scanner(elemType),
-	}
-}
 
 func (m *sliceModel) Init() error {
 	if m.slice.IsValid() && m.slice.Len() > 0 {
@@ -34,10 +26,10 @@ func (m *sliceModel) NewModel() ColumnScanner {
 	return m
 }
 
-func (m *sliceModel) ScanColumn(colIdx int, _ string, rd types.Reader, n int) error {
+func (m *sliceModel) ScanColumn(colIdx int, _ string, b []byte) error {
 	if m.nextElem == nil {
 		m.nextElem = internal.MakeSliceNextElemFunc(m.slice)
 	}
 	v := m.nextElem()
-	return m.scan(v, rd, n)
+	return m.scan(v, b)
 }

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -10,23 +11,42 @@ import (
 	"github.com/go-pg/pg/internal"
 )
 
-func Scan(v interface{}, rd Reader, n int) error {
-	var err error
+func Scan(v interface{}, b []byte) error {
 	switch v := v.(type) {
 	case *string:
-		*v, err = ScanString(rd, n)
-		return err
+		*v = string(b)
+		return nil
 	case *[]byte:
-		*v, err = ScanBytes(rd, n)
+		if b == nil {
+			*v = nil
+			return nil
+		}
+		var err error
+		*v, err = ScanBytes(b)
 		return err
 	case *int:
-		*v, err = ScanInt(rd, n)
+		if b == nil {
+			*v = 0
+			return nil
+		}
+		var err error
+		*v, err = internal.Atoi(b)
 		return err
 	case *int64:
-		*v, err = ScanInt64(rd, n)
+		if b == nil {
+			*v = 0
+			return nil
+		}
+		var err error
+		*v, err = internal.ParseInt(b, 10, 64)
 		return err
 	case *time.Time:
-		*v, err = ScanTime(rd, n)
+		if b == nil {
+			*v = time.Time{}
+			return nil
+		}
+		var err error
+		*v, err = ParseTime(b)
 		return err
 	}
 
@@ -41,131 +61,23 @@ func Scan(v interface{}, rd Reader, n int) error {
 	if !vv.IsValid() {
 		return fmt.Errorf("pg: Scan(nonsettable %T)", v)
 	}
-	return ScanValue(vv, rd, n)
+	return ScanValue(vv, b)
 }
 
-func ScanString(rd Reader, n int) (string, error) {
-	if n <= 0 {
-		return "", nil
+func scanSQLScanner(scanner sql.Scanner, b []byte) error {
+	if b == nil {
+		return scanner.Scan(nil)
 	}
-
-	b, err := rd.ReadFull()
-	if err != nil {
-		return "", err
-	}
-
-	return internal.BytesToString(b), nil
+	return scanner.Scan(b)
 }
 
-func ScanBytes(rd Reader, n int) ([]byte, error) {
-	if n <= 0 {
-		return nil, nil
+func ScanBytes(b []byte) ([]byte, error) {
+	if len(b) < 2 {
+		return nil, fmt.Errorf("pg: can't parse bytes: %q", b)
 	}
 
-	tmp, err := rd.ReadFullTemp()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(tmp) < 2 {
-		return nil, fmt.Errorf("pg: can't parse bytea: %q", tmp)
-	}
-
-	if tmp[0] != '\\' || tmp[1] != 'x' {
-		return nil, fmt.Errorf("pg: can't parse bytea: %q", tmp)
-	}
-	tmp = tmp[2:] // Trim off "\\x".
-
-	b := make([]byte, hex.DecodedLen(len(tmp)))
-	written, err := hex.Decode(b, tmp)
-	if err != nil {
-		return nil, err
-	}
-
-	return b[:written], err
-}
-
-func ScanInt(rd Reader, n int) (int, error) {
-	if n <= 0 {
-		return 0, nil
-	}
-
-	tmp, err := rd.ReadFullTemp()
-	if err != nil {
-		return 0, err
-	}
-
-	num, err := internal.Atoi(tmp)
-	if err != nil {
-		return 0, err
-	}
-
-	return num, nil
-}
-
-func ScanInt64(rd Reader, n int) (int64, error) {
-	if n <= 0 {
-		return 0, nil
-	}
-
-	tmp, err := rd.ReadFullTemp()
-	if err != nil {
-		return 0, err
-	}
-
-	num, err := internal.ParseInt(tmp, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return num, nil
-}
-
-func ScanUint64(rd Reader, n int) (uint64, error) {
-	if n <= 0 {
-		return 0, nil
-	}
-
-	tmp, err := rd.ReadFullTemp()
-	if err != nil {
-		return 0, err
-	}
-
-	num, err := internal.ParseUint(tmp, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return num, nil
-}
-
-func ScanFloat64(rd Reader, n int) (float64, error) {
-	if n <= 0 {
-		return 0, nil
-	}
-
-	tmp, err := rd.ReadFullTemp()
-	if err != nil {
-		return 0, err
-	}
-
-	num, err := internal.ParseFloat(tmp, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return num, nil
-}
-
-func ScanTime(rd Reader, n int) (time.Time, error) {
-	if n <= 0 {
-		return time.Time{}, nil
-	}
-
-	tmp, err := rd.ReadFullTemp()
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return ParseTime(tmp)
+	b = b[2:] // Trim off "\\x".
+	tmp := make([]byte, hex.DecodedLen(len(b)))
+	_, err := hex.Decode(tmp, b)
+	return tmp, err
 }

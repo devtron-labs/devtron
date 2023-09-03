@@ -10,33 +10,30 @@ func Select(db DB, model interface{}) error {
 }
 
 type selectQuery struct {
-	q     *Query
+	q *Query
+
 	count string
 }
 
 var _ QueryAppender = (*selectQuery)(nil)
 
-func (q *selectQuery) Copy() *selectQuery {
-	return &selectQuery{
+func (q selectQuery) Copy() QueryAppender {
+	return selectQuery{
 		q:     q.q.Copy(),
 		count: q.count,
 	}
 }
 
-func (q *selectQuery) Query() *Query {
+func (q selectQuery) Query() *Query {
 	return q.q
 }
 
-func (q *selectQuery) AppendTemplate(b []byte) ([]byte, error) {
-	cp := q.Copy()
-	cp.q = cp.q.Formatter(dummyFormatter{})
-	return cp.AppendQuery(b)
-}
-
-func (q *selectQuery) AppendQuery(b []byte) ([]byte, error) {
+func (q selectQuery) AppendQuery(b []byte) ([]byte, error) {
 	if q.q.stickyErr != nil {
 		return nil, q.q.stickyErr
 	}
+
+	var err error
 
 	cteCount := q.count != "" && (len(q.q.group) > 0 || q.isDistinct())
 	if cteCount {
@@ -44,7 +41,10 @@ func (q *selectQuery) AppendQuery(b []byte) ([]byte, error) {
 	}
 
 	if len(q.q.with) > 0 {
-		b = q.q.appendWith(b)
+		b, err = q.q.appendWith(b)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	b = append(b, "SELECT "...)
@@ -137,7 +137,7 @@ func (q *selectQuery) AppendQuery(b []byte) ([]byte, error) {
 		b = append(b, ` FROM "_count_wrapper"`...)
 	}
 
-	return b, q.q.stickyErr
+	return b, nil
 }
 
 func (q selectQuery) appendColumns(b []byte) []byte {
@@ -145,7 +145,7 @@ func (q selectQuery) appendColumns(b []byte) []byte {
 
 	if q.q.columns != nil {
 		b = q.q.appendColumns(b)
-	} else if q.q.hasExplicitModel() {
+	} else if q.q.hasModel() {
 		table := q.q.model.Table()
 		b = appendColumns(b, table.Alias, table.Fields)
 	} else {
@@ -168,7 +168,7 @@ func (q selectQuery) appendColumns(b []byte) []byte {
 	return b
 }
 
-func (q *selectQuery) isDistinct() bool {
+func (q selectQuery) isDistinct() bool {
 	for _, column := range q.q.columns {
 		column, ok := column.(*queryParamsAppender)
 		if ok {
@@ -181,12 +181,12 @@ func (q *selectQuery) isDistinct() bool {
 	return false
 }
 
-func (q *selectQuery) appendTables(b []byte) []byte {
+func (q selectQuery) appendTables(b []byte) []byte {
 	tables := q.q.tables
 
 	if q.q.modelHasTableName() {
 		table := q.q.model.Table()
-		b = q.q.FormatQuery(b, string(table.FullNameForSelects))
+		b = q.q.FormatQuery(b, string(table.NameForSelects))
 		if table.Alias != "" {
 			b = append(b, " AS "...)
 			b = append(b, table.Alias...)

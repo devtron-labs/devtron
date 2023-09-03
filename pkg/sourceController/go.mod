@@ -9,6 +9,8 @@ require (
 	github.com/go-pg/pg v8.0.7+incompatible
 	github.com/google/go-containerregistry v0.16.1
 	github.com/google/wire v0.5.0
+	github.com/gorilla/mux v1.8.0
+	github.com/juju/errors v1.0.0
 	github.com/robfig/cron/v3 v3.0.1
 	go.uber.org/zap v1.25.0
 	k8s.io/apimachinery v0.28.1

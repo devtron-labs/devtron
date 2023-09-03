@@ -1,5 +1,7 @@
 package orm
 
+import "errors"
+
 type DropCompositeOptions struct {
 	IfExists bool
 	Cascade  bool
@@ -7,7 +9,7 @@ type DropCompositeOptions struct {
 
 func DropComposite(db DB, model interface{}, opt *DropCompositeOptions) error {
 	q := NewQuery(db, model)
-	_, err := q.db.Exec(&dropCompositeQuery{
+	_, err := q.db.Exec(dropCompositeQuery{
 		q:   q,
 		opt: opt,
 	})
@@ -19,29 +21,20 @@ type dropCompositeQuery struct {
 	opt *DropCompositeOptions
 }
 
-func (q *dropCompositeQuery) Copy() *dropCompositeQuery {
-	return &dropCompositeQuery{
-		q:   q.q.Copy(),
-		opt: q.opt,
-	}
+func (q dropCompositeQuery) Copy() QueryAppender {
+	return q
 }
 
-func (q *dropCompositeQuery) Query() *Query {
+func (q dropCompositeQuery) Query() *Query {
 	return q.q
 }
 
-func (q *dropCompositeQuery) AppendTemplate(b []byte) ([]byte, error) {
-	cp := q.Copy()
-	cp.q = cp.q.Formatter(dummyFormatter{})
-	return cp.AppendQuery(b)
-}
-
-func (q *dropCompositeQuery) AppendQuery(b []byte) ([]byte, error) {
+func (q dropCompositeQuery) AppendQuery(b []byte) ([]byte, error) {
 	if q.q.stickyErr != nil {
 		return nil, q.q.stickyErr
 	}
 	if q.q.model == nil {
-		return nil, errModelNil
+		return nil, errors.New("pg: Model(nil)")
 	}
 
 	b = append(b, "DROP TYPE "...)
@@ -53,5 +46,5 @@ func (q *dropCompositeQuery) AppendQuery(b []byte) ([]byte, error) {
 		b = append(b, " CASCADE"...)
 	}
 
-	return b, q.q.stickyErr
+	return b, nil
 }

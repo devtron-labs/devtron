@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -17,55 +18,50 @@ func Update(db DB, model interface{}) error {
 }
 
 type updateQuery struct {
-	q           *Query
-	omitZero    bool
-	placeholder bool
+	q        *Query
+	omitZero bool
 }
 
 var _ QueryAppender = (*updateQuery)(nil)
 
-func (q *updateQuery) Copy() *updateQuery {
-	return &updateQuery{
-		q:           q.q.Copy(),
-		omitZero:    q.omitZero,
-		placeholder: q.placeholder,
+func (q updateQuery) Copy() QueryAppender {
+	return updateQuery{
+		q: q.q.Copy(),
 	}
 }
 
-func (q *updateQuery) Query() *Query {
+func (q updateQuery) Query() *Query {
 	return q.q
 }
 
-func (q *updateQuery) AppendTemplate(b []byte) ([]byte, error) {
-	cp := q.Copy()
-	cp.q = cp.q.Formatter(dummyFormatter{})
-	cp.placeholder = true
-	return cp.AppendQuery(b)
-}
-
-func (q *updateQuery) AppendQuery(b []byte) ([]byte, error) {
+func (q updateQuery) AppendQuery(b []byte) ([]byte, error) {
 	if q.q.stickyErr != nil {
 		return nil, q.q.stickyErr
 	}
 
+	var err error
+
 	if len(q.q.with) > 0 {
-		b = q.q.appendWith(b)
+		b, err = q.q.appendWith(b)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	b = append(b, "UPDATE "...)
 	b = q.q.appendFirstTableWithAlias(b)
 
-	b, err := q.mustAppendSet(b)
+	b, err = q.mustAppendSet(b)
 	if err != nil {
 		return nil, err
 	}
 
-	isSliceModelWithData := q.q.isSliceModelWithData()
-	if isSliceModelWithData || q.q.hasMultiTables() {
+	isSliceModel := q.q.isSliceModel()
+	if q.q.hasMultiTables() || isSliceModel {
 		b = append(b, " FROM "...)
 		b = q.q.appendOtherTables(b)
 
-		if isSliceModelWithData {
+		if isSliceModel {
 			b, err = q.appendSliceModelData(b)
 			if err != nil {
 				return nil, err
@@ -73,48 +69,37 @@ func (q *updateQuery) AppendQuery(b []byte) ([]byte, error) {
 		}
 	}
 
-	b, err = q.mustAppendWhere(b, isSliceModelWithData)
-	if err != nil {
-		return nil, err
+	b = append(b, " WHERE "...)
+	if isSliceModel {
+		table := q.q.model.Table()
+		b = appendWhereColumnAndColumn(b, table.Alias, table.PKs)
+
+		if q.q.hasWhere() {
+			b = append(b, " AND "...)
+			b = q.q.appendWhere(b)
+		}
+	} else {
+		b, err = q.q.mustAppendWhere(b)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(q.q.returning) > 0 {
 		b = q.q.appendReturning(b)
 	}
 
-	return b, q.q.stickyErr
+	return b, nil
 }
 
-func (q *updateQuery) mustAppendWhere(b []byte, isSliceModelWithData bool) ([]byte, error) {
-	b = append(b, " WHERE "...)
-
-	if isSliceModelWithData {
-		if !q.q.hasModel() {
-			return nil, errModelNil
-		}
-
-		table := q.q.model.Table()
-		if len(table.PKs) > 0 {
-			b = appendWhereColumnAndColumn(b, table.Alias, table.PKs)
-			if q.q.hasWhere() {
-				b = append(b, " AND "...)
-				b = q.q.appendWhere(b)
-			}
-			return b, nil
-		}
-	}
-
-	return q.q.mustAppendWhere(b)
-}
-
-func (q *updateQuery) mustAppendSet(b []byte) ([]byte, error) {
+func (q updateQuery) mustAppendSet(b []byte) ([]byte, error) {
 	if len(q.q.set) > 0 {
 		b = q.q.appendSet(b)
 		return b, nil
 	}
 
-	if !q.q.hasModel() {
-		return nil, errModelNil
+	if q.q.model == nil {
+		return nil, errors.New("pg: Model(nil)")
 	}
 
 	b = append(b, " SET "...)
@@ -137,7 +122,7 @@ func (q *updateQuery) mustAppendSet(b []byte) ([]byte, error) {
 	return b, nil
 }
 
-func (q *updateQuery) appendSetStruct(b []byte, strct reflect.Value) ([]byte, error) {
+func (q updateQuery) appendSetStruct(b []byte, strct reflect.Value) ([]byte, error) {
 	fields, err := q.q.getFields()
 	if err != nil {
 		return nil, err
@@ -149,7 +134,7 @@ func (q *updateQuery) appendSetStruct(b []byte, strct reflect.Value) ([]byte, er
 
 	pos := len(b)
 	for _, f := range fields {
-		omitZero := f.OmitZero() && f.IsZeroValue(strct)
+		omitZero := f.OmitZero() && f.IsZero(strct)
 		if omitZero && q.omitZero {
 			continue
 		}
@@ -168,8 +153,8 @@ func (q *updateQuery) appendSetStruct(b []byte, strct reflect.Value) ([]byte, er
 			continue
 		}
 
-		if q.placeholder {
-			b = append(b, '?')
+		if f.OmitZero() && f.IsZero(strct) {
+			b = append(b, "NULL"...)
 		} else {
 			b = f.AppendValue(b, strct, 1)
 		}
@@ -178,7 +163,7 @@ func (q *updateQuery) appendSetStruct(b []byte, strct reflect.Value) ([]byte, er
 	return b, nil
 }
 
-func (q *updateQuery) appendSetSlice(b []byte, slice reflect.Value) ([]byte, error) {
+func (q updateQuery) appendSetSlice(b []byte, slice reflect.Value) ([]byte, error) {
 	fields, err := q.q.getFields()
 	if err != nil {
 		return nil, err
@@ -202,7 +187,7 @@ func (q *updateQuery) appendSetSlice(b []byte, slice reflect.Value) ([]byte, err
 	return b, nil
 }
 
-func (q *updateQuery) appendSliceModelData(b []byte) ([]byte, error) {
+func (q updateQuery) appendSliceModelData(b []byte) ([]byte, error) {
 	columns, err := q.q.getDataFields()
 	if err != nil {
 		return nil, err
@@ -217,28 +202,22 @@ func (q *updateQuery) appendSliceModelData(b []byte) ([]byte, error) {
 	return q.appendSliceValues(b, columns, q.q.model.Value()), nil
 }
 
-func (q *updateQuery) appendSliceValues(b []byte, fields []*Field, slice reflect.Value) []byte {
+func (q updateQuery) appendSliceValues(b []byte, fields []*Field, slice reflect.Value) []byte {
 	b = append(b, "(VALUES ("...)
-
-	if q.placeholder {
-		b = q.appendValues(b, fields, reflect.Value{})
-	} else {
-		for i := 0; i < slice.Len(); i++ {
-			if i > 0 {
-				b = append(b, "), ("...)
-			}
-			b = q.appendValues(b, fields, slice.Index(i))
+	for i := 0; i < slice.Len(); i++ {
+		el := indirect(slice.Index(i))
+		b = q.appendValues(b, fields, el)
+		if i != slice.Len()-1 {
+			b = append(b, "), ("...)
 		}
 	}
-
 	b = append(b, ")) AS _data("...)
 	b = appendColumns(b, "", fields)
 	b = append(b, ")"...)
-
 	return b
 }
 
-func (q *updateQuery) appendValues(b []byte, fields []*Field, strct reflect.Value) []byte {
+func (q updateQuery) appendValues(b []byte, fields []*Field, strct reflect.Value) []byte {
 	for i, f := range fields {
 		if i > 0 {
 			b = append(b, ", "...)
@@ -250,13 +229,15 @@ func (q *updateQuery) appendValues(b []byte, fields []*Field, strct reflect.Valu
 			continue
 		}
 
-		if q.placeholder {
-			b = append(b, '?')
+		if f.OmitZero() && f.IsZero(strct) {
+			b = append(b, "NULL"...)
 		} else {
-			b = f.AppendValue(b, indirect(strct), 1)
+			b = f.AppendValue(b, strct, 1)
 		}
-		b = append(b, "::"...)
-		b = append(b, f.SQLType...)
+		if f.HasFlag(customTypeFlag) {
+			b = append(b, "::"...)
+			b = append(b, f.SQLType...)
+		}
 	}
 	return b
 }

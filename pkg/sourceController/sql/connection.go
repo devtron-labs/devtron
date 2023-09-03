@@ -1,11 +1,11 @@
 package sql
 
 import (
+	"github.com/go-pg/pg"
 	"reflect"
 	"time"
 
 	"github.com/caarlos0/env/v6"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
