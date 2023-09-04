@@ -27,10 +27,11 @@ build: clean wire
 			-X 'github.com/devtron-labs/devtron/util.ServerMode=${SERVER_MODE_FULL}'"
 
 wire:
+	export GOFLAGS=-buildvcs=false
 	wire
 
 clean:
-	rm -f devtron
+	rm -rf devtron
 
 test-all: test-unit
 	echo 'test cases ran successfully'
