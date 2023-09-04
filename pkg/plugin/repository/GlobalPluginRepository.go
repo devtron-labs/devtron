@@ -82,19 +82,19 @@ type PluginTagRelation struct {
 
 type PluginPipelineScript struct {
 	tableName                struct{}                  `sql:"plugin_pipeline_script" pg:",discard_unknown_columns"`
-	Id                       int                       `sql:"id,pk"`
-	Script                   string                    `sql:"script"`
-	StoreScriptAt            string                    `sql:"store_script_at"`
-	Type                     ScriptType                `sql:"type"`
-	DockerfileExists         bool                      `sql:"dockerfile_exists, notnull"`
-	MountPath                string                    `sql:"mount_path"`
-	MountCodeToContainer     bool                      `sql:"mount_code_to_container,notnull"`
-	MountCodeToContainerPath string                    `sql:"mount_code_to_container_path"`
-	MountDirectoryFromHost   bool                      `sql:"mount_directory_from_host,notnull"`
-	ContainerImagePath       string                    `sql:"container_image_path"`
-	ImagePullSecretType      ScriptImagePullSecretType `sql:"image_pull_secret_type"`
-	ImagePullSecret          string                    `sql:"image_pull_secret"`
-	Deleted                  bool                      `sql:"deleted, notnull"`
+	Id                       int                       `sql:"id,pk" json:"id"`
+	Script                   string                    `sql:"script" json:"script"`
+	StoreScriptAt            string                    `sql:"store_script_at" json:"storeScriptAt"`
+	Type                     ScriptType                `sql:"type" json:"type"`
+	DockerfileExists         bool                      `sql:"dockerfile_exists, notnull" json:"dockerfileExists"`
+	MountPath                string                    `sql:"mount_path" json:"mountPath"`
+	MountCodeToContainer     bool                      `sql:"mount_code_to_container,notnull" json:"mountCodeToContainer"`
+	MountCodeToContainerPath string                    `sql:"mount_code_to_container_path" json:"mountCodeToContainerPath"`
+	MountDirectoryFromHost   bool                      `sql:"mount_directory_from_host,notnull" json:"mountDirectoryFromHost"`
+	ContainerImagePath       string                    `sql:"container_image_path" json:"containerImagePath"`
+	ImagePullSecretType      ScriptImagePullSecretType `sql:"image_pull_secret_type" json:"imagePullSecretType"`
+	ImagePullSecret          string                    `sql:"image_pull_secret" json:"imagePullSecret"`
+	Deleted                  bool                      `sql:"deleted, notnull" json:"deleted"`
 	sql.AuditLog
 }
 
@@ -152,13 +152,13 @@ type PluginStepVariable struct {
 
 type PluginStepCondition struct {
 	tableName           struct{}                `sql:"plugin_step_condition" pg:",discard_unknown_columns"`
-	Id                  int                     `sql:"id,pk"`
-	PluginStepId        int                     `sql:"plugin_step_id"`
-	ConditionVariableId int                     `sql:"condition_variable_id"` //id of variable on which condition is written
-	ConditionType       PluginStepConditionType `sql:"condition_type"`
-	ConditionalOperator string                  `sql:"conditional_operator"`
-	ConditionalValue    string                  `sql:"conditional_value"`
-	Deleted             bool                    `sql:"deleted,notnull"`
+	Id                  int                     `sql:"id,pk" json:"id"`
+	PluginStepId        int                     `sql:"plugin_step_id" json:"pluginStepId"`
+	ConditionVariableId int                     `sql:"condition_variable_id" json:"conditionVariableId"` //id of variable on which condition is written
+	ConditionType       PluginStepConditionType `sql:"condition_type" json:"conditionType"`
+	ConditionalOperator string                  `sql:"conditional_operator" json:"conditionalOperator"`
+	ConditionalValue    string                  `sql:"conditional_value" json:"conditionalValue"`
+	Deleted             bool                    `sql:"deleted,notnull" json:"deleted"`
 	sql.AuditLog
 }
 

@@ -15,8 +15,7 @@ import (
 )
 
 type GlobalPluginRestHandler interface {
-	CreatePlugin(w http.ResponseWriter, r *http.Request)
-	UpdatePlugin(w http.ResponseWriter, r *http.Request)
+	PatchPlugin(w http.ResponseWriter, r *http.Request)
 
 	GetAllGlobalVariables(w http.ResponseWriter, r *http.Request)
 	ListAllPlugins(w http.ResponseWriter, r *http.Request)
@@ -42,11 +41,7 @@ type GlobalPluginRestHandlerImpl struct {
 	pipelineBuilder     pipeline.PipelineBuilder
 }
 
-func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func (handler *GlobalPluginRestHandlerImpl) UpdatePlugin(w http.ResponseWriter, r *http.Request) {
+func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r *http.Request) {
 
 }
 
