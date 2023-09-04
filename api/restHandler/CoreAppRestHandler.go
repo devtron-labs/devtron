@@ -51,6 +51,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"k8s.io/utils/strings/slices"
 	"net/http"
 	"strconv"
 	"strings"
@@ -2140,6 +2141,29 @@ func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkfl
 				if ciPipeline.AppId != workflow.CiPipeline.ParentAppId {
 					return fmt.Errorf("invalid parentAppId '%v' for the given parentCiPipeline '%v'", workflow.CiPipeline.ParentAppId, workflow.CiPipeline.ParentCiPipeline), http.StatusBadRequest
 				}
+			}
+			ciMaterialCheckoutPaths := make([]string, 0)
+			for _, ciPipelineMaterialConfig := range workflow.CiPipeline.CiPipelineMaterialsConfig {
+				// value for webhook type CiPipelineMaterial should be a valid json string
+				if ciPipelineMaterialConfig.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+					var jsonValueMap map[string]interface{}
+					err := json.Unmarshal([]byte(ciPipelineMaterialConfig.Value), &jsonValueMap)
+					if err != nil {
+						return fmt.Errorf("invalid value for the ciPipelineMaterialsConfig type %s", string(ciPipelineMaterialConfig.Type)), http.StatusBadRequest
+					}
+					if _, ok := jsonValueMap["eventId"]; !ok {
+						return fmt.Errorf("invalid value for the ciPipelineMaterialsConfig type %s, eventId not found", string(ciPipelineMaterialConfig.Type)), http.StatusBadRequest
+					}
+
+					if _, ok := jsonValueMap["condition"]; !ok {
+						return fmt.Errorf("invalid value for the ciPipelineMaterialsConfig type %s, condition not found", string(ciPipelineMaterialConfig.Type)), http.StatusBadRequest
+					}
+				}
+				// CiPipelineMaterial checkout paths should be unique
+				if slices.Contains(ciMaterialCheckoutPaths, ciPipelineMaterialConfig.CheckoutPath) {
+					return fmt.Errorf(""), http.StatusBadRequest
+				}
+				ciMaterialCheckoutPaths = append(ciMaterialCheckoutPaths, ciPipelineMaterialConfig.CheckoutPath)
 			}
 			// validate environment name and rbac object of payload
 			if workflow.CdPipelines != nil {
