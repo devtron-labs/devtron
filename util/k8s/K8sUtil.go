@@ -89,7 +89,7 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 		return nil
 	}
 	var kubeconfig *string
-	if runTimeConfig.LocalDevMode {
+	if true {
 		kubeconfig = flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	}
 
@@ -629,7 +629,7 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(ctx context.Context, namespac
 
 func (impl K8sUtil) GetK8sInClusterRestConfig() (*rest.Config, error) {
 	impl.logger.Debug("getting k8s rest config")
-	if impl.runTimeConfig.LocalDevMode {
+	if true {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
 		if err != nil {
 			impl.logger.Errorw("Error while building config from flags", "error", err)

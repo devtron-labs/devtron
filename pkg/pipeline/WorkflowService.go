@@ -33,6 +33,7 @@ import (
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 	"strings"
 )
@@ -40,7 +41,7 @@ import (
 // TODO: move isCi/isJob to workflowRequest
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *WorkflowRequest) error
+	SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, error)
 	//DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string, isExt bool, environment *repository.Environment) (*v1alpha1.Workflow, error)
 	//ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
@@ -98,17 +99,17 @@ const (
 	POST                           = "POST"
 )
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) error {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, error) {
 	workflowTemplate, err := impl.createWorkflowTemplate(workflowRequest)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 	if workflowExecutor == nil {
-		return errors.New("workflow executor not found")
+		return nil, errors.New("workflow executor not found")
 	}
-	_, err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
-	return err
+	createdWf, err := workflowExecutor.ExecuteWorkflow(workflowTemplate)
+	return createdWf, err
 }
 
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *WorkflowRequest) (bean3.WorkflowTemplate, error) {

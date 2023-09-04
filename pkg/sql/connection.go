@@ -29,9 +29,9 @@ import (
 
 type Config struct {
 	Addr                   string `env:"PG_ADDR" envDefault:"127.0.0.1"`
-	Port                   string `env:"PG_PORT" envDefault:"5432"`
-	User                   string `env:"PG_USER" envDefault:""`
-	Password               string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
+	Port                   string `env:"PG_PORT" envDefault:"5431"`
+	User                   string `env:"PG_USER" envDefault:"postgres"`
+	Password               string `env:"PG_PASSWORD" envDefault:"IXuLl9MKeTVPFNxkZDVzhhe92ZA7WSS9" secretData:"-"`
 	Database               string `env:"PG_DATABASE" envDefault:"orchestrator"`
 	ApplicationName        string `env:"APP" envDefault:"orchestrator"`
 	LogQuery               bool   `env:"PG_LOG_QUERY" envDefault:"true"`

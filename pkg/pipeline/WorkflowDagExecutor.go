@@ -514,7 +514,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
+	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
 
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
@@ -600,7 +600,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
+	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
 		return err
