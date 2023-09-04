@@ -2,6 +2,7 @@ package generateManifest
 
 import (
 	"context"
+	"errors"
 	client2 "github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/api/bean"
 	mocks4 "github.com/devtron-labs/devtron/api/helm-app/mocks"
@@ -333,6 +334,22 @@ func TestDeploymentTemplateServiceImpl_GetDeploymentTemplate(t *testing.T) {
 	}
 }
 
+func TestDeploymentTemplateServiceImpl_GetManifest(t *testing.T) {
+	ctx := context.Background()
+	chartRefId := 1
+	valuesYaml := "{\\\"ContainerPort\\\":[{\\\"envoyPort\\\":6969,\\\"idleTimeout\\\":\\\"6969s\\\",\\\"name\\\":\\\"app\\\",\\\"port\\\":6969,\\\"servicePort\\\":69,\\\"supportStreaming\\\":false,\\\"useHTTP2\\\":false}],\\\"EnvVariables\\\":[],\\\"GracePeriod\\\":30,\\\"LivenessProbe\\\":{\\\"Path\\\":\\\"\\\",\\\"command\\\":[],\\\"failureThreshold\\\":3,\\\"httpHeaders\\\":[],\\\"initialDelaySeconds\\\":20,\\\"periodSeconds\\\":10,\\\"port\\\":6969,\\\"scheme\\\":\\\"\\\",\\\"successThreshold\\\":1,\\\"tcp\\\":false,\\\"timeoutSeconds\\\":5},\\\"MaxSurge\\\":1,\\\"MaxUnavailable\\\":0,\\\"MinReadySeconds\\\":60,\\\"ReadinessProbe\\\":{\\\"Path\\\":\\\"\\\",\\\"command\\\":[],\\\"failureThreshold\\\":3,\\\"httpHeaders\\\":[],\\\"initialDelaySeconds\\\":20,\\\"periodSeconds\\\":10,\\\"port\\\":6969,\\\"scheme\\\":\\\"\\\",\\\"successThreshold\\\":1,\\\"tcp\\\":false,\\\"timeoutSeconds\\\":5},\\\"Spec\\\":{\\\"Affinity\\\":{\\\"Key\\\":null,\\\"Values\\\":\\\"nodes\\\",\\\"key\\\":\\\"\\\"}},\\\"StartupProbe\\\":{\\\"Path\\\":\\\"\\\",\\\"command\\\":[],\\\"failureThreshold\\\":3,\\\"httpHeaders\\\":[],\\\"initialDelaySeconds\\\":20,\\\"periodSeconds\\\":10,\\\"port\\\":6969,\\\"successThreshold\\\":1,\\\"tcp\\\":false,\\\"timeoutSeconds\\\":5},\\\"ambassadorMapping\\\":{\\\"ambassadorId\\\":\\\"\\\",\\\"cors\\\":{},\\\"enabled\\\":false,\\\"hostname\\\":\\\"devtron.example.com\\\",\\\"labels\\\":{},\\\"prefix\\\":\\\"/\\\",\\\"retryPolicy\\\":{},\\\"rewrite\\\":\\\"\\\",\\\"tls\\\":{\\\"context\\\":\\\"\\\",\\\"create\\\":false,\\\"hosts\\\":[],\\\"secretName\\\":\\\"\\\"}},\\\"args\\\":{\\\"enabled\\\":false,\\\"value\\\":[\\\"/bin/sh\\\",\\\"-c\\\",\\\"touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600\\\"]},\\\"autoscaling\\\":{\\\"MaxReplicas\\\":2,\\\"MinReplicas\\\":1,\\\"TargetCPUUtilizationPercentage\\\":90,\\\"TargetMemoryUtilizationPercentage\\\":69,\\\"annotations\\\":{},\\\"behavior\\\":{},\\\"enabled\\\":false,\\\"extraMetrics\\\":[],\\\"labels\\\":{}},\\\"command\\\":{\\\"enabled\\\":false,\\\"value\\\":[],\\\"workingDir\\\":{}},\\\"containerSecurityContext\\\":{},\\\"containerSpec\\\":{\\\"lifecycle\\\":{\\\"enabled\\\":false,\\\"postStart\\\":{\\\"httpGet\\\":{\\\"host\\\":\\\"example.com\\\",\\\"path\\\":\\\"/example\\\",\\\"port\\\":90}},\\\"preStop\\\":{\\\"exec\\\":{\\\"command\\\":[\\\"sleep\\\",\\\"10\\\"]}}}},\\\"containers\\\":[],\\\"dbMigrationConfig\\\":{\\\"enabled\\\":false},\\\"envoyproxy\\\":{\\\"configMapName\\\":\\\"\\\",\\\"image\\\":\\\"docker.io/envoyproxy/envoy:v1.16.0\\\",\\\"lifecycle\\\":{},\\\"resources\\\":{\\\"limits\\\":{\\\"cpu\\\":\\\"50m\\\",\\\"memory\\\":\\\"50Mi\\\"},\\\"requests\\\":{\\\"cpu\\\":\\\"50m\\\",\\\"memory\\\":\\\"50Mi\\\"}}},\\\"hostAliases\\\":[],\\\"image\\\":{\\\"pullPolicy\\\":\\\"IfNotPresent\\\"},\\\"imagePullSecrets\\\":[],\\\"ingress\\\":{\\\"annotations\\\":{},\\\"className\\\":\\\"\\\",\\\"enabled\\\":false,\\\"hosts\\\":[{\\\"host\\\":\\\"chart-example1.local\\\",\\\"pathType\\\":\\\"ImplementationSpecific\\\",\\\"paths\\\":[\\\"/example1\\\"]},{\\\"host\\\":\\\"chart-example2.local\\\",\\\"pathType\\\":\\\"ImplementationSpecific\\\",\\\"paths\\\":[\\\"/example2\\\",\\\"/example2/healthz\\\"]}],\\\"labels\\\":{},\\\"tls\\\":[]},\\\"ingressInternal\\\":{\\\"annotations\\\":{},\\\"className\\\":\\\"\\\",\\\"enabled\\\":false,\\\"hosts\\\":[{\\\"host\\\":\\\"chart-example1.internal\\\",\\\"pathType\\\":\\\"ImplementationSpecific\\\",\\\"paths\\\":[\\\"/example1\\\"]},{\\\"host\\\":\\\"chart-example2.internal\\\",\\\"pathType\\\":\\\"ImplementationSpecific\\\",\\\"paths\\\":[\\\"/example2\\\",\\\"/example2/healthz\\\"]}],\\\"tls\\\":[]},\\\"initContainers\\\":[],\\\"istio\\\":{\\\"authorizationPolicy\\\":{\\\"action\\\":null,\\\"annotations\\\":{},\\\"enabled\\\":false,\\\"labels\\\":{},\\\"provider\\\":{},\\\"rules\\\":[]},\\\"destinationRule\\\":{\\\"annotations\\\":{},\\\"enabled\\\":false,\\\"labels\\\":{},\\\"subsets\\\":[],\\\"trafficPolicy\\\":{}},\\\"enable\\\":false,\\\"gateway\\\":{\\\"annotations\\\":{},\\\"enabled\\\":false,\\\"host\\\":\\\"example.com\\\",\\\"labels\\\":{},\\\"tls\\\":{\\\"enabled\\\":false,\\\"secretName\\\":\\\"secret-name\\\"}},\\\"peerAuthentication\\\":{\\\"annotations\\\":{},\\\"enabled\\\":false,\\\"labels\\\":{},\\\"mtls\\\":{\\\"mode\\\":null},\\\"portLevelMtls\\\":{},\\\"selector\\\":{\\\"enabled\\\":false}},\\\"requestAuthentication\\\":{\\\"annotations\\\":{},\\\"enabled\\\":false,\\\"jwtRules\\\":[],\\\"labels\\\":{},\\\"selector\\\":{\\\"enabled\\\":false}},\\\"virtualService\\\":{\\\"annotations\\\":{},\\\"enabled\\\":false,\\\"gateways\\\":[],\\\"hosts\\\":[],\\\"http\\\":[],\\\"labels\\\":{}}},\\\"kedaAutoscaling\\\":{\\\"advanced\\\":{},\\\"authenticationRef\\\":{},\\\"enabled\\\":false,\\\"envSourceContainerName\\\":\\\"\\\",\\\"maxReplicaCount\\\":2,\\\"minReplicaCount\\\":1,\\\"triggerAuthentication\\\":{\\\"enabled\\\":false,\\\"name\\\":\\\"\\\",\\\"spec\\\":{}},\\\"triggers\\\":[]},\\\"networkPolicy\\\":{\\\"annotations\\\":{},\\\"egress\\\":[],\\\"enabled\\\":false,\\\"ingress\\\":[],\\\"labels\\\":{},\\\"podSelector\\\":{\\\"matchExpressions\\\":[],\\\"matchLabels\\\":{}},\\\"policyTypes\\\":[]},\\\"pauseForSecondsBeforeSwitchActive\\\":30,\\\"podAnnotations\\\":{},\\\"podDisruptionBudget\\\":{},\\\"podLabels\\\":{},\\\"podSecurityContext\\\":{},\\\"prometheus\\\":{\\\"release\\\":\\\"monitoring\\\"},\\\"rawYaml\\\":[],\\\"replicaCount\\\":1,\\\"resources\\\":{\\\"limits\\\":{\\\"cpu\\\":\\\"0.05\\\",\\\"memory\\\":\\\"50Mi\\\"},\\\"requests\\\":{\\\"cpu\\\":\\\"0.01\\\",\\\"memory\\\":\\\"10Mi\\\"}},\\\"restartPolicy\\\":\\\"Always\\\",\\\"rolloutAnnotations\\\":{},\\\"rolloutLabels\\\":{},\\\"secret\\\":{\\\"data\\\":{},\\\"enabled\\\":false},\\\"server\\\":{\\\"deployment\\\":{\\\"image\\\":\\\"\\\",\\\"image_tag\\\":\\\"1-95af053\\\"}},\\\"service\\\":{\\\"annotations\\\":{},\\\"loadBalancerSourceRanges\\\":[],\\\"type\\\":\\\"ClusterIP\\\"},\\\"serviceAccount\\\":{\\\"annotations\\\":{},\\\"create\\\":false,\\\"name\\\":\\\"\\\"},\\\"servicemonitor\\\":{\\\"additionalLabels\\\":{}},\\\"tolerations\\\":[],\\\"topologySpreadConstraints\\\":[],\\\"volumeMounts\\\":[],\\\"volumes\\\":[],\\\"waitForSecondsBeforeScalingDown\\\":30,\\\"winterSoldier\\\":{\\\"action\\\":\\\"sleep\\\",\\\"annotation\\\":{},\\\"apiVersion\\\":\\\"pincher.devtron.ai/v1alpha1\\\",\\\"enabled\\\":false,\\\"fieldSelector\\\":[\\\"AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())\\\"],\\\"labels\\\":{},\\\"targetReplicas\\\":[],\\\"timeRangesWithZone\\\":{\\\"timeRanges\\\":[],\\\"timeZone\\\":\\\"Asia/Kolkata\\\"},\\\"type\\\":\\\"Rollout\\\"}}"
+	request := chart.TemplateRequest{ChartRefId: chartRefId}
+	refChart := "refChart"
+	template := "template"
+	version := "version"
+	myString := "myString"
+	impl, chartService, _, _, _ := InitEventSimpleFactoryImpl(t)
+	wantErr := errors.New("error in getting refChart")
+	chartService.On("GetRefChart", request).Return(refChart, template, wantErr, version, myString)
+	_, gotErr := impl.GetManifest(ctx, chartRefId, valuesYaml)
+	assert.Equal(t, gotErr, wantErr)
+}
+
 func InitEventSimpleFactoryImpl(t *testing.T) (*DeploymentTemplateServiceImpl, *mocks.ChartService, *mocks2.AppListingService, *mocks3.DeploymentTemplateRepository, *mocks5.ChartRepository) {
 	logger, _ := util.NewSugardLogger()
 	chartService := mocks.NewChartService(t)
@@ -342,7 +359,6 @@ func InitEventSimpleFactoryImpl(t *testing.T) (*DeploymentTemplateServiceImpl, *
 	helmAppService := mocks4.NewHelmAppService(t)
 	chartRepository := mocks5.NewChartRepository(t)
 	chartTemplateServiceImpl := mocks6.NewChartTemplateService(t)
-	helmAppClient := mocks4.NewHelmAppClient(t)
 	var k8sUtil *k8s.K8sUtil
 	if K8sUtilObj != nil {
 		k8sUtil = K8sUtilObj
@@ -361,7 +377,6 @@ func InitEventSimpleFactoryImpl(t *testing.T) (*DeploymentTemplateServiceImpl, *
 		chartRepository:              chartRepository,
 		chartTemplateServiceImpl:     chartTemplateServiceImpl,
 		K8sUtil:                      k8sUtil,
-		helmAppClient:                helmAppClient,
 	}
 	return impl, chartService, appListingService, deploymentTemplateRepository, chartRepository
 }
