@@ -542,7 +542,7 @@ func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*
 			Data:               refdata.Data,
 			DefaultData:        refdata.DefaultData,
 			DefaultMountPath:   refdata.DefaultMountPath,
-			Global:             refdata.Global,
+			Global:             false,
 			ExternalSecretType: refdata.ExternalSecretType,
 		}
 		copiedData = append(copiedData, data)
