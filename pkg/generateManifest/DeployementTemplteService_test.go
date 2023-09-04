@@ -250,6 +250,7 @@ func TestDeploymentTemplateServiceImpl_GetDeploymentTemplate(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name: "get values same as that of request",
 			args: args{
 				ctx: context.Background(),
 				request: DeploymentTemplateRequest{
