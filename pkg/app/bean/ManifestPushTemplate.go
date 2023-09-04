@@ -31,13 +31,16 @@ type ManifestPushResponse struct {
 }
 
 type ContainerRegistryConfig struct {
-	RegistryUrl string
-	Username    string
-	Password    string
-	Insecure    bool
-	AwsRegion   string
-	AccessKey   string
-	SecretKey   string
+	RegistryUrl  string
+	Username     string
+	Password     string
+	Insecure     bool
+	AwsRegion    string
+	AccessKey    string
+	SecretKey    string
+	RegistryType string
+	IsPublic     bool
+	RepoName     string
 }
 
 type HelmRepositoryConfig struct {

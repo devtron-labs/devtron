@@ -30,7 +30,10 @@ type DockerIpsCustomCredential struct {
 	Email    string `json:"email"`
 }
 
-func CheckIfImagePullSecretAccessProvided(appliedClusterIdsCsv string, ignoredClusterIdsCsv string, clusterId int) bool {
+func CheckIfImagePullSecretAccessProvided(appliedClusterIdsCsv string, ignoredClusterIdsCsv string, clusterId int, isVirtualEnv bool) bool {
+	if isVirtualEnv {
+		return false
+	}
 	clusterIdStr := strconv.Itoa(clusterId)
 	if len(appliedClusterIdsCsv) > 0 {
 		appliedClusterIds := strings.Split(appliedClusterIdsCsv, ",")

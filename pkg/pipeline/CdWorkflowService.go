@@ -349,7 +349,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			TTLSecondsAfterFinished: workflowTemplate.TTLValue,
 			ActiveDeadlineSeconds:   workflowTemplate.ActiveDeadlineSeconds,
 		}
-		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, pipeline, env)
+		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, workflowRequest.StageType)
 	} else {
 		workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 		if workflowExecutor == nil {
@@ -504,7 +504,7 @@ func (impl *CdWorkflowServiceImpl) checkErr(err error) {
 	}
 }
 
-func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (builtChartPath string, err error) {
+func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, stageType string) (builtChartPath string, err error) {
 
 	jobManifestJson, err := json.Marshal(jobManifestTemplate)
 	if err != nil {
