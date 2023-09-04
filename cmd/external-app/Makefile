@@ -21,10 +21,11 @@ build: clean wire
 			-X 'github.com/devtron-labs/devtron/util.ServerMode=${SERVER_MODE_EA_ONLY}'"
 
 wire:
+	export GOFLAGS=-buildvcs=false
 	wire
 
 clean:
-	rm -f devtron-ea
+	rm -rf devtron-ea
 
 run: build
 	./devtron-ea

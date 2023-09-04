@@ -46,7 +46,6 @@ func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler,
 		pipelineHistoryRestHandler:        pipelineHistoryRestHandler,
 		pipelineStatusTimelineRestHandler: pipelineStatusTimelineRestHandler,
 	}
-
 }
 
 func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mux.Router) {

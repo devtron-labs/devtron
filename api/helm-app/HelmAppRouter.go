@@ -1,6 +1,8 @@
 package client
 
-import "github.com/gorilla/mux"
+import (
+	"github.com/gorilla/mux"
+)
 
 type HelmAppRouter interface {
 	InitAppListRouter(helmRouter *mux.Router)
