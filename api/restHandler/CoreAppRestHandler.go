@@ -2134,6 +2134,9 @@ func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkfl
 			}
 			// for linked CI, parentCiPipeline should be a valid ciPipelineId and the given ParentAppId should be matched
 			if workflow.CiPipeline.ParentCiPipeline != 0 && workflow.CiPipeline.ParentAppId != 0 {
+				if !workflow.CiPipeline.IsExternal {
+					return fmt.Errorf("invalid value of isExternal '%v', for linked CI isExternal must be TRUE", workflow.CiPipeline.IsExternal), http.StatusBadRequest
+				}
 				ciPipeline, err := handler.ciPipelineRepository.FindById(workflow.CiPipeline.ParentCiPipeline)
 				if err != nil {
 					return fmt.Errorf("error in finding ci pipeline with the given parentCiPipeline '%v'", workflow.CiPipeline.ParentCiPipeline), http.StatusBadRequest
