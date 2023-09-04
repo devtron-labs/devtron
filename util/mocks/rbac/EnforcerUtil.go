@@ -293,7 +293,7 @@ func (mr *MockEnforcerUtilMockRecorder) GetProjectAdminRBACNameBYAppName(appName
 }
 
 // GetRBACNameForClusterEntity mocks base method.
-func (m *MockEnforcerUtil) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (string, string) {
+func (m *MockEnforcerUtil) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier k8s.ResourceIdentifier) (string, string) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRBACNameForClusterEntity", clusterName, resourceIdentifier)
 	ret0, _ := ret[0].(string)

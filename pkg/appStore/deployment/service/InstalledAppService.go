@@ -1393,7 +1393,21 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 		}
 	}()
 	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	return resourceTree, err
+	k8sAppDetail := bean2.AppDetailContainer{
+		DeploymentDetailContainer: bean2.DeploymentDetailContainer{
+			ClusterId: clusterId,
+			Namespace: namespace,
+		},
+	}
+	clusterIdString := strconv.Itoa(clusterId)
+	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
+	response, err := impl.k8sCommonService.GetManifestsByBatch(rctx, validRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+		return nil, err
+	}
+	newResourceTree := impl.k8sCommonService.PortNumberExtraction(response, resourceTree)
+	return newResourceTree, err
 }
 
 func (impl InstalledAppServiceImpl) filterOutReplicaNodes(responseTreeNodes interface{}) []interface{} {

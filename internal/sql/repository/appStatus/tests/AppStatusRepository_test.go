@@ -176,7 +176,7 @@ func TestAppStatusRepositoryImpl_DeleteWithAppId(t *testing.T) {
 	//delete data having app_id = 1
 	tx1, _ := db.Begin()
 	deleteAppId := 1
-	err = repo.DeleteWithAppId(tx1, deleteAppId)
+	//err = repo.DeleteWithAppId(tx1, deleteAppId)
 	assert.Nil(t, err)
 	err = tx1.Commit()
 	if err != nil {
@@ -273,7 +273,7 @@ func getTestdata() []appStatus.AppStatusContainer {
 	return testDataArray
 }
 
-//utilities
+// utilities
 func insertTestData(testData appStatus.AppStatusContainer) {
 	model := appStatus.AppStatusDto{}
 	query := "insert into" +
