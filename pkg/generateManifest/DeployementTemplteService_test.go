@@ -16,7 +16,6 @@ import (
 	mocks5 "github.com/devtron-labs/devtron/pkg/chartRepo/repository/mocks"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
-	"reflect"
 	"testing"
 )
 
@@ -224,9 +223,6 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FetchDeploymentsWithChartRefs() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-			if reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FetchDeploymentsWithChartRefs() got = %v, want %v", got, tt.want)
 			}
 			assert.Equal(t, len(got), len(tt.want))
 		})
