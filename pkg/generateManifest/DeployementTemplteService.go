@@ -17,12 +17,19 @@ type DeploymentTemplateRequest struct {
 	AppId                    int                               `json:"appId"`
 	EnvId                    int                               `json:"envId,omitempty"`
 	ChartRefId               int                               `json:"chartRefId"`
-	GetValues                bool                              `json:"getValues"`
+	ValuesAndManifestFlag    ValuesAndManifestFlag             `json:"getValues"`
 	Values                   string                            `json:"values"`
 	Type                     repository.DeploymentTemplateType `json:"type"`
 	PipelineConfigOverrideId int                               `json:"pipelineConfigOverrideId,omitempty"`
 	ResourceName             string                            `json:"resourceName"`
 }
+
+type ValuesAndManifestFlag int
+
+const (
+	Values   ValuesAndManifestFlag = 1
+	Manifest ValuesAndManifestFlag = 2
+)
 
 var ChartRepository = &client.ChartRepository{
 	Name:     "repo",
@@ -173,7 +180,7 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		return result, err
 	}
 
-	if request.GetValues {
+	if request.ValuesAndManifestFlag == Values {
 		result.Data = values
 		return result, nil
 	}
