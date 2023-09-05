@@ -12,4 +12,5 @@
 - feat: Capability to block deployments in case of vulnerabilities only if FIXED IN VERSION available  (#3796)
 ## Documentation
 ## Others
+- chore: find potential-duplicate issues  (#3858)
 - chore: Update pr-issue-validator.yaml (#3849)
