@@ -1,6 +1,8 @@
 package deployment
 
-import "github.com/gorilla/mux"
+import (
+	"github.com/gorilla/mux"
+)
 
 type DeploymentConfigRouter interface {
 	Init(configRouter *mux.Router)

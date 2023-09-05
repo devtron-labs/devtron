@@ -41,7 +41,6 @@ func NewApplicationRouterImpl(handler restHandler.ArgoApplicationRestHandler, lo
 }
 
 func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
-
 	router.Path("/stream").
 		Queries("name", "{name}").
 		Methods("GET").

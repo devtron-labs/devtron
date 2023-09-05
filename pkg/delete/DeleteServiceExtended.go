@@ -3,12 +3,14 @@ package delete
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -27,19 +29,25 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	environmentService cluster.EnvironmentService,
 	appRepository app.AppRepository,
 	environmentRepository repository.EnvironmentRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, chartRepositoryService chartRepo.ChartRepositoryService, installedAppRepository repository2.InstalledAppRepository,
+	pipelineRepository pipelineConfig.PipelineRepository,
+	chartRepositoryService chartRepo.ChartRepositoryService,
+	installedAppRepository repository2.InstalledAppRepository,
+	dockerRegistryConfig pipeline.DockerRegistryConfig,
+	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 ) *DeleteServiceExtendedImpl {
 	return &DeleteServiceExtendedImpl{
 		appRepository:         appRepository,
 		environmentRepository: environmentRepository,
 		pipelineRepository:    pipelineRepository,
 		DeleteServiceImpl: &DeleteServiceImpl{
-			logger:                 logger,
-			teamService:            teamService,
-			clusterService:         clusterService,
-			environmentService:     environmentService,
-			chartRepositoryService: chartRepositoryService,
-			installedAppRepository: installedAppRepository,
+			logger:                   logger,
+			teamService:              teamService,
+			clusterService:           clusterService,
+			environmentService:       environmentService,
+			chartRepositoryService:   chartRepositoryService,
+			installedAppRepository:   installedAppRepository,
+			dockerRegistryConfig:     dockerRegistryConfig,
+			dockerRegistryRepository: dockerRegistryRepository,
 		},
 	}
 }
