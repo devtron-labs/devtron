@@ -345,7 +345,7 @@ func init() {
 	}
 }
 
-func newDelegator(w http.ResponseWriter, observeWriteHeaderFunc func(int)) delegator {
+func NewDelegator(w http.ResponseWriter, observeWriteHeaderFunc func(int)) delegator {
 	d := &responseWriterDelegator{
 		ResponseWriter:     w,
 		observeWriteHeader: observeWriteHeaderFunc,

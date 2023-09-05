@@ -33,7 +33,7 @@ import (
 )
 
 type DockerRegistryIpsConfigService interface {
-	IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int) (bool, error)
+	IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int, isVirtualEnv bool) (bool, error)
 	HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, ciPipelineId int, valuesFileContent []byte) ([]byte, error)
 }
 
@@ -59,7 +59,7 @@ func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegi
 	}
 }
 
-func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int) (bool, error) {
+func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int, isVirtualEnv bool) (bool, error) {
 	impl.logger.Infow("checking if Ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
 	ipsConfig, err := impl.dockerRegistryIpsConfigRepository.FindByDockerRegistryId(dockerRegistryId)
 	if err != nil {
@@ -70,7 +70,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(d
 			return false, err
 		}
 	}
-	isAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
+	isAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId, isVirtualEnv)
 	return isAccessProvided, nil
 }
 
@@ -125,8 +125,8 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 		impl.logger.Warn("returning as ipsConfig is found nil")
 		return valuesFileContent, nil
 	}
-
-	ipsAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
+	isVirtualEnv := environment.IsVirtualEnvironment
+	ipsAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId, isVirtualEnv)
 	if !ipsAccessProvided {
 		impl.logger.Infow("ips access not given", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
 		return valuesFileContent, nil

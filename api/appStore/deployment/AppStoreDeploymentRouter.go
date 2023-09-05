@@ -36,7 +36,6 @@ func NewAppStoreDeploymentRouterImpl(appStoreDeploymentRestHandler AppStoreDeplo
 }
 
 func (router AppStoreDeploymentRouterImpl) Init(configRouter *mux.Router) {
-
 	configRouter.Path("/application/install").
 		HandlerFunc(router.appStoreDeploymentRestHandler.InstallApp).Methods("POST")
 
