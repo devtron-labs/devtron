@@ -17,7 +17,7 @@ type DeploymentTemplateRequest struct {
 	AppId                    int                               `json:"appId"`
 	EnvId                    int                               `json:"envId,omitempty"`
 	ChartRefId               int                               `json:"chartRefId"`
-	ValuesAndManifestFlag    ValuesAndManifestFlag             `json:"getValues"`
+	ValuesAndManifestFlag    ValuesAndManifestFlag             `json:"valuesAndManifestFlag"`
 	Values                   string                            `json:"values"`
 	Type                     repository.DeploymentTemplateType `json:"type"`
 	PipelineConfigOverrideId int                               `json:"pipelineConfigOverrideId,omitempty"`
