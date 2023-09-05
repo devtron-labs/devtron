@@ -25,6 +25,7 @@ import (
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
+	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -138,6 +139,7 @@ func InitializeApp() (*App, error) {
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
+		chartProvider.AppStoreChartProviderWireSet,
 		appStoreValues.AppStoreValuesWireSet,
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
@@ -225,21 +227,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline.CiCdPipelineOrchestratorImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
-
 		router.NewMigrateDbRouterImpl,
 		wire.Bind(new(router.MigrateDbRouter), new(*router.MigrateDbRouterImpl)),
 		restHandler.NewMigrateDbRestHandlerImpl,
 		wire.Bind(new(restHandler.MigrateDbRestHandler), new(*restHandler.MigrateDbRestHandlerImpl)),
-		pipeline.NewDockerRegistryConfigImpl,
-		wire.Bind(new(pipeline.DockerRegistryConfig), new(*pipeline.DockerRegistryConfigImpl)),
-		dockerRegistry.NewDockerRegistryIpsConfigServiceImpl,
-		wire.Bind(new(dockerRegistry.DockerRegistryIpsConfigService), new(*dockerRegistry.DockerRegistryIpsConfigServiceImpl)),
-		dockerRegistryRepository.NewDockerArtifactStoreRepositoryImpl,
-		wire.Bind(new(dockerRegistryRepository.DockerArtifactStoreRepository), new(*dockerRegistryRepository.DockerArtifactStoreRepositoryImpl)),
-		dockerRegistryRepository.NewDockerRegistryIpsConfigRepositoryImpl,
-		wire.Bind(new(dockerRegistryRepository.DockerRegistryIpsConfigRepository), new(*dockerRegistryRepository.DockerRegistryIpsConfigRepositoryImpl)),
-		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
-		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		util.NewChartDeploymentServiceImpl,
@@ -376,10 +367,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.GitProviderRouter), new(*router.GitProviderRouterImpl)),
 		restHandler.NewGitProviderRestHandlerImpl,
 		wire.Bind(new(restHandler.GitProviderRestHandler), new(*restHandler.GitProviderRestHandlerImpl)),
-		router.NewDockerRegRouterImpl,
-		wire.Bind(new(router.DockerRegRouter), new(*router.DockerRegRouterImpl)),
-		restHandler.NewDockerRegRestHandlerImpl,
-		wire.Bind(new(restHandler.DockerRegRestHandler), new(*restHandler.DockerRegRestHandlerImpl)),
 
 		router.NewNotificationRouterImpl,
 		wire.Bind(new(router.NotificationRouter), new(*router.NotificationRouterImpl)),
@@ -871,6 +858,23 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
 		app.NewGitOpsManifestPushServiceImpl,
 		wire.Bind(new(app.GitOpsPushService), new(*app.GitOpsManifestPushServiceImpl)),
+
+		// start: docker registry wire set injection
+		router.NewDockerRegRouterImpl,
+		wire.Bind(new(router.DockerRegRouter), new(*router.DockerRegRouterImpl)),
+		restHandler.NewDockerRegRestHandlerExtendedImpl,
+		wire.Bind(new(restHandler.DockerRegRestHandler), new(*restHandler.DockerRegRestHandlerExtendedImpl)),
+		pipeline.NewDockerRegistryConfigImpl,
+		wire.Bind(new(pipeline.DockerRegistryConfig), new(*pipeline.DockerRegistryConfigImpl)),
+		dockerRegistry.NewDockerRegistryIpsConfigServiceImpl,
+		wire.Bind(new(dockerRegistry.DockerRegistryIpsConfigService), new(*dockerRegistry.DockerRegistryIpsConfigServiceImpl)),
+		dockerRegistryRepository.NewDockerArtifactStoreRepositoryImpl,
+		wire.Bind(new(dockerRegistryRepository.DockerArtifactStoreRepository), new(*dockerRegistryRepository.DockerArtifactStoreRepositoryImpl)),
+		dockerRegistryRepository.NewDockerRegistryIpsConfigRepositoryImpl,
+		wire.Bind(new(dockerRegistryRepository.DockerRegistryIpsConfigRepository), new(*dockerRegistryRepository.DockerRegistryIpsConfigRepositoryImpl)),
+		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
+		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
+		// end: docker registry wire set injection
 	)
 	return &App{}, nil
 }

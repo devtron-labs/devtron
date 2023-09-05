@@ -840,13 +840,19 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		impl.logger.Error(err)
 		return bean2.AppDetailContainer{}, err
 	}
+	var chartName string
+	if installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepoId != 0 {
+		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepo.Name
+	} else {
+		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
+	}
 	deploymentContainer := bean2.DeploymentDetailContainer{
 		InstalledAppId:                installedAppVerison.InstalledApp.Id,
 		AppId:                         installedAppVerison.InstalledApp.App.Id,
 		AppStoreInstalledAppVersionId: installedAppVerison.Id,
 		EnvironmentId:                 installedAppVerison.InstalledApp.EnvironmentId,
 		AppName:                       installedAppVerison.InstalledApp.App.AppName,
-		AppStoreChartName:             installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
+		AppStoreChartName:             chartName,
 		AppStoreChartId:               installedAppVerison.AppStoreApplicationVersion.AppStore.Id,
 		AppStoreAppName:               installedAppVerison.AppStoreApplicationVersion.Name,
 		AppStoreAppVersion:            installedAppVerison.AppStoreApplicationVersion.Version,
@@ -1170,6 +1176,9 @@ func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDel
 
 func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error) {
 	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		return nil, err
+	}
 	return installedApp, err
 }
 
