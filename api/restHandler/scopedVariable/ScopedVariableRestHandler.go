@@ -101,13 +101,13 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 	appIdQueryParam := r.URL.Query().Get("appId")
 	var appId int
 	var err error
-	if appIdQueryParam != "" {
-		appId, err = strconv.Atoi(appIdQueryParam)
-		if err != nil {
-			common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
-			return
-		}
+
+	appId, err = strconv.Atoi(appIdQueryParam)
+	if err != nil {
+		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+		return
 	}
+
 	var scope models.Scope
 	scopeQueryParam := r.URL.Query().Get("scope")
 	if scopeQueryParam != "" {
@@ -115,7 +115,10 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 			http.Error(w, "Invalid JSON format for 'scope' parameter", http.StatusBadRequest)
 			return
 		}
-
+	}
+	if scope.AppId != 0 && scope.AppId != appId {
+		http.Error(w, "scope.AppId provided in scope is not equal to appId", http.StatusBadRequest)
+		return
 	}
 
 	token := r.Header.Get("token")

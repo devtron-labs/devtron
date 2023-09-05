@@ -7,14 +7,11 @@ import (
 	"strings"
 )
 
-func StringifyValue(data interface{}) (string, error) {
+func StringifyValue(data interface{}) string {
 	var value string
 	switch data.(type) {
 	case json.Number:
-		marshal, err := json.Marshal(data)
-		if err != nil {
-			return "", err
-		}
+		marshal, _ := json.Marshal(data)
 		value = string(marshal)
 	case string:
 		value = data.(string)
@@ -22,7 +19,7 @@ func StringifyValue(data interface{}) (string, error) {
 	case bool:
 		value = strconv.FormatBool(data.(bool))
 	}
-	return value, nil
+	return value
 }
 func DestringifyValue(Data string) (interface{}, error) {
 	var value interface{}

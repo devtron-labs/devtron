@@ -64,6 +64,6 @@ func (value VariableValue) StringValue() string {
 
 type Scope struct {
 	AppId     int `json:"appId"`
-	EnvId     int `json:"env_id"`
+	EnvId     int `json:"envId"`
 	ClusterId int `json:"clusterId"`
 }
