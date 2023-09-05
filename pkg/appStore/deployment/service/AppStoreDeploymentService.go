@@ -535,7 +535,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(install
 	installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
 	installedAppVersionHistory.UpdatedOn = time.Now()
 	installedAppVersionHistory.GitHash = installAppVersionRequest.GitHash
-	installedAppVersionHistory.Status = "Unknown"
+	installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
 	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)

@@ -317,6 +317,10 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 			impl.logger.Errorw("error in getting pipeline status fetchTime and fetchCount by installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
 		}
 	}
+	// updating unknown status for handling of old corrupt data
+	if installedAppVersionHistoryStatus == pipelineConfig.WorkflowUnknown {
+		installedAppVersionHistoryStatus = pipelineConfig.WorkflowInProgress
+	}
 	timelineDetail := &PipelineTimelineDetailDto{
 		TriggeredBy:                triggeredByUser.EmailId,
 		DeploymentStartedOn:        deploymentStartedOn,

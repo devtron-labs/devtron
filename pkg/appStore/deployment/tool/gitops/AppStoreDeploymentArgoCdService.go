@@ -399,6 +399,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 				impl.Logger.Errorw("error while fetching user Details", "error", err)
 				return result, err
 			}
+			// updating unknown status for handling of old corrupt data
+			if updateHistory.Status == pipelineConfig.WorkflowUnknown {
+				updateHistory.Status = pipelineConfig.WorkflowInProgress
+			}
 			history = append(history, &client.HelmAppDeploymentDetail{
 				ChartMetadata: &client.ChartMetadata{
 					ChartName:    installedAppVersionModel.AppStoreApplicationVersion.AppStore.Name,
