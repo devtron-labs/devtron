@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ghodss/yaml"
 	"strconv"
 	"strings"
@@ -11,16 +12,15 @@ func StringifyValue(data interface{}) (string, error) {
 	var value string
 	switch data.(type) {
 	case json.Number:
-		marshal, err := json.Marshal(data)
-		if err != nil {
-			return "", err
-		}
+		marshal, _ := json.Marshal(data)
 		value = string(marshal)
 	case string:
 		value = data.(string)
 		value = "\"" + value + "\""
 	case bool:
 		value = strconv.FormatBool(data.(bool))
+	default:
+		return "", fmt.Errorf("complex values are not allowed. %v neeeds to be stringified", data)
 	}
 	return value, nil
 }

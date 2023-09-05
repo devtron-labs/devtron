@@ -15,7 +15,7 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 		if slices.Contains(variableNamesList, variable.Definition.VarName) {
 			return fmt.Errorf("duplicate variable name"), false
 		}
-		regex := impl.variableNameConfig.VariableNameRegex
+		regex := impl.VariableNameConfig.VariableNameRegex
 
 		regexExpression := regexp.MustCompile(regex)
 		if !regexExpression.MatchString(variable.Definition.VarName) {

@@ -25,7 +25,7 @@ type ScopedVariableService interface {
 type ScopedVariableServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	scopedVariableRepository repository2.ScopedVariableRepository
-	variableNameConfig       *VariableConfig
+	VariableNameConfig       *VariableConfig
 	VariableCache            *cache.VariableCacheObj
 }
 
@@ -39,19 +39,28 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 	if err != nil {
 		return nil, err
 	}
-	scopedVariableService.variableNameConfig = cfg
-	go scopedVariableService.loadVarCache()
+	loadVariableCache(cfg, scopedVariableService)
+	scopedVariableService.VariableNameConfig = cfg
 	return scopedVariableService, nil
 }
 
 type VariableConfig struct {
-	VariableNameRegex string `env:"SCOPED_VARIABLE_NAME_REGEX" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$"`
+	VariableNameRegex    string `env:"SCOPED_VARIABLE_NAME_REGEX" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$"`
+	VariableCacheEnabled bool   `env:"VARIABLE_CACHE_ENABLED" envDefault:"true"`
 }
 
+func loadVariableCache(cfg *VariableConfig, service *ScopedVariableServiceImpl) {
+	if cfg.VariableCacheEnabled {
+		go service.loadVarCache()
+	}
+}
 func GetVariableNameConfig() (*VariableConfig, error) {
 	cfg := &VariableConfig{}
 	err := env.Parse(cfg)
 	return cfg, err
+}
+func (impl *ScopedVariableServiceImpl) SetVariableCache(cache *cache.VariableCacheObj) {
+	impl.VariableCache = cache
 }
 
 func (impl *ScopedVariableServiceImpl) loadVarCache() {
@@ -74,6 +83,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		impl.logger.Errorw("error in variable payload validation", "err", err)
 		return err
 	}
+
 	auditLog := getAuditLog(payload)
 	// Begin Transaction
 	tx, err := impl.scopedVariableRepository.StartTx()
@@ -95,7 +105,6 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		impl.logger.Errorw("error in deleting variables", "err", err)
 		return err
 	}
-
 	if len(payload.Variables) != 0 {
 		varNameIdMap, err := impl.storeVariableDefinitions(payload, auditLog, tx)
 		if err != nil {
@@ -110,14 +119,14 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		if err != nil {
 			return err
 		}
-	}
 
+	}
 	err = impl.scopedVariableRepository.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction of variable creation", "err", err)
 		return err
 	}
-	go impl.loadVarCache()
+	loadVariableCache(impl.VariableNameConfig, impl)
 	return nil
 }
 
@@ -169,7 +178,6 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 			var varValue string
 			varValue, err := utils.StringifyValue(value.VariableValue.Value)
 			if err != nil {
-				impl.logger.Errorw("error in validating dataType", "err", err)
 				return nil, err
 			}
 			if value.AttributeType == models.Global {
@@ -359,6 +367,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		}
 		scopedVariableData := &models.ScopedVariableData{
 			VariableName:  variableIdToDefinition[varId].Name,
+			Description:   variableIdToDefinition[varId].Description,
 			VariableValue: models.VariableValue{Value: value}}
 
 		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
@@ -371,6 +380,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 			if !slices.Contains(foundVarIds, definition.Id) {
 				scopedVariableDataObj = append(scopedVariableDataObj, &models.ScopedVariableData{
 					VariableName: definition.Name,
+					Description:  definition.Description,
 				})
 			}
 		}
@@ -383,10 +393,9 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 
 	// getting all variables from cache, if empty then no variables exist
 	allVariableDefinitions := impl.VariableCache.GetData()
-	if len(allVariableDefinitions) == 0 {
+	if allVariableDefinitions != nil && len(allVariableDefinitions) == 0 {
 		return nil, nil
 	}
-
 	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
 	if err != nil {
 		impl.logger.Errorw("error in getting data for json", "err", err)
