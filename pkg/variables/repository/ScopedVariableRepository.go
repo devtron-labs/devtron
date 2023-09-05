@@ -78,7 +78,7 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableMetadata() ([]*VariableD
 	variableDefinition := make([]*VariableDefinition, 0)
 	err := impl.
 		dbConnection.Model(&variableDefinition).
-		Column("id", "name", "data_type", "var_type").
+		Column("id", "name", "data_type", "var_type", "description").
 		Where("active = ?", true).
 		Select()
 	if err == pg.ErrNoRows {
@@ -121,22 +121,28 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableScopeAndDefinition() ([]
 	return variableDefinition, err
 
 }
+
+func (impl *ScopedVariableRepositoryImpl) addScopeWhereClause(query *orm.Query, scope models.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
+	return query.Where(
+		"(((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ?)",
+		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId, APP_AND_ENV_QUALIFIER,
+		APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId,
+		ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId,
+		CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], scope.ClusterId,
+		GLOBAL_QUALIFIER,
+	)
+}
 func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(scope models.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, varIds []int) ([]*VariableScope, error) {
 	var variableScopes []*VariableScope
 	query := impl.dbConnection.Model(&variableScopes).
-		Where("active = ?", true).
-		Where(
-			"(((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
-				"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
-				"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
-				"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
-				"OR (qualifier_id = ?)",
-			searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId, APP_AND_ENV_QUALIFIER,
-			APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId,
-			ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId,
-			CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], scope.ClusterId,
-			GLOBAL_QUALIFIER,
-		)
+		Where("active = ?", true)
+
+	//Enterprise only
+	query = impl.addScopeWhereClause(query, scope, searchableKeyNameIdMap)
 
 	if len(varIds) > 0 {
 		query = query.Where("variable_definition_id IN (?)", pg.In(varIds))

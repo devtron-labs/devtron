@@ -29,23 +29,27 @@ type ScopedVariableService interface {
 type ScopedVariableServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	scopedVariableRepository repository2.ScopedVariableRepository
-	appRepository            app.AppRepository
-	environmentRepository    repository.EnvironmentRepository
-	devtronResourceService   devtronResource.DevtronResourceService
-	clusterRepository        repository.ClusterRepository
 	VariableNameConfig       *VariableConfig
 	VariableCache            *cache.VariableCacheObj
+
+	//Enterprise only
+	appRepository          app.AppRepository
+	environmentRepository  repository.EnvironmentRepository
+	devtronResourceService devtronResource.DevtronResourceService
+	clusterRepository      repository.ClusterRepository
 }
 
 func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,
 		scopedVariableRepository: scopedVariableRepository,
-		appRepository:            appRepository,
-		environmentRepository:    environmentRepository,
-		devtronResourceService:   devtronResourceService,
-		clusterRepository:        clusterRepository,
 		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
+
+		//Enterprise only
+		appRepository:          appRepository,
+		environmentRepository:  environmentRepository,
+		devtronResourceService: devtronResourceService,
+		clusterRepository:      clusterRepository,
 	}
 	cfg, err := GetVariableNameConfig()
 	if err != nil {
@@ -133,7 +137,6 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		}
 
 	}
-
 	err = impl.scopedVariableRepository.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction of variable creation", "err", err)
@@ -194,7 +197,10 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 		variableId := variableNameToId[variable.Definition.VarName]
 		for _, value := range variable.AttributeValues {
 			var varValue string
-			varValue = utils.StringifyValue(value.VariableValue.Value)
+			varValue, err = utils.StringifyValue(value.VariableValue.Value)
+			if err != nil {
+				return nil, err
+			}
 			if value.AttributeType == models.Global {
 				scope := &repository2.VariableScope{
 					VariableDefinitionId: variableId,
@@ -210,8 +216,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 					compositeString = fmt.Sprintf("%v-%s-%s", variableId, value.AttributeParams[models.ApplicationName], value.AttributeParams[models.EnvName])
 				}
 				for identifierType, IdentifierName := range value.AttributeParams {
-					var identifierValue int
-					identifierValue, err = helper.GetIdentifierValue(identifierType, appNameToIdMap, IdentifierName, envNameToIdMap, clusterNameToIdMap)
+					identifierValue, err := helper.GetIdentifierValue(identifierType, appNameToIdMap, IdentifierName, envNameToIdMap, clusterNameToIdMap)
 					if err != nil {
 						impl.logger.Errorw("error in getting identifierValue", "err", err)
 						return nil, err
@@ -335,9 +340,6 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 			delete(parentIdToChildScopes, parentScopeId)
 		}
 	}
-
-	// app=1 env=1 cluster=1
-	// app=1 env=1 Xcluster=2X
 
 	// Now in the map only those will exist with all child matched or partial matches.
 	// Because only one will entry exist with all matched we'll return that scope.
