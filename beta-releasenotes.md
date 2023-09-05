@@ -1,4 +1,5 @@
 ## Bugs
+- fix: cloning app cmcs global boolean value fix (#3862)
 - fix: Makefile correction (#3852)
 - fix: deleting pipeline stage and related data if no stage steps are found (#3832)
 - fix: Port number fix in helm app (#3843)
