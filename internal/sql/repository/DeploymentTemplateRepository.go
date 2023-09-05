@@ -70,13 +70,12 @@ func (impl DeploymentTemplateRepositoryImpl) FetchLatestDeploymentWithChartRefs(
 
 	var result []*DeploymentTemplateComparisonMetadata
 
-	query := "WITH ranked_rows AS ( SELECT p.environment_id, pco.id as pipeline_config_override_id, ceco.chart_id, " +
-		"c.chart_version, ROW_NUMBER() OVER (PARTITION BY p.environment_id ORDER BY pco.id DESC) AS row_num FROM pipeline p " +
-		"JOIN pipeline_config_override pco ON pco.pipeline_id = p.id JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id" +
-		" JOIN charts c ON c.id = ceco.chart_id WHERE  p.app_id = ? AND p.deleted = false AND p.environment_id NOT IN (?)) " +
-		"SELECT environment_id, pipeline_config_override_id, chart_id,  chart_version" +
-		" FROM ranked_rows " +
-		"WHERE row_num = 1;"
+	query := "WITH ranked_rows AS (SELECT p.environment_id, pco.id AS pipeline_config_override_id, ceco.chart_id, " +
+		"c.chart_version, ROW_NUMBER() OVER (PARTITION BY p.environment_id ORDER BY pco.id DESC) AS row_num FROM pipeline p" +
+		" JOIN pipeline_config_override pco ON pco.pipeline_id = p.id JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id" +
+		" JOIN charts c ON c.id = ceco.chart_id   WHERE  p.app_id = ?  AND p.deleted = false   AND p.environment_id NOT IN (?))" +
+		"SELECT    rr.environment_id, rr.pipeline_config_override_id, rr.chart_id,   rr.chart_version,   e.environment_name" +
+		"FROM   ranked_rows rr JOIN  environment e ON rr.environment_id = e.id WHERE rr.row_num = 1;"
 
 	_, err := impl.dbConnection.Query(&result, query, appId, envId)
 	if err != nil {
