@@ -79,18 +79,18 @@ type BulkUpdateServiceImpl struct {
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
 	workflowDagExecutor              pipeline.WorkflowDagExecutor
-	cdWorkflowRepository      pipelineConfig.CdWorkflowRepository
-	pipelineBuilder           pipeline.PipelineBuilder
-	helmAppService            client.HelmAppService
-	enforcerUtil              rbac.EnforcerUtil
-	enforcerUtilHelm          rbac.EnforcerUtilHelm
-	ciHandler                 pipeline.CiHandler
-	ciPipelineRepository      pipelineConfig.CiPipelineRepository
-	appWorkflowRepository     appWorkflow.AppWorkflowRepository
-	appWorkflowService        appWorkflow2.AppWorkflowService
-	pubsubClient              *pubsub.PubSubClientServiceImpl
-	argoUserService           argo.ArgoUserService
-	resourceProtectionService protect.ResourceProtectionService
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	pipelineBuilder                  pipeline.PipelineBuilder
+	helmAppService                   client.HelmAppService
+	enforcerUtil                     rbac.EnforcerUtil
+	enforcerUtilHelm                 rbac.EnforcerUtilHelm
+	ciHandler                        pipeline.CiHandler
+	ciPipelineRepository             pipelineConfig.CiPipelineRepository
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	appWorkflowService               appWorkflow2.AppWorkflowService
+	pubsubClient                     *pubsub.PubSubClientServiceImpl
+	argoUserService                  argo.ArgoUserService
+	resourceProtectionService        protect.ResourceProtectionService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,

@@ -28,6 +28,9 @@ type OCIRegistryConfig struct {
 	DockerArtifactStoreId string   `sql:"docker_artifact_store_id,notnull"`
 	RepositoryType        string   `sql:"repository_type,notnull"`
 	RepositoryAction      string   `sql:"repository_action,notnull"`
+	RepositoryList        string   `sql:"repository_list"`
+	IsChartPullActive     bool     `sql:"is_chart_pull_active"`
+	IsPublic              bool     `sql:"is_public"`
 	Deleted               bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 }

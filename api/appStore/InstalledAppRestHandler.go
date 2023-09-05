@@ -673,6 +673,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
 	}
+	if installedApp.Environment.IsVirtualEnvironment {
+		common.WriteJsonResp(w, nil, nil, http.StatusOK)
+		return
+	}
 	token := r.Header.Get("token")
 	object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.App.AppName, installedApp.EnvironmentId)
 	var ok bool

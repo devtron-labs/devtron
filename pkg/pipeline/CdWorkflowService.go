@@ -262,16 +262,27 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.Secrets = workflowSecrets
 
 	workflowTemplate.ServiceAccountName = impl.cdConfig.WorkflowServiceAccount
-	workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue}
-	workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
+	if workflowRequest.IsExtRun && impl.cdConfig.UseExternalNode {
+		if impl.cdConfig.ExternalTaintKey != "" {
+			workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.ExternalTaintKey: impl.cdConfig.ExternalTaintValue}
+		}
+		workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.ExternalTaintKey, Value: impl.cdConfig.ExternalTaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
+		if len(impl.cdConfig.ExternalNodeLabel) > 0 {
+			workflowTemplate.NodeSelector = impl.cdConfig.ExternalNodeLabel
+		}
+	} else {
+		if impl.cdConfig.TaintKey != "" {
+			workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue}
+		}
+		workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
+		if len(impl.cdConfig.NodeLabel) > 0 {
+			workflowTemplate.NodeSelector = impl.cdConfig.NodeLabel
+		}
+	}
 	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 	workflowTemplate.ArchiveLogs = storageConfigured
 	workflowTemplate.ArchiveLogs = workflowTemplate.ArchiveLogs && !ciCdTriggerEvent.CdRequest.InAppLoggingEnabled
 	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
-
-	if len(impl.cdConfig.NodeLabel) > 0 {
-		workflowTemplate.NodeSelector = impl.cdConfig.NodeLabel
-	}
 
 	limitCpu := impl.cdConfig.LimitCpu
 	limitMem := impl.cdConfig.LimitMem
@@ -338,7 +349,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			TTLSecondsAfterFinished: workflowTemplate.TTLValue,
 			ActiveDeadlineSeconds:   workflowTemplate.ActiveDeadlineSeconds,
 		}
-		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, pipeline, env)
+		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, workflowRequest.StageType)
 	} else {
 		workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 		if workflowExecutor == nil {
@@ -493,7 +504,7 @@ func (impl *CdWorkflowServiceImpl) checkErr(err error) {
 	}
 }
 
-func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (builtChartPath string, err error) {
+func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, stageType string) (builtChartPath string, err error) {
 
 	jobManifestJson, err := json.Marshal(jobManifestTemplate)
 	if err != nil {

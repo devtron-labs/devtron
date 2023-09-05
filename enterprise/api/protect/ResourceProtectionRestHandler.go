@@ -152,5 +152,3 @@ func (handler *ResourceProtectionRestHandlerImpl) GetResourceProtectMetadataForE
 
 	common.WriteJsonResp(w, nil, appStatusResponse, http.StatusOK)
 }
-
-

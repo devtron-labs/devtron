@@ -895,6 +895,12 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		impl.logger.Error(err)
 		return bean2.AppDetailContainer{}, err
 	}
+	var chartName string
+	if installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepoId != 0 {
+		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepo.Name
+	} else {
+		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
+	}
 	updateTime := installedAppVerison.InstalledApp.UpdatedOn
 	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
 
@@ -904,7 +910,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		AppStoreInstalledAppVersionId: installedAppVerison.Id,
 		EnvironmentId:                 installedAppVerison.InstalledApp.EnvironmentId,
 		AppName:                       installedAppVerison.InstalledApp.App.AppName,
-		AppStoreChartName:             installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
+		AppStoreChartName:             chartName,
 		AppStoreChartId:               installedAppVerison.AppStoreApplicationVersion.AppStore.Id,
 		AppStoreAppName:               installedAppVerison.AppStoreApplicationVersion.Name,
 		AppStoreAppVersion:            installedAppVerison.AppStoreApplicationVersion.Version,
@@ -1234,6 +1240,9 @@ func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDel
 
 func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error) {
 	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		return nil, err
+	}
 	return installedApp, err
 }
 
@@ -1435,7 +1444,21 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 		}
 	}()
 	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	return resourceTree, err
+	k8sAppDetail := bean2.AppDetailContainer{
+		DeploymentDetailContainer: bean2.DeploymentDetailContainer{
+			ClusterId: clusterId,
+			Namespace: namespace,
+		},
+	}
+	clusterIdString := strconv.Itoa(clusterId)
+	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
+	response, err := impl.k8sCommonService.GetManifestsByBatch(rctx, validRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+		return nil, err
+	}
+	newResourceTree := impl.k8sCommonService.PortNumberExtraction(response, resourceTree)
+	return newResourceTree, err
 }
 
 func (impl InstalledAppServiceImpl) GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error) {

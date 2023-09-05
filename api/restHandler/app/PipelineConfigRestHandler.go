@@ -123,7 +123,7 @@ type PipelineConfigRestHandlerImpl struct {
 	gitProviderRepo              repository.GitProviderRepository
 	argoUserService              argo.ArgoUserService
 	imageTaggingService          pipeline.ImageTaggingService
-	resourceProtectionService protect.ResourceProtectionService
+	resourceProtectionService    protect.ResourceProtectionService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,

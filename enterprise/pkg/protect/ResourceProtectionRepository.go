@@ -148,6 +148,3 @@ func (repo *ResourceProtectionRepositoryImpl) GetResourceProtectionStateForEnv(e
 	}
 	return resourceProtectionDtos, err
 }
-
-
-

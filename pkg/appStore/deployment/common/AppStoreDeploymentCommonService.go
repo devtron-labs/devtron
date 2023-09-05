@@ -161,8 +161,27 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByInstalledAppId(
 
 // converts db object to bean
 func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.InstalledApps, installedAppVersion *repository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
+
 	chartVersionApp := installedAppVersion.AppStoreApplicationVersion
-	chartRepo := installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepo
+
+	var chartRepoName, chartRepoUrl, Username, Password string
+	if installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepoId != 0 {
+		chartRepo := installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepo
+		chartRepoName = chartRepo.Name
+		chartRepoUrl = chartRepo.Url
+		Username = chartRepo.UserName
+		Password = chartRepo.Password
+	} else {
+		chartRepo := installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore
+		chartRepoName = chartRepo.Id
+		chartRepoUrl = fmt.Sprintf("%s://%s/%s",
+			"oci",
+			installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryURL,
+			installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
+		Username = installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Username
+		Password = installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Password
+	}
+
 	return &appStoreBean.InstallAppVersionDTO{
 		EnvironmentId:         chart.EnvironmentId,
 		Id:                    chart.Id,
@@ -181,10 +200,10 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 			ChartName:       chartVersionApp.Name,
 			ChartVersion:    chartVersionApp.Version,
 			InstallAppVersionChartRepoDTO: &appStoreBean.InstallAppVersionChartRepoDTO{
-				RepoName: chartRepo.Name,
-				RepoUrl:  chartRepo.Url,
-				UserName: chartRepo.UserName,
-				Password: chartRepo.Password,
+				RepoName: chartRepoName,
+				RepoUrl:  chartRepoUrl,
+				UserName: Username,
+				Password: Password,
 			},
 		},
 		DeploymentAppType:            chart.DeploymentAppType,
@@ -253,9 +272,11 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreVe
 		return "", err
 	}
 	dependency := appStoreBean.Dependency{
-		Name:       appStoreAppVersion.AppStore.Name,
-		Version:    appStoreAppVersion.Version,
-		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
+		Name:    appStoreAppVersion.AppStore.Name,
+		Version: appStoreAppVersion.Version,
+	}
+	if appStoreAppVersion.AppStore.ChartRepo != nil {
+		dependency.Repository = appStoreAppVersion.AppStore.ChartRepo.Url
 	}
 	var dependencies []appStoreBean.Dependency
 	dependencies = append(dependencies, dependency)

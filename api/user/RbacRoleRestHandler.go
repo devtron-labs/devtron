@@ -337,4 +337,3 @@ func (handler *RbacRoleRestHandlerImpl) SyncDefaultRoles(w http.ResponseWriter, 
 	common.WriteJsonResp(w, nil, "Custom role sync succeeded.", http.StatusOK)
 
 }
-
