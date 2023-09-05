@@ -778,8 +778,14 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 
 	chartBytesArr, err = ioutil.ReadFile(chartZipPath)
 	if err != nil {
+		impl.logger.Errorw("There is a problem with os.Open", "err", err)
 		return chartBytesArr, err
 	}
+	if deleteChart {
+		defer impl.CleanDir(ChartPath)
+	}
+
+	return chartBytesArr, err
 	if deleteChart {
 		defer impl.CleanDir(ChartPath)
 	}
