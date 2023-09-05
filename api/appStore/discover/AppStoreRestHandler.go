@@ -83,6 +83,15 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 			}
 		}
 	}
+	var registryIds []string
+	registryIdsStrArr := v.Get("registryId")
+	if len(registryIdsStrArr) > 0 {
+		registryIdStrArr := strings.Split(registryIdsStrArr, ",")
+		for _, registryId := range registryIdStrArr {
+			registryIds = append(registryIds, registryId)
+		}
+	}
+
 	appStoreName := strings.ToLower(v.Get("appStoreName"))
 
 	offset := 0
@@ -95,7 +104,12 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 	if len(sizeStr) > 0 {
 		size, _ = strconv.Atoi(sizeStr)
 	}
-	filter := &appStoreBean.AppStoreFilter{IncludeDeprecated: deprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName}
+	filter := &appStoreBean.AppStoreFilter{
+		IncludeDeprecated: deprecated,
+		ChartRepoId:       chartRepoIds,
+		RegistryId:        registryIds,
+		AppStoreName:      appStoreName,
+	}
 	if size > 0 {
 		filter.Size = size
 		filter.Offset = offset

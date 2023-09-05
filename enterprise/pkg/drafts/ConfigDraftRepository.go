@@ -279,9 +279,3 @@ func (repo *ConfigDraftRepositoryImpl) checkDraftAlreadyExists(request ConfigDra
 	}
 	return count > 0, err
 }
-
-
-
-
-
-

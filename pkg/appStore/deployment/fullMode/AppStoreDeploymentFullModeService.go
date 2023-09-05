@@ -156,11 +156,12 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	//STEP 3 - update requirements and values
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
 	dependency := appStoreBean.Dependency{
-		Name:       appStoreAppVersion.AppStore.Name,
-		Version:    appStoreAppVersion.Version,
-		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
+		Name:    appStoreAppVersion.AppStore.Name,
+		Version: appStoreAppVersion.Version,
 	}
-
+	if appStoreAppVersion.AppStore.ChartRepo != nil {
+		dependency.Repository = appStoreAppVersion.AppStore.ChartRepo.Url
+	}
 	var dependencies []appStoreBean.Dependency
 	dependencies = append(dependencies, dependency)
 	requirementDependencies := &appStoreBean.Dependencies{

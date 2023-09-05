@@ -21,4 +21,3 @@ type ResourceProtectModel struct {
 	ProtectionState ProtectionState `json:"state" validate:"number,required"`
 	UserId          int32           `json:"-"`
 }
-

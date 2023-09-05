@@ -280,6 +280,7 @@ type AppStoreApplicationVersionResponse struct {
 	Notes                   string    `json:"notes"`
 	UpdatedOn               time.Time `json:"updatedOn"`
 	IsChartRepoActive       bool      `json:"isChartRepoActive"`
+	IsOCICompliantChart     bool      `json:"isOCICompliantChart"`
 }
 
 type AppStoreVersionsResponse struct {
@@ -299,6 +300,7 @@ type AppStoreWithVersion struct {
 	AppStoreApplicationVersionId int       `json:"appStoreApplicationVersionId"`
 	Name                         string    `json:"name"`
 	ChartRepoId                  int       `json:"chart_repo_id"`
+	DockerArtifactStoreId        string    `json:"docker_artifact_store_id"`
 	ChartName                    string    `json:"chart_name"`
 	Icon                         string    `json:"icon"`
 	Active                       bool      `json:"active"`
@@ -312,6 +314,7 @@ type AppStoreWithVersion struct {
 
 type AppStoreFilter struct {
 	ChartRepoId       []int    `json:"chartRepoId"`
+	RegistryId        []string `json:"registryId"`
 	AppStoreName      string   `json:"appStoreName"`
 	AppName           string   `json:"appName"`
 	IncludeDeprecated bool     `json:"includeDeprecated"`
