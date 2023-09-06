@@ -13,24 +13,24 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 	variableNamesList := make([]string, 0)
 	for _, variable := range payload.Variables {
 		if slices.Contains(variableNamesList, variable.Definition.VarName) {
-			return fmt.Errorf("duplicate variable name"), false
+			return models.ValidationError{Err: fmt.Errorf("duplicate variable name %s", variable.Definition.VarName)}, false
 		}
 		regex := impl.VariableNameConfig.VariableNameRegex
 
 		regexExpression := regexp.MustCompile(regex)
 		if !regexExpression.MatchString(variable.Definition.VarName) {
-			return fmt.Errorf("variable name %s doesnot match regex %s", variable.Definition.VarName, regex), false
+			return models.ValidationError{Err: fmt.Errorf("%s does not match the required format (Alphanumeric, 64 characters max, no hyphen/underscore at start/end)", variable.Definition.VarName)}, false
 		}
 		variableNamesList = append(variableNamesList, variable.Definition.VarName)
 		uniqueVariableMap := make(map[string]interface{})
 		for _, attributeValue := range variable.AttributeValues {
 			validIdentifierTypeList := helper.GetIdentifierTypeFromAttributeType(attributeValue.AttributeType)
 			if len(validIdentifierTypeList) != len(attributeValue.AttributeParams) {
-				return fmt.Errorf("length of AttributeParams is not valid"), false
+				return models.ValidationError{Err: fmt.Errorf("attribute selectors are not valid for given category %s", attributeValue.AttributeType)}, false
 			}
 			for key, _ := range attributeValue.AttributeParams {
 				if !slices.Contains(validIdentifierTypeList, key) {
-					return fmt.Errorf("invalid IdentifierType %s for validIdentifierTypeList %s", key, validIdentifierTypeList), false
+					return models.ValidationError{Err: fmt.Errorf("invalid attribute selector key %s", key)}, false
 				}
 			}
 			identifierString := fmt.Sprintf("%s-%s", variable.Definition.VarName, string(attributeValue.AttributeType))
@@ -38,7 +38,7 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 				identifierString = fmt.Sprintf("%s-%s", identifierString, attributeValue.AttributeParams[key])
 			}
 			if _, ok := uniqueVariableMap[identifierString]; ok {
-				return fmt.Errorf("duplicate AttributeParams found for AttributeType %v", attributeValue.AttributeType), false
+				return models.ValidationError{Err: fmt.Errorf("duplicate Selectors  found for category %v", attributeValue.AttributeType)}, false
 			}
 			uniqueVariableMap[identifierString] = attributeValue.VariableValue.Value
 		}
