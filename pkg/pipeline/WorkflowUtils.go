@@ -390,6 +390,18 @@ func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 	}
 }
 
+func (workflowRequest *WorkflowRequest) CheckBlobStorageConfig(config *CiCdConfig) bool {
+	switch workflowRequest.Type {
+	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
+		return config.UseBlobStorageConfigInCiWorkflow
+	case bean.CD_WORKFLOW_PIPELINE_TYPE:
+		return config.UseBlobStorageConfigInCdWorkflow
+	default:
+		return false
+	}
+
+}
+
 func (workflowRequest *WorkflowRequest) GetWorkflowTemplate(workflowJson []byte, config *CiCdConfig) bean.WorkflowTemplate {
 
 	ttl := int32(config.BuildLogTTLValue)

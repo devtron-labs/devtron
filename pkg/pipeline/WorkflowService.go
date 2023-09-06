@@ -233,7 +233,7 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *Work
 }
 
 func (impl *WorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate) {
-	workflowTemplate.BlobStorageConfigured = workflowRequest.BlobStorageConfigured && (impl.ciCdConfig.UseBlobStorageConfigInCdWorkflow || !workflowRequest.IsExtRun)
+	workflowTemplate.BlobStorageConfigured = workflowRequest.BlobStorageConfigured && (workflowRequest.CheckBlobStorageConfig(impl.ciCdConfig) || !workflowRequest.IsExtRun)
 	workflowTemplate.BlobStorageS3Config = workflowRequest.BlobStorageS3Config
 	workflowTemplate.AzureBlobConfig = workflowRequest.AzureBlobConfig
 	workflowTemplate.GcpBlobConfig = workflowRequest.GcpBlobConfig
