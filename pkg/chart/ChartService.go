@@ -68,71 +68,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type TemplateRequest struct {
-	Id                      int                         `json:"id"  validate:"number"`
-	AppId                   int                         `json:"appId,omitempty"  validate:"number,required"`
-	RefChartTemplate        string                      `json:"refChartTemplate,omitempty"`
-	RefChartTemplateVersion string                      `json:"refChartTemplateVersion,omitempty"`
-	ChartRepositoryId       int                         `json:"chartRepositoryId,omitempty"`
-	ValuesOverride          json.RawMessage             `json:"valuesOverride,omitempty" validate:"required"` //json format user value
-	DefaultAppOverride      json.RawMessage             `json:"defaultAppOverride,omitempty"`                 //override values available
-	ChartRefId              int                         `json:"chartRefId,omitempty"  validate:"number"`
-	Latest                  bool                        `json:"latest"`
-	IsAppMetricsEnabled     bool                        `json:"isAppMetricsEnabled"`
-	Schema                  json.RawMessage             `json:"schema"`
-	Readme                  string                      `json:"readme"`
-	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
-	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
-	UserId                  int32                       `json:"-"`
-	ScopedVariableIds       []int                       `json:"scopedVariableIds"`
-}
-
-type AppMetricEnableDisableRequest struct {
-	AppId               int   `json:"appId,omitempty"`
-	EnvironmentId       int   `json:"environmentId,omitempty"`
-	IsAppMetricsEnabled bool  `json:"isAppMetricsEnabled"`
-	UserId              int32 `json:"-"`
-}
-
-type ChartUpgradeRequest struct {
-	ChartRefId int   `json:"chartRefId"  validate:"number"`
-	All        bool  `json:"all"`
-	AppIds     []int `json:"appIds"`
-	UserId     int32 `json:"-"`
-}
-
-type ChartRefChangeRequest struct {
-	AppId            int `json:"appId" validate:"required"`
-	EnvId            int `json:"envId" validate:"required"`
-	TargetChartRefId int `json:"targetChartRefId" validate:"required"`
-}
-
-type PipelineConfigRequest struct {
-	Id                   int             `json:"id"  validate:"number"`
-	AppId                int             `json:"appId,omitempty"  validate:"number,required"`
-	EnvConfigOverrideId  int             `json:"envConfigOverrideId,omitempty"`
-	PipelineConfigValues json.RawMessage `json:"pipelineConfigValues,omitempty" validate:"required"` //json format user value
-	PipelineId           int             `json:"PipelineId,omitempty"`
-	Latest               bool            `json:"latest"`
-	Previous             bool            `json:"previous"`
-	EnvId                int             `json:"envId,omitempty"`
-	ManualReviewed       bool            `json:"manualReviewed" validate:"required"`
-	UserId               int32           `json:"-"`
-}
-type PipelineConfigRequestResponse struct {
-	LatestPipelineConfigRequest   PipelineConfigRequest `json:"latestPipelineConfigRequest"`
-	PreviousPipelineConfigRequest PipelineConfigRequest `json:"previousPipelineConfigRequest"`
-}
-
-type AppConfigResponse struct {
-	//DefaultAppConfig  json.RawMessage `json:"defaultAppConfig"`
-	//AppConfig         TemplateRequest            `json:"appConfig"`
-	LatestAppConfig   TemplateRequest `json:"latestAppConfig"`
-	PreviousAppConfig TemplateRequest `json:"previousAppConfig"`
-}
-
-type DefaultChart string
-
 type ChartService interface {
 	Create(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
@@ -153,16 +88,19 @@ type ChartService interface {
 	CheckChartExists(chartRefId int) error
 	CheckIsAppMetricsSupported(chartRefId int) (bool, error)
 	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
+	FormatChartName(chartName string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
-	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
+	FetchCustomChartsInfo() ([]*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
 	CheckCustomChartByChartId(id int) (bool, error)
 	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
+	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 }
+
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
 	logger                           *zap.SugaredLogger
@@ -210,6 +148,11 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	variableEntityMappingService variables.VariableEntityMappingService,
 	variableTemplateParser parsers.VariableTemplateParser,
 	scopedVariableService variables.ScopedVariableService) *ChartServiceImpl {
+
+	// cache devtron reference charts list
+	devtronChartList, _ := chartRefRepository.FetchAllChartInfoByUploadFlag(false)
+	SetReservedChartList(devtronChartList)
+
 	return &ChartServiceImpl{
 		chartRepository:                  chartRepository,
 		logger:                           logger,
@@ -1121,9 +1064,11 @@ type ChartDataInfo struct {
 }
 
 type ChartDto struct {
+	Id               int    `json:"id"`
 	Name             string `json:"name"`
 	ChartDescription string `json:"chartDescription"`
 	Version          string `json:"version"`
+	IsUserUploaded   bool   `json:"isUserUploaded"`
 }
 
 func (impl ChartServiceImpl) ChartRefAutocomplete() ([]ChartRef, error) {
@@ -1562,9 +1507,7 @@ func (impl ChartServiceImpl) CheckIsAppMetricsSupported(chartRefId int) (bool, e
 
 func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string {
 	var chartLocation string
-
-	chartname := strings.ReplaceAll(chartName, ".", "-")
-	chartname = strings.ReplaceAll(chartname, " ", "_")
+	chartname := impl.FormatChartName(chartName)
 	chartversion := strings.ReplaceAll(chartVersion, ".", "-")
 	if !strings.Contains(chartname, chartversion) {
 		chartLocation = chartname + "_" + chartversion
@@ -1572,6 +1515,12 @@ func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName strin
 		chartLocation = chartname
 	}
 	return chartLocation
+}
+
+func (impl *ChartServiceImpl) FormatChartName(chartName string) string {
+	chartname := strings.ReplaceAll(chartName, ".", "-")
+	chartname = strings.ReplaceAll(chartname, " ", "_")
+	return chartname
 }
 
 func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error {
@@ -1685,28 +1634,41 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		chartName = chartYaml.Name
 		chartVersion = chartYaml.Version
 		chartInfo.Description = chartYaml.Description
-		exists, err := impl.chartRefRepository.CheckIfDataExists(chartName, chartVersion)
+		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
+		location = chartLocation
 
-		if exists {
-			impl.logger.Errorw("request err, chart name and version exists already in the database")
+		// Validate: chart name shouldn't conflict with Devtron charts (no user uploaded chart names should contain any devtron chart names as the prefix)
+		isReservedChart, _ := impl.ValidateReservedChartName(chartName)
+		if isReservedChart {
+			impl.logger.Errorw("request err, chart name is reserved by Devtron")
 			err = &util.ApiError{
-				Code:            constants.ChartCreatedAlreadyExists,
-				InternalMessage: "Chart exists already, try uploading another chart",
-				UserMessage:     fmt.Sprintf("%s of %s exists already in the database", chartVersion, chartName),
+				Code:            constants.ChartNameAlreadyReserved,
+				InternalMessage: CHART_NAME_RESERVED_INTERNAL_ERROR,
+				UserMessage:     fmt.Sprintf("The name '%s' is reserved for a chart provided by Devtron", chartName),
 			}
 			return chartInfo, err
 		}
+
+		// Validate: chart location should be unique
+		exists, err := impl.chartRefRepository.CheckIfDataExists(location)
 		if err != nil {
 			impl.logger.Errorw("Error in searching the database")
 			return chartInfo, err
 		}
-		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
+		if exists {
+			impl.logger.Errorw("request err, chart name and version exists already in the database")
+			err = &util.ApiError{
+				Code:            constants.ChartCreatedAlreadyExists,
+				InternalMessage: CHART_ALREADY_EXISTS_INTERNAL_ERROR,
+				UserMessage:     fmt.Sprintf("%s of %s exists already in the database", chartVersion, chartName),
+			}
+			return chartInfo, err
+		}
 
-		location = chartLocation
-
-		exisitingChart, err := impl.chartRefRepository.FetchChart(chartName)
-		if err == nil && exisitingChart != nil {
-			chartInfo.Message = "New Version detected for " + exisitingChart[0].Name
+		//User Info Message: uploading new version of the existing chart name
+		existingChart, err := impl.chartRefRepository.FetchChart(chartName)
+		if err == nil && existingChart != nil {
+			chartInfo.Message = "New Version detected for " + existingChart[0].Name
 		}
 
 	} else {
@@ -1723,17 +1685,46 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 	return chartInfo, nil
 }
 
-func (impl ChartServiceImpl) FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error) {
-	repo, err := impl.chartRefRepository.FetchChartInfoByUploadFlag(userUploaded)
+func (impl ChartServiceImpl) ValidateReservedChartName(chartName string) (isReservedChart bool, err error) {
+	formattedChartName := impl.FormatChartName(chartName)
+	for _, reservedChart := range *ReservedChartRefNamesList {
+		isReservedChart = (reservedChart.LocationPrefix != "" && strings.HasPrefix(formattedChartName, reservedChart.LocationPrefix)) ||
+			(reservedChart.Name != "" && strings.HasPrefix(strings.ToLower(chartName), reservedChart.Name))
+		if isReservedChart {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (impl ChartServiceImpl) FetchCustomChartsInfo() ([]*ChartDto, error) {
+	resultsMetadata, err := impl.chartRefRepository.GetAllChartMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart metadata", "err", err)
+		return nil, err
+	}
+	chartsMetadata := make(map[string]string)
+	for _, resultMetadata := range resultsMetadata {
+		chartsMetadata[resultMetadata.ChartName] = resultMetadata.ChartDescription
+	}
+	repo, err := impl.chartRefRepository.GetAll()
 	if err != nil {
 		return nil, err
 	}
 	var chartDtos []*ChartDto
 	for _, ref := range repo {
+		if len(ref.Name) == 0 {
+			ref.Name = RolloutChartType
+		}
+		if description, ok := chartsMetadata[ref.Name]; ref.ChartDescription == "" && ok {
+			ref.ChartDescription = description
+		}
 		chartDto := &ChartDto{
+			Id:               ref.Id,
 			Name:             ref.Name,
 			ChartDescription: ref.ChartDescription,
 			Version:          ref.Version,
+			IsUserUploaded:   ref.UserUploaded,
 		}
 		chartDtos = append(chartDtos, chartDto)
 	}
@@ -1758,4 +1749,24 @@ func (impl ChartServiceImpl) CheckCustomChartByChartId(id int) (bool, error) {
 		return false, err
 	}
 	return chartData.UserUploaded, nil
+}
+
+func (impl ChartServiceImpl) GetCustomChartInBytes(chartRefId int) ([]byte, error) {
+	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error getting chart data", "chartRefId", chartRefId, "err", err)
+		return nil, err
+	}
+	// For user uploaded charts ChartData will be retrieved from DB
+	if chartRef.ChartData != nil {
+		return chartRef.ChartData, nil
+	}
+	// For Devtron reference charts the chart will be load from the directory location
+	refChartPath := filepath.Join(string(impl.refChartDir), chartRef.Location)
+	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, false, "", "")
+	if err != nil {
+		impl.logger.Errorw("error in converting chart to bytes", "err", err)
+		return nil, err
+	}
+	return manifestByteArr, nil
 }

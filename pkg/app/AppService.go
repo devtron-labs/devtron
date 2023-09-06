@@ -53,6 +53,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"sigs.k8s.io/yaml"
@@ -1643,6 +1644,24 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 		Version: envOverride.Chart.ChartVersion,
 	}
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+	// Load custom charts to referenceTemplatePath if not exists
+	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
+		chartRefValue, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching ChartRef data", "err", err)
+			return "", err
+		}
+		if chartRefValue.ChartData != nil {
+			chartInfo, err := impl.chartService.ExtractChartIfMissing(chartRefValue.ChartData, string(impl.refChartDir), chartRefValue.Location)
+			if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+				err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+				if err1 != nil {
+					impl.logger.Errorw("error in deleting temp dir ", "err", err)
+				}
+			}
+			return "", err
+		}
+	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChart")
 	tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, referenceTemplatePath)
 	span.End()
