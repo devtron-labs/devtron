@@ -250,6 +250,9 @@ func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.Config
 		templates = append(templates, argoTemplate)
 		csIndex++
 	}
+	if len(templates) <= 0 {
+		return templates, nil
+	}
 	stepName := bean.CD_WORKFLOW_NAME
 	templateName := bean.CD_WORKFLOW_WITH_STAGES
 	if isCi {
