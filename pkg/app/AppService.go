@@ -48,6 +48,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"sigs.k8s.io/yaml"
@@ -180,7 +181,7 @@ type AppService interface {
 	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
 	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, error)
-	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
+	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) (*[]byte, error)
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	GetCmSecretNew(appId int, envId int, isJob bool) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
@@ -196,7 +197,7 @@ type AppService interface {
 	GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
-	PushPrePostCDManifest(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string, ctx context.Context) error
+	PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error
 }
 
 func NewAppService(
@@ -1014,39 +1015,43 @@ func (conf *EnvironmentOverride) appendEnvironmentVariable(key, value string) {
 	conf.EnvValues = append(conf.EnvValues, item)
 }
 
-func (impl *AppServiceImpl) TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
+func (impl *AppServiceImpl) TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) (*[]byte, error) {
 	impl.logger.Debugw("automatic pipeline trigger attempt async", "artifactId", artifact.Id)
-
-	return impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt)
+	manifest, err := impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt)
+	if err != nil {
+		impl.logger.Errorw("error in cd trigger", "err", err)
+		return manifest, err
+	}
+	return manifest, err
 }
 
-func (impl *AppServiceImpl) triggerReleaseAsync(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
-	err := impl.validateAndTrigger(pipeline, artifact, cdWorkflowId, wfrId, triggeredAt)
+func (impl *AppServiceImpl) triggerReleaseAsync(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) (*[]byte, error) {
+	manifest, err := impl.validateAndTrigger(pipeline, artifact, cdWorkflowId, wfrId, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in trigger for pipeline", "pipelineId", strconv.Itoa(pipeline.Id))
 	}
 	impl.logger.Debugw("trigger attempted for all pipeline ", "artifactId", artifact.Id)
-	return err
+	return manifest, err
 }
 
-func (impl *AppServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
+func (impl *AppServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) (*[]byte, error) {
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
 	envApp := strings.Split(object, "/")
 	if len(envApp) != 2 {
 		impl.logger.Error("invalid req, app and env not found from rbac")
-		return errors.New("invalid req, app and env not found from rbac")
+		return nil, errors.New("invalid req, app and env not found from rbac")
 	}
-	err := impl.releasePipeline(p, artifact, cdWorkflowId, wfrId, triggeredAt)
-	return err
+	manifest, err := impl.releasePipeline(p, artifact, cdWorkflowId, wfrId, triggeredAt)
+	return manifest, err
 }
 
-func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
+func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) (*[]byte, error) {
 	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
 
 	pipeline, err := impl.pipelineRepository.FindById(pipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
-		return err
+		return nil, err
 	}
 
 	request := &bean.ValuesOverrideRequest{
@@ -1064,16 +1069,16 @@ func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, a
 	ctx, err := impl.buildACDContext()
 	if err != nil {
 		impl.logger.Errorw("error in creating acd synch context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
-		return err
+		return nil, err
 	}
 	//setting deployedBy as 1(system user) since case of auto trigger
-	id, _, err := impl.TriggerRelease(request, ctx, triggeredAt, 1)
+	id, manifest, err := impl.TriggerRelease(request, ctx, triggeredAt, 1)
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {
 		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
 	}
-	return err
+	return &manifest, err
 
 }
 
@@ -1526,6 +1531,24 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 		Version: envOverride.Chart.ChartVersion,
 	}
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+	// Load custom charts to referenceTemplatePath if not exists
+	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
+		chartRefValue, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching ChartRef data", "err", err)
+			return "", err
+		}
+		if chartRefValue.ChartData != nil {
+			chartInfo, err := impl.chartService.ExtractChartIfMissing(chartRefValue.ChartData, string(impl.refChartDir), chartRefValue.Location)
+			if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+				err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+				if err1 != nil {
+					impl.logger.Errorw("error in deleting temp dir ", "err", err)
+				}
+			}
+			return "", err
+		}
+	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChart")
 	tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, referenceTemplatePath)
 	span.End()
@@ -1549,40 +1572,29 @@ func (impl *AppServiceImpl) CopyFile(source, destination string) error {
 	return nil
 }
 
-func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, envName string, image string, chartVersion string, overrideValues string, builtChartPath string) ([]byte, error) {
-	var manifestByteArr []byte
+func (impl *AppServiceImpl) MergeDefaultValuesWithOverrideValues(overrideValues string, builtChartPath string) error {
 	valuesFilePath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
 	defaultValues, err := ioutil.ReadFile(valuesFilePath)
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
 	defaultValuesJson, err := yaml.YAMLToJSON(defaultValues)
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
 	mergedValues, err := impl.mergeUtil.JsonPatch(defaultValuesJson, []byte(overrideValues))
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
 	mergedValuesYaml, err := yaml.JSONToYAML(mergedValues)
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
 	err = ioutil.WriteFile(valuesFilePath, mergedValuesYaml, 0600)
 	if err != nil {
-		return manifestByteArr, err
+		return err
 	}
-	var imageTag string
-	if len(image) > 0 {
-		imageTag = strings.Split(image, ":")[1]
-	}
-	chartName := fmt.Sprintf("%s-%s-%s", appName, envName, imageTag)
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, false, chartName, chartVersion)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArr, err
-	}
-	return manifestByteArr, err
+	return err
 }
 
 func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error) {
@@ -1729,16 +1741,29 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in saving timeline for manifest_download type")
 		}
 		span.End()
-
-		manifest, err = impl.GetHelmManifestInByte(overrideRequest.AppName, overrideRequest.EnvName, valuesOverrideResponse.Artifact.Image, valuesOverrideResponse.EnvOverride.Chart.ChartVersion, valuesOverrideResponse.MergedValues, builtChartPath)
+		err = impl.MergeDefaultValuesWithOverrideValues(valuesOverrideResponse.MergedValues, builtChartPath)
 		if err != nil {
-			impl.logger.Errorw("error in converting built chart to bytes", "err", err)
+			impl.logger.Errorw("error in merging default values with override values ", "err", err)
+			return releaseNo, manifest, err
+		}
+		// for downloaded manifest name is equal to <app-name>-<env-name>-<image-tag>
+		image := valuesOverrideResponse.Artifact.Image
+		var imageTag string
+		if len(image) > 0 {
+			imageTag = strings.Split(image, ":")[1]
+		}
+		chartName := fmt.Sprintf("%s-%s-%s", overrideRequest.AppName, overrideRequest.EnvName, imageTag)
+		// As this chart will be pushed, don't delete it now
+		deleteChart := !triggerEvent.PerformChartPush
+		manifest, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, deleteChart, chartName, valuesOverrideResponse.EnvOverride.Chart.ChartVersion)
+		if err != nil {
+			impl.logger.Errorw("error in converting chart to bytes", "err", err)
 			return releaseNo, manifest, err
 		}
 	}
 
 	if triggerEvent.PerformChartPush {
-		manifestPushTemplate, err := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
+		manifestPushTemplate, err := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath)
 		if err != nil {
 			impl.logger.Errorw("error in building manifest push template", "err", err)
 			return releaseNo, manifest, err
@@ -1852,7 +1877,7 @@ func GetRepoPathAndChartNameFromRepoName(repoName string) (repoPath, chartName s
 	return repoPath, chartName
 }
 
-func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, manifest *[]byte) (*bean3.ManifestPushTemplate, error) {
+func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string) (*bean3.ManifestPushTemplate, error) {
 
 	manifestPushTemplate := &bean3.ManifestPushTemplate{
 		WorkflowRunnerId:      overrideRequest.WfrId,
@@ -1864,7 +1889,6 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 		AppName:               overrideRequest.AppName,
 		TargetEnvironmentName: valuesOverrideResponse.EnvOverride.TargetEnvironment,
 		BuiltChartPath:        builtChartPath,
-		BuiltChartBytes:       manifest,
 		MergedValues:          valuesOverrideResponse.MergedValues,
 	}
 
@@ -1876,7 +1900,6 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 
 	if manifestPushConfig.Id != 0 {
 		if manifestPushConfig.StorageType == bean2.ManifestStorageOCIHelmRepo {
-
 			var credentialsConfig bean3.HelmRepositoryConfig
 			err = json.Unmarshal([]byte(manifestPushConfig.CredentialsConfig), &credentialsConfig)
 			if err != nil {
@@ -1888,18 +1911,34 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 				impl.logger.Errorw("error in fetching artifact info", "err", err)
 				return manifestPushTemplate, err
 			}
+			image := valuesOverrideResponse.Artifact.Image
+			imageTag := strings.Split(image, ":")[1]
 			repoPath, chartName := GetRepoPathAndChartNameFromRepoName(credentialsConfig.RepositoryName)
 			manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
+			// pushed chart name should be same as repo name configured by user (if repo name is a/b/c chart name will be c)
 			manifestPushTemplate.ChartName = chartName
-			manifestPushTemplate.ChartVersion = fmt.Sprintf("%d.%d.%d-%s", 1, 0, overrideRequest.WfrId, "DEPLOY")
+			manifestPushTemplate.ChartVersion = fmt.Sprintf("%d.%d.%d-%s-%s", 1, 0, overrideRequest.WfrId, "DEPLOY", imageTag)
+			manifestBytes, err := impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, chartName, manifestPushTemplate.ChartVersion)
+			if err != nil {
+				impl.logger.Errorw("error in converting chart to bytes", "err", err)
+				return manifestPushTemplate, err
+			}
+			manifestPushTemplate.BuiltChartBytes = &manifestBytes
 			containerRegistryConfig := &bean3.ContainerRegistryConfig{
-				RegistryUrl: dockerArtifactStore.RegistryURL,
-				Username:    dockerArtifactStore.Username,
-				Password:    dockerArtifactStore.Password,
-				Insecure:    true,
-				AccessKey:   dockerArtifactStore.AWSAccessKeyId,
-				SecretKey:   dockerArtifactStore.AWSSecretAccessKey,
-				AwsRegion:   dockerArtifactStore.AWSRegion,
+				RegistryUrl:  dockerArtifactStore.RegistryURL,
+				Username:     dockerArtifactStore.Username,
+				Password:     dockerArtifactStore.Password,
+				Insecure:     true,
+				AccessKey:    dockerArtifactStore.AWSAccessKeyId,
+				SecretKey:    dockerArtifactStore.AWSSecretAccessKey,
+				AwsRegion:    dockerArtifactStore.AWSRegion,
+				RegistryType: string(dockerArtifactStore.RegistryType),
+				RepoName:     repoPath,
+			}
+			for _, ociRegistryConfig := range dockerArtifactStore.OCIRegistryConfig {
+				if ociRegistryConfig.RepositoryType == dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART {
+					containerRegistryConfig.IsPublic = ociRegistryConfig.IsPublic
+				}
 			}
 			manifestPushTemplate.ContainerRegistryConfig = containerRegistryConfig
 
@@ -3191,9 +3230,9 @@ func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
 	return impl.globalEnvVariables.GitOpsRepoPrefix
 }
 
-func (impl *AppServiceImpl) PushPrePostCDManifest(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string, ctx context.Context) error {
+func (impl *AppServiceImpl) PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error {
 
-	manifestPushTemplate, err := impl.BuildManifestPushTemplateForPrePostCd(pipeline, cdWorklowRunnerId, triggeredBy, manifest, deployType)
+	manifestPushTemplate, err := impl.BuildManifestPushTemplateForPrePostCd(pipeline, cdWorklowRunnerId, triggeredBy, jobHelmPackagePath, deployType, imageTag)
 	if err != nil {
 		impl.logger.Errorw("error in building manifest push template for pre post cd")
 		return err
@@ -3208,7 +3247,7 @@ func (impl *AppServiceImpl) PushPrePostCDManifest(pipeline *pipelineConfig.Pipel
 	return nil
 }
 
-func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string) (*bean3.ManifestPushTemplate, error) {
+func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, imageTag string) (*bean3.ManifestPushTemplate, error) {
 
 	manifestPushTemplate := &bean3.ManifestPushTemplate{
 		WorkflowRunnerId:      cdWorklowRunnerId,
@@ -3217,8 +3256,7 @@ func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipe
 		UserId:                triggeredBy,
 		AppName:               pipeline.App.AppName,
 		TargetEnvironmentName: pipeline.Environment.Id,
-		ChartVersion:          fmt.Sprintf("%d.%d.%d-%s", 1, 1, cdWorklowRunnerId, deployType),
-		BuiltChartBytes:       manifest,
+		ChartVersion:          fmt.Sprintf("%d.%d.%d-%s-%s", 1, 1, cdWorklowRunnerId, deployType, imageTag),
 	}
 
 	manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
@@ -3244,14 +3282,26 @@ func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipe
 		repoPath, chartName := GetRepoPathAndChartNameFromRepoName(credentialsConfig.RepositoryName)
 		manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
 		manifestPushTemplate.ChartName = chartName
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true, chartName, manifestPushTemplate.ChartVersion)
+		if err != nil {
+			return manifestPushTemplate, err
+		}
+		manifestPushTemplate.BuiltChartBytes = &chartBytes
 		containerRegistryConfig := &bean3.ContainerRegistryConfig{
-			RegistryUrl: dockerArtifactStore.RegistryURL,
-			Username:    dockerArtifactStore.Username,
-			Password:    dockerArtifactStore.Password,
-			Insecure:    true,
-			AccessKey:   dockerArtifactStore.AWSAccessKeyId,
-			SecretKey:   dockerArtifactStore.AWSSecretAccessKey,
-			AwsRegion:   dockerArtifactStore.AWSRegion,
+			RegistryUrl:  dockerArtifactStore.RegistryURL,
+			Username:     dockerArtifactStore.Username,
+			Password:     dockerArtifactStore.Password,
+			Insecure:     true,
+			AccessKey:    dockerArtifactStore.AWSAccessKeyId,
+			SecretKey:    dockerArtifactStore.AWSSecretAccessKey,
+			AwsRegion:    dockerArtifactStore.AWSRegion,
+			RegistryType: string(dockerArtifactStore.RegistryType),
+			RepoName:     repoPath,
+		}
+		for _, ociRegistryConfig := range dockerArtifactStore.OCIRegistryConfig {
+			if ociRegistryConfig.RepositoryType == dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART {
+				containerRegistryConfig.IsPublic = ociRegistryConfig.IsPublic
+			}
 		}
 		manifestPushTemplate.ContainerRegistryConfig = containerRegistryConfig
 	} else if manifestPushConfig.StorageType == bean2.ManifestStorageGit {

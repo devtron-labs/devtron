@@ -1032,6 +1032,10 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		return
 	}
 	cdPipeline := pipelines[0]
+	if cdPipeline.Environment.IsVirtualEnvironment {
+		common.WriteJsonResp(w, nil, nil, http.StatusOK)
+		return
+	}
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)

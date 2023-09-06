@@ -25,7 +25,7 @@ type ConfigDraftService interface {
 	GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) // would return version timestamp and user email id
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
 	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
-	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
+	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) //  need to send ** in case of view only user for Secret data
 	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
