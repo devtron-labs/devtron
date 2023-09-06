@@ -7,6 +7,10 @@ const (
 	InternalServerError = "E103"
 	ResourceNotFound    = "E104"
 	UnknownError        = "E105"
+	CONTENT_DISPOSITION = "Content-Disposition"
+	CONTENT_TYPE        = "Content-Type"
+	CONTENT_LENGTH      = "Content-Length"
+	APPLICATION_JSON    = "application/json"
 )
 
 var errorMessage = map[string]string{

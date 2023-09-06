@@ -804,7 +804,12 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 
 	// set ifIpsAccess provided and relevant data
 	appDetailContainer.IsExternalCi = true
-	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, appDetailContainer.ClusterId)
+	environment, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching env details, FetchAppDetails service", "error", err)
+		return bean.AppDetailContainer{}, err
+	}
+	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, appDetailContainer.ClusterId, environment.IsVirtualEnvironment)
 	if err != nil {
 		return appDetailContainer, err
 	}
@@ -858,7 +863,7 @@ func (impl AppListingServiceImpl) fetchAppAndEnvLevelMatrics(ctx context.Context
 	return appDetailContainer, nil
 }
 
-func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer bean.AppDetailContainer, clusterId int) (bean.AppDetailContainer, error) {
+func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer bean.AppDetailContainer, clusterId int, isVirtualEnv bool) (bean.AppDetailContainer, error) {
 	ciPipelineId := appDetailContainer.CiPipelineId
 	if ciPipelineId > 0 {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "ciPipelineRepository.FindWithMinDataByCiPipelineId")
@@ -877,7 +882,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
 			// check ips access provided to this docker registry for that cluster
-			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(*dockerRegistryId, clusterId)
+			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(*dockerRegistryId, clusterId, isVirtualEnv)
 			span.End()
 			if err != nil {
 				impl.Logger.Errorw("error in checking if docker registry ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId, "error", err)
