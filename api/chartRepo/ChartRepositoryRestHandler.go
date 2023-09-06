@@ -213,7 +213,12 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	err = handler.chartRepositoryService.ValidateDeploymentCount(request)
+	if err != nil {
+		handler.Logger.Errorw("error updating, UpdateChartRepo", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -281,7 +286,11 @@ func (handler *ChartRepositoryRestHandlerImpl) TriggerChartSyncManual(w http.Res
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	err2 := handler.chartRepositoryService.TriggerChartSyncManual()
+	chartProviderConfig := &chartRepo.ChartProviderConfig{
+		ChartProviderId: "*",
+		IsOCIRegistry:   true,
+	}
+	err2 := handler.chartRepositoryService.TriggerChartSyncManual(chartProviderConfig)
 	if err2 != nil {
 		common.WriteJsonResp(w, err2, nil, http.StatusInternalServerError)
 	} else {
