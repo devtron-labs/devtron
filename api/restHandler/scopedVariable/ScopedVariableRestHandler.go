@@ -2,6 +2,7 @@ package scopedVariable
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -92,7 +93,11 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	//RBAC enforcer Ends
 	err = handler.scopedVariableService.CreateVariables(payload)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		if errors.As(err, &models.ValidationError{}) {
+			common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		}
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
