@@ -20,7 +20,7 @@ const DefaultVariableTemplate = JsonVariableTemplate
 type VariableParserRequest struct {
 	TemplateType           VariableTemplateType
 	Template               string
-	Variables              []models.ScopedVariableData
+	Variables              []*models.ScopedVariableData
 	IgnoreUnknownVariables bool
 }
 
@@ -38,4 +38,12 @@ func (request VariableParserRequest) GetValuesMap() map[string]string {
 		variablesMap[variable.VariableName] = variable.VariableValue.StringValue()
 	}
 	return variablesMap
+}
+
+func GetScopedVarData(varData map[string]string) []*models.ScopedVariableData {
+	scopedVarData := make([]*models.ScopedVariableData, len(varData))
+	for key, value := range varData {
+		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: models.VariableValue{Value: value}})
+	}
+	return scopedVarData
 }

@@ -19,8 +19,8 @@ import (
 
 type VariableTemplateParser interface {
 	ExtractVariables(template string) ([]string, error)
-	ParseTemplate(template string, values map[string]string) string
-	ParseTemplateV2(parserRequest VariableParserRequest) VariableParserResponse
+	//ParseTemplate(template string, values map[string]string) string
+	ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse
 }
 
 type VariableTemplateParserImpl struct {
@@ -58,7 +58,7 @@ func (impl *VariableTemplateParserImpl) extractVarNames(hclVariables []hcl.Trave
 	return variables
 }
 
-func (impl *VariableTemplateParserImpl) ParseTemplateV2(parserRequest VariableParserRequest) VariableParserResponse {
+func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
 	template := parserRequest.Template
 	response := VariableParserResponse{Request: parserRequest, ResolvedTemplate: template}
 	values := parserRequest.GetValuesMap()
@@ -154,45 +154,45 @@ func (impl *VariableTemplateParserImpl) checkAndUpdateDiagnosticError(diagnostic
 	return true
 }
 
-func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values map[string]string) string {
-	//TODO KB: in case of yaml, need to convert it into JSON structure
-	output := template
-	template, _ = impl.convertToHclCompatible(JsonVariableTemplate, template)
-	ignoreDefaultedVariables := true
-	impl.logger.Debug("variable hcl template valueMap", values)
-	//TODO KB: need to check for variables whose value is not present in values map, throw error or ignore variable
-	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
-	if !diagnostics.HasErrors() {
-		hclVariables := hclExpression.Variables()
-		//variables := impl.extractVarNames(hclVariables)
-		hclVarValues := impl.getHclVarValues(values)
-		defaultedVars := impl.getDefaultedVariables(hclVariables, values)
-		if len(defaultedVars) > 0 && ignoreDefaultedVariables {
-			template = impl.ignoreDefaultedVars(template, defaultedVars)
-			hclExpression, diagnostics = hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
-			if diagnostics.HasErrors() {
-				//TODO KB: throw error with proper variable names creating problem
-			}
-		}
-		opValue, valueDiagnostics := hclExpression.Value(&hcl.EvalContext{
-			Variables: hclVarValues,
-			Functions: impl.getDefaultMappedFunc(),
-		})
-		if !valueDiagnostics.HasErrors() {
-			//opValueMap := opValue.AsValueMap()
-			//rootValue := opValueMap["root"]
-			//output = rootValue.AsString()
-			simpleJSONValue := ctyJson.SimpleJSONValue{Value: opValue}
-			marshalJSON, err := simpleJSONValue.MarshalJSON()
-			if err == nil {
-				output = string(marshalJSON)
-			}
-		}
-	} else {
-		//TODO KB: handle this case
-	}
-	return output
-}
+//func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values map[string]string) string {
+//	//TODO KB: in case of yaml, need to convert it into JSON structure
+//	output := template
+//	template, _ = impl.convertToHclCompatible(JsonVariableTemplate, template)
+//	ignoreDefaultedVariables := true
+//	impl.logger.Debug("variable hcl template valueMap", values)
+//	//TODO KB: need to check for variables whose value is not present in values map, throw error or ignore variable
+//	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
+//	if !diagnostics.HasErrors() {
+//		hclVariables := hclExpression.Variables()
+//		//variables := impl.extractVarNames(hclVariables)
+//		hclVarValues := impl.getHclVarValues(values)
+//		defaultedVars := impl.getDefaultedVariables(hclVariables, values)
+//		if len(defaultedVars) > 0 && ignoreDefaultedVariables {
+//			template = impl.ignoreDefaultedVars(template, defaultedVars)
+//			hclExpression, diagnostics = hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
+//			if diagnostics.HasErrors() {
+//				//TODO KB: throw error with proper variable names creating problem
+//			}
+//		}
+//		opValue, valueDiagnostics := hclExpression.Value(&hcl.EvalContext{
+//			Variables: hclVarValues,
+//			Functions: impl.getDefaultMappedFunc(),
+//		})
+//		if !valueDiagnostics.HasErrors() {
+//			//opValueMap := opValue.AsValueMap()
+//			//rootValue := opValueMap["root"]
+//			//output = rootValue.AsString()
+//			simpleJSONValue := ctyJson.SimpleJSONValue{Value: opValue}
+//			marshalJSON, err := simpleJSONValue.MarshalJSON()
+//			if err == nil {
+//				output = string(marshalJSON)
+//			}
+//		}
+//	} else {
+//		//TODO KB: handle this case
+//	}
+//	return output
+//}
 
 func (impl *VariableTemplateParserImpl) getDefaultMappedFunc() map[string]function.Function {
 	return map[string]function.Function{

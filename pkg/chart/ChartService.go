@@ -1348,10 +1348,13 @@ func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope models2.Sc
 		return "", nil, err
 	}
 
-	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate, IgnoreUnknownVariables: true}
+	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
+	err = parserResponse.Error
+	if err != nil {
+		return "", nil, err
 	}
-	resolvedTemplate := impl.variableTemplateParser.ParseTemplate(template, variableMap)
+	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, variableMap, nil
 }
 
