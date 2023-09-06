@@ -5,6 +5,7 @@ type stringSet map[string]struct{}
 const (
 	DeploymentChartType = "Deployment"
 	RolloutChartType    = "Rollout Deployment"
+	ReferenceChart      = "reference-chart"
 )
 
 var chartCompatibilityMatrix = map[string]stringSet{

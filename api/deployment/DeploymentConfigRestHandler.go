@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/gorilla/mux"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -16,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,6 +25,7 @@ import (
 type DeploymentConfigRestHandler interface {
 	CreateChartFromFile(w http.ResponseWriter, r *http.Request)
 	SaveChart(w http.ResponseWriter, r *http.Request)
+	DownloadChart(w http.ResponseWriter, r *http.Request)
 	GetUploadedCharts(w http.ResponseWriter, r *http.Request)
 }
 
@@ -107,7 +110,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 				handler.Logger.Errorw("error in deleting temp dir ", "err", err1)
 			}
 		}
-		if err.Error() == "Chart exists already, try uploading another chart" {
+		if err.Error() == chart.CHART_ALREADY_EXISTS_INTERNAL_ERROR || err.Error() == chart.CHART_NAME_RESERVED_INTERNAL_ERROR {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
@@ -210,6 +213,36 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 
 }
 
+func (handler *DeploymentConfigRestHandlerImpl) DownloadChart(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	vars := mux.Vars(r)
+	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	if err != nil {
+		handler.Logger.Errorw("error in parsing chartRefId", "chartRefId", chartRefId, "err", err)
+		common.WriteJsonResp(w, fmt.Errorf("error in parsing chartRefId : %s must be integer", chartRefId), nil, http.StatusBadRequest)
+		return
+	}
+	manifestByteArr, err := handler.chartService.GetCustomChartInBytes(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("error in converting chart to bytes", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteOctetStreamResp(w, r, manifestByteArr, "")
+	return
+}
+
 func (handler *DeploymentConfigRestHandlerImpl) GetUploadedCharts(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -224,7 +257,7 @@ func (handler *DeploymentConfigRestHandlerImpl) GetUploadedCharts(w http.Respons
 		return
 	}
 
-	charts, err := handler.chartService.FetchChartInfoByFlag(true)
+	charts, err := handler.chartService.FetchCustomChartsInfo()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
