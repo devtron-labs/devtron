@@ -1,14 +1,16 @@
 package parsers
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcl/hclsyntax"
 	_ "github.com/hashicorp/hcl2/hcl/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
-	"github.com/zclconf/go-cty/cty/json"
+	ctyJson "github.com/zclconf/go-cty/cty/json"
 	"go.uber.org/zap"
 	"regexp"
 	"strconv"
@@ -17,7 +19,8 @@ import (
 
 type VariableTemplateParser interface {
 	ExtractVariables(template string) ([]string, error)
-	ParseTemplate(template string, values map[string]string) string
+	//ParseTemplate(template string, values map[string]string) string
+	ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse
 }
 
 type VariableTemplateParserImpl struct {
@@ -31,17 +34,19 @@ func NewVariableTemplateParserImpl(logger *zap.SugaredLogger) *VariableTemplateP
 func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]string, error) {
 	var variables []string
 	// preprocess existing template to comment
-	template = impl.convertToHclCompatible(template)
+	template, err := impl.convertToHclCompatible(JsonVariableTemplate, template)
+	if err != nil {
+		return variables, err
+	}
 	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
-	if !diagnostics.HasErrors() {
+	if diagnostics.HasErrors() {
+		impl.logger.Errorw("error occurred while extracting variables from template", "template", template, "error", diagnostics.Error())
+		return variables, errors.New(InvalidTemplate)
+	} else {
 		hclVariables := hclExpression.Variables()
 		variables = impl.extractVarNames(hclVariables)
-	} else {
-		impl.logger.Errorw("error occurred while extracting variables from template", "template", template, "error", diagnostics.Error())
-		//TODO KB: handle this case
-		return variables, errors.New("invalid-template")
 	}
-	impl.logger.Info("variables:", variables)
+	impl.logger.Info("extracted variables from template", variables)
 	return variables, nil
 }
 
@@ -53,45 +58,141 @@ func (impl *VariableTemplateParserImpl) extractVarNames(hclVariables []hcl.Trave
 	return variables
 }
 
-func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values map[string]string) string {
-	//TODO KB: in case of yaml, need to convert it into JSON structure
-	output := template
-	template = impl.convertToHclCompatible(template)
-	ignoreDefaultedVariables := true
-	impl.logger.Debug("valueMap", values)
-	//TODO KB: need to check for variables whose value is not present in values map, throw error or ignore variable
+func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
+	template := parserRequest.Template
+	response := VariableParserResponse{Request: parserRequest, ResolvedTemplate: template}
+	values := parserRequest.GetValuesMap()
+	templateType := parserRequest.TemplateType
+	template, err := impl.convertToHclCompatible(templateType, template)
+	if err != nil {
+		response.Error = err
+		return response
+	}
+	impl.logger.Debug("variable hcl template valueMap", values)
 	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
-	if !diagnostics.HasErrors() {
-		hclVariables := hclExpression.Variables()
-		//variables := impl.extractVarNames(hclVariables)
-		hclVarValues := impl.getHclVarValues(values)
-		defaultedVars := impl.getDefaultedVariables(hclVariables, values)
-		if len(defaultedVars) > 0 && ignoreDefaultedVariables {
+	containsError := impl.checkAndUpdateDiagnosticError(diagnostics, template, &response, InvalidTemplate)
+	if containsError {
+		return response
+	}
+	updatedHclExpression, template, containsError := impl.checkForDefaultedVariables(parserRequest, hclExpression.Variables(), template, &response)
+	if containsError {
+		return response
+	}
+	if updatedHclExpression != nil {
+		hclExpression = updatedHclExpression
+	}
+
+	hclVarValues := impl.getHclVarValues(values)
+	opValue, diagnostics := hclExpression.Value(&hcl.EvalContext{
+		Variables: hclVarValues,
+		Functions: impl.getDefaultMappedFunc(),
+	})
+	containsError = impl.checkAndUpdateDiagnosticError(diagnostics, template, &response, VariableParsingFailed)
+	if containsError {
+		return response
+	}
+	output, err := impl.extractResolvedTemplate(templateType, opValue)
+	if err != nil {
+		output = template
+	}
+	response.ResolvedTemplate = output
+	return response
+}
+
+func (impl *VariableTemplateParserImpl) checkForDefaultedVariables(parserRequest VariableParserRequest, variables []hcl.Traversal, template string, response *VariableParserResponse) (hclsyntax.Expression, string, bool) {
+	var hclExpression hclsyntax.Expression
+	var diagnostics hcl.Diagnostics
+	valuesMap := parserRequest.GetValuesMap()
+	defaultedVars := impl.getDefaultedVariables(variables, valuesMap)
+	ignoreDefaultedVariables := parserRequest.IgnoreUnknownVariables
+	if len(defaultedVars) > 0 {
+		if ignoreDefaultedVariables {
 			template = impl.ignoreDefaultedVars(template, defaultedVars)
 			hclExpression, diagnostics = hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
-			if diagnostics.HasErrors() {
-				//TODO KB: throw error with proper variable names creating problem
+			hasErrors := impl.checkAndUpdateDiagnosticError(diagnostics, template, response, InvalidTemplate)
+			if hasErrors {
+				return nil, template, true
 			}
+		} else {
+			impl.logger.Errorw("error occurred while parsing template, unknown variables found", "defaultedVars", defaultedVars)
+			response.Error = errors.New(UnknownVariableFound)
+			defaultsVarNames := impl.extractVarNames(defaultedVars)
+			response.DetailedError = fmt.Sprintf(UnknownVariableErrorMsg, strings.Join(defaultsVarNames, ","))
+			return nil, template, true
 		}
-		opValue, valueDiagnostics := hclExpression.Value(&hcl.EvalContext{
-			Variables: hclVarValues,
-			Functions: impl.getDefaultMappedFunc(),
-		})
-		if !valueDiagnostics.HasErrors() {
-			//opValueMap := opValue.AsValueMap()
-			//rootValue := opValueMap["root"]
-			//output = rootValue.AsString()
-			simpleJSONValue := json.SimpleJSONValue{Value: opValue}
-			marshalJSON, err := simpleJSONValue.MarshalJSON()
-			if err == nil {
-				output = string(marshalJSON)
-			}
-		}
-	} else {
-		//TODO KB: handle this case
 	}
-	return output
+	return hclExpression, template, false
 }
+
+func (impl *VariableTemplateParserImpl) extractResolvedTemplate(templateType VariableTemplateType, opValue cty.Value) (string, error) {
+	var output string
+	if templateType == StringVariableTemplate {
+		opValueMap := opValue.AsValueMap()
+		rootValue := opValueMap["root"]
+		output = rootValue.AsString()
+	} else {
+		simpleJSONValue := ctyJson.SimpleJSONValue{Value: opValue}
+		marshalJSON, err := simpleJSONValue.MarshalJSON()
+		if err == nil {
+			output = string(marshalJSON)
+		} else {
+			impl.logger.Errorw("error occurred while marshalling json value of parsed template", "err", err)
+			return "", err
+		}
+	}
+	return output, nil
+}
+
+func (impl *VariableTemplateParserImpl) checkAndUpdateDiagnosticError(diagnostics hcl.Diagnostics, template string, response *VariableParserResponse, errMsg string) bool {
+	if !diagnostics.HasErrors() {
+		return false
+	}
+	detailedError := diagnostics.Error()
+	impl.logger.Errorw("error occurred while extracting variables from template", "template", template, "error", detailedError)
+	response.Error = errors.New(errMsg)
+	response.DetailedError = detailedError
+	return true
+}
+
+//func (impl *VariableTemplateParserImpl) ParseTemplate(template string, values map[string]string) string {
+//	//TODO KB: in case of yaml, need to convert it into JSON structure
+//	output := template
+//	template, _ = impl.convertToHclCompatible(JsonVariableTemplate, template)
+//	ignoreDefaultedVariables := true
+//	impl.logger.Debug("variable hcl template valueMap", values)
+//	//TODO KB: need to check for variables whose value is not present in values map, throw error or ignore variable
+//	hclExpression, diagnostics := hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
+//	if !diagnostics.HasErrors() {
+//		hclVariables := hclExpression.Variables()
+//		//variables := impl.extractVarNames(hclVariables)
+//		hclVarValues := impl.getHclVarValues(values)
+//		defaultedVars := impl.getDefaultedVariables(hclVariables, values)
+//		if len(defaultedVars) > 0 && ignoreDefaultedVariables {
+//			template = impl.ignoreDefaultedVars(template, defaultedVars)
+//			hclExpression, diagnostics = hclsyntax.ParseExpression([]byte(template), "", hcl.Pos{Line: 1, Column: 1, Byte: 0})
+//			if diagnostics.HasErrors() {
+//				//TODO KB: throw error with proper variable names creating problem
+//			}
+//		}
+//		opValue, valueDiagnostics := hclExpression.Value(&hcl.EvalContext{
+//			Variables: hclVarValues,
+//			Functions: impl.getDefaultMappedFunc(),
+//		})
+//		if !valueDiagnostics.HasErrors() {
+//			//opValueMap := opValue.AsValueMap()
+//			//rootValue := opValueMap["root"]
+//			//output = rootValue.AsString()
+//			simpleJSONValue := ctyJson.SimpleJSONValue{Value: opValue}
+//			marshalJSON, err := simpleJSONValue.MarshalJSON()
+//			if err == nil {
+//				output = string(marshalJSON)
+//			}
+//		}
+//	} else {
+//		//TODO KB: handle this case
+//	}
+//	return output
+//}
 
 func (impl *VariableTemplateParserImpl) getDefaultMappedFunc() map[string]function.Function {
 	return map[string]function.Function{
@@ -101,17 +202,19 @@ func (impl *VariableTemplateParserImpl) getDefaultMappedFunc() map[string]functi
 	}
 }
 
-func (impl *VariableTemplateParserImpl) convertToHclCompatible(template string) string {
-	//jsonStringify, err := json.Marshal(template)
-	//if err != nil {
-	//	impl.logger.Errorw("error occurred while marshalling template", "err", err, "template", template)
-	//} else {
-	//	template = string(jsonStringify)
-	//}
-	//template = fmt.Sprintf(`{"root":%s}`, template)
-	//fmt.Println("template", template)
+func (impl *VariableTemplateParserImpl) convertToHclCompatible(templateType VariableTemplateType, template string) (string, error) {
+	if templateType == StringVariableTemplate {
+		jsonStringify, err := json.Marshal(template)
+		if err != nil {
+			impl.logger.Errorw("error occurred while marshalling template, but continuing with the template", "err", err, "templateType", templateType, "template", template)
+			//return "", errors.New(InvalidTemplate)
+		} else {
+			template = string(jsonStringify)
+		}
+		template = fmt.Sprintf(`{"root":%s}`, template)
+	}
 	template = impl.diluteExistingHclVars(template)
-	return impl.convertToHclExpression(template)
+	return impl.convertToHclExpression(template), nil
 }
 
 func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string) string {
@@ -184,14 +287,13 @@ func (impl *VariableTemplateParserImpl) getDefaultedVariables(variables []hcl.Tr
 
 func (impl *VariableTemplateParserImpl) ignoreDefaultedVars(template string, hclVars []hcl.Traversal) string {
 	var processedDtBuilder strings.Builder
-	//impl.logger.Info("template for ignore case", template)
+	impl.logger.Info("ignoring defaulted vars", "vars", hclVars)
 	maxSize := len(template) + len(hclVars)
 	processedDtBuilder.Grow(maxSize)
 	currentIndex := 0
 	for _, hclVar := range hclVars {
 		startIndex := hclVar.SourceRange().Start.Column
 		endIndex := hclVar.SourceRange().End.Column
-		//fmt.Println("variable: ", template[startIndex:endIndex])
 		startIndex = impl.getVarStartIndex(template, startIndex-1)
 		if startIndex == -1 {
 			continue

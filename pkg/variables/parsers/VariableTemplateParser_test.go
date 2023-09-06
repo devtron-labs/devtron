@@ -3,11 +3,17 @@ package parsers
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-const TestData = `{"ContainerPort": [{"envoyPort": 9000,"idleTimeout": "1800s","name": "subs-app","port": "@{{container-port-number-new+0}}","servicePort": 80,"supportStreaming": false,"useHTTP2": false}],}`
+const JsonWithIntParam = `{"key1":[{"key2":"@{{container-port-number-new + 0}}"}]}`
+const JsonWithIntParamResolvedTemplate = `{"key1":[{"key2":1800}]}`
+const StringTemplate = "\"@{{Variable1}}\""
+const StringTemplateResolved = "\"123\""
+const StringTemplateWithIntParam = "- EXTERNAL_CI_ID: \"1\"\n  REPO_NAME_EXTERNAL_CI: @{{container-port-number-new}}\n  REGISTRY_URL_EXTERNAL_CI: docker.io/shivamnagar409\n- EXTERNAL_CI_ID: \"2\"\n  REPO_NAME_EXTERNAL_CI: test123\n  REGISTRY_URL_EXTERNAL_CI: docker.io/shivamnagar409\n"
+const StringTemplateWithIntParamResolvedTemplate = "- EXTERNAL_CI_ID: \"1\"\n  REPO_NAME_EXTERNAL_CI: 1800\n  REGISTRY_URL_EXTERNAL_CI: docker.io/shivamnagar409\n- EXTERNAL_CI_ID: \"2\"\n  REPO_NAME_EXTERNAL_CI: test123\n  REGISTRY_URL_EXTERNAL_CI: docker.io/shivamnagar409\n"
 
 func TestVariableTemplateParserImpl_ExtractVariables(t *testing.T) {
 	logger, err := util.NewSugardLogger()
@@ -44,12 +50,27 @@ func TestVariableTemplateParserImpl_ParseTemplate(t *testing.T) {
 func TestVariableTemplateParserImpl_ParseTemplateWithAddition(t *testing.T) {
 	logger, err := util.NewSugardLogger()
 	assert.Nil(t, err)
+	templateParser := NewVariableTemplateParserImpl(logger)
 	t.Run("parse template", func(t *testing.T) {
-		templateParser := NewVariableTemplateParserImpl(logger)
-		sampleTemplate := TestData
-		varValueMap := make(map[string]string, 0)
-		varValueMap["container-port-number-new"] = "1800"
-		parsedTemplate := templateParser.ParseTemplate(sampleTemplate, varValueMap)
-		fmt.Println("parsed template", parsedTemplate)
+		scopedVariables := []*models.ScopedVariableData{{VariableName: "container-port-number-new", VariableValue: models.VariableValue{Value: "1800"}}}
+		parserResponse := templateParser.ParseTemplate(VariableParserRequest{TemplateType: JsonVariableTemplate, Template: JsonWithIntParam, Variables: scopedVariables})
+		parsedTemplate := parserResponse.ResolvedTemplate
+		assert.Equal(t, JsonWithIntParamResolvedTemplate, parsedTemplate)
+	})
+
+	t.Run("parse stringify template", func(t *testing.T) {
+		scopedVariables := []*models.ScopedVariableData{{VariableName: "Variable1", VariableValue: models.VariableValue{Value: "123"}}}
+		parserResponse := templateParser.ParseTemplate(VariableParserRequest{TemplateType: StringVariableTemplate, Template: StringTemplate, Variables: scopedVariables})
+		err = parserResponse.Error
+		assert.Nil(t, err)
+		assert.Equal(t, StringTemplateResolved, parserResponse.ResolvedTemplate)
+	})
+
+	t.Run("parse stringify template with int value", func(t *testing.T) {
+		scopedVariables := []*models.ScopedVariableData{{VariableName: "container-port-number-new", VariableValue: models.VariableValue{Value: "1800"}}}
+		parserResponse := templateParser.ParseTemplate(VariableParserRequest{TemplateType: StringVariableTemplate, Template: StringTemplateWithIntParam, Variables: scopedVariables})
+		err = parserResponse.Error
+		assert.Nil(t, err)
+		assert.Equal(t, StringTemplateWithIntParamResolvedTemplate, parserResponse.ResolvedTemplate)
 	})
 }

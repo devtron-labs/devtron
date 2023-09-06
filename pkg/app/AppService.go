@@ -1445,7 +1445,14 @@ func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHi
 	if len(variableSnapshotMap) == 0 {
 		return template, variableSnapshotMap, nil
 	}
-	resolvedTemplate := impl.variableTemplateParser.ParseTemplate(template, variableSnapshotMap)
+	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap)
+	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
+	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
+	err = parserResponse.Error
+	if err != nil {
+		return "", nil, err
+	}
+	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, variableSnapshotMap, nil
 }
 
@@ -1465,10 +1472,13 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope models2.Sco
 		return "", nil, err
 	}
 
-	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
+	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
+	err = parserResponse.Error
+	if err != nil {
+		return "", nil, err
 	}
-	resolvedTemplate := impl.variableTemplateParser.ParseTemplate(template, variableMap)
+	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, variableMap, nil
 }
 

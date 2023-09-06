@@ -162,6 +162,6 @@ func InitAppService() *app2.AppServiceImpl {
 		nil, nil, nil, nil, nil, refChartDir, nil,
 		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
 		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return appService
 }
