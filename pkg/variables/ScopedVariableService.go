@@ -22,7 +22,7 @@ import (
 
 type ScopedVariableService interface {
 	CreateVariables(payload models.Payload) error
-	GetScopedVariables(scope models.Scope, varNames []string) (scopedVariableDataObj []*models.ScopedVariableData, err error)
+	GetScopedVariables(scope models.Scope, varNames []string, includesDetails bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
 	GetJsonForVariables() (*models.Payload, error)
 }
 
@@ -352,17 +352,24 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 	return selectedParentScope
 }
 
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, includesDetails bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
-	// getting all variables from cache, if nil get from repo
+	// getting all variables from cache
 	allVariableDefinitions := impl.VariableCache.GetData()
-	if allVariableDefinitions == nil {
-		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
+
+	// cache is loaded and no active variables exist. Returns empty
+	if allVariableDefinitions != nil && len(allVariableDefinitions) == 0 {
+		return nil, nil
 	}
 
-	//No variables found case
-	if len(allVariableDefinitions) == 0 {
-		return nil, nil
+	// Need to get from repo for includesDetails even if cache is loaded since cache only contains metadata
+	if includesDetails {
+		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
+
+		//Cache was not loaded and no active variables found
+		if len(allVariableDefinitions) == 0 {
+			return nil, nil
+		}
 	}
 
 	// filtering out variables whose name is not present in varNames
