@@ -9,6 +9,7 @@
 - fix: k8s permission and chart-group permission not getting deleted from orchestrator (#3824)
 - fix: added missing audit logs while deleting cd pipeline (#3822)
 ## Enhancements
+- feat: added validation for create app workflow API (#3842)
 - feat: custom chart download (#3801)
 - feat: Virtual cluster v3 (#3764)
 - feat: Maintaining audit logs (#3763)
