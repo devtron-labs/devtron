@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/otel"
 	"log"
@@ -54,6 +55,7 @@ type App struct {
 	serveTls           bool
 	sessionManager2    *authMiddleware.SessionManager
 	OtelTracingService *otel.OtelTracingServiceImpl
+	loggingMiddleware  util.LoggingMiddleware
 }
 
 func NewApp(router *router.MuxRouter,
@@ -64,6 +66,7 @@ func NewApp(router *router.MuxRouter,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
+	loggingMiddleware util.LoggingMiddleware,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
@@ -78,6 +81,7 @@ func NewApp(router *router.MuxRouter,
 		sessionManager2:    sessionManager2,
 		posthogClient:      posthogClient,
 		OtelTracingService: otel.NewOtelTracingServiceImpl(Logger),
+		loggingMiddleware:  loggingMiddleware,
 	}
 	return app
 }
@@ -94,7 +98,7 @@ func (app *App) Start() {
 	//authEnforcer := casbin2.Create()
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
-
+	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	if tracerProvider != nil {
 		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))

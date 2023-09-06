@@ -36,6 +36,9 @@ func (impl DockerRegRouterImpl) InitDockerRegRouter(configRouter *mux.Router) {
 	configRouter.Path("/registry").
 		HandlerFunc(impl.dockerRestHandler.SaveDockerRegistryConfig).
 		Methods("POST")
+	configRouter.Path("/registry/validate").
+		HandlerFunc(impl.dockerRestHandler.ValidateDockerRegistryConfig).
+		Methods("POST")
 	configRouter.Path("/registry/active").
 		HandlerFunc(impl.dockerRestHandler.GetDockerArtifactStore).
 		Methods("GET")

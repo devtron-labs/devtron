@@ -29,6 +29,7 @@ type HelmAppClient interface {
 	TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error)
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
+	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) (*OCIRegistryResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -304,4 +305,16 @@ func (impl *HelmAppClientImpl) GetNotes(ctx context.Context, in *InstallReleaseR
 	}
 	return response, nil
 
+}
+
+func (impl *HelmAppClientImpl) ValidateOCIRegistry(ctx context.Context, in *RegistryCredential) (*OCIRegistryResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.ValidateOCIRegistry(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
