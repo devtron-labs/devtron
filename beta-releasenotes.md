@@ -1,4 +1,5 @@
 ## Bugs
+- fix: migration script for virtual cluster v3 (#3870)
 - fix: cloning app cmcs global boolean value fix (#3862)
 - fix: Makefile correction (#3852)
 - fix: deleting pipeline stage and related data if no stage steps are found (#3832)
