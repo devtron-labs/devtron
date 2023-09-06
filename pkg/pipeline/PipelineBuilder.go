@@ -1988,7 +1988,7 @@ func (impl *PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReque
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
 			return pipelineRequest, err
 		}
-		deleteResponse, err := impl.DeleteCdPipelinePartial(pipeline, ctx, deleteAction)
+		deleteResponse, err := impl.DeleteCdPipelinePartial(pipeline, ctx, deleteAction, cdPipelines.UserId)
 		pipelineRequest.AppDeleteResponse = deleteResponse
 		return pipelineRequest, err
 	default:
@@ -2102,6 +2102,8 @@ func (impl *PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipel
 			}
 		}
 	}
+	appWorkflowMapping.UpdatedBy = userId
+	appWorkflowMapping.UpdatedOn = time.Now()
 	err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(appWorkflowMapping, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
@@ -2211,7 +2213,7 @@ func (impl *PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipel
 	return deleteResponse, nil
 }
 
-func (impl *PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int) (*bean.AppDeleteResponseDTO, error) {
+func (impl *PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, userId int32) (*bean.AppDeleteResponseDTO, error) {
 	cascadeDelete := true
 	forceDelete := false
 	deleteResponse := &bean.AppDeleteResponseDTO{
@@ -2301,6 +2303,8 @@ func (impl *PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfi
 			}
 			impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
 			pipeline.DeploymentAppDeleteRequest = true
+			pipeline.UpdatedOn = time.Now()
+			pipeline.UpdatedBy = userId
 			err = impl.pipelineRepository.Update(pipeline, tx)
 			if err != nil {
 				impl.logger.Errorw("error in partially delete cd pipeline", "err", err)

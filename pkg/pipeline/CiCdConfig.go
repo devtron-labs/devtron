@@ -64,6 +64,7 @@ type CiCdConfig struct {
 	CdReqMem                         string                              `env:"CD_REQ_CI_MEM" envDefault:"3G"`
 	CdTaintKey                       string                              `env:"CD_NODE_TAINTS_KEY" envDefault:"dedicated"`
 	ExternalCdTaintKey               string                              `env:"EXTERNAL_CD_NODE_TAINTS_KEY" envDefault:"dedicated"`
+	UseExternalNode                  bool                                `env:"USE_EXTERNAL_NODE" envDefault:"false"`
 	CdWorkflowServiceAccount         string                              `env:"CD_WORKFLOW_SERVICE_ACCOUNT" envDefault:"cd-runner"`
 	CdDefaultBuildLogsKeyPrefix      string                              `env:"DEFAULT_BUILD_LOGS_KEY_PREFIX" `
 	CdDefaultArtifactKeyPrefix       string                              `env:"DEFAULT_CD_ARTIFACT_KEY_LOCATION" `
@@ -189,7 +190,7 @@ func getNodeLabel(cfg *CiCdConfig, pipelineType bean.WorkflowPipelineType, isExt
 		node = cfg.CiNodeLabelSelector
 	}
 	if pipelineType == bean.CD_WORKFLOW_PIPELINE_TYPE {
-		if isExt {
+		if isExt && cfg.UseExternalNode {
 			node = cfg.ExternalCdNodeLabelSelector
 		} else {
 			node = cfg.CdNodeLabelSelector

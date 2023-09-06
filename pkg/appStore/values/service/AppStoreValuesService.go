@@ -372,10 +372,15 @@ func (impl AppStoreValuesServiceImpl) GetSelectedChartMetaData(req *ChartMetaDat
 	for _, appversion := range appVersions {
 		chartMeta := &ChartMetaDataResponse{
 			ChartName:                    appversion.AppStore.Name,
-			ChartRepoName:                appversion.AppStore.ChartRepo.Name,
 			AppStoreApplicationVersionId: appversion.Id,
 			Icon:                         appversion.Icon,
 			Kind:                         appStoreBean.REFERENCE_TYPE_DEFAULT,
+		}
+		if appversion.AppStore.DockerArtifactStore != nil {
+			chartMeta.ChartRepoName = appversion.AppStore.DockerArtifactStore.Id
+		}
+		if appversion.AppStore.ChartRepo != nil {
+			chartMeta.ChartRepoName = appversion.AppStore.ChartRepo.Name
 		}
 		res = append(res, chartMeta)
 	}

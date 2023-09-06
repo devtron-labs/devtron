@@ -363,14 +363,40 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 	return hasAnyTriggered, err
 }
 
+// if stage is present with 0 stage steps, delete the stage
+// handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage *repository4.PipelineStage, triggeredBy int32) (error, bool) {
+	if pipelineStage != nil {
+		stageReq := &bean3.PipelineStageDto{
+			Id:   pipelineStage.Id,
+			Type: pipelineStage.Type,
+		}
+		err, deleted := impl.pipelineStageService.DeletePipelineStageIfReq(stageReq, triggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error in deleting the corrupted pipeline stage", "err", err, "pipelineStageReq", stageReq)
+			return err, false
+		}
+		return nil, deleted
+	}
+	return nil, false
+}
+
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
 	var err error
-	preStageStepType, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
+	preStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipeline.Id, "err", err)
 		return err
 	}
-	if len(pipeline.PreStageConfig) > 0 || preStageStepType != nil {
+
+	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	err, deleted := impl.deleteCorruptedPipelineStage(preStage, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "cdPipelineId", pipeline.Id, "err", err, "preStage", preStage, "triggeredBy", triggeredBy)
+		return err
+	}
+
+	if len(pipeline.PreStageConfig) > 0 || (preStage != nil && !deleted) {
 		// pre stage exists
 		if pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
@@ -388,12 +414,20 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 
 func (impl *WorkflowDagExecutorImpl) triggerStageForBulk(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
 	var err error
-	preStageStepType, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
+	preStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipeline.Id, "err", err)
 		return err
 	}
-	if len(pipeline.PreStageConfig) > 0 || preStageStepType != nil {
+
+	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	err, deleted := impl.deleteCorruptedPipelineStage(preStage, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "cdPipelineId", pipeline.Id, "err", err, "preStage", preStage, "triggeredBy", triggeredBy)
+		return err
+	}
+
+	if len(pipeline.PreStageConfig) > 0 || (preStage != nil && !deleted) {
 		//pre stage exists
 		impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
 		err = impl.TriggerPreStage(context.Background(), cdWf, artifact, pipeline, artifact.UpdatedBy, applyAuth) //TODO handle error here
@@ -1122,18 +1156,26 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 		return err
 	}
 
-	postStageStepType, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipelineOverride.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_POST_CD)
+	postStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipelineOverride.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_POST_CD)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipelineOverride.Pipeline, "err", err)
 		return err
 	}
 
-	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 || postStageStepType != nil {
+	var triggeredByUser int32 = 1
+	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	err, deleted := impl.deleteCorruptedPipelineStage(postStage, triggeredByUser)
+	if err != nil {
+		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "err", err, "preStage", postStage, "triggeredBy", triggeredByUser)
+		return err
+	}
+
+	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 || (postStage != nil && !deleted) {
 		if pipelineOverride.Pipeline.PostTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_STOP &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_START {
 
-			err = impl.TriggerPostStage(cdWorkflow, pipelineOverride.Pipeline, 1)
+			err = impl.TriggerPostStage(cdWorkflow, pipelineOverride.Pipeline, triggeredByUser)
 			if err != nil {
 				impl.logger.Errorw("error in triggering post stage after successful deployment event", "err", err, "cdWorkflow", cdWorkflow)
 				return err

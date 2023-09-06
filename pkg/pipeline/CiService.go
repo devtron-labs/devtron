@@ -176,7 +176,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	if impl.config != nil && impl.config.UseBuildx && impl.config.BuildxK8sDriverOptions != "" {
+	if impl.config != nil && impl.config.BuildxK8sDriverOptions != "" {
 		err = impl.setBuildxK8sDriverData(workflowRequest)
 		if err != nil {
 			impl.Logger.Errorw("error in setBuildxK8sDriverData", "BUILDX_K8S_DRIVER_OPTIONS", impl.config.BuildxK8sDriverOptions, "err", err)

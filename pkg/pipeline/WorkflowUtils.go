@@ -519,7 +519,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowJson() ([]byte, error) {
 
 func (workflowRequest *WorkflowRequest) AddNodeConstraintsFromConfig(workflowTemplate *bean.WorkflowTemplate, config *CiCdConfig) {
 	nodeConstraints := workflowRequest.GetNodeConstraints(config)
-	if workflowRequest.Type == bean.CD_WORKFLOW_PIPELINE_TYPE {
+	if workflowRequest.Type == bean.CD_WORKFLOW_PIPELINE_TYPE && nodeConstraints.TaintKey != "" {
 		workflowTemplate.NodeSelector = map[string]string{nodeConstraints.TaintKey: nodeConstraints.TaintValue}
 	}
 	workflowTemplate.ServiceAccountName = nodeConstraints.ServiceAccount

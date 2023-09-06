@@ -47,6 +47,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -519,7 +520,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			// new revision is not reconciled yet, thus status will not be changes and will remain in progress
 		}
 	} else {
-		isValid, installedAppVersionHistory, appId, envId, err := impl.CheckIfPipelineUpdateEventIsValidForAppStore(app.ObjectMeta.Name)
+		isValid, installedAppVersionHistory, appId, envId, err := impl.CheckIfPipelineUpdateEventIsValidForAppStore(app.ObjectMeta.Name, gitHash)
 		if err != nil {
 			impl.logger.Errorw("service err, CheckIfPipelineUpdateEventIsValidForAppStore", "err", err)
 			return isSucceeded, isTimelineUpdated, err
@@ -581,7 +582,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 	return isSucceeded, isTimelineUpdated, nil
 }
 
-func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsAppName string) (bool, *repository4.InstalledAppVersionHistory, int, int, error) {
+func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsAppName string, gitHash string) (bool, *repository4.InstalledAppVersionHistory, int, int, error) {
 	isValid := false
 	var err error
 	installedAppVersionHistory := &repository4.InstalledAppVersionHistory{}
@@ -616,6 +617,18 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	if err != nil {
 		impl.logger.Errorw("error in getting appId and environmentId using installedAppVersionId", "err", err, "installedAppVersionId", installedAppVersionHistory.InstalledAppVersionId)
 		return isValid, installedAppVersionHistory, 0, 0, err
+	}
+	if gitHash != "" && installedAppVersionHistory.GitHash != gitHash {
+		installedAppVersionHistoryByHash, err := impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByGitHash(gitHash)
+		if err != nil {
+			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "installedAppVersionHistory", installedAppVersionHistory, "err", err)
+			return isValid, installedAppVersionHistory, appId, envId, err
+		}
+		if installedAppVersionHistoryByHash.StartedOn.Before(installedAppVersionHistory.StartedOn) {
+			//we have received trigger hash which is committed before this apps actual gitHash stored by us
+			// this means that the hash stored by us will be synced later, so we will drop this event
+			return isValid, installedAppVersionHistory, appId, envId, nil
+		}
 	}
 	if util2.IsTerminalStatus(installedAppVersionHistory.Status) {
 		//drop event
@@ -1507,6 +1520,24 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 		Version: envOverride.Chart.ChartVersion,
 	}
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+	// Load custom charts to referenceTemplatePath if not exists
+	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
+		chartRefValue, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching ChartRef data", "err", err)
+			return "", err
+		}
+		if chartRefValue.ChartData != nil {
+			chartInfo, err := impl.chartService.ExtractChartIfMissing(chartRefValue.ChartData, string(impl.refChartDir), chartRefValue.Location)
+			if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+				err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+				if err1 != nil {
+					impl.logger.Errorw("error in deleting temp dir ", "err", err)
+				}
+			}
+			return "", err
+		}
+	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChart")
 	tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, referenceTemplatePath)
 	span.End()
