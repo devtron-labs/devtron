@@ -137,7 +137,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 	}
 	var scopedVariableData []*models.ScopedVariableData
 
-	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil)
+	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil, true)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
