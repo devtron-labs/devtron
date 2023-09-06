@@ -197,8 +197,13 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	parentScopesMap := make(map[string]*repository2.VariableScope)
 
 	var parentVarScope []*repository2.VariableScope
+
+	for _, scope := range variableScopes {
+		parentVariableScope = append(parentVariableScope, scope)
+	}
+	var err error
 	if len(parentVariableScope) > 0 {
-		parentVarScope, err := impl.scopedVariableRepository.CreateVariableScope(parentVariableScope, tx)
+		parentVarScope, err = impl.scopedVariableRepository.CreateVariableScope(parentVariableScope, tx)
 		if err != nil {
 			impl.logger.Errorw("error in getting parentVarScope", parentVarScope)
 			return nil, err
