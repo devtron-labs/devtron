@@ -75,6 +75,7 @@ const (
 	UserUpdateFetchRoleFailed            string = "6008"
 
 	AppDetailResourceTreeNotFound string = "7000"
+	HelmReleaseNotFound           string = "7001"
 
 	CasbinPolicyNotCreated string = "8000"
 
