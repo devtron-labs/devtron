@@ -1,9 +1,9 @@
 package router
 
 import (
-"github.com/devtron-labs/devtron/api/restHandler"
-"github.com/gorilla/mux"
-"go.uber.org/zap"
+	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type PProfRouter interface {
@@ -24,7 +24,6 @@ func NewPProfRouter(logger *zap.SugaredLogger,
 }
 
 func (ppr PProfRouterImpl) initPProfRouter(router *mux.Router) {
-
 	router.HandleFunc("/", ppr.pprofRestHandler.Index)
 	router.HandleFunc("/cmdline", ppr.pprofRestHandler.Cmdline)
 	router.HandleFunc("/profile", ppr.pprofRestHandler.Profile)
@@ -37,4 +36,3 @@ func (ppr PProfRouterImpl) initPProfRouter(router *mux.Router) {
 	router.HandleFunc("/mutex", ppr.pprofRestHandler.Mutex)
 	router.HandleFunc("/allocs", ppr.pprofRestHandler.Allocs)
 }
-

@@ -64,6 +64,7 @@ const (
 	DockerRegDeleteFailedInGocd          string = "3010"
 	GitProviderUpdateFailedInSync        string = "3011"
 	ChartCreatedAlreadyExists            string = "5001"
+	ChartNameAlreadyReserved             string = "5002"
 	UserCreateDBFailed                   string = "6001"
 	UserCreatePolicyFailed               string = "6002"
 	UserUpdateDBFailed                   string = "6003"
