@@ -363,7 +363,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	}
 
 	// Need to get from repo for includesDetails even if cache is loaded since cache only contains metadata
-	if includesDetails {
+	if includesDetails || allVariableDefinitions == nil {
 		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
 
 		//Cache was not loaded and no active variables found
