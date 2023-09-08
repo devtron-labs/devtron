@@ -51,10 +51,8 @@ spec:
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   {{- if or  .Values.service.enabled .Values.statefulSetConfig.serviceheadless.enabled  }}
-  {{- if .Values.statefulSetConfig.serviceheadless.enabled  }}
   {{- if .Values.statefulSetConfig.serviceheadless.name  }}
   serviceName: {{ .Values.statefulSetConfig.serviceheadless.name }}
-  {{- end }}
   {{- else }}
   serviceName: {{ template ".servicename" . }}-headless
   {{- end }}
