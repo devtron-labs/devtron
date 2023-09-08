@@ -547,9 +547,7 @@ spec:
   volumeClaimTemplates: 
     {{- range $.Values.statefulSetConfig.volumeClaimTemplates }}
     - apiVersion: {{ .apiVersion | default "v1" }}
-      {{- if .kind }}
-      kind: {{.kind}}
-      {{- end}}
+      kind: {{.kind | default "PersistentVolumeClaim"}}
       metadata:
           {{- if and .metadata .metadata.annotations }}
           annotations: {{ toYaml .metadata.annotations | nindent 14 }}
