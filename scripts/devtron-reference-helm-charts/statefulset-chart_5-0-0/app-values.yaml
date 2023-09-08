@@ -40,11 +40,7 @@ statefulSetConfig:
   labels: {}
   annotations: {}
   serviceheadless: 
-    enabled: false
-
-  #serviceName: "test-service_headless"
-  #revisionHistoryLimit: 3
-  # mountPath: "/tmp"
+    enabled: true
   volumeClaimTemplates: []
 
 service:
