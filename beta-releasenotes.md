@@ -1,4 +1,5 @@
 ## Bugs
+- fix: ci pip status query optmization (#3877)
 - fix: migration script for virtual cluster v3 (#3870)
 - fix: cloning app cmcs global boolean value fix (#3862)
 - fix: Makefile correction (#3852)
