@@ -511,8 +511,19 @@ func (workflowRequest *WorkflowRequest) getDefaultBuildLogsKeyPrefix(config *CiC
 	}
 }
 
+func (workflowRequest *WorkflowRequest) getBlobStorageLogsPrefix() string {
+	switch workflowRequest.Type {
+	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
+		return workflowRequest.WorkflowNamePrefix
+	case bean.CD_WORKFLOW_PIPELINE_TYPE:
+		return workflowRequest.WorkflowPrefixForLog
+	default:
+		return ""
+	}
+}
+
 func (workflowRequest *WorkflowRequest) updateBlobStorageLogsKey(config *CiCdConfig) {
-	workflowRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", workflowRequest.getDefaultBuildLogsKeyPrefix(config), workflowRequest.WorkflowPrefixForLog)
+	workflowRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", workflowRequest.getDefaultBuildLogsKeyPrefix(config), workflowRequest.getBlobStorageLogsPrefix())
 	workflowRequest.InAppLoggingEnabled = config.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
 }
 
