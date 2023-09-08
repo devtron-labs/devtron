@@ -58,6 +58,6 @@ Now your users will be able to log in to Devtron using the Okta authentication m
 
 ## Sample Configuration
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/sample-config.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/sample-config-okta.jpg)
 
 
