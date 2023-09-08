@@ -1190,7 +1190,6 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	templateRequest.CurrentViewEditor = currentChart.CurrentViewEditor
 	upgradedChartReq, err := impl.Create(templateRequest, ctx)
 	if err != nil {
-		impl.logger.Error(err)
 		return false, err
 	}
 	if upgradedChartReq == nil || upgradedChartReq.Id == 0 {
