@@ -1060,14 +1060,6 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 		}
 	}
 
-	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -1689,7 +1681,9 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
 			return
 		}
-
+		if !helmInstallNatsMessage.IsReleaseInstalled {
+			installedAppVersionHistory.Status = "Failed"
+		}
 		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 		if err != nil {
