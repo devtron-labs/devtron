@@ -1103,23 +1103,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			appDetailsContainer.ReleaseStatus = releaseStatus
 			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
 		} else {
-			releaseStatus := &client.ReleaseStatus{}
-			if len(helmReleaseInstallStatus) > 0 {
-				helmInstallStatus := &appStoreBean.HelmInstallNatsMessage{}
-				err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
-				if err != nil {
-					impl.logger.Errorw("error in unmarshalling helm release install status")
-				}
-				if !helmInstallStatus.IsReleaseInstalled {
-					releaseStatus.Status = "Failed"
-					releaseStatus.Description = helmInstallStatus.Message
-					releaseStatus.Message = "Release for this app doesn't exist"
-				}
-			} else {
-				releaseStatus.Status = "Unknown"
-				releaseStatus.Description = "Release not found"
-				releaseStatus.Message = "Release not found "
-			}
+			releaseStatus := impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus)
 			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
 			appDetailsContainer.ReleaseStatus = releaseStatusMap
 		}
@@ -1134,6 +1118,29 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		appDetailsContainer.ResourceTree = resourceTree
 	}
 	return err
+}
+
+func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus string) *client.ReleaseStatus {
+	//release status is sent in resource tree call and is shown on UI as helm config apply status
+	releaseStatus := &client.ReleaseStatus{}
+	if len(helmReleaseInstallStatus) > 0 {
+		helmInstallStatus := &appStoreBean.HelmInstallNatsMessage{}
+		err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling helm release install status")
+			return releaseStatus
+		}
+		if !helmInstallStatus.IsReleaseInstalled {
+			releaseStatus.Status = "Failed"
+			releaseStatus.Description = helmInstallStatus.Message
+			releaseStatus.Message = "Release for this app doesn't exist"
+		}
+	} else {
+		releaseStatus.Status = "Unknown"
+		releaseStatus.Description = "Release not found"
+		releaseStatus.Message = "Release not found "
+	}
+	return releaseStatus
 }
 
 func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error {
