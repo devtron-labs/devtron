@@ -8,6 +8,7 @@ const (
 	SOURCE_HELM_APP          SourceAppType = "helm-app"
 	SOURCE_EXTERNAL_HELM_APP SourceAppType = "external-helm-app"
 	SOURCE_UNKNOWN           SourceAppType = "unknown"
+	ErrReleaseNotFound       string        = "release: not found"
 )
 
 type SourceAppType string
