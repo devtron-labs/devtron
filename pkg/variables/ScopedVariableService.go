@@ -379,15 +379,18 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		}
 
 		var varValue *models.VariableValue
+		var isRedacted bool
 		if !isSuperAdmin && variableIdToDefinition[varId].VarType == repository2.PRIVATE {
-			varValue = &models.VariableValue{Value: "***"}
+			varValue = &models.VariableValue{Value: ""}
+			isRedacted = true
 		} else {
 			varValue = &models.VariableValue{Value: value}
 		}
 		scopedVariableData := &models.ScopedVariableData{
 			VariableName:     variableIdToDefinition[varId].Name,
 			ShortDescription: variableIdToDefinition[varId].ShortDescription,
-			VariableValue:    varValue}
+			VariableValue:    varValue,
+			IsRedacted:       isRedacted}
 
 		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
 	}
