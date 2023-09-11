@@ -78,7 +78,7 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableMetadata() ([]*VariableD
 	variableDefinition := make([]*VariableDefinition, 0)
 	err := impl.
 		dbConnection.Model(&variableDefinition).
-		Column("id", "name", "data_type", "var_type").
+		Column("id", "name", "data_type", "var_type,short_description").
 		Where("active = ?", true).
 		Select()
 	if err == pg.ErrNoRows {

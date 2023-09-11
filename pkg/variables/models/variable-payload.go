@@ -20,10 +20,11 @@ type AttributeValue struct {
 }
 
 type Definition struct {
-	VarName     string `json:"varName" validate:"required"`
-	DataType    string `json:"dataType" validate:"oneof=json yaml primitive"`
-	VarType     string `json:"varType" validate:"oneof=private public"`
-	Description string `json:"description" validate:"max=300"`
+	VarName          string `json:"varName" validate:"required"`
+	DataType         string `json:"dataType" validate:"oneof=json yaml primitive"`
+	VarType          string `json:"varType" validate:"oneof=private public"`
+	Description      string `json:"description" validate:"max=300"`
+	ShortDescription string `json:"shortDescription"`
 }
 
 type AttributeType string

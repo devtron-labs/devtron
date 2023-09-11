@@ -1,9 +1,9 @@
 package models
 
 type ScopedVariableData struct {
-	VariableName  string        `json:"variableName"`
-	Description   string        `json:"description"`
-	VariableValue VariableValue `json:"variableValue,omitempty"`
+	VariableName     string         `json:"variableName"`
+	ShortDescription string         `json:"shortDescription"`
+	VariableValue    *VariableValue `json:"variableValue,omitempty"`
 }
 
 const (
