@@ -75,6 +75,7 @@ type AppStoreDeploymentService interface {
 	UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error)
 	UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	SubscribeHelmInstallStatus() error
+	UpdateInstallAppVersionHistoryStatus(installedAppVersionHistoryId int, status string) error
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -1059,6 +1060,13 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 			return err
 		}
 	}
+	if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
+		err = impl.UpdateInstallAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, "Succeeded")
+		if err != nil {
+			impl.logger.Errorw("error in updating installed app version history status for helm app")
+			return err
+		}
+	}
 
 	return nil
 }
@@ -1694,6 +1702,29 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 	err := impl.pubSubClient.Subscribe(pubsub.HELM_CHART_INSTALL_STATUS_TOPIC, callback)
 	if err != nil {
 		impl.logger.Error(err)
+		return err
+	}
+	return nil
+}
+
+func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistoryStatus(installedAppVersionHistoryId int, status string) error {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
+	savedInstalledAppVersionHistory.Status = status
+	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return err
 	}
 	return nil
