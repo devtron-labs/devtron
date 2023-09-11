@@ -1,7 +1,7 @@
 package pipeline
 
 import (
-	"fmt"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/authenticator/client"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -21,16 +21,22 @@ import (
 	"github.com/stretchr/testify/assert"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime"
 	"net/url"
+	"reflect"
 	"testing"
 )
 
 var pipelineId = 0
 
-var cmManifest = "{\"kind\":\"ConfigMap\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"cm-20-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"key\":\"value\"}}"
-var secManifest = "{\"kind\":\"Secret\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"devtron-secret-20-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"skey\":\"c3ZhbHVl\"},\"type\":\"Opaque\"}"
-var cmManifest2 = "{\"kind\":\"ConfigMap\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"cm1-20-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"key\":\"value\"}}"
-var secManifest2 = "{\"kind\":\"Secret\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"devtron-secret1-20-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"skey1\":\"c3ZhbHVlMQ==\"},\"type\":\"Opaque\"}"
+var cmManifest = "{\"kind\":\"ConfigMap\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"cm-5-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"key\":\"value\"}}"
+var secManifest = "{\"kind\":\"Secret\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"secret-5-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"skey\":\"c3ZhbHVl\"},\"type\":\"Opaque\"}"
+var cmManifest2 = "{\"kind\":\"ConfigMap\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"cm1-5-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"key1\":\"value1\"}}"
+var secManifest2 = "{\"kind\":\"Secret\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"secret1-5-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"skey1\":\"c3ZhbHVlMQ==\"},\"type\":\"Opaque\"}"
+var secManifest3 = "{\"kind\":\"Secret\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"secret5-5-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"skey5\":\"c3ZhbHVlNQ==\"},\"type\":\"Opaque\"}"
+var secManifest4 = "{\"kind\":\"Secret\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"secret4-5-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"skey4\":\"c3ZhbHVlNA==\"},\"type\":\"Opaque\"}"
+var cmManifest3 = "{\"kind\":\"ConfigMap\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"cm5-5-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"key5\":\"value5\"}}"
+var cmManifest4 = "{\"kind\":\"ConfigMap\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"cm4-5-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"key4\":\"value4\"}}"
 
 func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	logger, dbConnection := getDbConnAndLoggerService(t)
@@ -56,9 +62,7 @@ func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl)
 	return workflowServiceImpl
 }
-
 func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
-	t.SkipNow()
 	workflowServiceImpl := getWorkflowServiceImpl(t)
 
 	t.Run("Verify submit workflow with S3 archive logs", func(t *testing.T) {
@@ -186,22 +190,20 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 		}
 
 		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
-		createdWf := data.Items[0].Object
-		fmt.Println(createdWf)
+
+		createdWf := &v1alpha1.Workflow{}
+		obj := data.Items[0].Object
+
+		runtime.DefaultUnstructuredConverter.FromUnstructured(obj, createdWf)
+
 		verifyMetadata(t, workflowRequest, createdWf)
 
-		spec := createdWf["spec"].(interface{}).(map[string]interface{})
+		verifySpec(t, workflowServiceImpl, createdWf, bean2.CI_WORKFLOW_NAME)
+		assert.Equal(t, reflect.ValueOf(reflect.ValueOf(workflowServiceImpl.ciCdConfig.CiNodeLabelSelector)), reflect.ValueOf(reflect.ValueOf(createdWf.Spec.NodeSelector)))
 
-		verifySpec(t, workflowServiceImpl, spec, bean2.CI_WORKFLOW_NAME)
-		assert.Equal(t, workflowServiceImpl.ciCdConfig.CiNodeLabelSelector, spec["nodeSelector"])
+		assert.Equal(t, 1, len(createdWf.Spec.Templates))
+		template := createdWf.Spec.Templates[0]
 
-		assert.Equal(t, 1, len(spec["templates"].(interface{}).([]interface{})))
-		var template map[string]interface{}
-		if spec["templates"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["name"] == bean2.CI_WORKFLOW_NAME {
-			template = spec["templates"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})
-		} else {
-			template = spec["templates"].(interface{}).([]interface{})[1].(interface{}).(map[string]interface{})
-		}
 		verifyTemplateSpecContainerPort(t, template)
 
 		verifyTemplateSpecContainerEnv(t, template, workflowServiceImpl)
@@ -218,7 +220,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 		workflowRequest := WorkflowRequest{
 			WorkflowNamePrefix: "1-ci",
 			PipelineName:       "ci-1-sslm",
-			PipelineId:         1,
+			PipelineId:         2,
 			DockerImageTag:     "680028fe-1-2",
 			DockerRegistryId:   "ashexp",
 			DockerRegistryType: "docker-hub",
@@ -312,7 +314,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			IsPvcMounted:              false,
 			ExtraEnvironmentVariables: nil,
 			EnableBuildContext:        false,
-			AppId:                     12,
+			AppId:                     2,
 			EnvironmentId:             0,
 			OrchestratorHost:          "http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats",
 			OrchestratorToken:         "",
@@ -324,26 +326,29 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 		}
 
 		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
-		createdWf := data.Items[0].Object
-		fmt.Println(createdWf)
+
+		createdWf := &v1alpha1.Workflow{}
+		obj := data.Items[0].Object
+
+		runtime.DefaultUnstructuredConverter.FromUnstructured(obj, createdWf)
 		verifyMetadata(t, workflowRequest, createdWf)
 
-		spec := createdWf["spec"].(interface{}).(map[string]interface{})
-		verifySpec(t, workflowServiceImpl, spec, bean2.CI_WORKFLOW_NAME)
-		assert.Equal(t, workflowServiceImpl.ciCdConfig.CiNodeLabelSelector, spec["nodeSelector"].(interface{}))
+		verifySpec(t, workflowServiceImpl, createdWf, bean2.CI_WORKFLOW_NAME)
+		assert.Equal(t, workflowServiceImpl.ciCdConfig.CiNodeLabelSelector, createdWf.Spec.NodeSelector)
 
-		assert.Equal(t, 1, len(spec["templates"].(interface{}).([]interface{})))
+		assert.Equal(t, 1, len(createdWf.Spec.Templates))
 
-		var template map[string]interface{}
-		if spec["templates"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["name"] == bean2.CI_WORKFLOW_NAME {
-			template = spec["templates"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})
+		template := v1alpha1.Template{}
+
+		if createdWf.Spec.Templates[0].Name == bean2.CI_WORKFLOW_NAME {
+			template = createdWf.Spec.Templates[0]
 		} else {
-			template = spec["templates"].(interface{}).([]interface{})[1].(interface{}).(map[string]interface{})
+			template = createdWf.Spec.Templates[1]
 		}
 
 		verifyTemplateSpecContainerPort(t, template)
 
-		assert.Equal(t, false, template["archiveLocation"].(interface{}).(map[string]interface{})["archiveLogs"].(interface{}).(bool))
+		assert.Equal(t, false, *template.ArchiveLocation.ArchiveLogs)
 
 		verifyTemplateSpecContainerEnv(t, template, workflowServiceImpl)
 
@@ -489,61 +494,62 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 		}
 
 		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
-		createdWf := data.Items[0].Object
-		fmt.Println(createdWf)
 
+		createdWf := &v1alpha1.Workflow{}
+		obj := data.Items[0].Object
+
+		runtime.DefaultUnstructuredConverter.FromUnstructured(obj, createdWf)
 		verifyMetadata(t, workflowRequest, createdWf)
 
-		spec := createdWf["spec"].(interface{}).(map[string]interface{})
-		assert.Equal(t, workflowServiceImpl.ciCdConfig.CiNodeLabelSelector, spec["nodeSelector"].(interface{}))
-		verifySpec(t, workflowServiceImpl, spec, bean2.CI_WORKFLOW_WITH_STAGES)
+		verifySpec(t, workflowServiceImpl, createdWf, bean2.CI_WORKFLOW_WITH_STAGES)
+		assert.Equal(t, workflowServiceImpl.ciCdConfig.CiNodeLabelSelector, createdWf.Spec.NodeSelector)
 
-		assert.Equal(t, 6, len(spec["templates"].(interface{}).([]interface{})))
+		assert.Equal(t, 6, len(createdWf.Spec.Templates))
 
-		for _, template := range spec["templates"].(interface{}).([]interface{}) {
-			if template.(interface{}).(map[string]interface{})["name"] == bean2.CI_WORKFLOW_NAME {
+		for _, template := range createdWf.Spec.Templates {
+			if template.Name == bean2.CI_WORKFLOW_NAME {
 
-				verifyTemplateSpecContainerPort(t, template.(interface{}).(map[string]interface{}))
+				verifyTemplateSpecContainerPort(t, template)
 
-				//	verifyTemplateSpecContainerEnvFrom(t, template.(interface{}).(map[string]interface{}))
+				verifyTemplateSpecContainerEnvFrom(t, template, 4)
 
-				verifyTemplateSpecContainerEnv(t, template.(interface{}).(map[string]interface{}), workflowServiceImpl)
+				verifyTemplateSpecContainerEnv(t, template, workflowServiceImpl)
 
-				verifyResourceLimitAndRequest(t, template.(interface{}).(map[string]interface{}), workflowServiceImpl)
+				verifyResourceLimitAndRequest(t, template, workflowServiceImpl)
 
-				verifyTemplateSpecContainerVolumeMounts(t, template.(interface{}).(map[string]interface{}), 4)
+				verifyTemplateSpecContainerVolumeMounts(t, template, 4)
 
-				verifyS3BlobStorage(t, template.(interface{}).(map[string]interface{}), workflowServiceImpl, workflowRequest)
-
-			}
-			if template.(interface{}).(map[string]interface{})["name"] == bean2.CI_WORKFLOW_WITH_STAGES {
-
-				verifyTemplateSteps(t, template.(interface{}).(map[string]interface{})["steps"].(interface{}).([]interface{}))
+				verifyS3BlobStorage(t, template, workflowServiceImpl, workflowRequest)
 
 			}
-			if template.(interface{}).(map[string]interface{})["name"] == "cm-0" {
+			if template.Name == bean2.CI_WORKFLOW_WITH_STAGES {
 
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", cmManifest)
-
-			}
-			if template.(interface{}).(map[string]interface{})["name"] == "cm-1" {
-
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", cmManifest2)
+				verifyTemplateSteps(t, template.Steps)
 
 			}
-			if template.(interface{}).(map[string]interface{})["name"] == "sec-0" {
+			if template.Name == "cm-0" {
 
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", secManifest)
+				verifyTemplateResource(t, template.Resource, "create", cmManifest)
 
 			}
-			if template.(interface{}).(map[string]interface{})["name"] == "sec-1" {
+			if template.Name == "cm-1" {
 
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", secManifest2)
+				verifyTemplateResource(t, template.Resource, "create", cmManifest2)
+
+			}
+			if template.Name == "sec-0" {
+
+				verifyTemplateResource(t, template.Resource, "create", secManifest)
+
+			}
+			if template.Name == "sec-1" {
+
+				verifyTemplateResource(t, template.Resource, "create", secManifest2)
 
 			}
 		}
 
-		assert.Equal(t, 4, len(spec["volumes"].(interface{}).([]interface{})))
+		assert.Equal(t, 4, len(createdWf.Spec.Volumes))
 
 		verifyToleration(t, workflowServiceImpl, createdWf)
 	})
@@ -677,12 +683,9 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			EnvironmentId:             0,
 			OrchestratorHost:          "http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats",
 			OrchestratorToken:         "",
-			IsExtRun:                  true,
+			IsExtRun:                  false,
 			ImageRetryCount:           0,
 			ImageRetryInterval:        5,
-			Type:                      bean2.JOB_WORKFLOW_PIPELINE_TYPE,
-			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-
 			Env: &repository3.Environment{
 				Id:        3,
 				Name:      "2-devtron",
@@ -715,111 +718,131 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 				Description:           "",
 				IsVirtualEnvironment:  false,
 			},
+			Type:             bean2.JOB_WORKFLOW_PIPELINE_TYPE,
+			WorkflowExecutor: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
 		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
-		createdWf := data.Items[0].Object
-		fmt.Println(createdWf)
 
+		createdWf := &v1alpha1.Workflow{}
+		obj := data.Items[0].Object
+
+		runtime.DefaultUnstructuredConverter.FromUnstructured(obj, createdWf)
 		verifyMetadata(t, workflowRequest, createdWf)
 
-		spec := createdWf["spec"].(interface{}).(map[string]interface{})
-		verifySpec(t, workflowServiceImpl, spec, bean2.CI_WORKFLOW_WITH_STAGES)
+		verifySpec(t, workflowServiceImpl, createdWf, bean2.CI_WORKFLOW_WITH_STAGES)
 
-		assert.Equal(t, 10, len(spec["templates"].(interface{}).([]interface{})))
+		assert.Equal(t, 10, len(createdWf.Spec.Templates))
 
-		for _, template := range spec["templates"].(interface{}).([]interface{}) {
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == bean2.CI_WORKFLOW_NAME {
+		for _, template := range createdWf.Spec.Templates {
+			if template.Name == bean2.CI_WORKFLOW_NAME {
 
-				verifyTemplateSpecContainerPort(t, template.(interface{}).(map[string]interface{}))
+				verifyTemplateSpecContainerPort(t, template)
 
-				//verifyTemplateSpecContainerEnvFrom(t, template, 8)
+				verifyTemplateSpecContainerEnvFrom(t, template, 8)
 
-				verifyTemplateSpecContainerEnv(t, template.(interface{}).(map[string]interface{}), workflowServiceImpl)
+				verifyTemplateSpecContainerEnv(t, template, workflowServiceImpl)
 
-				verifyResourceLimitAndRequest(t, template.(interface{}).(map[string]interface{}), workflowServiceImpl)
+				verifyResourceLimitAndRequest(t, template, workflowServiceImpl)
 
-				verifyTemplateSpecContainerVolumeMounts(t, template.(interface{}).(map[string]interface{}), 8)
+				verifyTemplateSpecContainerVolumeMounts(t, template, 8)
 
-				verifyS3BlobStorage(t, template.(interface{}).(map[string]interface{}), workflowServiceImpl, workflowRequest)
-
-			}
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == bean2.CI_WORKFLOW_WITH_STAGES {
-
-				verifyTemplateSteps(t, template.(interface{}).(map[string]interface{})["steps"].(interface{}).([]interface{}))
+				verifyS3BlobStorage(t, template, workflowServiceImpl, workflowRequest)
 
 			}
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == "cm-0" {
+			if template.Name == bean2.CI_WORKFLOW_WITH_STAGES {
 
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", cmManifest)
-
-			}
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == "cm-1" {
-
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", cmManifest2)
+				verifyTemplateSteps(t, template.Steps)
 
 			}
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == "cm-3" {
+			if template.Name == "cm-0" {
 
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", "")
-
-			}
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == "cm-2" {
-
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", "")
+				verifyTemplateResource(t, template.Resource, "create", cmManifest)
 
 			}
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == "sec-2" {
+			if template.Name == "cm-1" {
 
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", "")
-
-			}
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == "sec-3" {
-
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", "")
+				verifyTemplateResource(t, template.Resource, "create", cmManifest2)
 
 			}
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == "sec-1" {
+			if template.Name == "cm-3" {
 
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", secManifest2)
+				verifyTemplateResource(t, template.Resource, "create", cmManifest3)
 
 			}
-			if template.(interface{}).(map[string]interface{})["name"].(interface{}).(string) == "sec-0" {
+			if template.Name == "cm-2" {
 
-				verifyTemplateResource(t, template.(interface{}).(map[string]interface{})["resource"].(interface{}).(map[string]interface{}), "create", secManifest)
+				verifyTemplateResource(t, template.Resource, "create", cmManifest4)
+
+			}
+			if template.Name == "sec-2" {
+
+				verifyTemplateResource(t, template.Resource, "create", secManifest4)
+
+			}
+			if template.Name == "sec-3" {
+
+				verifyTemplateResource(t, template.Resource, "create", secManifest3)
+
+			}
+			if template.Name == "sec-1" {
+
+				verifyTemplateResource(t, template.Resource, "create", secManifest2)
+
+			}
+			if template.Name == "sec-0" {
+
+				verifyTemplateResource(t, template.Resource, "create", secManifest)
 
 			}
 		}
 
-		assert.Equal(t, 8, len(spec["volumes"].(interface{}).([]interface{})))
+		assert.Equal(t, 8, len(createdWf.Spec.Volumes))
 
 		verifyToleration(t, workflowServiceImpl, createdWf)
 	})
 
 }
 
-func verifyTemplateSteps(t *testing.T, steps []interface{}) {
+func verifyTemplateSteps(t *testing.T, steps []v1alpha1.ParallelSteps) {
 	count := 0
 	for _, step := range steps {
-		if step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["template"].(interface{}).(string) == "cm-0" {
-			assert.Equal(t, "create-env-cm-0", step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["name"].(interface{}).(string))
+		if step.Steps[0].Template == "cm-0" {
+			assert.Equal(t, "create-env-cm-0", step.Steps[0].Name)
 			count++
 		}
-		if step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["template"].(interface{}).(string) == "cm-1" {
-			assert.Equal(t, "create-env-cm-1", step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["name"].(interface{}).(string))
+		if step.Steps[0].Template == "cm-1" {
+			assert.Equal(t, "create-env-cm-1", step.Steps[0].Name)
 			count++
 
 		}
-		if step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["template"].(interface{}).(string) == "sec-0" {
-			assert.Equal(t, "create-env-sec-0", step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["name"].(interface{}).(string))
+		if step.Steps[0].Template == "cm-2" {
+			assert.Equal(t, "create-env-cm-2", step.Steps[0].Name)
 			count++
 		}
-		if step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["template"].(interface{}).(string) == "sec-1" {
-			assert.Equal(t, "create-env-sec-1", step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["name"].(interface{}).(string))
+		if step.Steps[0].Template == "cm-3" {
+			assert.Equal(t, "create-env-cm-3", step.Steps[0].Name)
+			count++
+
+		}
+		if step.Steps[0].Template == "sec-0" {
+			assert.Equal(t, "create-env-sec-0", step.Steps[0].Name)
 			count++
 		}
-		if step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["template"].(interface{}).(string) == "ci" {
-			assert.Equal(t, "run-wf", step.(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["name"].(interface{}).(string))
+		if step.Steps[0].Template == "sec-1" {
+			assert.Equal(t, "create-env-sec-1", step.Steps[0].Name)
+			count++
+		}
+		if step.Steps[0].Template == "sec-2" {
+			assert.Equal(t, "create-env-sec-2", step.Steps[0].Name)
+			count++
+		}
+		if step.Steps[0].Template == "sec-3" {
+			assert.Equal(t, "create-env-sec-3", step.Steps[0].Name)
+			count++
+		}
+		if step.Steps[0].Template == "ci" {
+			assert.Equal(t, "run-wf", step.Steps[0].Name)
 			count++
 		}
 	}
@@ -827,64 +850,64 @@ func verifyTemplateSteps(t *testing.T, steps []interface{}) {
 
 }
 
-func verifyTemplateResource(t *testing.T, resource map[string]interface{}, action string, manifest string) {
-	assert.Equal(t, action, resource["action"])
-	//assert.Equal(t, manifest, resource["manifest"])
+func verifyTemplateResource(t *testing.T, resource *v1alpha1.ResourceTemplate, action string, manifest string) {
+	assert.Equal(t, action, resource.Action)
+	//assert.Equal(t, manifest, resource.Manifest)
 }
 
-func verifyMetadata(t *testing.T, workflowRequest WorkflowRequest, createdWf map[string]interface{}) {
-	assert.Equal(t, map[string]string{"devtron.ai/workflow-purpose": "ci"}, createdWf["metadata"].(interface{}).(map[string]interface{})["labels"])
-	assert.Equal(t, workflowRequest.WorkflowNamePrefix+"-", createdWf["metadata"].(interface{}).(map[string]interface{})["generateName"])
-	assert.Equal(t, workflowRequest.Namespace, createdWf["metadata"].(interface{}).(map[string]interface{})["namespace"])
+func verifyMetadata(t *testing.T, workflowRequest WorkflowRequest, createdWf *v1alpha1.Workflow) {
+	assert.Equal(t, map[string]string{"devtron.ai/workflow-purpose": "ci"}, createdWf.ObjectMeta.Labels)
+	assert.Equal(t, workflowRequest.WorkflowNamePrefix+"-", createdWf.ObjectMeta.GenerateName)
+	assert.Equal(t, workflowRequest.Namespace, createdWf.ObjectMeta.Namespace)
 }
 
-func verifySpec(t *testing.T, workflowServiceImpl *WorkflowServiceImpl, spec map[string]interface{}, stageName string) {
-	assert.Equal(t, stageName, spec["entrypoint"].(interface{}).(string))
-	assert.Equal(t, workflowServiceImpl.ciCdConfig.CiWorkflowServiceAccount, spec["serviceAccountName"])
+func verifySpec(t *testing.T, workflowServiceImpl *WorkflowServiceImpl, createdWf *v1alpha1.Workflow, stageName string) {
+	assert.Equal(t, stageName, createdWf.Spec.Entrypoint)
+	assert.Equal(t, workflowServiceImpl.ciCdConfig.CiWorkflowServiceAccount, createdWf.Spec.ServiceAccountName)
 }
 
-func verifyTemplateSpecContainerPort(t *testing.T, template map[string]interface{}) {
-	assert.Equal(t, 1, len(template["container"].(interface{}).(map[string]interface{})["ports"].(interface{}).([]interface{})))
-	assert.Equal(t, "app-data", template["container"].(interface{}).(map[string]interface{})["ports"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["name"])
-	assert.Equal(t, int32(9102), template["container"].(interface{}).(map[string]interface{})["ports"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["containerPort"])
+func verifyTemplateSpecContainerPort(t *testing.T, template v1alpha1.Template) {
+	assert.Equal(t, 1, len(template.Container.Ports))
+	assert.Equal(t, "app-data", template.Container.Ports[0].Name)
+	assert.Equal(t, int32(9102), template.Container.Ports[0].ContainerPort)
 }
 
-func verifyTemplateSpecContainerEnv(t *testing.T, template map[string]interface{}, workflowServiceImpl *WorkflowServiceImpl) {
-	assert.Equal(t, 3, len(template["container"].(interface{}).(map[string]interface{})["env"].(interface{}).([]interface{})))
-	for _, env := range template["container"].(interface{}).(map[string]interface{})["env"].(interface{}).([]interface{}) {
-		if env.(interface{}).(map[string]interface{})["name"] == "IMAGE_SCANNER_ENDPOINT" {
-			assert.Equal(t, workflowServiceImpl.ciCdConfig.ImageScannerEndpoint, env.(interface{}).(map[string]interface{})["value"])
+func verifyTemplateSpecContainerEnv(t *testing.T, template v1alpha1.Template, workflowServiceImpl *WorkflowServiceImpl) {
+	assert.Equal(t, 3, len(template.Container.Env))
+	for _, env := range template.Container.Env {
+		if env.Name == "IMAGE_SCANNER_ENDPOINT" {
+			assert.Equal(t, workflowServiceImpl.ciCdConfig.ImageScannerEndpoint, env.Value)
 		}
 	}
 }
 
-//func verifyTemplateSpecContainerEnvFrom(t *testing.T, template map[string]interface{}) {
-//	count := 0
-//	for _, envFrom := range template["container"].(interface{}).(map[string]interface{})["env"].(interface{}).([]interface{}) {
-//		if envFrom.(interface{}).(map[string]interface{})["secretRef"] != nil {
-//			assert.True(t, envFrom.SecretRef.LocalObjectReference.Name != "")
-//			count++
-//		}
-//		if envFrom.ConfigMapRef != nil {
-//			assert.True(t, envFrom.ConfigMapRef.LocalObjectReference.Name != "")
-//			count++
-//		}
-//	}
-//	assert.Equal(t, 4, count)
-//}
+func verifyTemplateSpecContainerEnvFrom(t *testing.T, template v1alpha1.Template, sum int) {
+	count := 0
+	for _, envFrom := range template.Container.EnvFrom {
+		if envFrom.SecretRef != nil {
+			assert.True(t, envFrom.SecretRef.LocalObjectReference.Name != "")
+			count++
+		}
+		if envFrom.ConfigMapRef != nil {
+			assert.True(t, envFrom.ConfigMapRef.LocalObjectReference.Name != "")
+			count++
+		}
+	}
+	assert.Equal(t, sum, count)
+}
 
-func verifyTemplateSpecContainerVolumeMounts(t *testing.T, template map[string]interface{}, count int) {
-	assert.Equal(t, count, len(template["container"].(interface{}).(map[string]interface{})["volumeMounts"].(interface{}).([]interface{})))
-	for _, volumeMount := range template["container"].(interface{}).(map[string]interface{})["volumeMounts"].(interface{}).([]interface{}) {
-		assert.True(t, volumeMount.(interface{}).(map[string]interface{})["Name"] != "")
-		assert.True(t, volumeMount.(interface{}).(map[string]interface{})["mountPath"] != "")
+func verifyTemplateSpecContainerVolumeMounts(t *testing.T, template v1alpha1.Template, count int) {
+	assert.Equal(t, count, len(template.Container.VolumeMounts))
+	for _, volumeMount := range template.Container.VolumeMounts {
+		assert.True(t, volumeMount.Name != "")
+		assert.True(t, volumeMount.MountPath != "")
 	}
 }
 
-func verifyResourceLimitAndRequest(t *testing.T, template map[string]interface{}, workflowServiceImpl *WorkflowServiceImpl) {
+func verifyResourceLimitAndRequest(t *testing.T, template v1alpha1.Template, workflowServiceImpl *WorkflowServiceImpl) {
 
-	resourceLimit := template["container"].(interface{}).(map[string]interface{})["resources"].(interface{}).(map[string]interface{})["limits"].(interface{}).(map[string]interface{})
-	resourceRequest := template["container"].(interface{}).(map[string]interface{})["resources"].(interface{}).(map[string]interface{})["requests"].(interface{}).(map[string]interface{})
+	resourceLimit := template.Container.Resources.Limits
+	resourceRequest := template.Container.Resources.Requests
 
 	//assert.Equal(t, resourceLimit["cpu"], resource.MustParse(workflowServiceImpl.ciConfig.LimitCpu))
 	assert.Equal(t, resourceLimit["memory"], resource.MustParse(workflowServiceImpl.ciCdConfig.CiLimitMem))
@@ -892,12 +915,12 @@ func verifyResourceLimitAndRequest(t *testing.T, template map[string]interface{}
 	assert.Equal(t, resourceRequest["memory"], resource.MustParse(workflowServiceImpl.ciCdConfig.CiReqMem))
 }
 
-func verifyS3BlobStorage(t *testing.T, template map[string]interface{}, workflowServiceImpl *WorkflowServiceImpl, workflowRequest WorkflowRequest) {
+func verifyS3BlobStorage(t *testing.T, template v1alpha1.Template, workflowServiceImpl *WorkflowServiceImpl, workflowRequest WorkflowRequest) {
 
-	assert.Equal(t, true, template["archiveLocation"].(interface{}).(map[string]interface{})["archiveLogs"].(interface{}).(bool))
-	assert.Equal(t, workflowServiceImpl.ciCdConfig.CiDefaultBuildLogsKeyPrefix+"/"+workflowRequest.WorkflowNamePrefix, template["archiveLocation"].(interface{}).(map[string]interface{})["s3"].(interface{}).(map[string]interface{})["key"].(interface{}).(string))
-	assert.Equal(t, "accessKey", template["archiveLocation"].(interface{}).(map[string]interface{})["s3"].(interface{}).(map[string]interface{})["accessKeySecret"].(interface{}).(map[string]interface{})["key"].(interface{}).(string))
-	assert.Equal(t, "workflow-minio-cred", template["archiveLocation"].(interface{}).(map[string]interface{})["s3"].(interface{}).(map[string]interface{})["accessKeySecret"].(interface{}).(map[string]interface{})["name"].(interface{}).(string))
+	assert.Equal(t, true, *template.ArchiveLocation.ArchiveLogs)
+	assert.Equal(t, workflowServiceImpl.ciCdConfig.CiDefaultBuildLogsKeyPrefix+"/"+workflowRequest.WorkflowNamePrefix, template.ArchiveLocation.S3.Key)
+	assert.Equal(t, "accessKey", template.ArchiveLocation.S3.S3Bucket.AccessKeySecret.Key)
+	assert.Equal(t, "workflow-minio-cred", template.ArchiveLocation.S3.S3Bucket.AccessKeySecret.LocalObjectReference.Name)
 	blobStorageS3Config := workflowRequest.BlobStorageS3Config
 	s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
 	if s3CompatibleEndpointUrl == "" {
@@ -911,18 +934,18 @@ func verifyS3BlobStorage(t *testing.T, template map[string]interface{}, workflow
 		}
 	}
 
-	assert.Equal(t, s3CompatibleEndpointUrl, template["archiveLocation"].(interface{}).(map[string]interface{})["s3"].(interface{}).(map[string]interface{})["endpoint"].(interface{}).(string))
-	assert.Equal(t, blobStorageS3Config.CiLogBucketName, template["archiveLocation"].(interface{}).(map[string]interface{})["s3"].(interface{}).(map[string]interface{})["bucket"].(interface{}).(string))
-	assert.Equal(t, blobStorageS3Config.CiLogRegion, template["archiveLocation"].(interface{}).(map[string]interface{})["s3"].(interface{}).(map[string]interface{})["region"].(interface{}).(string))
-	assert.Equal(t, blobStorageS3Config.IsInSecure, template["archiveLocation"].(interface{}).(map[string]interface{})["s3"].(interface{}).(map[string]interface{})["insecure"].(interface{}).(bool))
-	assert.Equal(t, "secretKey", template["archiveLocation"].(interface{}).(map[string]interface{})["s3"].(interface{}).(map[string]interface{})["secretKeySecret"].(interface{}).(map[string]interface{})["key"].(interface{}).(string))
-	assert.Equal(t, "workflow-minio-cred", template["archiveLocation"].(interface{}).(map[string]interface{})["s3"].(interface{}).(map[string]interface{})["secretKeySecret"].(interface{}).(map[string]interface{})["name"].(interface{}).(string))
+	assert.Equal(t, s3CompatibleEndpointUrl, template.ArchiveLocation.S3.S3Bucket.Endpoint)
+	assert.Equal(t, blobStorageS3Config.CiLogBucketName, template.ArchiveLocation.S3.S3Bucket.Bucket)
+	assert.Equal(t, blobStorageS3Config.CiLogRegion, template.ArchiveLocation.S3.S3Bucket.Region)
+	assert.Equal(t, blobStorageS3Config.IsInSecure, *template.ArchiveLocation.S3.S3Bucket.Insecure)
+	assert.Equal(t, "secretKey", template.ArchiveLocation.S3.S3Bucket.SecretKeySecret.Key)
+	assert.Equal(t, "workflow-minio-cred", template.ArchiveLocation.S3.S3Bucket.SecretKeySecret.LocalObjectReference.Name)
 }
 
-func verifyToleration(t *testing.T, workflowServiceImpl *WorkflowServiceImpl, createdWf map[string]interface{}) {
-	assert.Equal(t, 1, len(createdWf["spec"].(interface{}).(map[string]interface{})["tolerations"].(interface{}).([]interface{})))
-	assert.Equal(t, workflowServiceImpl.ciCdConfig.CiTaintKey, createdWf["spec"].(interface{}).(map[string]interface{})["tolerations"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["key"])
-	assert.Equal(t, v12.TolerationOpEqual, createdWf["spec"].(interface{}).(map[string]interface{})["tolerations"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["operator"])
-	assert.Equal(t, workflowServiceImpl.ciCdConfig.CiTaintValue, createdWf["spec"].(interface{}).(map[string]interface{})["tolerations"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["value"])
-	assert.Equal(t, v12.TaintEffectNoSchedule, createdWf["spec"].(interface{}).(map[string]interface{})["tolerations"].(interface{}).([]interface{})[0].(interface{}).(map[string]interface{})["effect"])
+func verifyToleration(t *testing.T, workflowServiceImpl *WorkflowServiceImpl, createdWf *v1alpha1.Workflow) {
+	assert.Equal(t, 1, len(createdWf.Spec.Tolerations))
+	assert.Equal(t, workflowServiceImpl.ciCdConfig.CiTaintKey, createdWf.Spec.Tolerations[0].Key)
+	assert.Equal(t, v12.TolerationOpEqual, createdWf.Spec.Tolerations[0].Operator)
+	assert.Equal(t, workflowServiceImpl.ciCdConfig.CiTaintValue, createdWf.Spec.Tolerations[0].Value)
+	assert.Equal(t, v12.TaintEffectNoSchedule, createdWf.Spec.Tolerations[0].Effect)
 }
