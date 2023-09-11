@@ -27,8 +27,8 @@ func ManifestToPayload(manifest models.ScopedVariableManifest, userId int32) mod
 				VarName:          spec.Name,
 				DataType:         "primitive",
 				VarType:          repository.PUBLIC,
-				Description:      spec.Description,
-				ShortDescription: spec.ShortDescription,
+				Description:      spec.Documentation,
+				ShortDescription: spec.Description,
 			},
 			AttributeValues: attributes,
 		}
@@ -52,10 +52,10 @@ func PayloadToManifest(payload models.Payload) models.ScopedVariableManifest {
 	}
 	for _, variable := range payload.Variables {
 		spec := models.VariableSpec{
-			Name:             variable.Definition.VarName,
-			Description:      variable.Definition.Description,
-			ShortDescription: variable.Definition.ShortDescription,
-			Values:           make([]models.VariableValueSpec, 0),
+			Name:          variable.Definition.VarName,
+			Documentation: variable.Definition.Description,
+			Description:   variable.Definition.ShortDescription,
+			Values:        make([]models.VariableValueSpec, 0),
 		}
 		if variable.Definition.VarType == repository.PRIVATE {
 			spec.IsSensitive = true
