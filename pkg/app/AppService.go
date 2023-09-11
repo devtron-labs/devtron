@@ -1453,7 +1453,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope models2.Sco
 	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
 		return template, variableMap, nil
 	}
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], false)
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
 	if err != nil {
 		return "", nil, err
 	}

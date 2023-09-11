@@ -18,7 +18,7 @@ import (
 
 type ScopedVariableService interface {
 	CreateVariables(payload models.Payload) error
-	GetScopedVariables(scope models.Scope, varNames []string, isSensitive bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
+	GetScopedVariables(scope models.Scope, varNames []string, isSuperAdmin bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
 	GetJsonForVariables() (*models.Payload, error)
 }
 
@@ -301,7 +301,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 	return selectedParentScope
 }
 
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, isSensitive bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, isSuperAdmin bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	// getting all variables from cache
 	allVariableDefinitions := impl.VariableCache.GetData()
@@ -365,8 +365,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		}
 	}
 	//for empty the data when varType is private
-	if isSensitive {
-		variableData = isSensitivePayload(allVariableDefinitions, varScope, variableData)
+	if !isSuperAdmin {
+		variableData = maskPrivateData(allVariableDefinitions, varScope, variableData)
 	}
 
 	scopeIdToVarData := make(map[int]*repository2.VariableData)
@@ -405,7 +405,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	return scopedVariableDataObj, err
 }
 
-func isSensitivePayload(allVariableDefinitions []*repository2.VariableDefinition, varScope []*repository2.VariableScope, variableData []*repository2.VariableData) []*repository2.VariableData {
+func maskPrivateData(allVariableDefinitions []*repository2.VariableDefinition, varScope []*repository2.VariableScope, variableData []*repository2.VariableData) []*repository2.VariableData {
 	for _, def := range allVariableDefinitions {
 		if def.VarType == repository2.PRIVATE {
 			for _, vScope := range varScope {
