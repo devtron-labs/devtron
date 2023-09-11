@@ -1667,8 +1667,7 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 
 	callback := func(msg *pubsub.PubSubMsg) {
 
-		impl.logger.Debug("received helm install status event")
-		impl.logger.Debugw("HELM_INSTALL_STATUS", "data", msg.Data)
+		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
 		helmInstallNatsMessage := &appStoreBean.HelmInstallNatsMessage{}
 		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
 		if err != nil {
