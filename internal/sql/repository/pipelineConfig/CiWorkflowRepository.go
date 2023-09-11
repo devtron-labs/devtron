@@ -283,13 +283,13 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 
 	ciworkflowStatuses := make([]*CiWorkflowStatus, 0)
 
-	query := "SELECT cw1.ci_pipeline_id,cw1.status as ci_status,cw1.blob_storage_enabled as storage_configured " +
-		" FROM ci_workflow cw1 INNER JOIN " +
-		" (SELECT cp.id, max(cw.id) " +
-		" FROM ci_workflow cw INNER JOIN " +
-		" ci_pipeline cp ON cw.ci_pipeline_id = cp.id or cw.ci_pipeline_id = cp.parent_ci_pipeline" +
-		" WHERE cp.app_id=? AND cp.deleted=false " +
-		" GROUP BY cp.id) cw2 " +
+	query := "SELECT cw1.ci_pipeline_id,cw1.status AS ci_status,cw1.blob_storage_enabled AS storage_configured " +
+		" FROM ci_workflow cw1 " +
+		" INNER JOIN " +
+		" (WITH cp AS (SELECT id, parent_ci_pipeline FROM ci_pipeline WHERE app_id = ? AND deleted=false ) " +
+		" SELECT  cw.ci_pipeline_id, max(cw.id) " +
+		" FROM ci_workflow cw WHERE cw.ci_pipeline_id IN (SELECT cp.id FROM cp) OR cw.ci_pipeline_id IN (SELECT cp.parent_ci_pipeline FROM cp) " +
+		" GROUP BY ci_pipeline_id) cw2 " +
 		" ON cw1.id = cw2.max;"
 	_, err := impl.dbConnection.Query(&ciworkflowStatuses, query, appId) //, pg.In(ciPipelineIds))
 	if err != nil {
