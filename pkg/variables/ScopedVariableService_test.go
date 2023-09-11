@@ -935,6 +935,15 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 			Description: "Variable 1",
 		},
 	}
+	varDef2 := []*repository.VariableDefinition{
+		{
+			Id:          1,
+			Name:        "PrivateVar",
+			DataType:    "primitive",
+			VarType:     "private",
+			Description: "Variable 1",
+		},
+	}
 	variableScope := []*repository.VariableScope{
 		{
 			Id:                    1,
@@ -1020,6 +1029,13 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 			Data:            "\"" + "value-5" + "\"",
 		},
 	}
+	varData1 := []*repository.VariableData{
+		{
+			Id:              1,
+			VariableScopeId: 1,
+			Data:            "\"" + "value-private" + "\"",
+		},
+	}
 	variableScope1 := []*repository.VariableScope{
 		{
 			Id:                    1,
@@ -1049,43 +1065,64 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 			Data:                 "value-4",
 		},
 	}
+	variableScope2 := []*repository.VariableScope{
+		{
+			Id:                    1,
+			VariableDefinitionId:  1,
+			QualifierId:           3,
+			IdentifierKey:         6,
+			IdentifierValueInt:    3,
+			IdentifierValueString: "dev-test",
+			Data:                  "value-1",
+		},
+	}
+
 	scope := models.Scope{AppId: 1, ClusterId: 1, EnvId: 1}
 	scope1 := models.Scope{AppId: 1}
 	scopedVariableData := []*models.ScopedVariableData{
 		{
-			VariableName: "Var1",
-			Description:  "variable 1",
-			VariableValue: models.VariableValue{
+			VariableName:     "Var1",
+			ShortDescription: "variable 1",
+			VariableValue: &models.VariableValue{
 				Value: "value-1",
 			},
 		},
 		{
-			VariableName: "Var2",
-			Description:  "variable 2",
+			VariableName:     "Var2",
+			ShortDescription: "variable 2",
 		},
 	}
 	scopedVariableData1 := []*models.ScopedVariableData{
 		{
-			VariableName: "Var1",
-			Description:  "variable 1",
-			VariableValue: models.VariableValue{
+			VariableName:     "Var1",
+			ShortDescription: "variable 1",
+			VariableValue: &models.VariableValue{
 				Value: "value-1",
 			},
 		},
 	}
 	scopedVariableData2 := []*models.ScopedVariableData{
 		{
-			VariableName: "Var1",
-			Description:  "variable 1",
-			VariableValue: models.VariableValue{
+			VariableName:     "Var1",
+			ShortDescription: "variable 1",
+			VariableValue: &models.VariableValue{
 				Value: "value-2",
 			},
 		},
 	}
+	scopedVariableData3 := []*models.ScopedVariableData{
+		{
+			VariableName:     "PrivateVar",
+			ShortDescription: "variable 1",
+			VariableValue: &models.VariableValue{
+				Value: "***",
+			},
+		},
+	}
 	type args struct {
-		scope           models.Scope
-		varNames        []string
-		includesDetails bool
+		scope        models.Scope
+		varNames     []string
+		isSuperAdmin bool
 	}
 	tests := []struct {
 		name                      string
@@ -1146,6 +1183,15 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 			wantErr:                   assert.NoError,
 			wantScopedVariableDataObj: scopedVariableData2,
 		},
+		{
+			name: "test for private variable",
+			args: args{
+				scope:        scope1,
+				isSuperAdmin: false,
+			},
+			wantErr:                   assert.NoError,
+			wantScopedVariableDataObj: scopedVariableData3,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1182,12 +1228,18 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 				scopedVariableRepository.On("GetScopedVariableData", scope1, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope1, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(varData, nil)
 			}
+			if tt.name == "test for private variable" {
+				scopedVariableRepository.On("GetAllVariables").Return(varDef2, nil)
+				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
+				scopedVariableRepository.On("GetScopedVariableData", scope1, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope2, nil)
+				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(varData1, nil)
+			}
 
-			gotScopedVariableDataObj, err := impl.GetScopedVariables(tt.args.scope, tt.args.varNames, tt.args.includesDetails)
+			gotScopedVariableDataObj, err := impl.GetScopedVariables(tt.args.scope, tt.args.varNames, tt.args.isSuperAdmin)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetScopedVariables(%v, %v)", tt.args.scope, tt.args.varNames)) {
 				return
 			}
-			if tt.name == "get scoped variable data" || tt.name == "get data when varName is not provided" || tt.name == "get scoped variable data for provided appId" {
+			if tt.name == "get scoped variable data" || tt.name == "get data when varName is not provided" || tt.name == "get scoped variable data for provided appId" || tt.name == "test for private variable" {
 				assert.Equalf(t, tt.wantScopedVariableDataObj[0].VariableName, gotScopedVariableDataObj[0].VariableName, "GetScopedVariables(%v, %v)", tt.args.scope, tt.args.varNames)
 				assert.Equalf(t, tt.wantScopedVariableDataObj[0].VariableValue.Value, gotScopedVariableDataObj[0].VariableValue.Value, "GetScopedVariables(%v, %v)", tt.args.scope, tt.args.varNames)
 			} else {
@@ -1214,10 +1266,11 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 		Variables: []*models.Variables{
 			{
 				Definition: models.Definition{
-					VarName:     "Var1",
-					DataType:    "primitive",
-					VarType:     "public",
-					Description: "Variable 1",
+					VarName:          "Var1",
+					DataType:         "primitive",
+					VarType:          "public",
+					Description:      "Variable 1",
+					ShortDescription: "ShortDescription-Variable 1",
 				},
 				AttributeValues: []models.AttributeValue{
 					{
@@ -1359,13 +1412,14 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 
 	variableDefinition := []*repository.VariableDefinition{
 		{
-			Id:            1,
-			Name:          "Var1",
-			DataType:      "primitive",
-			VarType:       "public",
-			Description:   "Variable 1",
-			Active:        true,
-			VariableScope: variableScope,
+			Id:               1,
+			Name:             "Var1",
+			DataType:         "primitive",
+			VarType:          "public",
+			Description:      "Variable 1",
+			ShortDescription: "ShortDescription-Variable 1",
+			Active:           true,
+			VariableScope:    variableScope,
 		},
 	}
 
