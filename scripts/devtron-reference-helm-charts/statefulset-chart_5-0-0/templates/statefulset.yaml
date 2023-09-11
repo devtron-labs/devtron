@@ -553,8 +553,6 @@ spec:
           annotations: {{ toYaml .metadata.annotations | nindent 14 }}
           {{- end}}
           labels:
-              appId: {{ $.Values.app | quote }}
-              envId: {{ $.Values.env | quote }}          
           {{- if and .metadata .metadata.labels -}}
           {{ toYaml .metadata.labels | nindent 14 }}
           {{- end}}
