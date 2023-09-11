@@ -1103,6 +1103,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			appDetailsContainer.ReleaseStatus = releaseStatus
 			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
 		} else {
+			// case when helm release is not created
 			releaseStatus := impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus)
 			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
 			appDetailsContainer.ReleaseStatus = releaseStatusMap
@@ -1134,6 +1135,11 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 			releaseStatus.Status = "Failed"
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = "Release for this app doesn't exist"
+		} else {
+			// there can be a case when helm release is created but we are not able to fetch it
+			releaseStatus.Status = "Unknown"
+			releaseStatus.Description = "Unable to fetch release for app"
+			releaseStatus.Message = "Unable to fetch release for app"
 		}
 	} else {
 		releaseStatus.Status = "Unknown"

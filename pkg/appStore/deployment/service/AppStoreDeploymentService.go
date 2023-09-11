@@ -1060,14 +1060,6 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 			return err
 		}
 	}
-	if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
-		err = impl.UpdateInstallAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, "Succeeded")
-		if err != nil {
-			impl.logger.Errorw("error in updating installed app version history status for helm app")
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -1690,6 +1682,8 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 		}
 		if !helmInstallNatsMessage.IsReleaseInstalled {
 			installedAppVersionHistory.Status = "Failed"
+		} else if helmInstallNatsMessage.IsReleaseInstalled {
+			installedAppVersionHistory.Status = "Succeeded"
 		}
 		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
