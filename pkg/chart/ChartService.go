@@ -1346,7 +1346,7 @@ func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope models2.Sc
 		return template, variableMap, nil
 	}
 
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables, false)
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables, true)
 	if err != nil {
 		return "", nil, err
 	}
