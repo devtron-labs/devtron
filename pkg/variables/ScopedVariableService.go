@@ -364,10 +364,6 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 			return nil, err
 		}
 	}
-	//for empty the data when varType is private
-	if !isSuperAdmin {
-		variableData = maskPrivateData(allVariableDefinitions, varScope, variableData)
-	}
 
 	scopeIdToVarData := make(map[int]*repository2.VariableData)
 	for _, varData := range variableData {
@@ -381,10 +377,17 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 			impl.logger.Errorw("error in validating value", "err", err)
 			return nil, err
 		}
+
+		var varValue *models.VariableValue
+		if !isSuperAdmin && variableIdToDefinition[varId].VarType == repository2.PRIVATE {
+			varValue = &models.VariableValue{Value: "***"}
+		} else {
+			varValue = &models.VariableValue{Value: value}
+		}
 		scopedVariableData := &models.ScopedVariableData{
 			VariableName:     variableIdToDefinition[varId].Name,
 			ShortDescription: variableIdToDefinition[varId].ShortDescription,
-			VariableValue:    &models.VariableValue{Value: value}}
+			VariableValue:    varValue}
 
 		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
 	}
@@ -403,23 +406,6 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 	}
 
 	return scopedVariableDataObj, err
-}
-
-func maskPrivateData(allVariableDefinitions []*repository2.VariableDefinition, varScope []*repository2.VariableScope, variableData []*repository2.VariableData) []*repository2.VariableData {
-	for _, def := range allVariableDefinitions {
-		if def.VarType == repository2.PRIVATE {
-			for _, vScope := range varScope {
-				if vScope.VariableDefinitionId == def.Id {
-					for _, vData := range variableData {
-						if vScope.Id == vData.VariableScopeId {
-							vData.Data = ""
-						}
-					}
-				}
-			}
-		}
-	}
-	return variableData
 }
 
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {

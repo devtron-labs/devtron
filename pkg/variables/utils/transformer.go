@@ -57,6 +57,9 @@ func PayloadToManifest(payload models.Payload) models.ScopedVariableManifest {
 			ShortDescription: variable.Definition.ShortDescription,
 			Values:           make([]models.VariableValueSpec, 0),
 		}
+		if variable.Definition.VarType == repository.PRIVATE {
+			spec.IsSensitive = true
+		}
 		for _, attribute := range variable.AttributeValues {
 			valueSpec := models.VariableValueSpec{
 				Value:    attribute.VariableValue.Value,
