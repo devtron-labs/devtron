@@ -1115,7 +1115,7 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 			VariableName:     "PrivateVar",
 			ShortDescription: "variable 1",
 			VariableValue: &models.VariableValue{
-				Value: "***",
+				Value: "",
 			},
 		},
 	}
