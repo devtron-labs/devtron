@@ -6,14 +6,15 @@ import (
 )
 
 type VariableDefinition struct {
-	tableName     struct{} `sql:"variable_definition" pg:",discard_unknown_columns"`
-	Id            int      `sql:"id,pk"`
-	Name          string   `sql:"name"`
-	DataType      string   `sql:"data_type"`
-	VarType       string   `sql:"var_type"`
-	Active        bool     `sql:"active"`
-	Description   string   `sql:"description"`
-	VariableScope []*VariableScope
+	tableName        struct{} `sql:"variable_definition" pg:",discard_unknown_columns"`
+	Id               int      `sql:"id,pk"`
+	Name             string   `sql:"name"`
+	DataType         string   `sql:"data_type"`
+	VarType          string   `sql:"var_type"`
+	Active           bool     `sql:"active"`
+	Description      string   `sql:"description"`
+	ShortDescription string   `json:"short_description"`
+	VariableScope    []*VariableScope
 	sql.AuditLog
 }
 
@@ -46,6 +47,10 @@ type Qualifier int
 const (
 	GLOBAL_QUALIFIER Qualifier = 5
 )
+const (
+	PRIVATE = "private"
+	PUBLIC  = "public"
+)
 
 var CompoundQualifiers []Qualifier
 
@@ -59,6 +64,7 @@ func CreateFromDefinition(definition models.Definition, auditLog sql.AuditLog) *
 	varDefinition.DataType = definition.DataType
 	varDefinition.VarType = definition.VarType
 	varDefinition.Description = definition.Description
+	varDefinition.ShortDescription = definition.ShortDescription
 	varDefinition.Active = true
 	varDefinition.AuditLog = auditLog
 	return varDefinition

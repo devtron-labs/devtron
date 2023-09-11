@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS "public"."variable_definition"
      "var_type"  varchar(50)     NOT NULL,
      "active" bool     NOT NULL,
      "description" text,
+    "short_description" text,
      "created_on"        timestamptz,
      "created_by"        integer,
      "updated_on"        timestamptz,

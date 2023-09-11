@@ -18,7 +18,7 @@ import (
 
 type ScopedVariableService interface {
 	CreateVariables(payload models.Payload) error
-	GetScopedVariables(scope models.Scope, varNames []string, includesDetails bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
+	GetScopedVariables(scope models.Scope, varNames []string, isSensitive bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
 	GetJsonForVariables() (*models.Payload, error)
 }
 
@@ -301,7 +301,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 	return selectedParentScope
 }
 
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, includesDetails bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, isSensitive bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	// getting all variables from cache
 	allVariableDefinitions := impl.VariableCache.GetData()
@@ -311,8 +311,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		return nil, nil
 	}
 
-	// Need to get from repo for includesDetails even if cache is loaded since cache only contains metadata
-	if includesDetails || allVariableDefinitions == nil {
+	// Need to get from repo for isSensitive even if cache is loaded since cache only contains metadata
+	if allVariableDefinitions == nil {
 		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
 
 		//Cache was not loaded and no active variables found
@@ -356,7 +356,6 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		scopeIds = append(scopeIds, scopeId)
 		foundVarIds = append(foundVarIds, varId)
 	}
-
 	var variableData []*repository2.VariableData
 	if len(scopeIds) != 0 {
 		variableData, err = impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
@@ -365,6 +364,11 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 			return nil, err
 		}
 	}
+	//for empty the data when varType is private
+	if isSensitive {
+		variableData = isSensitivePayload(allVariableDefinitions, varScope, variableData)
+	}
+
 	scopeIdToVarData := make(map[int]*repository2.VariableData)
 	for _, varData := range variableData {
 		scopeIdToVarData[varData.VariableScopeId] = varData
@@ -378,9 +382,9 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 			return nil, err
 		}
 		scopedVariableData := &models.ScopedVariableData{
-			VariableName:  variableIdToDefinition[varId].Name,
-			Description:   variableIdToDefinition[varId].Description,
-			VariableValue: models.VariableValue{Value: value}}
+			VariableName:     variableIdToDefinition[varId].Name,
+			ShortDescription: variableIdToDefinition[varId].ShortDescription,
+			VariableValue:    &models.VariableValue{Value: value}}
 
 		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
 	}
@@ -391,14 +395,31 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		for _, definition := range allVariableDefinitions {
 			if !slices.Contains(foundVarIds, definition.Id) {
 				scopedVariableDataObj = append(scopedVariableDataObj, &models.ScopedVariableData{
-					VariableName: definition.Name,
-					Description:  definition.Description,
+					VariableName:     definition.Name,
+					ShortDescription: definition.ShortDescription,
 				})
 			}
 		}
 	}
 
 	return scopedVariableDataObj, err
+}
+
+func isSensitivePayload(allVariableDefinitions []*repository2.VariableDefinition, varScope []*repository2.VariableScope, variableData []*repository2.VariableData) []*repository2.VariableData {
+	for _, def := range allVariableDefinitions {
+		if def.VarType == repository2.PRIVATE {
+			for _, vScope := range varScope {
+				if vScope.VariableDefinitionId == def.Id {
+					for _, vData := range variableData {
+						if vScope.Id == vData.VariableScopeId {
+							vData.Data = ""
+						}
+					}
+				}
+			}
+		}
+	}
+	return variableData
 }
 
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {
@@ -421,10 +442,11 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 
 	for _, data := range dataForJson {
 		definition := models.Definition{
-			VarName:     data.Name,
-			DataType:    data.DataType,
-			VarType:     data.VarType,
-			Description: data.Description,
+			VarName:          data.Name,
+			DataType:         data.DataType,
+			VarType:          data.VarType,
+			Description:      data.Description,
+			ShortDescription: data.ShortDescription,
 		}
 		attributes := make([]models.AttributeValue, 0)
 
