@@ -111,10 +111,11 @@ kedaAutoscaling:
 
 secret:
   enabled: false
-
+serviceheadless: 
+    enabled: true
 service:
   type: ClusterIP
-  enabled: true
+  enabled: false
   #name: "test-service"
   annotations: {}
     # test1: test2

@@ -35,12 +35,9 @@ winterSoldier:
     - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 
-
 statefulSetConfig:
   labels: {}
   annotations: {}
-  serviceheadless: 
-    enabled: true
   volumeClaimTemplates: []
 
 service:

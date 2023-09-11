@@ -54,13 +54,13 @@ spec:
     app: {{ template ".Chart.Name .name" . }}
 {{- end }}
 ---
-{{- if or  .Values.service.enabled .Values.statefulSetConfig.serviceheadless.enabled  }}
+{{- if or  .Values.service.enabled .Values.serviceheadless.enabled  }}
 apiVersion: v1
 kind: Service
 metadata:
-  {{- if .Values.statefulSetConfig.serviceheadless.enabled  }}
-  {{- if .Values.statefulSetConfig.serviceheadless.name  }}
-  name: {{ .Values.statefulSetConfig.serviceheadless.name }}
+  {{- if .Values.serviceheadless.enabled  }}
+  {{- if .Values.serviceheadless.name  }}
+  name: {{ .Values.serviceheadless.name }}
   {{- else  }}
   name: {{ template ".servicename" . }}-headless
   {{- end }}
