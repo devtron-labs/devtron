@@ -39,7 +39,7 @@ spec:
         - name: DB_USER_NAME
           value: postgres
         - name: DB_HOST
-          value: postgresql-postgresql.devtroncd
+          value: 0cb97e0c396c1a2d00f3de6633a54e8976451254
         - name: DB_PORT
           value: "5432"
         - name: DB_NAME
@@ -80,7 +80,7 @@ spec:
           runAsNonRoot: true
         env:
         - name: SCRIPT_LOCATION
-          value: scripts/casbin/
+          value: 0cb97e0c396c1a2d00f3de6633a54e8976451254
         - name: GIT_REPO_URL
           value: https://github.com/devtron-labs/devtron.git
         - name: DB_TYPE
