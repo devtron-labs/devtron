@@ -41,7 +41,7 @@ func (request VariableParserRequest) GetValuesMap() map[string]string {
 }
 
 func GetScopedVarData(varData map[string]string) []*models.ScopedVariableData {
-	scopedVarData := make([]*models.ScopedVariableData, len(varData))
+	scopedVarData := make([]*models.ScopedVariableData, 0)
 	for key, value := range varData {
 		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: &models.VariableValue{Value: value}})
 	}
