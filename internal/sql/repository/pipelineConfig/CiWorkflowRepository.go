@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"fmt"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -33,6 +34,8 @@ type CiWorkflowRepository interface {
 	FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error)
 	FindByPipelineId(pipelineId int, offset int, size int) ([]WorkflowWithArtifact, error)
 	FindById(id int) (*CiWorkflow, error)
+	FindReferenceWorkflowById(id int) (*CiWorkflow, error)
+	FindRetriedWorkflowCountByReferenceId(id int) (int, error)
 	FindCiWorkflowGitTriggersById(id int) (workflow *CiWorkflow, err error)
 	FindByName(name string) (*CiWorkflow, error)
 
@@ -51,25 +54,26 @@ type CiWorkflowRepositoryImpl struct {
 }
 
 type CiWorkflow struct {
-	tableName          struct{}          `sql:"ci_workflow" pg:",discard_unknown_columns"`
-	Id                 int               `sql:"id,pk"`
-	Name               string            `sql:"name"`
-	Status             string            `sql:"status"`
-	PodStatus          string            `sql:"pod_status"`
-	Message            string            `sql:"message"`
-	StartedOn          time.Time         `sql:"started_on"`
-	FinishedOn         time.Time         `sql:"finished_on"`
-	CiPipelineId       int               `sql:"ci_pipeline_id"`
-	Namespace          string            `sql:"namespace"`
-	BlobStorageEnabled bool              `sql:"blob_storage_enabled,notnull"`
-	LogLocation        string            `sql:"log_file_path"`
-	GitTriggers        map[int]GitCommit `sql:"git_triggers"`
-	TriggeredBy        int32             `sql:"triggered_by"`
-	CiArtifactLocation string            `sql:"ci_artifact_location"`
-	PodName            string            `sql:"pod_name"`
-	CiBuildType        string            `sql:"ci_build_type"`
-	EnvironmentId      int               `sql:"environment_id"`
-	CiPipeline         *CiPipeline
+	tableName             struct{}          `sql:"ci_workflow" pg:",discard_unknown_columns"`
+	Id                    int               `sql:"id,pk"`
+	Name                  string            `sql:"name"`
+	Status                string            `sql:"status"`
+	PodStatus             string            `sql:"pod_status"`
+	Message               string            `sql:"message"`
+	StartedOn             time.Time         `sql:"started_on"`
+	FinishedOn            time.Time         `sql:"finished_on"`
+	CiPipelineId          int               `sql:"ci_pipeline_id"`
+	Namespace             string            `sql:"namespace"`
+	BlobStorageEnabled    bool              `sql:"blob_storage_enabled,notnull"`
+	LogLocation           string            `sql:"log_file_path"`
+	GitTriggers           map[int]GitCommit `sql:"git_triggers"`
+	TriggeredBy           int32             `sql:"triggered_by"`
+	CiArtifactLocation    string            `sql:"ci_artifact_location"`
+	PodName               string            `sql:"pod_name"`
+	CiBuildType           string            `sql:"ci_build_type"`
+	EnvironmentId         int               `sql:"environment_id"`
+	ReferenceCiWorkflowId int               `sql:"ref_ci_workflow_id"`
+	CiPipeline            *CiPipeline
 }
 
 type WorkflowWithArtifact struct {
@@ -190,6 +194,23 @@ func (impl *CiWorkflowRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
 		Where("ci_workflow.id = ? ", id).
 		Select()
 	return workflow, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindReferenceWorkflowById(id int) (*CiWorkflow, error) {
+	workflow, err := impl.FindById(id)
+	if workflow.ReferenceCiWorkflowId != 0 {
+		workflow, err = impl.FindById(workflow.ReferenceCiWorkflowId)
+	}
+	return workflow, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(id int) (int, error) {
+	retryCount := 0
+	query := fmt.Sprintf("select count(*) "+
+		"from ci_workflow where ref_ci_workflow_id = %v", id)
+
+	_, err := impl.dbConnection.Query(&retryCount, query)
+	return retryCount, err
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciWorkflow *CiWorkflow, err error) {

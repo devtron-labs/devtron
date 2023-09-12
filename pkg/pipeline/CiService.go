@@ -160,7 +160,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 			UserMessage: "No tasks are configured in this job pipeline",
 		}
 	}
-	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob)
+	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
 	if err != nil {
 		impl.Logger.Errorw("could not save new workflow", "err", err)
 		return 0, err
@@ -291,7 +291,7 @@ func (impl *CiServiceImpl) BuildPayload(trigger Trigger, pipeline *pipelineConfi
 }
 
 func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, wfConfig *pipelineConfig.CiWorkflowConfig,
-	commitHashes map[int]bean.GitCommit, userId int32, EnvironmentId int, isJob bool) (wf *pipelineConfig.CiWorkflow, error error) {
+	commitHashes map[int]bean.GitCommit, userId int32, EnvironmentId int, isJob bool, refCiWorkflowId int) (wf *pipelineConfig.CiWorkflow, error error) {
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 	for k, v := range commitHashes {
 		gitCommit := pipelineConfig.GitCommit{
@@ -318,16 +318,17 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	}
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
-		Name:               pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:             pipelineConfig.WorkflowStarting,
-		Message:            "",
-		StartedOn:          time.Now(),
-		CiPipelineId:       pipeline.Id,
-		Namespace:          impl.ciConfig.DefaultNamespace,
-		BlobStorageEnabled: impl.ciConfig.BlobStorageEnabled,
-		GitTriggers:        gitTriggers,
-		LogLocation:        "",
-		TriggeredBy:        userId,
+		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
+		Status:                pipelineConfig.WorkflowStarting,
+		Message:               "",
+		StartedOn:             time.Now(),
+		CiPipelineId:          pipeline.Id,
+		Namespace:             impl.ciConfig.DefaultNamespace,
+		BlobStorageEnabled:    impl.ciConfig.BlobStorageEnabled,
+		GitTriggers:           gitTriggers,
+		LogLocation:           "",
+		TriggeredBy:           userId,
+		ReferenceCiWorkflowId: refCiWorkflowId,
 	}
 	if isJob {
 		ciWorkflow.Namespace = wfConfig.Namespace

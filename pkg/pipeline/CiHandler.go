@@ -58,6 +58,7 @@ import (
 type CiHandler interface {
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
+	HandleReTriggerCI(workflowStatus v1alpha1.WorkflowStatus)
 
 	FetchMaterialsByPipelineId(pipelineId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId int, gitMaterialId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
@@ -180,12 +181,70 @@ type Trigger struct {
 	InvalidateCache           bool
 	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
 	EnvironmentId             int
+	ReferenceCiWorkflowId     int
 }
 
 const WorkflowCancel = "CANCELLED"
 const DefaultCiWorkflowNamespace = "devtron-ci"
 const Running = "Running"
 const Starting = "Starting"
+const POD_DELETED_MESSAGE = "pod deleted"
+
+func (impl *CiHandlerImpl) HandleReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) {
+	if impl.ciConfig.MaxCiWorkflowRetries == 0 {
+		return
+	}
+	status, message, retryCount, ciWorkFlow, err := impl.extractPodStatusAndWorkflow(workflowStatus)
+	if !(status == string(v1alpha1.NodeFailed) && message == POD_DELETED_MESSAGE) || (retryCount >= impl.ciConfig.MaxCiWorkflowRetries) {
+		return
+	}
+	impl.Logger.Debugw("HandleReTriggerCI for ciWorkflow ", "ReferenceCiWorkflowId", ciWorkFlow.Id)
+	//commitHashes, extraEnvironmentVariables, err := impl.buildManualTriggerCommitHashes(ciTriggerRequest)
+
+	//build commithashes from parent workflow
+	commitHashes := make(map[int]bean.GitCommit)
+	for k, v := range ciWorkFlow.GitTriggers {
+		gitCommit := bean.GitCommit{
+			Commit:                 v.Commit,
+			Author:                 v.Author,
+			Date:                   v.Date,
+			Message:                v.Message,
+			Changes:                v.Changes,
+			CiConfigureSourceValue: v.CiConfigureSourceValue,
+			CiConfigureSourceType:  v.CiConfigureSourceType,
+			GitRepoUrl:             v.GitRepoUrl,
+			GitRepoName:            v.GitRepoName,
+		}
+		webhookData := v.WebhookData
+		if webhookData.Id != 0 {
+			gitCommit.WebhookData = &bean.WebhookData{
+				Id:              webhookData.Id,
+				EventActionType: webhookData.EventActionType,
+				Data:            webhookData.Data,
+			}
+		}
+
+		commitHashes[k] = gitCommit
+	}
+
+	trigger := Trigger{
+		PipelineId:      ciWorkFlow.CiPipelineId,
+		CommitHashes:    commitHashes,
+		CiMaterials:     nil,
+		TriggeredBy:     1,
+		InvalidateCache: true, //TODO: ciTriggerRequest.InvalidateCache,
+		//TODO: ExtraEnvironmentVariables: extraEnvironmentVariables,
+		EnvironmentId:         ciWorkFlow.EnvironmentId,
+		ReferenceCiWorkflowId: ciWorkFlow.Id,
+	}
+	_, err = impl.ciService.TriggerCiPipeline(trigger)
+
+	if err != nil {
+		impl.Logger.Errorw("error occured in retriggering ciWorkflow", "triggerDetails", trigger, "err", err)
+		return
+	}
+
+}
 
 func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
 	impl.Logger.Debugw("HandleCIManual for pipeline ", "PipelineId", ciTriggerRequest.PipelineId)
@@ -903,6 +962,27 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 }
 
 const CiStageFailErrorCode = 2
+
+func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.WorkflowStatus) (string, string, int, *pipelineConfig.CiWorkflow, error) {
+	workflowName, status, _, message, _, _ := impl.extractWorkfowStatus(workflowStatus)
+	if workflowName == "" {
+		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "message", message)
+		return status, message, 0, nil, errors.New("invalid wf name")
+	}
+	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
+	if err != nil {
+		impl.Logger.Errorw("invalid wf status update req", "err", err)
+		return status, message, 0, nil, err
+	}
+
+	savedWorkflow, err := impl.ciWorkflowRepository.FindReferenceWorkflowById(workflowId)
+	if err != nil {
+		impl.Logger.Errorw("cannot get saved wf", "err", err)
+		return status, message, 0, savedWorkflow, err
+	}
+	retryCount, err := impl.ciWorkflowRepository.FindRetriedWorkflowCountByReferenceId(savedWorkflow.Id)
+	return status, message, retryCount, savedWorkflow, nil
+}
 
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
 	workflowName, status, podStatus, message, _, podName := impl.extractWorkfowStatus(workflowStatus)
