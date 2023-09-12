@@ -89,6 +89,15 @@ type ClusterBean struct {
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
 }
 
+type ClusterAutoCompleteBean struct {
+	Id                int    `json:"id" validate:"number"`
+	ClusterName       string `json:"cluster_name" validate:"required"`
+	K8sVersion        string `json:"k8sVersion,omitempty"`
+	ErrorInConnecting string `json:"errorInConnecting"`
+	IsCdArgoSetup     bool   `json:"isCdArgoSetup,omitempty"`
+	IsVirtualCluster  bool   `json:"isVirtualCluster,omitempty"`
+}
+
 func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean := ClusterBean{}
 	bean.Id = model.Id
@@ -158,6 +167,7 @@ type ClusterService interface {
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
+	FindAllExceptVirtual() ([]*ClusterBean, error)
 	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
 	DeleteFromDb(bean *ClusterBean, userId int32) error
@@ -172,7 +182,7 @@ type ClusterService interface {
 	CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error)
 	GetAllClusterNamespaces() map[string][]string
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
-	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
+	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterAutoCompleteBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
@@ -344,6 +354,19 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
 
 func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	models, err := impl.clusterRepository.FindAllActive()
+	if err != nil {
+		return nil, err
+	}
+	var beans []*ClusterBean
+	for _, model := range models {
+		bean := GetClusterBean(model)
+		beans = append(beans, &bean)
+	}
+	return beans, nil
+}
+
+func (impl *ClusterServiceImpl) FindAllExceptVirtual() ([]*ClusterBean, error) {
+	models, err := impl.clusterRepository.FindAllExceptVirtual()
 	if err != nil {
 		return nil, err
 	}
@@ -736,9 +759,22 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	return result, nil
 }
 
-func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterAutoCompleteBean, error) {
+	models, err := impl.clusterRepository.FindAllExceptVirtual()
+	if err != nil {
+		impl.logger.Errorw("error on fetching clusters", "err", err)
+		return nil, err
+	}
+	beans := make([]ClusterAutoCompleteBean, 0)
 	if isActionUserSuperAdmin {
-		return impl.FindAllForAutoComplete()
+		for _, model := range models {
+			beans = append(beans, ClusterAutoCompleteBean{
+				Id:                model.Id,
+				ClusterName:       model.ClusterName,
+				ErrorInConnecting: model.ErrorInConnecting,
+			})
+		}
+		return beans, nil
 	}
 	allowedClustersMap := make(map[string]bool)
 	roles, err := impl.FetchRolesFromGroup(userId)
@@ -749,16 +785,9 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 	for _, role := range roles {
 		allowedClustersMap[role.Cluster] = true
 	}
-
-	models, err := impl.clusterRepository.FindAll()
-	if err != nil {
-		impl.logger.Errorw("error on fetching clusters", "err", err)
-		return nil, err
-	}
-	var beans []ClusterBean
 	for _, model := range models {
 		if _, ok := allowedClustersMap[model.ClusterName]; ok {
-			beans = append(beans, ClusterBean{
+			beans = append(beans, ClusterAutoCompleteBean{
 				Id:                model.Id,
 				ClusterName:       model.ClusterName,
 				ErrorInConnecting: model.ErrorInConnecting,
