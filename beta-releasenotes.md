@@ -18,6 +18,7 @@
 - feat: Maintaining audit logs (#3763)
 - feat: Capability to block deployments in case of vulnerabilities only if FIXED IN VERSION available  (#3796)
 ## Documentation
+- doc: Okta SSO Configuration Doc (#3876)
 ## Others
 - chore: adjust duplicate action threshold (#3879)
 - chore: find potential-duplicate issues  (#3858)
