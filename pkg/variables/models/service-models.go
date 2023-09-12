@@ -7,11 +7,6 @@ type ScopedVariableData struct {
 	IsRedacted       bool           `json:"isRedacted"`
 }
 
-const (
-	YAML_TYPE = "yaml"
-	JSON_TYPE = "json"
-)
-
 type VariableScopeMapping struct {
 	ScopeId int
 }

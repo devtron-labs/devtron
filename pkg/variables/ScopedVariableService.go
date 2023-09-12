@@ -18,7 +18,7 @@ import (
 
 type ScopedVariableService interface {
 	CreateVariables(payload models.Payload) error
-	GetScopedVariables(scope models.Scope, varNames []string, isSuperAdmin bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
+	GetScopedVariables(scope models.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
 	GetJsonForVariables() (*models.Payload, error)
 }
 
@@ -301,7 +301,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 	return selectedParentScope
 }
 
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, isSuperAdmin bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	// getting all variables from cache
 	allVariableDefinitions := impl.VariableCache.GetData()
@@ -380,7 +380,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 
 		var varValue *models.VariableValue
 		var isRedacted bool
-		if !isSuperAdmin && variableIdToDefinition[varId].VarType == repository2.PRIVATE {
+		if maskSensitiveData && variableIdToDefinition[varId].VarType == models.PRIVATE {
 			varValue = &models.VariableValue{Value: ""}
 			isRedacted = true
 		} else {
