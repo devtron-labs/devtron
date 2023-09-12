@@ -380,7 +380,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 
 		var varValue *models.VariableValue
 		var isRedacted bool
-		if maskSensitiveData && variableIdToDefinition[varId].VarType == models.PRIVATE {
+		if !maskSensitiveData && variableIdToDefinition[varId].VarType == models.PRIVATE {
 			varValue = &models.VariableValue{Value: ""}
 			isRedacted = true
 		} else {
