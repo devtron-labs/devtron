@@ -1,4 +1,9 @@
 # Devtron On Graviton
+In cloud computing, optimizing performance, efficiency, and cost-effectiveness is an endless pursuit. As technology evolves, new opportunities arise to achieve these goals. One such advancement is the introduction of AWS Graviton instances, which are rapidly gaining prominence as a game-changer in cloud architecture. 
+
+AWS Graviton instances are a family of Arm-based processors developed by Amazon Web Services (AWS). These processors are designed to deliver high performance while maintaining energy efficiency.
+
+We are thrilled to announce that Devtron seamlessly supports Graviton instances, and it's fantastic to note the substantial benefits we've experienced in terms of resource utilization. With 5% less memory utilization and 2% less CPU utilization compared to AMD instances, underscore the advantages of leveraging Graviton architecture. This not only translates into cost savings but also contributes to a more environmentally sustainable cloud infrastructure.
 
 ## Installation
 
@@ -8,7 +13,7 @@ To install Devtron on graviton-cluster, refer this [link](https://docs.devtron.a
 
 ### 1. Reduced Build Time
 
-You can infer from the below snapshots that the build time on Devtron reduced to approximately 2 minutes when using Graviton machine for ARM build.
+The utilization of Graviton machines for building Graviton architecture has led to an approximately 2-minute of reduction in build time and less CPU/Memory utilization within Devtron.
 
 **AMD Build**
 
@@ -26,16 +31,16 @@ You can infer from the below snapshots that the build time on Devtron reduced to
 
 ### 2. Similar Performance
 
-Performance is same as that of other architectures. There is no significant difference.
+Experience Devtron's equivalent performance to that of other architectures, all while exhibiting slightly lower resource utilization.
 
 <hr />
 
 
 ### 3. Less Resource Utilization
 
-Slightly less resource utilization than the AMD Node which can definitely save costs on cloud.
+Notably, Graviton instances exhibit slightly lower resource utilization compared to AMD Nodes, users can take the opportunity for cost savings in cloud operations.
 
-We have attached few snapshots depicting the resource utilization of critical micro-services on Devtron, having the GitOps option enabled and more than 115 applications deployed. To get the actual comparison, we have used a single node cluster for both the architecture (AMD and ARM).
+We have attached some snapshots of the resource utilization for the critical micro-services on Devtron having the GitOps option enabled and more than 115 applications deployed. For an accurate performance comparison, We have used a single-node cluster for both architectures (AMD and ARM).
 
 #### 1. orchestrator
 
