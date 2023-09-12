@@ -8,7 +8,7 @@ Here's a reference guide to set up your Okta org and application: [Link](https:/
 
 ## Tutorial
 
-{% embed url="https://www.youtube.com/watch?v=_2f-5WGmQ4Y" caption="Okta App Setup" %}
+{% embed url="https://www.youtube.com/watch?v=i-7IWkg6Ipk" caption="Okta App Setup" %}
 
 ## Steps on Okta Admin Console
 
@@ -48,13 +48,13 @@ OIDC stands for OpenID Connect. [Click here](https://www.okta.com/openid-connect
 
 1. Go to the Global Configurations → SSO Login Services → OIDC.
 2. In the **URL** field, enter the Devtron application URL (a valid https link) where it is hosted.
-3. In `config`, provide the `clientID` and `clientSecret` of the app integration you created on Okta.
+3. Under `Configuration` tab, locate the config object, and provide the `clientID` and `clientSecret` of the app integration you created on Okta.
 4. Add a key `insecureSkipEmailVerified: true`.
 5. Provide `issuer` value as `https://${yourOktaDomain}/oauth2/default`. Replace `${yourOktaDomain}` with your domain on Okta as shown in the video.
 6. For providing `redirectURI` or `callbackURI` registered with the SSO provider, you can either select `Configuration` or `Sample Script`. Note that the redirect URI is already given in the helper text (as seen in the previous section).
 7. Click **Save** to create and activate Okta SSO login.
 
-Now your users will be able to log in to Devtron using the Okta authentication method.
+Now your users will be able to log in to Devtron using the Okta authentication method. Note that existing signed-in users will be logged out and they have to log in again using their OIDC account.
 
 ## Sample Configuration
 
