@@ -786,11 +786,6 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 	}
 
 	return chartBytesArr, err
-	if deleteChart {
-		defer impl.CleanDir(ChartPath)
-	}
-
-	return chartBytesArr, err
 }
 
 func IsHelmApp(deploymentAppType string) bool {
