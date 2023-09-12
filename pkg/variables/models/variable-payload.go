@@ -20,11 +20,33 @@ type AttributeValue struct {
 }
 
 type Definition struct {
-	VarName          string `json:"varName" validate:"required"`
-	DataType         string `json:"dataType" validate:"oneof=json yaml primitive"`
-	VarType          string `json:"varType" validate:"oneof=private public"`
-	Description      string `json:"description" validate:"max=300"`
-	ShortDescription string `json:"shortDescription"`
+	VarName          string       `json:"varName" validate:"required"`
+	DataType         DataType     `json:"dataType" validate:"oneof=json yaml primitive"`
+	VarType          VariableType `json:"varType" validate:"oneof=private public"`
+	Description      string       `json:"description" validate:"max=300"`
+	ShortDescription string       `json:"shortDescription"`
+}
+
+type VariableType string
+
+const (
+	PRIVATE VariableType = "private"
+	PUBLIC  VariableType = "public"
+)
+
+type DataType string
+
+const (
+	YAML_TYPE      DataType = "yaml"
+	JSON_TYPE      DataType = "json"
+	PRIMITIVE_TYPE DataType = "primitive"
+)
+
+func (variableType VariableType) IsTypeSensitive() bool {
+	if variableType == PRIVATE {
+		return true
+	}
+	return false
 }
 
 type AttributeType string

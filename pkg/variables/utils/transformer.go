@@ -2,7 +2,6 @@ package utils
 
 import (
 	"github.com/devtron-labs/devtron/pkg/variables/models"
-	"github.com/devtron-labs/devtron/pkg/variables/repository"
 )
 
 func ManifestToPayload(manifest models.ScopedVariableManifest, userId int32) models.Payload {
@@ -25,15 +24,15 @@ func ManifestToPayload(manifest models.ScopedVariableManifest, userId int32) mod
 		variable := models.Variables{
 			Definition: models.Definition{
 				VarName:          spec.Name,
-				DataType:         "primitive",
-				VarType:          repository.PUBLIC,
+				DataType:         models.PRIMITIVE_TYPE,
+				VarType:          models.PUBLIC,
 				Description:      spec.Documentation,
 				ShortDescription: spec.Description,
 			},
 			AttributeValues: attributes,
 		}
 		if spec.IsSensitive {
-			variable.Definition.VarType = repository.PRIVATE
+			variable.Definition.VarType = models.PRIVATE
 		}
 		variableList = append(variableList, &variable)
 	}
@@ -56,9 +55,7 @@ func PayloadToManifest(payload models.Payload) models.ScopedVariableManifest {
 			Documentation: variable.Definition.Description,
 			Description:   variable.Definition.ShortDescription,
 			Values:        make([]models.VariableValueSpec, 0),
-		}
-		if variable.Definition.VarType == repository.PRIVATE {
-			spec.IsSensitive = true
+			IsSensitive:   variable.Definition.VarType.IsTypeSensitive(),
 		}
 		for _, attribute := range variable.AttributeValues {
 			valueSpec := models.VariableValueSpec{
