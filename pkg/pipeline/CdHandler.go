@@ -65,6 +65,7 @@ const (
 )
 
 type CdHandler interface {
+	HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner)
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
 	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
@@ -169,6 +170,43 @@ const NotDeployed = "Not Deployed"
 const WorklowTypeDeploy = "DEPLOY"
 const WorklowTypePre = "PRE"
 const WorklowTypePost = "POST"
+
+func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) {
+	var err error
+	if runner == nil || impl.cdConfig.MaxCdWorkflowRunnerRetries == 0 {
+		return
+	}
+	if runner.RefCdWorkflowRunnerId != 0 {
+		runner, err = impl.cdWorkflowRepository.FindWorkflowRunnerById(runner.RefCdWorkflowRunnerId)
+		if err != nil {
+			impl.Logger.Errorw("error in FindWorkflowRunnerById by id ", "err", err, "wfrId", runner.RefCdWorkflowRunnerId)
+			return
+		}
+	}
+	retryCnt, err := impl.cdWorkflowRepository.FindRetriedWorkflowCountByReferenceId(runner.Id)
+	if err != nil {
+		impl.Logger.Errorw("error in FindRetriedWorkflowCountByReferenceId ", "err", err, "cdWorkflowRunnerId", runner.Id)
+		return
+	}
+
+	if retryCnt >= impl.cdConfig.MaxCdWorkflowRunnerRetries {
+		impl.Logger.Debugw("maximum retries for this workflow are exhausted, not re-triggering again", "retries", retryCnt, "wfrId", runner.Id)
+		return
+	}
+
+	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+		err = impl.workflowDagExecutor.TriggerPreStage(context.Background(), nil, runner.CdWorkflow.CiArtifact, runner.CdWorkflow.Pipeline, 1, false, runner.Id)
+		if err != nil {
+			return
+		}
+	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		err = impl.workflowDagExecutor.TriggerPostStage(runner.CdWorkflow, runner.CdWorkflow.Pipeline, 1, runner.Id)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
 
 func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error {
 	pipelines, err := impl.pipelineRepository.GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours)
