@@ -195,6 +195,10 @@ func (impl *CiHandlerImpl) HandleReTriggerCI(workflowStatus v1alpha1.WorkflowSta
 		return
 	}
 	status, message, retryCount, ciWorkFlow, err := impl.extractPodStatusAndWorkflow(workflowStatus)
+	if err != nil {
+		impl.Logger.Errorw("error in extractPodStatusAndWorkflow", "err", err)
+		return
+	}
 	if !(status == string(v1alpha1.NodeFailed) && message == POD_DELETED_MESSAGE) || (retryCount >= impl.ciConfig.MaxCiWorkflowRetries) {
 		return
 	}
@@ -975,7 +979,17 @@ func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.W
 		return status, message, 0, nil, err
 	}
 
-	savedWorkflow, err := impl.ciWorkflowRepository.FindReferenceWorkflowById(workflowId)
+	savedWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
+	if err != nil {
+		impl.Logger.Errorw("cannot get saved wf", "err", err)
+		return status, message, 0, savedWorkflow, err
+	}
+	if savedWorkflow.Status == WorkflowCancel {
+		return status, message, 0, nil, errors.New("not re-triggering as previous trigger is aborted/cancelled")
+	}
+	if savedWorkflow.ReferenceCiWorkflowId != 0 {
+		savedWorkflow, err = impl.ciWorkflowRepository.FindById(savedWorkflow.ReferenceCiWorkflowId)
+	}
 	if err != nil {
 		impl.Logger.Errorw("cannot get saved wf", "err", err)
 		return status, message, 0, savedWorkflow, err

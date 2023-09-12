@@ -34,7 +34,6 @@ type CiWorkflowRepository interface {
 	FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error)
 	FindByPipelineId(pipelineId int, offset int, size int) ([]WorkflowWithArtifact, error)
 	FindById(id int) (*CiWorkflow, error)
-	FindReferenceWorkflowById(id int) (*CiWorkflow, error)
 	FindRetriedWorkflowCountByReferenceId(id int) (int, error)
 	FindCiWorkflowGitTriggersById(id int) (workflow *CiWorkflow, err error)
 	FindByName(name string) (*CiWorkflow, error)
@@ -193,14 +192,6 @@ func (impl *CiWorkflowRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
 		Column("ci_workflow.*", "CiPipeline", "CiPipeline.App", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.DockerRegistry").
 		Where("ci_workflow.id = ? ", id).
 		Select()
-	return workflow, err
-}
-
-func (impl *CiWorkflowRepositoryImpl) FindReferenceWorkflowById(id int) (*CiWorkflow, error) {
-	workflow, err := impl.FindById(id)
-	if workflow.ReferenceCiWorkflowId != 0 {
-		workflow, err = impl.FindById(workflow.ReferenceCiWorkflowId)
-	}
 	return workflow, err
 }
 
