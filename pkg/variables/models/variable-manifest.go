@@ -11,11 +11,11 @@ type ScopedVariableManifest struct {
 }
 
 type VariableSpec struct {
-	Documentation string              `json:"documentation"`
-	Description   string              `json:"description" validate:"max=120"`
-	IsSensitive   bool                `json:"isSensitive"`
-	Name          string              `json:"name" validate:"required"`
-	Values        []VariableValueSpec `json:"values" validate:"dive"`
+	Notes            string              `json:"notes"`
+	ShortDescription string              `json:"shortDescription" validate:"max=120"`
+	IsSensitive      bool                `json:"isSensitive"`
+	Name             string              `json:"name" validate:"required"`
+	Values           []VariableValueSpec `json:"values" validate:"dive"`
 }
 
 type VariableValueSpec struct {
