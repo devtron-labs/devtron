@@ -78,12 +78,7 @@ func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineI
 }
 
 func (impl *PipelineStageServiceImpl) GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType repository.PipelineStageType) (*repository.PipelineStage, error) {
-	stage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(cdPipelineId, stageType)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching CD pipeline stage", "cdPipelineId", cdPipelineId, "stage ", stage, "err", err)
-		return nil, err
-	}
-	return stage, nil
+	return impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(cdPipelineId, stageType)
 }
 
 func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
