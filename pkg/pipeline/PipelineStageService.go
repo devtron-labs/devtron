@@ -41,30 +41,27 @@ func NewPipelineStageService(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	scopedVariableService variables.ScopedVariableService,
 	variableEntityMappingService variables.VariableEntityMappingService,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
 	variableTemplateParser parsers.VariableTemplateParser,
 ) *PipelineStageServiceImpl {
 	return &PipelineStageServiceImpl{
-		logger:                         logger,
-		pipelineStageRepository:        pipelineStageRepository,
-		globalPluginRepository:         globalPluginRepository,
-		pipelineRepository:             pipelineRepository,
-		scopedVariableService:          scopedVariableService,
-		variableEntityMappingService:   variableEntityMappingService,
-		variableSnapshotHistoryService: variableSnapshotHistoryService,
-		variableTemplateParser:         variableTemplateParser,
+		logger:                       logger,
+		pipelineStageRepository:      pipelineStageRepository,
+		globalPluginRepository:       globalPluginRepository,
+		pipelineRepository:           pipelineRepository,
+		scopedVariableService:        scopedVariableService,
+		variableEntityMappingService: variableEntityMappingService,
+		variableTemplateParser:       variableTemplateParser,
 	}
 }
 
 type PipelineStageServiceImpl struct {
-	logger                         *zap.SugaredLogger
-	pipelineStageRepository        repository.PipelineStageRepository
-	globalPluginRepository         repository2.GlobalPluginRepository
-	pipelineRepository             pipelineConfig.PipelineRepository
-	scopedVariableService          variables.ScopedVariableService
-	variableEntityMappingService   variables.VariableEntityMappingService
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
-	variableTemplateParser         parsers.VariableTemplateParser
+	logger                       *zap.SugaredLogger
+	pipelineStageRepository      repository.PipelineStageRepository
+	globalPluginRepository       repository2.GlobalPluginRepository
+	pipelineRepository           pipelineConfig.PipelineRepository
+	scopedVariableService        variables.ScopedVariableService
+	variableEntityMappingService variables.VariableEntityMappingService
+	variableTemplateParser       parsers.VariableTemplateParser
 }
 
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {

@@ -30,7 +30,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/variables"
 	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util5 "github.com/devtron-labs/devtron/util/k8s"
@@ -121,6 +123,7 @@ type WorkflowDagExecutorImpl struct {
 	helmRepoPushService           app.HelmRepoPushService
 	pipelineStageRepository       repository4.PipelineStageRepository
 	pipelineStageService          PipelineStageService
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 }
 
 const (
@@ -217,8 +220,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	chartTemplateService util.ChartTemplateService,
 	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
-	pipelineStageRepository repository4.PipelineStageRepository,
-	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService) *WorkflowDagExecutorImpl {
+	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -256,6 +260,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		helmRepoPushService:           helmRepoPushService,
 		k8sCommonService:              k8sCommonService,
 		pipelineStageService:          pipelineStageService,
+		variableSnapshotHistoryService: variableSnapshotHistoryService,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -981,6 +986,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			EnvId:     env.Id,
 			ClusterId: env.ClusterId,
 		}
+		var variableSnapshot map[string]string
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 			//preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
 			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage, scope)
@@ -990,6 +996,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			}
 			preDeploySteps = prePostAndRefPluginResponse.PreStageSteps
 			refPluginsData = prePostAndRefPluginResponse.RefPluginData
+			variableSnapshot = prePostAndRefPluginResponse.VariableSnapshot
 		} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 			//_, postDeploySteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
 			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage, scope)
@@ -999,7 +1006,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			}
 			postDeploySteps = prePostAndRefPluginResponse.PostStageSteps
 			refPluginsData = prePostAndRefPluginResponse.RefPluginData
-
+			variableSnapshot = prePostAndRefPluginResponse.VariableSnapshot
 			deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
 			if err != nil {
 				impl.logger.Errorw("error in getting deployStageWfr, deployStageTriggeredByUser and pipelineReleaseCounter wf request", "err", err, "cdPipelineId", cdPipeline.Id)
@@ -1009,6 +1016,20 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			return nil, fmt.Errorf("unsupported workflow triggerd")
 		}
 
+		//Save Scoped VariableSnapshot
+		if len(variableSnapshot) > 0 {
+			variableMapBytes, _ := json.Marshal(variableSnapshot)
+			err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository5.VariableSnapshotHistoryBean{{
+				VariableSnapshot: variableMapBytes,
+				HistoryReference: repository5.HistoryReference{
+					HistoryReferenceId:   runner.Id,
+					HistoryReferenceType: repository5.HistoryReferenceTypeCDWORKFLOWRUNNER,
+				},
+			}}, runner.TriggeredBy)
+			if err != nil {
+				impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s", err)
+			}
+		}
 	} else {
 		//in this case no plugin script is not present for this cdPipeline hence going with attaching preStage or postStage config
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
