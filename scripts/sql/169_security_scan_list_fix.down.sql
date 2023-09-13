@@ -1,0 +1,1 @@
+ALTER TABLE image_scan_deploy_info DROP COLUMN is_latest_image_scanned;
