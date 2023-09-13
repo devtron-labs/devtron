@@ -829,6 +829,13 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		return nil, err
 	}
 	if pipelineStage != nil {
+		//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
+		//since user sees the environment of the CD pipeline
+		scope := models2.Scope{
+			AppId:     cdPipeline.App.Id,
+			EnvId:     env.Id,
+			ClusterId: env.ClusterId,
+		}
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 			//preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
 			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage, scope)
