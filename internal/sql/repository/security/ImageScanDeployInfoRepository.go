@@ -41,6 +41,7 @@ type ImageScanDeployInfo struct {
 	ObjectType                  string   `sql:"object_type,notnull"`
 	EnvId                       int      `sql:"env_id,notnull"`
 	ClusterId                   int      `sql:"cluster_id,notnull"`
+	IsLastImageScanned          bool     `sql:"is_last_image_scanned"`
 	sql.AuditLog
 }
 
