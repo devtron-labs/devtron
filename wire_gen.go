@@ -471,7 +471,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	ciServiceImpl := pipeline.NewCiServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig, eventRESTClientImpl, eventSimpleFactoryImpl, mergeUtil, ciPipelineRepositoryImpl, prePostCiScriptHistoryServiceImpl, pipelineStageServiceImpl, userServiceImpl, ciTemplateServiceImpl, appCrudOperationServiceImpl, environmentRepositoryImpl, appRepositoryImpl)
+	ciServiceImpl := pipeline.NewCiServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig, eventRESTClientImpl, eventSimpleFactoryImpl, mergeUtil, ciPipelineRepositoryImpl, prePostCiScriptHistoryServiceImpl, pipelineStageServiceImpl, userServiceImpl, ciTemplateServiceImpl, appCrudOperationServiceImpl, environmentRepositoryImpl, appRepositoryImpl, variableSnapshotHistoryServiceImpl)
 	ciLogServiceImpl, err := pipeline.NewCiLogServiceImpl(sugaredLogger, ciServiceImpl, k8sUtil)
 	if err != nil {
 		return nil, err
