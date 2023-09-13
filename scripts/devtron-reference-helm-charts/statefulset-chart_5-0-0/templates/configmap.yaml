@@ -8,12 +8,8 @@ metadata:
   name: {{ .name}}-{{ $.Values.app }}
 {{- if $.Values.appLabels }}
   labels:
-    app: {{ template ".Chart.Name .name" $ }}
-    chart: {{ template ".Chart.Name .chart" $ }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
-    release: {{ $.Release.Name }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
 {{ toYaml $.Values.appLabels | indent 4 }}
 {{- end }}
 data:
