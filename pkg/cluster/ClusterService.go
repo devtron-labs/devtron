@@ -188,6 +188,7 @@ type ClusterServiceImpl struct {
 	userAuthRepository  repository2.UserAuthRepository
 	userRepository      repository2.UserRepository
 	roleGroupRepository repository2.RoleGroupRepository
+	*ClusterRbacServiceImpl
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -202,6 +203,9 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		userAuthRepository:  userAuthRepository,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
+		ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
+			logger: logger,
+		},
 	}
 	go clusterService.buildInformer()
 	return clusterService
