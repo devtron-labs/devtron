@@ -14,7 +14,6 @@ metadata:
     envId: {{ $.Values.env | quote }}
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ .Values.pipelineName }}
 {{ toYaml $.Values.appLabels | indent 4 }}
 {{- end }}
 data:

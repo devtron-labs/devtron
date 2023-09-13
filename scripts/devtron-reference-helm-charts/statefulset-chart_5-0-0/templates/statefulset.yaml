@@ -518,6 +518,7 @@ spec:
             name: {{ .name}}-{{ $.Values.app }}
             {{- end }}
             {{- if eq (len .filePermission) 0 }}
+            defaultMode: {{ .filePermission}}
             {{- else }}
             defaultMode: {{ .filePermission}}
             {{- end }}
