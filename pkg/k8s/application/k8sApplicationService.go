@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -18,8 +20,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
-	k8s2 "github.com/devtron-labs/devtron/util/k8s"
-	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"io"
@@ -990,7 +990,7 @@ func getUrls(manifest *k8s2.ManifestResponse) bean3.Response {
 	}
 	res.PointsTo = ""
 	urls := make([]string, 0)
-	if res.Kind == k8s.IngressKind {
+	if res.Kind == k8s2.IngressKind {
 		if manifest.Manifest.Object["spec"] != nil {
 			spec := manifest.Manifest.Object["spec"].(map[string]interface{})
 			if spec["rules"] != nil {

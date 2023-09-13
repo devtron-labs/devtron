@@ -22,10 +22,10 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	bean3 "github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
@@ -38,7 +38,6 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/util/argo"
-	. "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
@@ -764,7 +763,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Errorw("error in getting latest timeline", "err", kubectlSyncTimelineFetchErr, "cdWfrId", pipelineId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr
 		}
-		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && app.Status.OperationState.Phase == common.OperationSucceeded {
+		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && string(app.Status.OperationState.Phase) == string(k8s2.OperationSucceeded) {
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
@@ -781,7 +780,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if reconciledAt.IsZero() || (kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0 && reconciledAt.After(kubectlApplySyncedTimeline.StatusTime)) {
 			haveNewTimeline := false
 			timeline.Id = 0
-			if app.Status.Health.Status == health.HealthStatusHealthy {
+			if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 				impl.logger.Infow("updating pipeline status timeline for healthy app", "app", app, "APP_TO_UPDATE", app.Name)
 				haveNewTimeline = true
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
@@ -867,7 +866,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Errorw("error in getting latest timeline", "err", kubectlSyncTimelineFetchErr, "installedAppVersionHistoryId", pipelineId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr
 		}
-		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && app.Status.OperationState.Phase == common.OperationSucceeded {
+		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && string(app.Status.OperationState.Phase) == string(k8s2.OperationSucceeded) {
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
@@ -884,7 +883,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if reconciledAt.IsZero() || (kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0) {
 			haveNewTimeline := false
 			timeline.Id = 0
-			if app.Status.Health.Status == health.HealthStatusHealthy {
+			if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 				impl.logger.Infow("updating pipeline status timeline for healthy app", "app", app, "APP_TO_UPDATE", app.Name)
 				haveNewTimeline = true
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
@@ -2590,7 +2589,7 @@ func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1a
 	if updateTimedOutStatus {
 		installedAppVersionHistory.Status = pipelineConfig.WorkflowTimedOut
 	} else {
-		if app.Status.Health.Status == health.HealthStatusHealthy {
+		if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
 			installedAppVersionHistory.FinishedOn = time.Now()
 		} else {
@@ -2616,7 +2615,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	if updateTimedOutStatus {
 		wfr.Status = pipelineConfig.WorkflowTimedOut
 	} else {
-		if app.Status.Health.Status == health.HealthStatusHealthy {
+		if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()
 		} else {
@@ -2750,7 +2749,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 		} else {
 			version := "v2beta2"
 			k8sResource, err := impl.K8sCommonService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
-				K8sRequest: &K8sRequestBean{ResourceIdentifier: ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
+				K8sRequest: &k8s2.K8sRequestBean{ResourceIdentifier: k8s2.ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
 					Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: hpaResourceRequest.Group, Kind: hpaResourceRequest.Kind, Version: version}}}})
 			if err != nil {
 				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
@@ -2928,7 +2927,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 		}
 
 		releaseName := pipeline.DeploymentAppName
-		bearerToken := envOverride.Environment.Cluster.Config[BearerToken]
+		bearerToken := envOverride.Environment.Cluster.Config[k8s2.BearerToken]
 
 		releaseIdentifier := &client2.ReleaseIdentifier{
 			ReleaseName:      releaseName,

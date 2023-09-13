@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	bean3 "github.com/devtron-labs/devtron/api/restHandler/bean"
@@ -47,7 +48,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
 	"net/http"
 	"regexp"
@@ -1387,7 +1387,7 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 		},
 	}
 	clusterIdString := strconv.Itoa(clusterId)
-	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
+	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{util4.ServiceKind, util4.EndpointsKind, util4.IngressKind})
 	response, err := impl.k8sCommonService.GetManifestsByBatch(rctx, validRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
