@@ -8,6 +8,8 @@ metadata:
   name: {{ template ".servicename" . }}
   {{- end }}
   labels:
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
@@ -68,6 +70,8 @@ metadata:
   name: {{ template ".servicename" . }}-headless
   {{- end }}
   labels:
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}

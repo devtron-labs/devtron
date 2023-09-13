@@ -8,6 +8,8 @@ metadata:
   {{- end }}
   labels:
     kind: Prometheus
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
