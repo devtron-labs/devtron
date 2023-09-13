@@ -2113,6 +2113,12 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 	if err != nil {
 		return nil, err
 	}
+
+	variableSnapshot := make(map[string]string)
+	for _, variable := range scopedVariables {
+		variableSnapshot[variable.VariableName] = variable.VariableValue.StringValue()
+	}
+
 	responseJson, err := json.Marshal(unresolvedResponse)
 	if err != nil {
 		return nil, err
@@ -2132,6 +2138,7 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 	if err != nil {
 		return nil, err
 	}
+	resolvedResponse.VariableSnapshot = variableSnapshot
 	return resolvedResponse, nil
 }
 

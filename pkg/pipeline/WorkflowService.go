@@ -137,6 +137,7 @@ type WorkflowRequest struct {
 	IsExtRun                   bool                              `json:"isExtRun"`
 	ImageRetryCount            int                               `json:"imageRetryCount"`
 	ImageRetryInterval         int                               `json:"imageRetryInterval"`
+	VariableSnapshot           map[string]string
 }
 
 const (

@@ -33,7 +33,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
+	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"net/http"
 	"path/filepath"
@@ -65,23 +67,24 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                        *zap.SugaredLogger
-	workflowService               WorkflowService
-	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	ciConfig                      *CiConfig
-	eventClient                   client.EventClient
-	eventFactory                  client.EventFactory
-	mergeUtil                     *util.MergeUtil
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
-	pipelineStageService          PipelineStageService
-	userService                   user.UserService
-	ciTemplateService             CiTemplateService
-	appCrudOperationService       app.AppCrudOperationService
-	globalPolicyService           globalPolicy.GlobalPolicyService
-	envRepository                 repository1.EnvironmentRepository
-	appRepository                 appRepository.AppRepository
+	Logger                         *zap.SugaredLogger
+	workflowService                WorkflowService
+	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
+	ciConfig                       *CiConfig
+	eventClient                    client.EventClient
+	eventFactory                   client.EventFactory
+	mergeUtil                      *util.MergeUtil
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	prePostCiScriptHistoryService  history.PrePostCiScriptHistoryService
+	pipelineStageService           PipelineStageService
+	userService                    user.UserService
+	ciTemplateService              CiTemplateService
+	appCrudOperationService        app.AppCrudOperationService
+	globalPolicyService            globalPolicy.GlobalPolicyService
+	envRepository                  repository1.EnvironmentRepository
+	appRepository                  appRepository.AppRepository
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -94,25 +97,28 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService,
 	globalPolicyService globalPolicy.GlobalPolicyService,
 	envRepository repository1.EnvironmentRepository,
-	appRepository appRepository.AppRepository) *CiServiceImpl {
+	appRepository appRepository.AppRepository,
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+) *CiServiceImpl {
 	return &CiServiceImpl{
-		Logger:                        Logger,
-		workflowService:               workflowService,
-		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
-		ciWorkflowRepository:          ciWorkflowRepository,
-		ciConfig:                      ciConfig,
-		eventClient:                   eventClient,
-		eventFactory:                  eventFactory,
-		mergeUtil:                     mergeUtil,
-		ciPipelineRepository:          ciPipelineRepository,
-		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
-		pipelineStageService:          pipelineStageService,
-		userService:                   userService,
-		ciTemplateService:             ciTemplateService,
-		appCrudOperationService:       appCrudOperationService,
-		globalPolicyService:           globalPolicyService,
-		envRepository:                 envRepository,
-		appRepository:                 appRepository,
+		Logger:                         Logger,
+		workflowService:                workflowService,
+		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		ciWorkflowRepository:           ciWorkflowRepository,
+		ciConfig:                       ciConfig,
+		eventClient:                    eventClient,
+		eventFactory:                   eventFactory,
+		mergeUtil:                      mergeUtil,
+		ciPipelineRepository:           ciPipelineRepository,
+		prePostCiScriptHistoryService:  prePostCiScriptHistoryService,
+		pipelineStageService:           pipelineStageService,
+		userService:                    userService,
+		ciTemplateService:              ciTemplateService,
+		appCrudOperationService:        appCrudOperationService,
+		globalPolicyService:            globalPolicyService,
+		envRepository:                  envRepository,
+		appRepository:                  appRepository,
+		variableSnapshotHistoryService: variableSnapshotHistoryService,
 	}
 }
 
@@ -182,6 +188,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	preCiSteps := prePostAndRefPluginResponse.PreStageSteps
 	postCiSteps := prePostAndRefPluginResponse.PostStageSteps
 	refPluginsData := prePostAndRefPluginResponse.RefPluginData
+	variableSnapshot := prePostAndRefPluginResponse.VariableSnapshot
 
 	if len(preCiSteps) == 0 && isJob {
 		return 0, &util.ApiError{
@@ -224,6 +231,21 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
+
+	//Save Scoped VariableSnapshot
+	if len(variableSnapshot) > 0 {
+		variableMapBytes, _ := json.Marshal(variableSnapshot)
+		err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository4.VariableSnapshotHistoryBean{{
+			VariableSnapshot: variableMapBytes,
+			HistoryReference: repository4.HistoryReference{
+				HistoryReferenceId:   savedCiWf.Id,
+				HistoryReferenceType: repository4.HistoryReferenceTypeCIWORKFLOW,
+			},
+		}}, trigger.TriggeredBy)
+		if err != nil {
+			impl.Logger.Errorf("Not able to save variable snapshot for CI trigger %s", err)
+		}
+	}
 
 	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
@@ -500,7 +522,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 	}
 
-	//var err error
 	if !(len(beforeDockerBuildScripts) == 0 && len(afterDockerBuildScripts) == 0) {
 		//found beforeDockerBuildScripts/afterDockerBuildScripts
 		//building preCiSteps & postCiSteps from them, refPluginsData not needed

@@ -16,9 +16,10 @@ type RefPluginObject struct {
 }
 
 type PrePostAndRefPluginStepsResponse struct {
-	PreStageSteps  []*StepObject
-	PostStageSteps []*StepObject
-	RefPluginData  []*RefPluginObject
+	PreStageSteps    []*StepObject
+	PostStageSteps   []*StepObject
+	RefPluginData    []*RefPluginObject
+	VariableSnapshot map[string]string
 }
 
 type StepObject struct {
