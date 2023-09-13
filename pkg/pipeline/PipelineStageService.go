@@ -1685,7 +1685,7 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 			return nil, err
 		}
 	}
-	unresolvedResponse := bean.PrePostAndRefPluginStepsResponse{RefPluginData: refPluginsData}
+	unresolvedResponse := &bean.PrePostAndRefPluginStepsResponse{RefPluginData: refPluginsData}
 
 	if stageType == ciEvent {
 		unresolvedResponse.PreStageSteps = preCiSteps
@@ -2083,11 +2083,7 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 
 //BuildPrePostAndRefPluginStepsDataForWfRequest and related methods ends
 
-func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unresolvedResponse bean.PrePostAndRefPluginStepsResponse, pipelineStageIds []int, scope models.Scope) (*bean.PrePostAndRefPluginStepsResponse, error) {
-	responseJson, err := json.Marshal(unresolvedResponse)
-	if err != nil {
-		return nil, err
-	}
+func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unresolvedResponse *bean.PrePostAndRefPluginStepsResponse, pipelineStageIds []int, scope models.Scope) (*bean.PrePostAndRefPluginStepsResponse, error) {
 
 	entities := make([]repository3.Entity, 0)
 	for _, stageId := range pipelineStageIds {
@@ -2100,6 +2096,11 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 	if err != nil {
 		return nil, err
 	}
+
+	if len(mappingsForEntities) == 0 {
+		return unresolvedResponse, nil
+	}
+
 	varNamesSet := mapset.NewSet()
 	for _, variableNames := range mappingsForEntities {
 		for _, variableName := range variableNames {
@@ -2109,6 +2110,10 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 	varNames := utils.ToStringArray(varNamesSet.ToSlice())
 
 	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, varNames, true)
+	if err != nil {
+		return nil, err
+	}
+	responseJson, err := json.Marshal(unresolvedResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -2139,6 +2144,11 @@ func (impl *PipelineStageServiceImpl) extractAndMapScopedVariables(stageReq *bea
 	if err != nil {
 		return err
 	}
+
+	if len(scopedVariables) == 0 {
+		return nil
+	}
+
 	err = impl.variableEntityMappingService.UpdateVariablesForEntity(scopedVariables, repository3.Entity{
 		EntityType: repository3.EntityTypePipelineStage,
 		EntityId:   stageReq.Id,
