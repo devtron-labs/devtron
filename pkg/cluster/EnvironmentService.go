@@ -433,6 +433,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				ClusterName:           model.Cluster.ClusterName,
 				Description:           model.Description,
 				IsVirtualEnvironment:  model.IsVirtualEnvironment,
+				ClusterId:             model.ClusterId,
 			})
 		}
 	}
