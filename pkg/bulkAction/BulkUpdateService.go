@@ -95,8 +95,7 @@ type BulkUpdateServiceImpl struct {
 	argoUserService                  argo.ArgoUserService
 	variableEntityMappingService     variables.VariableEntityMappingService
 	variableTemplateParser           parsers.VariableTemplateParser
-	resourceProtectionService protect.ResourceProtectionService
-
+	resourceProtectionService        protect.ResourceProtectionService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -594,7 +593,7 @@ func (impl BulkUpdateServiceImpl) extractAndMapVariables(template string, entity
 	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
 		EntityType: entityType,
 		EntityId:   entityId,
-	}, userId)
+	}, userId, nil)
 	if err != nil {
 		return err
 	}
