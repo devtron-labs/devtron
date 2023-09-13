@@ -488,12 +488,31 @@ func (impl *WorkflowDagExecutorImpl) TriggerAutoCDOnPreStageSuccess(cdPipelineId
 		}
 		//TODO : confirm about this logic used for applyAuth
 
+		//checking if deployment is triggered already, then ignore trigger
+		deploymentTriggeredAlready := impl.checkDeploymentTriggeredAlready(cdWorkflow.Id)
+		if deploymentTriggeredAlready {
+			impl.logger.Warnw("deployment is already triggered, so ignoring this msg", "cdPipelineId", cdPipelineId, "ciArtifactId", ciArtifactId, "workflowId", workflowId)
+			return nil
+		}
+
 		err = impl.TriggerDeployment(cdWorkflow, ciArtifact, pipeline, applyAuth, triggerdBy)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) checkDeploymentTriggeredAlready(wfId int) bool {
+	deploymentTriggeredAlready := false
+	//TODO : need to check this logic for status check in case of multiple deployments requirement for same workflow
+	workflowRunner, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), wfId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching workflow runner", "wfId", wfId, "err", err)
+		return deploymentTriggeredAlready
+	}
+	deploymentTriggeredAlready = workflowRunner.CdWorkflowId == wfId
+	return deploymentTriggeredAlready
 }
 
 func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error {

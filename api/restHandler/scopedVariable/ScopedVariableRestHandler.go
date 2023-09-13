@@ -103,10 +103,20 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+
+	if err != nil {
+		handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
+		return
+	}
+
 	appIdQueryParam := r.URL.Query().Get("appId")
 	var appId int
-	var err error
-
 	appId, err = strconv.Atoi(appIdQueryParam)
 	if err != nil {
 		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
@@ -142,7 +152,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 	}
 	var scopedVariableData []*models.ScopedVariableData
 
-	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil, true)
+	scopedVariableData, err = handler.scopedVariableService.GetScopedVariables(scope, nil, isSuperAdmin)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

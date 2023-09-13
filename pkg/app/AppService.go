@@ -1308,10 +1308,6 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 		envOverride.IsOverride = true
 		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
 
-		//impl.variableEntityMappingService.GetAllMappingsForEntities(repository6.Entity{
-		//	EntityType: "",
-		//	EntityId:   0,
-		//})
 		resolvedTemplate, variableMap, err := impl.getResolvedTemplateWithSnapshot(deploymentTemplateHistory.Id, envOverride.EnvOverrideValues)
 		if err != nil {
 			return nil, err
@@ -1467,7 +1463,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope models2.Sco
 	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
 		return template, variableMap, nil
 	}
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], false)
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1478,6 +1474,11 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope models2.Sco
 	if err != nil {
 		return "", nil, err
 	}
+
+	for _, variable := range scopedVariables {
+		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+	}
+
 	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, variableMap, nil
 }

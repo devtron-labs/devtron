@@ -104,7 +104,7 @@ func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(s
 	}
 	scopedVariables := make([]*models.ScopedVariableData, 0)
 	if _, ok := entityToVariables[entity]; ok && len(entityToVariables[entity]) > 0 {
-		scopedVariables, err = impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], false)
+		scopedVariables, err = impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
 		if err != nil {
 			return variableMap, err
 		}
