@@ -20,6 +20,7 @@ package util
 import (
 	"fmt"
 	"github.com/go-pg/pg"
+	"google.golang.org/grpc/status"
 )
 
 type ApiError struct {
@@ -39,11 +40,18 @@ func (e *ApiError) ErrorfInternal(format string, a ...interface{}) error {
 	return &ApiError{InternalMessage: fmt.Sprintf(format, a...)}
 }
 
-//default user message will be set
+// default user message will be set
 func (e ApiError) ErrorfUser(format string, a ...interface{}) error {
 	return &ApiError{InternalMessage: fmt.Sprintf(format, a...)}
 }
 
 func IsErrNoRows(err error) bool {
 	return pg.ErrNoRows == err
+}
+
+func GetGRPCErrorDetailedMessage(err error) string {
+	if errStatus, ok := status.FromError(err); ok {
+		return errStatus.Message()
+	}
+	return ""
 }
