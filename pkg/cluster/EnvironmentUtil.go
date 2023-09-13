@@ -17,8 +17,12 @@
 
 package cluster
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func BuildEnvironmentIdentifer(clusterName string, namespace string) string {
-	return fmt.Sprintf("%s__%s", clusterName, namespace)
+	clusterName = strings.ReplaceAll(clusterName, "_", "-")
+	return fmt.Sprintf("%s--%s", clusterName, namespace)
 }
