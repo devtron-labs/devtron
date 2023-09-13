@@ -1330,31 +1330,30 @@ const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
-func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope models2.Scope, template string) (string, map[string]string, error) {
+func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope models2.Scope, template string) (string, error) {
 
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
-	variableMap := make(map[string]string)
 	if len(usedVariables) == 0 {
-		return template, variableMap, nil
+		return template, nil
 	}
 
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables, false)
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables, true)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate, IgnoreUnknownVariables: true}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
 	err = parserResponse.Error
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableMap, nil
+	return resolvedTemplate, nil
 }
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope models2.Scope) (bool, error) {
@@ -1376,7 +1375,7 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, tem
 	//var scope variables.Scope
 	//var entity repository5.Entity
 	templateBytes := template.(json.RawMessage)
-	templatejsonstring, _, err := impl.extractVariablesAndResolveTemplate(scope, string(templateBytes))
+	templatejsonstring, err := impl.extractVariablesAndResolveTemplate(scope, string(templateBytes))
 	if err != nil {
 		return false, err
 	}

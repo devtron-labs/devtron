@@ -18,7 +18,7 @@ import (
 
 type ScopedVariableService interface {
 	CreateVariables(payload models.Payload) error
-	GetScopedVariables(scope models.Scope, varNames []string, includesDetails bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
+	GetScopedVariables(scope models.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
 	GetJsonForVariables() (*models.Payload, error)
 }
 
@@ -263,7 +263,9 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*rep
 	var minScope *repository2.VariableScope
 	for variableId, scopes := range variableIdToVariableScopes {
 		minScope = helper.FindMinWithComparator(scopes, helper.QualifierComparator)
-		variableIdToSelectedScopeId[variableId] = minScope.Id
+		if minScope != nil {
+			variableIdToSelectedScopeId[variableId] = minScope.Id
+		}
 	}
 	return variableIdToSelectedScopeId
 }
@@ -301,7 +303,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 	return selectedParentScope
 }
 
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, includesDetails bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	// getting all variables from cache
 	allVariableDefinitions := impl.VariableCache.GetData()
@@ -311,8 +313,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		return nil, nil
 	}
 
-	// Need to get from repo for includesDetails even if cache is loaded since cache only contains metadata
-	if includesDetails || allVariableDefinitions == nil {
+	// Need to get from repo for isSensitive even if cache is loaded since cache only contains metadata
+	if allVariableDefinitions == nil {
 		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
 
 		//Cache was not loaded and no active variables found
@@ -356,7 +358,6 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		scopeIds = append(scopeIds, scopeId)
 		foundVarIds = append(foundVarIds, varId)
 	}
-
 	var variableData []*repository2.VariableData
 	if len(scopeIds) != 0 {
 		variableData, err = impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
@@ -365,6 +366,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 			return nil, err
 		}
 	}
+
 	scopeIdToVarData := make(map[int]*repository2.VariableData)
 	for _, varData := range variableData {
 		scopeIdToVarData[varData.VariableScopeId] = varData
@@ -377,10 +379,20 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 			impl.logger.Errorw("error in validating value", "err", err)
 			return nil, err
 		}
+
+		var varValue *models.VariableValue
+		var isRedacted bool
+		if !maskSensitiveData && variableIdToDefinition[varId].VarType == models.PRIVATE {
+			varValue = &models.VariableValue{Value: ""}
+			isRedacted = true
+		} else {
+			varValue = &models.VariableValue{Value: value}
+		}
 		scopedVariableData := &models.ScopedVariableData{
-			VariableName:  variableIdToDefinition[varId].Name,
-			Description:   variableIdToDefinition[varId].Description,
-			VariableValue: models.VariableValue{Value: value}}
+			VariableName:     variableIdToDefinition[varId].Name,
+			ShortDescription: variableIdToDefinition[varId].ShortDescription,
+			VariableValue:    varValue,
+			IsRedacted:       isRedacted}
 
 		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
 	}
@@ -391,8 +403,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		for _, definition := range allVariableDefinitions {
 			if !slices.Contains(foundVarIds, definition.Id) {
 				scopedVariableDataObj = append(scopedVariableDataObj, &models.ScopedVariableData{
-					VariableName: definition.Name,
-					Description:  definition.Description,
+					VariableName:     definition.Name,
+					ShortDescription: definition.ShortDescription,
 				})
 			}
 		}
@@ -421,10 +433,11 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 
 	for _, data := range dataForJson {
 		definition := models.Definition{
-			VarName:     data.Name,
-			DataType:    data.DataType,
-			VarType:     data.VarType,
-			Description: data.Description,
+			VarName:          data.Name,
+			DataType:         data.DataType,
+			VarType:          data.VarType,
+			Description:      data.Description,
+			ShortDescription: data.ShortDescription,
 		}
 		attributes := make([]models.AttributeValue, 0)
 

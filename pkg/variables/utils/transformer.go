@@ -23,12 +23,16 @@ func ManifestToPayload(manifest models.ScopedVariableManifest, userId int32) mod
 		}
 		variable := models.Variables{
 			Definition: models.Definition{
-				VarName:     spec.Name,
-				DataType:    "primitive",
-				VarType:     "public",
-				Description: spec.Description,
+				VarName:          spec.Name,
+				DataType:         models.PRIMITIVE_TYPE,
+				VarType:          models.PUBLIC,
+				Description:      spec.Notes,
+				ShortDescription: spec.ShortDescription,
 			},
 			AttributeValues: attributes,
+		}
+		if spec.IsSensitive {
+			variable.Definition.VarType = models.PRIVATE
 		}
 		variableList = append(variableList, &variable)
 	}
@@ -47,9 +51,11 @@ func PayloadToManifest(payload models.Payload) models.ScopedVariableManifest {
 	}
 	for _, variable := range payload.Variables {
 		spec := models.VariableSpec{
-			Name:        variable.Definition.VarName,
-			Description: variable.Definition.Description,
-			Values:      make([]models.VariableValueSpec, 0),
+			Name:             variable.Definition.VarName,
+			Notes:            variable.Definition.Description,
+			ShortDescription: variable.Definition.ShortDescription,
+			Values:           make([]models.VariableValueSpec, 0),
+			IsSensitive:      variable.Definition.VarType.IsTypeSensitive(),
 		}
 		for _, attribute := range variable.AttributeValues {
 			valueSpec := models.VariableValueSpec{
