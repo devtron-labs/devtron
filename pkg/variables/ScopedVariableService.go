@@ -263,7 +263,9 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*rep
 	var minScope *repository2.VariableScope
 	for variableId, scopes := range variableIdToVariableScopes {
 		minScope = helper.FindMinWithComparator(scopes, helper.QualifierComparator)
-		variableIdToSelectedScopeId[variableId] = minScope.Id
+		if minScope != nil {
+			variableIdToSelectedScopeId[variableId] = minScope.Id
+		}
 	}
 	return variableIdToSelectedScopeId
 }
