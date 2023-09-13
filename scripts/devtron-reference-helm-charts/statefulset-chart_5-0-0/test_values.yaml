@@ -1,7 +1,15 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
- 
+kedaAutoscaling: 
+  enabled: false
+ambassadorMapping:
+  enabled: true
+istio:
+  enabled: true
+  gateway:
+    enabled: true
+
 appLabels: 
       test: thyjhgfv
 containerSpec:
@@ -194,7 +202,7 @@ statefulSetConfig:
 
 
 secret:
-  enabled: false
+  enabled: true
 
 service:
   type: ClusterIP
@@ -307,16 +315,16 @@ winterSoldier:
 ingress:
   enabled: true
   className: nginx
-  annotations: {}
-#    nginx.ingress.kubernetes.io/rewrite-target: /
-#    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-#    kubernetes.io/ingress.class: nginx
-#    kubernetes.io/tls-acme: "true"
-#    nginx.ingress.kubernetes.io/canary: "true"
-#    nginx.ingress.kubernetes.io/canary-weight: "10"
-#    Old Ingress Format
-#  host: "ingress-example.com"
-#  path: "/app"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "10"
+    # Old Ingress Format
+  host: "ingress-example.com"
+  path: "/app"
 
 #    New Ingress Format
   hosts:
@@ -393,7 +401,7 @@ ingressInternal:
   #      - chart-example.local
 
 dbMigrationConfig:
-  enabled: false
+  enabled: true
 
 command:
   workingDir: /app
@@ -434,15 +442,15 @@ nodeSelector:
 orchestrator.deploymant.algo: 1
 
 ConfigMaps:
-  enabled: false
-  maps: []
-#  - name: config-map-1
-#    type: environment
-#    external: false
-#    data:
-#     key1: key1value-1
-#     key2: key2value-1
-#     key3: key3value-1
+  enabled: true
+  maps:
+  - name: config-map-1
+    type: environment
+    external: false
+    data:
+      key1: key1value-1
+      key2: key2value-1
+      key3: key3value-1
 #  - name: config-map-2
 #    type: volume
 #    external: false
@@ -466,7 +474,7 @@ ConfigMaps:
 
 
 ConfigSecrets:
-  enabled: false
+  enabled: true
   secrets:
   - name: config-secret-1
     type: environment
@@ -635,9 +643,9 @@ envoyproxy:
       cpu: 50m
       memory: 50Mi
 
-podDisruptionBudget: {}
-  #  minAvailable: 1
-  #  maxUnavailable: 1
+podDisruptionBudget: 
+   minAvailable: 1
+   maxUnavailable: 1
 
   ## Node tolerations for server scheduling to nodes with taints
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
@@ -653,7 +661,7 @@ appMetrics: true
 serviceAccount:
   ## @param serviceAccount.create Enable creation of ServiceAccount for pods
   ##
-  create: false
+  create: true
   ## @param serviceAccount.name The name of the ServiceAccount to use.
   ## If not set and create is true, a name is generated using the `.Chart.Name .fullname` template
   name: "test1"
