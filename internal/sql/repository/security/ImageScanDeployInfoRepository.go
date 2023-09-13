@@ -186,7 +186,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	}
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster clus on clus.id=env.cluster_id"
-	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true"
+	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true and info.is_latest_image_scanned=true"
 	if len(deployInfoIds) > 0 {
 		ids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(deployInfoIds)), ","), "[]")
 		query = query + " AND info.id IN (" + ids + ")"
