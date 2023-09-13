@@ -13,7 +13,7 @@ To install Devtron on graviton-cluster, refer this [link](https://docs.devtron.a
 
 ### 1. Reduced Build Time
 
-The utilization of Graviton machines for building Graviton architecture has led to an approximately 2-minute of reduction in build time and less CPU/Memory utilization within Devtron.
+The utilization of Graviton machines for building Graviton architecture has led to reduction in build time by approximately 30% and less CPU/Memory utilization within Devtron.
 
 **AMD Build**
 
