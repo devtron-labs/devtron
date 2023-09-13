@@ -12,7 +12,7 @@ type VariableEntityMappingRepository interface {
 	sql.TransactionWrapper
 	GetVariablesForEntities(entities []Entity) ([]*VariableEntityMapping, error)
 	SaveVariableEntityMappings(tx *pg.Tx, mappings []*VariableEntityMapping) error
-	DeleteAllVariablesForEntities(entities []Entity, userId int32) error
+	DeleteAllVariablesForEntities(tx *pg.Tx, entities []Entity, userId int32) error
 	DeleteVariablesForEntity(tx *pg.Tx, variableIDs []string, entity Entity, userId int32) error
 }
 
@@ -74,8 +74,15 @@ func (impl *VariableEntityMappingRepositoryImpl) DeleteVariablesForEntity(tx *pg
 	return nil
 }
 
-func (impl *VariableEntityMappingRepositoryImpl) DeleteAllVariablesForEntities(entities []Entity, userId int32) error {
-	_, err := impl.dbConnection.Model((*VariableEntityMapping)(nil)).
+func (impl *VariableEntityMappingRepositoryImpl) DeleteAllVariablesForEntities(tx *pg.Tx, entities []Entity, userId int32) error {
+
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = impl.dbConnection
+	}
+
+	_, err := connection.Model((*VariableEntityMapping)(nil)).
 		Set("is_deleted = ?", true).
 		Set("updated_by = ?", userId).
 		Set("updated_on = ?", time.Now()).

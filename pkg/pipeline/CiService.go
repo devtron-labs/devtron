@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/go-pg/pg"
 	"path/filepath"
 	"strconv"
@@ -137,23 +138,34 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		impl.Logger.Errorw("could not fetch ci config", "pipeline", trigger.PipelineId)
 		return 0, err
 	}
+
+	scope := models.Scope{
+		AppId: pipeline.App.Id,
+	}
 	env, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
 	if err != nil {
 		return 0, err
 	}
 	if isJob && env != nil {
 		ciWorkflowConfig.Namespace = env.Namespace
+
+		//This will be populated for jobs running in selected environment
+		scope.EnvId = env.Id
+		scope.ClusterId = env.ClusterId
 	}
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.ciConfig.DefaultNamespace
 	}
 
-	preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
-
+	//preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
+	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent, scope)
 	if err != nil {
 		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
 		return 0, err
 	}
+	preCiSteps := prePostAndRefPluginResponse.PreStageSteps
+	postCiSteps := prePostAndRefPluginResponse.PostStageSteps
+	refPluginsData := prePostAndRefPluginResponse.RefPluginData
 
 	if len(preCiSteps) == 0 && isJob {
 		return 0, &util.ApiError{
@@ -434,22 +446,15 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 	}
 
-	var err error
+	//var err error
 	if !(len(beforeDockerBuildScripts) == 0 && len(afterDockerBuildScripts) == 0) {
 		//found beforeDockerBuildScripts/afterDockerBuildScripts
 		//building preCiSteps & postCiSteps from them, refPluginsData not needed
 		preCiSteps = buildCiStepsDataFromDockerBuildScripts(beforeDockerBuildScripts)
 		postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
 		refPluginsData = []*bean2.RefPluginObject{}
-	} else {
-		//beforeDockerBuildScripts & afterDockerBuildScripts not found
-		//getting preCiStepsData, postCiStepsData & refPluginsData
-		preCiSteps, postCiSteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
-		if err != nil {
-			impl.Logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
-			return nil, err
-		}
 	}
+
 	dockerImageTag := impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.ciConfig.DefaultCacheBucket

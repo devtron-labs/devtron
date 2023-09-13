@@ -388,7 +388,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, err
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(override.EnvOverrideValues, override.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, override.CreatedBy)
+	err = impl.extractAndMapVariables(override.EnvOverrideValues, override.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, override.CreatedBy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +486,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 
 		//VARIABLE_MAPPING_UPDATE
 		if envOverride.EnvOverrideValues != "{}" {
-			err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.CreatedBy)
+			err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.CreatedBy, tx)
 			if err != nil {
 				return nil, err
 			}
@@ -756,7 +756,7 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 	return appMetricRequest, err
 }
 
-func (impl PropertiesConfigServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
+func (impl PropertiesConfigServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32, tx *pg.Tx) error {
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
 	if err != nil {
 		return err
@@ -764,7 +764,7 @@ func (impl PropertiesConfigServiceImpl) extractAndMapVariables(template string, 
 	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
 		EntityType: entityType,
 		EntityId:   entityId,
-	}, userId)
+	}, userId, tx)
 	if err != nil {
 		return err
 	}
@@ -776,7 +776,7 @@ func (impl PropertiesConfigServiceImpl) removeMappedVariables(entityId int, enti
 	err := impl.variableEntityMappingService.DeleteMappingsForEntities([]repository5.Entity{{
 		EntityType: entityType,
 		EntityId:   entityId,
-	}}, userId)
+	}}, userId, nil)
 	if err != nil {
 		return err
 	}

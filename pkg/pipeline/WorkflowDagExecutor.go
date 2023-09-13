@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util5 "github.com/devtron-labs/devtron/util/k8s"
@@ -822,19 +823,31 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if err != nil {
 		return nil, err
 	}
+	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting environment by id", "err", err)
+		return nil, err
+	}
 	if pipelineStage != nil {
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-			preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			//preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage, scope)
 			if err != nil {
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
 			}
+			preDeploySteps = prePostAndRefPluginResponse.PreStageSteps
+			refPluginsData = prePostAndRefPluginResponse.RefPluginData
 		} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-			_, postDeploySteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			//_, postDeploySteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage, scope)
 			if err != nil {
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
 			}
+			postDeploySteps = prePostAndRefPluginResponse.PostStageSteps
+			refPluginsData = prePostAndRefPluginResponse.RefPluginData
+
 			deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
 			if err != nil {
 				impl.logger.Errorw("error in getting deployStageWfr, deployStageTriggeredByUser and pipelineReleaseCounter wf request", "err", err, "cdPipelineId", cdPipeline.Id)
@@ -892,11 +905,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 
 	extraEnvVariables := make(map[string]string)
-	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("error in getting environment by id", "err", err)
-		return nil, err
-	}
 	if env != nil {
 		extraEnvVariables[CD_PIPELINE_ENV_NAME_KEY] = env.Name
 		if env.Cluster != nil {
