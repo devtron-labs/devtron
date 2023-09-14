@@ -114,20 +114,16 @@ components:
       volumeSize: "20Gi"
 
   migrator:
-    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
+    image: "migrate/migrate"
     envVars:
       devtron:
-        GIT_BRANCH: "main"
-        SCRIPT_LOCATION: "scripts/sql/"
-        GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "d720befe7cd55bbe3e170a821a2cb6dfbd856213d"
       casbin:
-        GIT_BRANCH: "main"
-        SCRIPT_LOCATION: "scripts/casbin/"
-        GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "d720befe7cd55bbe3e170a821a2cb6dfbd856213"
+      git_sensor:
+        DB_NAME: "git_sensor"
+      lens: 
+        DB_NAME: "lens"
 
 # values for argocd integration
 argo-cd:
@@ -324,6 +320,10 @@ workflowController:
   image: "quay.io/argoproj/workflow-controller:v3.0.7"
   executorImage: "quay.io/argoproj/argoexec:v3.0.7"
 # Values for grafana integration
+gitsensor:
+  image: "quay.io/devtron/git-sensor:84389534-200-14705"
+lens: 
+  image: "quay.io/devtron/lens:c5c40d94-333-14586"
 monitoring:
   grafana:
     enabled: false
