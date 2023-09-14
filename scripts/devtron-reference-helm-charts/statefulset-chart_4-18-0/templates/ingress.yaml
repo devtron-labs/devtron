@@ -29,8 +29,6 @@ metadata:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ $.Values.pipelineName }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
@@ -116,8 +114,6 @@ metadata:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
     release: {{ $.Release.Name }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ $.Values.pipelineName }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
