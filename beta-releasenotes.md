@@ -1,4 +1,5 @@
 ## Bugs
+- fix: updated adapter for cluster object (#3900)
 - fix: rbac-modification for cluster list (#3767)
 - fix: Helm app deployment history page breaking due to user details not found (#3873)
 - fix: ci pip status query optmization (#3877)
