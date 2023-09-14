@@ -112,7 +112,8 @@ components:
     imagePullPolicy: "IfNotPresent"
     persistence:
       volumeSize: "20Gi"
-
+  itsensor:
+    image: "quay.io/devtron/git-sensor:84389534-200-14705"
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
