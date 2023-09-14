@@ -1369,7 +1369,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		installedAppVersion, err = impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
 		if err != nil {
 			impl.logger.Errorw("error in fetching installedAppVersion by installAppVersionRequest id ", "err", err)
-			return nil, err
+			return nil, fmt.Errorf("The values are outdated. Please make your changes to the latest version and try again.")
 		}
 		// version is upgraded if appStoreApplication version from request payload is not equal to installed app version saved in DB
 		if installedAppVersion.AppStoreApplicationVersionId != installAppVersionRequest.AppStoreVersion {
