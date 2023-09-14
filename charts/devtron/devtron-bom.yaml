@@ -46,16 +46,10 @@ components:
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
-  
+  gitsensor:
+    image: "quay.io/devtron/git-sensor:84389534-200-14705"
   migrator:
-    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
-    envVars:
-      devtron:
-        GIT_BRANCH: "main"
-        GIT_HASH: "3c1ba1ad06cf134743c08667e8589dbd2f97c57d"
-      casbin:
-        GIT_BRANCH: "main"
-        GIT_HASH: "3c1ba1ad06cf134743c08667e8589dbd2f97c57d"
+    image: "quay.io/devtron/migrator:v4.16.2"
         
 argo-cd:
   global:
@@ -63,6 +57,9 @@ argo-cd:
       repository: quay.io/argoproj/argocd
       tag: "v2.5.2"
       imagePullPolicy: IfNotPresent
+
+lens: 
+  image: "quay.io/devtron/lens:c5c40d94-333-14586"
 
 security:
   imageScanner:

@@ -158,6 +158,7 @@ spec:
           resources:
 {{- toYaml .casbin.initContainer.resources | nindent 12 }}
           {{- end }}
+          {{- end }}
           name: postgresql-migrate-casbin
           volumeMounts:
             - mountPath: /shared
@@ -191,7 +192,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r sql /shared/
-          image: {{ $.Values.gitsensor.image }}
+          image: {{ $.Values.components.gitsensor.image }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
@@ -223,8 +224,8 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-migrator
-          {{- if $.Values.components.migrator.image }}        
-          image: {{ $.Values.components.migrator.image }}    
+          {{- if .image }}        
+          image: {{ .image }}    
           {{- else }}
           image: migrate/migrate
           {{- end }} 
@@ -326,6 +327,7 @@ spec:
           name: shared-volume  
   backoffLimit: 20
   activeDeadlineSeconds: 1500
+
 {{- end }}
 ---
 apiVersion: batch/v1
@@ -372,6 +374,5 @@ spec:
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
----
 {{- end }}
 {{- end }}
