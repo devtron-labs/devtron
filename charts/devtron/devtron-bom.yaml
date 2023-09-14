@@ -50,6 +50,15 @@ components:
     image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
+    envVars:
+      devtron:
+        DB_NAME: "orchestrator"
+      casbin:
+        DB_NAME: "casbin"
+      gitsensor:
+        DB_NAME: "git_sensor"
+      lens: 
+        DB_NAME: "lens"
         
 argo-cd:
   global:
