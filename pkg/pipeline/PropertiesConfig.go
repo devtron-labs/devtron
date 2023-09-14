@@ -747,11 +747,7 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", currentChart)
 		return nil, err
 	}
-	//VARIABLE_MAPPING_UPDATE - not needed?
-	//err = impl.extractAndMapVariables(override.EnvOverrideValues, override.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, override.CreatedBy)
-	//if err != nil {
-	//	return nil, err
-	//}
+	//VARIABLE_MAPPING_UPDATE - not needed
 
 	return appMetricRequest, err
 }

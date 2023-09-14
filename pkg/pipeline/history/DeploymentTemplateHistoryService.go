@@ -318,8 +318,27 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 		return nil, err
 	}
 
+	variableSnapshotMap, err := impl.getVariableSnapshot(history.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	historyDto := &HistoryDetailDto{
+		TemplateName:        history.TemplateName,
+		TemplateVersion:     history.TemplateVersion,
+		IsAppMetricsEnabled: &history.IsAppMetricsEnabled,
+		CodeEditorValue: &HistoryDetailConfig{
+			DisplayName: "values.yaml",
+			Value:       history.Template,
+		},
+		VariableSnapshot: variableSnapshotMap,
+	}
+	return historyDto, nil
+}
+
+func (impl DeploymentTemplateHistoryServiceImpl) getVariableSnapshot(historyId int) (map[string]string, error) {
 	reference := repository6.HistoryReference{
-		HistoryReferenceId:   history.Id,
+		HistoryReferenceId:   historyId,
 		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
 	}
 	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
@@ -333,17 +352,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 			return nil, err
 		}
 	}
-	historyDto := &HistoryDetailDto{
-		TemplateName:        history.TemplateName,
-		TemplateVersion:     history.TemplateVersion,
-		IsAppMetricsEnabled: &history.IsAppMetricsEnabled,
-		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName: "values.yaml",
-			Value:       history.Template,
-		},
-		VariableSnapshot: variableSnapshotMap,
-	}
-	return historyDto, nil
+	return variableSnapshotMap, nil
 }
 
 func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error) {
@@ -374,20 +383,9 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 		return nil, err
 	}
 
-	reference := repository6.HistoryReference{
-		HistoryReferenceId:   history.Id,
-		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
-	}
-	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
+	variableSnapshotMap, err := impl.getVariableSnapshot(history.Id)
 	if err != nil {
 		return nil, err
-	}
-	variableSnapshotMap := make(map[string]string)
-	if _, ok := references[reference]; ok {
-		err = json.Unmarshal(references[reference].VariableSnapshot, &variableSnapshotMap)
-		if err != nil {
-			return nil, err
-		}
 	}
 	historyDto := &HistoryDetailDto{
 		TemplateName:        history.TemplateName,

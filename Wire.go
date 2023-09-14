@@ -536,24 +536,6 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCdWorkflowServiceImpl,
 		wire.Bind(new(pipeline.CdWorkflowService), new(*pipeline.CdWorkflowServiceImpl)),
 
-		////scoped variables start
-		//variables.NewScopedVariableServiceImpl,
-		//wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
-		//
-		//parsers.NewVariableTemplateParserImpl,
-		//wire.Bind(new(parsers.VariableTemplateParser), new(*parsers.VariableTemplateParserImpl)),
-		//repository10.NewVariableEntityMappingRepository,
-		//wire.Bind(new(repository10.VariableEntityMappingRepository), new(*repository10.VariableEntityMappingRepositoryImpl)),
-		//
-		//repository10.NewVariableSnapshotHistoryRepository,
-		//wire.Bind(new(repository10.VariableSnapshotHistoryRepository), new(*repository10.VariableSnapshotHistoryRepositoryImpl)),
-		//variables.NewVariableEntityMappingServiceImpl,
-		//wire.Bind(new(variables.VariableEntityMappingService), new(*variables.VariableEntityMappingServiceImpl)),
-		//variables.NewVariableSnapshotHistoryServiceImpl,
-		//wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
-		//
-		////end
-
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
 
