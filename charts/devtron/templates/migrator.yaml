@@ -153,6 +153,17 @@ spec:
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           {{- end }}
+          {{- if .casbin }}
+          {{- if .casbin.initContainer.resources }}        
+          resources:
+{{- toYaml .casbin.initContainer.resources | nindent 12 }}
+          {{- end }}
+          {{- else }}
+          resources:
+            requests:
+              cpu: 0.5
+              memory: 500Mi
+          {{- end }}  
           name: postgresql-migrate-casbin
           volumeMounts:
             - mountPath: /shared
