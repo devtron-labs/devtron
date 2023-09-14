@@ -158,6 +158,7 @@ spec:
           resources:
 {{- toYaml .casbin.initContainer.resources | nindent 12 }}
           {{- end }}
+          {{- end }}
           name: postgresql-migrate-casbin
           volumeMounts:
             - mountPath: /shared
@@ -327,6 +328,7 @@ spec:
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 
+{{- end }}
 ---
 apiVersion: batch/v1
 #this job is added for creating new database(clairv4).
