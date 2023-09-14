@@ -326,7 +326,7 @@ spec:
           name: shared-volume  
   backoffLimit: 20
   activeDeadlineSeconds: 1500
-{{- end }}
+
 ---
 apiVersion: batch/v1
 #this job is added for creating new database(clairv4).
