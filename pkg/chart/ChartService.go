@@ -1376,8 +1376,6 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, tem
 	//	return true, nil
 	//}
 
-	//var scope variables.Scope
-	//var entity repository5.Entity
 	templateBytes := template.(json.RawMessage)
 	templatejsonstring, err := impl.extractVariablesAndResolveTemplate(scope, string(templateBytes))
 	if err != nil {
