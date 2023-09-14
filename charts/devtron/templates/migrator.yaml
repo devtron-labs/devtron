@@ -206,7 +206,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r sql /shared/
-          image: {{ $.Values.git-sensor.image }}
+          image: {{ $.Values.gitsensor.image }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
