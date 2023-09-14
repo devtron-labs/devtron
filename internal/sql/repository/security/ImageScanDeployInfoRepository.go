@@ -181,7 +181,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	if len(request.CVEName) > 0 || len(request.Severity) > 0 {
 		query = query + " INNER JOIN image_scan_execution_history his on his.id = any (info.image_scan_execution_history_id)"
 		query = query + " INNER JOIN image_scan_execution_result res on res.image_scan_execution_history_id=his.id"
-		query = query + " INNER JOIN cve_store cs on cs.name= res.cve_store_name info."
+		query = query + " INNER JOIN cve_store cs on cs.name= res.cve_store_name"
 	}
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster clus on clus.id=env.cluster_id"
