@@ -22,6 +22,7 @@
 - doc: draft version of Graviton benchmark (#3890)
 - doc: Okta SSO Configuration Doc (#3876)
 ## Others
+- chore: Changed in Docker file for SQL file (#3904)
 - chore: adjust duplicate action threshold (#3879)
 - chore: find potential-duplicate issues  (#3858)
 - chore: Update pr-issue-validator.yaml (#3849)
