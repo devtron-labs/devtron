@@ -23,7 +23,7 @@ components:
         ENABLE_RESTART_WORKLOAD: "true"
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
   devtron:
-    image: "quay.io/devtron/hyperion:55e44e3f-280-16250"
+    image: "quay.io/devtron/hyperion:3c1ba1ad-280-16262"
     cicdImage: "quay.io/devtron/devtron:3c1ba1ad-434-16260"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d8d774c3-138-16238"
