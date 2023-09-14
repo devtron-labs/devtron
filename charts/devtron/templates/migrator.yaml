@@ -101,10 +101,6 @@ spec:
       containers:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
-        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
-        securityContext:
-{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
-        {{- end }}
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd && kubectl rollout restart deployment/kubelink -n devtroncd']
         {{- if .casbin }}
         {{- if .casbin.resources }}        
