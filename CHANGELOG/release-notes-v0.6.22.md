@@ -1,3 +1,5 @@
+## v0.6.22
+
 ## Bugs
 - fix: updated adapter for cluster object (#3900)
 - fix: rbac-modification for cluster list (#3767)
@@ -30,3 +32,5 @@
 - chore: adjust duplicate action threshold (#3879)
 - chore: find potential-duplicate issues  (#3858)
 - chore: Update pr-issue-validator.yaml (#3849)
+
+
