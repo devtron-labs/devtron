@@ -114,7 +114,7 @@ components:
       volumeSize: "20Gi"
 
   migrator:
-    image: "migrate/migrate"
+    image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -319,11 +319,11 @@ minio:
 workflowController:
   image: "quay.io/argoproj/workflow-controller:v3.0.7"
   executorImage: "quay.io/argoproj/argoexec:v3.0.7"
-# Values for grafana integration
 gitsensor:
   image: "quay.io/devtron/git-sensor:84389534-200-14705"
 lens: 
   image: "quay.io/devtron/lens:c5c40d94-333-14586"
+# Values for grafana integration
 monitoring:
   grafana:
     enabled: false
