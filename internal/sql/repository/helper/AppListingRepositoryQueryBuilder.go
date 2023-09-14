@@ -291,8 +291,6 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	var appStatusExcludingNotDeployed []string
 	var isNotDeployedFilterApplied bool
 	if len(appListingFilter.AppStatuses) > 0 {
-		//appStatuses := util.ProcessAppStatuses(appListingFilter.AppStatuses)
-		//whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
 		for _, status := range appListingFilter.AppStatuses {
 			if status == "NOT DEPLOYED" {
 				isNotDeployedFilterApplied = true
