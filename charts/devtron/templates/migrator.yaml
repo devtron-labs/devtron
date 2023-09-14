@@ -191,7 +191,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r sql /shared/
-          image: {{ $.Values.gitsensor.image }}
+          image: {{ $.Values.components.gitsensor.image }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
@@ -223,8 +223,8 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-migrator
-          {{- if $.Values.components.migrator.image }}        
-          image: {{ $.Values.components.migrator.image }}    
+          {{- if .image }}        
+          image: {{ .image }}    
           {{- else }}
           image: migrate/migrate
           {{- end }} 
