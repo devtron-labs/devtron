@@ -375,4 +375,5 @@ type HelmInstallNatsMessage struct {
 	InstallAppVersionHistoryId int
 	Message                    string
 	IsReleaseInstalled         bool
+	ErrorInInstallation        bool
 }

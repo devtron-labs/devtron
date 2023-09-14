@@ -1655,6 +1655,9 @@ func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest 
 
 func (impl AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
 	//creating pipeline status timeline for deployment failed
+	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+		return nil
+	}
 	err1 := impl.appStoreDeploymentArgoCdService.UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest, triggeredAt, err)
 	if err1 != nil {
 		impl.logger.Errorw("error in updating previous deployment status for appStore", "err", err1, "installAppVersionRequest", installAppVersionRequest)
@@ -1680,9 +1683,10 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
 			return
 		}
-		if !helmInstallNatsMessage.IsReleaseInstalled {
+
+		if !helmInstallNatsMessage.ErrorInInstallation {
 			installedAppVersionHistory.Status = "Failed"
-		} else if helmInstallNatsMessage.IsReleaseInstalled {
+		} else if helmInstallNatsMessage.ErrorInInstallation {
 			installedAppVersionHistory.Status = "Succeeded"
 		}
 		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
