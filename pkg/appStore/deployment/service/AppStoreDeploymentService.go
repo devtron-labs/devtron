@@ -1698,9 +1698,9 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 			return
 		}
 
-		if !helmInstallNatsMessage.ErrorInInstallation {
+		if helmInstallNatsMessage.ErrorInInstallation {
 			installedAppVersionHistory.Status = "Failed"
-		} else if helmInstallNatsMessage.ErrorInInstallation {
+		} else if !helmInstallNatsMessage.ErrorInInstallation {
 			installedAppVersionHistory.Status = "Succeeded"
 		}
 		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
