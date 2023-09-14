@@ -202,11 +202,7 @@ spec:
             - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
           env:
             - name: SCRIPT_LOCATION
-              {{- if .envVars.git_sensor.SCRIPT_LOCATION }}
-              value: {{ .envVars.git_sensor.SCRIPT_LOCATION }}
-              {{- else }}
               value: /shared/sql/
-              {{- end }}
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
@@ -289,11 +285,7 @@ spec:
             - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi ' 
         env:
             - name: SCRIPT_LOCATION
-              {{- if .envVars.lens.SCRIPT_LOCATION }}
-              value: {{ .envVars.lens.SCRIPT_LOCATION }}
-              {{- else }}
               value: /shared/sql/
-              {{- end }}
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
