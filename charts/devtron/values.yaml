@@ -10,7 +10,7 @@ global:
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.22-rc.0" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.22" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -55,15 +55,15 @@ components:
         ENABLE_BUILD_CONTEXT: "true"
         ENABLE_RESTART_WORKLOAD: "true"
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
-    image: "quay.io/devtron/dashboard:375b2f52-325-16158"
+    image: "quay.io/devtron/dashboard:f6adb2ea-325-16235"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:3847dc22-280-16128"
-    cicdImage: "quay.io/devtron/devtron:3847dc22-434-16164"
+    image: "quay.io/devtron/hyperion:55e44e3f-280-16250"
+    cicdImage: "quay.io/devtron/devtron:55e44e3f-434-16248"
     imagePullPolicy: IfNotPresent
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:b5edfead-138-15066"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d8d774c3-138-16238"
     serviceMonitor:
       enabled: false
     service:
@@ -93,7 +93,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:56e7f9ff-318-15898"
+    image: "quay.io/devtron/kubelink:aefc1baf-318-16208"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
