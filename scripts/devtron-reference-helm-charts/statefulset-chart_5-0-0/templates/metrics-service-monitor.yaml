@@ -9,8 +9,6 @@ metadata:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ .Values.prometheus.release }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ $.Values.pipelineName }}
 spec:
   jobLabel: {{ template ".Chart.Name .name" $ }}
   endpoints:

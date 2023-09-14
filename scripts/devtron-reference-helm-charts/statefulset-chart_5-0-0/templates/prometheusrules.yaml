@@ -13,9 +13,7 @@ metadata:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ .Values.prometheus.release }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ $.Values.pipelineName }}
-  {{- if .Values.prometheusRule.additionalLabels }}
+{{- if .Values.prometheusRule.additionalLabels }}
 {{ toYaml .Values.prometheusRule.additionalLabels | indent 4 }}
   {{- end }}
 spec:
