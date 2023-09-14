@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"fmt"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -8,54 +9,19 @@ import (
 )
 
 const (
-	SecretKind                   = "Secret"
-	ServiceKind                  = "Service"
-	ServiceAccountKind           = "ServiceAccount"
-	EndpointsKind                = "Endpoints"
-	EndPointsSlice               = "EndpointSlice"
-	DeploymentKind               = "Deployment"
-	ReplicaSetKind               = "ReplicaSet"
-	StatefulSetKind              = "StatefulSet"
-	DaemonSetKind                = "DaemonSet"
-	IngressKind                  = "Ingress"
-	JobKind                      = "Job"
-	PersistentVolumeClaimKind    = "PersistentVolumeClaim"
-	CustomResourceDefinitionKind = "CustomResourceDefinition"
-	PodKind                      = "Pod"
-	APIServiceKind               = "APIService"
-	NamespaceKind                = "Namespace"
-	HorizontalPodAutoscalerKind  = "HorizontalPodAutoscaler"
-	Spec                         = "spec"
-	Ports                        = "ports"
-	Port                         = "port"
-	Subsets                      = "subsets"
-	Nodes                        = "nodes"
-)
-
-const (
-	Group   = "group"
-	Version = "version"
-	Kind    = "kind"
-)
-
-type HookType string
-
-const (
-	HookTypePreSync  HookType = "PreSync"
-	HookTypeSync     HookType = "Sync"
-	HookTypePostSync HookType = "PostSync"
-	HookTypeSkip     HookType = "Skip"
-	HookTypeSyncFail HookType = "SyncFail"
-)
-
-type OperationPhase string
-
-const (
-	OperationRunning     OperationPhase = "Running"
-	OperationTerminating OperationPhase = "Terminating"
-	OperationFailed      OperationPhase = "Failed"
-	OperationError       OperationPhase = "Error"
-	OperationSucceeded   OperationPhase = "Succeeded"
+	DEFAULT_CLUSTER          = "default_cluster"
+	DEVTRON_SERVICE_NAME     = "devtron-service"
+	DefaultClusterUrl        = "https://kubernetes.default.svc"
+	BearerToken              = "bearer_token"
+	CertificateAuthorityData = "cert_auth_data"
+	CertData                 = "cert_data"
+	TlsKey                   = "tls_key"
+	LiveZ                    = "/livez"
+	Running                  = "Running"
+	RestartingNotSupported   = "restarting not supported"
+	DEVTRON_APP_LABEL_KEY    = "app"
+	DEVTRON_APP_LABEL_VALUE1 = "devtron"
+	DEVTRON_APP_LABEL_VALUE2 = "orchestrator"
 )
 
 type ClusterResourceListMap struct {
@@ -71,60 +37,6 @@ type EventsResponse struct {
 type ResourceListResponse struct {
 	Resources unstructured.UnstructuredList `json:"resources,omitempty"`
 }
-
-const K8sClusterResourceNameKey = "name"
-const K8sClusterResourcePriorityKey = "priority"
-const K8sClusterResourceNamespaceKey = "namespace"
-const K8sClusterResourceMetadataKey = "metadata"
-const K8sClusterResourceMetadataNameKey = "name"
-const K8sClusterResourceOwnerReferenceKey = "ownerReferences"
-const K8sClusterResourceCreationTimestampKey = "creationTimestamp"
-
-const K8sClusterResourceRowsKey = "rows"
-const K8sClusterResourceCellKey = "cells"
-const K8sClusterResourceColumnDefinitionKey = "columnDefinitions"
-const K8sClusterResourceObjectKey = "object"
-
-const K8sClusterResourceKindKey = "kind"
-const K8sClusterResourceApiVersionKey = "apiVersion"
-
-const K8sClusterResourceRolloutKind = "Rollout"
-const K8sClusterResourceRolloutGroup = "argoproj.io"
-const K8sClusterResourceReplicationControllerKind = "ReplicationController"
-const K8sClusterResourceCronJobKind = "CronJob"
-const V1VERSION = "v1"
-const BatchGroup = "batch"
-const AppsGroup = "apps"
-const RestartingNotSupported = "restarting not supported"
-
-const Running = "Running"
-
-var KindVsChildrenGvk = map[string][]schema.GroupVersionKind{
-	DeploymentKind:                append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: AppsGroup, Version: V1VERSION, Kind: ReplicaSetKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: PodKind}),
-	K8sClusterResourceRolloutKind: append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: AppsGroup, Version: V1VERSION, Kind: ReplicaSetKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: PodKind}),
-	K8sClusterResourceCronJobKind: append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: BatchGroup, Version: V1VERSION, Kind: JobKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: PodKind}),
-	JobKind:                       append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: PodKind}),
-	ReplicaSetKind:                append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: PodKind}),
-	DaemonSetKind:                 append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: PodKind}),
-	StatefulSetKind:               append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: PodKind}),
-	K8sClusterResourceReplicationControllerKind: append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: PodKind}),
-}
-
-const (
-	DefaultClusterUrl        = "https://kubernetes.default.svc"
-	BearerToken              = "bearer_token"
-	CertificateAuthorityData = "cert_auth_data"
-	CertData                 = "cert_data"
-	TlsKey                   = "tls_key"
-	LiveZ                    = "/livez"
-)
-
-const (
-	// EvictionKind represents the kind of evictions object
-	EvictionKind = "Eviction"
-	// EvictionSubresource represents the kind of evictions object as pod's subresource
-	EvictionSubresource = "pods/eviction"
-)
 
 type PodLogsRequest struct {
 	SinceTime                  *v12.Time `json:"sinceTime,omitempty"`
@@ -171,4 +83,28 @@ type ApplyResourcesResponse struct {
 
 type ManifestResponse struct {
 	Manifest unstructured.Unstructured `json:"manifest,omitempty"`
+}
+
+type ResourceKey struct {
+	Group     string
+	Kind      string
+	Namespace string
+	Name      string
+}
+
+func (k *ResourceKey) String() string {
+	return fmt.Sprintf("%s/%s/%s/%s", k.Group, k.Kind, k.Namespace, k.Name)
+}
+
+func (k ResourceKey) GroupKind() schema.GroupKind {
+	return schema.GroupKind{Group: k.Group, Kind: k.Kind}
+}
+
+func NewResourceKey(group string, kind string, namespace string, name string) ResourceKey {
+	return ResourceKey{Group: group, Kind: kind, Namespace: namespace, Name: name}
+}
+
+func GetResourceKey(obj *unstructured.Unstructured) ResourceKey {
+	gvk := obj.GroupVersionKind()
+	return NewResourceKey(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
 }

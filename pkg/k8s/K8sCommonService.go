@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -151,8 +152,8 @@ func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resour
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}
 		if kindsToBeFilteredMap[kind] {
-			group := impl.extractResourceValue(resourceItem, k8s.Group)
-			version := impl.extractResourceValue(resourceItem, k8s.Version)
+			group := impl.extractResourceValue(resourceItem, k8sCommonBean.Group)
+			version := impl.extractResourceValue(resourceItem, k8sCommonBean.Version)
 			req := ResourceRequestBean{
 				AppId:     appId,
 				ClusterId: appDetail.ClusterId,
@@ -237,7 +238,7 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 		namespace := resourceIdentifier.Namespace
 		resourceKind := groupVersionKind.Kind
 		// validate one of deployment, statefulset, daemonSet, Rollout
-		if resourceKind != k8s.DeploymentKind && resourceKind != k8s.StatefulSetKind && resourceKind != k8s.DaemonSetKind && resourceKind != k8s.K8sClusterResourceRolloutKind {
+		if resourceKind != k8sCommonBean.DeploymentKind && resourceKind != k8sCommonBean.StatefulSetKind && resourceKind != k8sCommonBean.DaemonSetKind && resourceKind != k8sCommonBean.K8sClusterResourceRolloutKind {
 			impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
 			containsError = true
 			resourceResponse.ErrorResponse = k8s.RestartingNotSupported
@@ -245,7 +246,7 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 			activitySnapshot := time.Now().Format(time.RFC3339)
 			data := fmt.Sprintf(`{"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}},"spec": {"template": {"metadata": {"annotations": {"devtron.ai/activity": "%s"}}}}}`, activitySnapshot, activitySnapshot)
 			var patchType types.PatchType
-			if resourceKind != k8s.K8sClusterResourceRolloutKind {
+			if resourceKind != k8sCommonBean.K8sClusterResourceRolloutKind {
 				patchType = types.StrategicMergePatchType
 			} else {
 				// rollout does not support strategic merge type
@@ -351,13 +352,13 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 		if portHolder.ManifestResponse == nil {
 			continue
 		}
-		kind, ok := portHolder.ManifestResponse.Manifest.Object[k8s.Kind]
+		kind, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Kind]
 		if !ok {
 			impl.logger.Warnw("kind not found in resource tree, unable to extract port no")
 			continue
 		}
-		if kind == k8s.ServiceKind {
-			specField, ok := portHolder.ManifestResponse.Manifest.Object[k8s.Spec]
+		if kind == k8sCommonBean.ServiceKind {
+			specField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Spec]
 			if !ok {
 				impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
 				continue
@@ -368,7 +369,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 				continue
 			}
 			if spec != nil {
-				ports, ok := spec[k8s.Ports]
+				ports, ok := spec[k8sCommonBean.Ports]
 				if !ok {
 					impl.logger.Warnw("ports not found in resource tree, unable to extract port no")
 					continue
@@ -385,7 +386,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 						continue
 					}
 					if portItems != nil {
-						portNumbers, ok := portItems[k8s.Port]
+						portNumbers, ok := portItems[k8sCommonBean.Port]
 						if !ok {
 							impl.logger.Warnw("ports number found in resource tree, unable to extract port no")
 							continue
@@ -405,8 +406,8 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 				continue
 			}
 		}
-		if kind == k8s.EndpointsKind {
-			subsetsField, ok := portHolder.ManifestResponse.Manifest.Object[k8s.Subsets]
+		if kind == k8sCommonBean.EndpointsKind {
+			subsetsField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Subsets]
 			if !ok {
 				impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
 				continue
@@ -424,7 +425,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 						continue
 					}
 					if subsetObj != nil {
-						ports, ok := subsetObj[k8s.Ports]
+						ports, ok := subsetObj[k8sCommonBean.Ports]
 						if !ok {
 							impl.logger.Warnw("ports not found in resource tree endpoints, unable to extract port no")
 							continue
@@ -441,7 +442,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 								continue
 							}
 							if portsIfObj != nil {
-								port, ok := portsIfObj[k8s.Port].(int64)
+								port, ok := portsIfObj[k8sCommonBean.Port].(int64)
 								if !ok {
 									impl.logger.Warnw("port not found in resource tree, unable to extract port no")
 									continue
@@ -453,8 +454,8 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 				}
 			}
 		}
-		if kind == k8s.EndPointsSlice {
-			portsField, ok := portHolder.ManifestResponse.Manifest.Object[k8s.Ports]
+		if kind == k8sCommonBean.EndPointsSlice {
+			portsField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Ports]
 			if !ok {
 				impl.logger.Warnw("ports not found in resource tree endpoint, unable to extract port no")
 				continue
@@ -466,7 +467,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 					continue
 				}
 				for _, val := range endPointsSlicePorts {
-					portNumbers, ok := val.(map[string]interface{})[k8s.Port]
+					portNumbers, ok := val.(map[string]interface{})[k8sCommonBean.Port]
 					if !ok {
 						impl.logger.Warnw("endPointsSlicePorts not found in resource tree endpoint, unable to extract port no")
 						continue
@@ -483,7 +484,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 			}
 		}
 	}
-	if val, ok := resourceTree[k8s.Nodes]; ok {
+	if val, ok := resourceTree[k8sCommonBean.Nodes]; ok {
 		resourceTreeVal, ok := val.([]interface{})
 		if !ok {
 			impl.logger.Warnw("resourceTreeVal not found in resourceTree, unable to extract port no")
@@ -496,14 +497,14 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 				continue
 			}
 			for key, _type := range value {
-				if key == k8s.Kind && _type == k8s.EndpointsKind {
-					value[k8s.Port] = portsEndpoint
+				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndpointsKind {
+					value[k8sCommonBean.Port] = portsEndpoint
 				}
-				if key == k8s.Kind && _type == k8s.ServiceKind {
-					value[k8s.Port] = portsService
+				if key == k8sCommonBean.Kind && _type == k8sCommonBean.ServiceKind {
+					value[k8sCommonBean.Port] = portsService
 				}
-				if key == k8s.Kind && _type == k8s.EndPointsSlice {
-					value[k8s.Port] = portEndpointSlice
+				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndPointsSlice {
+					value[k8sCommonBean.Port] = portEndpointSlice
 				}
 			}
 		}

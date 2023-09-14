@@ -2,7 +2,7 @@ package status
 
 import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -105,7 +105,7 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdatePipelineTime
 						newTimelineResource.ResourcePhase = string(resource.HookType)
 					} else {
 						//since hookType for non-hook resources is empty and always come under sync phase, hard-coding it
-						newTimelineResource.ResourcePhase = string(k8s.HookTypeSync)
+						newTimelineResource.ResourcePhase = string(k8sCommonBean.HookTypeSync)
 					}
 					timelineResourcesToBeSaved = append(timelineResourcesToBeSaved, newTimelineResource)
 				}
