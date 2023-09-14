@@ -75,8 +75,6 @@ spec:
           {{- end }}
           {{- end }}           
       restartPolicy: OnFailure
-      imagePullSecrets:
-      - name: devtron-image-pull
       volumes:
         - emptyDir: {}
           name: shared-volume 
@@ -164,8 +162,6 @@ spec:
             - mountPath: /shared
               name: shared-volume  
       restartPolicy: OnFailure
-      imagePullSecrets:
-      - name: devtron-image-pull
       volumes:
         - emptyDir: {}
           name: shared-volume 
