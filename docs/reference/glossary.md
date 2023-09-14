@@ -2,15 +2,17 @@
 
 ### Artifacts
 
-An immutable blob of data generated as an output after the execution of a build or deployment process, e.g., container image, helm chart. In Devtron, you can view the artifacts in the `Build History` and `Deployment History` of your application. 
+An immutable blob of data generated as an output after the execution of a job, build, or deployment process, e.g., container image, helm chart. In Devtron, you can view the artifacts in the `Build History` and `Deployment History` of your application. Whereas, job artifacts are visible in the `Run history` of your job.
 
 * Once a build is complete, you can view the build artifacts by going to Applications (choose your app) → Build History (tab) → (choose a pipeline and date of triggering the build) → Artifacts (tab).
 
 * Once a deployment is complete, you can view the deployment artifacts by going to Applications (choose your app) → Deployment History (tab) → (choose an environment and date of deployment) → Artifacts (tab).
 
+* Once a job is complete, you can view the job artifacts by going to Jobs → Run history (tab) → (choose a pipeline and date of triggering the build) → Artifacts (tab).
+
 ### Base Deployment Template
 
-A deployment template is a manifest of the application defining its runtime behavior. You can select one of the default deployment charts or custom deployment charts created by super admin.
+A deployment template is a manifest of the application defining its runtime behavior. You can select one of the default deployment charts or custom deployment charts created by super-admin.
 
 It’s a single entry point for you to enter the values, so that when the application is deployed your filled values go to the respective template files (YAML), and accordingly the resources would be created. 
 
@@ -30,7 +32,7 @@ A series of automated steps that transform source code into a deployable contain
 
 ### Chart Store
 
-A repository of Helm charts that can be used to deploy applications on Kubernetes. In Devtron, the chart store is available in the left sidebar. You can view, configure, and deploy the existing charts or add new chart repositories too. [Read More...](https://docs.devtron.ai/global-configurations/chart-repo)
+A place where all Helm charts are centrally listed for users to deploy applications on Kubernetes. In Devtron, the chart store is available in the left sidebar. You can view, configure, and deploy the existing charts or add new chart repositories too. [Read More...](https://docs.devtron.ai/global-configurations/chart-repo)
 
 ### Cluster
 
@@ -40,7 +42,7 @@ In Devtron, you can view the list of clusters in ‘Global Configurations’ ava
 
 ### Commit Hash
 
-A unique identifier representing a specific version of source code in a Git [repository](#repo). In Devtron, you can view the commit hash for all the commits you have pushed to your branch while selecting the git material under the `Build & Deploy` tab of your application.
+A unique identifier representing a specific version of source code in a Git [repository](#repo). In Devtron, you can view the commit hash of the top 15 commits you pushed to your branch while selecting the git material under the `Build & Deploy` tab of your application.
 
 ### ConfigMaps
 
@@ -50,7 +52,7 @@ You can use different ConfigMaps for respective environments too. [Read More...]
 
 ### Container Registry
 
-A repository for storing container images. It allows developers to store, share, and manage images used to deploy containers. In Devtron, you can add a container registry by going to Global Configurations → Container / OCI Registry. Your CI images are pushed to the container registry you configure. [Read More...](https://docs.devtron.ai/global-configurations/docker-registries)
+It is a collection of repositories that store container images. It allows developers to store, share, and manage images used to deploy containers. In Devtron, you can add a container registry by going to Global Configurations → Container / OCI Registry. Your CI images are pushed to the container registry you configure. [Read More...](https://docs.devtron.ai/global-configurations/docker-registries)
 
 ### Cordoning
 
@@ -58,11 +60,11 @@ Temporarily marking a node as unschedulable, preventing new pods from being assi
 
 ### CronJob
 
-A Kubernetes object that creates pods at specified intervals based on a cron schedule, commonly used for running periodic tasks. In Devtron, you can view a list of cronjobs by going to Resource Browser → (choose a cluster) → Workloads → CronJob. [Read More...](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/job-and-cronjob#2.-cronjob)
+CronJob is used to create Jobs on a repeating schedule. It is commonly used for running periodic tasks with no manual intervention. In Devtron, you can view a list of cronjobs by going to Resource Browser → (choose a cluster) → Workloads → CronJob. [Read More...](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/job-and-cronjob#2.-cronjob)
 
 ### Custom Charts
 
-Devtron offers a variety of ready-made Helm charts for common tasks and functions. If you have a specific need that isn't met by these preconfigured charts, super admins have the permission to upload their own custom charts. Once uploaded, these custom charts become accessible for use by all users on the Devtron platform. [Read More...](https://docs.devtron.ai/global-configurations/custom-charts)
+Devtron offers a variety of ready-made Helm charts for common tasks and functions. If you have a specific need that isn't met by these preconfigured charts, super-admins have the permission to upload their own custom charts. Once uploaded, these custom charts become accessible for use by all users on the Devtron platform. [Read More...](https://docs.devtron.ai/global-configurations/custom-charts)
 
 ### DaemonSet
 
@@ -72,7 +74,7 @@ In Devtron, you can view a list of DaemonSets by going to Resource Browser → (
 
 ### Deployment Strategy
 
-A defined approach for deploying updates or changes to applications, which may include rolling updates, blue-green deployments, canary releases, and recreate strategy. 
+A defined approach for deploying updates or changes to applications. Devtron supports rolling updates, blue-green deployments, canary releases, and recreate strategy. 
 
 In Devtron, you can choose a deployment strategy by going to Applications (choose your app) → App Configuration (tab) → Workflow Editor → (edit deployment pipeline) → Deployment Strategy. [Read More...](https://docs.devtron.ai/usage/applications/creating-application/cd-pipeline#deployment-strategies)
 
@@ -82,7 +84,7 @@ Your Kubernetes cluster gets mapped with Devtron when you save the cluster confi
 
 ### Devtron Apps
 
-The containerization of your source code followed by its deployment is totally configurable if you create a Devtron App. Custom apps deployed on Kubernetes cluster using the CI/CD feature of Devtron are called Devtron Apps. To create one, go to Applications → Create (button) → Custom App.
+Devtron Apps are the micro-services deployed using Kubernetes-native CI/CD with Devtron. To create one, go to Applications → Create (button) → Custom App.
 
 ### Dockerfile
 
@@ -98,13 +100,15 @@ In Devtron, you can drain a node by going to Resource Browser → (choose a clus
 
 ### Environment
 
-You can deploy your application to one or more environments (e.g., development, testing, production). In Devtron, Environment = [Cluster](#cluster) + [Namespace](#namespace). Your application can have different deployment configurations for respective environments. For e.g., the number of [ReplicaSet](#replicaset) could be 2 for staging environment, whereas it could be 5 for production. 
+You can deploy your application to one or more environments (e.g., development, testing, production). In Devtron, Environment = [Cluster](#cluster) + [Namespace](#namespace). For a given application, you cannot have multiple CD pipelines for an environment. For e.g., if an application named 'test-app' is deployed on an environment named 'test-environment', you cannot create another deployment (CD) pipeline for the same app and environment.
+ 
+Your application can have different deployment configurations for respective environments. For e.g., the number of [ReplicaSet](#replicaset) could be 2 for staging environment, whereas it could be 5 for production.
 
 Similarly, the CPU and memory resources can be different for each environment. This is possible through Environment Overrides. [Read More...](https://docs.devtron.ai/usage/applications/creating-application/environment-overrides)
 
 ### External Links
 
-You can add external links like Prometheus, Grafana, and many more to your application by going to Global Configurations → External Links. [Read More...](https://docs.devtron.ai/global-configurations/external-links)
+You can add external links related to the application. For e.g., you can add Prometheus, Grafana, and many more to your application by going to Global Configurations → External Links. [Read More...](https://docs.devtron.ai/global-configurations/external-links)
 
 ### GitOps
 
@@ -128,9 +132,9 @@ You can also view the list of image builds while preparing your deployment in th
 
 ### Job
 
-A Kubernetes object used to create one or more pods to complete a specific task or job and then terminate. 
+In Devtron, there is a job that is very similar to Kubernetes job. A Kubernetes job is an object used to create one or more pods to complete a specific task or job and then terminate. 
 
-In Devtron, you can view a list of jobs by going to Resource Browser → (choose a cluster) → Workloads → Job. [Read More...](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/job-and-cronjob#1.-job)
+If you are a super-admin in Devtron, you can view Jobs in the sidebar.
 
 ### Load Balancer
 
@@ -140,13 +144,13 @@ GKE and AKE provide the public IP of the Load Balancer as the service endpoint, 
 
 ### Manifest
 
-A manifest is a YAML file that describes each component or resource of your deployment and the state you want your cluster to be in once applied. Once you deploy, you can always edit your manifest file. A manifest specifies the desired state of an object that Kubernetes will maintain when you apply the manifest. 
+A manifest is a YAML file that describes each component or resource of your Kubernetes object and the state you want your cluster to be in once applied. A manifest specifies the desired state of an object that Kubernetes will maintain when you apply the manifest. 
 
 In Devtron, you can view the manifest of K8s resources under `App Details` and also under `Resource Browser`.
 
 ### Material
 
-In Git Repo, the source code of your application in a given commit is referred is referred as material. The option to choose a Git material will be available in the CI stage under the `Build & Deploy` tab of your application. [Read More...](https://docs.devtron.ai/usage/jobs/triggering-job#triggering-job-pipeline)
+In Git Repo, the source code of your application in a given commit is referred as material. The option to choose a Git material will be available in the CI stage under the `Build & Deploy` tab of your application. [Read More...](https://docs.devtron.ai/usage/jobs/triggering-job#triggering-job-pipeline)
 
 ### Namespace
 
@@ -208,7 +212,13 @@ In Devtron, you can view the deployed ReplicaSet by going to Applications (choos
 
 ### Repo
 
-Abbreviation for "repository" a version control system (like Git) that stores and manages source code and other project assets. Once you create a repo, you can add the repo in Applications (choose your app) → App Configuration (tab) → Git Repository → Add Git Repository.
+Abbreviation for "repository". It could either signify a Git repo, container repo, or helm repo.
+
+**Git repo** - A version control system (like Git) that stores and manages source code and other project assets. Once you create a git repo, you can add it in Applications (choose your app) → App Configuration (tab) → Git Repository → Add Git Repository.
+
+**Container repo** - A collection of [container images](#image), e.g., Docker repository.
+
+**Helm repo** - Also known as chart repo. You can add it in Global Configurations.
 
 ### Rollback
 
