@@ -218,7 +218,7 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: {{ .envVars.git_sensor.DB_NAME }}
+              value: {{ .envVars.gitsensor.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
           envFrom:
