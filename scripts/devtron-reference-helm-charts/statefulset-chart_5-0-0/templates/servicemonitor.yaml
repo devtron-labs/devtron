@@ -11,7 +11,7 @@ metadata:
     envId: {{ $.Values.env | quote }}
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
-    release: {{ $.Release.Name }}
+    release: {{ .Values.prometheus.release }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
     
