@@ -23,13 +23,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r /scripts/. /shared/
-          {{- if $.Values.installer.modules }}
-          {{- if has "cicd" $.Values.installer.modules }}
-          image: {{ $.Values.components.devtron.cicdImage }}
-          {{- end }}
-          {{- else }}
           image: {{ $.Values.components.devtron.image }}
-          {{- end }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
@@ -125,13 +119,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r /scripts/. /shared/
-          {{- if $.Values.installer.modules }}
-          {{- if has "cicd" $.Values.installer.modules }}
-          image: {{ $.Values.components.devtron.cicdImage }}
-          {{- end }}
-          {{- else }}
           image: {{ $.Values.components.devtron.image }}
-          {{- end }}
           name: init-devtron
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
