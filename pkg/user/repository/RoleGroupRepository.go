@@ -31,7 +31,7 @@ type RoleGroupRepository interface {
 	GetRoleGroupListByName(name string) ([]*RoleGroup, error)
 	GetAllRoleGroup() ([]*RoleGroup, error)
 	GetRoleGroupListByCasbinNames(name []string) ([]*RoleGroup, error)
-
+	CheckRoleGroupExistByCasbinName(name string) (bool, error)
 	CreateRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (*RoleGroupRoleMapping, error)
 	GetRoleGroupRoleMapping(model int32) (*RoleGroupRoleMapping, error)
 	GetRoleGroupRoleMappingByRoleGroupId(roleGroupId int32) ([]*RoleGroupRoleMapping, error)
@@ -43,6 +43,7 @@ type RoleGroupRepository interface {
 	GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error)
 	GetRolesByGroupNames(groupNames []string) ([]*RoleModel, error)
 	GetRolesByGroupNamesAndEntity(groupNames []string, entity string) ([]*RoleModel, error)
+	UpdateRoleGroupIdForRoleGroupMappings(roleId int, newRoleId int) (*RoleGroupRoleMapping, error)
 }
 
 type RoleGroupRepositoryImpl struct {
@@ -121,6 +122,12 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupListByCasbinNames(names []string
 	var model []*RoleGroup
 	err := impl.dbConnection.Model(&model).Where("casbin_name in (?)", pg.In(names)).Where("active = ?", true).Select()
 	return model, err
+}
+
+func (impl RoleGroupRepositoryImpl) CheckRoleGroupExistByCasbinName(name string) (bool, error) {
+	var model RoleGroup
+	return impl.dbConnection.Model(&model).Where("casbin_name = ?", name).Where("active = ?", true).Exists()
+
 }
 
 func (impl RoleGroupRepositoryImpl) CreateRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (*RoleGroupRoleMapping, error) {
@@ -230,4 +237,12 @@ func (impl RoleGroupRepositoryImpl) GetRolesByGroupNamesAndEntity(groupNames []s
 		return roleModels, err
 	}
 	return roleModels, nil
+}
+func (impl RoleGroupRepositoryImpl) UpdateRoleGroupIdForRoleGroupMappings(roleId int, newRoleId int) (*RoleGroupRoleMapping, error) {
+	var model RoleGroupRoleMapping
+	_, err := impl.dbConnection.Model(&model).Set("role_id = ?", newRoleId).
+		Where("role_id = ?", roleId).Update()
+
+	return &model, err
+
 }

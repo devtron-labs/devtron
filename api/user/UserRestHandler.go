@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
@@ -293,6 +294,14 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 			}
 		}
 	}
+	for index, roleFilter := range filteredRoleFilter {
+		if roleFilter.Entity == "" {
+			filteredRoleFilter[index].Entity = bean2.ENTITY_APPS
+			if roleFilter.AccessType == "" {
+				filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
+			}
+		}
+	}
 	res.RoleFilters = filteredRoleFilter
 	//RBAC enforcer Ends
 
@@ -497,6 +506,15 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 			}
 		}
 	}
+	for index, roleFilter := range filteredRoleFilter {
+		if roleFilter.Entity == "" {
+			filteredRoleFilter[index].Entity = bean2.ENTITY_APPS
+		}
+		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+			filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
+		}
+	}
+
 	res.RoleFilters = filteredRoleFilter
 	//RBAC enforcer Ends
 

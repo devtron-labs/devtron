@@ -158,9 +158,17 @@ spec:
         release: "devtron"
         chart: kubewatch-0.6.1
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: kubewatch
-        image: "quay.io/devtron/kubewatch:1503080b-419-12879"
+        image: "quay.io/devtron/kubewatch:49f906a5-419-14814"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: devtroncd_NAMESPACE
           value: "devtron-ci"

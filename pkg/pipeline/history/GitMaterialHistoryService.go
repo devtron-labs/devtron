@@ -38,11 +38,10 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *p
 		Active:          inputMaterial.Active,
 		CheckoutPath:    inputMaterial.CheckoutPath,
 		FetchSubmodules: inputMaterial.FetchSubmodules,
+		FilterPattern:   inputMaterial.FilterPattern,
 		AuditLog:        sql.AuditLog{UpdatedBy: inputMaterial.UpdatedBy, CreatedBy: inputMaterial.CreatedBy, UpdatedOn: inputMaterial.UpdatedOn, CreatedOn: inputMaterial.CreatedOn},
 	}
-
 	err := impl.gitMaterialHistoryRepository.SaveGitMaterialHistory(material)
-
 	if err != nil {
 		impl.logger.Errorw("error in saving create/update history for git repository")
 	}
@@ -66,6 +65,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials 
 			Name:            material.Name,
 			CheckoutPath:    material.CheckoutPath,
 			FetchSubmodules: material.FetchSubmodules,
+			FilterPattern:   material.FilterPattern,
 			AuditLog: sql.AuditLog{
 				CreatedOn: material.CreatedOn,
 				CreatedBy: material.CreatedBy,

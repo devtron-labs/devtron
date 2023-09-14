@@ -37,6 +37,7 @@ type ExternalLinkRestHandler interface {
 	CreateExternalLinks(w http.ResponseWriter, r *http.Request)
 	GetExternalLinkMonitoringTools(w http.ResponseWriter, r *http.Request)
 	GetExternalLinks(w http.ResponseWriter, r *http.Request)
+	GetExternalLinksV2(w http.ResponseWriter, r *http.Request)
 	UpdateExternalLink(w http.ResponseWriter, r *http.Request)
 	DeleteExternalLink(w http.ResponseWriter, r *http.Request) // Update is_active to false link
 }
@@ -134,6 +135,7 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinkMonitoringTools(w http.Re
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
+
 func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -189,6 +191,71 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 
 	impl.logger.Errorw("invalid request, FetchAllActive external links", "err", err)
 	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	return
+
+}
+
+func (impl ExternalLinkRestHandlerImpl) GetExternalLinksV2(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	v := r.URL.Query()
+	clusterId := v.Get("clusterId")
+	linkType := v.Get("type")
+	identifier := v.Get("identifier")
+
+	externalLinkAndMonitoringTools := externalLink.ExternalLinkAndMonitoringToolDTO{}
+	externalLinks := []*externalLink.ExternalLinkDto{}
+
+	tools, err := impl.externalLinkService.GetAllActiveTools()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("service err, GetAllActiveTools", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	token := r.Header.Get("token")
+	if len(identifier) == 0 && len(linkType) == 0 && len(clusterId) == 0 {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		clusterIdNumber := 0
+		externalLinks, err = impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, clusterIdNumber)
+		if err != nil {
+			impl.logger.Errorw("service err, FetchAllActive", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+
+	} else if len(identifier) != 0 && len(linkType) != 0 { //api to get external links from app-level external links tab and from app-details page
+		clusterIdNumber := 0
+		if len(clusterId) != 0 { //api call from app-detail page
+			clusterIdNumber, err = strconv.Atoi(clusterId)
+			if err != nil {
+				impl.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+				return
+			}
+		}
+		linkIdentifier := &externalLink.LinkIdentifier{
+			Type:       linkType,
+			Identifier: identifier,
+			ClusterId:  0,
+		}
+		externalLinks, err = impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifier, clusterIdNumber)
+		if err != nil {
+			impl.logger.Errorw("service err, FetchAllActive", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+	externalLinkAndMonitoringTools.ExternalLinks = externalLinks
+	externalLinkAndMonitoringTools.Tools = tools
+
+	common.WriteJsonResp(w, err, externalLinkAndMonitoringTools, http.StatusOK)
 	return
 
 }

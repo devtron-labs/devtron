@@ -1,18 +1,23 @@
 package app
 
 import (
+	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
+	"k8s.io/utils/strings/slices"
 	"net/http"
 	"strconv"
 )
 
 type DevtronAppAutoCompleteRestHandler interface {
 	GitListAutocomplete(w http.ResponseWriter, r *http.Request)
-	DockerListAutocomplete(w http.ResponseWriter, r *http.Request)
+	RegistriesListAutocomplete(w http.ResponseWriter, r *http.Request)
 	TeamListAutocomplete(w http.ResponseWriter, r *http.Request)
 	EnvironmentListAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetAppListForAutocomplete(w http.ResponseWriter, r *http.Request)
@@ -43,6 +48,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 			return
 		}
 	}
+	var teamIdInt int
 	handler.Logger.Infow("request payload, GetAppListForAutocomplete", "teamId", teamId)
 	var apps []*pipeline.AppBean
 	if len(teamId) == 0 {
@@ -53,12 +59,12 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 			return
 		}
 	} else {
-		teamId, err := strconv.Atoi(teamId)
+		teamIdInt, err = strconv.Atoi(teamId)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		} else {
-			apps, err = handler.pipelineBuilder.FindAppsByTeamId(teamId)
+			apps, err = handler.pipelineBuilder.FindAppsByTeamId(teamIdInt)
 			if err != nil {
 				handler.Logger.Errorw("service err, GetAppListForAutocomplete", "err", err, "teamId", teamId)
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -66,25 +72,44 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 			}
 		}
 	}
+	if isActionUserSuperAdmin {
+		common.WriteJsonResp(w, err, apps, http.StatusOK)
+		return
+	}
 
+	// RBAC
+	_, span := otel.Tracer("autoCompleteAppAPI").Start(context.Background(), "RBACForAutoCompleteAppAPI")
 	token := r.Header.Get("token")
-	var accessedApps []*pipeline.AppBean
-	// RBAC
-	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
+	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
+	if err != nil {
+		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	accessedApps := make([]*pipeline.AppBean, 0)
+	rbacObjects := make([]string, 0)
+
+	var appIdToObjectMap map[int]string
+	if len(teamId) == 0 {
+		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithMatchingAppName(appName)
+	} else {
+		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithTeamID(teamIdInt)
+	}
+
 	for _, app := range apps {
-		if isActionUserSuperAdmin {
-			accessedApps = append(accessedApps, app)
-			continue
-		}
-		object := objects[app.Id]
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
+		object := appIdToObjectMap[app.Id]
+		rbacObjects = append(rbacObjects, object)
+	}
+
+	enforcedMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	for _, app := range apps {
+		object := appIdToObjectMap[app.Id]
+		if enforcedMap[object] {
 			accessedApps = append(accessedApps, app)
 		}
 	}
+	span.End()
 	// RBAC
-	if len(accessedApps) == 0 {
-		accessedApps = make([]*pipeline.AppBean, 0)
-	}
 	common.WriteJsonResp(w, err, accessedApps, http.StatusOK)
 }
 
@@ -104,7 +129,12 @@ func (handler PipelineConfigRestHandlerImpl) EnvironmentListAutocomplete(w http.
 		return
 	}
 	//RBAC
-	result, err := handler.envService.GetEnvironmentListForAutocomplete()
+	showDeploymentOptionsParam := false
+	param := r.URL.Query().Get("showDeploymentOptions")
+	if param != "" {
+		showDeploymentOptionsParam, _ = strconv.ParseBool(param)
+	}
+	result, err := handler.envService.GetEnvironmentListForAutocomplete(showDeploymentOptionsParam)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvironmentListAutocomplete", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -139,7 +169,7 @@ func (handler PipelineConfigRestHandlerImpl) GitListAutocomplete(w http.Response
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) RegistriesListAutocomplete(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -147,6 +177,24 @@ func (handler PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	storageType := v.Get("storageType")
+	if storageType == "" {
+		storageType = repository.OCI_REGISRTY_REPO_TYPE_CONTAINER
+	}
+	if !slices.Contains(repository.OCI_REGISRTY_REPO_TYPE_LIST, storageType) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid query parameters"), nil, http.StatusBadRequest)
+		return
+	}
+	storageAction := v.Get("storageAction")
+	if storageAction == "" {
+		storageAction = repository.STORAGE_ACTION_TYPE_PUSH
+	}
+	if !(storageAction == repository.STORAGE_ACTION_TYPE_PULL || storageAction == repository.STORAGE_ACTION_TYPE_PUSH) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid query parameters"), nil, http.StatusBadRequest)
+		return
+	}
+
 	handler.Logger.Infow("request payload, DockerListAutocomplete", "appId", appId)
 	//RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
@@ -155,13 +203,13 @@ func (handler PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.Respo
 		return
 	}
 	//RBAC
-	res, err := handler.dockerRegistryConfig.ListAllActive()
+	registryConfigs, err := handler.dockerRegistryConfig.ListAllActive()
 	if err != nil {
 		handler.Logger.Errorw("service err, DockerListAutocomplete", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
+	res := handler.dockerRegistryConfig.FilterRegistryBeanListBasedOnStorageTypeAndAction(registryConfigs, storageType, storageAction, repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 

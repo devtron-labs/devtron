@@ -24,6 +24,10 @@ data:
   SENTRY_ENABLED: {{ .config.sentry | default "false" | quote }}
   SENTRY_ENV: {{ .config.sentryEnv | default "PRODUCTION" | quote }}
   APPLICATION_METRICS_ENABLED: {{ .config.applicationMetrics | default "true" | quote }}
+  HIDE_APPLICATION_GROUPS: {{ .config.hideApplicationGroups | default "false" | quote }}
+  {{- if .config.extraConfigs }}
+{{ toYaml .config.extraConfigs | indent 2 }}
+  {{- end }}
 {{- end }} 
 ---
 apiVersion: v1
@@ -69,13 +73,21 @@ spec:
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
         - name: dashboard
           image: {{ .image }}
           imagePullPolicy: {{ .imagePullPolicy }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           ports:
             - name: app
-              containerPort: 80
+              containerPort: 8080
               protocol: TCP
           env:
             - name: DEVTRON_APP_NAME

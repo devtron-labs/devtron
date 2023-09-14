@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -9,14 +10,16 @@ import (
 type DefaultAuthRoleRepository interface {
 	CreateRole(role *DefaultAuthRole) (*DefaultAuthRole, error)
 	UpdateRole(role *DefaultAuthRole) (*DefaultAuthRole, error)
-	GetRoleByRoleType(roleType RoleType) (role string, err error)
+	GetRoleByRoleTypeAndEntityType(roleType bean.RoleType, accessType string, entity string) (role string, err error)
 }
 
 type DefaultAuthRole struct {
-	TableName struct{} `sql:"default_auth_role" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	RoleType  string   `sql:"role_type,notnull"`
-	Role      string   `sql:"role,notnull"`
+	TableName  struct{} `sql:"default_auth_role" pg:",discard_unknown_columns"`
+	Id         int      `sql:"id,pk"`
+	RoleType   string   `sql:"role_type,notnull"`
+	Role       string   `sql:"role,notnull"`
+	accessType string   `sql:"access_type"`
+	entity     string   `sql:"entity,notnull"`
 	sql.AuditLog
 }
 
@@ -47,9 +50,17 @@ func (impl DefaultAuthRoleRepositoryImpl) UpdateRole(role *DefaultAuthRole) (*De
 	return role, nil
 }
 
-func (impl DefaultAuthRoleRepositoryImpl) GetRoleByRoleType(roleType RoleType) (role string, err error) {
+func (impl DefaultAuthRoleRepositoryImpl) GetRoleByRoleTypeAndEntityType(roleType bean.RoleType, accessType string, entity string) (role string, err error) {
 	var model DefaultAuthRole
-	err = impl.dbConnection.Model(&model).Where("role_type = ?", roleType).Select()
+	query := "SELECT * FROM default_auth_role WHERE role_type = ? "
+	query += " and entity = '" + entity + "' "
+	if accessType == "" {
+		query += "and access_type IS NULL ;"
+	} else {
+		query += "and access_type ='" + accessType + "' ;"
+	}
+
+	_, err = impl.dbConnection.Query(&model, query, roleType)
 	if err != nil {
 		impl.logger.Error("error in getting role by roleType", "err", err, "roleType", roleType)
 		return "", err

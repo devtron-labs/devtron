@@ -22,6 +22,7 @@ import (
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 )
 
@@ -99,10 +100,27 @@ func (impl *ChartGroupEntriesRepositoryImpl) SaveAndUpdateInTransaction(saveEntr
 func (impl *ChartGroupEntriesRepositoryImpl) FindEntriesWithChartMetaByChartGroupId(chartGroupId []int) ([]*ChartGroupEntry, error) {
 	var chartGroupEntries []*ChartGroupEntry
 	err := impl.dbConnection.Model(&chartGroupEntries).
-		Column("chart_group_entry.*", "AppStoreApplicationVersion.AppStore.ChartRepo", "AppStoreValuesVersion.name").
+		Column("chart_group_entry.*", "AppStoreApplicationVersion", "AppStoreValuesVersion.name").
 		Where("chart_group_id in (?)", pg.In(chartGroupId)).
 		Where("chart_group_entry.deleted = false").
 		Select()
+	for _, chartGroupEntry := range chartGroupEntries {
+		appStore := &appStoreDiscoverRepository.AppStore{}
+		err = impl.dbConnection.
+			Model(appStore).
+			Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
+			Where("app_store.id = ? ", chartGroupEntry.AppStoreApplicationVersion.AppStoreId).
+			Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+				return q.Where("deleted IS FALSE and " +
+					"repository_type='CHART' and " +
+					"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
+			}).
+			Select()
+		if err != nil {
+			return chartGroupEntries, err
+		}
+		chartGroupEntry.AppStoreApplicationVersion.AppStore = appStore
+	}
 	return chartGroupEntries, err
 }
 
@@ -110,8 +128,7 @@ func (impl *ChartGroupEntriesRepositoryImpl) MarkChartGroupEntriesDeleted(chartG
 	var chartGroupEntries []*ChartGroupEntry
 	_, err := tx.Model(&chartGroupEntries).
 		Where("id in (?)", pg.In(chartGroupId)).
-		Set("deleted = ", true).
+		Set("deleted = ?", true).
 		Update()
 	return chartGroupEntries, err
 }
-

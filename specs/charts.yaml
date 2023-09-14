@@ -77,6 +77,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/app-store/installed-app/notes:
+    get:
+      description: Used to fetch notes.txt for helm charts deployed via gitOps
+      parameters:
+        - name: env-id
+          in: query
+          description: it is an environment id of app
+          required: true
+          type: integer
+        - name: installed-app-id
+          in: query
+          description: it is a installed application id
+          required: true
+          type: integer
+      responses:
+        '200':
+          description: if it is able to fetch the notes.txt then status will be ok
+          content:
+            application/json:
+              schema:
+                properties:
+                  notes:
+                    type: string
+                    description: it will provide notes
+        '500':
+          description: error while fetching notes.txt
+
+
 
 # components mentioned below
 components:

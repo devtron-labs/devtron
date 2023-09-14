@@ -14,9 +14,17 @@ metadata:
 spec:
   template:
     spec:
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
       - name: postgresql-migrate-devtron
         image: {{ .image }}
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
         env:
         - name: GIT_BRANCH
           value: {{ .envVars.devtron.GIT_BRANCH }}
@@ -64,10 +72,14 @@ spec:
   template:
     spec:
       serviceAccountName: devtron
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
-        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd && kubectl rollout restart deployment/kubelink -n devtroncd']
         {{- if .casbin }}
         {{- if .casbin.resources }}        
         resources:
@@ -77,6 +89,10 @@ spec:
       initContainers:
       - name: postgresql-migrate-casbin
         image: {{ .image }}
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
         env:
         - name: SCRIPT_LOCATION
           value: {{ .envVars.casbin.SCRIPT_LOCATION }}

@@ -29,6 +29,7 @@ type DockerRegistryIpsConfig struct {
 	CredentialValue       string                          `sql:"credential_value"`
 	AppliedClusterIdsCsv  string                          `sql:"applied_cluster_ids_csv"` // -1 means all_cluster
 	IgnoredClusterIdsCsv  string                          `sql:"ignored_cluster_ids_csv"`
+	Active                bool                            `sql:"active,notnull"`
 }
 
 type DockerRegistryIpsCredentialType string
@@ -36,6 +37,7 @@ type DockerRegistryIpsCredentialType string
 type DockerRegistryIpsConfigRepository interface {
 	Save(config *DockerRegistryIpsConfig, tx *pg.Tx) error
 	Update(config *DockerRegistryIpsConfig, tx *pg.Tx) error
+	FindInActiveByDockerRegistryId(dockerRegistryId string) (*DockerRegistryIpsConfig, error)
 	FindByDockerRegistryId(dockerRegistryId string) (*DockerRegistryIpsConfig, error)
 }
 
@@ -57,8 +59,19 @@ func (impl DockerRegistryIpsConfigRepositoryImpl) Update(config *DockerRegistryI
 
 func (impl DockerRegistryIpsConfigRepositoryImpl) FindByDockerRegistryId(dockerRegistryId string) (*DockerRegistryIpsConfig, error) {
 	var dockerRegistryIpsConfig DockerRegistryIpsConfig
+	//added limit 1 for fasting querying
 	err := impl.dbConnection.Model(&dockerRegistryIpsConfig).
 		Where("docker_artifact_store_id = ?", dockerRegistryId).
-		Select()
+		Where("active = ?", true).
+		Limit(1).Select()
+	return &dockerRegistryIpsConfig, err
+}
+
+func (impl DockerRegistryIpsConfigRepositoryImpl) FindInActiveByDockerRegistryId(dockerRegistryId string) (*DockerRegistryIpsConfig, error) {
+	var dockerRegistryIpsConfig DockerRegistryIpsConfig
+	//added limit 1 for fasting querying
+	err := impl.dbConnection.Model(&dockerRegistryIpsConfig).
+		Where("docker_artifact_store_id = ?", dockerRegistryId).
+		Limit(1).Select()
 	return &dockerRegistryIpsConfig, err
 }

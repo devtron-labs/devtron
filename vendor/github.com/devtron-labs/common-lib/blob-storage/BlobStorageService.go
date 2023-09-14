@@ -46,7 +46,7 @@ func (impl *BlobStorageServiceImpl) PutWithCommand(request *BlobStorageRequest) 
 	if err != nil {
 		log.Println(" -----> push err", err)
 	}
-	return nil
+	return err
 }
 
 func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int64, error) {

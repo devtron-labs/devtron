@@ -68,6 +68,10 @@ spec:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
             weight: 5
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
       - command:
         - /shared/authenticator
@@ -75,6 +79,10 @@ spec:
         image: {{ .image }}
         imagePullPolicy: {{ .imagePullPolicy }}
         name: dex
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
         ports:
         - containerPort: 5556
         - containerPort: 5557
@@ -95,6 +103,10 @@ spec:
         image: {{ .initContainer.authenticator }}
         imagePullPolicy: IfNotPresent
         name: copyutil
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
         volumeMounts:
         - mountPath: /shared
           name: static-files

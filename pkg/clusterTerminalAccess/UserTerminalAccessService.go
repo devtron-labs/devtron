@@ -7,18 +7,24 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	utils1 "github.com/devtron-labs/devtron/pkg/clusterTerminalAccess/clusterTerminalUtils"
+	"github.com/devtron-labs/devtron/pkg/k8s"
+	"github.com/devtron-labs/devtron/pkg/k8s/capacity"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/devtron-labs/devtron/util"
+	k8s2 "github.com/devtron-labs/devtron/util/k8s"
+	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
+	"github.com/yannh/kubeconform/pkg/resource"
+	"github.com/yannh/kubeconform/pkg/validator"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,26 +35,15 @@ type UserTerminalAccessService interface {
 	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalShellSession(ctx context.Context, request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
-	FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, shellName string) (*models.UserTerminalSessionResponse, error)
+	FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, containerName string, shellName string) (*models.UserTerminalSessionResponse, error)
 	StopTerminalSession(ctx context.Context, userTerminalAccessId int)
 	DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error
 	DisconnectAllSessionsForUser(ctx context.Context, userId int32)
-	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
+	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *k8s2.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*models.UserTerminalPodEvents, error)
-	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
+	ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error)
+	EditTerminalPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
 }
-
-const (
-	hostNameKey           = "kubernetes.io/hostname"
-	serviceAccountNameKey = "serviceAccountName"
-	nodeSelectorKey       = "nodeSelector"
-	containersKey         = "containers"
-	imageKey              = "image"
-	namespaceKey          = "namespace"
-	metadataKey           = "metadata"
-	nameKey               = "name"
-	subjectsKey           = "subjects"
-)
 
 type UserTerminalAccessServiceImpl struct {
 	TerminalAccessRepository     repository.TerminalAccessRepository
@@ -57,9 +52,10 @@ type UserTerminalAccessServiceImpl struct {
 	TerminalAccessSessionDataMap *map[int]*UserTerminalAccessSessionData
 	TerminalAccessDataArrayMutex *sync.RWMutex
 	PodStatusSyncCron            *cron.Cron
-	k8sApplicationService        k8s.K8sApplicationService
-	k8sClientService             application.K8sClientService
+	K8sCommonService             k8s.K8sCommonService
 	terminalSessionHandler       terminal.TerminalSessionHandler
+	K8sCapacityService           capacity.K8sCapacityService
+	k8sUtil                      *k8s2.K8sUtil
 }
 
 type UserTerminalAccessSessionData struct {
@@ -67,6 +63,11 @@ type UserTerminalAccessSessionData struct {
 	latestActivityTime       time.Time
 	terminalAccessDataEntity *models.UserTerminalAccessData
 	terminateTriggered       bool
+}
+type ManifestEditResponse struct {
+	ErrorComments    string                 `json:"errors,omitempty"`
+	ManifestResponse *k8s2.ManifestResponse `json:"manifestResponse"`
+	models.UserTerminalSessionResponse
 }
 
 func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
@@ -78,8 +79,7 @@ func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
 	return config, err
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig,
-	k8sApplicationService k8s.K8sApplicationService, k8sClientService application.K8sClientService, terminalSessionHandler terminal.TerminalSessionHandler) (*UserTerminalAccessServiceImpl, error) {
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig, k8sCommonService k8s.K8sCommonService, terminalSessionHandler terminal.TerminalSessionHandler, K8sCapacityService capacity.K8sCapacityService, k8sUtil *k8s2.K8sUtil) (*UserTerminalAccessServiceImpl, error) {
 	//fetches all running and starting entities from db and start SyncStatus
 	podStatusSyncCron := cron.New(cron.WithChain())
 	terminalAccessDataArrayMutex := &sync.RWMutex{}
@@ -90,10 +90,11 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 		Config:                       config,
 		PodStatusSyncCron:            podStatusSyncCron,
 		TerminalAccessDataArrayMutex: terminalAccessDataArrayMutex,
-		k8sApplicationService:        k8sApplicationService,
-		k8sClientService:             k8sClientService,
+		K8sCommonService:             k8sCommonService,
 		TerminalAccessSessionDataMap: &map1,
 		terminalSessionHandler:       terminalSessionHandler,
+		K8sCapacityService:           K8sCapacityService,
+		k8sUtil:                      k8sUtil,
 	}
 	podStatusSyncCron.Start()
 	_, err := podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
@@ -104,14 +105,17 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	go accessServiceImpl.SyncRunningInstances()
 	return accessServiceImpl, err
 }
-func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error) {
-	impl.Logger.Infow("Inside validateShell method", "UserTerminalAccessServiceImpl", "podName", podName, "namespace", namespace, "shellName", shellName, "clusterId", clusterId)
+func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error) {
+	impl.Logger.Infow("Inside validateShell method", "UserTerminalAccessServiceImpl")
+	if containerName == "" {
+		containerName = "devtron-debug-terminal"
+	}
 	req := &terminal.TerminalSessionRequest{
 		PodName:       podName,
 		Namespace:     namespace,
 		Shell:         shellName,
 		ClusterId:     clusterId,
-		ContainerName: "devtron-debug-terminal",
+		ContainerName: containerName,
 	}
 	if shellName == models.AutoSelectShell {
 		shell, err := impl.terminalSessionHandler.AutoSelectShell(req)
@@ -128,6 +132,44 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 }
 func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)
+	//if request.Manifest not empty, requested from edit-manifest page to start terminal session with edited manifest.
+	if request.Manifest != "" && !request.DebugNode {
+		res, err := impl.EditTerminalPodManifest(ctx, request, true)
+		return &models.UserTerminalSessionResponse{
+			TerminalAccessId:      res.TerminalAccessId,
+			UserTerminalSessionId: res.UserTerminalSessionId,
+			Status:                res.Status,
+			PodName:               res.PodName,
+			NodeName:              res.NodeName,
+			ShellName:             res.ShellName,
+			Containers:            res.Containers,
+			PodExists:             res.PodExists,
+		}, err
+	}
+	//if DebugNode is true requested to start terminal session for node-debug pod
+	if request.DebugNode {
+		return impl.StartNodeDebug(request)
+	}
+
+	//start terminal session
+	podNameVar, err := impl.getPodNameVar(request)
+	if err != nil {
+		return nil, err
+	}
+	terminalEntity, err := impl.createTerminalEntity(request, *podNameVar)
+	if err != nil {
+		return nil, err
+	}
+	isAutoSelect := false
+	if request.NodeName == models.AUTO_SELECT_NODE {
+		isAutoSelect = true
+	}
+	err = impl.startTerminalPod(ctx, terminalEntity.PodName, request, isAutoSelect)
+	terminalEntity.DebugNode = false
+	return terminalEntity, err
+}
+
+func (impl *UserTerminalAccessServiceImpl) getPodNameVar(request *models.UserTerminalSessionRequest) (*string, error) {
 	userId := request.UserId
 	// check for max session check
 	err := impl.checkMaxSessionLimit(userId)
@@ -136,16 +178,7 @@ func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Cont
 	}
 	maxIdForUser := impl.getMaxIdForUser(userId)
 	podNameVar := impl.createPodName(request, maxIdForUser)
-	terminalEntity, err := impl.createTerminalEntity(request, podNameVar)
-	if err != nil {
-		return nil, err
-	}
-	isAutoSelect := false
-	if request.NodeName == models.AUTO_SELECT_NODE {
-		isAutoSelect = true
-	}
-	err = impl.startTerminalPod(ctx, podNameVar, request, isAutoSelect)
-	return terminalEntity, err
+	return &podNameVar, err
 }
 
 func (impl *UserTerminalAccessServiceImpl) checkMaxSessionLimit(userId int32) error {
@@ -236,7 +269,7 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(ctx contex
 	}
 
 	if models.TerminalPodStatus(terminalAccessData.Status) == models.TerminalPodRunning {
-		isValidShell, shellName, err := impl.ValidateShell(terminalAccessData.PodName, request.NameSpace, request.ShellName, terminalAccessData.ClusterId)
+		isValidShell, shellName, err := impl.ValidateShell(terminalAccessData.PodName, request.NameSpace, request.ShellName, request.ContainerName, terminalAccessData.ClusterId)
 		podStatus := models.TerminalPodStatus(terminalAccessData.Status)
 		if err != nil && err.Error() == terminal.PodNotFound {
 			podStatus = models.TerminalPodTerminated
@@ -278,7 +311,6 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-
 	return impl.StartTerminalSession(ctx, request)
 }
 
@@ -414,6 +446,10 @@ func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context,
 		return err
 	}
 	for _, accessTemplate := range accessTemplates {
+		//do not apply the node debug pod template
+		if accessTemplate.TemplateName == utils1.TerminalNodeDebugPodName {
+			continue
+		}
 		err = impl.applyTemplateData(ctx, request, podNameVar, accessTemplate, false, isAutoSelect)
 		if err != nil {
 			return err
@@ -430,108 +466,6 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 	return podNameVar
 }
 
-func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string, nodeName string, baseImage string, isAutoSelect bool) (string, error) {
-	if val, ok := templateDataMap[metadataKey]; ok {
-		metadataMap := val.(map[string]interface{})
-		if _, ok1 := metadataMap[nameKey]; ok1 {
-			metadataMap[nameKey] = interface{}(podNameVar)
-		}
-	}
-	if val, ok := templateDataMap["spec"]; ok {
-		specMap := val.(map[string]interface{})
-		if _, ok1 := specMap[serviceAccountNameKey]; ok1 {
-			name := fmt.Sprintf("%s-sa", podNameVar)
-			specMap[serviceAccountNameKey] = interface{}(name)
-		}
-
-		if _, ok1 := specMap[nodeSelectorKey]; ok1 {
-			if isAutoSelect {
-				delete(specMap, nodeSelectorKey)
-			} else {
-				nodeSelectorData := specMap[nodeSelectorKey]
-				nodeSelectorDataMap := nodeSelectorData.(map[string]interface{})
-				if _, ok2 := nodeSelectorDataMap[hostNameKey]; ok2 {
-					nodeSelectorDataMap[hostNameKey] = interface{}(nodeName)
-				}
-			}
-		}
-
-		if containers, ok1 := specMap[containersKey]; ok1 {
-			containersData := containers.([]interface{})
-			for _, containerData := range containersData {
-				containerDataMap := containerData.(map[string]interface{})
-				if _, ok2 := containerDataMap[imageKey]; ok2 {
-					containerDataMap[imageKey] = interface{}(baseImage)
-				}
-			}
-		}
-
-	}
-	bytes, err := json.Marshal(&templateDataMap)
-	return string(bytes), err
-}
-func updateClusterRoleBindingTemplate(templateDataMap map[string]interface{}, podNameVar string, namespace string) (string, error) {
-	if val, ok := templateDataMap[metadataKey]; ok {
-		metadataMap := val.(map[string]interface{})
-		if _, ok1 := metadataMap[nameKey]; ok1 {
-			name := fmt.Sprintf("%s-crb", podNameVar)
-			metadataMap[nameKey] = name
-		}
-	}
-
-	if subjects, ok := templateDataMap[subjectsKey]; ok {
-		for _, subject := range subjects.([]interface{}) {
-			subjectMap := subject.(map[string]interface{})
-			if _, ok1 := subjectMap[nameKey]; ok1 {
-				name := fmt.Sprintf("%s-sa", podNameVar)
-				subjectMap[nameKey] = interface{}(name)
-			}
-
-			if _, ok2 := subjectMap[namespaceKey]; ok2 {
-				subjectMap[namespaceKey] = interface{}(namespace)
-			}
-		}
-	}
-
-	bytes, err := json.Marshal(&templateDataMap)
-	return string(bytes), err
-}
-func updateServiceAccountTemplate(templateDataMap map[string]interface{}, podNameVar string, namespace string) (string, error) {
-	if val, ok := templateDataMap[metadataKey]; ok {
-		metadataMap := val.(map[string]interface{})
-		if _, ok1 := metadataMap[nameKey]; ok1 {
-			name := fmt.Sprintf("%s-sa", podNameVar)
-			metadataMap[nameKey] = interface{}(name)
-		}
-
-		if _, ok2 := metadataMap[namespaceKey]; ok2 {
-			metadataMap[namespaceKey] = interface{}(namespace)
-		}
-
-	}
-	bytes, err := json.Marshal(&templateDataMap)
-	return string(bytes), err
-}
-
-func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool) (string, error) {
-	templateDataMap := map[string]interface{}{}
-	err := yaml.Unmarshal([]byte(templateData), &templateDataMap)
-	if err != nil {
-		return templateData, err
-	}
-	if _, ok := templateDataMap["kind"]; ok {
-		kind := templateDataMap["kind"]
-		if kind == "ServiceAccount" {
-			return updateServiceAccountTemplate(templateDataMap, podNameVar, namespace)
-		} else if kind == "ClusterRoleBinding" {
-			return updateClusterRoleBindingTemplate(templateDataMap, podNameVar, namespace)
-		} else if kind == "Pod" {
-			return updatePodTemplate(templateDataMap, podNameVar, nodeName, baseImage, isAutoSelect)
-		}
-	}
-	return templateData, nil
-}
-
 // template data use kubernetes object
 func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context, request *models.UserTerminalSessionRequest, podNameVar string,
 	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool, isAutoSelect bool) error {
@@ -540,7 +474,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context
 	clusterId := request.ClusterId
 	namespace := request.Namespace
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessUserIdTemplateVar, strconv.FormatInt(int64(request.UserId), 10))
-	templateData, err := replaceTemplateData(templateData, podNameVar, namespace, request.NodeName, request.BaseImage, isAutoSelect)
+	templateData, err := utils1.ReplaceTemplateData(templateData, podNameVar, namespace, request.NodeName, request.BaseImage, isAutoSelect, request.NodeTaints)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while updating template data", "name", templateName, "err", err)
 		return err
@@ -654,7 +588,7 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(ctx context.Cont
 	return sessionID, nodeName, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, shellName string) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, containerName string, shellName string) (*models.UserTerminalSessionResponse, error) {
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	terminalAccessSessionData, present := terminalAccessDataMap[terminalAccessId]
 	var terminalSessionId = ""
@@ -671,7 +605,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 				ShellName:             shellName,
 			}
 			if models.TerminalPodStatus(accessDataEntity.Status) == models.TerminalPodRunning {
-				isValid, _, err := impl.ValidateShell(accessDataEntity.PodName, namespace, shellName, accessDataEntity.ClusterId)
+				isValid, _, err := impl.ValidateShell(accessDataEntity.PodName, namespace, shellName, containerName, accessDataEntity.ClusterId)
 				response.IsValidShell = isValid
 				if err != nil {
 					if err.Error() == terminal.PodNotFound {
@@ -717,7 +651,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 		ShellName:             shellName,
 	}
 	if models.TerminalPodStatus(terminalAccessData.Status) == models.TerminalPodRunning {
-		isValid, _, err := impl.ValidateShell(terminalAccessData.PodName, namespace, shellName, terminalAccessData.ClusterId)
+		isValid, _, err := impl.ValidateShell(terminalAccessData.PodName, namespace, shellName, containerName, terminalAccessData.ClusterId)
 		terminalAccessResponse.IsValidShell = isValid
 		if err != nil {
 			if err.Error() == terminal.PodNotFound {
@@ -787,19 +721,13 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(ctx context.Context
 }
 
 func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Context, clusterId int, terminalResourceName string, resourceTemplateString string, namespace string) error {
-	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(resourceTemplateString), nil, nil)
+	groupVersionKind, err := impl.k8sUtil.DecodeGroupKindversion(resourceTemplateString)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "resourceTemplateString", resourceTemplateString, "err", err)
 		return err
 	}
-
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
-	if err != nil {
-		return err
-	}
-
-	k8sRequest := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
+	k8sRequest := &k8s2.K8sRequestBean{
+		ResourceIdentifier: k8s2.ResourceIdentifier{
 			Name:      terminalResourceName,
 			Namespace: namespace,
 			GroupVersionKind: schema.GroupVersionKind{
@@ -809,7 +737,13 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 			},
 		},
 	}
-	_, err = impl.k8sClientService.DeleteResource(ctx, restConfig, k8sRequest)
+	resourceRequest := &k8s.ResourceRequestBean{
+		K8sRequest: k8sRequest,
+		ClusterId:  clusterId,
+	}
+
+	// Here Sending userId as 0 as it appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
+	_, err = impl.K8sCommonService.DeleteResource(ctx, resourceRequest)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while deleting resource for pod", "podName", terminalResourceName, "err", err)
 	}
@@ -817,19 +751,18 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 }
 
 func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, clusterId int, gvkDataString string, templateData string, isUpdate bool, namespace string) error {
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, _ := impl.K8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		return err
 	}
 
-	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
+	groupVersionKind, err := impl.k8sUtil.DecodeGroupKindversion(gvkDataString)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return err
 	}
-
-	k8sRequest := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
+	k8sRequest := &k8s2.K8sRequestBean{
+		ResourceIdentifier: k8s2.ResourceIdentifier{
 			Namespace: namespace,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   groupVersionKind.Group,
@@ -838,12 +771,16 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, cl
 			},
 		},
 	}
-
+	request := &k8s.ResourceRequestBean{
+		K8sRequest: k8sRequest,
+		ClusterId:  clusterId,
+	}
+	resourceIdentifier := k8sRequest.ResourceIdentifier
 	if isUpdate {
 		k8sRequest.Patch = templateData
-		_, err = impl.k8sClientService.UpdateResource(ctx, restConfig, k8sRequest)
+		_, err = impl.K8sCommonService.UpdateResource(ctx, request)
 	} else {
-		_, err = impl.k8sClientService.CreateResource(ctx, restConfig, k8sRequest, templateData)
+		_, err = impl.k8sUtil.CreateResources(ctx, restConfig, templateData, resourceIdentifier.GroupVersionKind, resourceIdentifier.Namespace)
 	}
 	if err != nil {
 		if errStatus, ok := err.(*k8sErrors.StatusError); !(ok && errStatus.Status().Reason == metav1.StatusReasonAlreadyExists) {
@@ -885,12 +822,12 @@ func (impl *UserTerminalAccessServiceImpl) getPodStatus(ctx context.Context, clu
 	return status, nodeName, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, clusterId int, podName string, namespace string) (*application.ManifestResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, clusterId int, podName string, namespace string) (*k8s2.ManifestResponse, error) {
 	request, err := impl.getPodRequestBean(clusterId, podName, namespace)
 	if err != nil {
 		return nil, err
 	}
-	response, err := impl.k8sApplicationService.GetResource(ctx, request)
+	response, err := impl.K8sCommonService.GetResource(ctx, request)
 	if err != nil {
 		if isResourceNotFoundErr(err) {
 			errorDetailedMessage := getErrorDetailedMessage(err)
@@ -911,7 +848,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 		return nil, err
 	}
 	gvkDataString := terminalAccessPodTemplate.TemplateData
-	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
+	groupVersionKind, err := impl.k8sUtil.DecodeGroupKindversion(gvkDataString)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return nil, err
@@ -921,8 +858,8 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 		AppIdentifier: &client.AppIdentifier{
 			ClusterId: clusterId,
 		},
-		K8sRequest: &application.K8sRequestBean{
-			ResourceIdentifier: application.ResourceIdentifier{
+		K8sRequest: &k8s2.K8sRequestBean{
+			ResourceIdentifier: k8s2.ResourceIdentifier{
 				Name:      podName,
 				Namespace: namespace,
 				GroupVersionKind: schema.GroupVersionKind{
@@ -972,10 +909,14 @@ func (impl *UserTerminalAccessServiceImpl) deleteClusterTerminalTemplates(ctx co
 	impl.DeleteTerminalResource(ctx, clusterId, templateName, templateData.TemplateData, namespace)
 }
 
-func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error) {
+func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *k8s2.ManifestResponse, err error) {
 	terminalAccessData, err := impl.getTerminalAccessDataForId(userTerminalAccessId)
 	if err != nil {
 		return nil, errors.New("unable to fetch manifest")
+	}
+	statusReason := strings.Split(terminalAccessData.Status, "/")
+	if statusReason[0] == string(models.TerminalPodTerminated) {
+		return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
 	}
 	metadataMap, err := impl.getMetadataMap(terminalAccessData.Metadata)
 	if err != nil {
@@ -984,7 +925,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context,
 	namespace := metadataMap["Namespace"]
 	manifest, err := impl.getPodManifest(ctx, terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 	if err != nil {
-		statusReason := strings.Split(err.Error(), "/")
+		statusReason = strings.Split(err.Error(), "/")
 		if statusReason[0] == string(models.TerminalPodTerminated) {
 			return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
 		}
@@ -1005,7 +946,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(ctx context.Context, u
 	}
 	namespace := metadataMap["Namespace"]
 	podRequestBean, err := impl.getPodRequestBean(terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
-	podEvents, err := impl.k8sApplicationService.ListEvents(ctx, podRequestBean)
+	podEvents, err := impl.K8sCommonService.ListEvents(ctx, podRequestBean)
 	status := string(terminalAccessData.Status)
 	statusReason := strings.Split(terminalAccessData.Status, "/")
 	errorReason := ""
@@ -1035,4 +976,284 @@ func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTermin
 		}
 	}
 	return terminalAccessData, err
+}
+
+func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.Context, editManifestRequest *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error) {
+
+	manifestRequest := editManifestRequest.Manifest
+	userTerminalAccessId := editManifestRequest.Id
+	impl.Logger.Infow("Reached EditPodManifest method", "userTerminalAccessId", userTerminalAccessId, "manifest", manifestRequest)
+
+	result := ManifestEditResponse{}
+
+	manifestResponse := &k8s2.ManifestResponse{}
+	manifestMap := map[string]interface{}{}
+	err := json.Unmarshal([]byte(manifestRequest), &manifestMap)
+	if err != nil {
+		impl.Logger.Errorw("error in unmarshalling manifest request", "err", err)
+		return result, err
+	}
+
+	manifestResponse.Manifest.SetUnstructuredContent(manifestMap)
+	result.ManifestResponse = manifestResponse
+
+	//return if not a pod yaml
+	if manifestMap != nil {
+		if manifestMap["kind"] != "Pod" {
+			err := errors.New("manifest should be of kind \"Pod\"")
+			impl.Logger.Errorw("given manifest is not a pod manifest", "manifest", manifestMap, "err", err)
+			return result, err
+		}
+	}
+
+	//construct validator
+	v, err := validator.New(nil, validator.Opts{Strict: true})
+	if err != nil {
+		impl.Logger.Errorw("failed initializing validator", "err", err)
+		return result, err
+	}
+	//construct validate request
+	YamlResource := resource.Resource{
+		Bytes: []byte(manifestRequest),
+	}
+	//validate the yaml
+	validatorResponse := v.ValidateResource(YamlResource)
+	if validatorResponse.Err != nil {
+		result.ManifestResponse = manifestResponse
+		result.ErrorComments = validatorResponse.Err.Error()
+		return result, nil
+	}
+	// valid pod yaml found
+	impl.Logger.Infow("pod manifest yaml validated using \"kubeconform\" validator", "podManifest", manifestMap)
+
+	//convert manifestMap to v1.Pod object
+	podObject := v1.Pod{}
+	err = runtime.DefaultUnstructuredConverter.
+		FromUnstructured(manifestResponse.Manifest.Object, &podObject)
+	if err != nil {
+		impl.Logger.Errorw("error in converting manifest request to k8s Pod object", "userTerminalAccessId", userTerminalAccessId, "err", err, "manifest", manifestRequest)
+		return result, err
+	}
+
+	if override {
+		//override pod variables with requested variables
+		podObject.Namespace = editManifestRequest.Namespace
+		if editManifestRequest.NodeName != models.AUTO_SELECT_NODE {
+			podObject.Spec.NodeName = editManifestRequest.NodeName
+			for _, taint := range editManifestRequest.NodeTaints {
+				podObject.Spec.Tolerations = append(podObject.Spec.Tolerations, v1.Toleration{
+					Effect:   v1.TaintEffect(taint.Effect),
+					Key:      taint.Key,
+					Operator: v1.TolerationOpExists,
+				})
+			}
+		}
+		//set base image to the requested container
+		for i, container := range podObject.Spec.Containers {
+			if container.Name == editManifestRequest.ContainerName {
+				podObject.Spec.Containers[i].Image = editManifestRequest.BaseImage
+			}
+		}
+
+	}
+
+	if podObject.Spec.NodeName != "" {
+		_, err := impl.K8sCapacityService.GetNode(context.Background(), editManifestRequest.ClusterId, podObject.Spec.NodeName)
+		if err != nil {
+			impl.Logger.Errorw("failed to get node details for requested node", "err", err, "userId", editManifestRequest.UserId, "nodeName", podObject.Spec.NodeName, "clusterId", editManifestRequest.ClusterId)
+			return result, err
+		}
+	}
+	if len(podObject.Namespace) == 0 {
+		podObject.Namespace = utils1.DefaultNamespace
+	}
+	terminalAccessData, err := impl.getTerminalAccessDataForId(userTerminalAccessId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
+		return result, err
+	}
+	if terminalAccessData == nil || podObject.Name != terminalAccessData.PodName {
+		if !editManifestRequest.ForceDelete && impl.checkOtherPodExists(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId) {
+			result.PodExists = true
+			result.PodName = podObject.Name
+			result.NameSpace = podObject.Namespace
+			//log the pod exists info
+			//return, to warn user that pod with this name already exists in the given namespace
+			return result, nil
+		}
+	}
+
+	//delete if (user chooses to force delete) or (old pod and new pod have same name)
+	//if reached this point, force delete the existing pod and create new
+	impl.forceDeletePod(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId, editManifestRequest.UserId)
+
+	//determine request to  createTerminalEntity method
+	editManifestRequest.NodeName = podObject.Spec.NodeName
+	editManifestRequest.Namespace = podObject.Namespace
+	terminalStartResponse, err := impl.createTerminalEntity(editManifestRequest, podObject.Name)
+	if err != nil {
+		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", userTerminalAccessId, "err", err)
+		return result, err
+	}
+	//delete resourceVersion before applying the pod yaml got from user, we are deleting this field because we never update the pod,we always create a new pod.
+	podObject.ResourceVersion = ""
+	//create podTemplate from PodObject
+	podTemplateBytes, err := json.Marshal(&podObject)
+	podTemplate := string(podTemplateBytes)
+	//start new session with provided Pod manifest
+	err = impl.applyTemplate(ctx, editManifestRequest.ClusterId, podTemplate, podTemplate, false, editManifestRequest.Namespace)
+	if err != nil {
+		impl.Logger.Errorw("failed to start terminal session", "userTerminalAccessId", userTerminalAccessId, "err", err)
+		//send podObject data
+		return result, err
+	}
+	result.PodExists = false
+	result.DebugNode = utils1.IsNodeDebugPod(&podObject)
+	var containers []models.Container
+	for _, con := range podObject.Spec.Containers {
+		containers = append(containers, models.Container{
+			ContainerName: con.Name,
+			Image:         con.Image,
+		})
+	}
+	result.TerminalAccessId = terminalStartResponse.TerminalAccessId
+	result.Containers = containers
+	result.PodName = terminalStartResponse.PodName
+	result.NodeName = terminalStartResponse.NodeName
+	result.ShellName = editManifestRequest.ShellName
+	result.Status = ""
+	result.NodeName = podObject.Spec.NodeName
+	result.NameSpace = podObject.Namespace
+	return result, nil
+}
+
+func (impl *UserTerminalAccessServiceImpl) checkOtherPodExists(ctx context.Context, podName, namespace string, clusterId int) bool {
+	podRequestBean, _ := impl.getPodRequestBean(clusterId, podName, namespace)
+	res, _ := impl.K8sCommonService.GetResource(ctx, podRequestBean)
+	if res != nil {
+		return true
+	}
+	return false
+}
+
+func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, podName, namespace string, clusterId int, userId int32) bool {
+	//add grace period 0 to force delete
+	podRequestBean, err := impl.getPodRequestBean(clusterId, podName, namespace)
+	if err != nil {
+		impl.Logger.Errorw("error occurred in getting the pod request bean", "podName", podName, "nameSpace", namespace, "clusterId", clusterId)
+		return false
+	}
+	podRequestBean.K8sRequest.ForceDelete = true
+	_, err = impl.K8sCommonService.DeleteResource(ctx, podRequestBean)
+	if err != nil && !isResourceNotFoundErr(err) {
+		return false
+	}
+	return true
+}
+
+func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(userTerminalRequest *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
+
+	if userTerminalRequest.NodeName == models.AUTO_SELECT_NODE {
+		return nil, errors.New("node-name is not valid, node-name : " + userTerminalRequest.NodeName)
+	}
+	if userTerminalRequest.NodeName == "" || userTerminalRequest.ShellName == "" {
+		return nil, errors.New("node-name or shell cannot be empty, node-name : " + userTerminalRequest.NodeName + ", shell : " + userTerminalRequest.ShellName)
+	}
+	nodeInfo, err := impl.K8sCapacityService.GetNode(context.Background(), userTerminalRequest.ClusterId, userTerminalRequest.NodeName)
+	if err != nil {
+		impl.Logger.Errorw("failed to get node details for requested node", "err", err, "userId", userTerminalRequest.UserId, "nodeName", userTerminalRequest.NodeName, "clusterId", userTerminalRequest.ClusterId)
+		return nil, err
+	}
+	taints := make([]models.NodeTaints, 0)
+	for _, taint := range nodeInfo.Spec.Taints {
+		taints = append(taints, models.NodeTaints{
+			Key:    taint.Key,
+			Value:  taint.Value,
+			Effect: string(taint.Effect),
+		})
+	}
+
+	userTerminalRequest.NodeTaints = taints
+	podObject, err := impl.GenerateNodeDebugPod(userTerminalRequest)
+	if err != nil {
+		impl.Logger.Errorw("failed to create node-debug pod", "err", err, "userId", userTerminalRequest.UserId, "userTerminalRequest", userTerminalRequest)
+		return nil, err
+	}
+	result, err := impl.createTerminalEntity(userTerminalRequest, podObject.Name)
+	if err != nil {
+		impl.Logger.Errorw("failed to create terminal entity", "err", err, "userId", userTerminalRequest.UserId, "userTerminalRequest", userTerminalRequest)
+		return nil, err
+	}
+	result.PodExists = false
+	result.DebugNode = true
+	var containers []models.Container
+	for _, con := range podObject.Spec.Containers {
+		containers = append(containers, models.Container{
+			ContainerName: con.Name,
+			Image:         con.Image,
+		})
+	}
+	result.ShellName = userTerminalRequest.ShellName
+	result.Containers = containers
+	result.Status = ""
+	result.NodeName = podObject.Spec.NodeName
+	return result, nil
+}
+
+func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTerminalSessionRequest) (*v1.Pod, error) {
+	nodeName := o.NodeName
+	pn := fmt.Sprintf("node-debugger-%s-%s", nodeName, util.Generate(5))
+
+	impl.Logger.Infow("Creating node debugging pod ", "podName", pn, "nodeName", nodeName)
+	debugNodePodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(utils1.TerminalNodeDebugPodName)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
+		return nil, err
+	}
+
+	serviceAccountTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(utils1.TerminalAccessServiceAccount)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
+		return nil, err
+	}
+
+	clusterRoleBindingTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(utils1.TerminalAccessRoleBinding)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
+		return nil, err
+	}
+
+	debugPod := &v1.Pod{}
+
+	podTemplate, err := utils1.ReplaceTemplateData(debugNodePodTemplate.TemplateData, pn, o.Namespace, nodeName, o.BaseImage, false, o.NodeTaints)
+	if err != nil {
+		impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
+		return debugPod, err
+	}
+	err = json.Unmarshal([]byte(podTemplate), &debugPod)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while unmarshaling template data into coreV1 Pod Object", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
+		return nil, errors.New("internal server error occurred while creating node debug pod")
+	}
+	SATemplate, err := utils1.ReplaceTemplateData(serviceAccountTemplate.TemplateData, pn, o.Namespace, "", "", false, nil)
+	if err != nil {
+		impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
+		return debugPod, err
+	}
+	err = impl.applyTemplate(context.Background(), o.ClusterId, SATemplate, SATemplate, false, o.Namespace)
+	if err != nil {
+		return debugPod, err
+	}
+	RoleBindingTemplate, err := utils1.ReplaceTemplateData(clusterRoleBindingTemplate.TemplateData, pn, o.Namespace, "", "", false, nil)
+	if err != nil {
+		impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
+		return debugPod, err
+	}
+	err = impl.applyTemplate(context.Background(), o.ClusterId, RoleBindingTemplate, RoleBindingTemplate, false, o.Namespace)
+	if err != nil {
+		return debugPod, err
+	}
+
+	err = impl.applyTemplate(context.Background(), o.ClusterId, podTemplate, podTemplate, false, o.Namespace)
+	return debugPod, err
 }

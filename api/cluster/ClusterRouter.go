@@ -40,10 +40,23 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("POST").
 		HandlerFunc(impl.clusterRestHandler.Save)
 
+	clusterRouter.Path("/saveClusters").
+		Methods("POST").
+		HandlerFunc(impl.clusterRestHandler.SaveClusters)
+
+	clusterRouter.Path("/validate").
+		Methods("POST").
+		HandlerFunc(impl.clusterRestHandler.ValidateKubeconfig)
+
 	clusterRouter.Path("").
 		Methods("GET").
 		Queries("id", "{id}").
 		HandlerFunc(impl.clusterRestHandler.FindById)
+
+	clusterRouter.Path("/description").
+		Methods("GET").
+		Queries("id", "{id}").
+		HandlerFunc(impl.clusterRestHandler.FindNoteByClusterId)
 
 	clusterRouter.Path("").
 		Methods("GET").
@@ -52,6 +65,10 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 	clusterRouter.Path("").
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.Update)
+
+	clusterRouter.Path("/description").
+		Methods("PUT").
+		HandlerFunc(impl.clusterRestHandler.UpdateClusterNote)
 
 	clusterRouter.Path("/autocomplete").
 		Methods("GET").

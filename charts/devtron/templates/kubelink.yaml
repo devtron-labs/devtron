@@ -1,4 +1,35 @@
 {{- with .Values.components.kubelink }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubelink-secret
+  labels:
+    app: kubelink
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+type: Opaque
+{{- if .secrets }}
+data:
+{{- range $k, $v := .secrets }}
+  {{ $k }}: {{ $v | b64enc }}
+{{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubelink-cm
+  labels:
+    app: kubelink
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+{{- if .configs }}
+data:
+{{ toYaml .configs | indent 2 }}
+{{- end }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,10 +53,18 @@ spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccount: devtron
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
         - name: kubelink
           image: {{ .image }}
           imagePullPolicy: {{ .imagePullPolicy }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           ports:
             - name: app
               containerPort: 50051
@@ -37,6 +76,18 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            {{- if .dbconfig }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .dbconfig.secretName }}
+                  key: {{ .dbconfig.keyName }}
+            {{- end }}
+          envFrom:
+          - configMapRef:
+              name: kubelink-cm
+          - secretRef:
+              name: kubelink-secret
           {{- if .resources }}        
           resources:
           {{- toYaml .resources | nindent 12 }}

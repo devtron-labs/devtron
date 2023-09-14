@@ -19,9 +19,17 @@ spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccount: devtron
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
         - name: kubelink
-          image: "quay.io/devtron/kubelink:a5e179d4-318-12564"
+          image: "quay.io/devtron/kubelink:af6112c2-318-14801"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsNonRoot: true
           imagePullPolicy: IfNotPresent
           ports:
             - name: app

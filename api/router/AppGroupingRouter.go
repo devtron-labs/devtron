@@ -12,12 +12,16 @@ type AppGroupingRouter interface {
 type AppGroupingRouterImpl struct {
 	restHandler            app.PipelineConfigRestHandler
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler
+	appGroupRestHandler    restHandler.AppGroupRestHandler
 }
 
-func NewAppGroupingRouterImpl(restHandler app.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler) *AppGroupingRouterImpl {
+func NewAppGroupingRouterImpl(restHandler app.PipelineConfigRestHandler,
+	appWorkflowRestHandler restHandler.AppWorkflowRestHandler,
+	appGroupRestHandler restHandler.AppGroupRestHandler) *AppGroupingRouterImpl {
 	return &AppGroupingRouterImpl{
 		restHandler:            restHandler,
 		appWorkflowRestHandler: appWorkflowRestHandler,
+		appGroupRestHandler:    appGroupRestHandler,
 	}
 }
 
@@ -32,4 +36,13 @@ func (router AppGroupingRouterImpl) InitAppGroupingRouter(appGroupingRouter *mux
 	appGroupingRouter.Path("/{envId}/applications").HandlerFunc(router.restHandler.GetApplicationsByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/{envId}/deployment/status").HandlerFunc(router.restHandler.FetchAppDeploymentStatusForEnvironments).Methods("GET")
 
+	appGroupingRouter.Path("/{envId}/group").HandlerFunc(router.appGroupRestHandler.CreateAppGroup).Methods("POST")
+	appGroupingRouter.Path("/{envId}/group").HandlerFunc(router.appGroupRestHandler.UpdateAppGroup).Methods("PUT")
+	appGroupingRouter.Path("/{envId}/group/{appGroupId}").HandlerFunc(router.appGroupRestHandler.GetApplicationsForAppGroup).Methods("GET")
+	appGroupingRouter.Path("/{envId}/groups").HandlerFunc(router.appGroupRestHandler.GetActiveAppGroupList).Methods("GET")
+	appGroupingRouter.Path("/{envId}/group/{appGroupId}").HandlerFunc(router.appGroupRestHandler.DeleteAppGroup).Methods("DELETE")
+
+	appGroupingRouter.Path("/{envId}/ci-pipeline/min").HandlerFunc(router.restHandler.GetCiPipelineByEnvironmentMin).Methods("GET")
+	appGroupingRouter.Path("/{envId}/cd-pipeline/min").HandlerFunc(router.restHandler.GetCdPipelinesByEnvironmentMin).Methods("GET")
+	appGroupingRouter.Path("/{envId}/group/permission/check").HandlerFunc(router.appGroupRestHandler.CheckAppGroupPermissions).Methods("POST")
 }

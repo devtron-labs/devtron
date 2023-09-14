@@ -28,7 +28,8 @@ import (
 	"go.uber.org/zap"
 )
 
-/**
+/*
+*
 this table contains scanned images registry for deployed object and apps,
 images which are deployed on cluster by anyway and has scanned result
 */
@@ -126,8 +127,8 @@ func (impl ImageScanDeployInfoRepositoryImpl) FindByIds(ids []int) ([]*ImageScan
 	return models, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) Update(team *ImageScanDeployInfo) error {
-	err := impl.dbConnection.Update(team)
+func (impl ImageScanDeployInfoRepositoryImpl) Update(model *ImageScanDeployInfo) error {
+	err := impl.dbConnection.Update(model)
 	return err
 }
 

@@ -38,10 +38,10 @@ type ChartRefRepository interface {
 	GetAll() ([]*ChartRef, error)
 	GetAllChartMetadata() ([]*ChartRefMetaData, error)
 	FindByVersionAndName(name, version string) (*ChartRef, error)
-	CheckIfDataExists(name string, version string) (bool, error)
+	CheckIfDataExists(location string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
 	FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error)
-	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
+	FetchAllChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -102,27 +102,30 @@ func (impl ChartRefRepositoryImpl) GetAllChartMetadata() ([]*ChartRefMetaData, e
 	return chartRefMetaDatas, err
 }
 
-func (impl ChartRefRepositoryImpl) CheckIfDataExists(name string, version string) (bool, error) {
+func (impl ChartRefRepositoryImpl) CheckIfDataExists(location string) (bool, error) {
 	repo := &ChartRef{}
 	return impl.dbConnection.Model(repo).
-		Where("lower(name) = ?", strings.ToLower(name)).
-		Where("version = ? ", version).Exists()
+		Where("location = ?", location).
+		Exists()
 }
 
 func (impl ChartRefRepositoryImpl) FetchChart(name string) ([]*ChartRef, error) {
 	var chartRefs []*ChartRef
-	err := impl.dbConnection.Model(&chartRefs).Where("lower(name) = ?", strings.ToLower(name)).Select()
+	err := impl.dbConnection.
+		Model(&chartRefs).
+		Where("lower(name) = ?", strings.ToLower(name)).
+		Select()
 	if err != nil {
 		return nil, err
 	}
 	return chartRefs, err
 }
 
-func (impl ChartRefRepositoryImpl) FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error) {
+func (impl ChartRefRepositoryImpl) FetchAllChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error) {
 	var repo []*ChartRef
 	err := impl.dbConnection.Model(&repo).
 		Where("user_uploaded = ?", userUploaded).
-		Where("active = ?", true).Select()
+		Select()
 	if err != nil {
 		return repo, err
 	}
@@ -156,6 +159,7 @@ type GlobalStrategyMetadata struct {
 	tableName   struct{}           `sql:"global_strategy_metadata" pg:",discard_unknown_columns"`
 	Id          int                `sql:"id,pk"`
 	Name        DeploymentStrategy `sql:"name"`
+	Key         string             `sql:"key"`
 	Description string             `sql:"description"`
 	Deleted     bool               `sql:"deleted,notnull"`
 	sql.AuditLog
@@ -195,13 +199,16 @@ func (impl *GlobalStrategyMetadataRepositoryImpl) GetByChartRefId(chartRefId int
 type GlobalStrategyMetadataChartRefMapping struct {
 	tableName                struct{} `sql:"global_strategy_metadata_chart_ref_mapping" pg:",discard_unknown_columns"`
 	Id                       int      `sql:"id,pk"`
-	GlobalStrategyMetadataId string   `sql:"global_strategy_metadata_id"`
-	ChartRefId               string   `sql:"chart_ref_id"`
+	GlobalStrategyMetadataId int      `sql:"global_strategy_metadata_id"`
+	ChartRefId               int      `sql:"chart_ref_id"`
 	Active                   bool     `sql:"active,notnull"`
+	Default                  bool     `sql:"default,notnull"`
+	GlobalStrategyMetadata   *GlobalStrategyMetadata
 	sql.AuditLog
 }
 
 type GlobalStrategyMetadataChartRefMappingRepository interface {
+	GetByChartRefId(chartRefId int) ([]*GlobalStrategyMetadataChartRefMapping, error)
 }
 type GlobalStrategyMetadataChartRefMappingRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -214,4 +221,18 @@ func NewGlobalStrategyMetadataChartRefMappingRepositoryImpl(dbConnection *pg.DB,
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
+}
+
+func (impl *GlobalStrategyMetadataChartRefMappingRepositoryImpl) GetByChartRefId(chartRefId int) ([]*GlobalStrategyMetadataChartRefMapping, error) {
+	var globalStrategies []*GlobalStrategyMetadataChartRefMapping
+	err := impl.dbConnection.Model(&globalStrategies).
+		Column("global_strategy_metadata_chart_ref_mapping.*", "GlobalStrategyMetadata").
+		Where("global_strategy_metadata_chart_ref_mapping.chart_ref_id = ?", chartRefId).
+		Where("global_strategy_metadata_chart_ref_mapping.active = ?", true).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting global strategies metadata mapping by chartRefId", "err", err, "chartRefId", chartRefId)
+		return nil, err
+	}
+	return globalStrategies, err
 }

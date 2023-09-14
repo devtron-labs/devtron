@@ -6,14 +6,15 @@ import (
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"strings"
 	"time"
 
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
-	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -35,7 +36,7 @@ type ClusterServiceImplExtended struct {
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
-	K8sUtil *util.K8sUtil,
+	K8sUtil *k8s.K8sUtil,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
 	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
 	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository) *ClusterServiceImplExtended {
@@ -65,7 +66,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 		return nil, err
 	}
 	for _, bean := range beans {
-		bean.Config = map[string]string{"bearer_token": ""}
+		bean.Config = map[string]string{k8s.BearerToken: ""}
 	}
 	return beans, nil
 }
@@ -225,13 +226,19 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
-		if configMap["bearer_token"] != "" {
-			bearerToken = configMap["bearer_token"]
+		if configMap[k8s.BearerToken] != "" {
+			bearerToken = configMap[k8s.BearerToken]
 		}
 
 		tlsConfig := v1alpha1.TLSClientConfig{
-			Insecure: true,
+			Insecure: bean.InsecureSkipTLSVerify,
 		}
+		if !bean.InsecureSkipTLSVerify {
+			tlsConfig.KeyData = []byte(configMap[k8s.TlsKey])
+			tlsConfig.CertData = []byte(configMap[k8s.CertData])
+			tlsConfig.CAData = []byte(configMap[k8s.CertificateAuthorityData])
+		}
+
 		cdClusterConfig := v1alpha1.ClusterConfig{
 			BearerToken:     bearerToken,
 			TLSClientConfig: tlsConfig,
@@ -248,7 +255,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		if err != nil {
 			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 			userMsg := "failed to update on cluster via ACD"
-			if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
+			if strings.Contains(err.Error(), k8s.DefaultClusterUrl) {
 				userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
 			}
 			err = &util.ApiError{
@@ -263,6 +270,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	if bean.HasConfigOrUrlChanged {
 		impl.ClusterServiceImpl.SyncNsInformer(bean)
 	}
+
 	return bean, err
 }
 
@@ -329,25 +337,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	// if git-ops configured, then only add cluster in ACD, otherwise ignore
 	if isGitOpsConfigured {
 		//create it into argo cd as well
-		configMap := bean.Config
-		serverUrl := bean.ServerUrl
-		bearerToken := ""
-		if configMap["bearer_token"] != "" {
-			bearerToken = configMap["bearer_token"]
-		}
-		tlsConfig := v1alpha1.TLSClientConfig{
-			Insecure: true,
-		}
-		cdClusterConfig := v1alpha1.ClusterConfig{
-			BearerToken:     bearerToken,
-			TLSClientConfig: tlsConfig,
-		}
-
-		cl := &v1alpha1.Cluster{
-			Name:   bean.ClusterName,
-			Server: serverUrl,
-			Config: cdClusterConfig,
-		}
+		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 
 		_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 		if err != nil {
@@ -374,7 +364,6 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	impl.SyncNsInformer(bean)
-
 	return clusterBean, nil
 }
 
@@ -392,5 +381,12 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
 	}
+	k8sClient, err := impl.ClusterServiceImpl.K8sUtil.GetCoreV1ClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("error in creating k8s client set", "err", err, "clusterName", bean.ClusterName)
+	}
+	secretName := fmt.Sprintf("%s-%v", "cluster-event", bean.Id)
+	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
+	impl.logger.Errorw("error in deleting secret", "error", err)
 	return nil
 }

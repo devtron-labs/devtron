@@ -19,6 +19,7 @@ func (impl ExternalLinkRouterImpl) InitExternalLinkRouter(configRouter *mux.Rout
 	configRouter.Path("").HandlerFunc(impl.externalLinkRestHandler.CreateExternalLinks).Methods("POST")
 	configRouter.Path("/tools").HandlerFunc(impl.externalLinkRestHandler.GetExternalLinkMonitoringTools).Methods("GET")
 	configRouter.Path("").HandlerFunc(impl.externalLinkRestHandler.GetExternalLinks).Methods("GET")
+	configRouter.Path("/v2").HandlerFunc(impl.externalLinkRestHandler.GetExternalLinksV2).Methods("GET")
 	configRouter.Path("").HandlerFunc(impl.externalLinkRestHandler.UpdateExternalLink).Methods("PUT")
 	configRouter.Path("").HandlerFunc(impl.externalLinkRestHandler.DeleteExternalLink).Queries("id", "{id}").Methods("DELETE")
 }

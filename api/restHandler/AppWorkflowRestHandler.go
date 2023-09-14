@@ -21,8 +21,11 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
+	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -42,6 +45,7 @@ type AppWorkflowRestHandler interface {
 	DeleteAppWorkflow(w http.ResponseWriter, r *http.Request)
 	FindAllWorkflows(w http.ResponseWriter, r *http.Request)
 	FindAppWorkflowByEnvironment(w http.ResponseWriter, r *http.Request)
+	GetWorkflowsViewData(w http.ResponseWriter, r *http.Request)
 }
 
 type AppWorkflowRestHandlerImpl struct {
@@ -239,9 +243,42 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
+	var appGroupId int
+	appGroupIdStr := v.Get("appGroupId")
+	if len(appGroupIdStr) > 0 {
+		appGroupId, err = strconv.Atoi(appGroupIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid appGroupId", http.StatusBadRequest)
+			return
+		}
+	}
+	request := appGroup2.AppGroupingRequest{
+		EnvId:          envId,
+		AppGroupId:     appGroupId,
+		AppIds:         appIds,
+		EmailId:        userEmailId,
+		CheckAuthBatch: impl.checkAuthBatch,
+		UserId:         userId,
+		Ctx:            r.Context(),
+	}
 	workflows := make(map[string]interface{})
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchAppWorkflowsInAppGrouping")
-	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, userEmailId, impl.checkAuthBatch)
+	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(request)
 	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "err", err)
@@ -257,6 +294,81 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }
 
+func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["app-id"])
+	if err != nil {
+		handler.Logger.Errorw("error in parsing app-id", "appId", appId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting app details", "appId", appId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	handler.Logger.Debugw("rbac object for workflows view data", "object", object)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	appWorkflows, err := handler.appWorkflowService.FindAppWorkflows(appId)
+	if err != nil {
+		handler.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	ciPipelineViewData, err := handler.pipelineBuilder.GetTriggerViewCiPipeline(appId)
+	if err != nil {
+		if _, ok := err.(*util.ApiError); !ok {
+			handler.Logger.Errorw("error in fetching trigger view ci pipeline data for app", "appId", appId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		} else {
+			err = nil
+		}
+	}
+
+	cdPipelinesForApp, err := handler.pipelineBuilder.GetTriggerViewCdPipelinesForApp(appId)
+	if err != nil {
+		if _, ok := err.(*util.ApiError); !ok {
+			handler.Logger.Errorw("error in fetching trigger view cd pipeline data for app", "appId", appId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		} else {
+			err = nil
+		}
+	}
+
+	containsExternalCi := handler.containsExternalCi(appWorkflows)
+	var externalCiData []*bean.ExternalCiConfig
+	if containsExternalCi {
+		externalCiData, err = handler.pipelineBuilder.GetExternalCi(appId)
+		if err != nil {
+			handler.Logger.Errorw("service err, GetExternalCi", "appId", appId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	response := appWorkflow.TriggerViewWorkflowConfig{
+		Workflows:        appWorkflows,
+		CiConfig:         ciPipelineViewData,
+		CdPipelines:      cdPipelinesForApp,
+		ExternalCiConfig: externalCiData,
+	}
+
+	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
 func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
 	var appResult map[string]bool
 	var envResult map[string]bool
@@ -267,4 +379,15 @@ func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(emailId string, appObj
 		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 	}
 	return appResult, envResult
+}
+
+func (handler AppWorkflowRestHandlerImpl) containsExternalCi(appWorkflows []appWorkflow.AppWorkflowDto) bool {
+	for _, appWorkflowDto := range appWorkflows {
+		for _, workflowMappingDto := range appWorkflowDto.AppWorkflowMappingDto {
+			if workflowMappingDto.Type == appWorkflow2.WEBHOOK {
+				return true
+			}
+		}
+	}
+	return false
 }

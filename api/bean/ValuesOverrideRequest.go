@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"time"
 )
 
 type WorkflowType string
@@ -42,19 +43,41 @@ type ValuesOverrideRequest struct {
 	PipelineId                            int                         `json:"pipelineId" validate:"required"`
 	AppId                                 int                         `json:"appId" validate:"required"`
 	CiArtifactId                          int                         `json:"ciArtifactId" validate:"required"`
-	AdditionalOverride                    json.RawMessage             `json:"additionalOverride"`
+	AdditionalOverride                    json.RawMessage             `json:"additionalOverride,omitempty"`
 	TargetDbVersion                       int                         `json:"targetDbVersion"`
 	ForceTrigger                          bool                        `json:"forceTrigger,notnull"`
 	DeploymentTemplate                    string                      `json:"strategy,omitempty"` // validate:"oneof=BLUE-GREEN ROLLING"`
 	DeploymentWithConfig                  DeploymentConfigurationType `json:"deploymentWithConfig"`
 	WfrIdForDeploymentWithSpecificTrigger int                         `json:"wfrIdForDeploymentWithSpecificTrigger"`
 	CdWorkflowType                        WorkflowType                `json:"cdWorkflowType,notnull"`
+	WfrId                                 int                         `json:"wfrId,notnull"`
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
 	UserId                                int32                       `json:"-"`
 	DeploymentType                        models.DeploymentType       `json:"-"`
+	EnvId                                 int                         `json:"-"`
+	EnvName                               string                      `json:"-"`
+	ClusterId                             int                         `json:"-"`
+	AppName                               string                      `json:"-"`
+	PipelineName                          string                      `json:"-"`
+	DeploymentAppType                     string                      `json:"-"`
+}
+
+type BulkCdDeployEvent struct {
+	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
+	UserId                int32                  `json:"userId"`
 }
 
 type ReleaseStatusUpdateRequest struct {
 	RequestId string             `json:"requestId"`
 	NewStatus models.ChartStatus `json:"newStatus"`
+}
+
+type TriggerEvent struct {
+	PerformChartPush           bool
+	PerformDeploymentOnCluster bool
+	GetManifestInResponse      bool
+	DeploymentAppType          string
+	ManifestStorageType        string
+	TriggeredBy                int32
+	TriggerdAt                 time.Time
 }
