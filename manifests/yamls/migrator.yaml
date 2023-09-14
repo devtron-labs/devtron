@@ -39,7 +39,7 @@ spec:
         - name: DB_USER_NAME
           value: postgres
         - name: DB_HOST
-          value: 0cb97e0c396c1a2d00f3de6633a54e8976451254
+          value: postgresql-postgresql.devtroncd
         - name: DB_PORT
           value: "5432"
         - name: DB_NAME
@@ -47,7 +47,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 3847dc220c16117a4ec12ceee3f7d6c4d17bbc0d
+          value: 55e44e3fbfe31e77df0bc015753a4903023ed518
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -80,7 +80,7 @@ spec:
           runAsNonRoot: true
         env:
         - name: SCRIPT_LOCATION
-          value: 0cb97e0c396c1a2d00f3de6633a54e8976451254
+          value: scripts/casbin/
         - name: GIT_REPO_URL
           value: https://github.com/devtron-labs/devtron.git
         - name: DB_TYPE
@@ -96,7 +96,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 3847dc220c16117a4ec12ceee3f7d6c4d17bbc0d
+          value: 55e44e3fbfe31e77df0bc015753a4903023ed518
         - name: GIT_BRANCH
           value: main
         envFrom:
@@ -148,7 +148,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: 8e351434eb721df8bc98c18cdd121f1d85f04ab3
+          value: 46b8f0f18a3402234663ba963496e2b8ced271ae
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -194,7 +194,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: c5c40d94a31d9c02c53c3f96342a6fea303bde8c
+          value: 8803028b6375b03d64cf6048e1e082bbeb16822d
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -259,7 +259,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:04a03402-373-13820
+            image: quay.io/devtron/chart-sync:0e8c785e-373-16172
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd
