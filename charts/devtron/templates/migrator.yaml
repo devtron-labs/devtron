@@ -216,7 +216,7 @@ spec:
             - mountPath: /shared
               name: shared-volume
       containers:
-      - command:
+        - command:
             - /bin/sh
             - -c
             - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
@@ -326,23 +326,23 @@ spec:
               value: {{ $.Values.components.migrator.envVars.lens.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
-          envFrom:
-          - secretRef:
-              name: postgresql-migrator
-          {{- if $.Values.components.migrator.image }}        
-          image: {{ $.Values.components.migrator.image }}    
-          {{- else }}
-          image: migrate/migrate
-          {{- end }} 
-          {{- if .lens }}
-          {{- if .lens.resources }}        
-          resources:
-          {{- toYaml .lens.resources | nindent 10 }}
-          {{- end }} 
-          {{- end }}
-          volumeMounts:
-              - mountPath: /shared
-                name: shared-volume
+        envFrom:
+        - secretRef:
+            name: postgresql-migrator
+        {{- if $.Values.components.migrator.image }}        
+        image: {{ $.Values.components.migrator.image }}    
+        {{- else }}
+        image: migrate/migrate
+        {{- end }} 
+        {{- if .lens }}
+        {{- if .lens.resources }}        
+        resources:
+        {{- toYaml .lens.resources | nindent 10 }}
+        {{- end }} 
+        {{- end }}
+        volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
       restartPolicy: OnFailure
       volumes:
         - emptyDir: {}
