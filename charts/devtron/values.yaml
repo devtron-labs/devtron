@@ -113,7 +113,7 @@ components:
     persistence:
       volumeSize: "20Gi"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:84389534-200-14705"
+    image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
