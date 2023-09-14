@@ -136,6 +136,10 @@ kubeYamlEdit(gitSensor, "data.PG_PASSWORD", postgresqlPassword, `/Secret//git-se
 #lens
 kubeYamlEdit(lens, "data.PG_PASSWORD", postgresqlPassword, `/Secret//lens-secret`);
 
+migDelete = kubectl delete -n devtroncd job devtron-housekeeping;
+if !migDelete {
+	log("migration job deletion failed");
+}
 
 hasNatsServerPod = kubectl get pod -n devtroncd devtron-nats-0;
 hasNatsServerPVC = kubectl get -n devtroncd pvc data-devtron-nats-0;
