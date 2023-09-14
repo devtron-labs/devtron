@@ -59,6 +59,8 @@ kind: TLSContext
 metadata:
   name: {{ .tls.context }}
   labels:
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}

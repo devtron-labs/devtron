@@ -8,7 +8,7 @@ metadata:
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ .Values.pipelineName }}
+    pipelineName: {{ $.Values.pipelineName }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
 spec:
@@ -55,7 +55,7 @@ metadata:
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ .Values.pipelineName }}
+    pipelineName: {{ $.Values.pipelineName }}
 spec:
 {{ toYaml $.Values.kedaAutoscaling.triggerAuthentication.spec | indent 2 }}
 {{- end }}
