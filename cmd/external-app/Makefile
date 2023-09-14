@@ -12,7 +12,7 @@ GIT_COMMIT =$(shell sh -c 'git log --pretty=format:'%h' -n 1')
 BUILD_TIME= $(shell sh -c 'date -u '+%Y-%m-%dT%H:%M:%SZ'')
 SERVER_MODE_FULL= FULL
 SERVER_MODE_EA_ONLY=EA_ONLY
-GOFLAGS:= $(GOFLAGS) "-buildvcs=false"
+GOFLAGS:= $(GOFLAGS) -buildvcs=false
 export
 
 build: clean wire
