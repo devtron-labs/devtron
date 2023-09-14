@@ -138,14 +138,14 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: {{ $.Values.components.migrator.envVars.casbin.DB_NAME }}
+              value: {{ .envVars.casbin.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
           envFrom:
             - secretRef:
                 name: postgresql-migrator
-          {{- if $.Values.components.migrator.image }}        
-          image: {{ $.Values.components.migrator.image }}    
+          {{- if .image }}        
+          image: {{ .image }}    
           {{- else }}
           image: migrate/migrate
           {{- end }} 
@@ -216,7 +216,7 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: {{ $.Values.components.migrator.envVars.git_sensor.DB_NAME }}
+              value: {{ .envVars.git_sensor.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
           envFrom:
@@ -303,14 +303,14 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: {{ $.Values.components.migrator.envVars.lens.DB_NAME }}
+              value: {{ .envVars.lens.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
         envFrom:
         - secretRef:
             name: postgresql-migrator
-        {{- if $.Values.components.migrator.image }}        
-        image: {{ $.Values.components.migrator.image }}    
+        {{- if .image }}        
+        image: {{ .image }}    
         {{- else }}
         image: migrate/migrate
         {{- end }} 
