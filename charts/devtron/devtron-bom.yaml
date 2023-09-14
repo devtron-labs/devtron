@@ -48,14 +48,7 @@ components:
     armImage: "quay.io/devtron/postgres:11.9"
   
   migrator:
-    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
-    envVars:
-      devtron:
-        GIT_BRANCH: "main"
-        GIT_HASH: "3c1ba1ad06cf134743c08667e8589dbd2f97c57d"
-      casbin:
-        GIT_BRANCH: "main"
-        GIT_HASH: "3c1ba1ad06cf134743c08667e8589dbd2f97c57d"
+    image: "quay.io/devtron/migrator:v4.16.2"
         
 argo-cd:
   global:
