@@ -115,7 +115,9 @@ metadata:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
     chart: {{ template ".Chart.Name .chart" $ }}
-    {{ template "mychart.labels" }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+{{- end }}
 {{- if .Values.ingressInternal.annotations }}
   annotations:
 {{ toYaml .Values.ingressInternal.annotations | indent 4 }}
