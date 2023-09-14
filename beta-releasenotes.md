@@ -13,6 +13,7 @@
 - fix: k8s permission and chart-group permission not getting deleted from orchestrator (#3824)
 - fix: added missing audit logs while deleting cd pipeline (#3822)
 ## Enhancements
+- feat: added configurable provenance flag for buildx builds (#3905)
 - feat: deployment history release not found err handling (#3811)
 - feat: added validation for create app workflow API (#3842)
 - feat: custom chart download (#3801)
