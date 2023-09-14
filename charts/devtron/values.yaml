@@ -121,7 +121,7 @@ components:
         DB_NAME: "orchestrator"
       casbin:
         DB_NAME: "casbin"
-      git_sensor:
+      gitsensor:
         DB_NAME: "git_sensor"
       lens: 
         DB_NAME: "lens"
