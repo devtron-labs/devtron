@@ -114,20 +114,18 @@ components:
       volumeSize: "20Gi"
 
   migrator:
-    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
+    image: "migrate/migrate"
     envVars:
       devtron:
-        GIT_BRANCH: "main"
-        SCRIPT_LOCATION: "scripts/sql/"
-        GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "3847dc220c16117a4ec12ceee3f7d6c4d17bbc0d"
       casbin:
-        GIT_BRANCH: "main"
-        SCRIPT_LOCATION: "scripts/casbin/"
-        GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "3847dc220c16117a4ec12ceee3f7d6c4d17bbc0d"
+      git_sensor:
+        SCRIPT_LOCATION: "/shared/sql/"
+        DB_NAME: "git_sensor"
+      lens: 
+        SCRIPT_LOCATION: "/shared/sql/"
+        DB_NAME: "lens"
 
 # values for argocd integration
 argo-cd:
