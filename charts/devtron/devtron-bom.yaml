@@ -24,7 +24,7 @@ components:
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
   devtron:
     image: "quay.io/devtron/hyperion:47506ad2-280-16243"
-    cicdImage: "quay.io/devtron/devtron:47506ad2-434-16245"
+    cicdImage: "quay.io/devtron/devtron:55e44e3f-434-16248"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d8d774c3-138-16238"
   argocdDexServer:
@@ -52,10 +52,10 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "47506ad2b1b22b8822fe12d59395a70c908a22b0"
+        GIT_HASH: "55e44e3fbfe31e77df0bc015753a4903023ed518"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "47506ad2b1b22b8822fe12d59395a70c908a22b0"
+        GIT_HASH: "55e44e3fbfe31e77df0bc015753a4903023ed518"
         
 argo-cd:
   global:
