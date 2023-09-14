@@ -31,4 +31,5 @@ spec:
   podTargetLabels:
     - appId
     - envId
+    - devtron_app_hash
 {{- end }}
