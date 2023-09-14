@@ -18,6 +18,7 @@
 package appStore
 
 import (
+	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -29,20 +30,27 @@ type AppStoreRouter interface {
 }
 
 type AppStoreRouterImpl struct {
-	deployRestHandler        InstalledAppRestHandler
-	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
-	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
-	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
+	deployRestHandler                 InstalledAppRestHandler
+	appStoreValuesRouter              appStoreValues.AppStoreValuesRouter
+	appStoreDiscoverRouter            appStoreDiscover.AppStoreDiscoverRouter
+	appStoreDeploymentRouter          appStoreDeployment.AppStoreDeploymentRouter
+	chartProviderRouter               chartProvider.ChartProviderRouter
+	appStoreStatusTimelineRestHandler AppStoreStatusTimelineRestHandler
 }
 
 func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
-	appStoreValuesRouter appStoreValues.AppStoreValuesRouter, appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
-	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter) *AppStoreRouterImpl {
+	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
+	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
+	chartProviderRouter chartProvider.ChartProviderRouter,
+	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
+	appStoreStatusTimelineRestHandler AppStoreStatusTimelineRestHandler) *AppStoreRouterImpl {
 	return &AppStoreRouterImpl{
-		deployRestHandler:        restHandler,
-		appStoreValuesRouter:     appStoreValuesRouter,
-		appStoreDiscoverRouter:   appStoreDiscoverRouter,
-		appStoreDeploymentRouter: appStoreDeploymentRouter,
+		deployRestHandler:                 restHandler,
+		appStoreValuesRouter:              appStoreValuesRouter,
+		appStoreDiscoverRouter:            appStoreDiscoverRouter,
+		chartProviderRouter:               chartProviderRouter,
+		appStoreDeploymentRouter:          appStoreDeploymentRouter,
+		appStoreStatusTimelineRestHandler: appStoreStatusTimelineRestHandler,
 	}
 }
 
@@ -50,6 +58,10 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	// deployment router starts
 	appStoreDeploymentSubRouter := configRouter.PathPrefix("/deployment").Subrouter()
 	router.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
+
+	configRouter.Path("/deployment-status/timeline/{installedAppId}/{envId}").
+		HandlerFunc(router.appStoreStatusTimelineRestHandler.FetchTimelinesForAppStore).Methods("GET")
+
 	// deployment router ends
 
 	// values router starts
@@ -62,6 +74,11 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	router.appStoreDiscoverRouter.Init(appStoreDiscoverSubRouter)
 	// discover router ends
 
+	// chart provider router starts
+	chartProviderSubRouter := configRouter.PathPrefix("/chart-provider").Subrouter()
+	router.chartProviderRouter.Init(chartProviderSubRouter)
+	// chart provider router ends
+
 	configRouter.Path("/application/exists").
 		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
 	configRouter.Path("/group/install").
@@ -69,6 +86,9 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/installed-app/detail").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
 		HandlerFunc(router.deployRestHandler.FetchAppDetailsForInstalledApp).
 		Methods("GET")
+	configRouter.Path("/installed-app/delete/{installedAppId}/non-cascade").
+		HandlerFunc(router.deployRestHandler.DeleteArgoInstalledAppWithNonCascade).
+		Methods("DELETE")
 	configRouter.Path("/installed-app/detail/v2").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
 		HandlerFunc(router.deployRestHandler.FetchAppDetailsForInstalledAppV2).
 		Methods("GET")

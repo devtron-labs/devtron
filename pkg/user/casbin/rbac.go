@@ -157,6 +157,7 @@ func (e *EnforcerImpl) enforceByEmailInBatchSync(wg *sync.WaitGroup, mutex *sync
 }
 
 func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool {
+	emailId = strings.ToLower(emailId)
 	var totalTimeGap int64 = 0
 	var maxTimegap int64 = 0
 	var minTimegap int64 = math.MaxInt64

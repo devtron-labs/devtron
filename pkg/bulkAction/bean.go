@@ -82,10 +82,14 @@ type CmAndSecretBulkUpdateResponse struct {
 }
 
 type BulkApplicationForEnvironmentPayload struct {
-	AppIdIncludes []int `json:"appIdIncludes,omitempty"`
-	AppIdExcludes []int `json:"appIdExcludes,omitempty"`
-	EnvId         int   `json:"envId"`
-	UserId        int32 `json:"-"`
+	AppIdIncludes    []int    `json:"appIdIncludes,omitempty"`
+	AppIdExcludes    []int    `json:"appIdExcludes,omitempty"`
+	EnvId            int      `json:"envId,omitempty"`
+	EnvName          string   `json:"envName,omitempty"`
+	AppNamesIncludes []string `json:"appNamesIncludes,omitempty"`
+	AppNamesExcludes []string `json:"appNamesExcludes,omitempty"`
+	UserId           int32    `json:"-"`
+	InvalidateCache  bool     `json:"invalidateCache"`
 }
 
 type BulkApplicationForEnvironmentResponse struct {
@@ -109,6 +113,7 @@ type CdBulkActionRequestDto struct {
 	ProjectNames          []string     `json:"projectNames"`
 	DeleteWfAndCiPipeline bool         `json:"deleteWfAndCiPipeline"`
 	ForceDelete           bool         `json:"forceDelete"`
+	NonCascadeDelete      bool         `json:"nonCascadeDelete"`
 	UserId                int32        `json:"-"`
 }
 

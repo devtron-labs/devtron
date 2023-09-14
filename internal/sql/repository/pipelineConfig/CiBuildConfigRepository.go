@@ -12,6 +12,7 @@ type CiBuildConfig struct {
 	Type                 string   `sql:"type"`
 	CiTemplateId         int      `sql:"ci_template_id"`
 	CiTemplateOverrideId int      `sql:"ci_template_override_id"`
+	UseRootContext       *bool    `sql:"use_root_context"`
 	BuildMetadata        string   `sql:"build_metadata"`
 	sql.AuditLog
 }

@@ -27,6 +27,8 @@ type ModuleInfoDto struct {
 	Name                  string                     `json:"name,notnull"`
 	Status                string                     `json:"status,notnull" validate:"oneof=notInstalled installed installing installFailed timeout"`
 	ModuleResourcesStatus []*ModuleResourceStatusDto `json:"moduleResourcesStatus"`
+	Enabled               bool                       `json:"enabled"`
+	Moduletype            string                     `json:"moduleType,omitempty"`
 }
 
 type ModuleConfigDto struct {
@@ -38,7 +40,11 @@ type BlobStorageConfig struct {
 }
 
 type ModuleActionRequestDto struct {
-	Action  string `json:"action,notnull" validate:"oneof=install"`
+	Action     string `json:"action,notnull" validate:"oneof=install"`
+	Version    string `json:"version,notnull"`
+	ModuleType string `json:"moduleType"`
+}
+type ModuleEnableRequestDto struct {
 	Version string `json:"version,notnull"`
 }
 
@@ -75,6 +81,11 @@ type ModuleName = string
 
 const BlobStorage = "blob-storage"
 const INSTALLER_MODULES_HELM_KEY = "installer.modules"
+const (
+	CLAIR_V4 = "V4"
+	CLAIR_V2 = "V2"
+	TRIVY_V1 = "V1"
+)
 
 const (
 	ModuleStatusNotInstalled  ModuleStatus = "notInstalled"
@@ -90,6 +101,11 @@ const (
 	ModuleNameSecurityClair     ModuleName = "security.clair"
 	ModuleNameNotification      ModuleName = "notifier"
 	ModuleNameMonitoringGrafana ModuleName = "monitoring.grafana"
+	ModuleNameSecurityTrivy     ModuleName = "security.trivy"
+)
+
+const (
+	MODULE_TYPE_SECURITY string = "security"
 )
 
 var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameMonitoringGrafana}

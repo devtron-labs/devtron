@@ -99,8 +99,8 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 	appLevelConfigMap := bean.ConfigMapJson{}
 	envLevelConfigMap := bean.ConfigMapJson{}
 	configResponse := bean.ConfigMapJson{}
-	commonMaps := map[string]bean.Map{}
-	var finalMaps []bean.Map
+	commonMaps := map[string]bean.ConfigSecretMap{}
+	var finalMaps []bean.ConfigSecretMap
 	if appLevelConfigMapJson != "" {
 		err = json.Unmarshal([]byte(appLevelConfigMapJson), &appLevelConfigMap)
 		if err != nil {
@@ -138,12 +138,12 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 	return string(byteData), err
 }
 
-func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJson string, chartMajorVersion int, chartMinorVersion int) (data string, err error) {
+func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJson string, chartMajorVersion int, chartMinorVersion int, isJob bool) (data string, err error) {
 	appLevelSecret := bean.ConfigSecretJson{}
 	envLevelSecret := bean.ConfigSecretJson{}
 	secretResponse := bean.ConfigSecretJson{}
-	commonSecrets := map[string]*bean.Map{}
-	var finalMaps []*bean.Map
+	commonSecrets := map[string]*bean.ConfigSecretMap{}
+	var finalMaps []*bean.ConfigSecretMap
 	if appLevelSecretJson != "" {
 		err = json.Unmarshal([]byte(appLevelSecretJson), &appLevelSecret)
 		if err != nil {
@@ -172,7 +172,7 @@ func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJs
 
 	for _, item := range commonSecrets {
 		if item.ExternalType == util.AWSSecretsManager || item.ExternalType == util.AWSSystemManager || item.ExternalType == util.HashiCorpVault {
-			if item.SecretData != nil && chartMajorVersion <= 3 && chartMinorVersion < 8 {
+			if item.SecretData != nil && ((chartMajorVersion <= 3 && chartMinorVersion < 8) || isJob) {
 				var es []map[string]interface{}
 				esNew := make(map[string]interface{})
 				err = json.Unmarshal(item.SecretData, &es)

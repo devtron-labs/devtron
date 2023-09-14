@@ -19,13 +19,15 @@ package rbac
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/util/k8s"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -51,13 +53,14 @@ type EnforcerUtil interface {
 	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) (string, string)
 	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int) string
 	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
-	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string)
+	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier k8s.ResourceIdentifier) (resourceName, objectName string)
 	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
 	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
 	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string) map[int]string
 	GetAppAndEnvObjectByPipeline(cdPipelines []*bean.CDPipelineConfigObject) map[int][]string
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
+	GetAllActiveTeamNames() ([]string, error)
 }
 
 type EnforcerUtilImpl struct {
@@ -336,9 +339,11 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	//otherwise it will return an empty string object
 
 	environmentIdentifier2 := ""
-
-	if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
-		environmentIdentifier2 = clusterName + "__" + namespace
+	envIdentifierByClusterAndNamespace := clusterName + "__" + namespace
+	if !env.IsVirtualEnvironment { //because for virtual_environment environment identifier is equal to environment name (As namespace is optional)
+		if environmentIdentifier != envIdentifierByClusterAndNamespace { // for futuristic permission cluster name is not present in environment identifier
+			environmentIdentifier2 = envIdentifierByClusterAndNamespace
+		}
 	}
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
@@ -347,7 +352,6 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	}*/
 
 	if environmentIdentifier2 == "" {
-
 		return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName)), ""
 	}
 
@@ -373,8 +377,10 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
 	//otherwise it will return an empty string object
 	environmentIdentifier2 := ""
-	if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
-		environmentIdentifier2 = clusterName + "__" + namespace
+	if !env.IsVirtualEnvironment {
+		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
+			environmentIdentifier2 = clusterName + "__" + namespace
+		}
 	}
 	if environmentIdentifier2 == "" {
 		return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName)), ""
@@ -410,9 +416,10 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 	//otherwise it will return an empty string object
 
 	environmentIdentifier2 := ""
-
-	if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
-		environmentIdentifier2 = clusterName + "__" + namespace
+	if !env.IsVirtualEnvironment {
+		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
+			environmentIdentifier2 = clusterName + "__" + namespace
+		}
 	}
 
 	if environmentIdentifier2 == "" {
@@ -442,7 +449,7 @@ func (impl EnforcerUtilImpl) GetAppRBACNameByTeamIdAndAppId(teamId int, appId in
 	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(application.AppName))
 }
 
-func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string) {
+func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier k8s.ResourceIdentifier) (resourceName, objectName string) {
 	namespace := resourceIdentifier.Namespace
 	objectName = resourceIdentifier.Name
 	groupVersionKind := resourceIdentifier.GroupVersionKind
@@ -556,4 +563,16 @@ func (impl EnforcerUtilImpl) GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipel
 		}
 	}
 	return objects
+}
+
+func (impl EnforcerUtilImpl) GetAllActiveTeamNames() ([]string, error) {
+	teamNames, err := impl.teamRepository.FindAllActiveTeamNames()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching active team names", "err", err)
+		return nil, err
+	}
+	for i, teamName := range teamNames {
+		teamNames[i] = strings.ToLower(teamName)
+	}
+	return teamNames, nil
 }

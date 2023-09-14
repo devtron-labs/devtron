@@ -22,7 +22,9 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -67,7 +69,7 @@ type CdWorkflowRepository interface {
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error)
 
-	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses() ([]*CdWorkflowRunner, error)
+	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -161,27 +163,49 @@ type CdWorkflowRunner struct {
 	sql.AuditLog
 }
 
+type CiPipelineMaterialResponse struct {
+	Id              int                    `json:"id"`
+	GitMaterialId   int                    `json:"gitMaterialId"`
+	GitMaterialUrl  string                 `json:"gitMaterialUrl"`
+	GitMaterialName string                 `json:"gitMaterialName"`
+	Type            string                 `json:"type"`
+	Value           string                 `json:"value"`
+	Active          bool                   `json:"active"`
+	History         []*gitSensor.GitCommit `json:"history,omitempty"`
+	LastFetchTime   time.Time              `json:"lastFetchTime"`
+	IsRepoError     bool                   `json:"isRepoError"`
+	RepoErrorMsg    string                 `json:"repoErrorMsg"`
+	IsBranchError   bool                   `json:"isBranchError"`
+	BranchErrorMsg  string                 `json:"branchErrorMsg"`
+	Url             string                 `json:"url"`
+	Regex           string                 `json:"regex"`
+}
+
 type CdWorkflowWithArtifact struct {
-	Id                 int       `json:"id"`
-	CdWorkflowId       int       `json:"cd_workflow_id"`
-	Name               string    `json:"name"`
-	Status             string    `json:"status"`
-	PodStatus          string    `json:"pod_status"`
-	Message            string    `json:"message"`
-	StartedOn          time.Time `json:"started_on"`
-	FinishedOn         time.Time `json:"finished_on"`
-	PipelineId         int       `json:"pipeline_id"`
-	Namespace          string    `json:"namespace"`
-	LogFilePath        string    `json:"log_file_path"`
-	TriggeredBy        int32     `json:"triggered_by"`
-	EmailId            string    `json:"email_id"`
-	Image              string    `json:"image"`
-	MaterialInfo       string    `json:"material_info,omitempty"`
-	DataSource         string    `json:"data_source,omitempty"`
-	CiArtifactId       int       `json:"ci_artifact_id,omitempty"`
-	WorkflowType       string    `json:"workflow_type,omitempty"`
-	ExecutorType       string    `json:"executor_type,omitempty"`
-	BlobStorageEnabled bool      `json:"blobStorageEnabled"`
+	Id                 int                          `json:"id"`
+	CdWorkflowId       int                          `json:"cd_workflow_id"`
+	Name               string                       `json:"name"`
+	Status             string                       `json:"status"`
+	PodStatus          string                       `json:"pod_status"`
+	Message            string                       `json:"message"`
+	StartedOn          time.Time                    `json:"started_on"`
+	FinishedOn         time.Time                    `json:"finished_on"`
+	PipelineId         int                          `json:"pipeline_id"`
+	Namespace          string                       `json:"namespace"`
+	LogFilePath        string                       `json:"log_file_path"`
+	TriggeredBy        int32                        `json:"triggered_by"`
+	EmailId            string                       `json:"email_id"`
+	Image              string                       `json:"image"`
+	MaterialInfo       string                       `json:"material_info,omitempty"`
+	DataSource         string                       `json:"data_source,omitempty"`
+	CiArtifactId       int                          `json:"ci_artifact_id,omitempty"`
+	WorkflowType       string                       `json:"workflow_type,omitempty"`
+	ExecutorType       string                       `json:"executor_type,omitempty"`
+	BlobStorageEnabled bool                         `json:"blobStorageEnabled"`
+	GitTriggers        map[int]GitCommit            `json:"gitTriggers"`
+	CiMaterials        []CiPipelineMaterialResponse `json:"ciMaterials"`
+	ImageReleaseTags   []*repository2.ImageTag      `json:"imageReleaseTags"`
+	ImageComment       *repository2.ImageComment    `json:"imageComment"`
 }
 
 type TriggerWorkflowStatus struct {
@@ -457,7 +481,7 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByCdWorkflowId(wfIds []i
 
 func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error) {
 	wfr := &CdWorkflowRunner{}
-	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment").
 		Where("cd_workflow_runner.id = ?", wfrId).Select()
 	return wfr, err
 }
@@ -551,11 +575,11 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId in
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses() ([]*CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error) {
 	var wfrList []*CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfrList).
-		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.Pipeline.Environment").
+		Column("cd_workflow_runner.*", "CdWorkflow.id", "CdWorkflow.pipeline_id", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_name", "CdWorkflow.Pipeline.deployment_app_type", "CdWorkflow.Pipeline.deleted", "CdWorkflow.Pipeline.Environment").
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
 		Join("inner join pipeline p on p.id = wf.pipeline_id").
 		Join("inner join environment e on e.id = p.environment_id").
@@ -563,6 +587,7 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 		Where("cd_workflow_runner.status not in (?)", pg.In([]string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, application.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)})).
 		Where("cd_workflow_runner.cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow group by pipeline_id, id order by pipeline_id, id desc)").
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
+		Where("cd_workflow_runner.started_on > NOW() - INTERVAL '? hours'", getPipelineDeployedWithinHours).
 		Where("p.deleted=?", false).
 		Order("cd_workflow_runner.id DESC").
 		Select()

@@ -41,4 +41,5 @@ func (router CoreAppRouterImpl) initCoreAppRouter(configRouter *mux.Router) {
 	configRouter.Path("/v1beta1/application/workflow").HandlerFunc(router.restHandler.CreateAppWorkflow).Methods("POST")
 	configRouter.Path("/v1beta1/application/workflow/{appId}").HandlerFunc(router.restHandler.GetAppWorkflow).Methods("GET")
 	configRouter.Path("/v1beta1/application/workflow/{appId}/sample").HandlerFunc(router.restHandler.GetAppWorkflowAndOverridesSample).Methods("GET")
+
 }

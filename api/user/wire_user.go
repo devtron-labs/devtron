@@ -55,4 +55,11 @@ var UserWireSet = wire.NewSet(
 	wire.Bind(new(repository.RbacRoleDataRepository), new(*repository.RbacRoleDataRepositoryImpl)),
 	repository.NewRbacDataCacheFactoryImpl,
 	wire.Bind(new(repository.RbacDataCacheFactory), new(*repository.RbacDataCacheFactoryImpl)),
+
+	NewRbacRoleRouterImpl,
+	wire.Bind(new(RbacRoleRouter), new(*RbacRoleRouterImpl)),
+	NewRbacRoleHandlerImpl,
+	wire.Bind(new(RbacRoleRestHandler), new(*RbacRoleRestHandlerImpl)),
+	user.NewRbacRoleServiceImpl,
+	wire.Bind(new(user.RbacRoleService), new(*user.RbacRoleServiceImpl)),
 )

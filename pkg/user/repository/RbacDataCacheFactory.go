@@ -8,7 +8,7 @@ import (
 )
 
 type RbacDataCacheFactory interface {
-	GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, roleType string) (RoleCacheDetailObj, PolicyCacheDetailObj)
+	GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, roleType string) (RoleCacheDetailObj, PolicyCacheDetailObj, error)
 	SyncPolicyCache()
 	SyncRoleDataCache()
 }
@@ -68,7 +68,7 @@ func NewRbacDataCacheFactoryImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *RbacDataCacheFactoryImpl) GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, roleType string) (RoleCacheDetailObj, PolicyCacheDetailObj) {
+func (impl *RbacDataCacheFactoryImpl) GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, roleType string) (RoleCacheDetailObj, PolicyCacheDetailObj, error) {
 	defaultPolicyData := PolicyCacheDetailObj{}
 	defaultRoleData := RoleCacheDetailObj{}
 
@@ -78,13 +78,20 @@ func (impl *RbacDataCacheFactoryImpl) GetDefaultRoleDataAndPolicyByEntityAccessT
 	//checking and getting default policy data from cache
 	if val, ok := impl.policyCache[keyForMap]; ok {
 		defaultPolicyData = val
+	} else {
+		impl.logger.Errorw("default role not found", "entity", entity, "accessType", accessType, "roleType", roleType)
+		return defaultRoleData, defaultPolicyData, fmt.Errorf("default policy not found")
 	}
 
 	//checking and getting default role data from cache
 	if val, ok := impl.roleCache[keyForMap]; ok {
 		defaultRoleData = val
+	} else {
+		impl.logger.Errorw("default policy not found", "entity", entity, "accessType", accessType, "roleType", roleType)
+		return defaultRoleData, defaultPolicyData, fmt.Errorf("default role not found")
 	}
-	return defaultRoleData, defaultPolicyData
+
+	return defaultRoleData, defaultPolicyData, nil
 }
 
 func (impl *RbacDataCacheFactoryImpl) SyncPolicyCache() {

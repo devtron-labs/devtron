@@ -269,13 +269,14 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Offset:        fetchJobListingRequest.Offset,
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
+		Environments:  fetchJobListingRequest.Environments,
 	}
 	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app ids list", "error", err, jobListingFilter)
 		return []*bean.JobContainer{}, err
 	}
-	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds, jobListingFilter.AppStatuses, string(jobListingFilter.SortOrder))
+	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds, jobListingFilter.AppStatuses, jobListingFilter.Environments, string(jobListingFilter.SortOrder))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching job list", "error", err, jobListingFilter)
 		return []*bean.JobContainer{}, err
@@ -515,7 +516,6 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 			val = bean.JobContainer{}
 			val.JobId = jobContainer.JobId
 			val.JobName = jobContainer.JobName
-			val.Description = jobContainer.Description
 		}
 
 		if len(val.JobCiPipelines) == 0 {
@@ -524,10 +524,13 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 
 		if jobContainer.CiPipelineID != 0 {
 			ciPipelineObj := bean.JobCIPipeline{
-				CiPipelineId:   jobContainer.CiPipelineID,
-				CiPipelineName: jobContainer.CiPipelineName,
-				Status:         jobContainer.Status,
-				LastRunAt:      jobContainer.StartedOn,
+				CiPipelineId:                 jobContainer.CiPipelineID,
+				CiPipelineName:               jobContainer.CiPipelineName,
+				Status:                       jobContainer.Status,
+				LastRunAt:                    jobContainer.StartedOn,
+				EnvironmentName:              jobContainer.EnvironmentName,
+				EnvironmentId:                jobContainer.EnvironmentId,
+				LastTriggeredEnvironmentName: jobContainer.LastTriggeredEnvironmentName,
 				//LastSuccessAt: jobContainer.LastSuccessAt,
 			}
 			if lastSuccessAt, ok := lastSucceededTimeMapping[jobContainer.CiPipelineID]; ok {
@@ -801,7 +804,12 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 
 	// set ifIpsAccess provided and relevant data
 	appDetailContainer.IsExternalCi = true
-	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, appDetailContainer.ClusterId)
+	environment, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching env details, FetchAppDetails service", "error", err)
+		return bean.AppDetailContainer{}, err
+	}
+	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, appDetailContainer.ClusterId, environment.IsVirtualEnvironment)
 	if err != nil {
 		return appDetailContainer, err
 	}
@@ -855,7 +863,7 @@ func (impl AppListingServiceImpl) fetchAppAndEnvLevelMatrics(ctx context.Context
 	return appDetailContainer, nil
 }
 
-func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer bean.AppDetailContainer, clusterId int) (bean.AppDetailContainer, error) {
+func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer bean.AppDetailContainer, clusterId int, isVirtualEnv bool) (bean.AppDetailContainer, error) {
 	ciPipelineId := appDetailContainer.CiPipelineId
 	if ciPipelineId > 0 {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "ciPipelineRepository.FindWithMinDataByCiPipelineId")
@@ -874,7 +882,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
 			// check ips access provided to this docker registry for that cluster
-			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(*dockerRegistryId, clusterId)
+			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(*dockerRegistryId, clusterId, isVirtualEnv)
 			span.End()
 			if err != nil {
 				impl.Logger.Errorw("error in checking if docker registry ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId, "error", err)

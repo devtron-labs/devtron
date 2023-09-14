@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -1149,9 +1150,46 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 	bulkOperationResponse.Response = response
 	return bulkOperationResponse, nil
 }
+
 func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
+
+	if len(request.AppNamesIncludes) > 0 {
+		r, err := impl.appRepository.FindIdsByNames(request.AppNamesIncludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching Ids", "err", err)
+			return nil, err
+		}
+		for _, id := range r {
+			request.AppIdIncludes = append(request.AppIdIncludes, id)
+		}
+	}
+	if len(request.AppNamesExcludes) > 0 {
+		r, err := impl.appRepository.FindIdsByNames(request.AppNamesExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching Ids", "err", err)
+			return nil, err
+		}
+		for _, id := range r {
+			request.AppIdExcludes = append(request.AppIdExcludes, id)
+		}
+	}
+	if len(request.EnvName) > 0 {
+		r, err := impl.environmentRepository.FindByName(request.EnvName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching env details", "err", err)
+			return nil, err
+		}
+		if request.EnvId != 0 && request.EnvId != r.Id {
+			return nil, errors.New("environment id and environment name is different select only one environment")
+		} else if request.EnvId == 0 {
+			request.EnvId = r.Id
+		}
+	}
+	if len(request.EnvName) == 0 && request.EnvId == 0 {
+		return nil, errors.New("please mention environment id or environment name")
+	}
 	if len(request.AppIdIncludes) > 0 {
 		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
 	} else if len(request.AppIdExcludes) > 0 {
@@ -1357,7 +1395,9 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				}
 				ciPipelineId = ciPipeline.ParentCiPipeline
 			}
-			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId)
+
+			//if include/exclude configured showAll will include excluded materials also in list, if not configured it will ignore this flag
+			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId, false)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ci pipeline materials", "CiPipelineId", ciPipelineId, "err", err)
 				return nil, err
@@ -1379,7 +1419,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				PipelineId:         ciPipelineId,
 				CiPipelineMaterial: ciMaterials,
 				TriggeredBy:        request.UserId,
-				InvalidateCache:    false,
+				InvalidateCache:    request.InvalidateCache,
 			}
 			latestCommitsMap[ciPipelineId] = ciTriggerRequest
 			ciCompletedStatus[ciPipelineId] = false
@@ -1513,7 +1553,13 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 	ctx context.Context, dryRun bool, impactedAppWfIds []int, impactedCiPipelineIds []int) (*PipelineAndWfBulkActionResponseDto, error) {
 	switch dto.Action {
 	case CD_BULK_DELETE:
-		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
+		deleteAction := bean2.CASCADE_DELETE
+		if dto.ForceDelete {
+			deleteAction = bean2.FORCE_DELETE
+		} else if dto.NonCascadeDelete {
+			deleteAction = bean2.NON_CASCADE_DELETE
+		}
+		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, deleteAction, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in cd pipelines bulk deletion")
 		}
@@ -1523,8 +1569,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 	}
 }
 
-func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context,
-	dryRun, forceDelete, deleteWfAndCiPipeline bool, impactedAppWfIds, impactedCiPipelineIds []int, userId int32) (*PipelineAndWfBulkActionResponseDto, error) {
+func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, deleteAction int, deleteWfAndCiPipeline bool, impactedAppWfIds, impactedCiPipelineIds []int, userId int32) (*PipelineAndWfBulkActionResponseDto, error) {
 	var cdPipelineRespDtos []*CdBulkActionResponseDto
 	var wfRespDtos []*WfBulkActionResponseDto
 	var ciPipelineRespDtos []*CiBulkActionResponseDto
@@ -1545,13 +1590,17 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, forceDelete, true, userId)
+			// Delete Cd pipeline
+			deleteResponse, err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
+			} else if !(deleteResponse.DeleteInitiated || deleteResponse.ClusterReachable) {
+				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %s, piplineId, %v", "cluster connection error", pipeline.Id)
 			} else {
 				respDto.DeletionResult = "Pipeline deleted successfully."
 			}
+
 		}
 		cdPipelineRespDtos = append(cdPipelineRespDtos, respDto)
 	}

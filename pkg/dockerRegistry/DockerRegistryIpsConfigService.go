@@ -21,9 +21,9 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -33,21 +33,21 @@ import (
 )
 
 type DockerRegistryIpsConfigService interface {
-	IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int) (bool, error)
+	IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int, isVirtualEnv bool) (bool, error)
 	HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, ciPipelineId int, valuesFileContent []byte) ([]byte, error)
 }
 
 type DockerRegistryIpsConfigServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
-	k8sUtil                           *util.K8sUtil
+	k8sUtil                           *k8s.K8sUtil
 	clusterService                    cluster.ClusterService
 	ciPipelineRepository              pipelineConfig.CiPipelineRepository
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 }
 
 func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository,
-	k8sUtil *util.K8sUtil, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	k8sUtil *k8s.K8sUtil, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository) *DockerRegistryIpsConfigServiceImpl {
 	return &DockerRegistryIpsConfigServiceImpl{
 		logger:                            logger,
@@ -59,7 +59,7 @@ func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegi
 	}
 }
 
-func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int) (bool, error) {
+func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int, isVirtualEnv bool) (bool, error) {
 	impl.logger.Infow("checking if Ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
 	ipsConfig, err := impl.dockerRegistryIpsConfigRepository.FindByDockerRegistryId(dockerRegistryId)
 	if err != nil {
@@ -70,7 +70,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(d
 			return false, err
 		}
 	}
-	isAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
+	isAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId, isVirtualEnv)
 	return isAccessProvided, nil
 }
 
@@ -125,8 +125,8 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 		impl.logger.Warn("returning as ipsConfig is found nil")
 		return valuesFileContent, nil
 	}
-
-	ipsAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
+	isVirtualEnv := environment.IsVirtualEnvironment
+	ipsAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId, isVirtualEnv)
 	if !ipsAccessProvided {
 		impl.logger.Infow("ips access not given", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
 		return valuesFileContent, nil
@@ -221,12 +221,12 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
 		return err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config", "clusterId", clusterId, "error", err)
 		return err
 	}
-	k8sClient, err := impl.k8sUtil.GetClient(cfg)
+	k8sClient, err := impl.k8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "clusterId", clusterId, "error", err)
 		return err
@@ -241,7 +241,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		// create secret
 		impl.logger.Infow("creating ips", "ipsName", ipsName, "clusterId", clusterId)
 		ipsData := BuildIpsData(registryURL, username, password, email)
-		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient)
+		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient, nil, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
 			return err

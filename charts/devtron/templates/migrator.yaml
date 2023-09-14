@@ -79,7 +79,7 @@ spec:
       containers:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
-        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd && kubectl rollout restart deployment/kubelink -n devtroncd']
         {{- if .casbin }}
         {{- if .casbin.resources }}        
         resources:

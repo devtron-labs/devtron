@@ -38,6 +38,7 @@ type CiWorkflowRepository interface {
 
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
+	FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
@@ -67,6 +68,7 @@ type CiWorkflow struct {
 	CiArtifactLocation string            `sql:"ci_artifact_location"`
 	PodName            string            `sql:"pod_name"`
 	CiBuildType        string            `sql:"ci_build_type"`
+	EnvironmentId      int               `sql:"environment_id"`
 	CiPipeline         *CiPipeline
 }
 
@@ -91,6 +93,8 @@ type WorkflowWithArtifact struct {
 	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
 	CiBuildType        string            `json:"ci_build_type"`
 	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
+	EnvironmentId      int               `json:"environmentId"`
+	EnvironmentName    string            `json:"environmentName"`
 }
 
 type GitCommit struct {
@@ -162,7 +166,7 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 
 func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
-	queryTemp := "select cia.id as ci_artifact_id, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
+	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
 	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
 	if err != nil {
 		return nil, err
@@ -238,6 +242,15 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 	return workflow, err
 }
 
+func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds []int) (ciWorkflows []*CiWorkflow, err error) {
+	err = impl.dbConnection.Model(&ciWorkflows).
+		Column("ci_workflow.git_triggers", "ci_workflow.ci_pipeline_id", "CiPipeline", "cia.id").
+		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
+		Where("cia.id in (?) ", pg.In(ciArtifactIds)).
+		Select()
+	return ciWorkflows, err
+}
+
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
@@ -270,13 +283,13 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 
 	ciworkflowStatuses := make([]*CiWorkflowStatus, 0)
 
-	query := "SELECT cw1.ci_pipeline_id,cw1.status as ci_status,cw1.blob_storage_enabled as storage_configured " +
-		" FROM ci_workflow cw1 INNER JOIN " +
-		" (SELECT cp.id, max(cw.id) " +
-		" FROM ci_workflow cw INNER JOIN " +
-		" ci_pipeline cp ON cw.ci_pipeline_id = cp.id or cw.ci_pipeline_id = cp.parent_ci_pipeline" +
-		" WHERE cp.app_id=? AND cp.deleted=false " +
-		" GROUP BY cp.id) cw2 " +
+	query := "SELECT cw1.ci_pipeline_id,cw1.status AS ci_status,cw1.blob_storage_enabled AS storage_configured " +
+		" FROM ci_workflow cw1 " +
+		" INNER JOIN " +
+		" (WITH cp AS (SELECT id, parent_ci_pipeline FROM ci_pipeline WHERE app_id = ? AND deleted=false ) " +
+		" SELECT  cw.ci_pipeline_id, max(cw.id) " +
+		" FROM ci_workflow cw WHERE cw.ci_pipeline_id IN (SELECT cp.id FROM cp) OR cw.ci_pipeline_id IN (SELECT cp.parent_ci_pipeline FROM cp) " +
+		" GROUP BY ci_pipeline_id) cw2 " +
 		" ON cw1.id = cw2.max;"
 	_, err := impl.dbConnection.Query(&ciworkflowStatuses, query, appId) //, pg.In(ciPipelineIds))
 	if err != nil {

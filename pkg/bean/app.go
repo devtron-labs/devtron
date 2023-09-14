@@ -19,7 +19,9 @@ package bean
 
 import (
 	"encoding/json"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -39,15 +41,15 @@ type SourceTypeConfig struct {
 }
 
 type CreateAppDTO struct {
-	Id          int            `json:"id,omitempty" validate:"number"`
-	AppName     string         `json:"appName" validate:"name-component,max=100"`
-	UserId      int32          `json:"-"` //not exposed to UI
-	Material    []*GitMaterial `json:"material" validate:"dive,min=1"`
-	TeamId      int            `json:"teamId,omitempty" validate:"number,required"`
-	TemplateId  int            `json:"templateId"`
-	AppLabels   []*Label       `json:"labels,omitempty" validate:"dive"`
-	Description string         `json:"description"`
-	AppType     helper.AppType `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
+	Id          int                            `json:"id,omitempty" validate:"number"`
+	AppName     string                         `json:"appName" validate:"name-component,max=100"`
+	UserId      int32                          `json:"-"` //not exposed to UI
+	Material    []*GitMaterial                 `json:"material" validate:"dive,min=1"`
+	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`
+	TemplateId  int                            `json:"templateId"`
+	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
+	Description *bean2.GenericNoteResponseBean `json:"description,omitempty"`
+	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
 type CreateMaterialDTO struct {
@@ -64,13 +66,14 @@ type UpdateMaterialDTO struct {
 }
 
 type GitMaterial struct {
-	Name             string `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
-	Url              string `json:"url,omitempty"`   //url of git repo
-	Id               int    `json:"id,omitempty" validate:"number"`
-	GitProviderId    int    `json:"gitProviderId,omitempty" validate:"gt=0"`
-	CheckoutPath     string `json:"checkoutPath" validate:"checkout-path-component"`
-	FetchSubmodules  bool   `json:"fetchSubmodules"`
-	IsUsedInCiConfig bool   `json:"isUsedInCiConfig"`
+	Name             string   `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
+	Url              string   `json:"url,omitempty"`   //url of git repo
+	Id               int      `json:"id,omitempty" validate:"number"`
+	GitProviderId    int      `json:"gitProviderId,omitempty" validate:"gt=0"`
+	CheckoutPath     string   `json:"checkoutPath" validate:"checkout-path-component"`
+	FetchSubmodules  bool     `json:"fetchSubmodules"`
+	IsUsedInCiConfig bool     `json:"isUsedInCiConfig"`
+	FilterPattern    []string `json:"filterPattern"`
 }
 
 type CiMaterial struct {
@@ -113,6 +116,8 @@ type CiPipeline struct {
 	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
 	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+	EnvironmentId            int                    `json:"environmentId,omitempty"`
+	LastTriggeredEnvId       int                    `json:"lastTriggeredEnvId"`
 }
 
 type DockerConfigOverride struct {
@@ -181,6 +186,11 @@ const (
 )
 
 const (
+	CASCADE_DELETE int = iota
+	NON_CASCADE_DELETE
+	FORCE_DELETE
+)
+const (
 	WEBHOOK_SELECTOR_UNIQUE_ID_NAME          string = "unique id"
 	WEBHOOK_SELECTOR_REPOSITORY_URL_NAME     string = "repository url"
 	WEBHOOK_SELECTOR_HEADER_NAME             string = "header"
@@ -202,12 +212,21 @@ func (a PatchAction) String() string {
 }
 
 // ----------------
+
+type CiMaterialPatchRequest struct {
+	AppId         int               `json:"appId" validate:"required"`
+	EnvironmentId int               `json:"environmentId" validate:"required"`
+	Source        *SourceTypeConfig `json:"source" validate:"required"`
+}
+
 type CiPatchRequest struct {
 	CiPipeline    *CiPipeline `json:"ciPipeline"`
 	AppId         int         `json:"appId,omitempty"`
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
+	IsJob         bool        `json:"-"`
+	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 }
 
 type CiRegexPatchRequest struct {
@@ -259,6 +278,7 @@ type CiTriggerRequest struct {
 	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
 	TriggeredBy        int32                `json:"triggeredBy"`
 	InvalidateCache    bool                 `json:"invalidateCache"`
+	EnvironmentId      int                  `json:"environmentId"`
 }
 
 type CiTrigger struct {
@@ -300,6 +320,15 @@ type CiConfigRequest struct {
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 	IsJob             bool                    `json:"-"`
 	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
+	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
+}
+
+type CiPipelineMinResponse struct {
+	Id               int    `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId            int    `json:"appId,omitempty" validate:"required,number"`
+	AppName          string `json:"appName,omitempty"`
+	ParentCiPipeline int    `json:"parentCiPipeline"`
+	ParentAppId      int    `json:"parentAppId"`
 }
 
 type TestExecutorImageProperties struct {
@@ -472,7 +501,7 @@ type CDPipelineConfigObject struct {
 	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                                 `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
 	Strategies                    []Strategy                             `json:"strategies,omitempty"`
-	Namespace                     string                                 `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
+	Namespace                     string                                 `json:"namespace,omitempty"` //namespace
 	AppWorkflowId                 int                                    `json:"appWorkflowId,omitempty" `
 	DeploymentTemplate            chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
 	PreStage                      CdStage                                `json:"preStage,omitempty"`
@@ -491,6 +520,15 @@ type CDPipelineConfigObject struct {
 	AppId                         int                                    `json:"appId"`
 	TeamId                        int                                    `json:"-"`
 	EnvironmentIdentifier         string                                 `json:"-" `
+	IsVirtualEnvironment          bool                                   `json:"isVirtualEnvironment"`
+	HelmPackageName               string                                 `json:"helmPackageName"`
+	ChartName                     string                                 `json:"chartName"`
+	ChartBaseVersion              string                                 `json:"chartBaseVersion"`
+	ContainerRegistryId           int                                    `json:"containerRegistryId"`
+	RepoUrl                       string                                 `json:"repoUrl"`
+	ManifestStorageType           string                                 `json:"manifestStorageType"`
+	PreDeployStage                *bean.PipelineStageDto                 `json:"preDeployStage,omitempty"`
+	PostDeployStage               *bean.PipelineStageDto                 `json:"postDeployStage,omitempty"`
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -519,17 +557,25 @@ type Strategy struct {
 }
 
 type CdPipelines struct {
-	Pipelines []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
-	AppId     int                       `json:"appId,omitempty"  validate:"number,required" `
-	UserId    int32                     `json:"-"`
+	Pipelines         []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
+	AppId             int                       `json:"appId,omitempty"  validate:"number,required" `
+	UserId            int32                     `json:"-"`
+	AppDeleteResponse *AppDeleteResponseDTO     `json:"deleteResponse,omitempty"`
+}
+
+type AppDeleteResponseDTO struct {
+	DeleteInitiated  bool   `json:"deleteInitiated"`
+	ClusterReachable bool   `json:"clusterReachable"`
+	ClusterName      string `json:"clusterName"`
 }
 
 type CDPatchRequest struct {
-	Pipeline    *CDPipelineConfigObject `json:"pipeline,omitempty"`
-	AppId       int                     `json:"appId,omitempty"`
-	Action      CdPatchAction           `json:"action,omitempty"`
-	UserId      int32                   `json:"-"`
-	ForceDelete bool                    `json:"-"`
+	Pipeline         *CDPipelineConfigObject `json:"pipeline,omitempty"`
+	AppId            int                     `json:"appId,omitempty"`
+	Action           CdPatchAction           `json:"action,omitempty"`
+	UserId           int32                   `json:"-"`
+	ForceDelete      bool                    `json:"-"`
+	NonCascadeDelete bool                    `json:"-"`
 }
 
 type CdPatchAction int
@@ -573,18 +619,30 @@ type CdPipelineTrigger struct {
 	PipelineId   int `json:"pipelineId"`
 }
 
-type DeploymentType string
+type DeploymentType = string
 
 const (
-	Helm   DeploymentType = "helm"
-	ArgoCd DeploymentType = "argo_cd"
+	Helm                    DeploymentType = "helm"
+	ArgoCd                  DeploymentType = "argo_cd"
+	ManifestDownload        DeploymentType = "manifest_download"
+	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
+
+func IsAcdApp(deploymentType string) bool {
+	return deploymentType == ArgoCd
+}
+
+func IsHelmApp(deploymentType string) bool {
+	return deploymentType == Helm
+}
 
 type Status string
 
 const (
-	Success Status = "Success"
-	Failed  Status = "Failed"
+	Success         Status = "Success"
+	Failed          Status = "Failed"
+	INITIATED       Status = "Migration initiated"
+	NOT_YET_DELETED Status = "Not yet deleted"
 )
 
 func (a CdPatchAction) String() string {
@@ -632,14 +690,19 @@ type CiArtifactBean struct {
 	DeployedBy                    string                    `json:"deployedBy"`
 	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
+	ImageReleaseTags              []*repository2.ImageTag   `json:"imageReleaseTags"`
+	ImageComment                  *repository2.ImageComment `json:"imageComment"`
 }
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId           int              `json:"cd_pipeline_id,notnull"`
-	LatestWfArtifactId     int              `json:"latest_wf_artifact_id"`
-	LatestWfArtifactStatus string           `json:"latest_wf_artifact_status"`
-	CiArtifacts            []CiArtifactBean `json:"ci_artifacts,notnull"`
+	CdPipelineId               int              `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId         int              `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus     string           `json:"latest_wf_artifact_status"`
+	CiArtifacts                []CiArtifactBean `json:"ci_artifacts,notnull"`
+	TagsEditable               bool             `json:"tagsEditable"`
+	AppReleaseTagNames         []string         `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	HideImageTaggingHardDelete bool             `json:"hideImageTaggingHardDelete"`
 }
 
 type AppLabelsDto struct {
@@ -663,16 +726,16 @@ type Label struct {
 }
 
 type AppMetaInfoDto struct {
-	AppId       int       `json:"appId"`
-	AppName     string    `json:"appName"`
-	ProjectId   int       `json:"projectId"`
-	ProjectName string    `json:"projectName"`
-	CreatedBy   string    `json:"createdBy"`
-	CreatedOn   time.Time `json:"createdOn"`
-	Active      bool      `json:"active,notnull"`
-	Labels      []*Label  `json:"labels"`
-	Description string    `json:"description"`
-	UserId      int32     `json:"-"`
+	AppId       int                            `json:"appId"`
+	AppName     string                         `json:"appName"`
+	ProjectId   int                            `json:"projectId"`
+	ProjectName string                         `json:"projectName"`
+	CreatedBy   string                         `json:"createdBy"`
+	CreatedOn   time.Time                      `json:"createdOn"`
+	Active      bool                           `json:"active,notnull"`
+	Labels      []*Label                       `json:"labels"`
+	Description *bean2.GenericNoteResponseBean `json:"description"`
+	UserId      int32                          `json:"-"`
 }
 
 type AppLabelsJsonForDeployment struct {
@@ -692,12 +755,13 @@ const (
 )
 
 type CdBulkActionRequestDto struct {
-	Action      CdBulkAction `json:"action"`
-	EnvIds      []int        `json:"envIds"`
-	AppIds      []int        `json:"appIds"`
-	ProjectIds  []int        `json:"projectIds"`
-	ForceDelete bool         `json:"forceDelete"`
-	UserId      int32        `json:"-"`
+	Action        CdBulkAction `json:"action"`
+	EnvIds        []int        `json:"envIds"`
+	AppIds        []int        `json:"appIds"`
+	ProjectIds    []int        `json:"projectIds"`
+	ForceDelete   bool         `json:"forceDelete"`
+	CascadeDelete bool         `json:"cascadeDelete"`
+	UserId        int32        `json:"-"`
 }
 
 type CdBulkActionResponseDto struct {
@@ -743,6 +807,16 @@ type ExampleValueDto struct {
 	Errors []ErrorDto `json:"errors,omitempty"`
 	Result string     `json:"result,omitempty"`
 	Status string     `json:"status,omitempty"`
+}
+
+type ManifestStorage = string
+
+const (
+	ManifestStorageGit ManifestStorage = "git"
+)
+
+func IsGitStorage(storageType string) bool {
+	return storageType == ManifestStorageGit
 }
 
 const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"

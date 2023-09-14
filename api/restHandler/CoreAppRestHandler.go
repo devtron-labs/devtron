@@ -51,6 +51,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"k8s.io/utils/strings/slices"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,6 +62,7 @@ const (
 	APP_DELETE_FAILED_RESP              = "App deletion failed, please try deleting from Devtron UI"
 	APP_CREATE_SUCCESSFUL_RESP          = "App created successfully."
 	APP_WORKFLOW_CREATE_SUCCESSFUL_RESP = "App workflow created successfully."
+	WORKFLOW_NAME_EMPTY                 = ""
 )
 
 type CoreAppRestHandler interface {
@@ -95,6 +97,7 @@ type CoreAppRestHandlerImpl struct {
 	teamService             team.TeamService
 	argoUserService         argo.ArgoUserService
 	pipelineStageService    pipeline.PipelineStageService
+	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -104,7 +107,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
-	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService) *CoreAppRestHandlerImpl {
+	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -129,6 +132,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		teamService:             teamService,
 		argoUserService:         argoUserService,
 		pipelineStageService:    pipelineStageService,
+		ciPipelineRepository:    ciPipelineRepository,
 	}
 	return handler
 }
@@ -194,7 +198,9 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build global deployment template ends
 
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
+	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -294,6 +300,19 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 
 	handler.logger.Infow("creating app v2", "createAppRequest", createAppRequest)
 
+	// validate payload starts
+	createAppWorkflowReq := appBean.AppWorkflowCloneDto{
+		AppName:              createAppRequest.Metadata.AppName,
+		AppWorkflows:         createAppRequest.AppWorkflows,
+		EnvironmentOverrides: createAppRequest.EnvironmentOverrides,
+	}
+	err, statusCode := handler.ValidateAppWorkflowRequest(&createAppWorkflowReq, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	// validate payload ends
+
 	//creating blank app starts
 	createBlankAppResp, err, statusCode := handler.createBlankApp(createAppRequest.Metadata, userId)
 	if err != nil {
@@ -384,7 +403,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 
 	//creating workflow starts
 	if createAppRequest.AppWorkflows != nil {
-		err, statusCode = handler.createWorkflows(ctx, appId, userId, createAppRequest.AppWorkflows, token, createAppRequest.Metadata.AppName)
+		err, statusCode = handler.createWorkflows(ctx, appId, userId, createAppRequest.AppWorkflows)
 		if err != nil {
 			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
@@ -399,7 +418,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 
 	//creating environment override starts
 	if createAppRequest.EnvironmentOverrides != nil {
-		err, statusCode = handler.createEnvOverrides(ctx, appId, userId, createAppRequest.EnvironmentOverrides, token)
+		err, statusCode = handler.createEnvOverrides(ctx, appId, userId, createAppRequest.EnvironmentOverrides)
 		if err != nil {
 			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
@@ -609,13 +628,30 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 }
 
 // validate and build workflows
-func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int) ([]*appBean.AppWorkflow, error, int) {
-	handler.logger.Debugw("Getting app detail - workflows", "appId", appId)
-
-	workflowsList, err := handler.appWorkflowService.FindAppWorkflows(appId)
-	if err != nil {
-		handler.logger.Errorw("error in fetching workflows for app in GetAppAllDetail", "err", err)
-		return nil, err, http.StatusInternalServerError
+func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflow.WorkflowCloneRequest) ([]*appBean.AppWorkflow, error, int) {
+	handler.logger.Debugw("Getting app detail - workflows", "appId", request.AppId)
+	var workflowsList []appWorkflow.AppWorkflowDto
+	var err error
+	if len(request.WorkflowName) != 0 {
+		workflow, err := handler.appWorkflowService.FindAppWorkflowByName(request.WorkflowName, request.AppId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching workflow by name", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
+			return nil, err, http.StatusInternalServerError
+		}
+		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
+	} else if request.WorkflowId > 0 {
+		workflow, err := handler.appWorkflowService.FindAppWorkflowById(request.WorkflowId, request.AppId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching workflow by id", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
+			return nil, err, http.StatusInternalServerError
+		}
+		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
+	} else {
+		workflowsList, err = handler.appWorkflowService.FindAppWorkflows(request.AppId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching workflows for app in GetAppAllDetail", "err", err)
+			return nil, err, http.StatusInternalServerError
+		}
 	}
 
 	var appWorkflowsResp []*appBean.AppWorkflow
@@ -630,13 +666,13 @@ func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int) ([]*appBean.A
 			if workflowMapping.Type == appWorkflow2.CIPIPELINE {
 				ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(workflowMapping.ComponentId)
 				if err != nil {
-					handler.logger.Errorw("service err, GetCiPipelineById in GetAppAllDetail", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, GetCiPipelineById in GetAppAllDetail", "err", err, "appId", request.AppId)
 					return nil, err, http.StatusInternalServerError
 				}
 
-				ciPipelineResp, err := handler.buildCiPipelineResp(appId, ciPipeline)
+				ciPipelineResp, err := handler.buildCiPipelineResp(request.AppId, ciPipeline)
 				if err != nil {
-					handler.logger.Errorw("service err, buildCiPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, buildCiPipelineResp in GetAppAllDetail", "err", err, "appId", request.AppId)
 					return nil, err, http.StatusInternalServerError
 				}
 				workflowResp.CiPipeline = ciPipelineResp
@@ -645,13 +681,16 @@ func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int) ([]*appBean.A
 			if workflowMapping.Type == appWorkflow2.CDPIPELINE {
 				cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(workflowMapping.ComponentId)
 				if err != nil {
-					handler.logger.Errorw("service err, GetCdPipelineById in GetAppAllDetail", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, GetCdPipelineById in GetAppAllDetail", "err", err, "appId", request.AppId)
 					return nil, err, http.StatusInternalServerError
 				}
-
-				cdPipelineResp, err := handler.buildCdPipelineResp(appId, cdPipeline)
+				if request.EnvironmentId > 0 && request.EnvironmentId != cdPipeline.EnvironmentId {
+					// if environment id present in request it should match cd pipeline, else skip
+					continue
+				}
+				cdPipelineResp, err := handler.buildCdPipelineResp(request.AppId, cdPipeline)
 				if err != nil {
-					handler.logger.Errorw("service err, buildCdPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, buildCdPipelineResp in GetAppAllDetail", "err", err, "appId", request.AppId)
 					return nil, err, http.StatusInternalServerError
 				}
 				cdPipelinesResp = append(cdPipelinesResp, cdPipelineResp)
@@ -779,22 +818,14 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 	}
 	cdPipelineResp.DeploymentStrategies = deploymentTemplateStrategiesResp
 
-	//set pre stage
-	preStage := cdPipeline.PreStage
-	cdPipelineResp.PreStage = &appBean.CdStage{
-		TriggerType: preStage.TriggerType,
-		Name:        preStage.Name,
-		Config:      preStage.Config,
+	//set pre-deploy and post-deploy stage steps for multi step execution
+	cdPipelineMigrated, err := pipeline.ConvertStageYamlScriptsToPipelineStageSteps(cdPipeline)
+	if err != nil {
+		handler.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
+		return nil, err
 	}
-
-	//set post stage
-	postStage := cdPipeline.PostStage
-	cdPipelineResp.PostStage = &appBean.CdStage{
-		TriggerType: postStage.TriggerType,
-		Name:        postStage.Name,
-		Config:      postStage.Config,
-	}
-
+	cdPipelineResp.PreDeployStage = cdPipelineMigrated.PreDeployStage
+	cdPipelineResp.PostDeployStage = cdPipelineMigrated.PostDeployStage
 	//set pre stage config maps secret names
 	preStageConfigMapSecretNames := cdPipeline.PreStageConfigMapSecretNames
 	cdPipelineResp.PreStageConfigMapSecretNames = &appBean.CdStageConfigMapSecretNames{
@@ -839,7 +870,7 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentConfigMaps(appId int, e
 }
 
 // get/build config maps
-func (handler CoreAppRestHandlerImpl) buildAppConfigMaps(appId int, envId int, configMapData *pipeline.ConfigDataRequest) ([]*appBean.ConfigMap, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppConfigMaps(appId int, envId int, configMapData *bean2.ConfigDataRequest) ([]*appBean.ConfigMap, error, int) {
 	handler.logger.Debugw("Getting app detail - config maps", "appId", appId, "envId", envId)
 
 	var configMapsResp []*appBean.ConfigMap
@@ -962,7 +993,7 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentSecrets(appId int, envI
 }
 
 // get/build secrets
-func (handler CoreAppRestHandlerImpl) buildAppSecrets(appId int, envId int, secretData *pipeline.ConfigDataRequest) ([]*appBean.Secret, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppSecrets(appId int, envId int, secretData *bean2.ConfigDataRequest) ([]*appBean.Secret, error, int) {
 	handler.logger.Debugw("Getting app detail - secrets", "appId", appId, "envId", envId)
 
 	var secretsResp []*appBean.Secret
@@ -1038,39 +1069,60 @@ func (handler CoreAppRestHandlerImpl) buildEnvironmentOverrides(ctx context.Cont
 	environmentOverrides := make(map[string]*appBean.EnvironmentOverride)
 	if len(appEnvironments) > 0 {
 		for _, appEnvironment := range appEnvironments {
-
-			envId := appEnvironment.EnvironmentId
-
-			//check RBAC for environment
-			object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
-				handler.logger.Errorw("Unauthorized User for env update action", "err", err, "appId", appId, "envId", envId)
-				return nil, fmt.Errorf("unauthorized user"), http.StatusForbidden
-			}
-			//RBAC end
-
-			envDeploymentTemplateResp, err, statusCode := handler.buildAppEnvironmentDeploymentTemplate(appId, envId)
+			environmentOverride, err, _ := handler.buildEnvironmentOverride(appId, appEnvironment.EnvironmentId, token)
 			if err != nil {
-				return nil, err, statusCode
+				handler.logger.Errorw("service err", "err", err)
+				return nil, err, http.StatusInternalServerError
 			}
-
-			envSecretsResp, err, statusCode := handler.buildAppEnvironmentSecrets(appId, envId)
-			if err != nil {
-				return nil, err, statusCode
-			}
-
-			envConfigMapsResp, err, statusCode := handler.buildAppEnvironmentConfigMaps(appId, envId)
-			if err != nil {
-				return nil, err, statusCode
-			}
-
+			override := environmentOverride[appEnvironment.EnvironmentName]
 			environmentOverrides[appEnvironment.EnvironmentName] = &appBean.EnvironmentOverride{
-				Secrets:            envSecretsResp,
-				ConfigMaps:         envConfigMapsResp,
-				DeploymentTemplate: envDeploymentTemplateResp,
+				Secrets:            override.Secrets,
+				ConfigMaps:         override.ConfigMaps,
+				DeploymentTemplate: override.DeploymentTemplate,
 			}
 		}
 	}
+	return environmentOverrides, nil, http.StatusOK
+}
+
+// get/build environment overrides
+func (handler CoreAppRestHandlerImpl) buildEnvironmentOverride(appId int, environmentId int, token string) (map[string]*appBean.EnvironmentOverride, error, int) {
+	handler.logger.Debugw("Getting app detail - env override", "appId", appId)
+	environmentOverrides := make(map[string]*appBean.EnvironmentOverride)
+	//check RBAC for environment
+	object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, environmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
+		handler.logger.Errorw("Unauthorized User for env update action", "appId", appId, "envId", environmentId)
+		return nil, fmt.Errorf("unauthorized user"), http.StatusForbidden
+	}
+	//RBAC end
+
+	environment, err := handler.environmentRepository.FindById(environmentId)
+	if err != nil {
+		handler.logger.Errorw("service err, for fetching environment model", "err", err, "appId", appId)
+		return nil, err, http.StatusInternalServerError
+	}
+
+	envDeploymentTemplateResp, err, statusCode := handler.buildAppEnvironmentDeploymentTemplate(appId, environmentId)
+	if err != nil {
+		return nil, err, statusCode
+	}
+	envSecretsResp, err, statusCode := handler.buildAppEnvironmentSecrets(appId, environmentId)
+	if err != nil {
+		return nil, err, statusCode
+	}
+
+	envConfigMapsResp, err, statusCode := handler.buildAppEnvironmentConfigMaps(appId, environmentId)
+	if err != nil {
+		return nil, err, statusCode
+	}
+
+	environmentOverrides[environment.Name] = &appBean.EnvironmentOverride{
+		Secrets:            envSecretsResp,
+		ConfigMaps:         envConfigMapsResp,
+		DeploymentTemplate: envDeploymentTemplateResp,
+	}
+
 	return environmentOverrides, nil, http.StatusOK
 }
 
@@ -1146,11 +1198,12 @@ func (handler CoreAppRestHandlerImpl) deleteApp(ctx context.Context, appId int, 
 
 		for _, cdPipeline := range cdPipelines.Pipelines {
 			cdPipelineDeleteRequest := &bean.CDPatchRequest{
-				AppId:       appId,
-				UserId:      userId,
-				Action:      bean.CD_DELETE,
-				ForceDelete: true,
-				Pipeline:    cdPipeline,
+				AppId:            appId,
+				UserId:           userId,
+				Action:           bean.CD_DELETE,
+				ForceDelete:      true,
+				NonCascadeDelete: false,
+				Pipeline:         cdPipeline,
 			}
 			_, err = handler.pipelineBuilder.PatchCdPipelines(cdPipelineDeleteRequest, ctx)
 			if err != nil {
@@ -1271,6 +1324,7 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
 				Args:               dockerBuildConfig.Args,
 				TargetPlatform:     dockerBuildConfig.TargetPlatform,
+				BuildContext:       dockerBuildConfig.BuildContext,
 			},
 		}
 	}
@@ -1373,7 +1427,7 @@ func (handler CoreAppRestHandlerImpl) createGlobalConfigMaps(appId int, userId i
 		}
 
 		// build
-		configMapData := &pipeline.ConfigData{
+		configMapData := &bean2.ConfigData{
 			Name:     configMap.Name,
 			External: configMap.IsExternal,
 			Data:     json.RawMessage(configMapKeyValueData),
@@ -1387,9 +1441,9 @@ func (handler CoreAppRestHandlerImpl) createGlobalConfigMaps(appId int, userId i
 		}
 
 		// service call
-		var configMapDataRequest []*pipeline.ConfigData
+		var configMapDataRequest []*bean2.ConfigData
 		configMapDataRequest = append(configMapDataRequest, configMapData)
-		configMapRequest := &pipeline.ConfigDataRequest{
+		configMapRequest := &bean2.ConfigDataRequest{
 			AppId:      appId,
 			UserId:     userId,
 			Id:         appLevelId,
@@ -1427,7 +1481,7 @@ func (handler CoreAppRestHandlerImpl) createGlobalSecrets(appId int, userId int3
 		}
 
 		// build
-		secretData := &pipeline.ConfigData{
+		secretData := &bean2.ConfigData{
 			Name:               secret.Name,
 			External:           secret.IsExternal,
 			Type:               secret.UsageType,
@@ -1443,9 +1497,9 @@ func (handler CoreAppRestHandlerImpl) createGlobalSecrets(appId int, userId int3
 		}
 
 		if secret.IsExternal {
-			var externalDataRequests []pipeline.ExternalSecret
+			var externalDataRequests []bean2.ExternalSecret
 			for _, externalData := range secret.ExternalSecretData {
-				externalDataRequest := pipeline.ExternalSecret{
+				externalDataRequest := bean2.ExternalSecret{
 					Name:     externalData.Name,
 					IsBinary: externalData.IsBinary,
 					Key:      externalData.Key,
@@ -1464,9 +1518,9 @@ func (handler CoreAppRestHandlerImpl) createGlobalSecrets(appId int, userId int3
 		}
 
 		// service call
-		var secretDataRequest []*pipeline.ConfigData
+		var secretDataRequest []*bean2.ConfigData
 		secretDataRequest = append(secretDataRequest, secretData)
-		secretRequest := &pipeline.ConfigDataRequest{
+		secretRequest := &bean2.ConfigDataRequest{
 			AppId:      appId,
 			UserId:     userId,
 			Id:         appLevelId,
@@ -1484,7 +1538,7 @@ func (handler CoreAppRestHandlerImpl) createGlobalSecrets(appId int, userId int3
 }
 
 // create app workflows
-func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId int, userId int32, workflows []*appBean.AppWorkflow, token string, appName string) (error, int) {
+func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId int, userId int32, workflows []*appBean.AppWorkflow) (error, int) {
 	handler.logger.Infow("Create App - creating workflows", "appId", appId, "workflows size", len(workflows))
 	for _, workflow := range workflows {
 		//Create workflow starts (we need to create workflow with given name)
@@ -1504,7 +1558,7 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 		//Creating CI pipeline ends
 
 		//Creating CD pipeline starts
-		err = handler.createCdPipelines(ctx, appId, userId, workflowId, ciPipelineId, workflow.CdPipelines, token, appName)
+		err = handler.createCdPipelines(ctx, appId, userId, workflowId, ciPipelineId, workflow.CdPipelines)
 		if err != nil {
 			handler.logger.Errorw("err in saving cd pipelines", err, "appId", appId)
 			return err, http.StatusInternalServerError
@@ -1553,8 +1607,8 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			//finding gitMaterial by appId and checkoutPath
 			gitMaterial, err = handler.materialRepository.FindByAppIdAndCheckoutPath(appId, ciMaterial.CheckoutPath)
 		} else {
-			//if linkedci find git material by it's id
-			gitMaterial, err = handler.materialRepository.FindById(ciMaterial.GitMaterialId)
+			//if linked CI find git material by it's parentAppId and Id
+			gitMaterial, err = handler.materialRepository.FindByAppIdAndGitMaterialId(ciPipelineData.ParentAppId, ciMaterial.GitMaterialId)
 		}
 		if err != nil {
 			handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateWorkflows", "err", err, "appId", appId)
@@ -1614,7 +1668,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 	return res.CiPipelines[0].Id, nil
 }
 
-func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, appId int, userId int32, workflowId int, ciPipelineId int, cdPipelines []*appBean.CdPipelineDetails, token string, appName string) error {
+func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, appId int, userId int32, workflowId int, ciPipelineId int, cdPipelines []*appBean.CdPipelineDetails) error {
 
 	var cdPipelineRequestConfigs []*bean.CDPipelineConfigObject
 	for _, cdPipeline := range cdPipelines {
@@ -1632,12 +1686,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			return err
 		}
 
-		// RBAC starts
-		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, envModel.Id)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
-			return errors.New("unauthorized User")
-		}
-		// RBAC ends
+		// RBAC has already been verified in Validation function
 
 		// build model
 		cdPipelineRequestConfig := &bean.CDPipelineConfigObject{
@@ -1647,13 +1696,15 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			AppWorkflowId:                 workflowId,
 			CiPipelineId:                  ciPipelineId,
 			DeploymentAppType:             cdPipeline.DeploymentAppType,
+			PreStage:                      convertCdStages(cdPipeline.PreStage),
+			PostStage:                     convertCdStages(cdPipeline.PostStage),
 			DeploymentTemplate:            cdPipeline.DeploymentStrategyType,
 			TriggerType:                   cdPipeline.TriggerType,
 			CdArgoSetup:                   cdPipeline.IsClusterCdActive,
 			RunPreStageInEnv:              cdPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             cdPipeline.RunPostStageInEnv,
-			PreStage:                      convertCdStages(cdPipeline.PreStage),
-			PostStage:                     convertCdStages(cdPipeline.PostStage),
+			PreDeployStage:                cdPipeline.PreDeployStage,
+			PostDeployStage:               cdPipeline.PostDeployStage,
 			PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
 			PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
 		}
@@ -1682,7 +1733,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 }
 
 // create environment overrides
-func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, appId int, userId int32, environmentOverrides map[string]*appBean.EnvironmentOverride, token string) (error, int) {
+func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, appId int, userId int32, environmentOverrides map[string]*appBean.EnvironmentOverride) (error, int) {
 	handler.logger.Infow("Create App - creating env overrides", "appId", appId)
 
 	for envName, envOverrideValues := range environmentOverrides {
@@ -1699,12 +1750,7 @@ func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, ap
 			return err, http.StatusInternalServerError
 		}
 
-		// RBAC starts
-		object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envModel.Id)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
-			return fmt.Errorf("unauthorized user"), http.StatusForbidden
-		}
-		// RBAC ends
+		// RBAC has already been verified in Validation function
 
 		envId := envModel.Id
 
@@ -1747,7 +1793,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		return err
 	}
 	chartRefId := deploymentTemplateOverride.ChartRefId
-	envConfigProperties := &pipeline.EnvironmentProperties{
+	envConfigProperties := &bean2.EnvironmentProperties{
 		IsOverride:        true,
 		Active:            true,
 		ManualReviewed:    true,
@@ -1761,7 +1807,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	}
 
 	// if chart not found for chart_ref then create
-	_, err = handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
+	chartEntry, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
 	if err != nil {
 		if pg.ErrNoRows == err {
 			templateRequest := chart.TemplateRequest{
@@ -1771,11 +1817,13 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 				UserId:              userId,
 				IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
 			}
-			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
+			newChartEntry, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
 			if err != nil {
 				handler.logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 				return err
 			}
+			chartEntry.Id = newChartEntry.Id
+			chartEntry.AppId = newChartEntry.AppId
 		} else {
 			handler.logger.Errorw("service err, FindChartByAppIdAndRefId", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 			return err
@@ -1783,9 +1831,15 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	}
 
 	// create if required
-	_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+	appMetrics := false
+	if envConfigProperties.AppMetrics != nil {
+		appMetrics = *envConfigProperties.AppMetrics
+	}
+	chartEntry.GlobalOverride = string(envConfigProperties.EnvOverrideValues)
+	_, err = handler.propertiesConfigService.CreateIfRequired(chartEntry, envId, userId, envConfigProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS,
+		true, appMetrics, envConfigProperties.Namespace, envConfigProperties.IsBasicViewLocked, envConfigProperties.CurrentViewEditor, nil)
 	if err != nil {
-		handler.logger.Errorw("service err, CreateEnvironmentProperties", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+		handler.logger.Errorw("service err, CreateIfRequired", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 		return err
 	}
 
@@ -1847,7 +1901,7 @@ func (handler CoreAppRestHandlerImpl) createEnvCM(appId int, userId int32, envId
 		}
 
 		// build
-		configData := &pipeline.ConfigData{
+		configData := &bean2.ConfigData{
 			Name:     cmOverride.Name,
 			External: cmOverride.IsExternal,
 			Type:     cmOverride.UsageType,
@@ -1860,11 +1914,11 @@ func (handler CoreAppRestHandlerImpl) createEnvCM(appId int, userId int32, envId
 			configData.FilePermission = cmOverrideDataVolumeUsageConfig.FilePermission
 		}
 
-		var configDataRequest []*pipeline.ConfigData
+		var configDataRequest []*bean2.ConfigData
 		configDataRequest = append(configDataRequest, configData)
 
 		// service call
-		cmEnvRequest := &pipeline.ConfigDataRequest{
+		cmEnvRequest := &bean2.ConfigDataRequest{
 			AppId:         appId,
 			UserId:        userId,
 			EnvironmentId: envId,
@@ -1907,7 +1961,7 @@ func (handler CoreAppRestHandlerImpl) createEnvSecret(appId int, userId int32, e
 			return err
 		}
 
-		secretData := &pipeline.ConfigData{
+		secretData := &bean2.ConfigData{
 			Name:               secretOverride.Name,
 			External:           secretOverride.IsExternal,
 			ExternalSecretType: secretOverride.ExternalType,
@@ -1922,11 +1976,11 @@ func (handler CoreAppRestHandlerImpl) createEnvSecret(appId int, userId int32, e
 			secretData.SubPath = secretOverrideDataVolumeUsageConfig.SubPath
 			secretData.FilePermission = secretOverrideDataVolumeUsageConfig.FilePermission
 		}
-		var secretDataRequest []*pipeline.ConfigData
+		var secretDataRequest []*bean2.ConfigData
 		secretDataRequest = append(secretDataRequest, secretData)
 
 		// service call
-		secretEnvRequest := &pipeline.ConfigDataRequest{
+		secretEnvRequest := &bean2.ConfigDataRequest{
 			AppId:         appId,
 			UserId:        userId,
 			EnvironmentId: envId,
@@ -1947,10 +2001,10 @@ func (handler CoreAppRestHandlerImpl) createEnvSecret(appId int, userId int32, e
 
 //private methods for data conversion below
 
-func convertCSExternalSecretData(externalSecretsData []*appBean.ExternalSecret) []pipeline.ExternalSecret {
-	var convertedExternalSecretsData []pipeline.ExternalSecret
+func convertCSExternalSecretData(externalSecretsData []*appBean.ExternalSecret) []bean2.ExternalSecret {
+	var convertedExternalSecretsData []bean2.ExternalSecret
 	for _, externalSecretData := range externalSecretsData {
-		convertedExternalSecret := pipeline.ExternalSecret{
+		convertedExternalSecret := bean2.ExternalSecret{
 			Key:      externalSecretData.Key,
 			Name:     externalSecretData.Name,
 			Property: externalSecretData.Property,
@@ -2040,6 +2094,109 @@ func ExtractErrorType(err error) int {
 	}
 }
 
+func (handler CoreAppRestHandlerImpl) validateCdPipelines(cdPipelines []*appBean.CdPipelineDetails, appName, token string) (error, int) {
+	for _, cdPipeline := range cdPipelines {
+		envName := cdPipeline.EnvironmentName
+		envModel, err := handler.environmentRepository.FindByName(envName)
+		if err != nil || envModel == nil {
+			return fmt.Errorf("invalid environment name %s for cd pipeline", envName), http.StatusBadRequest
+		}
+		if envModel.IsVirtualEnvironment {
+			return fmt.Errorf("virtual environment '%s' for cd pipeline is not supported yet", envName), http.StatusUnprocessableEntity
+		}
+		// validation RBAC starts
+		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, envModel.Id)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
+			return fmt.Errorf("unauthorized user for the environment %s", envName), http.StatusForbidden
+		}
+		// validation RBAC ends
+
+		// validate deploymentStrategy for each cd pipeline
+		for _, deploymentStrategy := range cdPipeline.DeploymentStrategies {
+			_, err = json.Marshal(deploymentStrategy.Config)
+			if err != nil {
+				return fmt.Errorf("err in converting deployment strategies for creating the cd pipeline %s", cdPipeline.Name), http.StatusBadRequest
+			}
+		}
+	}
+	return nil, http.StatusOK
+}
+
+func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkflowRequest *appBean.AppWorkflowCloneDto, token string) (error, int) {
+	// validation for app workflow request
+	if createAppWorkflowRequest.AppWorkflows != nil {
+		for _, workflow := range createAppWorkflowRequest.AppWorkflows {
+			// if ci pipeline is of external type, then throw error as we are not supporting it as of now
+			if workflow.CiPipeline.ParentCiPipeline == 0 && workflow.CiPipeline.ParentAppId == 0 && workflow.CiPipeline.IsExternal {
+				return fmt.Errorf("external ci pipeline creation is not supported yet"), http.StatusUnprocessableEntity
+			}
+			// for linked CI, parentCiPipeline should be a valid ciPipelineId and the given ParentAppId should be matched
+			if workflow.CiPipeline.ParentCiPipeline != 0 && workflow.CiPipeline.ParentAppId != 0 {
+				if !workflow.CiPipeline.IsExternal {
+					return fmt.Errorf("invalid value of isExternal '%v', for linked CI isExternal must be TRUE", workflow.CiPipeline.IsExternal), http.StatusBadRequest
+				}
+				ciPipeline, err := handler.ciPipelineRepository.FindById(workflow.CiPipeline.ParentCiPipeline)
+				if err != nil {
+					return fmt.Errorf("error in finding ci pipeline with the given parentCiPipeline '%v'", workflow.CiPipeline.ParentCiPipeline), http.StatusBadRequest
+				}
+				if ciPipeline.AppId != workflow.CiPipeline.ParentAppId {
+					return fmt.Errorf("invalid parentAppId '%v' for the given parentCiPipeline '%v'", workflow.CiPipeline.ParentAppId, workflow.CiPipeline.ParentCiPipeline), http.StatusBadRequest
+				}
+			}
+			ciMaterialCheckoutPaths := make([]string, 0)
+			for _, ciPipelineMaterialConfig := range workflow.CiPipeline.CiPipelineMaterialsConfig {
+				// value for webhook type CiPipelineMaterial should be a valid json string
+				if ciPipelineMaterialConfig.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+					var jsonValueMap map[string]interface{}
+					err := json.Unmarshal([]byte(ciPipelineMaterialConfig.Value), &jsonValueMap)
+					if err != nil {
+						return fmt.Errorf("invalid value for the ciPipelineMaterialsConfig type %s", string(ciPipelineMaterialConfig.Type)), http.StatusBadRequest
+					}
+					if _, ok := jsonValueMap["eventId"]; !ok {
+						return fmt.Errorf("invalid value for the ciPipelineMaterialsConfig type %s, eventId not found", string(ciPipelineMaterialConfig.Type)), http.StatusBadRequest
+					}
+
+					if _, ok := jsonValueMap["condition"]; !ok {
+						return fmt.Errorf("invalid value for the ciPipelineMaterialsConfig type %s, condition not found", string(ciPipelineMaterialConfig.Type)), http.StatusBadRequest
+					}
+				}
+				// CiPipelineMaterial checkout paths should be unique
+				if slices.Contains(ciMaterialCheckoutPaths, ciPipelineMaterialConfig.CheckoutPath) {
+					return fmt.Errorf(""), http.StatusBadRequest
+				}
+				ciMaterialCheckoutPaths = append(ciMaterialCheckoutPaths, ciPipelineMaterialConfig.CheckoutPath)
+			}
+			// validate environment name and rbac object of payload
+			if workflow.CdPipelines != nil {
+				err, statusCode := handler.validateCdPipelines(workflow.CdPipelines, createAppWorkflowRequest.AppName, token)
+				if err != nil {
+					return err, statusCode
+				}
+			}
+		}
+	}
+	// validation for environment override request
+	if createAppWorkflowRequest.EnvironmentOverrides != nil {
+		for envName, _ := range createAppWorkflowRequest.EnvironmentOverrides {
+			envModel, err := handler.environmentRepository.FindByName(envName)
+
+			if err != nil || envModel == nil {
+				return fmt.Errorf("invalid environment name '%s' for environment override", envName), http.StatusBadRequest
+			}
+			if envModel.IsVirtualEnvironment {
+				return fmt.Errorf("virtual environment '%s' for cd pipeline is not supported yet", envName), http.StatusUnprocessableEntity
+			}
+			// validate RBAC starts
+			object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(createAppWorkflowRequest.AppName, envModel.Id)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
+				return fmt.Errorf("unauthorized user for the environment '%s'", envName), http.StatusForbidden
+			}
+			// validate RBAC ends
+		}
+	}
+	return nil, http.StatusOK
+}
+
 func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -2086,9 +2243,15 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 	}
 	//rbac ends
 
+	// validate payload starts
+	err, statusCode := handler.ValidateAppWorkflowRequest(&createAppRequest, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	// validate payload ends
+
 	handler.logger.Infow("creating app workflow created ", "createAppRequest", createAppRequest)
-	var errResp *multierror.Error
-	var statusCode int
 
 	//creating workflow starts
 	if createAppRequest.AppWorkflows != nil {
@@ -2096,9 +2259,9 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 			common.WriteJsonResp(w, err, "please provide only one workflow at one time", http.StatusBadRequest)
 			return
 		}
-		err, statusCode = handler.createWorkflows(ctx, createAppRequest.AppId, userId, createAppRequest.AppWorkflows, token, app.AppName)
+		err, statusCode = handler.createWorkflows(ctx, createAppRequest.AppId, userId, createAppRequest.AppWorkflows)
 		if err != nil {
-			common.WriteJsonResp(w, errResp, nil, statusCode)
+			common.WriteJsonResp(w, err, nil, statusCode)
 			return
 		}
 	}
@@ -2106,9 +2269,9 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 
 	//creating environment override starts
 	if createAppRequest.EnvironmentOverrides != nil && len(createAppRequest.EnvironmentOverrides) > 0 {
-		err, statusCode = handler.createEnvOverrides(ctx, createAppRequest.AppId, userId, createAppRequest.EnvironmentOverrides, token)
+		err, statusCode = handler.createEnvOverrides(ctx, createAppRequest.AppId, userId, createAppRequest.EnvironmentOverrides)
 		if err != nil {
-			common.WriteJsonResp(w, errResp, nil, statusCode)
+			common.WriteJsonResp(w, err, nil, statusCode)
 			return
 		}
 	}
@@ -2144,7 +2307,9 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	}
 
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
+	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -2178,7 +2343,6 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -2192,22 +2356,38 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	workflowName := r.URL.Query().Get("workflowName")
+	wfCloneRequest.WorkflowName = workflowName
+	environmentIdStr := r.URL.Query().Get("environmentId")
+	if len(environmentIdStr) > 0 {
+		environmentId, err := strconv.Atoi(environmentIdStr)
+		if err != nil {
+			handler.logger.Errorw("error on GetAppWorkflowAndOverridesSample", "err", err)
+			common.WriteJsonResp(w, err, "invalid environmentId", http.StatusBadRequest)
+			return
+		}
+		wfCloneRequest.EnvironmentId = environmentId
+	}
+	workflowIdStr := r.URL.Query().Get("workflowId")
+	if len(workflowIdStr) > 0 {
+		workflowId, err := strconv.Atoi(workflowIdStr)
+		if err != nil {
+			handler.logger.Errorw("error on GetAppWorkflowAndOverridesSample", "err", err)
+			common.WriteJsonResp(w, err, "invalid workflowId", http.StatusBadRequest)
+			return
+		}
+		wfCloneRequest.WorkflowId = workflowId
+	}
 	token := r.Header.Get("token")
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
+		handler.logger.Errorw("error on GetAppWorkflowAndOverridesSample", "err", err)
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
 	//get/build app workflows ends
-
-	//get/build environment override starts
-	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(r.Context(), appId, token)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, statusCode)
-		return
-	}
-	//get/build environment override ends
 
 	//build full object for response
 	appDetail := &appBean.AppWorkflowCloneDto{
@@ -2220,6 +2400,19 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		appDetail.AppWorkflows = aw
 	}
 
+	//get/build environment override starts
+	environmentOverrides := make(map[string]*appBean.EnvironmentOverride)
+	if wfCloneRequest.EnvironmentId > 0 {
+		environmentOverrides, err, _ = handler.buildEnvironmentOverride(appId, wfCloneRequest.EnvironmentId, token)
+	} else {
+		environmentOverrides, err, _ = handler.buildEnvironmentOverrides(r.Context(), appId, token)
+	}
+	if err != nil {
+		handler.logger.Errorw("error on GetAppWorkflowAndOverridesSample", "err", err)
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	//get/build environment override ends
 	if environmentOverrides != nil && len(environmentOverrides) > 0 {
 		eo := make(map[string]*appBean.EnvironmentOverride)
 		for k, v := range environmentOverrides {
@@ -2228,7 +2421,6 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		}
 		appDetail.EnvironmentOverrides = eo
 	}
-
 	//end
 
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)

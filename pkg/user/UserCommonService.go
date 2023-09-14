@@ -80,29 +80,34 @@ func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entit
 	//TODO: below txn is making this process slow, need to do bulk operation for role creation.
 	//For detail - https://github.com/devtron-labs/devtron/blob/main/pkg/user/benchmarking-results
 
-	renderedRole, renderedPolicyDetails := impl.getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType)
-	_, err := impl.userAuthRepository.CreateRole(renderedRole)
+	renderedRole, renderedPolicyDetails, err := impl.getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType)
+	if err != nil {
+		return false, err, nil
+	}
+	_, err = impl.userAuthRepository.CreateRole(renderedRole)
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 		return false, err, nil
 	}
 	return true, nil, renderedPolicyDetails
 }
 
-func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (*repository2.RoleModel, []casbin.Policy) {
+func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (*repository2.RoleModel, []casbin.Policy, error) {
 	//getting map of values to be used for rendering
 	pValUpdateMap := getPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource)
 
 	//getting default role data and policy
-	defaultRoleData, defaultPolicy := impl.getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, actionType)
-
+	defaultRoleData, defaultPolicy, err := impl.getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, actionType)
+	if err != nil {
+		return nil, nil, err
+	}
 	//getting rendered role and policy data
 	renderedRoleData := getRenderedRoleData(defaultRoleData, pValUpdateMap)
 	renderedPolicy := getRenderedPolicy(defaultPolicy, pValUpdateMap)
 
-	return renderedRoleData, renderedPolicy
+	return renderedRoleData, renderedPolicy, nil
 }
 
-func (impl UserCommonServiceImpl) getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, action string) (repository2.RoleCacheDetailObj, repository2.PolicyCacheDetailObj) {
+func (impl UserCommonServiceImpl) getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, action string) (repository2.RoleCacheDetailObj, repository2.PolicyCacheDetailObj, error) {
 	//getting default role and policy data from cache
 	return impl.defaultRbacDataCacheFactory.
 		GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, action)
@@ -253,20 +258,12 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 								impl.logger.Errorw("Error in fetching roles by filter", "roleFilter", roleFilter)
 								return nil, err
 							}
-							oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true)
-							if err != nil {
-								return nil, err
-							}
-							if roleModel.Id == 0 && oldRoleModel.Id == 0 {
+							if roleModel.Id == 0 {
 								impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
 								continue
 							}
 							if _, ok := existingRoleIds[roleModel.Id]; ok {
 								delete(eliminatedRoleIds, roleModel.Id)
-							}
-							if _, ok := existingRoleIds[oldRoleModel.Id]; ok {
-								//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
-								delete(existingRoleIds, oldRoleModel.Id)
 							}
 						}
 					}
@@ -316,7 +313,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 					if _, ok := existingRoleIds[roleModel.Id]; ok {
 						delete(eliminatedRoleIds, roleModel.Id)
 					}
-					if _, ok := existingRoleIds[oldRoleModel.Id]; ok {
+					isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
+					if _, ok := existingRoleIds[oldRoleModel.Id]; ok && !isChartGroupEntity {
 						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
 						delete(existingRoleIds, oldRoleModel.Id)
 					}
