@@ -24,13 +24,11 @@ spec:
             - -c
             - cp -r /scripts/ /shared/
           {{- if $.Values.installer.modules }}
-          {{- if and (has "cicd" $.Values.installer.modules) ($.Release.IsUpgrade) }}
-          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global "extraImage" $.Values.components.devtron.cicdImage ) }}
-          {{- else }}
-          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          {{- if has "cicd" $.Values.installer.modules }}
+          image: {{ $.Values.components.devtron.cicdImage }}
           {{- end }}
           {{- else }}
-          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          image: {{ $.Values.components.devtron.image }}
           {{- end }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
@@ -57,14 +55,14 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: {{ $.Values.components.migrator.envVars.devtron.DB_NAME }}
+              value: {{ .envVars.devtron.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
           envFrom:
             - secretRef:
                 name: postgresql-migrator
-          {{- if $.Values.components.migrator.image }}        
-          image: {{ $.Values.components.migrator.image }}    
+          {{- if .image }}        
+          image: {{ .image }}    
           {{- else }}
           image: migrate/migrate
           {{- end }} 
@@ -110,7 +108,7 @@ spec:
       {{- end }}
       containers:
       - name: devtron-rollout
-        image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.kubectlImage ) }}
+        image: "quay.io/devtron/kubectl:latest"
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
         securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
@@ -128,13 +126,11 @@ spec:
             - -c
             - cp -r /scripts/. /shared/
           {{- if $.Values.installer.modules }}
-          {{- if and (has "cicd" $.Values.installer.modules) ($.Release.IsUpgrade) }}
-          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global "extraImage" $.Values.components.devtron.cicdImage ) }}
-          {{- else }}
-          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          {{- if has "cicd" $.Values.installer.modules }}
+          image: {{ $.Values.components.devtron.cicdImage }}
           {{- end }}
           {{- else }}
-          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          image: {{ $.Values.components.devtron.image }}
           {{- end }}
           name: init-devtron
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
@@ -210,7 +206,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r sql /shared/
-          image: {{ include "common.image" (dict "component" $.Values.components.gitsensor "global" $.Values.global) }}
+          image: {{ $.Values.git-sensor.image }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
@@ -226,7 +222,11 @@ spec:
             - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
           env:
             - name: SCRIPT_LOCATION
+              {{- if .envVars.git_sensor.SCRIPT_LOCATION }}
+              value: {{ .envVars.git_sensor.SCRIPT_LOCATION }}
+              {{- else }}
               value: /shared/sql/
+              {{- end }}
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
@@ -288,7 +288,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r sql /shared/
-          image: {{ include "common.image" (dict "component" $.Values.lens "global" $.Values.global) }}
+          image: {{ $.Values.lens.image }}
           name: init-lens
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
@@ -309,7 +309,11 @@ spec:
             - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi ' 
         env:
             - name: SCRIPT_LOCATION
+              {{- if .envVars.lens.SCRIPT_LOCATION }}
+              value: {{ .envVars.lens.SCRIPT_LOCATION }}
+              {{- else }}
               value: /shared/sql/
+              {{- end }}
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
