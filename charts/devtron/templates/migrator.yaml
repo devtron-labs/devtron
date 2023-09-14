@@ -158,12 +158,6 @@ spec:
           resources:
 {{- toYaml .casbin.initContainer.resources | nindent 12 }}
           {{- end }}
-          {{- else }}
-          resources:
-            requests:
-              cpu: 0.5
-              memory: 500Mi
-          {{- end }}  
           name: postgresql-migrate-casbin
           volumeMounts:
             - mountPath: /shared
