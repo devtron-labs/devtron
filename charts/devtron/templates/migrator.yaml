@@ -372,6 +372,5 @@ spec:
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
----
 {{- end }}
 {{- end }}
