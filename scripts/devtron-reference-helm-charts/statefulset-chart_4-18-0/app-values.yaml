@@ -22,30 +22,24 @@ EnvVariablesFromCongigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 winterSoldier:
   enabled: false
+  apiVersion: pincher.devtron.ai/v1alpha1
   annotation: {}
   labels: {}
+  type: StatefulSet
   timeRangesWithZone:
     timeZone: "Asia/Kolkata"
     timeRanges: []
   action: sleep
   targetReplicas: []
-  fieldSelector: 
-    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+  fieldSelector: []
+    # - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 
 statefulSetConfig:
   labels: {}
   annotations: {}
-  #serviceName: "test-service_headless"
-  #revisionHistoryLimit: 3
-  mountPath: "/tmp"
-  volumeClaimTemplates:
-  - spec:
-      accessModes:
-        - ReadWriteOnce
-      resources: 
-        requests:
-          storage: "2Gi"
+  volumeClaimTemplates: []
+
 service:
   type: ClusterIP
   enabled: false

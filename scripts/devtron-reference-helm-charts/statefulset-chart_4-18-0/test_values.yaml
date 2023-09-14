@@ -1,6 +1,14 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+kedaAutoscaling: 
+  enabled: false
+ambassadorMapping:
+  enabled: true
+istio:
+  enabled: true
+  gateway:
+    enabled: true
 
 appLabels: 
       test: thyjhgfv
@@ -16,6 +24,17 @@ containerSpec:
         path: /example
         port: 90
 
+StartupProbe:
+  Path: "/"
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+  command: []
+  tcp: false
 imagePullSecrets:
   - test1
   - test2
@@ -115,7 +134,12 @@ EnvVariablesFromCongigMapKeys:
     configMapName: CONFIG_MAP_NAME
     keyName: CONFIG_MAP_KEY
 
+nodeName: "testiing"
+
 statefulSetConfig:
+  serviceheadless: 
+    enabled: false
+    name: test-service_headless
   labels: 
     app: example
   annotations:
@@ -178,7 +202,7 @@ statefulSetConfig:
 
 
 secret:
-  enabled: false
+  enabled: true
 
 service:
   type: ClusterIP
@@ -263,7 +287,7 @@ prometheusRule:
         summary: More than 5% of the all requests did return 4XX, this require your attention
 
 winterSoldier:
-  apiVersion: pincher.devtron.ai/v1alpha1 
+  apiVersion: pincher.devtron.ai/v1alpha1
   enabled: true
   annotations: {}
   labels: {}
@@ -291,16 +315,16 @@ winterSoldier:
 ingress:
   enabled: true
   className: nginx
-  annotations: {}
-#    nginx.ingress.kubernetes.io/rewrite-target: /
-#    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-#    kubernetes.io/ingress.class: nginx
-#    kubernetes.io/tls-acme: "true"
-#    nginx.ingress.kubernetes.io/canary: "true"
-#    nginx.ingress.kubernetes.io/canary-weight: "10"
-#    Old Ingress Format
-#  host: "ingress-example.com"
-#  path: "/app"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "10"
+    # Old Ingress Format
+  host: "ingress-example.com"
+  path: "/app"
 
 #    New Ingress Format
   hosts:
@@ -313,6 +337,14 @@ ingress:
       paths:
         - /example2
         - /example2/healthz
+      additionalBackends: 
+        - path: /ingress
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service-ingress
+              port:
+                number: 80
   tls: []
 ### Legacy Ingress Format ##
 #  host: abc.com
@@ -335,18 +367,41 @@ ingressInternal:
       pathType: "ImplementationSpecific"
       paths:
         - /example1
+      additionalBackends: 
+        - path: /example1
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service
+              port:
+                number: 80
     - host: chart-example2.internal
       pathType: "ImplementationSpecific"
       paths:
         - /example2
         - /example2/healthz
+      additionalBackends: 
+        - path: /example1
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service
+              port:
+                number: 80
+        - path: /example2
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service
+              port:
+                number: 80
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
 
 dbMigrationConfig:
-  enabled: false
+  enabled: true
 
 command:
   workingDir: /app
@@ -379,22 +434,23 @@ volumes:
        emptyDir: {}
 
 
-nodeSelector: {}
+nodeSelector: 
+  microk8s.io/cluster: true
 
 
 #used for deployment algo selection
 orchestrator.deploymant.algo: 1
 
 ConfigMaps:
-  enabled: false
-  maps: []
-#  - name: config-map-1
-#    type: environment
-#    external: false
-#    data:
-#     key1: key1value-1
-#     key2: key2value-1
-#     key3: key3value-1
+  enabled: true
+  maps:
+  - name: config-map-1
+    type: environment
+    external: false
+    data:
+      key1: key1value-1
+      key2: key2value-1
+      key3: key3value-1
 #  - name: config-map-2
 #    type: volume
 #    external: false
@@ -418,7 +474,7 @@ ConfigMaps:
 
 
 ConfigSecrets:
-  enabled: false
+  enabled: true
   secrets:
   - name: config-secret-1
     type: environment
@@ -587,9 +643,9 @@ envoyproxy:
       cpu: 50m
       memory: 50Mi
 
-podDisruptionBudget: {}
-  #  minAvailable: 1
-  #  maxUnavailable: 1
+podDisruptionBudget: 
+   minAvailable: 1
+   maxUnavailable: 1
 
   ## Node tolerations for server scheduling to nodes with taints
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
@@ -605,7 +661,7 @@ appMetrics: true
 serviceAccount:
   ## @param serviceAccount.create Enable creation of ServiceAccount for pods
   ##
-  create: false
+  create: true
   ## @param serviceAccount.name The name of the ServiceAccount to use.
   ## If not set and create is true, a name is generated using the `.Chart.Name .fullname` template
   name: "test1"

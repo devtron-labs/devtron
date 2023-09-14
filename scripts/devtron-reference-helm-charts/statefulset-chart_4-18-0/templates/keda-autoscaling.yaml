@@ -3,6 +3,14 @@ apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}-keda
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -42,6 +50,12 @@ apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
   name: {{ $.Values.kedaAutoscaling.triggerAuthentication.name }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
 spec:
 {{ toYaml $.Values.kedaAutoscaling.triggerAuthentication.spec | indent 2 }}
 {{- end }}

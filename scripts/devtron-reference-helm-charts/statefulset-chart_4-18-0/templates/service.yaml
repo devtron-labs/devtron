@@ -8,11 +8,13 @@ metadata:
   name: {{ template ".servicename" . }}
   {{- end }}
   labels:
-    app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Release.Name }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
@@ -54,20 +56,27 @@ spec:
     app: {{ template ".Chart.Name .name" . }}
 {{- end }}
 ---
+{{- if or  .Values.service.enabled .Values.serviceheadless.enabled  }}
 apiVersion: v1
 kind: Service
 metadata:
-  {{- if .Values.statefulSetConfig.serviceName  }}
-  name: {{ .Values.statefulSetConfig.serviceName }}
-  {{- else }}
+  {{- if .Values.serviceheadless.enabled  }}
+  {{- if .Values.serviceheadless.name  }}
+  name: {{ .Values.serviceheadless.name }}
+  {{- else  }}
+  name: {{ template ".servicename" . }}-headless
+  {{- end }}
+  {{- else  }}
   name: {{ template ".servicename" . }}-headless
   {{- end }}
   labels:
-    app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Release.Name }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
@@ -107,4 +116,5 @@ spec:
  {{- range .Values.service.loadBalancerSourceRanges }}
       - {{ . }}
  {{- end }}
+{{- end }}
 {{- end }}

@@ -24,11 +24,13 @@ metadata:
   name: {{ template ".Chart.Name .fullname" . }}-ingress
   namespace: {{ $.Values.NameSpace }}
   labels:
-    app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Release.Name }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
@@ -85,6 +87,9 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
         {{- end }}
+   {{- if  .additionalBackends }}
+{{ toYaml .additionalBackends | indent 10 }}
+    {{- end }}
   {{- end }}
   {{- end }}
   {{- if .Values.ingress.tls }}
@@ -109,8 +114,8 @@ metadata:
     app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Release.Name }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    {{ template "mychart.labels" }}
 {{- if .Values.ingressInternal.annotations }}
   annotations:
 {{ toYaml .Values.ingressInternal.annotations | indent 4 }}
@@ -160,6 +165,9 @@ spec:
               serviceName: {{ $svcName }}
               servicePort: {{ $svcPort }}
               {{- end }}
+        {{- end }}
+     {{- if  .additionalBackends }}
+{{ toYaml .additionalBackends | indent 10 }}
         {{- end }}
   {{- end }}
   {{- end }}

@@ -28,6 +28,8 @@ kind: StatefulSet
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
@@ -50,11 +52,13 @@ spec:
       release: {{ $.Release.Name }}
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
-  {{- if .Values.statefulSetConfig.serviceName  }}
-  serviceName: {{ .Values.statefulSetConfig.serviceName }}
+  {{- if or  .Values.service.enabled .Values.serviceheadless.enabled  }}
+  {{- if .Values.serviceheadless.name  }}
+  serviceName: {{ .Values.serviceheadless.name }}
   {{- else }}
   serviceName: {{ template ".servicename" . }}-headless
-  {{- end}}
+  {{- end }}
+  {{- end }}
   {{- if $.Values.statefulSetConfig.podManagementPolicy }}
   podManagementPolicy: {{ $.Values.statefulSetConfig.podManagementPolicy }}
   {{- end }}
@@ -82,7 +86,14 @@ spec:
 {{ toYaml .Values.podExtraSpecs | indent 6 }}	
 {{- end }}
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
-      restartPolicy: Always
+      {{- if $.Values.restartPolicy }}
+      restartPolicy: {{  $.Values.restartPolicy  }}
+      {{- end }}
+      {{- if $.Values.hostAliases }}
+      hostAliases:
+      {{ toYaml .Values.hostAliases | indent 8 }}
+      {{- end }}
+
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
       affinity:
         nodeAffinity:
@@ -99,6 +110,13 @@ spec:
 {{- else  }}
       serviceAccountName: {{ template "serviceAccountName" . }}
 {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml $.Values.nodeSelector | indent 10 }}
+      {{- end }}
+      {{- if .Values.nodeName }}
+      nodeName: {{ $.Values.nodeName }}
+      {{- end }}
   {{- if .Values.tolerations }}
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
@@ -397,7 +415,32 @@ spec:
 {{- end }}
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }} 
+{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp }}
+          startupProbe:
+{{- if $.Values.StartupProbe.Path }}
+            httpGet:
+              path: {{ $.Values.StartupProbe.Path  }}
+              port: {{ $.Values.StartupProbe.port }}
+            {{- if $.Values.StartupProbe.httpHeaders }}
+              httpHeaders:
+              {{- range $.Values.StartupProbe.httpHeaders}}
+                - name: {{.name}}
+                  value: {{.value}}
+              {{- end}}
+        {{- end }}
+{{- end }}
+{{- if $.Values.StartupProbe.command }}
+            exec:
+              command:
+{{ toYaml .Values.StartupProbe.command | indent 16 }}
+{{- end}}
+{{- if and $.Values.StartupProbe.tcp }}
+            tcpSocket:
+              port: {{ $.Values.StartupProbe.port }}
+{{- end}}
+{{- end}}
           volumeMounts:
+            {{- if $.Values.statefulSetConfig.volumeClaimTemplates }}
             {{- with (index $.Values.statefulSetConfig.volumeClaimTemplates 0) }}
             {{- if and .metadata .metadata.name }}
             - name: {{ .metadata.name }}
@@ -409,6 +452,7 @@ spec:
               mountPath: {{ $.Values.statefulSetConfig.mountPath  }}
             {{- else}}
               mountPath: "/tmp"
+            {{- end}}
             {{- end}}
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
@@ -474,6 +518,7 @@ spec:
             name: {{ .name}}-{{ $.Values.app }}
             {{- end }}
             {{- if eq (len .filePermission) 0 }}
+            defaultMode: {{ .filePermission}}
             {{- else }}
             defaultMode: {{ .filePermission}}
             {{- end }}
@@ -505,15 +550,14 @@ spec:
   volumeClaimTemplates: 
     {{- range $.Values.statefulSetConfig.volumeClaimTemplates }}
     - apiVersion: {{ .apiVersion | default "v1" }}
-      {{- if .kind }}
-      kind: {{.kind}}
-      {{- end}}
+      kind: {{.kind | default "PersistentVolumeClaim"}}
       metadata:
           {{- if and .metadata .metadata.annotations }}
           annotations: {{ toYaml .metadata.annotations | nindent 14 }}
           {{- end}}
-          {{- if and .metadata .metadata.labels }}
-          labels: {{ toYaml .metadata.labels | nindent 14 }}
+          labels:
+          {{- if and .metadata .metadata.labels -}}
+          {{ toYaml .metadata.labels | nindent 14 }}
           {{- end}}
           {{- if and .metadata .metadata.name }}
           name: {{ .metadata.name }}

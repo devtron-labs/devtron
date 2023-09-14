@@ -111,19 +111,8 @@ kedaAutoscaling:
 
 secret:
   enabled: false
-
-statefulSetConfig:
-  mountPath: "/tmp"
-  volumeClaimTemplates:
-  - spec:
-      accessModes:
-        - ReadWriteOnce
-      resources: 
-        requests:
-          storage: "2Gi"
-
-#service_headless: {}
-  #name: "test-service_headless"
+serviceheadless: 
+    enabled: true
 service:
   type: ClusterIP
   enabled: false
@@ -131,6 +120,20 @@ service:
   annotations: {}
     # test1: test2
     # test3: test4
+statefulSetConfig:
+  mountPath: "/tmp"
+  serviceheadless: 
+    enabled: false
+
+  volumeClaimTemplates: []
+  # - spec:
+  #     accessModes:
+  #       - ReadWriteOnce
+  #     resources: 
+  #       requests:
+  #         storage: "2Gi"
+# nodeName: ""
+
 
 server:
  deployment:
@@ -176,6 +179,17 @@ servicemonitor:
   additionalLabels: {}
 
 
+StartupProbe:
+  Path: ""
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+  command: []
+  tcp: false
 prometheusRule:
   enabled: false
   additionalLabels: {}
@@ -201,7 +215,7 @@ prometheusRule:
 #
 winterSoldier:
   enabled: false
-  apiVersion: pincher.devtron.ai/v1beta1
+  apiVersion: pincher.devtron.ai/v1alpha1
   labels: {}
   annotations: {}
   timeRangesWithZone: {}
@@ -311,6 +325,21 @@ command:
 args:
  enabled: false
  value: []
+
+
+ 
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector:
+    matchExpressions: []
+    matchLabels: {}
+  policyTypes: []
+  ingress: []
+  egress: []
+hibernator:
+  enable: false
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

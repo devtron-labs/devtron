@@ -7,15 +7,20 @@ metadata:
   name: {{ template ".Chart.Name .fullname" . }}-sm
   labels:
     kind: Prometheus
-    app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Values.prometheus.release }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
+    
     {{- if .Values.servicemonitor.additionalLabels }}
 {{ toYaml .Values.servicemonitor.additionalLabels | indent 4 }}
     {{- end }}
 spec:
+  podTargetLabels:
+     - devtron_app_hash
   endpoints:
     {{- range .Values.ContainerPort }}
       {{- if  .servicemonitor }}

@@ -4,17 +4,30 @@ kind: ServiceMonitor
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}
   labels:
-    app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ .Values.prometheus.release }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
 spec:
   jobLabel: {{ template ".Chart.Name .name" $ }}
   endpoints:
     - port: envoy-admin
       interval: 30s
       path: /stats/prometheus
+      relabelings:
+        - action: replace
+          regex: (.*)(\S{10})
+          replacement: ${2}
+          sourceLabels:
+            - __meta_kubernetes_pod_label_controller_revision_hash
+          targetLabel: statefulset_hash
+        - action: replace
+          sourceLabels:
+            - statefulset_hash
+          targetLabel: devtron_app_hash
   selector:
     matchLabels:
       app: {{ template ".Chart.Name .name" $ }}
@@ -27,4 +40,6 @@ spec:
     - appId
     - envId
     - controller-revision-hash
+    - devtron_app_hash
+
 {{- end }}

@@ -4,6 +4,14 @@ kind: ConfigMap
 metadata:
   creationTimestamp: 2019-08-12T18:38:34Z
   name: sidecar-config-{{ template ".Chart.Name .name" $ }}
+  labels:
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
 data:
   envoy-config.json: |
     {
