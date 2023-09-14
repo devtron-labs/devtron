@@ -85,7 +85,7 @@ type CiConfig struct {
 	OrchestratorHost                 string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
 	OrchestratorToken                string `env:"ORCH_TOKEN" envDefault:""`
 	BuildxK8sDriverOptions           string `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
-	BuildxProvenanceMode             string `env:"BUILDX_PROVENANCE_MODE" envDefault:""`
+	BuildxProvenanceMode             string `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
 }
 
 type CiVolumeMount struct {
