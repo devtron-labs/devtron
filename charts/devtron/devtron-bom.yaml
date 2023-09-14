@@ -26,7 +26,7 @@ components:
     image: "quay.io/devtron/hyperion:fb3a3f69-280-16231"
     cicdImage: "quay.io/devtron/devtron:ba612a99-434-16221"
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:b5edfead-138-15066"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d8d774c3-138-16238"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
