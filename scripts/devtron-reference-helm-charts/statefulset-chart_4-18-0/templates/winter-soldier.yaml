@@ -28,7 +28,7 @@ spec:
     - inclusions:
         - objectSelector:
             name: {{ include ".Chart.Name .fullname" $ }}
-            type: {{ .Values.winterSoldier.type | quote }}
+            type: StatefulSet
             fieldSelector:
 {{toYaml $.Values.winterSoldier.fieldSelector | indent 14}} 
           namespaceSelector:
