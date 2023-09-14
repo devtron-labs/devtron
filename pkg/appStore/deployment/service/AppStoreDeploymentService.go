@@ -891,7 +891,7 @@ func (impl AppStoreDeploymentServiceImpl) createEnvironmentIfNotExists(installAp
 	}
 
 	environmentBean := &cluster2.EnvironmentBean{
-		Environment: cluster2.BuildEnvironmentIdentifer(cluster.ClusterName, namespace),
+		Environment: cluster2.BuildEnvironmentName(cluster.ClusterName, namespace),
 		ClusterId:   clusterId,
 		Namespace:   namespace,
 		Default:     false,
