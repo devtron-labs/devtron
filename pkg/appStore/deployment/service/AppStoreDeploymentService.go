@@ -176,6 +176,13 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		return nil, err
 	}
 
+	var isOCIRepo bool
+	if appStoreAppVersion.AppStore.DockerArtifactStore != nil {
+		isOCIRepo = true
+	} else {
+		isOCIRepo = false
+	}
+
 	var appInstallationMode string
 	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) {
 		appInstallationMode = util2.SERVER_MODE_HYPERION
@@ -234,14 +241,14 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	//	}
 	//}
 	if !isInternalUse {
-		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL {
+		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 		}
 	}
 	if installAppVersionRequest.DeploymentAppType == "" {
-		if isGitOpsConfigured {
+		if isGitOpsConfigured && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
@@ -380,7 +387,12 @@ func (impl *AppStoreDeploymentServiceImpl) IsChartRepoActive(appStoreVersionId i
 		impl.logger.Errorw("fetching error", "err", err)
 		return false, err
 	}
-	return appStoreAppVersion.AppStore.ChartRepo.Active, nil
+	if appStoreAppVersion.AppStore.ChartRepo != nil {
+		return appStoreAppVersion.AppStore.ChartRepo.Active, nil
+	} else if appStoreAppVersion.AppStore.DockerArtifactStore.OCIRegistryConfig != nil {
+		return appStoreAppVersion.AppStore.DockerArtifactStore.OCIRegistryConfig[0].IsChartPullActive, err
+	}
+	return false, nil
 }
 
 func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -1012,14 +1024,16 @@ func (impl AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(instal
 				ReleaseNamespace: installAppVersionRequest.Namespace,
 				ReleaseName:      installAppVersionRequest.AppName,
 			},
-			ChartRepository: &client.ChartRepository{
-				Name:     chartRepoInfo.Name,
-				Url:      chartRepoInfo.Url,
-				Username: chartRepoInfo.UserName,
-				Password: chartRepoInfo.Password,
-			},
 		},
 		SourceAppType: client.SOURCE_HELM_APP,
+	}
+	if chartRepoInfo != nil {
+		updateReleaseRequest.ChartRepository = &client.ChartRepository{
+			Name:     chartRepoInfo.Name,
+			Url:      chartRepoInfo.Url,
+			Username: chartRepoInfo.UserName,
+			Password: chartRepoInfo.Password,
+		}
 	}
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest)
 	if err != nil {

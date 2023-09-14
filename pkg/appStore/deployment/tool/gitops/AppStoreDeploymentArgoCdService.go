@@ -394,10 +394,14 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 			return result, err
 		}
 		for _, updateHistory := range versionHistory {
-			user, err := impl.userService.GetById(updateHistory.CreatedBy)
-			if err != nil {
+			emailId := "anonymous"
+			user, err := impl.userService.GetByIdIncludeDeleted(updateHistory.CreatedBy)
+			if err != nil && !util.IsErrNoRows(err) {
 				impl.Logger.Errorw("error while fetching user Details", "error", err)
 				return result, err
+			}
+			if user != nil {
+				emailId = user.EmailId
 			}
 			history = append(history, &client.HelmAppDeploymentDetail{
 				ChartMetadata: &client.ChartMetadata{
@@ -407,7 +411,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
 					Sources:      sources,
 				},
-				DeployedBy:   user.EmailId,
+				DeployedBy:   emailId,
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
 				DeployedAt: &timestamp.Timestamp{
 					Seconds: updateHistory.CreatedOn.Unix(),

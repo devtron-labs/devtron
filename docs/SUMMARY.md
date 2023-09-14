@@ -25,6 +25,7 @@
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
   * [Custom charts](user-guide/global-configurations/custom-charts.md)
   * [SSO Login Services](user-guide/global-configurations/sso-login.md)
+    * [Example - Okta SSO](user-guide/global-configurations/okta.md)
   * [Authorization](user-guide/global-configurations/authorization/README.md)
     * [User Permissions](user-guide/global-configurations/authorization/user-access.md)
     * [Permission Groups](user-guide/global-configurations/authorization/permission-groups.md)
@@ -112,5 +113,6 @@
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
+* [Devtron on Graviton](reference/graviton.md)
 * [Release Notes](https://github.com/devtron-labs/devtron/releases)
 

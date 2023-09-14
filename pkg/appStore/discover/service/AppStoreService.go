@@ -69,7 +69,6 @@ func (impl *AppStoreServiceImpl) FindChartDetailsById(id int) (appStoreBean.AppS
 		Digest:                  chartDetails.Digest,
 		Icon:                    chartDetails.Icon,
 		Name:                    chartDetails.Name,
-		ChartName:               chartDetails.AppStore.ChartRepo.Name,
 		AppStoreApplicationName: chartDetails.AppStore.Name,
 		Home:                    chartDetails.Home,
 		Source:                  chartDetails.Source,
@@ -83,7 +82,16 @@ func (impl *AppStoreServiceImpl) FindChartDetailsById(id int) (appStoreBean.AppS
 		Readme:                  chartDetails.Readme,
 		ValuesSchemaJson:        chartDetails.ValuesSchemaJson,
 		Notes:                   chartDetails.Notes,
-		IsChartRepoActive:       chartDetails.AppStore.ChartRepo.Active,
+	}
+	if chartDetails.AppStore.DockerArtifactStore != nil {
+		appStoreApplicationVersion.ChartName = chartDetails.AppStore.DockerArtifactStore.Id
+		appStoreApplicationVersion.IsChartRepoActive = chartDetails.AppStore.DockerArtifactStore.Active
+		appStoreApplicationVersion.IsOCICompliantChart = true
+	}
+	if chartDetails.AppStore.ChartRepo != nil {
+		appStoreApplicationVersion.ChartName = chartDetails.AppStore.ChartRepo.Name
+		appStoreApplicationVersion.IsChartRepoActive = chartDetails.AppStore.ChartRepo.Active
+		appStoreApplicationVersion.IsOCICompliantChart = false
 	}
 	return appStoreApplicationVersion, nil
 }

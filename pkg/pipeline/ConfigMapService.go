@@ -425,6 +425,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 		if err != nil {
 			impl.logger.Debugw("error while Unmarshal", "error", err)
 		}
+		processCmCsEnvLevel(configsListEnvLevel.ConfigData)
 	}
 	configDataRequest := &bean.ConfigDataRequest{}
 	configDataRequest.Id = configMapEnvLevel.Id
@@ -478,6 +479,11 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 	}
 
 	return configDataRequest, nil
+}
+func processCmCsEnvLevel(configData []*bean.ConfigData) {
+	for index, _ := range configData {
+		configData[index].Global = false
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -806,6 +812,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 		if err != nil {
 			impl.logger.Warnw("error while Unmarshal", "error", err)
 		}
+		processCmCsEnvLevel(configsListEnvLevel.ConfigData)
 	}
 	configDataRequest := &bean.ConfigDataRequest{}
 	configDataRequest.Id = configMapEnvLevel.Id

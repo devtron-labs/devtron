@@ -16,6 +16,9 @@ var ClusterWireSet = wire.NewSet(
 	cluster.NewClusterServiceImplExtended,
 	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImplExtended)),
 
+	cluster.NewClusterRbacServiceImpl,
+	wire.Bind(new(cluster.ClusterRbacService), new(*cluster.ClusterRbacServiceImpl)),
+
 	repository.NewClusterDescriptionRepositoryImpl,
 	wire.Bind(new(repository.ClusterDescriptionRepository), new(*repository.ClusterDescriptionRepositoryImpl)),
 	repository2.NewGenericNoteHistoryRepositoryImpl,
@@ -48,6 +51,8 @@ var ClusterWireSet = wire.NewSet(
 var ClusterWireSetEa = wire.NewSet(
 	repository.NewClusterRepositoryImpl,
 	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterRepositoryImpl)),
+	cluster.NewClusterRbacServiceImpl,
+	wire.Bind(new(cluster.ClusterRbacService), new(*cluster.ClusterRbacServiceImpl)),
 	cluster.NewClusterServiceImpl,
 	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImpl)),
 
