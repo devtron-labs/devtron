@@ -9,7 +9,6 @@ istio:
   enabled: true
   gateway:
     enabled: true
-
 appLabels: 
       test: thyjhgfv
 containerSpec:
