@@ -41,7 +41,6 @@ type ImageScanDeployInfo struct {
 	ObjectType                  string   `sql:"object_type,notnull"`
 	EnvId                       int      `sql:"env_id,notnull"`
 	ClusterId                   int      `sql:"cluster_id,notnull"`
-	IsLatestImageScanned        bool     `sql:"is_latest_image_scanned"`
 	sql.AuditLog
 }
 
@@ -182,11 +181,11 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	if len(request.CVEName) > 0 || len(request.Severity) > 0 {
 		query = query + " INNER JOIN image_scan_execution_history his on his.id = any (info.image_scan_execution_history_id)"
 		query = query + " INNER JOIN image_scan_execution_result res on res.image_scan_execution_history_id=his.id"
-		query = query + " INNER JOIN cve_store cs on cs.name= res.cve_store_name"
+		query = query + " INNER JOIN cve_store cs on cs.name= res.cve_store_name info."
 	}
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster clus on clus.id=env.cluster_id"
-	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true and info.is_latest_image_scanned=true"
+	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true  and info.image_scan_execution_history_id[0] != -1"
 	if len(deployInfoIds) > 0 {
 		ids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(deployInfoIds)), ","), "[]")
 		query = query + " AND info.id IN (" + ids + ")"
@@ -233,7 +232,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *I
 	}
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster c on c.id=env.cluster_id"
-	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true and info.is_latest_image_scanned=true"
+	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[0] != -1"
 	if len(deployInfoIds) > 0 {
 		ids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(deployInfoIds)), ","), "[]")
 		query = query + " AND info.id IN (" + ids + ")"

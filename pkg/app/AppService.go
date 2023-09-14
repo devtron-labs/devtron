@@ -1885,7 +1885,6 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 			ObjectType:                  security.ScanObjectType_APP,
 			EnvId:                       envId,
 			ClusterId:                   clusterId,
-			IsLatestImageScanned:        true,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: 1,
@@ -1900,8 +1899,12 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 		}
 	} else {
 		// Updating Execution history for Latest Deployment to fetch out security Vulnerabilities for latest deployed info
-		ot.ImageScanExecutionHistoryId = ids
-		ot.IsLatestImageScanned = isScanEnabled
+		if isScanEnabled {
+			ot.ImageScanExecutionHistoryId = ids
+		} else {
+			arr := []int{-1}
+			ot.ImageScanExecutionHistoryId = arr
+		}
 		err = impl.imageScanDeployInfoRepository.Update(ot)
 		if err != nil {
 			impl.logger.Errorw("error in updating deploy info for latest deployed image", "err", err)
