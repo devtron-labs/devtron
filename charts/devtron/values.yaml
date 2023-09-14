@@ -117,16 +117,12 @@ components:
     image: "migrate/migrate"
     envVars:
       devtron:
-        SCRIPT_LOCATION: "scripts/sql/"
         DB_NAME: "orchestrator"
       casbin:
-        SCRIPT_LOCATION: "scripts/casbin/"
         DB_NAME: "casbin"
       git_sensor:
-        SCRIPT_LOCATION: "/shared/sql/"
         DB_NAME: "git_sensor"
       lens: 
-        SCRIPT_LOCATION: "/shared/sql/"
         DB_NAME: "lens"
 
 # values for argocd integration
