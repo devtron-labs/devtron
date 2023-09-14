@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -108,8 +109,11 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
-
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId)
+	//VARIABLE_RESOLVE
+	scope := models.Scope{
+		AppId: templateRequest.AppId,
+	}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
 	if !validate {
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
@@ -570,7 +574,13 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 		return
 	}
 
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId)
+	//VARIABLE_RESOLVE
+	scope := models.Scope{
+		AppId:     request.AppId,
+		EnvId:     request.EnvId,
+		ClusterId: envConfigProperties.ClusterId,
+	}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId, scope)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", request)
 		common.WriteJsonResp(w, err2, "validation err, UpdateAppOverrid", http.StatusBadRequest)
@@ -693,7 +703,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 	}
 
 	chartRefId := envConfigProperties.ChartRefId
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId)
+	//VARIABLE_RESOLVE
+	scope := models.Scope{
+		AppId:     appId,
+		EnvId:     environmentId,
+		ClusterId: envConfigProperties.ClusterId,
+	}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
@@ -802,7 +818,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		return
 	}
 	chartRefId := envConfigProperties.ChartRefId
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId)
+	//VARIABLE_RESOLVE
+	scope := models.Scope{
+		AppId:     appId,
+		EnvId:     envId,
+		ClusterId: envConfigProperties.ClusterId,
+	}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
@@ -1366,8 +1388,12 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
+	//VARIABLE_RESOLVE
+	scope := models.Scope{
+		AppId: templateRequest.AppId,
+	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.DeploymentTemplateValidate")
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId)
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
 	span.End()
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", templateRequest)

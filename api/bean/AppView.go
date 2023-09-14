@@ -205,6 +205,7 @@ type Environment struct {
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 	Description                string `json:"description" validate:"max=40"`
 	IsVirtualEnvironment       bool   `json:"isVirtualEnvironment"`
+	ClusterId                  int    `json:"clusterId"`
 }
 
 type InstanceDetail struct {

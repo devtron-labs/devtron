@@ -66,6 +66,7 @@ type ClusterRepository interface {
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
 	FindActiveClusters() ([]Cluster, error)
 	SaveAll(models []*Cluster) error
+	FindByNames(clusterNames []string) ([]*Cluster, error)
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -145,6 +146,15 @@ func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	return cluster, err
 }
 
+func (impl ClusterRepositoryImpl) FindByNames(clusterNames []string) ([]*Cluster, error) {
+	var cluster []*Cluster
+	err := impl.dbConnection.
+		Model(&cluster).
+		Where("cluster_name in (?)", pg.In(clusterNames)).
+		Where("active = ?", true).
+		Select()
+	return cluster, err
+}
 func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 	var cluster []Cluster
 	err := impl.dbConnection.
