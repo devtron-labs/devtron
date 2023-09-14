@@ -378,6 +378,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 
 	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
 	if err != nil {
+		if err == pg.ErrNoRows {
+			return nil, fmt.Errorf("values are outdated. please fetch the latest version and try again")
+		}
 		impl.Logger.Errorw("error while fetching installed version", "error", err)
 		return result, err
 	}

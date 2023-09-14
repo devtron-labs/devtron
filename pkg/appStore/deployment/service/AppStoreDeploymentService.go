@@ -1579,6 +1579,9 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
 	if err != nil {
+		if err == pg.ErrNoRows {
+			return nil, fmt.Errorf("values are outdated. please fetch the latest version and try again")
+		}
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
