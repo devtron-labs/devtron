@@ -322,7 +322,7 @@ workflowController:
   executorImage: "quay.io/argoproj/argoexec:v3.0.7"
 
 lens: 
-  image: "quay.io/devtron/lens:c5c40d94-333-14586"
+  image: "quay.io/devtron/lens:8803028b-333-16178"
 # Values for grafana integration
 monitoring:
   grafana:
