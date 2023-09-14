@@ -22,7 +22,7 @@ spec:
         - command:
             - /bin/sh
             - -c
-            - cp -r /scripts/ /shared/
+            - cp -r /scripts/. /shared/
           {{- if $.Values.installer.modules }}
           {{- if has "cicd" $.Values.installer.modules }}
           image: {{ $.Values.components.devtron.cicdImage }}
