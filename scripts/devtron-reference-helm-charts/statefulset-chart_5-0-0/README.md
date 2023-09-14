@@ -825,7 +825,7 @@ Given below is template values you can give in winter-soldier:
 ```yaml
 winterSoldier:
   enabled: false
-  apiVersion: pincher.devtron.ai/v1beta1
+  apiVersion: pincher.devtron.ai/v1alpha1
   action: sleep
   timeRangesWithZone:
     timeZone: "Asia/Kolkata"
@@ -848,7 +848,7 @@ Here,
 here is an example,
 ```yaml
 winterSoldier:
-  apiVersion: pincher.devtron.ai/v1beta1
+  apiVersion: pincher.devtron.ai/v1alpha1
   enabled: true
   annotations: {}
   labels: {}

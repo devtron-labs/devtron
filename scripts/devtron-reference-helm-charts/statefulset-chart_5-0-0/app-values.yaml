@@ -22,7 +22,7 @@ EnvVariablesFromCongigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 winterSoldier:
   enabled: false
-  apiVersion: pincher.devtron.ai/v1beta1
+  apiVersion: pincher.devtron.ai/v1alpha1
   annotation: {}
   labels: {}
   type: StatefulSet
@@ -31,8 +31,8 @@ winterSoldier:
     timeRanges: []
   action: sleep
   targetReplicas: []
-  fieldSelector: 
-    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+  fieldSelector: []
+    # - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 
 statefulSetConfig:

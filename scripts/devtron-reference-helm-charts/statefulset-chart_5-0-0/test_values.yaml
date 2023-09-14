@@ -287,7 +287,7 @@ prometheusRule:
         summary: More than 5% of the all requests did return 4XX, this require your attention
 
 winterSoldier:
-  apiVersion: pincher.devtron.ai/v1alpha1 
+  apiVersion: pincher.devtron.ai/v1alpha1
   enabled: true
   annotations: {}
   labels: {}
