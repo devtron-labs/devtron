@@ -57,6 +57,11 @@ argo-cd:
       tag: "v2.5.2"
       imagePullPolicy: IfNotPresent
 
+gitsensor:
+  image: "quay.io/devtron/git-sensor:84389534-200-14705"
+lens: 
+  image: "quay.io/devtron/lens:c5c40d94-333-14586"
+
 security:
   imageScanner:
     image: "quay.io/devtron/image-scanner:ea03b0af-334-15158"
