@@ -1,3 +1,9 @@
+## v0.6.22
+
+
+
+## v0.6.22
+
 ## Bugs
 - fix: updated adapter for cluster object (#3900)
 - fix: rbac-modification for cluster list (#3767)
