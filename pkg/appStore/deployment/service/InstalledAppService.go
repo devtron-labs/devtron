@@ -1168,7 +1168,11 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 		if helmInstallStatus.ErrorInInstallation {
 			releaseStatus.Status = "Failed"
 			releaseStatus.Description = helmInstallStatus.Message
-			releaseStatus.Message = "Release for this app doesn't exist"
+			if !helmInstallStatus.IsReleaseInstalled {
+				releaseStatus.Message = "Release for this app doesn't exist"
+			} else {
+				releaseStatus.Message = "Release install/upgrade failed"
+			}
 		} else {
 			// there can be a case when helm release is created but we are not able to fetch it
 			releaseStatus.Status = "Unknown"
