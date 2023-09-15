@@ -21,7 +21,10 @@ jobs:
          git clone https://github.com/devtron-labs/devtron
          git clone $ENTERPRISE_REPO
 
-         cd devtron && export GIT_COMMIT_ID=`git log --format="%H" -n 1`
+         cd devtron
+         LAST_RELEASE_BRANCH=$(git branch -l "release-v*" | tail -n 1 | tr -d " ")
+         git checkout $LAST_RELEASE_BRANCH
+         export GIT_COMMIT_ID=`git log --format="%H" -n 1`
 
          export GIT_COMMIT=${GIT_COMMIT_ID:0:8}
          echo $GIT_COMMIT
