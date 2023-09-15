@@ -24,7 +24,7 @@ jobs:
          cd devtron
          # Get last branch matching release-v*
          LAST_RELEASE_BRANCH=$(git branch -a | grep release-v | tail -n 1)
-         LAST_RELEASE_BRANCH=$(echo ${LAST_RELEASE_BRANCH##*( remotes/origin)})
+         LAST_RELEASE_BRANCH=$(echo ${LAST_RELEASE_BRANCH##*( remotes/origin/)})
          git checkout $LAST_RELEASE_BRANCH
          export GIT_COMMIT_ID=`git log --format="%H" -n 1`
 
