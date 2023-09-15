@@ -22,6 +22,7 @@ jobs:
          git clone $ENTERPRISE_REPO
 
          cd devtron
+         # Get last branch matching release-v*
          LAST_RELEASE_BRANCH=$(git branch -l "release-v*" | tail -n 1 | tr -d " ")
          git checkout $LAST_RELEASE_BRANCH
          export GIT_COMMIT_ID=`git log --format="%H" -n 1`
