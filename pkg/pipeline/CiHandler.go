@@ -191,6 +191,7 @@ const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 
 func (impl *CiHandlerImpl) HandleReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) {
+
 	if impl.ciConfig.MaxCiWorkflowRetries == 0 {
 		return
 	}
@@ -199,6 +200,12 @@ func (impl *CiHandlerImpl) HandleReTriggerCI(workflowStatus v1alpha1.WorkflowSta
 		impl.Logger.Errorw("error in extractPodStatusAndWorkflow", "err", err)
 		return
 	}
+
+	impl.reTriggerCi(status, message, retryCount, ciWorkFlow)
+
+}
+
+func (impl *CiHandlerImpl) reTriggerCi(status, message string, retryCount int, ciWorkFlow *pipelineConfig.CiWorkflow) {
 	if !(status == string(v1alpha1.NodeFailed) && message == POD_DELETED_MESSAGE) || (retryCount >= impl.ciConfig.MaxCiWorkflowRetries) {
 		return
 	}
@@ -241,13 +248,12 @@ func (impl *CiHandlerImpl) HandleReTriggerCI(workflowStatus v1alpha1.WorkflowSta
 		EnvironmentId:         ciWorkFlow.EnvironmentId,
 		ReferenceCiWorkflowId: ciWorkFlow.Id,
 	}
-	_, err = impl.ciService.TriggerCiPipeline(trigger)
+	_, err := impl.ciService.TriggerCiPipeline(trigger)
 
 	if err != nil {
 		impl.Logger.Errorw("error occured in retriggering ciWorkflow", "triggerDetails", trigger, "err", err)
 		return
 	}
-
 }
 
 func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
@@ -987,15 +993,23 @@ func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.W
 	if savedWorkflow.Status == WorkflowCancel {
 		return status, message, 0, nil, errors.New("not re-triggering as previous trigger is aborted/cancelled")
 	}
+
+	retryCount, savedWorkflow, err := impl.getRefWorkflowAndCiRetryCount(savedWorkflow)
+	return status, message, retryCount, savedWorkflow, err
+}
+
+func (impl *CiHandlerImpl) getRefWorkflowAndCiRetryCount(savedWorkflow *pipelineConfig.CiWorkflow) (int, *pipelineConfig.CiWorkflow, error) {
+	var err error
+
 	if savedWorkflow.ReferenceCiWorkflowId != 0 {
 		savedWorkflow, err = impl.ciWorkflowRepository.FindById(savedWorkflow.ReferenceCiWorkflowId)
 	}
 	if err != nil {
 		impl.Logger.Errorw("cannot get saved wf", "err", err)
-		return status, message, 0, savedWorkflow, err
+		return 0, savedWorkflow, err
 	}
 	retryCount, err := impl.ciWorkflowRepository.FindRetriedWorkflowCountByReferenceId(savedWorkflow.Id)
-	return status, message, retryCount, savedWorkflow, nil
+	return retryCount, savedWorkflow, err
 }
 
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
@@ -1538,6 +1552,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		}
 
 		isEligibleToMarkFailed := false
+		isPodDeleted := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
 			//check weather pod is exists or not, if exits check its status
 			_, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, ciWorkflow.Namespace, isExt, env)
@@ -1555,7 +1570,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 
 			//if ci workflow is exists, check its pod
 			if !isEligibleToMarkFailed {
-				_, err = impl.K8sUtil.GetPodByName(DefaultCiWorkflowNamespace, ciWorkflow.PodName, client)
+				pod, err := impl.K8sUtil.GetPodByName(DefaultCiWorkflowNamespace, ciWorkflow.PodName, client)
 				if err != nil {
 					impl.Logger.Warnw("unable to fetch ci workflow - pod", "err", err)
 					statusError, ok := err.(*errors2.StatusError)
@@ -1567,12 +1582,29 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						// skip this and process for next ci workflow
 					}
 				}
+				if pod.Status.Message == POD_DELETED_MESSAGE {
+					isPodDeleted = true
+					ciWorkflow.PodStatus = string(pod.Status.Phase)
+				}
 			}
 		}
 		if isEligibleToMarkFailed {
-			ciWorkflow.Status = "Failed"
-			ciWorkflow.PodStatus = "Failed"
-			ciWorkflow.Message = "marked failed by job"
+			if isPodDeleted {
+				ciWorkflow.Status = "Failed"
+				ciWorkflow.Message = POD_DELETED_MESSAGE
+				if ciWorkflow.Status != WorkflowCancel {
+					retryCount, refCiWorkflow, err := impl.getRefWorkflowAndCiRetryCount(ciWorkflow)
+					if err != nil {
+						impl.Logger.Errorw("error in getRefWorkflowAndCiRetryCount", "ciWorkflowId", ciWorkflow.Id)
+						continue
+					}
+					impl.reTriggerCi(ciWorkflow.Status, ciWorkflow.Message, retryCount, refCiWorkflow)
+				}
+			} else {
+				ciWorkflow.Status = "Failed"
+				ciWorkflow.PodStatus = "Failed"
+				ciWorkflow.Message = "marked failed by job"
+			}
 			err := impl.ciWorkflowRepository.UpdateWorkFlow(ciWorkflow)
 			if err != nil {
 				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
