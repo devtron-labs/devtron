@@ -34,6 +34,8 @@ jobs:
             echo $RELEASE_BRANCH
             echo $GITHUB_REPOSITORY
             gh release create $tag --target $RELEASE_BRANCH -t $tag -R $GITHUB_REPOSITORY -F $FILE_NAME
+            NEXT_VERSION=$(echo $tag | awk -F. -v OFS=. '{$NF+=1; print}')
+            git checkout -b release-$NEXT_VERSION
             git checkout -b release-bot
             git config --global user.email "$GIT_CONFIG_EMAIL"
             git config --global user.name "$GIT_CONFIG_NAME"
@@ -46,7 +48,7 @@ jobs:
             echo "beta -1 $tag" > manifests/release.txt
             git add .
             git commit -am "Updated release-notes files"
-            git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
+            git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} --all
         elif [[ "$RELEASE_TYPE" == "beta" ]]
           then
             git checkout -b release-bot
