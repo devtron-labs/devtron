@@ -761,12 +761,12 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 }
 
 func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterAutoCompleteBean, error) {
+	beans := make([]ClusterAutoCompleteBean, 0)
 	models, err := impl.clusterRepository.FindAllExceptVirtual()
 	if err != nil {
 		impl.logger.Errorw("error on fetching clusters", "err", err)
-		return nil, err
+		return beans, err
 	}
-	beans := make([]ClusterAutoCompleteBean, 0)
 	if isActionUserSuperAdmin {
 		for _, model := range models {
 			beans = append(beans, ClusterAutoCompleteBean{
