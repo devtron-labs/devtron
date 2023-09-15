@@ -37,6 +37,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
+	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	. "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
@@ -171,6 +176,10 @@ type AppServiceImpl struct {
 	globalEnvVariables                     *util2.GlobalEnvVariables
 	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
 	GitOpsManifestPushService              GitOpsPushService
+	variableSnapshotHistoryService         variables.VariableSnapshotHistoryService
+	scopedVariableService                  variables.ScopedVariableService
+	variableEntityMappingService           variables.VariableEntityMappingService
+	variableTemplateParser                 parsers.VariableTemplateParser
 }
 
 type AppService interface {
@@ -248,7 +257,11 @@ func NewAppService(
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
 	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
-	GitOpsManifestPushService GitOpsPushService) *AppServiceImpl {
+	GitOpsManifestPushService GitOpsPushService,
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	scopedVariableService variables.ScopedVariableService,
+	variableEntityMappingService variables.VariableEntityMappingService,
+	variableTemplateParser parsers.VariableTemplateParser) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -309,6 +322,10 @@ func NewAppService(
 		helmAppService:                         helmAppService,
 		manifestPushConfigRepository:           manifestPushConfigRepository,
 		GitOpsManifestPushService:              GitOpsManifestPushService,
+		variableSnapshotHistoryService:         variableSnapshotHistoryService,
+		scopedVariableService:                  scopedVariableService,
+		variableEntityMappingService:           variableEntityMappingService,
+		variableTemplateParser:                 variableTemplateParser,
 	}
 	return appServiceImpl
 }
@@ -1233,11 +1250,19 @@ func (impl *AppServiceImpl) GetDeploymentStrategyByTriggerType(overrideRequest *
 
 func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
 
+	//VARIABLE different cases for variable resolution
+	scope := models2.Scope{
+		AppId:     overrideRequest.AppId,
+		EnvId:     overrideRequest.EnvId,
+		ClusterId: overrideRequest.ClusterId,
+	}
 	envOverride := &chartConfig.EnvConfigOverride{}
 	var err error
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
 		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+		//VARIABLE_SNAPSHOT_GET and resolve
+
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
@@ -1264,13 +1289,23 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRef.Id)
 			return nil, err
 		}
+
 		//updating historical data in envConfigOverride and appMetrics flag
 		envOverride.IsOverride = true
 		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
 
+		resolvedTemplate, variableMap, err := impl.getResolvedTemplateWithSnapshot(deploymentTemplateHistory.Id, envOverride.EnvOverrideValues)
+		if err != nil {
+			return nil, err
+		}
+		envOverride.ResolvedEnvOverrideValues = resolvedTemplate
+		envOverride.VariableSnapshot = variableMap
+
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.ActiveEnvConfigOverride")
 		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, overrideRequest.EnvId)
+
+		var chart *chartRepoRepository.Chart
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
@@ -1278,7 +1313,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 		}
 		if envOverride.Id == 0 {
 			_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
-			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+			chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
 			span.End()
 			if err != nil {
 				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
@@ -1325,13 +1360,35 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			envOverride.Chart = chart
 		} else if envOverride.Id > 0 && !envOverride.IsOverride {
 			_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
-			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+			chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
 			span.End()
 			if err != nil {
 				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 				return nil, err
 			}
 			envOverride.Chart = chart
+		}
+
+		if envOverride.IsOverride {
+			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, envOverride.EnvOverrideValues, repository6.Entity{
+				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
+				EntityId:   envOverride.Id,
+			})
+			if err != nil {
+				return nil, err
+			}
+			envOverride.ResolvedEnvOverrideValues = resolvedTemplate
+			envOverride.VariableSnapshot = variableMap
+		} else {
+			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, chart.GlobalOverride, repository6.Entity{
+				EntityType: repository6.EntityTypeDeploymentTemplateAppLevel,
+				EntityId:   chart.Id,
+			})
+			if err != nil {
+				return nil, err
+			}
+			envOverride.Chart.ResolvedGlobalOverride = resolvedTemplate
+			envOverride.VariableSnapshot = variableMap
 		}
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
@@ -1342,7 +1399,74 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 		return nil, err
 	}
 	envOverride.Environment = env
+	//VARIABLE_RESOLVE
 	return envOverride, nil
+}
+
+func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHistoryId int, template string) (string, map[string]string, error) {
+	reference := repository6.HistoryReference{
+		HistoryReferenceId:   deploymentTemplateHistoryId,
+		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+	}
+	variableSnapshot, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
+	if err != nil {
+		return "", nil, err
+	}
+
+	variableSnapshotMap := make(map[string]string)
+
+	if _, ok := variableSnapshot[reference]; !ok {
+		return template, variableSnapshotMap, nil
+	}
+
+	err = json.Unmarshal(variableSnapshot[reference].VariableSnapshot, &variableSnapshotMap)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if len(variableSnapshotMap) == 0 {
+		return template, variableSnapshotMap, nil
+	}
+	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap)
+	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
+	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
+	err = parserResponse.Error
+	if err != nil {
+		return "", nil, err
+	}
+	resolvedTemplate := parserResponse.ResolvedTemplate
+	return resolvedTemplate, variableSnapshotMap, nil
+}
+
+func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope models2.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
+
+	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
+	if err != nil {
+		return "", nil, err
+	}
+
+	variableMap := make(map[string]string)
+	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
+		return template, variableMap, nil
+	}
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
+	if err != nil {
+		return "", nil, err
+	}
+
+	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
+	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
+	err = parserResponse.Error
+	if err != nil {
+		return "", nil, err
+	}
+
+	for _, variable := range scopedVariables {
+		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+	}
+
+	resolvedTemplate := parserResponse.ResolvedTemplate
+	return resolvedTemplate, variableMap, nil
 }
 
 func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error) {
@@ -2294,12 +2418,12 @@ func (impl *AppServiceImpl) mergeOverrideValues(envOverride *chartConfig.EnvConf
 	//global < environment < db< release
 	var merged []byte
 	if !envOverride.IsOverride {
-		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.Chart.GlobalOverride))
+		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.Chart.ResolvedGlobalOverride))
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.EnvOverrideValues))
+		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.ResolvedEnvOverrideValues))
 		if err != nil {
 			return nil, err
 		}
@@ -2865,7 +2989,7 @@ func (impl *AppServiceImpl) fetchRequiredReplicaCount(currentReplicaCount float6
 
 func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error {
 	//creating history for deployment template
-	err := impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline, envOverride, envOverride.Chart.ImageDescriptorTemplate, deployedOn, deployedBy)
+	deploymentTemplateHistory, err := impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline, envOverride, envOverride.Chart.ImageDescriptorTemplate, deployedOn, deployedBy)
 	if err != nil {
 		impl.logger.Errorw("error in creating deployment template history for deployment trigger", "err", err)
 		return err
@@ -2879,6 +3003,21 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		err = impl.pipelineStrategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
 		if err != nil {
 			impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
+			return err
+		}
+	}
+	//VARIABLE_SNAPSHOT_SAVE
+	if envOverride.VariableSnapshot != nil && len(envOverride.VariableSnapshot) > 0 {
+		variableMapBytes, _ := json.Marshal(envOverride.VariableSnapshot)
+		variableSnapshotHistory := &repository6.VariableSnapshotHistoryBean{
+			VariableSnapshot: variableMapBytes,
+			HistoryReference: repository6.HistoryReference{
+				HistoryReferenceId:   deploymentTemplateHistory.Id,
+				HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+			},
+		}
+		err = impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository6.VariableSnapshotHistoryBean{variableSnapshotHistory}, deployedBy)
+		if err != nil {
 			return err
 		}
 	}
