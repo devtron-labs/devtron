@@ -1101,12 +1101,41 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}
 
+		/* helmReleaseInstallStatus is nats message sent from kubelink to orchestrator and has the following details about installation :-
+		1) isReleaseInstalled -> whether release object is created or not in this installation
+		2) ErrorInInstallation -> if there is error in installation
+		3) Message -> error message/ success message
+		4) InstallAppVersionHistoryId
+		*/
+
 		if detail != nil && detail.ReleaseExist {
+
 			resourceTree = util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ApplicationStatus
 			appDetailsContainer.Notes = detail.ChartMetadata.Notes
-			releaseStatus := util3.InterfaceToMapAdapter(detail.ReleaseStatus)
-			appDetailsContainer.ReleaseStatus = releaseStatus
+
+			helmInstallStatus := &appStoreBean.HelmInstallNatsMessage{}
+			releaseStatus := detail.ReleaseStatus
+
+			if len(helmReleaseInstallStatus) > 0 {
+				err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
+				if err != nil {
+					impl.logger.Errorw("error in unmarshalling helm release install status")
+					return err
+				}
+				// ReleaseExist=true in app detail container but helm install status says that isReleaseInstalled=false which means this release was created externally
+				if helmInstallStatus.IsReleaseInstalled == false {
+					/*
+						Handling case when :-
+						1) An external release with name "foo" exist
+						2) User creates an app with same name i.e "foo"
+						3) In this case we use helmReleaseInstallStatus which will have status of our release and not external release
+					*/
+					releaseStatus = impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus)
+				}
+			}
+			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
+			appDetailsContainer.ReleaseStatus = releaseStatusMap
 			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
 		} else {
 			// case when helm release is not created
@@ -1137,7 +1166,7 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 			impl.logger.Errorw("error in unmarshalling helm release install status")
 			return releaseStatus
 		}
-		if !helmInstallStatus.IsReleaseInstalled {
+		if helmInstallStatus.ErrorInInstallation {
 			releaseStatus.Status = "Failed"
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = "Release for this app doesn't exist"
