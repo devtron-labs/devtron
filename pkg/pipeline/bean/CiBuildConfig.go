@@ -37,6 +37,7 @@ type DockerBuildConfig struct {
 	DockerBuildOptions     map[string]string   `json:"dockerBuildOptions,omitempty"`
 	BuildContext           string              `json:"buildContext,omitempty"`
 	UseBuildx              bool                `json:"useBuildx"`
+	BuildxProvenanceMode   string              `json:"buildxProvenanceMode"`
 	BuildxK8sDriverOptions []map[string]string `json:"buildxK8SDriverOptions,omitempty"`
 }
 
