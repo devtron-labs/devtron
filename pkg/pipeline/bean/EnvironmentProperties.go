@@ -22,6 +22,7 @@ type EnvironmentProperties struct {
 	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 	Description       string                      `json:"description" validate:"max=40"`
+	ClusterId         int                         `json:"clusterId"`
 }
 
 type EnvironmentPropertiesResponse struct {
