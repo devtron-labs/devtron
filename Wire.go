@@ -674,6 +674,11 @@ func InitializeApp() (*App, error) {
 		scopedVariable.NewScopedVariableRestHandlerImpl,
 		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
 
+		router.NewScopedVariableRouterImpl,
+		wire.Bind(new(router.ScopedVariableRouter), new(*router.ScopedVariableRouterImpl)),
+		scopedVariable.NewScopedVariableRestHandlerImpl,
+		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
+
 		util.NewGitCliUtil,
 
 		router.NewTelemetryRouterImpl,

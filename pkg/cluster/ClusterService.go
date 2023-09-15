@@ -96,6 +96,7 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean.K8sVersion = model.K8sVersion
 	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
 	bean.IsVirtualCluster = model.IsVirtualCluster
+	bean.ErrorInConnecting = model.ErrorInConnecting
 	bean.PrometheusAuth = &PrometheusAuth{
 		UserName:      model.PUserName,
 		Password:      model.PPassword,
