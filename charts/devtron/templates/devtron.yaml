@@ -18,7 +18,7 @@ data:
   PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:04a03402-373-13820"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:0e8c785e-373-16172"
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
 {{- if $.Values.configs }}

@@ -173,9 +173,6 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
 		client:                           client,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		variableEntityMappingService:     variableEntityMappingService,
-		variableTemplateParser:           variableTemplateParser,
-		scopedVariableService:            scopedVariableService,
 	}
 }
 
