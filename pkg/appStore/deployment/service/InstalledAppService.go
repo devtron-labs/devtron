@@ -1136,7 +1136,6 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			}
 			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
 			appDetailsContainer.ReleaseStatus = releaseStatusMap
-			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
 		} else {
 			// case when helm release is not created
 			releaseStatus := impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus)
