@@ -35,7 +35,7 @@ jobs:
 
          git status && git checkout main && git pull
 
-         cd ../devtron-enterprise && git status && git checkout main && git pull
+         cd ../devtron-enterprise && git status && git checkout release-candidate && git pull
          git remote add oss-devtron ../devtron && git remote -v && git remote update && git merge oss-devtron/main
          export WIRE_GEN_FILE_NAME="wire_gen.go"
          export CONFLICT_FILES=`git diff --name-only --diff-filter=U --relative`
