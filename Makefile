@@ -17,6 +17,7 @@ SERVER_MODE_FULL= FULL
 SERVER_MODE_EA_ONLY=EA_ONLY
 #TEST_BRANCH=PUT_YOUR_BRANCH_HERE
 #LATEST_HASH=PUT_YOUR_HASH_HERE
+GOFLAGS:= $(GOFLAGS) -buildvcs=false
 include $(ENV_FILE)
 export
 
@@ -27,7 +28,6 @@ build: clean wire
 			-X 'github.com/devtron-labs/devtron/util.ServerMode=${SERVER_MODE_FULL}'"
 
 wire:
-	export GOFLAGS=-buildvcs=false
 	wire
 
 clean:
