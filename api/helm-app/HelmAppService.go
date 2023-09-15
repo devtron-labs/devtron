@@ -707,9 +707,11 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	}
 
 	clusterId := int(*templateChartRequest.ClusterId)
-
-	clusterDetail, _ := impl.clusterRepository.FindById(clusterId)
-
+	clusterDetail, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by id", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
 	if len(clusterDetail.ErrorInConnecting) > 0 || clusterDetail.Active == false {
 		clusterNotFoundErr := &util.ApiError{
 			HttpStatusCode:    http.StatusInternalServerError,

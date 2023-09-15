@@ -101,6 +101,7 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean.K8sVersion = model.K8sVersion
 	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
 	bean.IsVirtualCluster = model.IsVirtualCluster
+	bean.ErrorInConnecting = model.ErrorInConnecting
 	bean.PrometheusAuth = &PrometheusAuth{
 		UserName:      model.PUserName,
 		Password:      model.PPassword,
@@ -188,6 +189,7 @@ type ClusterServiceImpl struct {
 	userAuthRepository  repository2.UserAuthRepository
 	userRepository      repository2.UserRepository
 	roleGroupRepository repository2.RoleGroupRepository
+	*ClusterRbacServiceImpl
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -202,6 +204,9 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		userAuthRepository:  userAuthRepository,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
+		ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
+			logger: logger,
+		},
 	}
 	go clusterService.buildInformer()
 	return clusterService

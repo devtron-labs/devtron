@@ -21,6 +21,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"net/http"
+	"net/url"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -43,12 +53,6 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.opentelemetry.io/otel"
-	"net/http"
-	"net/url"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -231,6 +235,8 @@ type PipelineBuilderImpl struct {
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
 	imageTaggingService                             ImageTaggingService
+	variableEntityMappingService                    variables.VariableEntityMappingService
+	variableTemplateParser                          parsers.VariableTemplateParser
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -285,7 +291,10 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	chartDeploymentService util.ChartDeploymentService,
 	K8sUtil *util4.K8sUtil,
 	attributesRepository repository.AttributesRepository,
-	imageTaggingService ImageTaggingService) *PipelineBuilderImpl {
+	imageTaggingService ImageTaggingService,
+	variableEntityMappingService variables.VariableEntityMappingService,
+	variableTemplateParser parsers.VariableTemplateParser) *PipelineBuilderImpl {
+
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {
@@ -354,6 +363,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		attributesRepository:                            attributesRepository,
 		securityConfig:                                  securityConfig,
 		imageTaggingService:                             imageTaggingService,
+		variableEntityMappingService:                    variableEntityMappingService,
+		variableTemplateParser:                          variableTemplateParser,
 	}
 }
 
@@ -3120,6 +3131,11 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 		return 0, err
 	}
+	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy)
+	if err != nil {
+		return 0, err
+	}
 	// strategies for pipeline ids, there is only one is default
 	defaultCount := 0
 	for _, item := range pipeline.Strategies {
@@ -3159,6 +3175,21 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 
 	impl.logger.Debugw("pipeline created with GitMaterialId ", "id", pipelineId, "pipeline", pipeline)
 	return pipelineId, nil
+}
+
+func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32) error {
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	if err != nil {
+		return err
+	}
+	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository6.Entity{
+		EntityType: entityType,
+		EntityId:   entityId,
+	}, userId)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl *PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {

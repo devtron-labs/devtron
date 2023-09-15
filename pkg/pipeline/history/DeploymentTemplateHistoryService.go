@@ -1,6 +1,7 @@
 package history
 
 import (
+	"encoding/json"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -8,6 +9,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -16,7 +19,7 @@ import (
 type DeploymentTemplateHistoryService interface {
 	CreateDeploymentTemplateHistoryFromGlobalTemplate(chart *chartRepoRepository.Chart, tx *pg.Tx, IsAppMetricsEnabled bool) error
 	CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride *chartConfig.EnvConfigOverride, tx *pg.Tx, IsAppMetricsEnabled bool, pipelineId int) error
-	CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error
+	CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) (*repository.DeploymentTemplateHistory, error)
 	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error)
 
 	GetHistoryForDeployedTemplateById(id, pipelineId int) (*HistoryDetailDto, error)
@@ -37,6 +40,7 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	appLevelMetricsRepository           repository2.AppLevelMetricsRepository
 	userService                         user.UserService
 	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
+	variableSnapshotHistoryService      variables.VariableSnapshotHistoryService
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
@@ -46,7 +50,8 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 	envLevelAppMetricsRepository repository2.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository2.AppLevelMetricsRepository,
 	userService user.UserService,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *DeploymentTemplateHistoryServiceImpl {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
 		logger:                              logger,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
@@ -57,6 +62,7 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 		appLevelMetricsRepository:           appLevelMetricsRepository,
 		userService:                         userService,
 		cdWorkflowRepository:                cdWorkflowRepository,
+		variableSnapshotHistoryService:      variableSnapshotHistoryService,
 	}
 }
 
@@ -189,11 +195,11 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	return nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error {
+func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) (*repository.DeploymentTemplateHistory, error) {
 	chartRef, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
 	if err != nil {
 		impl.logger.Errorw("err in getting chartRef, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chartRef", chartRef)
-		return err
+		return nil, err
 	}
 	if len(chartRef.Name) == 0 {
 		chartRef.Name = "Rollout Deployment"
@@ -202,12 +208,12 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
-		return err
+		return nil, err
 	} else if err == pg.ErrNoRows {
 		appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", pipeline.AppId)
-			return err
+			return nil, err
 		} else if err == nil {
 			isAppMetricsEnabled = appLevelAppMetrics.AppMetrics
 		}
@@ -238,12 +244,12 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		historyModel.Template = envOverride.Chart.GlobalOverride
 	}
 	//creating new entry
-	_, err = impl.deploymentTemplateHistoryRepository.CreateHistory(historyModel)
+	history, err := impl.deploymentTemplateHistoryRepository.CreateHistory(historyModel)
 	if err != nil {
 		impl.logger.Errorw("err in creating history entry for deployment template", "err", err, "history", historyModel)
-		return err
+		return nil, err
 	}
-	return nil
+	return history, nil
 }
 
 func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error) {
@@ -311,6 +317,12 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
+
+	variableSnapshotMap, err := impl.getVariableSnapshot(history.Id)
+	if err != nil {
+		return nil, err
+	}
+
 	historyDto := &HistoryDetailDto{
 		TemplateName:        history.TemplateName,
 		TemplateVersion:     history.TemplateVersion,
@@ -319,8 +331,28 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 			DisplayName: "values.yaml",
 			Value:       history.Template,
 		},
+		VariableSnapshot: variableSnapshotMap,
 	}
 	return historyDto, nil
+}
+
+func (impl DeploymentTemplateHistoryServiceImpl) getVariableSnapshot(historyId int) (map[string]string, error) {
+	reference := repository6.HistoryReference{
+		HistoryReferenceId:   historyId,
+		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+	}
+	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
+	if err != nil {
+		return nil, err
+	}
+	variableSnapshotMap := make(map[string]string)
+	if _, ok := references[reference]; ok {
+		err = json.Unmarshal(references[reference].VariableSnapshot, &variableSnapshotMap)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return variableSnapshotMap, nil
 }
 
 func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error) {
@@ -350,6 +382,11 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 		impl.logger.Errorw("error in getting deployment template history", "err", err, "id", id, "pipelineId", pipelineId)
 		return nil, err
 	}
+
+	variableSnapshotMap, err := impl.getVariableSnapshot(history.Id)
+	if err != nil {
+		return nil, err
+	}
 	historyDto := &HistoryDetailDto{
 		TemplateName:        history.TemplateName,
 		TemplateVersion:     history.TemplateVersion,
@@ -358,6 +395,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 			DisplayName: "values.yaml",
 			Value:       history.Template,
 		},
+		VariableSnapshot: variableSnapshotMap,
 	}
 	return historyDto, nil
 }
