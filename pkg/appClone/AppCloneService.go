@@ -693,17 +693,20 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 		}
 		impl.logger.Debugw("ci created", "ci", ci)
 	}
+	sourceToNewPipelineIdMapping := make(map[int]int)
 	if isSameProject {
 		for _, refCdMapping := range cdMappings {
 			cdCloneReq := &cloneCdPipelineRequest{
-				refCdPipelineId: refCdMapping.ComponentId,
-				refAppId:        oldAppId,
-				appId:           newAppId,
-				userId:          userId,
-				ciPipelineId:    ci.CiPipelines[0].Id,
-				appWfId:         thisWfId,
-				refAppName:      refApp.AppName,
+				refCdPipelineId:       refCdMapping.ComponentId,
+				refAppId:              oldAppId,
+				appId:                 newAppId,
+				userId:                userId,
+				ciPipelineId:          ci.CiPipelines[0].Id,
+				appWfId:               thisWfId,
+				refAppName:            refApp.AppName,
+				sourceToNewPipelineId: &sourceToNewPipelineIdMapping,
 			}
+			(*cdCloneReq.sourceToNewPipelineId)[refCdMapping.ComponentId] = 0
 			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 			if err != nil {
 				impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
@@ -866,13 +869,14 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 }
 
 type cloneCdPipelineRequest struct {
-	refCdPipelineId int
-	refAppId        int
-	appId           int
-	userId          int32
-	ciPipelineId    int
-	appWfId         int
-	refAppName      string
+	refCdPipelineId       int
+	refAppId              int
+	appId                 int
+	userId                int32
+	ciPipelineId          int
+	appWfId               int
+	refAppName            string
+	sourceToNewPipelineId *map[int]int
 }
 
 func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, ctx context.Context) (*bean.CdPipelines, error) {
@@ -890,6 +894,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	if refCdPipeline == nil {
 		return nil, fmt.Errorf("no cd pipeline found")
 	}
+	refCdPipeline.SourceToNewPipelineId = req.sourceToNewPipelineId
 	pipelineName := refCdPipeline.Name
 	if strings.HasPrefix(pipelineName, req.refAppName) {
 		pipelineName = strings.Replace(pipelineName, req.refAppName+"-", "", 1)
@@ -968,6 +973,8 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		DeploymentAppType:             deploymentAppType,
 		PreDeployStage:                refCdPipeline.PreDeployStage,
 		PostDeployStage:               refCdPipeline.PostDeployStage,
+		SourceToNewPipelineId:         refCdPipeline.SourceToNewPipelineId,
+		RefPipelineId:                 refCdPipeline.Id,
 	}
 	if refCdPipeline.ParentPipelineType != appWorkflow.CI_PIPELINE_TYPE {
 		cdPipeline.ParentPipelineId = refCdPipeline.ParentPipelineId

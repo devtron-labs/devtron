@@ -3097,12 +3097,19 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	if pipeline.AppWorkflowId > 0 {
 		var parentPipelineId int
 		var parentPipelineType string
+		if pipeline.RefPipelineId > 0 {
+			(*pipeline.SourceToNewPipelineId)[pipeline.RefPipelineId] = pipelineId
+		}
+
 		if pipeline.ParentPipelineId == 0 {
 			parentPipelineId = pipeline.CiPipelineId
 			parentPipelineType = "CI_PIPELINE"
 		} else {
 			parentPipelineId = pipeline.ParentPipelineId
 			parentPipelineType = pipeline.ParentPipelineType
+			if len(*pipeline.SourceToNewPipelineId) > 0 {
+				parentPipelineId = (*pipeline.SourceToNewPipelineId)[pipeline.ParentPipelineId]
+			}
 		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 			AppWorkflowId: pipeline.AppWorkflowId,
