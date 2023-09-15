@@ -1628,9 +1628,12 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 	var err error
 	if stageType == ciEvent {
 		pipelineStages, err = impl.pipelineStageRepository.GetAllCiStagesByCiPipelineId(pipelineId)
-	} else {
+	} else if stageType == preCdStage || stageType == postCdStage {
 		//cdEvent
-		pipelineStages, err = impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(pipelineId)
+		//pipelineStages, err = impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(pipelineId)
+		var pipelineStage *repository.PipelineStage
+		pipelineStage, err = impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipelineId, getPipelineStageFromStageType(stageType))
+		pipelineStages = append(pipelineStages, pipelineStage)
 	}
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting all ci stages by pipelineId", "err", err, "pipelineId", pipelineId, "stageType", stageType)
@@ -1697,6 +1700,16 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 		return resolvedResponse, err
 	}
 	return resolvedResponse, nil
+}
+
+func getPipelineStageFromStageType(stageType string) repository.PipelineStageType {
+	var pipelineStageType repository.PipelineStageType
+	if stageType == preCdStage {
+		pipelineStageType = repository.PIPELINE_STAGE_TYPE_PRE_CD
+	} else if stageType == postCdStage {
+		pipelineStageType = repository.PIPELINE_STAGE_TYPE_POST_CD
+	}
+	return pipelineStageType
 }
 
 func (impl *PipelineStageServiceImpl) BuildPipelineStageDataForWfRequest(pipelineStage *repository.PipelineStage) ([]*bean.StepObject, []int, error) {
@@ -2091,13 +2104,16 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 	}
 	mappingsForEntities, err := impl.variableEntityMappingService.GetAllMappingsForEntities(entities)
 	if err != nil {
+		impl.logger.Errorw("Error in fetching mapped variables in stage request", "error", err)
 		return nil, err
 	}
 
+	//early exit if no variables found
 	if len(mappingsForEntities) == 0 {
 		return unresolvedResponse, nil
 	}
 
+	// collecting all unique variable names in a stage
 	varNamesSet := mapset.NewSet()
 	for _, variableNames := range mappingsForEntities {
 		for _, variableName := range variableNames {
@@ -2118,6 +2134,7 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 
 	responseJson, err := json.Marshal(unresolvedResponse)
 	if err != nil {
+		impl.logger.Errorw("Error in marshaling stage", "error", err)
 		return nil, err
 	}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parsers.VariableParserRequest{
@@ -2128,11 +2145,14 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 	})
 	err = parserResponse.Error
 	if err != nil {
+		impl.logger.Errorw("Error in parsing stage", "error", err)
 		return nil, err
 	}
 	resolvedResponse := &bean.PrePostAndRefPluginStepsResponse{}
 	err = json.Unmarshal([]byte(parserResponse.ResolvedTemplate), resolvedResponse)
 	if err != nil {
+		impl.logger.Errorw("Error in unmarshalling stage", "error", err)
+
 		return nil, err
 	}
 	resolvedResponse.VariableSnapshot = variableSnapshot
@@ -2142,10 +2162,12 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 func (impl *PipelineStageServiceImpl) extractAndMapScopedVariables(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error {
 	requestJson, err := json.Marshal(stageReq)
 	if err != nil {
+		impl.logger.Errorw("Error in marshalling stage request", "error", err)
 		return err
 	}
 	scopedVariables, err := impl.variableTemplateParser.ExtractVariables(string(requestJson))
 	if err != nil {
+		impl.logger.Errorw("Error in parsing variable in stage request", "error", err)
 		return err
 	}
 
@@ -2158,6 +2180,7 @@ func (impl *PipelineStageServiceImpl) extractAndMapScopedVariables(stageReq *bea
 		EntityId:   stageReq.Id,
 	}, userId, tx)
 	if err != nil {
+		impl.logger.Errorw("Error in updating variables for stage request", "error", err)
 		return err
 	}
 	return nil

@@ -225,6 +225,8 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig, globa
 
 const ciEvent = "CI"
 const cdStage = "CD"
+const preCdStage = "preCD"
+const postCdStage = "postCD"
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
