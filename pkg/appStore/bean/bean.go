@@ -376,3 +376,10 @@ type PushChartToGitRequestDTO struct {
 	TempChartRefDir   string
 	UserId            int32
 }
+
+type HelmInstallNatsMessage struct {
+	InstallAppVersionHistoryId int
+	Message                    string
+	IsReleaseInstalled         bool
+	ErrorInInstallation        bool
+}

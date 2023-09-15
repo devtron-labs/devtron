@@ -93,7 +93,7 @@ type InstalledAppService interface {
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository2.InstalledApps) error
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.AppDetailsContainer, installedApp repository2.InstalledApps, helmReleaseInstallStatus string) error
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error)
 	FindNotesForNonHelmApplication(installedAppId, envId int) (string, string, error)
@@ -612,13 +612,6 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
 			return nil, err
 		}
-	} else {
-		// create build history for chart on default component deployed via helm
-		err = impl.appStoreDeploymentService.UpdateInstallAppVersionHistory(installedAppVersion)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
-		}
 	}
 
 	return installedAppVersion, nil
@@ -895,6 +888,11 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		impl.logger.Error(err)
 		return bean2.AppDetailContainer{}, err
 	}
+	helmReleaseInstallStatus, err := impl.installedAppRepository.GetHelmReleaseStatusConfigByInstalledAppId(installedAppVerison.InstalledAppId)
+	if err != nil {
+		impl.logger.Errorw("error in getting helm release status from db", "err", err)
+		return bean2.AppDetailContainer{}, err
+	}
 	var chartName string
 	if installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepoId != 0 {
 		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepo.Name
@@ -923,6 +921,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		DeploymentAppDeleteRequest:    installedAppVerison.InstalledApp.DeploymentAppDeleteRequest,
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
 		HelmPackageName:               fmt.Sprintf("%s-%s-%s (GMT)", installedAppVerison.InstalledApp.App.AppName, installedAppVerison.InstalledApp.Environment.Name, timeStampTag),
+		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
 	}
 	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
@@ -1145,7 +1144,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }
-func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository2.InstalledApps) error {
+func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean2.AppDetailsContainer, installedApp repository2.InstalledApps, helmReleaseInstallStatus string) error {
 	var err error
 	var resourceTree map[string]interface{}
 	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
@@ -1165,11 +1164,47 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}
-		if detail != nil {
+
+		/* helmReleaseInstallStatus is nats message sent from kubelink to orchestrator and has the following details about installation :-
+		1) isReleaseInstalled -> whether release object is created or not in this installation
+		2) ErrorInInstallation -> if there is error in installation
+		3) Message -> error message/ success message
+		4) InstallAppVersionHistoryId
+		*/
+
+		if detail != nil && detail.ReleaseExist {
+
 			resourceTree = util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ApplicationStatus
-			resourceTreeAndNotesContainer.Notes = detail.ChartMetadata.Notes
-			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
+			appDetailsContainer.Notes = detail.ChartMetadata.Notes
+
+			helmInstallStatus := &appStoreBean.HelmInstallNatsMessage{}
+			releaseStatus := detail.ReleaseStatus
+
+			if len(helmReleaseInstallStatus) > 0 {
+				err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
+				if err != nil {
+					impl.logger.Errorw("error in unmarshalling helm release install status")
+					return err
+				}
+				// ReleaseExist=true in app detail container but helm install status says that isReleaseInstalled=false which means this release was created externally
+				if helmInstallStatus.IsReleaseInstalled == false {
+					/*
+						Handling case when :-
+						1) An external release with name "foo" exist
+						2) User creates an app with same name i.e "foo"
+						3) In this case we use helmReleaseInstallStatus which will have status of our release and not external release
+					*/
+					releaseStatus = impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus)
+				}
+			}
+			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
+			appDetailsContainer.ReleaseStatus = releaseStatusMap
+		} else {
+			// case when helm release is not created
+			releaseStatus := impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus)
+			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
+			appDetailsContainer.ReleaseStatus = releaseStatusMap
 		}
 	}
 	if resourceTree != nil {
@@ -1179,9 +1214,37 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		} else {
 			resourceTree["serverVersion"] = version.String()
 		}
-		resourceTreeAndNotesContainer.ResourceTree = resourceTree
+		appDetailsContainer.ResourceTree = resourceTree
 	}
 	return err
+}
+
+func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus string) *client.ReleaseStatus {
+	//release status is sent in resource tree call and is shown on UI as helm config apply status
+	releaseStatus := &client.ReleaseStatus{}
+	if len(helmReleaseInstallStatus) > 0 {
+		helmInstallStatus := &appStoreBean.HelmInstallNatsMessage{}
+		err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling helm release install status")
+			return releaseStatus
+		}
+		if helmInstallStatus.ErrorInInstallation {
+			releaseStatus.Status = "Failed"
+			releaseStatus.Description = helmInstallStatus.Message
+			releaseStatus.Message = "Release for this app doesn't exist"
+		} else {
+			// there can be a case when helm release is created but we are not able to fetch it
+			releaseStatus.Status = "Unknown"
+			releaseStatus.Description = "Unable to fetch release for app"
+			releaseStatus.Message = "Unable to fetch release for app"
+		}
+	} else {
+		releaseStatus.Status = "Unknown"
+		releaseStatus.Description = "Release not found"
+		releaseStatus.Message = "Release not found "
+	}
+	return releaseStatus
 }
 
 func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error {
