@@ -1570,7 +1570,22 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 
 			//if ci workflow is exists, check its pod
 			if !isEligibleToMarkFailed {
-				pod, err := impl.K8sUtil.GetPodByName(DefaultCiWorkflowNamespace, ciWorkflow.PodName, client)
+				ns := DefaultCiWorkflowNamespace
+				if isExt {
+					clusterConfig, err := cluster.GetClusterBean(*env.Cluster).GetClusterConfig()
+					if err != nil {
+						impl.Logger.Warnw("error in getting cluster Config", "err", err, "clusterId", env.Cluster.Id)
+						continue
+					}
+
+					client, err = impl.K8sUtil.GetCoreV1Client(clusterConfig)
+					if err != nil {
+						impl.Logger.Warnw("error in getting core v1 client using clusterConfig", "err", err, "clusterId", env.Cluster.Id)
+						continue
+					}
+					ns = env.Namespace
+				}
+				pod, err := impl.K8sUtil.GetPodByName(ns, ciWorkflow.PodName, client)
 				if err != nil {
 					impl.Logger.Warnw("unable to fetch ci workflow - pod", "err", err)
 					statusError, ok := err.(*errors2.StatusError)
