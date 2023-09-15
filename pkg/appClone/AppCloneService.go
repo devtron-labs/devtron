@@ -606,7 +606,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			thisWf, err = impl.appWorkflowService.CreateAppWorkflow(thisWf)
 			impl.logger.Debugw("workflow found", thisWf)
 			if err != nil {
-				impl.logger.Errorw("errir in creating workflow without extenal-ci", "err", err)
+				impl.logger.Errorw("error in creating workflow without external-ci", "err", err)
 				return nil, err
 			}
 		}
@@ -666,7 +666,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 		impl.logger.Warn("no ci pipeline found")
 		return nil
 	} else if len(ciMapping) != 1 {
-		impl.logger.Warn("more than one cd pipeline not supported")
+		impl.logger.Warn("more than one ci pipeline not supported")
 		return nil
 	}
 
@@ -968,6 +968,8 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		DeploymentAppType:             deploymentAppType,
 		PreDeployStage:                refCdPipeline.PreDeployStage,
 		PostDeployStage:               refCdPipeline.PostDeployStage,
+		ParentPipelineId:              refCdPipeline.ParentPipelineId,
+		ParentPipelineType:            refCdPipeline.ParentPipelineType,
 	}
 	cdPipelineReq := &bean.CdPipelines{
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
