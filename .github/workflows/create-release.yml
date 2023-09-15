@@ -34,6 +34,7 @@ jobs:
             echo $RELEASE_BRANCH
             echo $GITHUB_REPOSITORY
             gh release create $tag --target $RELEASE_BRANCH -t $tag -R $GITHUB_REPOSITORY -F $FILE_NAME
+            # Create new branch for next version release
             NEXT_VERSION=$(echo $tag | awk -F. -v OFS=. '{$NF+=1; print}')
             git checkout -b release-$NEXT_VERSION
             git checkout -b release-bot
