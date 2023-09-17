@@ -3107,7 +3107,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		} else {
 			parentPipelineId = pipeline.ParentPipelineId
 			parentPipelineType = pipeline.ParentPipelineType
-			if len(*pipeline.SourceToNewPipelineId) > 0 {
+			if pipeline.RefPipelineId > 0 && len(*pipeline.SourceToNewPipelineId) > 0 {
 				parentPipelineId = (*pipeline.SourceToNewPipelineId)[pipeline.ParentPipelineId]
 			}
 		}
