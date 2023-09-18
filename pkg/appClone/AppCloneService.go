@@ -636,18 +636,20 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 			return fmt.Errorf("unsupported wf type: %s", appWf.Type)
 		}
 	}
+	sourceToNewPipelineIdMapping := make(map[int]int)
 	refApp, err := impl.pipelineBuilder.GetApp(oldAppId)
 	if len(webhookMappings) > 0 {
 		if isSameProject {
 			for _, refwebhookMappings := range cdMappings {
 				cdCloneReq := &cloneCdPipelineRequest{
-					refCdPipelineId: refwebhookMappings.ComponentId,
-					refAppId:        oldAppId,
-					appId:           newAppId,
-					userId:          userId,
-					ciPipelineId:    0,
-					appWfId:         thisWfId,
-					refAppName:      refApp.AppName,
+					refCdPipelineId:       refwebhookMappings.ComponentId,
+					refAppId:              oldAppId,
+					appId:                 newAppId,
+					userId:                userId,
+					ciPipelineId:          0,
+					appWfId:               thisWfId,
+					refAppName:            refApp.AppName,
+					sourceToNewPipelineId: &sourceToNewPipelineIdMapping,
 				}
 				pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 				impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
@@ -693,7 +695,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 		}
 		impl.logger.Debugw("ci created", "ci", ci)
 	}
-	sourceToNewPipelineIdMapping := make(map[int]int)
+
 	if isSameProject {
 		for _, refCdMapping := range cdMappings {
 			cdCloneReq := &cloneCdPipelineRequest{
@@ -934,7 +936,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 			Name:                          pipelineName,
 			Strategies:                    refCdPipeline.Strategies,
 			Namespace:                     refCdPipeline.Namespace,
-			AppWorkflowId:                 0,
+			AppWorkflowId:                 req.appWfId,
 			DeploymentTemplate:            refCdPipeline.DeploymentTemplate,
 			PreStage:                      refCdPipeline.PreStage, //FIXME
 			PostStage:                     refCdPipeline.PostStage,
