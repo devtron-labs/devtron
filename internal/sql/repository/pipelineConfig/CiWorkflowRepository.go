@@ -98,7 +98,7 @@ type WorkflowWithArtifact struct {
 	IsArtifactUploaded    bool              `json:"is_artifact_uploaded"`
 	EnvironmentId         int               `json:"environmentId"`
 	EnvironmentName       string            `json:"environmentName"`
-	ReferenceCiWorkflowId int               `json:"reference_ci_workflow_id"`
+	ReferenceCiWorkflowId int               `json:"ref_ci_workflow_id"`
 }
 
 type GitCommit struct {
