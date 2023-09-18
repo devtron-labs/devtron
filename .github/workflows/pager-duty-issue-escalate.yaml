@@ -1,0 +1,52 @@
+name: Escalate GitHub Issues
+
+on:
+  schedule:
+    - cron: "10 7 * * *"
+  issues:
+    types:
+      - labeled
+      - opened
+      - edited
+      - syncronized
+
+jobs:
+  escalate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: List issues with 'pager-duty' label
+      env:
+        GITHUB_TOKEN: ${{ secrets.GIT_TARGET_TOKEN }}
+      run: |
+        issues=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=pager-duty")
+
+        echo "$issues" > pager-duty-issues.json
+
+    - name: Iterate pager-duty issues and escalate
+      run: |
+        TWO_DAYS_AGO=$(date -u -d '2 days ago' --iso-8601=seconds)
+
+        for issue in $(cat pager-duty-issues.json | jq -c '.[]'); do
+          labels=$(echo "$issue" | jq -r '.labels[].name')
+          state=$(echo "$issue" | jq -r '.state')
+          created_at=$(echo "$issue" | jq -r '.created_at')
+
+          if [[ "$state" != "closed" ]] && [[ "$created_at" < "$TWO_DAYS_AGO" ]]; then
+            issue_number=$(echo "$issue" | jq -r '.number')
+            assignee1="vikramdevtron"
+            assignee2="kripanshdevtron"
+            assignee3="vivek-devtron"
+
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -d "{\"assignees\": [\"$assignee1\", \"$assignee2\", \"$assignee3\"]}" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$issue_number/assignees"
+          fi
+        done
