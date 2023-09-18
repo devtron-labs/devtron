@@ -2,7 +2,7 @@ name: Escalate GitHub Issues
 
 on:
   schedule:
-    - cron: "10 7 * * *"
+    - cron: "40 7 * * *"
   issues:
     types:
       - labeled
