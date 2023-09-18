@@ -3037,14 +3037,13 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
+	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{}
 	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-			AppId:       app.Id,
-			AccessToken: "",
-			Active:      true,
-			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
+		externalCiPipeline.AppId = app.Id
+		externalCiPipeline.AccessToken = ""
+		externalCiPipeline.Active = true
+		externalCiPipeline.AuditLog = sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId}
+
 		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
 		wf := &appWorkflow.AppWorkflow{
 			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
@@ -3070,6 +3069,9 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		}
 		pipeline.ParentPipelineId = externalCiPipeline.Id
 		pipeline.AppWorkflowId = savedAppWf.Id
+		if pipeline.ExternalCiAppWorkflowId != nil {
+			*pipeline.ExternalCiAppWorkflowId = savedAppWf.Id
+		}
 	}
 
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
@@ -3091,19 +3093,26 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	if pipeline.RefPipelineId > 0 {
 		(*pipeline.SourceToNewPipelineId)[pipeline.RefPipelineId] = pipelineId
 	}
+	isExternalCiAppWorkflow := pipeline.ExternalCiAppWorkflowId != nil && *pipeline.ExternalCiAppWorkflowId > 0
 
 	//adding pipeline to workflow
 	_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
 	if err != nil && err != pg.ErrNoRows {
 		return 0, err
 	}
-	if pipeline.AppWorkflowId > 0 {
+	if pipeline.AppWorkflowId > 0 || isExternalCiAppWorkflow {
 		var parentPipelineId int
 		var parentPipelineType string
 
 		if pipeline.ParentPipelineId == 0 {
 			parentPipelineId = pipeline.CiPipelineId
 			parentPipelineType = "CI_PIPELINE"
+		} else if pipeline.ParentPipelineType == string(bean2.WEBHOOK_WORKFLOW_TYPE) {
+			//parentPipelineId always exists in case of webhook type
+			if externalCiPipeline != nil {
+				parentPipelineId = externalCiPipeline.Id
+				parentPipelineType = string(bean2.WEBHOOK_WORKFLOW_TYPE)
+			}
 		} else {
 			parentPipelineId = pipeline.ParentPipelineId
 			parentPipelineType = pipeline.ParentPipelineType
@@ -3119,6 +3128,9 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 			Type:          "CD_PIPELINE",
 			Active:        true,
 			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+		}
+		if isExternalCiAppWorkflow {
+			appWorkflowMap.AppWorkflowId = *pipeline.ExternalCiAppWorkflowId
 		}
 		_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
 		if err != nil {

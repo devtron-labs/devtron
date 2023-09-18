@@ -531,6 +531,7 @@ type CDPipelineConfigObject struct {
 	PostDeployStage               *bean.PipelineStageDto                 `json:"postDeployStage,omitempty"`
 	SourceToNewPipelineId         *map[int]int                           `json:"sourceToNewPipelineId,omitempty"`
 	RefPipelineId                 int                                    `json:"refPipelineId,omitempty"`
+	ExternalCiAppWorkflowId       *int                                   `json:"externalCiAppWorkflowId,omitempty"`
 }
 
 type PreStageConfigMapSecretNames struct {
