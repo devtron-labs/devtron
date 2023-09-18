@@ -31,6 +31,7 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
@@ -90,7 +91,6 @@ type CiHandlerImpl struct {
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 	workflowService              WorkflowService
 	ciLogService                 CiLogService
-	ciConfig                     *CiConfig
 	ciArtifactRepository         repository.CiArtifactRepository
 	userService                  user.UserService
 	eventClient                  client.EventClient
@@ -103,10 +103,11 @@ type CiHandlerImpl struct {
 	appGroupService              appGroup2.AppGroupService
 	envRepository                repository3.EnvironmentRepository
 	imageTaggingService          ImageTaggingService
+	config                       *CiConfig
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
-	return &CiHandlerImpl{
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
+	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
@@ -114,7 +115,6 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		ciWorkflowRepository:         ciWorkflowRepository,
 		workflowService:              workflowService,
 		ciLogService:                 ciLogService,
-		ciConfig:                     ciConfig,
 		ciArtifactRepository:         ciArtifactRepository,
 		userService:                  userService,
 		eventClient:                  eventClient,
@@ -128,6 +128,13 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		envRepository:                envRepository,
 		imageTaggingService:          imageTaggingService,
 	}
+	config, err := GetCiConfig()
+	if err != nil {
+		return nil
+	}
+	cih.config = config
+
+	return cih
 }
 
 type WorkflowResponse struct {
@@ -542,7 +549,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 	}
 
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, isExt, env)
+	err = impl.workflowService.TerminateWorkflow("", runningWf.Name, runningWf.Namespace, nil, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
@@ -694,12 +701,12 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 	}
 
 	if ciConfig.LogsBucket == "" {
-		ciConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+		ciConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
 	if ciConfig.CiCacheRegion == "" {
-		ciConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
+		ciConfig.CiCacheRegion = impl.config.DefaultCacheBucketRegion
 	}
-	logsFilePath := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log" // this is for backward compatibilty
+	logsFilePath := impl.config.GetDefaultBuildLogsKeyPrefix() + "/" + ciWorkflow.Name + "/main.log" // this is for backward compatibilty
 	if strings.Contains(ciWorkflow.LogLocation, "main.log") {
 		logsFilePath = ciWorkflow.LogLocation
 	}
@@ -708,28 +715,28 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		WorkflowId:    ciWorkflow.Id,
 		PodName:       ciWorkflow.PodName,
 		LogsFilePath:  logsFilePath,
-		CloudProvider: impl.ciConfig.CloudProvider,
+		CloudProvider: impl.config.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
-			Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-			AccountName:       impl.ciConfig.AzureAccountName,
-			BlobContainerName: impl.ciConfig.AzureBlobContainerCiLog,
-			AccountKey:        impl.ciConfig.AzureAccountKey,
+			Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:       impl.config.AzureAccountName,
+			BlobContainerName: impl.config.AzureBlobContainerCiLog,
+			AccountKey:        impl.config.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
-			AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
-			Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
-			EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
-			IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+			AccessKey:         impl.config.BlobStorageS3AccessKey,
+			Passkey:           impl.config.BlobStorageS3SecretKey,
+			EndpointUrl:       impl.config.BlobStorageS3Endpoint,
+			IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
 			BucketName:        ciConfig.LogsBucket,
 			Region:            ciConfig.CiCacheRegion,
-			VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
+			VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
 		},
 		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
 			BucketName:             ciConfig.LogsBucket,
-			CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
+			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
-	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.ciConfig.BaseLogLocationPath, ciLogRequest)
+	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, ciLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, nil, err
@@ -756,45 +763,45 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 
 	ciConfig, err := impl.ciWorkflowRepository.FindConfigByPipelineId(pipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("unable to fetch ciConfig", "err", err)
+		impl.Logger.Errorw("unable to fetch ciCdConfig", "err", err)
 		return nil, err
 	}
 
 	if ciConfig.LogsBucket == "" {
-		ciConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+		ciConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
 
 	item := strconv.Itoa(ciWorkflow.Id)
 	if ciConfig.CiCacheRegion == "" {
-		ciConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
+		ciConfig.CiCacheRegion = impl.config.DefaultCacheBucketRegion
 	}
 	azureBlobConfig := &blob_storage.AzureBlobBaseConfig{
-		Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-		AccountName:       impl.ciConfig.AzureAccountName,
-		BlobContainerName: impl.ciConfig.AzureBlobContainerCiLog,
-		AccountKey:        impl.ciConfig.AzureAccountKey,
+		Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
+		AccountName:       impl.config.AzureAccountName,
+		BlobContainerName: impl.config.AzureBlobContainerCiLog,
+		AccountKey:        impl.config.AzureAccountKey,
 	}
 	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
-		AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
-		Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
-		EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
-		IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+		AccessKey:         impl.config.BlobStorageS3AccessKey,
+		Passkey:           impl.config.BlobStorageS3SecretKey,
+		EndpointUrl:       impl.config.BlobStorageS3Endpoint,
+		IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
 		BucketName:        ciConfig.LogsBucket,
 		Region:            ciConfig.CiCacheRegion,
-		VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
+		VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
 	}
 	gcpBlobBaseConfig := &blob_storage.GcpBlobBaseConfig{
 		BucketName:             ciConfig.LogsBucket,
-		CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
+		CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 	}
 
-	key := fmt.Sprintf("%s/"+impl.ciConfig.CiArtifactLocationFormat, impl.ciConfig.DefaultArtifactKeyPrefix, ciWorkflow.Id, ciWorkflow.Id)
+	key := fmt.Sprintf("%s/"+impl.config.GetArtifactLocationFormat(), impl.config.GetDefaultArtifactKeyPrefix(), ciWorkflow.Id, ciWorkflow.Id)
 
-	baseLogLocationPathConfig := impl.ciConfig.BaseLogLocationPath
+	baseLogLocationPathConfig := impl.config.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
 	request := &blob_storage.BlobStorageRequest{
-		StorageType:         impl.ciConfig.CloudProvider,
+		StorageType:         impl.config.CloudProvider,
 		SourceKey:           key,
 		DestinationKey:      baseLogLocationPathConfig + item,
 		AzureBlobBaseConfig: azureBlobConfig,
@@ -832,35 +839,35 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	}
 
 	if ciConfig.LogsBucket == "" {
-		ciConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+		ciConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
 	ciLogRequest := BuildLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
 		PodName:       ciWorkflow.PodName,
 		LogsFilePath:  ciWorkflow.LogLocation,
-		CloudProvider: impl.ciConfig.CloudProvider,
+		CloudProvider: impl.config.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
-			Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-			AccountName:       impl.ciConfig.AzureAccountName,
-			BlobContainerName: impl.ciConfig.AzureBlobContainerCiLog,
-			AccountKey:        impl.ciConfig.AzureAccountKey,
+			Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:       impl.config.AzureAccountName,
+			BlobContainerName: impl.config.AzureBlobContainerCiLog,
+			AccountKey:        impl.config.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
-			AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
-			Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
-			EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
-			IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+			AccessKey:         impl.config.BlobStorageS3AccessKey,
+			Passkey:           impl.config.BlobStorageS3SecretKey,
+			EndpointUrl:       impl.config.BlobStorageS3Endpoint,
+			IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
 			BucketName:        ciConfig.LogsBucket,
 			Region:            ciConfig.CiCacheRegion,
-			VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
+			VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
 		},
 		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
 			BucketName:             ciConfig.LogsBucket,
-			CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
+			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
-	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(impl.ciConfig.BaseLogLocationPath, ciLogRequest)
+	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, ciLogRequest)
 	logs, err := ioutil.ReadFile(logsFile.Name())
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
@@ -881,7 +888,7 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	podName := ""
 	logLocation := ""
 	for k, v := range workflowStatus.Nodes {
-		if v.TemplateName == CI_WORKFLOW_NAME {
+		if v.TemplateName == bean3.CI_WORKFLOW_NAME {
 			impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
 			if v.BoundaryID == "" {
 				workflowName = k
@@ -932,7 +939,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 
 	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
 	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
+		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
 	}
 	ciArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWorkflow.Id, savedWorkflow.Id)
 
