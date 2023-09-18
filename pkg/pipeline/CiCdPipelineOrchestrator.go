@@ -1581,7 +1581,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		Pipelines: pipelines,
 	}
 	if len(pipelines) == 0 {
-		err = pg.ErrNoRows
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no cd pipeline found"}
 	} else {
 		err = nil
 	}
