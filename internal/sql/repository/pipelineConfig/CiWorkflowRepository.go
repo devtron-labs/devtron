@@ -115,9 +115,9 @@ type GitCommit struct {
 }
 
 type WebhookData struct {
-	Id              int
-	EventActionType string
-	Data            map[string]string
+	Id              int               `json:"id"`
+	EventActionType string            `json:"eventActionType"`
+	Data            map[string]string `json:"data"`
 }
 
 type CiWorkflowConfig struct {
