@@ -58,7 +58,7 @@ import (
 type CiHandler interface {
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
-	HandleReTriggerCI(workflowStatus v1alpha1.WorkflowStatus)
+	HandleReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error
 
 	FetchMaterialsByPipelineId(pipelineId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId int, gitMaterialId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
@@ -191,24 +191,27 @@ const Running = "Running"
 const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 
-func (impl *CiHandlerImpl) HandleReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) {
+func (impl *CiHandlerImpl) HandleReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
 	if impl.ciConfig.MaxCiWorkflowRetries == 0 {
-		return
+		return errors.New("ci-workflow retires not allowed ")
 	}
 	status, message, retryCount, ciWorkFlow, err := impl.extractPodStatusAndWorkflow(workflowStatus)
 	if err != nil {
 		impl.Logger.Errorw("error in extractPodStatusAndWorkflow", "err", err)
-		return
+		return err
 	}
 
-	impl.reTriggerCi(status, message, retryCount, ciWorkFlow)
-
+	err = impl.reTriggerCi(status, message, retryCount, ciWorkFlow)
+	if err != nil {
+		impl.Logger.Errorw("error in reTriggerCi", "err", err, "status", status, "message", message, "retryCount", retryCount, "ciWorkFlowId", ciWorkFlow.Id)
+	}
+	return err
 }
 
-func (impl *CiHandlerImpl) reTriggerCi(status, message string, retryCount int, ciWorkFlow *pipelineConfig.CiWorkflow) {
+func (impl *CiHandlerImpl) reTriggerCi(status, message string, retryCount int, ciWorkFlow *pipelineConfig.CiWorkflow) error {
 	if !(status == string(v1alpha1.NodeFailed) && message == POD_DELETED_MESSAGE) || (retryCount >= impl.ciConfig.MaxCiWorkflowRetries) {
-		return
+		return errors.New("ci-workflow retrigger condition not met, not re-triggering")
 	}
 	impl.Logger.Debugw("HandleReTriggerCI for ciWorkflow ", "ReferenceCiWorkflowId", ciWorkFlow.Id)
 
@@ -226,8 +229,9 @@ func (impl *CiHandlerImpl) reTriggerCi(status, message string, retryCount int, c
 
 	if err != nil {
 		impl.Logger.Errorw("error occured in retriggering ciWorkflow", "triggerDetails", trigger, "err", err)
-		return
+		return err
 	}
+	return nil
 }
 
 func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
@@ -1589,7 +1593,11 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						impl.Logger.Errorw("error in getRefWorkflowAndCiRetryCount", "ciWorkflowId", ciWorkflow.Id)
 						continue
 					}
-					impl.reTriggerCi(ciWorkflow.Status, ciWorkflow.Message, retryCount, refCiWorkflow)
+					err = impl.reTriggerCi(ciWorkflow.Status, ciWorkflow.Message, retryCount, refCiWorkflow)
+					if err != nil {
+						impl.Logger.Errorw("error in reTriggerCi", "ciWorkflowId", refCiWorkflow.Id, "workflowStatus", ciWorkflow.Status, "ciWorkflowMessage", "ciWorkflow.Message", "retryCount", retryCount)
+						continue
+					}
 				}
 			} else {
 				ciWorkflow.Status = "Failed"
