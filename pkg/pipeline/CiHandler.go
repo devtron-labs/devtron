@@ -31,6 +31,7 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
@@ -105,9 +106,10 @@ type CiHandlerImpl struct {
 	appGroupService              appGroup2.AppGroupService
 	envRepository                repository3.EnvironmentRepository
 	imageTaggingService          ImageTaggingService
+	k8sCommonService             k8s2.K8sCommonService
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -129,6 +131,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		appGroupService:              appGroupService,
 		envRepository:                envRepository,
 		imageTaggingService:          imageTaggingService,
+		k8sCommonService:             k8sCommonService,
 	}
 }
 
@@ -1551,15 +1554,9 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			if !isEligibleToMarkFailed {
 				ns := DefaultCiWorkflowNamespace
 				if isExt {
-					clusterConfig, err := cluster.GetClusterBean(*env.Cluster).GetClusterConfig()
+					_, client, err = impl.k8sCommonService.GetCoreClientByClusterId(env.ClusterId)
 					if err != nil {
-						impl.Logger.Warnw("error in getting cluster Config", "err", err, "clusterId", env.Cluster.Id)
-						continue
-					}
-
-					client, err = impl.K8sUtil.GetCoreV1Client(clusterConfig)
-					if err != nil {
-						impl.Logger.Warnw("error in getting core v1 client using clusterConfig", "err", err, "clusterId", env.Cluster.Id)
+						impl.Logger.Warnw("error in getting core v1 client using GetCoreClientByClusterId", "err", err, "clusterId", env.Cluster.Id)
 						continue
 					}
 					ns = env.Namespace
@@ -1590,12 +1587,12 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 				if ciWorkflow.Status != WorkflowCancel {
 					retryCount, refCiWorkflow, err := impl.getRefWorkflowAndCiRetryCount(ciWorkflow)
 					if err != nil {
-						impl.Logger.Errorw("error in getRefWorkflowAndCiRetryCount", "ciWorkflowId", ciWorkflow.Id)
+						impl.Logger.Errorw("error in getRefWorkflowAndCiRetryCount", "ciWorkflowId", ciWorkflow.Id, "err", err)
 						continue
 					}
 					err = impl.reTriggerCi(ciWorkflow.Status, ciWorkflow.Message, retryCount, refCiWorkflow)
 					if err != nil {
-						impl.Logger.Errorw("error in reTriggerCi", "ciWorkflowId", refCiWorkflow.Id, "workflowStatus", ciWorkflow.Status, "ciWorkflowMessage", "ciWorkflow.Message", "retryCount", retryCount)
+						impl.Logger.Errorw("error in reTriggerCi", "ciWorkflowId", refCiWorkflow.Id, "workflowStatus", ciWorkflow.Status, "ciWorkflowMessage", "ciWorkflow.Message", "retryCount", retryCount, "err", err)
 						continue
 					}
 				}
