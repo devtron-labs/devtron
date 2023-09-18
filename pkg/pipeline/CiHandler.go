@@ -158,6 +158,7 @@ type WorkflowResponse struct {
 	EnvironmentName      string                                      `json:"environmentName"`
 	ImageReleaseTags     []*repository2.ImageTag                     `json:"imageReleaseTags"`
 	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
+	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -549,26 +550,27 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 	var ciWorkLowResponses []WorkflowResponse
 	for _, w := range workFlows {
 		wfResponse := WorkflowResponse{
-			Id:                 w.Id,
-			Name:               w.Name,
-			Status:             w.Status,
-			PodStatus:          w.PodStatus,
-			Message:            w.Message,
-			StartedOn:          w.StartedOn,
-			FinishedOn:         w.FinishedOn,
-			CiPipelineId:       w.CiPipelineId,
-			Namespace:          w.Namespace,
-			LogLocation:        w.LogFilePath,
-			GitTriggers:        w.GitTriggers,
-			CiMaterials:        ciPipelineMaterialResponses,
-			Artifact:           w.Image,
-			TriggeredBy:        w.TriggeredBy,
-			TriggeredByEmail:   w.EmailId,
-			ArtifactId:         w.CiArtifactId,
-			BlobStorageEnabled: w.BlobStorageEnabled,
-			IsArtifactUploaded: w.IsArtifactUploaded,
-			EnvironmentId:      w.EnvironmentId,
-			EnvironmentName:    w.EnvironmentName,
+			Id:                  w.Id,
+			Name:                w.Name,
+			Status:              w.Status,
+			PodStatus:           w.PodStatus,
+			Message:             w.Message,
+			StartedOn:           w.StartedOn,
+			FinishedOn:          w.FinishedOn,
+			CiPipelineId:        w.CiPipelineId,
+			Namespace:           w.Namespace,
+			LogLocation:         w.LogFilePath,
+			GitTriggers:         w.GitTriggers,
+			CiMaterials:         ciPipelineMaterialResponses,
+			Artifact:            w.Image,
+			TriggeredBy:         w.TriggeredBy,
+			TriggeredByEmail:    w.EmailId,
+			ArtifactId:          w.CiArtifactId,
+			BlobStorageEnabled:  w.BlobStorageEnabled,
+			IsArtifactUploaded:  w.IsArtifactUploaded,
+			EnvironmentId:       w.EnvironmentId,
+			EnvironmentName:     w.EnvironmentName,
+			ReferenceWorkflowId: w.ReferenceCiWorkflowId,
 		}
 		if imageTagsDataMap[w.CiArtifactId] != nil {
 			wfResponse.ImageReleaseTags = imageTagsDataMap[w.CiArtifactId] //if artifact is not yet created,empty list will be sent
