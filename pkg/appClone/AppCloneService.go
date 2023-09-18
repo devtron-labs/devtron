@@ -936,7 +936,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 			Name:                          pipelineName,
 			Strategies:                    refCdPipeline.Strategies,
 			Namespace:                     refCdPipeline.Namespace,
-			AppWorkflowId:                 req.appWfId,
+			AppWorkflowId:                 0,
 			DeploymentTemplate:            refCdPipeline.DeploymentTemplate,
 			PreStage:                      refCdPipeline.PreStage, //FIXME
 			PostStage:                     refCdPipeline.PostStage,

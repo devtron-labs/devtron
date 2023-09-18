@@ -3088,6 +3088,9 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		impl.logger.Errorw("error in ")
 		return 0, err
 	}
+	if pipeline.RefPipelineId > 0 {
+		(*pipeline.SourceToNewPipelineId)[pipeline.RefPipelineId] = pipelineId
+	}
 
 	//adding pipeline to workflow
 	_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
@@ -3097,9 +3100,6 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	if pipeline.AppWorkflowId > 0 {
 		var parentPipelineId int
 		var parentPipelineType string
-		if pipeline.RefPipelineId > 0 {
-			(*pipeline.SourceToNewPipelineId)[pipeline.RefPipelineId] = pipelineId
-		}
 
 		if pipeline.ParentPipelineId == 0 {
 			parentPipelineId = pipeline.CiPipelineId
