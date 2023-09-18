@@ -76,29 +76,29 @@ type CiWorkflow struct {
 }
 
 type WorkflowWithArtifact struct {
-	Id                    int               `json:"id"`
-	Name                  string            `json:"name"`
-	PodName               string            `json:"podName"`
-	Status                string            `json:"status"`
-	PodStatus             string            `json:"pod_status"`
-	Message               string            `json:"message"`
-	StartedOn             time.Time         `json:"started_on"`
-	FinishedOn            time.Time         `json:"finished_on"`
-	CiPipelineId          int               `json:"ci_pipeline_id"`
-	Namespace             string            `json:"namespace"`
-	LogFilePath           string            `json:"log_file_path"`
-	GitTriggers           map[int]GitCommit `json:"git_triggers"`
-	TriggeredBy           int32             `json:"triggered_by"`
-	EmailId               string            `json:"email_id"`
-	Image                 string            `json:"image"`
-	CiArtifactLocation    string            `json:"ci_artifact_location"`
-	CiArtifactId          int               `json:"ci_artifact_d"`
-	BlobStorageEnabled    bool              `json:"blobStorageEnabled"`
-	CiBuildType           string            `json:"ci_build_type"`
-	IsArtifactUploaded    bool              `json:"is_artifact_uploaded"`
-	EnvironmentId         int               `json:"environmentId"`
-	EnvironmentName       string            `json:"environmentName"`
-	ReferenceCiWorkflowId int               `json:"ref_ci_workflow_id"`
+	Id                 int               `json:"id"`
+	Name               string            `json:"name"`
+	PodName            string            `json:"podName"`
+	Status             string            `json:"status"`
+	PodStatus          string            `json:"pod_status"`
+	Message            string            `json:"message"`
+	StartedOn          time.Time         `json:"started_on"`
+	FinishedOn         time.Time         `json:"finished_on"`
+	CiPipelineId       int               `json:"ci_pipeline_id"`
+	Namespace          string            `json:"namespace"`
+	LogFilePath        string            `json:"log_file_path"`
+	GitTriggers        map[int]GitCommit `json:"git_triggers"`
+	TriggeredBy        int32             `json:"triggered_by"`
+	EmailId            string            `json:"email_id"`
+	Image              string            `json:"image"`
+	CiArtifactLocation string            `json:"ci_artifact_location"`
+	CiArtifactId       int               `json:"ci_artifact_d"`
+	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
+	CiBuildType        string            `json:"ci_build_type"`
+	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
+	EnvironmentId      int               `json:"environmentId"`
+	EnvironmentName    string            `json:"environmentName"`
+	RefCiWorkflowId    int               `json:"referenceCiWorkflowId"`
 }
 
 type GitCommit struct {

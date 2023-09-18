@@ -550,7 +550,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			IsArtifactUploaded:  w.IsArtifactUploaded,
 			EnvironmentId:       w.EnvironmentId,
 			EnvironmentName:     w.EnvironmentName,
-			ReferenceWorkflowId: w.ReferenceCiWorkflowId,
+			ReferenceWorkflowId: w.RefCiWorkflowId,
 		}
 		if imageTagsDataMap[w.CiArtifactId] != nil {
 			wfResponse.ImageReleaseTags = imageTagsDataMap[w.CiArtifactId] //if artifact is not yet created,empty list will be sent
