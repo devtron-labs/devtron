@@ -1555,7 +1555,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		isPodDeleted := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
 			//check weather pod is exists or not, if exits check its status
-			_, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, ciWorkflow.Namespace, isExt, env)
+			wf, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, ciWorkflow.Namespace, isExt, env)
 			if err != nil {
 				impl.Logger.Warnw("unable to fetch ci workflow", "err", err)
 				statusError, ok := err.(*errors2.StatusError)
@@ -1585,7 +1585,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 					}
 					ns = env.Namespace
 				}
-				pod, err := impl.K8sUtil.GetPodByName(ns, ciWorkflow.PodName, client)
+				_, err := impl.K8sUtil.GetPodByName(ns, ciWorkflow.PodName, client)
 				if err != nil {
 					impl.Logger.Warnw("unable to fetch ci workflow - pod", "err", err)
 					statusError, ok := err.(*errors2.StatusError)
@@ -1597,9 +1597,10 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						// skip this and process for next ci workflow
 					}
 				}
-				if pod.Status.Message == POD_DELETED_MESSAGE {
+
+				//check workflow status,get the status
+				if wf.Status.Phase == v1alpha1.WorkflowFailed && wf.Status.Message == POD_DELETED_MESSAGE {
 					isPodDeleted = true
-					ciWorkflow.PodStatus = string(pod.Status.Phase)
 				}
 			}
 		}
