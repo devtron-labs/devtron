@@ -162,7 +162,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:9dc1e72a-434-16283"
+          image: "quay.io/devtron/devtron:09e824c4-434-16301"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000
