@@ -2,13 +2,8 @@ name: Escalate GitHub Issues
 
 on:
   schedule:
-    - cron: "55 7 * * *"
-  issues:
-    types:
-      - labeled
-      - opened
-      - edited
-      - syncronized
+    - cron: "20 18 * * *"
+
 
 jobs:
   escalate:
@@ -32,7 +27,7 @@ jobs:
       run: |
         TWO_DAYS_AGO=$(date -u -d '2 days ago' --iso-8601=seconds)
 
-        for issue in $(cat pager-duty-issues.json | jq -c '.[]'); do
+        cat pager-duty-issues.json | jq -c '.[]' | while read -r issue; do
           labels=$(echo "$issue" | jq -r '.labels[].name')
           state=$(echo "$issue" | jq -r '.state')
           created_at=$(echo "$issue" | jq -r '.created_at')
@@ -44,7 +39,7 @@ jobs:
             assignee3="vivek-devtron"
 
             curl -X POST \
-              -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+              -H "Authorization: token ${{ secrets.GIT_TARGET_TOKEN }}" \
               -H "Accept: application/vnd.github.v3+json" \
               -d "{\"assignees\": [\"$assignee1\", \"$assignee2\", \"$assignee3\"]}" \
               "https://api.github.com/repos/${{ github.repository }}/issues/$issue_number/assignees"
