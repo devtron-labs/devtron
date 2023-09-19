@@ -3091,7 +3091,6 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	if pipeline.RefPipelineId > 0 {
 		(*pipeline.SourceToNewPipelineId)[pipeline.RefPipelineId] = pipelineId
 	}
-	//isExternalCiAppWorkflow := pipeline.ExternalCiAppWorkflowId != nil && *pipeline.ExternalCiAppWorkflowId > 0
 
 	//adding pipeline to workflow
 	_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
@@ -3102,7 +3101,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		var parentPipelineId int
 		var parentPipelineType string
 
-		if pipeline.ParentPipelineId == 0 {
+		if pipeline.ParentPipelineId == 0 && pipeline.ExternalCiPipelineId == 0 {
 			parentPipelineId = pipeline.CiPipelineId
 			parentPipelineType = "CI_PIPELINE"
 		} else if pipeline.ExternalCiPipelineId > 0 {
