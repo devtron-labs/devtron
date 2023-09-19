@@ -418,6 +418,32 @@ func (_m *EnvironmentRepository) FindByNameOrIdentifier(name string, identifier 
 	return r0, r1
 }
 
+// FindByNames provides a mock function with given fields: envNames
+func (_m *EnvironmentRepository) FindByNames(envNames []string) ([]*repository.Environment, error) {
+	ret := _m.Called(envNames)
+
+	var r0 []*repository.Environment
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]string) ([]*repository.Environment, error)); ok {
+		return rf(envNames)
+	}
+	if rf, ok := ret.Get(0).(func([]string) []*repository.Environment); ok {
+		r0 = rf(envNames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*repository.Environment)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(envNames)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindByNamespaceAndClusterName provides a mock function with given fields: namespaces, clusterName
 func (_m *EnvironmentRepository) FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error) {
 	ret := _m.Called(namespaces, clusterName)
