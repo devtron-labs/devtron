@@ -56,6 +56,8 @@ type CiCdConfig struct {
 	ImageRetryInterval               int                                 `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
 	CiWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CI_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	BuildxK8sDriverOptions           string                              `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
+	BuildxProvenanceMode             string                              `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
+	MaxCiWorkflowRetries             int                                 `env:"MAX_CI_WORKFLOW_RETRIES" envDefault:"0"`
 
 	//from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
@@ -85,6 +87,7 @@ type CiCdConfig struct {
 	UseBlobStorageConfigInCdWorkflow bool                                `env:"USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW" envDefault:"true"`
 	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	TerminationGracePeriod           int                                 `env:"TERMINATION_GRACE_PERIOD_SECS" envDefault:"180"`
+	MaxCdWorkflowRunnerRetries       int                                 `env:"MAX_CD_WORKFLOW_RUNNER_RETRIES" envDefault:"0"`
 
 	//common in both ciconfig and cd config
 	Type                           string

@@ -66,6 +66,7 @@ const (
 )
 
 type CdHandler interface {
+	HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
 	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
@@ -173,6 +174,46 @@ const NotDeployed = "Not Deployed"
 const WorklowTypeDeploy = "DEPLOY"
 const WorklowTypePre = "PRE"
 const WorklowTypePost = "POST"
+
+func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error {
+	var err error
+	// do not re-trigger if retries = 0 or last workflow is aborted
+	if runner == nil || impl.config.MaxCdWorkflowRunnerRetries == 0 || runner.Status == WorkflowCancel {
+		return errors.New("cdStage workflow retry condition not met,not re-triggering")
+	}
+	if runner.RefCdWorkflowRunnerId != 0 {
+		runner, err = impl.cdWorkflowRepository.FindWorkflowRunnerById(runner.RefCdWorkflowRunnerId)
+		if err != nil {
+			impl.Logger.Errorw("error in FindWorkflowRunnerById by id ", "err", err, "wfrId", runner.RefCdWorkflowRunnerId)
+			return err
+		}
+	}
+	retryCnt, err := impl.cdWorkflowRepository.FindRetriedWorkflowCountByReferenceId(runner.Id)
+	if err != nil {
+		impl.Logger.Errorw("error in FindRetriedWorkflowCountByReferenceId ", "err", err, "cdWorkflowRunnerId", runner.Id)
+		return err
+	}
+
+	if retryCnt >= impl.config.MaxCdWorkflowRunnerRetries {
+		impl.Logger.Infow("maximum retries for this workflow are exhausted, not re-triggering again", "retries", retryCnt, "wfrId", runner.Id)
+		return errors.New("maximum retries for this workflow are exhausted")
+	}
+
+	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+		err = impl.workflowDagExecutor.TriggerPreStage(context.Background(), nil, runner.CdWorkflow.CiArtifact, runner.CdWorkflow.Pipeline, 1, false, runner.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
+			return err
+		}
+	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		err = impl.workflowDagExecutor.TriggerPostStage(runner.CdWorkflow, runner.CdWorkflow.Pipeline, 1, runner.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in TriggerPostStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
+			return err
+		}
+	}
+	return nil
+}
 
 func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error {
 	pipelines, err := impl.pipelineRepository.GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours)

@@ -51,7 +51,7 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 		Type:          string(gitWebhookRequest.Type),
 		Value:         gitWebhookRequest.Value,
 		Active:        gitWebhookRequest.Active,
-		GitCommit: bean.GitCommit{
+		GitCommit: pipelineConfig.GitCommit{
 			Commit:  gitWebhookRequest.GitCommit.Commit,
 			Author:  gitWebhookRequest.GitCommit.Author,
 			Date:    gitWebhookRequest.GitCommit.Date,
@@ -62,7 +62,7 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 
 	if string(gitWebhookRequest.Type) == string(pipelineConfig.SOURCE_TYPE_WEBHOOK) {
 		webhookData := gitWebhookRequest.GitCommit.WebhookData
-		ciPipelineMaterial.GitCommit.WebhookData = &bean.WebhookData{
+		ciPipelineMaterial.GitCommit.WebhookData = pipelineConfig.WebhookData{
 			Id:              webhookData.Id,
 			EventActionType: webhookData.EventActionType,
 			Data:            webhookData.Data,

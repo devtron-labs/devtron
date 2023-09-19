@@ -78,11 +78,18 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			return
 		}
 
+		err = impl.ciHandler.HandleReTriggerCI(wfStatus)
+		if err != nil {
+			impl.logger.Errorw("error in HandleReTriggerCI", "err", err)
+			//don't return as we have to update the workflow status
+		}
+
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
 			return
 		}
+
 	}
 	err := impl.pubsubClient.Subscribe(pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, callback)
 
@@ -124,6 +131,13 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				eventType = util.Success
 			} else if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
 				eventType = util.Fail
+			}
+
+			if wfrStatus == string(v1alpha1.NodeFailed) && wfStatus.Message == pipeline.POD_DELETED_MESSAGE {
+				err = impl.cdHandler.HandleCdStageReTrigger(wfr)
+				if err != nil {
+					impl.logger.Errorw("error in HandleCdStageReTrigger", "error", err)
+				}
 			}
 			if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)

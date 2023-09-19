@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"context"
+	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -49,6 +50,7 @@ type CdWorkflowRepository interface {
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
+	FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error)
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
 	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
 
@@ -143,23 +145,24 @@ const WORKFLOW_EXECUTOR_TYPE_AWF = "AWF"
 const WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 
 type CdWorkflowRunner struct {
-	tableName          struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
-	Id                 int                  `sql:"id,pk"`
-	Name               string               `sql:"name"`
-	WorkflowType       bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
-	ExecutorType       WorkflowExecutorType `sql:"executor_type"` //awf, system
-	Status             string               `sql:"status"`
-	PodStatus          string               `sql:"pod_status"`
-	Message            string               `sql:"message"`
-	StartedOn          time.Time            `sql:"started_on"`
-	FinishedOn         time.Time            `sql:"finished_on"`
-	Namespace          string               `sql:"namespace"`
-	LogLocation        string               `sql:"log_file_path"`
-	TriggeredBy        int32                `sql:"triggered_by"`
-	CdWorkflowId       int                  `sql:"cd_workflow_id"`
-	PodName            string               `sql:"pod_name"`
-	BlobStorageEnabled bool                 `sql:"blob_storage_enabled,notnull"`
-	CdWorkflow         *CdWorkflow
+	tableName             struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
+	Id                    int                  `sql:"id,pk"`
+	Name                  string               `sql:"name"`
+	WorkflowType          bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
+	ExecutorType          WorkflowExecutorType `sql:"executor_type"` //awf, system
+	Status                string               `sql:"status"`
+	PodStatus             string               `sql:"pod_status"`
+	Message               string               `sql:"message"`
+	StartedOn             time.Time            `sql:"started_on"`
+	FinishedOn            time.Time            `sql:"finished_on"`
+	Namespace             string               `sql:"namespace"`
+	LogLocation           string               `sql:"log_file_path"`
+	TriggeredBy           int32                `sql:"triggered_by"`
+	CdWorkflowId          int                  `sql:"cd_workflow_id"`
+	PodName               string               `sql:"pod_name"`
+	BlobStorageEnabled    bool                 `sql:"blob_storage_enabled,notnull"`
+	RefCdWorkflowRunnerId int                  `sql:"ref_cd_workflow_runner_id"`
+	CdWorkflow            *CdWorkflow
 	sql.AuditLog
 }
 
@@ -484,6 +487,15 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWork
 	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment").
 		Where("cd_workflow_runner.id = ?", wfrId).Select()
 	return wfr, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error) {
+	retryCount := 0
+	query := fmt.Sprintf("select count(*) "+
+		"from cd_workflow_runner where ref_cd_workflow_runner_id = %v", wfrId)
+
+	_, err := impl.dbConnection.Query(&retryCount, query)
+	return retryCount, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindByWorkflowIdAndRunnerType(ctx context.Context, wfId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
