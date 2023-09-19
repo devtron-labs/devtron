@@ -1142,7 +1142,7 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 		workflow.BlobStorageEnabled = wfr.BlobStorageEnabled
-
+		workflow.RefCdWorkflowRunnerId = wfr.RefCdWorkflowRunnerId
 	}
 	return workflow
 }
