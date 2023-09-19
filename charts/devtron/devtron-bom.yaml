@@ -47,7 +47,7 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
+    image: "quay.io/devtron/git-sensor:b6c3ea0e-200-16327"
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
