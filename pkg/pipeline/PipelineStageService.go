@@ -1697,6 +1697,7 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 
 	resolvedResponse, err := impl.fetchScopedVariablesAndResolveTemplate(unresolvedResponse, pipelineStageIds, scope)
 	if err != nil {
+		impl.logger.Errorw("error in resolving stage request", "err", err)
 		return resolvedResponse, err
 	}
 	return resolvedResponse, nil
