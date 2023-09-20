@@ -10,7 +10,7 @@ global:
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.20" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.22" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -22,8 +22,6 @@ installer:
 
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
 secrets: {}
-#  If No POSTGRESQL_PASSWORD is provided, a password is automatically generated and saved in secret devtron-secret
-#  POSTGRESQL_PASSWORD: "change-me"
 
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
 #  AZURE_ACCOUNT_KEY: "xxxxxxxxxx"
@@ -57,15 +55,15 @@ components:
         ENABLE_BUILD_CONTEXT: "true"
         ENABLE_RESTART_WORKLOAD: "true"
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
-    image: "quay.io/devtron/dashboard:0ec7e2f2-325-14899"
+    image: "quay.io/devtron/dashboard:12717798-325-16265"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:30c1c3c4-280-14903"
-    cicdImage: "quay.io/devtron/devtron:30c1c3c4-434-14904"
+    image: "quay.io/devtron/hyperion:3c1ba1ad-280-16262"
+    cicdImage: "quay.io/devtron/devtron:3c1ba1ad-434-16260"
     imagePullPolicy: IfNotPresent
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:71e590dd-138-14841"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d8d774c3-138-16238"
     serviceMonitor:
       enabled: false
     service:
@@ -95,7 +93,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:af6112c2-318-14801"
+    image: "quay.io/devtron/kubelink:aefc1baf-318-16208"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -114,22 +112,19 @@ components:
     imagePullPolicy: "IfNotPresent"
     persistence:
       volumeSize: "20Gi"
-
+  gitsensor:
+    image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
   migrator:
-    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
+    image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
       devtron:
-        GIT_BRANCH: "main"
-        SCRIPT_LOCATION: "scripts/sql/"
-        GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "30c1c3c4d544f1c5df9b5c35825f6c248c8c458b"
       casbin:
-        GIT_BRANCH: "main"
-        SCRIPT_LOCATION: "scripts/casbin/"
-        GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "30c1c3c4d544f1c5df9b5c35825f6c248c8c458b"
+      gitsensor:
+        DB_NAME: "git_sensor"
+      lens: 
+        DB_NAME: "lens"
 
 # values for argocd integration
 argo-cd:
@@ -287,7 +282,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
+    image: "quay.io/devtron/image-scanner:ea03b0af-334-15158"
   # Values for trivy
   trivy:
     enabled: false
@@ -325,6 +320,9 @@ minio:
 workflowController:
   image: "quay.io/argoproj/workflow-controller:v3.0.7"
   executorImage: "quay.io/argoproj/argoexec:v3.0.7"
+
+lens: 
+  image: "quay.io/devtron/lens:8803028b-333-16178"
 # Values for grafana integration
 monitoring:
   grafana:

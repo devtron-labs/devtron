@@ -11,6 +11,7 @@ const (
 	ServiceKind                  = "Service"
 	ServiceAccountKind           = "ServiceAccount"
 	EndpointsKind                = "Endpoints"
+	EndPointsSlice               = "EndpointSlice"
 	DeploymentKind               = "Deployment"
 	ReplicaSetKind               = "ReplicaSet"
 	StatefulSetKind              = "StatefulSet"
@@ -23,11 +24,17 @@ const (
 	APIServiceKind               = "APIService"
 	NamespaceKind                = "Namespace"
 	HorizontalPodAutoscalerKind  = "HorizontalPodAutoscaler"
+	Spec                         = "spec"
+	Ports                        = "ports"
+	Port                         = "port"
+	Subsets                      = "subsets"
+	Nodes                        = "nodes"
 )
 
 const (
 	Group   = "group"
 	Version = "version"
+	Kind    = "kind"
 )
 
 type ResourceRequestBean struct {
