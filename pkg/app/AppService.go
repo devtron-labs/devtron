@@ -1728,6 +1728,7 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 	} else {
 		impl.logger.Debug("argo-cd failed to update, ignoring it")
 	}
+	impl.synchCD(valuesOverrideResponse.Pipeline, ctx, overrideRequest, valuesOverrideResponse.EnvOverride)
 	return nil
 }
 
