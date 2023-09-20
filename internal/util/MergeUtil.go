@@ -164,45 +164,55 @@ func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJs
 
 	for _, item := range envLevelSecret.Secrets {
 		commonSecrets[item.Name] = item
+
 	}
 	for _, item := range appLevelSecret.Secrets {
 		//else ignoring this value as override from configB
 		if _, ok := commonSecrets[item.Name]; !ok {
 			commonSecrets[item.Name] = item
+			m.externalSecretProcessing(chartMajorVersion, chartMinorVersion, isJob, item)
+			finalMaps = append(finalMaps, item)
 		}
 	}
 
-	for _, item := range commonSecrets {
-		if item.ExternalType == util.AWSSecretsManager || item.ExternalType == util.AWSSystemManager || item.ExternalType == util.HashiCorpVault {
-			if item.SecretData != nil && ((chartMajorVersion <= 3 && chartMinorVersion < 8) || isJob) {
-				var es []map[string]interface{}
-				esNew := make(map[string]interface{})
-				err = json.Unmarshal(item.SecretData, &es)
-				if err != nil {
-					m.Logger.Debugw("error in Unmarshal ", "appLevelSecretJson", appLevelSecretJson, "envLevelSecretJson", envLevelSecretJson, "err", err)
-				}
-				for _, item := range es {
-					keyProp := item["name"].(string)
-					valueProp := item["key"]
-					esNew[keyProp] = valueProp
-				}
-				byteData, err := json.Marshal(esNew)
-				if err != nil {
-					m.Logger.Debugw("error in marshal ", "err", err)
-				}
-				item.Data = byteData
-				item.SecretData = nil
-			}
-		}
+	//for _, item := range commonSecrets {
+	//	err = m.funcName(appLevelSecretJson, envLevelSecretJson, chartMajorVersion, chartMinorVersion, isJob, item, err)
+	//}
+	for _, item := range envLevelSecret.Secrets {
+		m.externalSecretProcessing(chartMajorVersion, chartMinorVersion, isJob, item)
+		finalMaps = append(finalMaps, item)
 	}
-
-	for _, v := range commonSecrets {
-		finalMaps = append(finalMaps, v)
-	}
+	//for _, v := range commonSecrets {
+	//	finalMaps = append(finalMaps, v)
+	//}
 	secretResponse.Secrets = finalMaps
 	byteData, err := json.Marshal(secretResponse)
 	if err != nil {
 		m.Logger.Debugw("error in marshal ", "err", err)
 	}
 	return string(byteData), err
+}
+
+func (m MergeUtil) externalSecretProcessing(chartMajorVersion int, chartMinorVersion int, isJob bool, item *bean.ConfigSecretMap) {
+	if item.ExternalType == util.AWSSecretsManager || item.ExternalType == util.AWSSystemManager || item.ExternalType == util.HashiCorpVault {
+		if item.SecretData != nil && ((chartMajorVersion <= 3 && chartMinorVersion < 8) || isJob) {
+			var es []map[string]interface{}
+			esNew := make(map[string]interface{})
+			err := json.Unmarshal(item.SecretData, &es)
+			if err != nil {
+				m.Logger.Debugw("error in Unmarshal ", "SecretData", item.SecretData, "external secret", es, "err", err)
+			}
+			for _, item := range es {
+				keyProp := item["name"].(string)
+				valueProp := item["key"]
+				esNew[keyProp] = valueProp
+			}
+			byteData, err := json.Marshal(esNew)
+			if err != nil {
+				m.Logger.Debugw("error in marshal ", "err", err)
+			}
+			item.Data = byteData
+			item.SecretData = nil
+		}
+	}
 }
