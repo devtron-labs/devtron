@@ -95,6 +95,9 @@ github.com/ProtonMail/go-crypto/openpgp/s2k
 # github.com/acomagu/bufpipe v1.0.3
 ## explicit; go 1.12
 github.com/acomagu/bufpipe
+# github.com/agext/levenshtein v1.2.1
+## explicit
+github.com/agext/levenshtein
 # github.com/antonmedv/expr v1.9.0
 ## explicit; go 1.13
 github.com/antonmedv/expr
@@ -107,6 +110,12 @@ github.com/antonmedv/expr/optimizer
 github.com/antonmedv/expr/parser
 github.com/antonmedv/expr/parser/lexer
 github.com/antonmedv/expr/vm
+# github.com/apparentlymart/go-textseg v1.0.0
+## explicit
+github.com/apparentlymart/go-textseg/textseg
+# github.com/apparentlymart/go-textseg/v13 v13.0.0
+## explicit; go 1.16
+github.com/apparentlymart/go-textseg/v13/textseg
 # github.com/argoproj/argo-cd/v2 v2.5.2
 ## explicit; go 1.18
 github.com/argoproj/argo-cd/v2/common
@@ -319,6 +328,9 @@ github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
+# github.com/deckarep/golang-set v1.8.0
+## explicit; go 1.17
+github.com/deckarep/golang-set
 # github.com/devtron-labs/authenticator v0.4.31-0.20221213131053-6e4668309f53
 ## explicit; go 1.16
 github.com/devtron-labs/authenticator/apiToken
@@ -565,8 +577,8 @@ github.com/google/shlex
 # github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
-# github.com/google/wire v0.3.0
-## explicit
+# github.com/google/wire v0.5.0
+## explicit; go 1.12
 github.com/google/wire
 # github.com/googleapis/enterprise-certificate-proxy v0.2.0
 ## explicit; go 1.18
@@ -635,9 +647,16 @@ github.com/hashicorp/go-retryablehttp
 # github.com/hashicorp/go-uuid v1.0.2
 ## explicit
 github.com/hashicorp/go-uuid
+# github.com/hashicorp/hcl2 v0.0.0-20191002203319-fb75b3253c80
+## explicit
+github.com/hashicorp/hcl2/hcl
+github.com/hashicorp/hcl2/hcl/hclsyntax
 # github.com/huandu/xstrings v1.3.2
 ## explicit; go 1.12
 github.com/huandu/xstrings
+# github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0
+## explicit
+github.com/iancoleman/orderedmap
 # github.com/igm/sockjs-go v3.0.0+incompatible
 ## explicit
 # github.com/imdario/mergo v0.3.13
@@ -646,6 +665,9 @@ github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 ## explicit
 github.com/inconshreveable/mousetrap
+# github.com/invopop/jsonschema v0.7.0
+## explicit; go 1.16
+github.com/invopop/jsonschema
 # github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
 ## explicit
 github.com/jbenet/go-context/io
@@ -887,7 +909,7 @@ github.com/valyala/fasttemplate
 # github.com/vmihailenco/go-tinylfu v0.2.1
 ## explicit; go 1.15
 github.com/vmihailenco/go-tinylfu
-# github.com/vmihailenco/msgpack/v5 v5.3.4
+# github.com/vmihailenco/msgpack/v5 v5.3.5
 ## explicit; go 1.11
 github.com/vmihailenco/msgpack/v5
 github.com/vmihailenco/msgpack/v5/msgpcode
@@ -923,6 +945,16 @@ github.com/yannh/kubeconform/pkg/cache
 github.com/yannh/kubeconform/pkg/registry
 github.com/yannh/kubeconform/pkg/resource
 github.com/yannh/kubeconform/pkg/validator
+# github.com/zclconf/go-cty v1.13.2
+## explicit; go 1.18
+github.com/zclconf/go-cty/cty
+github.com/zclconf/go-cty/cty/convert
+github.com/zclconf/go-cty/cty/ctystrings
+github.com/zclconf/go-cty/cty/function
+github.com/zclconf/go-cty/cty/function/stdlib
+github.com/zclconf/go-cty/cty/gocty
+github.com/zclconf/go-cty/cty/json
+github.com/zclconf/go-cty/cty/set
 # go.opencensus.io v0.23.0
 ## explicit; go 1.13
 go.opencensus.io
@@ -1056,12 +1088,12 @@ golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/agent
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/knownhosts
-# golang.org/x/exp v0.0.0-20220602145555-4a0574d9293f
-## explicit; go 1.18
+# golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
+## explicit; go 1.20
+golang.org/x/exp/constraints
 golang.org/x/exp/maps
 golang.org/x/exp/rand
-# golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
-## explicit; go 1.17
+golang.org/x/exp/slices
 # golang.org/x/net v0.7.0
 ## explicit; go 1.17
 golang.org/x/net/context
@@ -1091,7 +1123,7 @@ golang.org/x/oauth2/jwt
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/singleflight
-# golang.org/x/sys v0.5.0
+# golang.org/x/sys v0.11.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs
@@ -1118,8 +1150,6 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20220922220347-f3bd1da661af
 ## explicit
 golang.org/x/time/rate
-# golang.org/x/tools v0.1.12
-## explicit; go 1.18
 # golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2
 ## explicit; go 1.17
 golang.org/x/xerrors
