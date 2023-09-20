@@ -312,6 +312,7 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 		UserId:            userId,
 		BeforeDockerBuild: refCiConf.BeforeDockerBuild,
 		AfterDockerBuild:  refCiConf.AfterDockerBuild,
+		ScanEnabled:       refCiConf.ScanEnabled,
 	}
 
 	res, err := impl.pipelineBuilder.CreateCiPipeline(ciConfRequest)
@@ -813,6 +814,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					PreBuildStage:            preStageDetail,
 					PostBuildStage:           postStageDetail,
 					EnvironmentId:            refCiPipeline.EnvironmentId,
+					ScanEnabled:              refCiPipeline.ScanEnabled,
 				},
 				AppId:         req.appId,
 				Action:        bean.CREATE,
