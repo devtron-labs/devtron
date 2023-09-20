@@ -119,7 +119,6 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 
 	for _, item := range envLevelConfigMap.Maps {
 		commonMaps[item.Name] = item
-		finalMaps = append(finalMaps, item)
 	}
 	for _, item := range appLevelConfigMap.Maps {
 		if _, ok := commonMaps[item.Name]; ok {
@@ -128,6 +127,9 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 			commonMaps[item.Name] = item
 			finalMaps = append(finalMaps, item)
 		}
+	}
+	for _, item := range envLevelConfigMap.Maps {
+		finalMaps = append(finalMaps, item)
 	}
 	//for _, v := range commonMaps {
 	//	finalMaps = append(finalMaps, v)
