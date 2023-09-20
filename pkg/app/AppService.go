@@ -2696,11 +2696,13 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 						Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"},
 				},
 			}
+			syncOptions := v1alpha1.SyncOptions{}
 			if hpaEnabled {
-				syncOptions := v1alpha1.SyncOptions{}
 				syncOptions.AddOption("RespectIgnoreDifferences=true")
-				patchReq.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
+			} else {
+				syncOptions.AddOption("RespectIgnoreDifferences=false")
 			}
+			patchReq.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
 			reqbyte, err := json.Marshal(patchReq)
 			if err != nil {
 				impl.logger.Errorw("error in creating patch", "err", err)
