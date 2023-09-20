@@ -119,6 +119,7 @@ type PipelineBuilder interface {
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
 	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
+	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, response *bean.CiMaterialBulkPatchResponse) error
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
@@ -1644,6 +1645,31 @@ func (impl *PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) 
 
 func (impl *PipelineBuilderImpl) PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error) {
 	return impl.ciCdPipelineOrchestrator.PatchCiMaterialSource(ciPipeline, userId)
+}
+
+func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, response *bean.CiMaterialBulkPatchResponse) error {
+	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
+	for _, appId := range ciPipelines.AppIds {
+		ciPipeline := &bean.CiMaterialPatchRequest{
+			AppId:         appId,
+			EnvironmentId: ciPipelines.EnvironmentId,
+		}
+		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value)
+		if err != nil {
+			response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
+				AppId:   appId,
+				AppName: "",
+				Status:  bean.CI_PATCH_FAILED,
+				Message: bean.CiPatchMessage(err.Error()),
+			})
+			continue
+		}
+		ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
+	}
+	if err := impl.ciCdPipelineOrchestrator.UpdateCiPipelineMaterials(ciPipelineMaterials); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl *PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {

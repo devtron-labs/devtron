@@ -44,6 +44,7 @@ type DevtronAppBuildRestHandler interface {
 	GetExternalCiById(w http.ResponseWriter, r *http.Request)
 	PatchCiPipelines(w http.ResponseWriter, r *http.Request)
 	PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request)
+	PatchCiMaterialSourceWithAppIdsAndEnvironmentId(w http.ResponseWriter, r *http.Request)
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
@@ -249,6 +250,24 @@ func (handler PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.Res
 	return &patchRequest, userId, nil
 }
 
+func (handler PipelineConfigRestHandlerImpl) parseBulkSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialBulkPatchRequest, int32, error) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return nil, 0, err
+	}
+	var patchRequest bean.CiMaterialBulkPatchRequest
+	err = decoder.Decode(&patchRequest)
+
+	if err != nil {
+		handler.Logger.Errorw("request err, BulkPatchCiPipeline", "err", err, "BulkPatchCiPipeline", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, 0, err
+	}
+	return &patchRequest, userId, nil
+}
+
 func (handler PipelineConfigRestHandlerImpl) authorizeCiSourceChangeRequest(w http.ResponseWriter, patchRequest *bean.CiMaterialPatchRequest, token string) error {
 	handler.Logger.Debugw("update request ", "req", patchRequest)
 	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
@@ -268,6 +287,45 @@ func (handler PipelineConfigRestHandlerImpl) authorizeCiSourceChangeRequest(w ht
 		return err
 	}
 	err = handler.validator.Struct(patchRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return err
+	}
+	return nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) authorizeBulkCiSourceChangeRequest(w http.ResponseWriter, patchRequest *bean.CiMaterialBulkPatchRequest, token string, response *bean.CiMaterialBulkPatchResponse) error {
+	handler.Logger.Debugw("update request ", "req", patchRequest)
+	var authorizedApp []int
+	for _, appId := range patchRequest.AppIds {
+		app, err := handler.pipelineBuilder.GetApp(appId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return err
+		}
+		if app.AppType != helper.CustomApp {
+			err = fmt.Errorf("only custom apps supported")
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return err
+		}
+		resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
+			handler.Logger.Errorw("Unauthorized User", "err", err)
+			response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
+				AppName: app.AppName,
+				Status:  bean.CI_PATCH_NOT_AUTHORIZED,
+				Message: bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE,
+				AppId:   appId,
+			})
+			continue
+		}
+		authorizedApp = append(authorizedApp, appId)
+	}
+
+	patchRequest.AppIds = authorizedApp
+
+	err := handler.validator.Struct(patchRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -302,6 +360,30 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndEn
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndEnvironmentId(w http.ResponseWriter, r *http.Request) {
+	bulkPatchRequest, userId, err := handler.parseBulkSourceChangeRequest(w, r)
+	if err != nil {
+		handler.Logger.Errorw("Parse error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", bulkPatchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	bulkPatchResponse := bean.CiMaterialBulkPatchResponse{}
+	token := r.Header.Get("token")
+	if err = handler.authorizeBulkCiSourceChangeRequest(w, bulkPatchRequest, token, &bulkPatchResponse); err != nil {
+		handler.Logger.Errorw("Authorization error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", bulkPatchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+
+	err = handler.pipelineBuilder.BulkPatchCiMaterialSource(bulkPatchRequest, userId, &bulkPatchResponse)
+	if err != nil {
+		handler.Logger.Errorw("service err, BulkPatchCiPipelines", "err", err, "BulkPatchCiPipelines", bulkPatchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, bulkPatchResponse, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {

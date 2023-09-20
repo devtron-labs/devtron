@@ -73,6 +73,8 @@ type CiCdPipelineOrchestrator interface {
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
+	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialPatchRequest, userId int32, value string) (*pipelineConfig.CiPipelineMaterial, error)
+	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
@@ -185,6 +187,41 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bea
 		return nil, err
 	}
 	return patchRequest, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialPatchRequest, userId int32, value string) (*pipelineConfig.CiPipelineMaterial, error) {
+	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
+	if err != nil {
+		return nil, err
+	}
+	ciPipelineMaterial, err := impl.findUniqueCiPipelineMaterial(pipeline.CiPipelineId)
+	if err != nil {
+		return nil, err
+	}
+	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+		return nil, errors.New(string(bean.CI_BRANCH_TYPE_ERROR) + string(ciPipelineMaterial.Type))
+	}
+	if ciPipelineMaterial.Regex != "" {
+		ok, err := regexp.MatchString(ciPipelineMaterial.Regex, value)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, errors.New(string(bean.CI_PATCH_REGEX_ERROR) + ciPipelineMaterial.Regex)
+		}
+	}
+	ciPipelineMaterial.Value = value
+	ciPipelineMaterial.AuditLog.UpdatedBy = userId
+	ciPipelineMaterial.AuditLog.UpdatedOn = time.Now()
+	return ciPipelineMaterial, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error {
+	if err := impl.saveUpdatedMaterial(materialsUpdate); err != nil {
+		return err
+	}
+	return nil
+
 }
 
 func (impl CiCdPipelineOrchestratorImpl) findUniquePipelineForAppIdAndEnvironmentId(appId, environmentId int) (*pipelineConfig.Pipeline, error) {
