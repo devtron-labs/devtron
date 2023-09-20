@@ -33,11 +33,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
-	"time"
 )
 
 type AppCloneService interface {
@@ -619,7 +617,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			impl.logger.Errorw("error in creating workflow without external-ci", "err", err)
 			return nil, err
 		}
-		impl.logger.Debugw("app workflow created", thisWf)
+		impl.logger.Debugw("app workflow created")
 
 		isExternalCiPresent := false
 		for _, awm := range refAppWF.AppWorkflowMappingDto {
@@ -628,7 +626,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 				break
 			}
 		}
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{}
+		var externalCiPipelineId int
 		if isExternalCiPresent {
 			dbConnection := impl.pipelineRepository.GetConnection()
 			tx, err := dbConnection.Begin()
@@ -638,33 +636,14 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			}
 			// Rollback tx on error.
 			defer tx.Rollback()
-
-			externalCiPipeline.AppId = newAppId
-			externalCiPipeline.AccessToken = ""
-			externalCiPipeline.Active = true
-			externalCiPipeline.AuditLog = sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId}
-
-			externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+			externalCiPipelineId, err = impl.pipelineBuilder.CreateExternalCiAndAppWorkflowMapping(newAppId, thisWf.Id, userId, tx)
 			if err != nil {
-				impl.logger.Errorw("error in creating external ci pipeline", "refAppId", oldAppId, "err", err)
-				return nil, err
-			}
-
-			appWorkflowMap := &appWorkflow2.AppWorkflowMapping{
-				AppWorkflowId: thisWf.Id,
-				ComponentId:   externalCiPipeline.Id,
-				Type:          "WEBHOOK",
-				Active:        true,
-				AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-			}
-			appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
-			if err != nil {
-				impl.logger.Errorw("error in creating external ci pipeline", "refAppId", oldAppId, "err", err)
+				impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "refAppId", oldAppId, "newAppId", newAppId, "err", err)
 				return nil, err
 			}
 			err = tx.Commit()
 			if err != nil {
-				return 0, err
+				return nil, err
 			}
 		}
 		createWorkflowMappingDto := CreateWorkflowMappingDto{
@@ -674,7 +653,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			newWfId:              thisWf.Id,
 			gitMaterialMapping:   gitMaterialMapping,
 			isSameProject:        isSameProject,
-			externalCiPipelineId: externalCiPipeline.Id,
+			externalCiPipelineId: externalCiPipelineId,
 		}
 		err = impl.createWfMappings(refAppWF.AppWorkflowMappingDto, createWorkflowMappingDto, ctx)
 		if err != nil {
@@ -724,7 +703,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 				pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 				impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 				if err != nil {
-					impl.logger.Errorw("error in getting cd-pipeling", "err", err)
+					impl.logger.Errorw("error in getting cd-pipeline", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
 					return err
 				}
 			}
@@ -778,7 +757,6 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 				refAppName:            refApp.AppName,
 				sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 			}
-			cdCloneReq.sourceToNewPipelineId[refCdMapping.ComponentId] = 0
 			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 			if err != nil {
 				impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
