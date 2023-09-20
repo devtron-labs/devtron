@@ -2404,17 +2404,6 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 	return override, nil
 }
 
-//func (impl *AppServiceImpl) mergeIgnoreDifferences(mergedValues []byte) ([]byte, error) {
-//	return impl.mergeUtil.JsonPatch(mergedValues, ignoreDifferencesBytes)
-//}
-
-func (impl *AppServiceImpl) mergeSyncPolicy(mergedValues []byte) ([]byte, error) {
-	// add syncPolicy if hpa is enabled
-	// https://github.com/devtron-labs/devtron/issues/3863
-	ignoreDifferencesBytes := []byte("{\"syncPolicy\": {\"syncOptions\": [ \"RespectIgnoreDifferences=true\" ]}}")
-	return impl.mergeUtil.JsonPatch(mergedValues, ignoreDifferencesBytes)
-}
-
 func (impl *AppServiceImpl) mergeOverrideValues(envOverride *chartConfig.EnvConfigOverride,
 	dbMigrationOverride []byte,
 	releaseOverrideJson string,
