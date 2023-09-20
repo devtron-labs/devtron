@@ -1545,7 +1545,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		// https://github.com/devtron-labs/devtron/issues/3863
 		mergedValues, err = impl.mergeIgnoreDifferences(mergedValues)
 		if err != nil {
-			impl.logger.Errorw("error in mergeing IgnoreDifferences data for acd app", "err", err)
+			impl.logger.Errorw("error in merging IgnoreDifferences data in mergedValues", "err", err)
 			return valuesOverrideResponse, err
 		}
 	}
@@ -2417,6 +2417,13 @@ func (impl *AppServiceImpl) mergeIgnoreDifferences(mergedValues []byte) ([]byte,
 	return impl.mergeUtil.JsonPatch(mergedValues, ignoreDifferencesBytes)
 }
 
+func (impl *AppServiceImpl) mergeSyncPolicy(mergedValues []byte) ([]byte, error) {
+	// add syncPolicy if hpa is enabled
+	// https://github.com/devtron-labs/devtron/issues/3863
+	ignoreDifferencesBytes := []byte("{\"spec\": {\"syncPolicy\": {\"syncOptions\": [ \"RespectIgnoreDifferences=true\" ]}}}")
+	return impl.mergeUtil.JsonPatch(mergedValues, ignoreDifferencesBytes)
+}
+
 func (impl *AppServiceImpl) mergeOverrideValues(envOverride *chartConfig.EnvConfigOverride,
 	dbMigrationOverride []byte,
 	releaseOverrideJson string,
@@ -2895,14 +2902,10 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			resourceManifest = k8sResource.Manifest.Object
 		}
 		if len(resourceManifest) > 0 {
-
-			// add syncPolicy if hpa is enabled
-			// https://github.com/devtron-labs/devtron/issues/3863
-			spec := resourceManifest["spec"]
-			if spec != nil {
-				specMap := spec.(map[string]interface{})
-				specMap["syncPolicy"] = "{\"syncOptions\": [ \"RespectIgnoreDifferences=true\" ]}"
-				resourceManifest["spec"] = specMap
+			merged, err = impl.mergeSyncPolicy(merged)
+			if err != nil {
+				impl.logger.Errorw("error occurred in mergeSyncPolicy", "err", err)
+				return merged
 			}
 			statusMap := resourceManifest["status"].(map[string]interface{})
 			currentReplicaVal := statusMap["currentReplicas"]
