@@ -2005,7 +2005,7 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
 	if err != nil && err != pg.ErrNoRows {
 		return err
-	} else if err == pg.ErrNoRows {
+	} else if err == pg.ErrNoRows || ot == nil {
 		imageScanDeployInfo := &security.ImageScanDeployInfo{
 			ImageScanExecutionHistoryId: ids,
 			ScanObjectMetaId:            appId,
