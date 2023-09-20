@@ -1540,7 +1540,15 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		return valuesOverrideResponse, err
 	}
 	mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
-
+	//TODO: handle above error
+	if IsAcdApp(overrideRequest.DeploymentAppType) {
+		// https://github.com/devtron-labs/devtron/issues/3863
+		mergedValues, err = impl.mergeIgnoreDifferences(mergedValues)
+		if err != nil {
+			impl.logger.Errorw("error in mergeing IgnoreDifferences data for acd app", "err", err)
+			return valuesOverrideResponse, err
+		}
+	}
 	appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 	mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 
@@ -2404,6 +2412,10 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 	}
 	return override, nil
 }
+func (impl *AppServiceImpl) mergeIgnoreDifferences(mergedValues []byte) ([]byte, error) {
+	ignoreDifferencesBytes := []byte("{\"spec\": {\"ignoreDifferences\": [ { \"group\": \"apps\", \"kind\": \"Deployment\",\"jsonPointers\": [\"/spec/replicas\"] },{\"group\": \"argoproj.io\", \"kind\": \"Rollout\",\"jsonPointers\": [\"/spec/replicas\"]}]}}")
+	return impl.mergeUtil.JsonPatch(mergedValues, ignoreDifferencesBytes)
+}
 
 func (impl *AppServiceImpl) mergeOverrideValues(envOverride *chartConfig.EnvConfigOverride,
 	dbMigrationOverride []byte,
@@ -2883,6 +2895,15 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			resourceManifest = k8sResource.Manifest.Object
 		}
 		if len(resourceManifest) > 0 {
+
+			// add syncPolicy if hpa is enabled
+			// https://github.com/devtron-labs/devtron/issues/3863
+			spec := resourceManifest["spec"]
+			if spec != nil {
+				specMap := spec.(map[string]interface{})
+				specMap["syncPolicy"] = "{\"syncOptions\": [ \"RespectIgnoreDifferences=true\" ]}"
+				resourceManifest["spec"] = specMap
+			}
 			statusMap := resourceManifest["status"].(map[string]interface{})
 			currentReplicaVal := statusMap["currentReplicas"]
 			currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
