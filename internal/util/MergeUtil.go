@@ -119,17 +119,19 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 
 	for _, item := range envLevelConfigMap.Maps {
 		commonMaps[item.Name] = item
+		finalMaps = append(finalMaps, item)
 	}
 	for _, item := range appLevelConfigMap.Maps {
 		if _, ok := commonMaps[item.Name]; ok {
 			//ignoring this value as override from configB
 		} else {
 			commonMaps[item.Name] = item
+			finalMaps = append(finalMaps, item)
 		}
 	}
-	for _, v := range commonMaps {
-		finalMaps = append(finalMaps, v)
-	}
+	//for _, v := range commonMaps {
+	//	finalMaps = append(finalMaps, v)
+	//}
 	configResponse.Maps = finalMaps
 	byteData, err := json.Marshal(configResponse)
 	if err != nil {
