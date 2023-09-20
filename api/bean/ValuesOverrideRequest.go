@@ -60,6 +60,15 @@ type ValuesOverrideRequest struct {
 	AppName                               string                      `json:"-"`
 	PipelineName                          string                      `json:"-"`
 	DeploymentAppType                     string                      `json:"-"`
+	hpaEnabled                            bool
+}
+
+func (impl *ValuesOverrideRequest) IsHpaEnabled() bool {
+	return impl.hpaEnabled
+}
+
+func (impl *ValuesOverrideRequest) SetHpaEnabled(enabled bool) {
+	impl.hpaEnabled = enabled
 }
 
 type BulkCdDeployEvent struct {

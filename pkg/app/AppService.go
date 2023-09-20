@@ -1005,6 +1005,7 @@ type ValuesOverrideResponse struct {
 	Artifact            *repository.CiArtifact
 	Pipeline            *pipelineConfig.Pipeline
 	AppMetrics          bool
+	HpaEnabled          bool
 }
 
 type EnvironmentOverride struct {
@@ -1540,15 +1541,6 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		return valuesOverrideResponse, err
 	}
 	mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
-	//TODO: handle above error
-	if IsAcdApp(overrideRequest.DeploymentAppType) {
-		// https://github.com/devtron-labs/devtron/issues/3863
-		mergedValues, err = impl.mergeIgnoreDifferences(mergedValues)
-		if err != nil {
-			impl.logger.Errorw("error in merging IgnoreDifferences data in mergedValues", "err", err)
-			return valuesOverrideResponse, err
-		}
-	}
 	appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 	mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 
@@ -1725,7 +1717,7 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, ctx)
+	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, overrideRequest.IsHpaEnabled(), ctx)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
@@ -2412,15 +2404,15 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 	}
 	return override, nil
 }
-func (impl *AppServiceImpl) mergeIgnoreDifferences(mergedValues []byte) ([]byte, error) {
-	ignoreDifferencesBytes := []byte("{\"spec\": {\"ignoreDifferences\": [ { \"group\": \"apps\", \"kind\": \"Deployment\",\"jsonPointers\": [\"/spec/replicas\"] },{\"group\": \"argoproj.io\", \"kind\": \"Rollout\",\"jsonPointers\": [\"/spec/replicas\"]}]}}")
-	return impl.mergeUtil.JsonPatch(mergedValues, ignoreDifferencesBytes)
-}
+
+//func (impl *AppServiceImpl) mergeIgnoreDifferences(mergedValues []byte) ([]byte, error) {
+//	return impl.mergeUtil.JsonPatch(mergedValues, ignoreDifferencesBytes)
+//}
 
 func (impl *AppServiceImpl) mergeSyncPolicy(mergedValues []byte) ([]byte, error) {
 	// add syncPolicy if hpa is enabled
 	// https://github.com/devtron-labs/devtron/issues/3863
-	ignoreDifferencesBytes := []byte("{\"spec\": {\"syncPolicy\": {\"syncOptions\": [ \"RespectIgnoreDifferences=true\" ]}}}")
+	ignoreDifferencesBytes := []byte("{\"syncPolicy\": {\"syncOptions\": [ \"RespectIgnoreDifferences=true\" ]}}")
 	return impl.mergeUtil.JsonPatch(mergedValues, ignoreDifferencesBytes)
 }
 
@@ -2670,7 +2662,7 @@ func (impl *AppServiceImpl) checkAndFixDuplicateReleaseNo(override *chartConfig.
 	return nil
 }
 
-func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (bool, error) {
+func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, envOverride *chartConfig.EnvConfigOverride, hpaEnabled bool, ctx context.Context) (bool, error) {
 	//repo has been registered while helm create
 	if ctx == nil {
 		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineName", pipelineName)
@@ -2698,7 +2690,29 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipelineName)
 		if application.Spec.Source.Path != envOverride.Chart.ChartLocation || application.Spec.Source.TargetRevision != "master" {
-			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"}}}
+			patchReq := v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					IgnoreDifferences: []v1alpha1.ResourceIgnoreDifferences{
+						{
+							Group:        "apps",
+							Kind:         "Deployment",
+							JSONPointers: []string{"spec/replicas"},
+						},
+						{
+							Group:        "argoproj.io",
+							Kind:         "Rollout",
+							JSONPointers: []string{"spec/replicas"},
+						},
+					},
+					Source: v1alpha1.ApplicationSource{
+						Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"},
+				},
+			}
+			if hpaEnabled {
+				syncOptions := v1alpha1.SyncOptions{}
+				syncOptions.AddOption("RespectIgnoreDifferences=true")
+				patchReq.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
+			}
 			reqbyte, err := json.Marshal(patchReq)
 			if err != nil {
 				impl.logger.Errorw("error in creating patch", "err", err)
@@ -2902,11 +2916,6 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			resourceManifest = k8sResource.Manifest.Object
 		}
 		if len(resourceManifest) > 0 {
-			merged, err = impl.mergeSyncPolicy(merged)
-			if err != nil {
-				impl.logger.Errorw("error occurred in mergeSyncPolicy", "err", err)
-				return merged
-			}
 			statusMap := resourceManifest["status"].(map[string]interface{})
 			currentReplicaVal := statusMap["currentReplicas"]
 			currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
@@ -2922,6 +2931,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 				impl.logger.Errorw("marshaling failed for hpa check", "err", err)
 				return merged
 			}
+			overrideRequest.SetHpaEnabled(true)
 		}
 	} else {
 		impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
@@ -2954,6 +2964,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 				if err != nil {
 					return merged
 				}
+				overrideRequest.SetHpaEnabled(true)
 			}
 		}
 	}
