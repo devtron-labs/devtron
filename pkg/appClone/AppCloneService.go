@@ -625,6 +625,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 		for _, awm := range refAppWF.AppWorkflowMappingDto {
 			if awm.Type == appWorkflow2.WEBHOOK {
 				isExternalCiPresent = true
+				break
 			}
 		}
 		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{}
