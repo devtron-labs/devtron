@@ -1195,6 +1195,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 						2) User creates an app with same name i.e "foo"
 						3) In this case we use helmReleaseInstallStatus which will have status of our release and not external release
 					*/
+					resourceTree = make(map[string]interface{})
 					releaseStatus = impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus)
 				}
 			}
@@ -1233,16 +1234,11 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 			releaseStatus.Status = "Failed"
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = "Release install/upgrade failed"
-		} else {
-			// there can be a case when helm release is created but we are not able to fetch it
-			releaseStatus.Status = "Unknown"
-			releaseStatus.Description = "Unable to fetch release for app"
-			releaseStatus.Message = "Unable to fetch release for app"
 		}
 	} else {
-		releaseStatus.Status = "Unknown"
-		releaseStatus.Description = "Release not found"
-		releaseStatus.Message = "Release not found "
+		releaseStatus.Status = "Progressing"
+		releaseStatus.Description = "Release install/upgrade pending"
+		releaseStatus.Message = "Release install/upgrade pending"
 	}
 	return releaseStatus
 }
