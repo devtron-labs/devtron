@@ -3101,17 +3101,13 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		var parentPipelineId int
 		var parentPipelineType string
 
-		if pipeline.ParentPipelineId == 0 && pipeline.ExternalCiPipelineId == 0 {
+		if pipeline.ParentPipelineId == 0 {
 			parentPipelineId = pipeline.CiPipelineId
 			parentPipelineType = "CI_PIPELINE"
-		} else if pipeline.ExternalCiPipelineId > 0 {
-			//app clone req where appWorkflow and externalCi is already created
-			parentPipelineId = pipeline.ExternalCiPipelineId
-			parentPipelineType = string(bean2.WEBHOOK_WORKFLOW_TYPE)
 		} else {
 			parentPipelineId = pipeline.ParentPipelineId
 			parentPipelineType = pipeline.ParentPipelineType
-			if pipeline.RefPipelineId > 0 && len(pipeline.SourceToNewPipelineId) > 0 {
+			if pipeline.ParentPipelineType != appWorkflow.WEBHOOK && pipeline.RefPipelineId > 0 && len(pipeline.SourceToNewPipelineId) > 0 {
 				parentPipelineId = pipeline.SourceToNewPipelineId[pipeline.ParentPipelineId]
 			}
 		}
