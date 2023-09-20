@@ -227,19 +227,6 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		Status:        appStoreBean.DEPLOY_INIT,
 	}
 
-	//if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && (installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD || !isInternalUse) {
-	//	installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-	//} else {
-	//	installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-	//}
-	//
-	//if isInternalUse && installedAppModel.DeploymentAppType == "" {
-	//	if isGitOpsConfigured {
-	//		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-	//	} else {
-	//		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-	//	}
-	//}
 	if !isInternalUse {
 		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
