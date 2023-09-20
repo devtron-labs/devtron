@@ -717,7 +717,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 					ciPipelineId:          0,
 					appWfId:               createWorkflowMappingDto.newWfId,
 					refAppName:            refApp.AppName,
-					sourceToNewPipelineId: &sourceToNewPipelineIdMapping,
+					sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 					externalCiPipelineId:  createWorkflowMappingDto.externalCiPipelineId,
 				}
 				pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
@@ -775,9 +775,9 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 				ciPipelineId:          ci.CiPipelines[0].Id,
 				appWfId:               createWorkflowMappingDto.newWfId,
 				refAppName:            refApp.AppName,
-				sourceToNewPipelineId: &sourceToNewPipelineIdMapping,
+				sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 			}
-			(*cdCloneReq.sourceToNewPipelineId)[refCdMapping.ComponentId] = 0
+			cdCloneReq.sourceToNewPipelineId[refCdMapping.ComponentId] = 0
 			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 			if err != nil {
 				impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
@@ -947,7 +947,7 @@ type cloneCdPipelineRequest struct {
 	ciPipelineId          int
 	appWfId               int
 	refAppName            string
-	sourceToNewPipelineId *map[int]int
+	sourceToNewPipelineId map[int]int
 	externalCiPipelineId  int
 }
 

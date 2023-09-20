@@ -3089,7 +3089,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		return 0, err
 	}
 	if pipeline.RefPipelineId > 0 {
-		(*pipeline.SourceToNewPipelineId)[pipeline.RefPipelineId] = pipelineId
+		pipeline.SourceToNewPipelineId[pipeline.RefPipelineId] = pipelineId
 	}
 
 	//adding pipeline to workflow
@@ -3111,8 +3111,8 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		} else {
 			parentPipelineId = pipeline.ParentPipelineId
 			parentPipelineType = pipeline.ParentPipelineType
-			if pipeline.RefPipelineId > 0 && len(*pipeline.SourceToNewPipelineId) > 0 {
-				parentPipelineId = (*pipeline.SourceToNewPipelineId)[pipeline.ParentPipelineId]
+			if pipeline.RefPipelineId > 0 && len(pipeline.SourceToNewPipelineId) > 0 {
+				parentPipelineId = pipeline.SourceToNewPipelineId[pipeline.ParentPipelineId]
 			}
 		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
