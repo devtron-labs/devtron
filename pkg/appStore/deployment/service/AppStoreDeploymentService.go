@@ -1685,12 +1685,7 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
 			return
 		}
-
-		if helmInstallNatsMessage.ErrorInInstallation {
-			installedAppVersionHistory.Status = "Failed"
-		} else if !helmInstallNatsMessage.ErrorInInstallation {
-			installedAppVersionHistory.Status = "Succeeded"
-		}
+		installedAppVersionHistory.Status = helmInstallNatsMessage.Status
 		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 		if err != nil {
