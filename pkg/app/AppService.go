@@ -1005,7 +1005,6 @@ type ValuesOverrideResponse struct {
 	Artifact            *repository.CiArtifact
 	Pipeline            *pipelineConfig.Pipeline
 	AppMetrics          bool
-	HpaEnabled          bool
 }
 
 type EnvironmentOverride struct {
