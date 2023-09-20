@@ -131,9 +131,7 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 	for _, item := range envLevelConfigMap.Maps {
 		finalMaps = append(finalMaps, item)
 	}
-	//for _, v := range commonMaps {
-	//	finalMaps = append(finalMaps, v)
-	//}
+
 	configResponse.Maps = finalMaps
 	byteData, err := json.Marshal(configResponse)
 	if err != nil {
