@@ -1106,6 +1106,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		2) ErrorInInstallation -> if there is error in installation
 		3) Message -> error message/ success message
 		4) InstallAppVersionHistoryId
+		5) Status -> Progressing, Failed, Succeeded
 		*/
 
 		if detail != nil && detail.ReleaseExist {
@@ -1166,15 +1167,24 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 			impl.logger.Errorw("error in unmarshalling helm release install status")
 			return releaseStatus
 		}
-		if helmInstallStatus.ErrorInInstallation {
-			releaseStatus.Status = "Failed"
+		if helmInstallStatus.Status == "Failed" {
+			releaseStatus.Status = helmInstallStatus.Status
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = "Release install/upgrade failed"
+		} else if helmInstallStatus.Status == "Progressing" {
+			releaseStatus.Status = helmInstallStatus.Status
+			releaseStatus.Description = helmInstallStatus.Message
+			releaseStatus.Message = helmInstallStatus.Message
+		} else {
+			// there can be a case when helm release is created but we are not able to fetch it
+			releaseStatus.Status = "Unknown"
+			releaseStatus.Description = "Unable to fetch release for app"
+			releaseStatus.Message = "Unable to fetch release for app"
 		}
 	} else {
-		releaseStatus.Status = "Progressing"
-		releaseStatus.Description = "Release install/upgrade pending"
-		releaseStatus.Message = "Release install/upgrade pending"
+		releaseStatus.Status = "Unknown"
+		releaseStatus.Description = "Release not found"
+		releaseStatus.Message = "Release not found "
 	}
 	return releaseStatus
 }
