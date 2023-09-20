@@ -655,7 +655,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			isSameProject:        isSameProject,
 			externalCiPipelineId: externalCiPipelineId,
 		}
-		err = impl.createWfMappings(refAppWF.AppWorkflowMappingDto, createWorkflowMappingDto, ctx)
+		err = impl.createWfInstances(refAppWF.AppWorkflowMappingDto, createWorkflowMappingDto, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating workflow mapping", "err", err)
 			return nil, err
@@ -664,7 +664,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 	return nil, nil
 }
 
-func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) error {
+func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) error {
 	impl.logger.Debugw("wf mapping cloning", "refWfMappings", refWfMappings)
 	var ciMapping []appWorkflow.AppWorkflowMappingDto
 	var cdMappings []appWorkflow.AppWorkflowMappingDto
