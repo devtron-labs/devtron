@@ -1,0 +1,1 @@
+DROP index image_scan_deploy_info_unique;
