@@ -1169,9 +1169,11 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 			return releaseStatus
 		}
 		if status == "Failed" {
+			releaseStatus.Status = status
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = "Release install/upgrade failed"
 		} else if status == "Progressing" {
+			releaseStatus.Status = status
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = helmInstallStatus.Message
 		} else {
