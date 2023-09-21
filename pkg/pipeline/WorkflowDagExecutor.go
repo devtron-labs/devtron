@@ -1642,6 +1642,14 @@ func (impl *WorkflowDagExecutorImpl) GetArtifactVulnerabilityStatus(artifact *re
 			cveStores = append(cveStores, &item.CveStore)
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "cvePolicyRepository.GetBlockedCVEList")
+		if cdPipeline.Environment.ClusterId == 0 {
+			envDetails, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("error fetching cluster details by env, GetArtifactVulnerabilityStatus", "envId", cdPipeline.EnvironmentId, "err", err)
+				return false, err
+			}
+			cdPipeline.Environment = *envDetails
+		}
 		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId, false)
 		span.End()
 		if err != nil {
