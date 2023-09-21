@@ -1139,7 +1139,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 					resourceTree = make(map[string]interface{})
 					releaseStatus = impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus, status)
 				}
-				if helmInstallStatus.IsReleaseInstalled && helmInstallStatus.ErrorInInstallation {
+				if status == "Failed" {
 					releaseStatus = impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus, status)
 				}
 			}
