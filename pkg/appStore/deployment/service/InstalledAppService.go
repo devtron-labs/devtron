@@ -1190,7 +1190,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 					return err
 				}
 				// ReleaseExist=true in app detail container but helm install status says that isReleaseInstalled=false which means this release was created externally
-				if helmInstallStatus.IsReleaseInstalled == false {
+				if helmInstallStatus.IsReleaseInstalled == false && status != "Progressing" {
 					/*
 						Handling case when :-
 						1) An external release with name "foo" exist
