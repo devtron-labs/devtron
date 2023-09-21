@@ -371,12 +371,9 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndE
 	}
 	bulkPatchResponse := bean.CiMaterialBulkPatchResponse{}
 	token := r.Header.Get("token")
-	if err = handler.authorizeBulkCiSourceChangeRequest(w, bulkPatchRequest, token, &bulkPatchResponse); err != nil {
-		handler.Logger.Errorw("Authorization error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", bulkPatchRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
-		return
-	}
 
+	bulkPatchRequest.Token = token
+	bulkPatchRequest.CheckAppSpecificAccess = handler.checkAppSpecificAccess
 	err = handler.pipelineBuilder.BulkPatchCiMaterialSource(bulkPatchRequest, userId, &bulkPatchResponse)
 	if err != nil {
 		handler.Logger.Errorw("service err, BulkPatchCiPipelines", "err", err, "BulkPatchCiPipelines", bulkPatchRequest)
@@ -1972,4 +1969,23 @@ func (handler PipelineConfigRestHandlerImpl) extractCipipelineMetaForImageTags(a
 		appId = externalCiPipeline.AppId
 	}
 	return externalCi, ciPipelineId, appId, nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, action string, appId int) (bool, error) {
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		return false, err
+	}
+	if app.AppType != helper.CustomApp {
+		return false, errors.New("custom apps are not supported")
+	}
+
+	if len(app.Material) > 1 {
+		return false, errors.New(string(bean.CI_PATCH_MULTI_GIT_ERROR))
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, action, resourceName); !ok {
+		return false, errors.New(string(bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE))
+	}
+	return true, nil
 }
