@@ -174,17 +174,10 @@ func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJs
 			finalMaps = append(finalMaps, item)
 		}
 	}
-
-	//for _, item := range commonSecrets {
-	//	err = m.funcName(appLevelSecretJson, envLevelSecretJson, chartMajorVersion, chartMinorVersion, isJob, item, err)
-	//}
 	for _, item := range envLevelSecret.Secrets {
 		m.externalSecretProcessing(chartMajorVersion, chartMinorVersion, isJob, item)
 		finalMaps = append(finalMaps, item)
 	}
-	//for _, v := range commonSecrets {
-	//	finalMaps = append(finalMaps, v)
-	//}
 	secretResponse.Secrets = finalMaps
 	byteData, err := json.Marshal(secretResponse)
 	if err != nil {
