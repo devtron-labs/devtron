@@ -377,10 +377,9 @@ type PushChartToGitRequestDTO struct {
 	UserId            int32
 }
 
-type HelmInstallNatsMessage struct {
+type HelmReleaseStatusConfig struct {
 	InstallAppVersionHistoryId int
 	Message                    string
 	IsReleaseInstalled         bool
 	ErrorInInstallation        bool
-	Status                     string
 }

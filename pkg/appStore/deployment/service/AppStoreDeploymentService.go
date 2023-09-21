@@ -314,8 +314,6 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		return nil, err
 	}
 	installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
-
-
 	if installAppVersionRequest.DefaultClusterComponent {
 		clusterInstalledAppsModel := &repository.ClusterInstalledApps{
 			ClusterId:      environment.ClusterId,
@@ -1382,8 +1380,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	installAppVersionRequest.EnvironmentName = installedApp.Environment.Name
 	installAppVersionRequest.Environment = &installedApp.Environment
 
-	installAppVersionHistoryStatus := "Unknown"
-	installAppVersionHistoryStatus = pipelineConfig.WorkflowInProgress
+	installAppVersionHistoryStatus := pipelineConfig.WorkflowInProgress
 	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
 		InstalledAppVersionId: installedAppVersion.Id,
 		ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
@@ -1727,7 +1724,7 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 	callback := func(msg *pubsub.PubSubMsg) {
 
 		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
-		helmInstallNatsMessage := &appStoreBean.HelmInstallNatsMessage{}
+		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
 		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
 		if err != nil {
 			impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
@@ -1739,7 +1736,11 @@ func (impl AppStoreDeploymentServiceImpl) SubscribeHelmInstallStatus() error {
 			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
 			return
 		}
-		installedAppVersionHistory.Status = helmInstallNatsMessage.Status
+		if helmInstallNatsMessage.ErrorInInstallation {
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		} else {
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+		}
 		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 		if err != nil {

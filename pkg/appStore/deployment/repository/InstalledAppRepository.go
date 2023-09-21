@@ -72,7 +72,7 @@ type InstalledAppRepository interface {
 
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error)
-	GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, error)
+	GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, string, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -829,13 +829,16 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLast
 	return installedAppVersions, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, error) {
-	var helmReleaseStatusConfig string
-	queryString := `select helm_release_status_config  from installed_app_version_history inner join installed_app_versions on installed_app_version_history.installed_app_version_id=installed_app_versions.id inner join installed_apps on installed_apps.id=installed_app_versions.installed_app_id where installed_apps.id = ? order by installed_app_version_history.created_on desc limit 1;`
-	_, err := impl.dbConnection.Query(&helmReleaseStatusConfig, queryString, installedAppVersionHistoryId)
+func (impl InstalledAppRepositoryImpl) GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, string, error) {
+	installStatus := struct {
+		HelmReleaseStatusConfig string
+		Status                  string
+	}{}
+	queryString := `select helm_release_status_config, installed_app_version_history.status  from installed_app_version_history inner join installed_app_versions on installed_app_version_history.installed_app_version_id=installed_app_versions.id inner join installed_apps on installed_apps.id=installed_app_versions.installed_app_id where installed_apps.id = ? order by installed_app_version_history.created_on desc limit 1;`
+	_, err := impl.dbConnection.Query(&installStatus, queryString, installedAppVersionHistoryId)
 	if err != nil {
 		impl.Logger.Errorw("error in GetAllGitOpsDeploymentAppName", "err", err)
-		return helmReleaseStatusConfig, err
+		return installStatus.HelmReleaseStatusConfig, "", err
 	}
-	return helmReleaseStatusConfig, nil
+	return installStatus.HelmReleaseStatusConfig, installStatus.Status, nil
 }
