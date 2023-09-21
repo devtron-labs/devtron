@@ -1,4 +1,4 @@
-FROM golang:1.20  AS build-env
+FROM golang:1.21  AS build-env
 
 RUN echo $GOPATH
 RUN apt update
