@@ -42,7 +42,7 @@ type InstalledAppVersionHistory struct {
 	GitHash                 string    `sql:"git_hash"`
 	StartedOn               time.Time `sql:"started_on,type:timestamptz"`
 	FinishedOn              time.Time `sql:"finished_on,type:timestamptz"`
-	HelmReleaseStatusConfig string    `sql: "helm_release_status"`
+	HelmReleaseStatusConfig string    `sql:"helm_release_status_config"`
 	sql.AuditLog
 }
 
