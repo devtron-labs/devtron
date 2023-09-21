@@ -169,7 +169,11 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		case repository.PublishedOnEnvironments:
 			override, err := impl.propertiesConfigService.GetEnvironmentProperties(request.AppId, request.EnvId, request.ChartRefId)
 			if err == nil && override.GlobalConfig != nil {
-				values = string(override.EnvironmentConfig.EnvOverrideValues)
+				if override.EnvironmentConfig.EnvOverrideValues != nil {
+					values = string(override.EnvironmentConfig.EnvOverrideValues)
+				} else {
+					values = string(override.GlobalConfig)
+				}
 			} else {
 				impl.Logger.Errorw("error in getting overridden values", "err", err)
 				return result, err
