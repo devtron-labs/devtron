@@ -617,7 +617,6 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			impl.logger.Errorw("error in creating workflow without external-ci", "err", err)
 			return nil, err
 		}
-		impl.logger.Debugw("app workflow created")
 
 		isExternalCiPresent := false
 		for _, awm := range refAppWF.AppWorkflowMappingDto {
@@ -626,35 +625,20 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 				break
 			}
 		}
+		createWorkflowMappingDto := CreateWorkflowMappingDto{
+			newAppId: newAppId,
+			oldAppId: oldAppId,
+			newWfId:  thisWf.Id,
+			userId:   userId,
+		}
 		var externalCiPipelineId int
 		if isExternalCiPresent {
-			dbConnection := impl.pipelineRepository.GetConnection()
-			tx, err := dbConnection.Begin()
-			if err != nil {
-				impl.logger.Errorw("error in beginning transaction", "err", err)
-				return nil, err
-			}
-			// Rollback tx on error.
-			defer tx.Rollback()
-			externalCiPipelineId, err = impl.pipelineBuilder.CreateExternalCiAndAppWorkflowMapping(newAppId, thisWf.Id, userId, tx)
-			if err != nil {
-				impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "refAppId", oldAppId, "newAppId", newAppId, "err", err)
-				return nil, err
-			}
-			err = tx.Commit()
-			if err != nil {
-				return nil, err
-			}
+			externalCiPipelineId = impl.createExternalCiAndAppWorkflowMapping(createWorkflowMappingDto)
 		}
-		createWorkflowMappingDto := CreateWorkflowMappingDto{
-			oldAppId:             oldAppId,
-			newAppId:             newAppId,
-			userId:               userId,
-			newWfId:              thisWf.Id,
-			gitMaterialMapping:   gitMaterialMapping,
-			isSameProject:        isSameProject,
-			externalCiPipelineId: externalCiPipelineId,
-		}
+		createWorkflowMappingDto.gitMaterialMapping = gitMaterialMapping
+		createWorkflowMappingDto.isSameProject = isSameProject
+		createWorkflowMappingDto.externalCiPipelineId = externalCiPipelineId
+
 		err = impl.createWfInstances(refAppWF.AppWorkflowMappingDto, createWorkflowMappingDto, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating workflow mapping", "err", err)
@@ -662,6 +646,27 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 		}
 	}
 	return nil, nil
+}
+
+func (impl *AppCloneServiceImpl) createExternalCiAndAppWorkflowMapping(createWorkflowMappingDto CreateWorkflowMappingDto) int {
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in beginning transaction", "err", err)
+		return 0
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	externalCiPipelineId, err := impl.pipelineBuilder.CreateExternalCiAndAppWorkflowMapping(createWorkflowMappingDto.newAppId, createWorkflowMappingDto.newWfId, createWorkflowMappingDto.userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
+		return 0
+	}
+	err = tx.Commit()
+	if err != nil {
+		return 0
+	}
+	return externalCiPipelineId
 }
 
 func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) error {
