@@ -80,6 +80,10 @@ type CdHandler interface {
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32, isAppStoreApplication bool)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
+	FetchLatestImageDeployedStatus(appId int) ([]*pipelineConfig.LatestImageDeployedStatus, error)
+
+
+
 }
 
 type CdHandlerImpl struct {
@@ -117,6 +121,10 @@ type CdHandlerImpl struct {
 	appGroupService                        appGroup2.AppGroupService
 	imageTaggingService                    ImageTaggingService
 	k8sUtil                                *k8s.K8sUtil
+}
+type key struct {
+	PipelineId   int
+	CiArtifactId int
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, cdWorkflowService CdWorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, appGroupService appGroup2.AppGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil) *CdHandlerImpl {
@@ -1264,6 +1272,68 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	}
 
 	return cdWorkflowStatus, err
+}
+func (impl *CdHandlerImpl) FetchLatestImageDeployedStatus(appId int) ([]*pipelineConfig.LatestImageDeployedStatus, error) {
+	var latestArtifactsDeployedStatus []*pipelineConfig.LatestImageDeployedStatus
+	pipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		return latestArtifactsDeployedStatus, err
+	}
+	pipelineIds := make([]int, 0)
+	partialDeletedPipelines := make(map[int]bool)
+	//pipelineIdsMap := make(map[int]int)
+	for _, pipeline := range pipelines {
+		pipelineIds = append(pipelineIds, pipeline.Id)
+		partialDeletedPipelines[pipeline.Id] = pipeline.DeploymentAppDeleteRequest
+	}
+
+	if len(pipelineIds) == 0 {
+		return latestArtifactsDeployedStatus, nil
+	}
+	artifactsResponse, err := impl.cdWorkflowRepository.FetchAllCdPipelinesArtifactStatus(pipelineIds)
+	if err != nil {
+		return latestArtifactsDeployedStatus, err
+	}
+	cdArtifactMap := make(map[string]*pipelineConfig.LatestImageDeployedStatus)
+	cdPipelineIdMap := make(map[int]bool)
+	for _, item := range artifactsResponse {
+		latestArtifactDeployedStatus := &pipelineConfig.LatestImageDeployedStatus{}
+		k := fmt.Sprintf("%d-%d", item.PipelineId, item.CiArtifactId)
+		if artifactAlreadyFound, ok := cdArtifactMap[k]; ok {
+			if item.WorkflowType == "PRE" {
+				if artifactAlreadyFound.PreLatestImageDeployStatus == "" {
+					artifactAlreadyFound.PreLatestImageDeployStatus = item.Status
+				}
+
+			} else if item.WorkflowType == "POST" {
+
+				if artifactAlreadyFound.PostLatestImageDeployStatus == "" {
+					artifactAlreadyFound.PostLatestImageDeployStatus = item.Status
+				}
+
+			} else {
+				if artifactAlreadyFound.CdLatestImageDeployStatus == "" {
+					artifactAlreadyFound.CdLatestImageDeployStatus = item.Status
+				}
+
+			}
+
+		} else if _, ok := cdPipelineIdMap[item.PipelineId]; !ok {
+			cdPipelineIdMap[item.PipelineId] = true
+			latestArtifactDeployedStatus.PipelineId = item.PipelineId
+			if item.WorkflowType == "POST" {
+				latestArtifactDeployedStatus.PostLatestImageDeployStatus = item.Status
+			} else if item.WorkflowType == "PRE" {
+				latestArtifactDeployedStatus.PreLatestImageDeployStatus = item.Status
+			} else {
+				latestArtifactDeployedStatus.CdLatestImageDeployStatus = item.Status
+			}
+			cdArtifactMap[k] = latestArtifactDeployedStatus
+			latestArtifactsDeployedStatus = append(latestArtifactsDeployedStatus, latestArtifactDeployedStatus)
+		}
+
+	}
+	return latestArtifactsDeployedStatus, err
 }
 
 func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error) {

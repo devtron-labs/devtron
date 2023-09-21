@@ -76,6 +76,7 @@ type DevtronAppWorkflowRestHandler interface {
 	FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request)
 	FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request)
 	FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request)
+	FetchLatestImageStatusForCdPipelines(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineConfigRestHandler interface {
@@ -655,6 +656,30 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	triggerWorkflowStatus.CiWorkflowStatus = ciWorkflowStatus
 	triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
+}
+func (handler PipelineConfigRestHandlerImpl) FetchLatestImageStatusForCdPipelines(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, FetchAppWorkflowStatusForTriggerView", "appId", appId)
+	//RBAC CHECK
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	latestImageStatusResponse, err := handler.cdHandler.FetchLatestImageDeployedStatus(appId)
+	common.WriteJsonResp(w, err, latestImageStatusResponse, http.StatusOK)
+
 }
 
 func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.ResponseWriter, r *http.Request) {

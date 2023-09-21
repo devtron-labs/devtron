@@ -65,6 +65,7 @@ type CdWorkflowRepository interface {
 	FindLatestCdWorkflowByPipelineIdV2(pipelineIds []int) ([]*CdWorkflow, error)
 	FetchAllCdStagesLatestEntity(pipelineIds []int) ([]*CdWorkflowStatus, error)
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
+	FetchAllCdPipelinesArtifactStatus(pipelineIds []int) ([]*CdPipelineArtifactResponse, error)
 	ExistsByStatus(status string) (bool, error)
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error)
@@ -223,6 +224,7 @@ type CdWorkflowStatus struct {
 	WorkflowType               string `json:"workflow_type,omitempty"`
 	WfrId                      int    `json:"wfr_id,omitempty"`
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
+	LatestBuildImageStatus     bool   `json:"latestBuildImageStatus"`
 }
 
 type CiWorkflowStatus struct {
@@ -237,6 +239,19 @@ type AppDeploymentStatus struct {
 	PipelineId   int    `json:"pipelineId"`
 	DeployStatus string `json:"deployStatus"`
 	WfrId        int    `json:"wfrId,omitempty"`
+}
+type LatestImageDeployedStatus struct {
+	PipelineId                  int    `json:"pipelineId"`
+	PreLatestImageDeployStatus  string `json:"preLatestImageDeployStatus"`
+	CdLatestImageDeployStatus   string `json:"cdLatestImageDeployStatus"`
+	PostLatestImageDeployStatus string `json:"postLatestImageDeployStatus"`
+}
+type CdPipelineArtifactResponse struct {
+	Id           int    `json:"id"`
+	PipelineId   int    `json:"pipeline_id"`
+	CiArtifactId int    `json:"ci_artifact_id"`
+	Status       string `json:"status"`
+	WorkflowType string `json:"workflow_type"`
 }
 
 func NewCdWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CdWorkflowRepositoryImpl {
@@ -542,6 +557,17 @@ func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntity(pipelineIds [
 		return cdWorkflowStatus, err
 	}
 	return cdWorkflowStatus, nil
+}
+func (impl *CdWorkflowRepositoryImpl) FetchAllCdPipelinesArtifactStatus(pipelineIds []int) ([]*CdPipelineArtifactResponse, error) {
+	var artifactStausList []*CdPipelineArtifactResponse
+	query := "SELECT cdwf.id,cdwf.pipeline_id, cdwf.ci_artifact_id,cdwfr.status,cdwfr.workflow_type from \ncd_workflow_runner cdwfr\nINNER JOIN cd_workflow cdwf on cdwf.id=cdwfr.cd_workflow_id\nwhere pipeline_id in (" + sqlIntSeq(pipelineIds) + ")\n ORDER by cdwf.ci_artifact_id desc;"
+	_, err := impl.dbConnection.Query(&artifactStausList, query)
+	if err != nil {
+		impl.logger.Error("err", err)
+		return artifactStausList, err
+	}
+	return artifactStausList, nil
+
 }
 
 func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error) {
