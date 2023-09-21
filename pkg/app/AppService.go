@@ -2675,35 +2675,21 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 	//if status, ok:=status.FromError(err);ok{
 	appStatus, _ := status.FromError(err)
 
-	if appStatus.Code() == codes.OK {
+	if appStatus.Code() == codes.OK && application != nil {
+		var patchReq *v1alpha1.Application
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipelineName)
-		if application.Spec.Source.Path != envOverride.Chart.ChartLocation || application.Spec.Source.TargetRevision != "master" {
-			patchReq := v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					IgnoreDifferences: []v1alpha1.ResourceIgnoreDifferences{
-						{
-							Group:        "apps",
-							Kind:         "Deployment",
-							JSONPointers: []string{"spec/replicas"},
-						},
-						{
-							Group:        "argoproj.io",
-							Kind:         "Rollout",
-							JSONPointers: []string{"spec/replicas"},
-						},
-					},
-					Source: v1alpha1.ApplicationSource{
-						Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"},
-				},
-			}
-			syncOptions := v1alpha1.SyncOptions{}
-			if hpaEnabled {
-				syncOptions.AddOption("RespectIgnoreDifferences=true")
-			} else {
-				syncOptions.AddOption("RespectIgnoreDifferences=false")
-			}
-			patchReq.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
-			reqbyte, err := json.Marshal(patchReq)
+		patchReq = &v1alpha1.Application{}
+		//Source is required in update request
+		patchReq.Spec.Source = v1alpha1.ApplicationSource{
+			Path:           envOverride.Chart.ChartLocation,
+			RepoURL:        envOverride.Chart.GitRepoUrl,
+			TargetRevision: "master",
+		}
+
+		patchReq = getPatchWitSyncPolicyAndIgnoreDifferences(patchReq, hpaEnabled)
+		if patchReq != nil {
+			impl.logger.Debugw("pipeline update req ", "res", patchReq)
+			reqbyte, err := json.Marshal(*patchReq)
 			if err != nil {
 				impl.logger.Errorw("error in creating patch", "err", err)
 			}
@@ -2714,9 +2700,6 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 				impl.logger.Errorw("error in creating argo pipeline ", "name", pipelineName, "patch", string(reqbyte), "err", err)
 				return false, err
 			}
-			impl.logger.Debugw("pipeline update req ", "res", patchReq)
-		} else {
-			impl.logger.Debug("pipeline no need to update ")
 		}
 		return true, nil
 	} else if appStatus.Code() == codes.NotFound {
@@ -2728,6 +2711,42 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 	}
 }
 
+func getPatchWitSyncPolicyAndIgnoreDifferences(patch *v1alpha1.Application, hpaEnabled bool) *v1alpha1.Application {
+	respectIgnoreDifferences := "RespectIgnoreDifferences=true"
+	dontRespectIgnoreDifferences := "RespectIgnoreDifferences=false"
+
+	//init new patch object if nil
+	if patch == nil {
+		patch = &v1alpha1.Application{}
+	}
+
+	//add syncOptions
+	syncOptions := v1alpha1.SyncOptions{}
+	if hpaEnabled {
+		syncOptions = syncOptions.AddOption(respectIgnoreDifferences)
+	} else {
+		syncOptions = syncOptions.AddOption(dontRespectIgnoreDifferences)
+	}
+
+	patch.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
+
+	//add ignore differences
+	patch.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{
+		{
+			Group:        "apps",
+			Kind:         "Deployment",
+			JSONPointers: []string{"spec/replicas"},
+		},
+		{
+			Group:        "argoproj.io",
+			Kind:         "Rollout",
+			JSONPointers: []string{"spec/replicas"},
+		},
+	}
+
+	return patch
+
+}
 func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1alpha1.Application, installedAppVersionHistoryId int, updateTimedOutStatus bool) error {
 	installedAppVersionHistory, err := impl.installedAppVersionHistoryRepository.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
 	if err != nil {
