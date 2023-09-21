@@ -198,6 +198,15 @@ type GlobalPluginRepository interface {
 	SavePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) (*PluginStepCondition, error)
 	SavePluginTag(pluginTag *PluginTag, tx *pg.Tx) (*PluginTag, error)
 	SavePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) (*PluginTagRelation, error)
+
+	UpdatePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) error
+	UpdatePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) error
+	UpdatePluginSteps(pluginStep *PluginStep, tx *pg.Tx) error
+	UpdatePluginPipelineScript(pluginPipelineScript *PluginPipelineScript, tx *pg.Tx) error
+	UpdatePluginStepVariables(pluginStepVariables *PluginStepVariable, tx *pg.Tx) error
+	UpdatePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) error
+	UpdatePluginTag(pluginTag *PluginTag, tx *pg.Tx) error
+	UpdatePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) error
 }
 
 func NewGlobalPluginRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *GlobalPluginRepositoryImpl {
@@ -429,43 +438,115 @@ func (impl *GlobalPluginRepositoryImpl) GetConditionsByPluginId(pluginId int) ([
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetPluginStageMappingByPluginId(pluginId int) (*PluginStageMapping, error) {
-	var pluginStageMapping *PluginStageMapping
+	var pluginStageMapping PluginStageMapping
 	err := impl.dbConnection.Model(&pluginStageMapping).
 		Where("plugin_id = ?", pluginId).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting pluginStageMapping", "err", err, "pluginId", pluginId)
 		return nil, err
 	}
-	return pluginStageMapping, nil
+	return &pluginStageMapping, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error) {
-	return nil, nil
+	err := tx.Insert(pluginMetadata)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginMetadata", "err", err)
+		return pluginMetadata, err
+	}
+	return pluginMetadata, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) SavePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) (*PluginStageMapping, error) {
-	return nil, nil
+	err := tx.Insert(pluginStageMapping)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginStageMapping", "err", err)
+		return pluginStageMapping, err
+	}
+	return pluginStageMapping, nil
 }
 func (impl *GlobalPluginRepositoryImpl) SavePluginSteps(pluginStep *PluginStep, tx *pg.Tx) (*PluginStep, error) {
-	return nil, nil
+	err := tx.Insert(pluginStep)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginStep", "err", err)
+		return pluginStep, err
+	}
+	return pluginStep, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) SavePluginPipelineScript(pluginPipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error) {
-	return nil, nil
+	err := tx.Insert(pluginPipelineScript)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginPipelineScript", "err", err)
+		return pluginPipelineScript, err
+	}
+	return pluginPipelineScript, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) SavePluginStepVariables(pluginStepVariables *PluginStepVariable, tx *pg.Tx) (*PluginStepVariable, error) {
-	return nil, nil
+	err := tx.Insert(pluginStepVariables)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginStepVariables", "err", err)
+		return pluginStepVariables, err
+	}
+	return pluginStepVariables, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) SavePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) (*PluginStepCondition, error) {
-	return nil, nil
+	err := tx.Insert(pluginStepConditions)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginStepConditions", "err", err)
+		return pluginStepConditions, err
+	}
+	return pluginStepConditions, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) SavePluginTag(pluginTags *PluginTag, tx *pg.Tx) (*PluginTag, error) {
-	return nil, nil
+	err := tx.Insert(pluginTags)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginTags", "err", err)
+		return pluginTags, err
+	}
+	return pluginTags, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) SavePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) (*PluginTagRelation, error) {
-	return nil, nil
+	err := tx.Insert(pluginTagRelation)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginTagRelation", "err", err)
+		return pluginTagRelation, err
+	}
+	return pluginTagRelation, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) error {
+	return tx.Update(pluginMetadata)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) error {
+	return tx.Update(pluginStageMapping)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginSteps(pluginStep *PluginStep, tx *pg.Tx) error {
+	return tx.Update(pluginStep)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginPipelineScript(pluginPipelineScript *PluginPipelineScript, tx *pg.Tx) error {
+	return tx.Update(pluginPipelineScript)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginStepVariables(pluginStepVariables *PluginStepVariable, tx *pg.Tx) error {
+	return tx.Update(pluginStepVariables)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) error {
+	return tx.Update(pluginStepConditions)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginTag(pluginTag *PluginTag, tx *pg.Tx) error {
+	return tx.Update(pluginTag)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) error {
+	return tx.Update(pluginTagRelation)
 }

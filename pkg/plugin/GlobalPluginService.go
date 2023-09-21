@@ -535,6 +535,38 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 }
 
 func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+	dbConnection := impl.globalPluginRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	//pluginMetaData, err := impl.globalPluginRepository.GetMetaDataByPluginId(pluginUpdateReq.Id)
+	//if err != nil {
+	//	impl.logger.Errorw("updatePlugin, error in getting pluginMetadata", "pluginId", pluginUpdateReq.Id, "err", err)
+	//	return nil, err
+	//}
+	//pluginStageMapping, err := impl.globalPluginRepository.GetPluginStageMappingByPluginId(pluginUpdateReq.Id)
+	//if err != nil {
+	//	impl.logger.Errorw("updatePlugin, error in getting pluginStageMapping", "pluginId", pluginUpdateReq.Id, "err", err)
+	//	return nil, err
+	//}
+	//pluginSteps, err := impl.globalPluginRepository.GetPluginStepsByPluginId(pluginUpdateReq.Id)
+	//if err != nil {
+	//	impl.logger.Errorw("updatePlugin, error in getting pluginSteps", "pluginId", pluginUpdateReq.Id, "err", err)
+	//	return nil, err
+	//}
+	//pluginStepVariables, err := impl.globalPluginRepository.GetExposedVariablesByPluginId(pluginUpdateReq.Id)
+	//if err != nil {
+	//	impl.logger.Errorw("updatePlugin, error in getting pluginStepVariables", "pluginId", pluginUpdateReq.Id, "err", err)
+	//	return nil, err
+	//}
+	//pluginStepConditions, err := impl.globalPluginRepository.GetConditionsByPluginId(pluginUpdateReq.Id)
+	//if err != nil {
+	//	impl.logger.Errorw("updatePlugin, error in getting pluginStepConditions", "pluginId", pluginUpdateReq.Id, "err", err)
+	//	return nil, err
+	//}
 
 	return pluginUpdateReq, nil
 }
