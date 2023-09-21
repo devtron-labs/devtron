@@ -81,6 +81,9 @@ import (
 const (
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	HELM_RELEASE_STATUS_FAILED                  = "Failed"
+	HELM_RELEASE_STATUS_PROGRESSING             = "Progressing"
+	HELM_RELEASE_STATUS_UNKNOWN                 = "Unknown"
 )
 
 type InstalledAppService interface {
@@ -1168,22 +1171,22 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 			impl.logger.Errorw("error in unmarshalling helm release install status")
 			return releaseStatus
 		}
-		if status == "Failed" {
+		if status == HELM_RELEASE_STATUS_FAILED {
 			releaseStatus.Status = status
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = "Release install/upgrade failed"
-		} else if status == "Progressing" {
+		} else if status == HELM_RELEASE_STATUS_PROGRESSING {
 			releaseStatus.Status = status
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = helmInstallStatus.Message
 		} else {
 			// there can be a case when helm release is created but we are not able to fetch it
-			releaseStatus.Status = "Unknown"
+			releaseStatus.Status = HELM_RELEASE_STATUS_UNKNOWN
 			releaseStatus.Description = "Unable to fetch release for app"
 			releaseStatus.Message = "Unable to fetch release for app"
 		}
 	} else {
-		releaseStatus.Status = "Unknown"
+		releaseStatus.Status = HELM_RELEASE_STATUS_UNKNOWN
 		releaseStatus.Description = "Release not found"
 		releaseStatus.Message = "Release not found "
 	}
