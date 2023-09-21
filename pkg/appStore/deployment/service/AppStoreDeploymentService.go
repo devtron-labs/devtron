@@ -726,6 +726,9 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 
 	app, err := impl.appRepository.FindById(installAppVersionRequest.AppId)
 	if err != nil {
+		if err == pg.ErrNoRows {
+			return nil, fmt.Errorf("App not found in database")
+		}
 		return nil, err
 	}
 	model, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
