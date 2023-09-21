@@ -633,7 +633,11 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 		}
 		var externalCiPipelineId int
 		if isExternalCiPresent {
-			externalCiPipelineId = impl.createExternalCiAndAppWorkflowMapping(createWorkflowMappingDto)
+			externalCiPipelineId, err = impl.createExternalCiAndAppWorkflowMapping(createWorkflowMappingDto)
+			if err != nil {
+				impl.logger.Errorw("error in createExternalCiAndAppWorkflowMapping", "err", err)
+				return nil, err
+			}
 		}
 		createWorkflowMappingDto.gitMaterialMapping = gitMaterialMapping
 		createWorkflowMappingDto.isSameProject = isSameProject
@@ -648,25 +652,25 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 	return nil, nil
 }
 
-func (impl *AppCloneServiceImpl) createExternalCiAndAppWorkflowMapping(createWorkflowMappingDto CreateWorkflowMappingDto) int {
+func (impl *AppCloneServiceImpl) createExternalCiAndAppWorkflowMapping(createWorkflowMappingDto CreateWorkflowMappingDto) (int, error) {
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
 		impl.logger.Errorw("error in beginning transaction", "err", err)
-		return 0
+		return 0, err
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
 	externalCiPipelineId, err := impl.pipelineBuilder.CreateExternalCiAndAppWorkflowMapping(createWorkflowMappingDto.newAppId, createWorkflowMappingDto.newWfId, createWorkflowMappingDto.userId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
-		return 0
+		return 0, err
 	}
 	err = tx.Commit()
 	if err != nil {
-		return 0
+		return 0, err
 	}
-	return externalCiPipelineId
+	return externalCiPipelineId, nil
 }
 
 func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) error {
