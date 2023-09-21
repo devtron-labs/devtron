@@ -86,6 +86,7 @@ type CiConfig struct {
 	OrchestratorToken                string `env:"ORCH_TOKEN" envDefault:""`
 	BuildxK8sDriverOptions           string `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
 	BuildxProvenanceMode             string `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
+	CIAutoTriggerBatchSize           int    `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"2"`
 }
 
 type CiVolumeMount struct {
