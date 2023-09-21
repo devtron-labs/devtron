@@ -289,6 +289,17 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppVersionHistory.UpdatedOn = time.Now()
 	installedAppVersionHistory.StartedOn = time.Now()
 	installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
+	helmInstallConfigDTO := appStoreBean.HelmReleaseStatusConfig{
+		InstallAppVersionHistoryId: 0,
+		Message:                    "Install initiated",
+		IsReleaseInstalled:         false,
+		ErrorInInstallation:        false,
+	}
+	helmInstallConfig, err := json.Marshal(helmInstallConfigDTO)
+	if err != nil {
+		impl.logger.Errorw("error in helm install config marshal", "err")
+	}
+	installedAppVersionHistory.HelmReleaseStatusConfig = string(helmInstallConfig)
 	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
