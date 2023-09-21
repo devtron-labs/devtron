@@ -63,14 +63,6 @@ type ValuesOverrideRequest struct {
 	hpaEnabled                            bool
 }
 
-func (impl *ValuesOverrideRequest) IsHpaEnabled() bool {
-	return impl.hpaEnabled
-}
-
-func (impl *ValuesOverrideRequest) SetHpaEnabled(enabled bool) {
-	impl.hpaEnabled = enabled
-}
-
 type BulkCdDeployEvent struct {
 	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
 	UserId                int32                  `json:"userId"`

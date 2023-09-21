@@ -1005,6 +1005,15 @@ type ValuesOverrideResponse struct {
 	Artifact            *repository.CiArtifact
 	Pipeline            *pipelineConfig.Pipeline
 	AppMetrics          bool
+	hpaEnabled          bool
+}
+
+func (impl *ValuesOverrideResponse) IsHpaEnabled() bool {
+	return impl.hpaEnabled
+}
+
+func (impl *ValuesOverrideResponse) SetHpaEnabled(enabled bool) {
+	impl.hpaEnabled = enabled
 }
 
 type EnvironmentOverride struct {
@@ -1541,7 +1550,8 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	}
 	mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
 	appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
-	mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+	mergedValues, hpaEnabled := impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+	valuesOverrideResponse.SetHpaEnabled(hpaEnabled)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
@@ -1716,7 +1726,7 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, overrideRequest.IsHpaEnabled(), ctx)
+	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.IsHpaEnabled(), ctx)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
@@ -2521,7 +2531,7 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 	}
 
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
-	merged = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, overrideRequest)
+	merged, _ = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, overrideRequest)
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
@@ -2872,7 +2882,7 @@ func (impl *AppServiceImpl) getAutoScalingReplicaCount(templateMap map[string]in
 
 }
 
-func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) []byte {
+func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) ([]byte, bool) {
 	//pipeline := overrideRequest.Pipeline
 	var appId = overrideRequest.AppId
 	pipelineId := overrideRequest.PipelineId
@@ -2881,13 +2891,15 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 	deploymentType := overrideRequest.DeploymentType
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
+	hpaEnabled := false
 	if err != nil {
-		return merged
+		return merged, hpaEnabled
 	}
 
 	hpaResourceRequest := impl.getAutoScalingReplicaCount(templateMap, appName)
 	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "hpaResourceRequest", hpaResourceRequest)
 	if hpaResourceRequest.IsEnable {
+		hpaEnabled = true
 		resourceManifest := make(map[string]interface{})
 		if IsAcdApp(appDeploymentType) {
 			query := &application2.ApplicationResourceRequest{
@@ -2903,13 +2915,13 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			if err != nil {
 				impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
 				middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
-				return merged
+				return merged, hpaEnabled
 			}
 			if recv != nil && len(*recv.Manifest) > 0 {
 				err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
 				if err != nil {
 					impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
-					return merged
+					return merged, hpaEnabled
 				}
 			}
 		} else {
@@ -2919,7 +2931,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 					Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: hpaResourceRequest.Group, Kind: hpaResourceRequest.Kind, Version: version}}}})
 			if err != nil {
 				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
-				return merged
+				return merged, hpaEnabled
 			}
 			resourceManifest = k8sResource.Manifest.Object
 		}
@@ -2929,7 +2941,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
 			if err != nil {
 				impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
-				return merged
+				return merged, hpaEnabled
 			}
 
 			reqReplicaCount := impl.fetchRequiredReplicaCount(currentReplicaCount, hpaResourceRequest.ReqMaxReplicas, hpaResourceRequest.ReqMinReplicas)
@@ -2937,9 +2949,8 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			merged, err = json.Marshal(&templateMap)
 			if err != nil {
 				impl.logger.Errorw("marshaling failed for hpa check", "err", err)
-				return merged
+				return merged, hpaEnabled
 			}
-			overrideRequest.SetHpaEnabled(true)
 		}
 	} else {
 		impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
@@ -2950,11 +2961,11 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
 			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
 			if err != nil {
-				return merged
+				return merged, hpaEnabled
 			}
 			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
 			if err != nil {
-				return merged
+				return merged, hpaEnabled
 			}
 		} else {
 			autoscalingEnabled := false
@@ -2966,18 +2977,18 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 				// extract replica count, min, max and check for required value
 				replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
 				if err != nil {
-					return merged
+					return merged, hpaEnabled
 				}
 				merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
 				if err != nil {
-					return merged
+					return merged, hpaEnabled
 				}
-				overrideRequest.SetHpaEnabled(true)
+				hpaEnabled = true
 			}
 		}
 	}
 
-	return merged
+	return merged, hpaEnabled
 }
 
 func (impl *AppServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {

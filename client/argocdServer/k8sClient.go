@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,13 +36,15 @@ type ArgoK8sClient interface {
 	GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error)
 }
 type ArgoK8sClientImpl struct {
-	logger *zap.SugaredLogger
+	logger  *zap.SugaredLogger
+	k8sUtil *k8s.K8sUtil
 }
 
 func NewArgoK8sClientImpl(logger *zap.SugaredLogger,
-) *ArgoK8sClientImpl {
+	k8sUtil *k8s.K8sUtil) *ArgoK8sClientImpl {
 	return &ArgoK8sClientImpl{
-		logger: logger,
+		logger:  logger,
+		k8sUtil: k8sUtil,
 	}
 }
 
@@ -70,7 +73,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *rep
 		return "", err
 	}
 
-	config, err := rest.InClusterConfig()
+	config, err := impl.k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
 		impl.logger.Errorw("error in config", "err", err)
 		return "", err
@@ -121,7 +124,7 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 
 func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error) {
 
-	config, err := rest.InClusterConfig()
+	config, err := impl.k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
 		impl.logger.Errorw("error in cluster config", "err", err)
 		return nil, err

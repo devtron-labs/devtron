@@ -306,7 +306,7 @@ func InitializeApp() (*App, error) {
 	commonServiceImpl := commonService.NewCommonServiceImpl(sugaredLogger, chartRepositoryImpl, envConfigOverrideRepositoryImpl, gitOpsConfigRepositoryImpl, dockerArtifactStoreRepositoryImpl, attributesRepositoryImpl, gitProviderRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl)
 	imageScanDeployInfoRepositoryImpl := security.NewImageScanDeployInfoRepositoryImpl(db, sugaredLogger)
 	imageScanHistoryRepositoryImpl := security.NewImageScanHistoryRepositoryImpl(db, sugaredLogger)
-	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger)
+	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger, k8sUtil)
 	gitCliUtil := util.NewGitCliUtil(sugaredLogger)
 	gitFactory, err := util.NewGitFactory(sugaredLogger, gitOpsConfigRepositoryImpl, gitCliUtil)
 	if err != nil {
