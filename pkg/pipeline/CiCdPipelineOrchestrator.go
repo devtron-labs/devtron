@@ -40,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
 	util3 "github.com/devtron-labs/devtron/util/k8s"
 	"path"
@@ -73,7 +74,7 @@ type CiCdPipelineOrchestrator interface {
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
-	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialPatchRequest, userId int32, value string) (*pipelineConfig.CiPipelineMaterial, error)
+	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string) (*pipelineConfig.CiPipelineMaterial, error)
 	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
@@ -189,18 +190,31 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bea
 	return patchRequest, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialPatchRequest, userId int32, value string) (*pipelineConfig.CiPipelineMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string) (*pipelineConfig.CiPipelineMaterial, error) {
 	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
 	if err != nil {
 		return nil, err
 	}
+
 	ciPipelineMaterial, err := impl.findUniqueCiPipelineMaterial(pipeline.CiPipelineId)
 	if err != nil {
 		return nil, err
 	}
+
 	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
 		return nil, errors.New(string(bean.CI_BRANCH_TYPE_ERROR) + string(ciPipelineMaterial.Type))
 	}
+
+	if ciPipelineMaterial.Regex != "" {
+		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionTrigger, patchRequest.AppId); !ok {
+			return nil, err
+		}
+	} else {
+		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionUpdate, patchRequest.AppId); !ok {
+			return nil, err
+		}
+	}
+
 	if ciPipelineMaterial.Regex != "" {
 		ok, err := regexp.MatchString(ciPipelineMaterial.Regex, value)
 		if err != nil {
@@ -210,6 +224,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest
 			return nil, errors.New(string(bean.CI_PATCH_REGEX_ERROR) + ciPipelineMaterial.Regex)
 		}
 	}
+
 	ciPipelineMaterial.Value = value
 	ciPipelineMaterial.AuditLog.UpdatedBy = userId
 	ciPipelineMaterial.AuditLog.UpdatedOn = time.Now()
