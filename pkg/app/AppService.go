@@ -2676,9 +2676,8 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 	appStatus, _ := status.FromError(err)
 
 	if appStatus.Code() == codes.OK && application != nil {
-		var patchReq *v1alpha1.Application
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipelineName)
-		patchReq = &v1alpha1.Application{}
+		patchReq := &v1alpha1.Application{}
 		//Source is required in update request
 		patchReq.Spec.Source = v1alpha1.ApplicationSource{
 			Path:           envOverride.Chart.ChartLocation,
