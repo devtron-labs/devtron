@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 )
@@ -63,6 +64,7 @@ type DeploymentTemplateServiceImpl struct {
 	chartTemplateServiceImpl     util.ChartTemplateService
 	K8sUtil                      *k8s.K8sUtil
 	helmAppClient                client.HelmAppClient
+	propertiesConfigService      pipeline.PropertiesConfigService
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
@@ -74,6 +76,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	chartTemplateServiceImpl util.ChartTemplateService,
 	helmAppClient client.HelmAppClient,
 	K8sUtil *k8s.K8sUtil,
+	propertiesConfigService pipeline.PropertiesConfigService,
 ) *DeploymentTemplateServiceImpl {
 	return &DeploymentTemplateServiceImpl{
 		Logger:                       Logger,
@@ -86,6 +89,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		chartTemplateServiceImpl:     chartTemplateServiceImpl,
 		K8sUtil:                      K8sUtil,
 		helmAppClient:                helmAppClient,
+		propertiesConfigService:      propertiesConfigService,
 	}
 }
 
@@ -163,13 +167,12 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		case repository.DefaultVersions:
 			_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 		case repository.PublishedOnEnvironments:
-			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(request.AppId)
-			if err != nil {
-				impl.Logger.Errorw("error in getting chart", "err", err)
+			override, err := impl.propertiesConfigService.GetEnvironmentProperties(request.AppId, request.EnvId, request.ChartRefId)
+			if err == nil && override.GlobalConfig != nil {
+				values = string(override.EnvironmentConfig.EnvOverrideValues)
+			} else {
+				impl.Logger.Errorw("error in getting overridden values", "err", err)
 				return result, err
-			}
-			if chart != nil && chart.Id > 0 {
-				values = chart.GlobalOverride
 			}
 		case repository.DeployedOnSelfEnvironment, repository.DeployedOnOtherEnvironment:
 			values, err = impl.deploymentTemplateRepository.FetchPipelineOverrideValues(request.PipelineConfigOverrideId)
