@@ -126,8 +126,8 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 			ReleaseNamespace: installAppVersionRequest.Namespace,
 			ReleaseName:      installAppVersionRequest.AppName,
 		},
-		IsOCIRepo:          IsOCIRepo,
-		RegistryCredential: registryCredential,
+		IsOCIRepo:                  IsOCIRepo,
+		RegistryCredential:         registryCredential,
 		InstallAppVersionHistoryId: int32(installAppVersionRequest.InstalledAppVersionHistoryId),
 	}
 
@@ -304,7 +304,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) OnUpdateRepoInInstalledApp(ctx co
 		}
 	}
 
-	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml, 0)
+	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.InstalledAppVersionHistoryId)
 	if err != nil {
 		return installAppVersionRequest, err
 	}
@@ -445,11 +445,11 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 				ReleaseNamespace: installedApp.Environment.Namespace,
 				ReleaseName:      installedApp.App.AppName,
 			},
-			ChartName:          appStoreApplicationVersion.Name,
-			ChartVersion:       appStoreApplicationVersion.Version,
-			ChartRepository:    chartRepository,
-			RegistryCredential: registryCredential,
-			IsOCIRepo:          IsOCIRepo,
+			ChartName:                  appStoreApplicationVersion.Name,
+			ChartVersion:               appStoreApplicationVersion.Version,
+			ChartRepository:            chartRepository,
+			RegistryCredential:         registryCredential,
+			IsOCIRepo:                  IsOCIRepo,
 			InstallAppVersionHistoryId: int32(installAppVersionHistoryId),
 		},
 		SourceAppType: client.SOURCE_HELM_APP,
