@@ -3,8 +3,11 @@ package plugin
 import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
+	"time"
 )
 
 type GlobalVariable struct {
@@ -19,6 +22,9 @@ type GlobalPluginService interface {
 	GetAllGlobalVariables() ([]*GlobalVariable, error)
 	ListAllPlugins(stageType int) ([]*PluginListComponentDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
+	PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error)
+	GetDetailedPluginInfoByPluginId(pluginId int) (*PluginMetadataDto, error)
+	GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error)
 }
 
 func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository) *GlobalPluginServiceImpl {
@@ -293,4 +299,370 @@ func getVariableDto(pluginVariable *repository.PluginStepVariable) *PluginVariab
 		VariableStepIndex:     pluginVariable.VariableStepIndex,
 		ReferenceVariableName: pluginVariable.ReferenceVariableName,
 	}
+}
+
+func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+
+	switch pluginDto.Action {
+	case 0:
+		//create action
+		pluginData, err := impl.createPlugin(pluginDto, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating plugin", "err", err, "pluginDto", pluginDto)
+			return nil, err
+		}
+		return pluginData, nil
+	case 1:
+		pluginData, err := impl.updatePlugin(pluginDto, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating plugin", "err", err, "pluginDto", pluginDto)
+			return nil, err
+		}
+		return pluginData, nil
+	}
+
+	return nil, nil
+}
+
+func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+	dbConnection := impl.globalPluginRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	//create entry in plugin_metadata
+	pluginMetadata := &repository.PluginMetadata{
+		Name:        pluginReq.Name,
+		Description: pluginReq.Description,
+		Type:        repository.PluginType(pluginReq.Type),
+		Icon:        pluginReq.Icon,
+		AuditLog: sql.AuditLog{
+			CreatedOn: time.Now(),
+			CreatedBy: userId,
+			UpdatedOn: time.Now(),
+			UpdatedBy: userId,
+		},
+	}
+	pluginMetadata, err = impl.globalPluginRepository.SavePluginMetadata(pluginMetadata, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving plugin", "pluginDto", pluginReq, "err", err)
+		return nil, err
+	}
+	pluginReq.Id = pluginMetadata.Id
+	pluginStage := 2
+	if pluginReq.PluginStage == "CI" {
+		pluginStage = 0
+	} else if pluginReq.PluginStage == "CD" {
+		pluginStage = 1
+	}
+	pluginStageMapping := &repository.PluginStageMapping{
+		PluginId:  pluginMetadata.Id,
+		StageType: pluginStage,
+		AuditLog: sql.AuditLog{
+			CreatedOn: time.Now(),
+			CreatedBy: userId,
+			UpdatedOn: time.Now(),
+			UpdatedBy: userId,
+		},
+	}
+	_, err = impl.globalPluginRepository.SavePluginStageMapping(pluginStageMapping, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving plugin stage mapping", "pluginDto", pluginReq, "err", err)
+		return nil, err
+	}
+
+	for _, pluginStep := range pluginReq.PluginSteps {
+		//create entry in plugin_pipeline_script
+		pluginPipelineScript := &repository.PluginPipelineScript{
+			Script:                   pluginStep.PluginPipelineScript.Script,
+			StoreScriptAt:            pluginStep.PluginPipelineScript.StoreScriptAt,
+			Type:                     pluginStep.PluginPipelineScript.Type,
+			DockerfileExists:         pluginStep.PluginPipelineScript.DockerfileExists,
+			MountPath:                pluginStep.PluginPipelineScript.MountPath,
+			MountCodeToContainer:     pluginStep.PluginPipelineScript.MountCodeToContainer,
+			MountCodeToContainerPath: pluginStep.PluginPipelineScript.MountCodeToContainerPath,
+			MountDirectoryFromHost:   pluginStep.PluginPipelineScript.MountDirectoryFromHost,
+			ContainerImagePath:       pluginStep.PluginPipelineScript.ContainerImagePath,
+			ImagePullSecretType:      pluginStep.PluginPipelineScript.ImagePullSecretType,
+			ImagePullSecret:          pluginStep.PluginPipelineScript.ImagePullSecret,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		//create entry in plugin_step
+		pluginPipelineScript, err = impl.globalPluginRepository.SavePluginPipelineScript(pluginPipelineScript, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving plugin pipeline script", "pluginPipelineScript", pluginPipelineScript, "err", err)
+			return nil, err
+		}
+		pluginStep.PluginPipelineScript.Id = pluginPipelineScript.Id
+
+		pluginStepData := &repository.PluginStep{
+			PluginId:            pluginMetadata.Id,
+			Name:                pluginStep.Name,
+			Description:         pluginStep.Description,
+			Index:               pluginStep.Index,
+			StepType:            pluginStep.StepType,
+			ScriptId:            pluginPipelineScript.Id,
+			RefPluginId:         pluginStep.RefPluginId,
+			OutputDirectoryPath: pluginStep.OutputDirectoryPath,
+			DependentOnStep:     pluginStep.DependentOnStep,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		pluginStepData, err = impl.globalPluginRepository.SavePluginSteps(pluginStepData, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving plugin step", "pluginStepData", pluginStepData, "err", err)
+			return nil, err
+		}
+		pluginStep.Id = pluginStepData.Id
+		//create entry in plugin_step_variable
+		for _, pluginStepVariable := range pluginStep.PluginStepVariable {
+			pluginStepVariableData := &repository.PluginStepVariable{
+				PluginStepId:              pluginStepData.Id,
+				Name:                      pluginStepVariable.Name,
+				Format:                    pluginStepVariable.Format,
+				Description:               pluginStepVariable.Description,
+				IsExposed:                 pluginStepVariable.IsExposed,
+				AllowEmptyValue:           pluginStepVariable.AllowEmptyValue,
+				DefaultValue:              pluginStepVariable.DefaultValue,
+				Value:                     pluginStepVariable.Value,
+				VariableType:              repository.PluginStepVariableType(pluginStepVariable.VariableType),
+				ValueType:                 pluginStepVariable.ValueType,
+				PreviousStepIndex:         pluginStepVariable.PreviousStepIndex,
+				VariableStepIndex:         pluginStepVariable.VariableStepIndex,
+				VariableStepIndexInPlugin: pluginStepVariable.VariableStepIndexInPlugin,
+				ReferenceVariableName:     pluginStepVariable.ReferenceVariableName,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
+			}
+			pluginStepVariableData, err = impl.globalPluginRepository.SavePluginStepVariables(pluginStepVariableData, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving plugin step variable", "pluginStepVariableData", pluginStepVariableData, "err", err)
+				return nil, err
+			}
+			pluginStepVariable.Id = pluginStepVariableData.Id
+			//create entry in plugin_step_condition
+			for _, pluginStepCondition := range pluginStepVariable.PluginStepCondition {
+				pluginStepConditionData := &repository.PluginStepCondition{
+					PluginStepId:        pluginStepData.Id,
+					ConditionVariableId: pluginStepVariableData.Id,
+					ConditionType:       pluginStepCondition.ConditionType,
+					ConditionalOperator: pluginStepCondition.ConditionalOperator,
+					ConditionalValue:    pluginStepCondition.ConditionalValue,
+					AuditLog: sql.AuditLog{
+						CreatedOn: time.Now(),
+						CreatedBy: userId,
+						UpdatedOn: time.Now(),
+						UpdatedBy: userId,
+					},
+				}
+				pluginStepConditionData, err = impl.globalPluginRepository.SavePluginStepConditions(pluginStepConditionData, tx)
+				if err != nil {
+					impl.logger.Errorw("error in saving plugin step condition", "pluginStepConditionData", pluginStepConditionData, "err", err)
+					return nil, err
+				}
+				pluginStepCondition.Id = pluginStepConditionData.Id
+			}
+		}
+	}
+
+	allPluginTags, err := impl.globalPluginRepository.GetAllPluginTags()
+	if err != nil {
+		impl.logger.Errorw("error in getting all plugin tags", "err", err)
+		return nil, err
+	}
+	//check for new tags, then create new plugin_tag and plugin_tag_relation entry in db when new tags are present in request
+	for _, pluginTagReq := range pluginReq.Tags {
+		tagAlreadyExists := false
+		for _, presentPluginTags := range allPluginTags {
+			if strings.ToLower(pluginTagReq) == strings.ToLower(presentPluginTags.Name) {
+				tagAlreadyExists = true
+			}
+		}
+		if !tagAlreadyExists {
+			newPluginTag := &repository.PluginTag{
+				Name: pluginTagReq,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
+			}
+			newPluginTag, err = impl.globalPluginRepository.SavePluginTag(newPluginTag, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving plugin tag", "newPluginTag", newPluginTag, "err", err)
+				return nil, err
+			}
+			newPluginTagRelation := &repository.PluginTagRelation{
+				TagId:    newPluginTag.Id,
+				PluginId: pluginReq.Id,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
+			}
+			newPluginTagRelation, err = impl.globalPluginRepository.SavePluginTagRelation(newPluginTagRelation, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving plugin tag relation", "newPluginTagRelation", newPluginTagRelation, "err", err)
+				return nil, err
+			}
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("createPlugin, error in committing db transaction", "err", err)
+		return nil, err
+	}
+	return pluginReq, nil
+}
+
+func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+
+	return pluginUpdateReq, nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error) {
+	allPlugins, err := impl.globalPluginRepository.GetAllPluginMetaData()
+	if err != nil {
+		impl.logger.Errorw("GetAllDetailedPluginInfo, error in getting all pluginsMetadata", "err", err)
+		return nil, err
+	}
+	allPluginMetadata := make([]*PluginMetadataDto, 0)
+	for _, plugin := range allPlugins {
+		pluginDetailedInfo, err := impl.GetDetailedPluginInfoByPluginId(plugin.Id)
+		if err != nil {
+			impl.logger.Errorw("GetAllDetailedPluginInfo, error in getting pluginDetailedInfo", "pluginId", plugin.Id, "err", err)
+			return nil, err
+		}
+		allPluginMetadata = append(allPluginMetadata, pluginDetailedInfo)
+	}
+	return allPluginMetadata, nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId int) (*PluginMetadataDto, error) {
+
+	pluginMetaData, err := impl.globalPluginRepository.GetMetaDataByPluginId(pluginId)
+	if err != nil {
+		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginMetadata", "pluginId", pluginId, "err", err)
+		return nil, err
+	}
+	pluginStageMapping, err := impl.globalPluginRepository.GetPluginStageMappingByPluginId(pluginId)
+	if err != nil {
+		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginStageMapping", "pluginId", pluginId, "err", err)
+		return nil, err
+	}
+	pluginSteps, err := impl.globalPluginRepository.GetPluginStepsByPluginId(pluginId)
+	if err != nil {
+		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginSteps", "pluginId", pluginId, "err", err)
+		return nil, err
+	}
+	pluginStepVariables, err := impl.globalPluginRepository.GetExposedVariablesByPluginId(pluginId)
+	if err != nil {
+		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginStepVariables", "pluginId", pluginId, "err", err)
+		return nil, err
+	}
+	pluginStepConditions, err := impl.globalPluginRepository.GetConditionsByPluginId(pluginId)
+	if err != nil {
+		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginStepConditions", "pluginId", pluginId, "err", err)
+		return nil, err
+	}
+	pluginStage := "CI_CD"
+	if pluginStageMapping.StageType == 0 {
+		pluginStage = "CI"
+	} else if pluginStageMapping.StageType == 1 {
+		pluginStage = "CD"
+	}
+	pluginIdTagsMap, err := impl.getPluginIdTagsMap()
+	if err != nil {
+		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginIdTagsMap", "pluginId", pluginId, "err", err)
+		return nil, err
+	}
+	pluginMetadataResponse := &PluginMetadataDto{
+		Id:          pluginMetaData.Id,
+		Name:        pluginMetaData.Name,
+		Description: pluginMetaData.Description,
+		Type:        string(pluginMetaData.Type),
+		Icon:        pluginMetaData.Icon,
+		Tags:        pluginIdTagsMap[pluginMetaData.Id],
+		PluginStage: pluginStage,
+	}
+
+	pluginStepsResp := make([]*PluginStepsDto, 0)
+	for _, pluginStep := range pluginSteps {
+		pluginScript, err := impl.globalPluginRepository.GetScriptDetailById(pluginStep.ScriptId)
+		if err != nil {
+			impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginScript", "pluginScriptId", pluginStep.ScriptId, "pluginId", pluginId, "err", err)
+			return nil, err
+		}
+		pluginStepDto := &PluginStepsDto{
+			Id:                   pluginStep.Id,
+			Name:                 pluginStep.Name,
+			Description:          pluginStep.Description,
+			Index:                pluginStep.Index,
+			StepType:             pluginStep.StepType,
+			RefPluginId:          pluginStep.RefPluginId,
+			OutputDirectoryPath:  pluginStep.OutputDirectoryPath,
+			DependentOnStep:      pluginStep.DependentOnStep,
+			PluginPipelineScript: pluginScript,
+		}
+		pluginStepVariableResp := make([]*PluginVariableDto, 0)
+		for _, pluginStepVariable := range pluginStepVariables {
+			if pluginStepVariable.PluginStepId == pluginStep.Id {
+				pluginStepConditionDto := make([]*repository.PluginStepCondition, 0)
+				for _, pluginStepCondition := range pluginStepConditions {
+					if pluginStepCondition.ConditionVariableId == pluginStepVariable.Id {
+						pluginStepConditionDto = append(pluginStepConditionDto, &repository.PluginStepCondition{
+							Id:                  pluginStepCondition.Id,
+							PluginStepId:        pluginStepCondition.PluginStepId,
+							ConditionVariableId: pluginStepCondition.ConditionVariableId,
+							ConditionType:       pluginStepCondition.ConditionType,
+							ConditionalOperator: pluginStepCondition.ConditionalOperator,
+							ConditionalValue:    pluginStepCondition.ConditionalValue,
+							Deleted:             pluginStepCondition.Deleted,
+						})
+					}
+				}
+				pluginStepVariableResp = append(pluginStepVariableResp, &PluginVariableDto{
+					Id:                        pluginStepVariable.Id,
+					Name:                      pluginStepVariable.Name,
+					Format:                    pluginStepVariable.Format,
+					Description:               pluginStepVariable.Description,
+					IsExposed:                 pluginStepVariable.IsExposed,
+					AllowEmptyValue:           pluginStepVariable.AllowEmptyValue,
+					DefaultValue:              pluginStepVariable.DefaultValue,
+					Value:                     pluginStepVariable.Value,
+					VariableType:              string(pluginStepVariable.VariableType),
+					ValueType:                 pluginStepVariable.ValueType,
+					PreviousStepIndex:         pluginStepVariable.PreviousStepIndex,
+					VariableStepIndex:         pluginStepVariable.VariableStepIndex,
+					VariableStepIndexInPlugin: pluginStepVariable.VariableStepIndexInPlugin,
+					ReferenceVariableName:     pluginStepVariable.ReferenceVariableName,
+					PluginStepCondition:       pluginStepConditionDto,
+				})
+			}
+		}
+		pluginStepDto.PluginStepVariable = pluginStepVariableResp
+		pluginStepsResp = append(pluginStepsResp, pluginStepDto)
+	}
+	pluginMetadataResponse.PluginSteps = pluginStepsResp
+
+	return pluginMetadataResponse, nil
 }
