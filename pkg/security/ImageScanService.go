@@ -455,6 +455,10 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 				updatedVulnerabilities = make([]*Vulnerabilities, 0)
 			}
 			imageScanResponse.Vulnerabilities = updatedVulnerabilities
+		} else {
+			for _, vulnerability := range imageScanResponse.Vulnerabilities {
+				vulnerability.Permission = "WHITELISTED"
+			}
 		}
 	}
 	return imageScanResponse, nil
