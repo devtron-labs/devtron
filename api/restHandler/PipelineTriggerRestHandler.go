@@ -22,7 +22,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/xyproto/unzip"
 	"go.opentelemetry.io/otel"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"net/http"
 	"strconv"
@@ -48,6 +54,7 @@ type PipelineTriggerRestHandler interface {
 	StartStopDeploymentGroup(w http.ResponseWriter, r *http.Request)
 	GetAllLatestDeploymentConfiguration(w http.ResponseWriter, r *http.Request)
 	RotatePods(w http.ResponseWriter, r *http.Request)
+	UploadKustomizeHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineTriggerRestHandlerImpl struct {
@@ -82,6 +89,72 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		deploymentConfigService: deploymentConfigService,
 	}
 	return pipelineHandler
+}
+func (handler PipelineTriggerRestHandlerImpl) UploadKustomizeHandler(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	//rbac block starts from here
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	r.ParseMultipartForm(10 << 20) // Set the maximum upload size to 10 MB
+	file, fileHandler, err := r.FormFile("file")
+	if err != nil {
+		common.WriteJsonResp(w, err, "", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	uploadDir := fmt.Sprintf("/tmp/uploads/%v-%v", appId, time.Now().Nanosecond())
+	defer os.RemoveAll(uploadDir)
+	os.MkdirAll(uploadDir, os.ModePerm)
+
+	zipFilePath := filepath.Join(uploadDir, fileHandler.Filename)
+	outFile, err := os.Create(zipFilePath)
+	if err != nil {
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	defer outFile.Close()
+	io.Copy(outFile, file)
+
+	unzipDir := filepath.Join(uploadDir, strings.TrimSuffix(fileHandler.Filename, filepath.Ext(fileHandler.Filename)))
+	err = unzip.Extract(zipFilePath, unzipDir)
+	//err = unzip1(zipFilePath, unzipDir)
+	if err != nil {
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+
+	err = handler.appService.UploadKustomizeData(appId, envId, unzipDir)
+	if err != nil {
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, "successful", http.StatusOK)
 }
 
 func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWriter, r *http.Request) {

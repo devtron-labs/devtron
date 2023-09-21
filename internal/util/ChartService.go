@@ -59,6 +59,15 @@ type ChartCreateRequest struct {
 	ChartPath     string
 }
 
+type KustomizeUploadRequest struct {
+	GitOpsRepoName    string
+	ReferenceTemplate string
+	Version           string
+	RepoUrl           string
+	UserId            int
+	ExtractedFilePath string
+}
+
 type ChartCreateResponse struct {
 	BuiltChartPath string
 	valuesYaml     string
@@ -83,6 +92,7 @@ type ChartTemplateService interface {
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
 	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
+	PushKustomizeToGitRepo(request KustomizeUploadRequest) error
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -279,6 +289,51 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 	}
 	return &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
 }
+func (impl ChartTemplateServiceImpl) PushKustomizeToGitRepo(request KustomizeUploadRequest) error {
+
+	//gitOpsRepoName := "test-gitops"
+	//referenceTemplate := "deployment-chart_4-18-0"
+	//version := "4.18.1"
+	//repoUrl := "https://github.com/avd-org/devtron-test-gitops.git"  --> from charts table
+	//userId := int32(2)
+
+	//kustomizeOverlaysPath := "/tmp/uploads/Archive/overlays"
+	//kustomizeYmlPath := "/tmp/uploads/Archive/kustomize.yml"
+
+	chartDir := fmt.Sprintf("%s-%s", request.GitOpsRepoName, impl.GetDir())
+	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
+	clonedDir, err := impl.syncRepo(request.GitOpsRepoName, clonedDir, request.RepoUrl, chartDir)
+	defer os.RemoveAll(clonedDir)
+	if err != nil {
+		impl.logger.Errorw("err", err)
+		return err
+	}
+	targetPath := clonedDir + "/" + request.ReferenceTemplate + "/" + request.Version
+	if _, err = os.Stat(targetPath); err != nil {
+		impl.logger.Errorw("version doesnt exist", err)
+		return err
+	}
+
+	//err = os.MkdirAll(targetPath+"/overlays", os.ModePerm)
+	//if err != nil {
+	//	return err
+	//}
+	err = util.CopyDir(request.ExtractedFilePath, targetPath)
+	if err != nil {
+		return err
+	}
+	err = util.CopyFile(request.ExtractedFilePath+"/kustomization.yaml", targetPath+"/kustomization.yaml")
+	if err != nil {
+		return err
+	}
+
+	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(int32(request.UserId))
+	_, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
@@ -356,6 +411,23 @@ func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 
 	defer impl.CleanDir(clonedDir)
 	return nil
+}
+
+func (impl ChartTemplateServiceImpl) syncRepo(gitOpsRepoName string, clonedDir string, repoUrl string, chartDir string) (string, error) {
+	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
+		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
+		if err != nil {
+			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
+			return "", err
+		}
+	} else {
+		err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
+		if err != nil {
+			impl.logger.Errorw("error in pulling git repo", "url", repoUrl, "err", err)
+			return "", err
+		}
+	}
+	return clonedDir, nil
 }
 
 func (impl ChartTemplateServiceImpl) getValues(directory, pipelineStrategyPath string) (values *ChartValues, err error) {
