@@ -90,6 +90,7 @@ type DetailedErrorGitOpsConfigResponse struct {
 type GitOpsConfigServiceImpl struct {
 	randSource           rand.Source
 	logger               *zap.SugaredLogger
+	globalEnvVariables   *util2.GlobalEnvVariables
 	gitOpsRepository     repository.GitOpsConfigRepository
 	K8sUtil              *util4.K8sUtil
 	aCDAuthConfig        *util3.ACDAuthConfig
@@ -103,12 +104,14 @@ type GitOpsConfigServiceImpl struct {
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
+	globalEnvVariables *util2.GlobalEnvVariables,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
 	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService, clusterServiceCD cluster2.ServiceClient) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		randSource:           rand.NewSource(time.Now().UnixNano()),
 		logger:               Logger,
+		globalEnvVariables:   globalEnvVariables,
 		gitOpsRepository:     gitOpsRepository,
 		K8sUtil:              K8sUtil,
 		aCDAuthConfig:        aCDAuthConfig,
@@ -684,6 +687,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 }
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
+	if impl.globalEnvVariables.SkipGitOpsValidation {
+		return DetailedErrorGitOpsConfigResponse{}
+	}
 	if config.Token == "" {
 		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
 		if err != nil {
