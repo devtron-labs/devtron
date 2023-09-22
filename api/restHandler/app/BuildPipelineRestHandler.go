@@ -295,44 +295,6 @@ func (handler PipelineConfigRestHandlerImpl) authorizeCiSourceChangeRequest(w ht
 	return nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) authorizeBulkCiSourceChangeRequest(w http.ResponseWriter, patchRequest *bean.CiMaterialBulkPatchRequest, token string, response *bean.CiMaterialBulkPatchResponse) error {
-	handler.Logger.Debugw("update request ", "req", patchRequest)
-	var authorizedApp []int
-	for _, appId := range patchRequest.AppIds {
-		app, err := handler.pipelineBuilder.GetApp(appId)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return err
-		}
-		if app.AppType != helper.CustomApp {
-			err = fmt.Errorf("only custom apps supported")
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return err
-		}
-		resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
-			handler.Logger.Errorw("Unauthorized User", "err", err)
-			response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
-				Status:  bean.CI_PATCH_NOT_AUTHORIZED,
-				Message: bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE,
-				AppId:   appId,
-			})
-			continue
-		}
-		authorizedApp = append(authorizedApp, appId)
-	}
-
-	patchRequest.AppIds = authorizedApp
-
-	err := handler.validator.Struct(patchRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return err
-	}
-	return nil
-}
-
 func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request) {
 	patchRequest, userId, err := handler.parseSourceChangeRequest(w, r)
 	if err != nil {
@@ -370,6 +332,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndE
 	}
 	token := r.Header.Get("token")
 	bulkPatchRequest.Token = token
+	// Here passing the checkAppSpecificAccess func to check RBAC
 	bulkPatchRequest.CheckAppSpecificAccess = handler.checkAppSpecificAccess
 	bulkPatchResponse, err := handler.pipelineBuilder.BulkPatchCiMaterialSource(bulkPatchRequest, userId)
 	if err != nil {

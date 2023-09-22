@@ -1688,20 +1688,15 @@ func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiM
 		ciPipeline.CheckAppSpecificAccess = ciPipelines.CheckAppSpecificAccess
 		ciPipeline.Token = ciPipelines.Token
 		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value)
-		if err != nil {
-			response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
-				AppId:   appId,
-				Status:  bean.CI_PATCH_FAILED,
-				Message: bean.CiPatchMessage(err.Error()),
-			})
-			continue
+
+		if err == nil {
+			ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
 		}
 		response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
 			AppId:   appId,
-			Status:  bean.CI_PATCH_SUCESS,
-			Message: "",
+			Status:  getPatchStatus(err),
+			Message: getPatchMessage(err),
 		})
-		ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
 	}
 	if len(ciPipelineMaterials) == 0 {
 		return response, nil
@@ -1710,6 +1705,20 @@ func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiM
 		return nil, err
 	}
 	return response, nil
+}
+
+func getPatchStatus(err error) bean.CiPatchStatus {
+	if err != nil {
+		return bean.CI_PATCH_FAILED
+	}
+	return bean.CI_PATCH_SUCCESS
+}
+
+func getPatchMessage(err error) bean.CiPatchMessage {
+	if err != nil {
+		return bean.CiPatchMessage(err.Error())
+	}
+	return ""
 }
 
 func (impl *PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {

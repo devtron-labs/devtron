@@ -209,7 +209,7 @@ const (
 type CiPatchStatus string
 
 const (
-	CI_PATCH_SUCESS         CiPatchStatus = "Succeeded"
+	CI_PATCH_SUCCESS        CiPatchStatus = "Succeeded"
 	CI_PATCH_FAILED         CiPatchStatus = "Failed"
 	CI_PATCH_NOT_AUTHORIZED CiPatchStatus = "Not authorised"
 )
