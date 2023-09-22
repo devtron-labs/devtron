@@ -62,10 +62,10 @@ func (configSecret ConfigSecretMap) GetDataMap() (map[string]string, error) {
 	err := json.Unmarshal(configSecret.Data, &datamap)
 	return datamap, err
 }
-func (configSecretJson ConfigSecretJson) GetDereferenceSecrets() []ConfigSecretMap {
+func (configSecretJson ConfigSecretJson) GetDereferencedSecrets() []ConfigSecretMap {
 	return util.GetDeReferencedArray(configSecretJson.Secrets)
 }
 
-func (configSecretJson *ConfigSecretJson) SetReferenceSecrets(secrets []ConfigSecretMap) {
+func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigSecretMap) {
 	configSecretJson.Secrets = util.GetReferencedArray(secrets)
 }

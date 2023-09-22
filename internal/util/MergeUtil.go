@@ -19,12 +19,11 @@ package util
 
 import (
 	"encoding/json"
-	"slices"
-
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/util"
 	jsonpatch "github.com/evanphx/json-patch"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 )
 
 type MergeUtil struct {
@@ -126,30 +125,29 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 
 func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJson string, chartMajorVersion int, chartMinorVersion int, isJob bool) (data string, err error) {
 	appLevelSecret := bean.ConfigSecretJson{}
-	envLevelSecret := bean.ConfigSecretJson{}
-	secretResponse := bean.ConfigSecretJson{}
-	var finalMaps []bean.ConfigSecretMap
 	if appLevelSecretJson != "" {
 		err = json.Unmarshal([]byte(appLevelSecretJson), &appLevelSecret)
 		if err != nil {
 			m.Logger.Debugw("error in Unmarshal ", "appLevelSecretJson", appLevelSecretJson, "envLevelSecretJson", envLevelSecretJson, "err", err)
 		}
 	}
+	envLevelSecret := bean.ConfigSecretJson{}
 	if envLevelSecretJson != "" {
 		err = json.Unmarshal([]byte(envLevelSecretJson), &envLevelSecret)
 		if err != nil {
 			m.Logger.Debugw("error in Unmarshal ", "appLevelSecretJson", appLevelSecretJson, "envLevelSecretJson", envLevelSecretJson, "err", err)
 		}
 	}
+	secretResponse := bean.ConfigSecretJson{}
 	if len(appLevelSecret.Secrets) > 0 || len(envLevelSecret.Secrets) > 0 {
 		secretResponse.Enabled = true
 	}
 
-	finalMaps = mergeConfigMapsAndSecrets(envLevelSecret.GetDereferenceSecrets(), appLevelSecret.GetDereferenceSecrets())
+	finalMaps := mergeConfigMapsAndSecrets(envLevelSecret.GetDereferencedSecrets(), appLevelSecret.GetDereferencedSecrets())
 	for _, finalMap := range finalMaps {
 		finalMap = m.processExternalSecrets(finalMap, chartMajorVersion, chartMinorVersion, isJob)
 	}
-	secretResponse.SetReferenceSecrets(finalMaps)
+	secretResponse.SetReferencedSecrets(finalMaps)
 	byteData, err := json.Marshal(secretResponse)
 	if err != nil {
 		m.Logger.Debugw("error in marshal ", "err", err)
