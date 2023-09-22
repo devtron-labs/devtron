@@ -349,7 +349,7 @@ func (impl *AppServiceImpl) SetPipelineFieldsInOverrideRequest(overrideRequest *
 func (impl *AppServiceImpl) getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
 }
-func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
+func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, hpaEnabled bool, userId int32) (string, error) {
 	//repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
@@ -369,16 +369,18 @@ func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, envConfig
 		if appNamespace == "" {
 			appNamespace = "default"
 		}
+		respectIgnoreDifferences := hpaEnabled
 		namespace := argocdServer.DevtronInstalationNs
 		appRequest := &argocdServer.AppTemplate{
-			ApplicationName: argoAppName,
-			Namespace:       namespace,
-			TargetNamespace: appNamespace,
-			TargetServer:    envModel.Cluster.ServerUrl,
-			Project:         "default",
-			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
-			RepoPath:        chart.ChartLocation,
-			RepoUrl:         chart.GitRepoUrl,
+			ApplicationName:          argoAppName,
+			Namespace:                namespace,
+			TargetNamespace:          appNamespace,
+			TargetServer:             envModel.Cluster.ServerUrl,
+			Project:                  "default",
+			ValuesFile:               impl.getValuesFileForEnv(envModel.Id),
+			RepoPath:                 chart.ChartLocation,
+			RepoUrl:                  chart.GitRepoUrl,
+			RespectIgnoreDifferences: respectIgnoreDifferences,
 		}
 
 		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
@@ -1714,10 +1716,13 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 }
 
 func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, ctx context.Context) error {
-
+	hpaEnabled := false
+	if valuesOverrideResponse != nil {
+		hpaEnabled = valuesOverrideResponse.IsHpaEnabled()
+	}
 	impl.logger.Debugw("new pipeline found", "pipeline", valuesOverrideResponse.Pipeline)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
-	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
+	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, hpaEnabled, overrideRequest.UserId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
@@ -1726,7 +1731,7 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.IsHpaEnabled(), ctx)
+	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, hpaEnabled, ctx)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
