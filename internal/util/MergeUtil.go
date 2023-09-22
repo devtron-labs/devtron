@@ -143,11 +143,11 @@ func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJs
 		secretResponse.Enabled = true
 	}
 
-	finalMaps := mergeConfigMapsAndSecrets(envLevelSecret.GetDereferencedSecrets(), appLevelSecret.GetDereferencedSecrets())
-	for _, finalMap := range finalMaps {
+	finalCMCS := mergeConfigMapsAndSecrets(envLevelSecret.GetDereferencedSecrets(), appLevelSecret.GetDereferencedSecrets())
+	for _, finalMap := range finalCMCS {
 		finalMap = m.processExternalSecrets(finalMap, chartMajorVersion, chartMinorVersion, isJob)
 	}
-	secretResponse.SetReferencedSecrets(finalMaps)
+	secretResponse.SetReferencedSecrets(finalCMCS)
 	byteData, err := json.Marshal(secretResponse)
 	if err != nil {
 		m.Logger.Debugw("error in marshal ", "err", err)
@@ -156,21 +156,21 @@ func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJs
 }
 
 func mergeConfigMapsAndSecrets(envLevelCMCS []bean.ConfigSecretMap, appLevelSecretCMCS []bean.ConfigSecretMap) []bean.ConfigSecretMap {
-	envSecretNames := make([]string, 0)
-	var finalMaps []bean.ConfigSecretMap
+	envCMCSNames := make([]string, 0)
+	var finalCMCS []bean.ConfigSecretMap
 	for _, item := range envLevelCMCS {
-		envSecretNames = append(envSecretNames, item.Name)
+		envCMCSNames = append(envCMCSNames, item.Name)
 	}
-	for i, _ := range appLevelSecretCMCS {
+	for _, item := range appLevelSecretCMCS {
 		//else ignoring this value as override from configB
-		if !slices.Contains(envSecretNames, appLevelSecretCMCS[i].Name) {
-			finalMaps = append(finalMaps, appLevelSecretCMCS[i])
+		if !slices.Contains(envCMCSNames, item.Name) {
+			finalCMCS = append(finalCMCS, item)
 		}
 	}
-	for i, _ := range envLevelCMCS {
-		finalMaps = append(finalMaps, envLevelCMCS[i])
+	for _, item := range envLevelCMCS {
+		finalCMCS = append(finalCMCS, item)
 	}
-	return finalMaps
+	return finalCMCS
 }
 
 func (m MergeUtil) processExternalSecrets(secret bean.ConfigSecretMap, chartMajorVersion int, chartMinorVersion int, isJob bool) bean.ConfigSecretMap {
