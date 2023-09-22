@@ -220,7 +220,7 @@ const (
 	CI_PATCH_NOT_AUTHORIZED_MESSAGE CiPatchMessage = "You don't have permission to change branch"
 	CI_PATCH_MULTI_GIT_ERROR        CiPatchMessage = "Build pipeline is connected to multiple git repositories"
 	CI_PATCH_REGEX_ERROR            CiPatchMessage = "Provided branch does not match regex "
-	CI_BRANCH_TYPE_ERROR            CiPatchMessage = "Branch cannot be changed for pipeline as source type is "
+	CI_BRANCH_TYPE_ERROR            CiPatchMessage = "Branch cannot be changed for pipeline as source type is “Pull request or Tag”"
 )
 
 func (a PatchAction) String() string {

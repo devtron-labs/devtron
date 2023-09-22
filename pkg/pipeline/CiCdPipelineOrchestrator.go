@@ -200,6 +200,9 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest
 	ciPipelineMaterial, err := impl.findUniqueCiPipelineMaterial(pipeline.CiPipelineId)
 	if err != nil {
 		impl.logger.Errorw("Error in getting UniqueCiPipelineMaterial", "err", err)
+		if strings.Contains(err.Error(), "ciPipelineMaterial not found") {
+			return nil, errors.New(string(bean.CI_BRANCH_TYPE_ERROR))
+		}
 		return nil, err
 	}
 
@@ -225,7 +228,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpda
 func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error), appId int) error {
 	// Change branch source is supported for SOURCE_TYPE_BRANCH_FIXED and SOURCE_TYPE_BRANCH_REGEX
 	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
-		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR) + string(ciPipelineMaterial.Type))
+		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR))
 	}
 
 	if ciPipelineMaterial.Regex != "" {
@@ -268,6 +271,9 @@ func (impl CiCdPipelineOrchestratorImpl) findUniqueCiPipelineMaterial(ciPipeline
 	ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn([]int{ciPipelineId})
 	if err != nil {
 		return nil, err
+	}
+	if ciPipelineMaterials == nil {
+		return nil, fmt.Errorf("ciPipelineMaterial not found")
 	}
 	if len(ciPipelineMaterials) != 1 {
 		return nil, fmt.Errorf(string(bean.CI_PATCH_MULTI_GIT_ERROR))
