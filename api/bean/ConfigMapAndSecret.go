@@ -66,6 +66,6 @@ func (configSecretJson ConfigSecretJson) GetDereferenceSecrets() []ConfigSecretM
 	return util.GetDeReferencedArray(configSecretJson.Secrets)
 }
 
-func (configSecretJson ConfigSecretJson) SetReferenceSecrets(secrets []ConfigSecretMap) {
+func (configSecretJson *ConfigSecretJson) SetReferenceSecrets(secrets []ConfigSecretMap) {
 	configSecretJson.Secrets = util.GetReferencedArray(secrets)
 }
