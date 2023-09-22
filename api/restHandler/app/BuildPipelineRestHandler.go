@@ -313,7 +313,6 @@ func (handler PipelineConfigRestHandlerImpl) authorizeBulkCiSourceChangeRequest(
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
 			handler.Logger.Errorw("Unauthorized User", "err", err)
 			response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
-				AppName: app.AppName,
 				Status:  bean.CI_PATCH_NOT_AUTHORIZED,
 				Message: bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE,
 				AppId:   appId,
@@ -369,12 +368,10 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndE
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	bulkPatchResponse := bean.CiMaterialBulkPatchResponse{}
 	token := r.Header.Get("token")
-
 	bulkPatchRequest.Token = token
 	bulkPatchRequest.CheckAppSpecificAccess = handler.checkAppSpecificAccess
-	err = handler.pipelineBuilder.BulkPatchCiMaterialSource(bulkPatchRequest, userId, &bulkPatchResponse)
+	bulkPatchResponse, err := handler.pipelineBuilder.BulkPatchCiMaterialSource(bulkPatchRequest, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, BulkPatchCiPipelines", "err", err, "BulkPatchCiPipelines", bulkPatchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1980,9 +1977,6 @@ func (handler PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, actio
 		return false, errors.New("custom apps are not supported")
 	}
 
-	if len(app.Material) > 1 {
-		return false, errors.New(string(bean.CI_PATCH_MULTI_GIT_ERROR))
-	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, action, resourceName); !ok {
 		return false, errors.New(string(bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE))

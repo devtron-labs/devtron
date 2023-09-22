@@ -201,28 +201,9 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest
 		return nil, err
 	}
 
-	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
-		return nil, errors.New(string(bean.CI_BRANCH_TYPE_ERROR) + string(ciPipelineMaterial.Type))
-	}
-
-	if ciPipelineMaterial.Regex != "" {
-		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionTrigger, patchRequest.AppId); !ok {
-			return nil, err
-		}
-	} else {
-		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionUpdate, patchRequest.AppId); !ok {
-			return nil, err
-		}
-	}
-
-	if ciPipelineMaterial.Regex != "" {
-		ok, err := regexp.MatchString(ciPipelineMaterial.Regex, value)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, errors.New(string(bean.CI_PATCH_REGEX_ERROR) + ciPipelineMaterial.Regex)
-		}
+	err = impl.validateCiPipelineMaterial(ciPipelineMaterial, patchRequest, value)
+	if err != nil {
+		return nil, err
 	}
 
 	ciPipelineMaterial.Value = value
@@ -237,6 +218,33 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpda
 	}
 	return nil
 
+}
+
+func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial, patchRequest *bean.CiMaterialValuePatchRequest, value string) error {
+	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR) + string(ciPipelineMaterial.Type))
+	}
+
+	if ciPipelineMaterial.Regex != "" {
+		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionTrigger, patchRequest.AppId); !ok {
+			return err
+		}
+	} else {
+		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionUpdate, patchRequest.AppId); !ok {
+			return err
+		}
+	}
+
+	if ciPipelineMaterial.Regex != "" {
+		ok, err := regexp.MatchString(ciPipelineMaterial.Regex, value)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New(string(bean.CI_PATCH_REGEX_ERROR) + ciPipelineMaterial.Regex)
+		}
+	}
+	return nil
 }
 
 func (impl CiCdPipelineOrchestratorImpl) findUniquePipelineForAppIdAndEnvironmentId(appId, environmentId int) (*pipelineConfig.Pipeline, error) {
@@ -256,7 +264,7 @@ func (impl CiCdPipelineOrchestratorImpl) findUniqueCiPipelineMaterial(ciPipeline
 		return nil, err
 	}
 	if len(ciPipelineMaterials) != 1 {
-		return nil, fmt.Errorf("unique ciPipelineMaterial was not found, for the given appId and environmentId")
+		return nil, fmt.Errorf(string(bean.CI_PATCH_MULTI_GIT_ERROR))
 	}
 	return ciPipelineMaterials[0], nil
 }

@@ -119,7 +119,7 @@ type PipelineBuilder interface {
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
 	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
-	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, response *bean.CiMaterialBulkPatchResponse) error
+	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32) (*bean.CiMaterialBulkPatchResponse, error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
@@ -450,12 +450,42 @@ func (impl *PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO)
 	existingMaterial.UpdatedBy = request.UserId
 
 	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
-
 	if err != nil {
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
+
 	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial)
+
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	var materials []*pipelineConfig.CiPipelineMaterial
+	for _, pipeline := range pipelines {
+		materialDbObject, err := impl.ciPipelineMaterialRepository.GetByPipelineIdAndGitMaterialId(pipeline.Id, request.Material.Id)
+		if err != nil {
+			return err
+		}
+		if len(materialDbObject) == 0 {
+			continue
+		}
+		materialDbObject[0].Active = false
+		materials = append(materials, materialDbObject[0])
+	}
+
+	if len(materials) == 0 {
+		return nil
+	}
+
+	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1647,29 +1677,39 @@ func (impl *PipelineBuilderImpl) PatchCiMaterialSource(ciPipeline *bean.CiMateri
 	return impl.ciCdPipelineOrchestrator.PatchCiMaterialSource(ciPipeline, userId)
 }
 
-func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, response *bean.CiMaterialBulkPatchResponse) error {
+func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32) (*bean.CiMaterialBulkPatchResponse, error) {
+	response := &bean.CiMaterialBulkPatchResponse{}
 	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
 	for _, appId := range ciPipelines.AppIds {
-		ciPipeline := &bean.CiMaterialPatchRequest{
+		ciPipeline := &bean.CiMaterialValuePatchRequest{
 			AppId:         appId,
 			EnvironmentId: ciPipelines.EnvironmentId,
 		}
+		ciPipeline.CheckAppSpecificAccess = ciPipelines.CheckAppSpecificAccess
+		ciPipeline.Token = ciPipelines.Token
 		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value)
 		if err != nil {
 			response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
 				AppId:   appId,
-				AppName: "",
 				Status:  bean.CI_PATCH_FAILED,
 				Message: bean.CiPatchMessage(err.Error()),
 			})
 			continue
 		}
+		response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
+			AppId:   appId,
+			Status:  bean.CI_PATCH_SUCESS,
+			Message: "",
+		})
 		ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
 	}
-	if err := impl.ciCdPipelineOrchestrator.UpdateCiPipelineMaterials(ciPipelineMaterials); err != nil {
-		return err
+	if len(ciPipelineMaterials) == 0 {
+		return response, nil
 	}
-	return nil
+	if err := impl.ciCdPipelineOrchestrator.UpdateCiPipelineMaterials(ciPipelineMaterials); err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
 func (impl *PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {

@@ -211,7 +211,7 @@ type CiPatchStatus string
 const (
 	CI_PATCH_SUCESS         CiPatchStatus = "Succeeded"
 	CI_PATCH_FAILED         CiPatchStatus = "Failed"
-	CI_PATCH_NOT_AUTHORIZED CiPatchStatus = "Not authorized"
+	CI_PATCH_NOT_AUTHORIZED CiPatchStatus = "Not authorised"
 )
 
 type CiPatchMessage string
@@ -236,10 +236,22 @@ type CiMaterialPatchRequest struct {
 	Source        *SourceTypeConfig `json:"source" validate:"required"`
 }
 
+type CiMaterialValuePatchRequest struct {
+	AppId         int `json:"appId" validate:"required"`
+	EnvironmentId int `json:"environmentId" validate:"required"`
+	AppSpecificRBAC
+}
+
+type AppSpecificRBAC struct {
+	CheckAppSpecificAccess func(token, action string, appId int) (bool, error) `json:"-"`
+	Token                  string
+}
+
 type CiMaterialBulkPatchRequest struct {
 	AppIds        []int  `json:"appIds" validate:"required"`
 	EnvironmentId int    `json:"environmentId" validate:"required"`
 	Value         string `json:"value,omitempty" validate:"required"`
+	AppSpecificRBAC
 }
 
 type CiMaterialBulkPatchResponse struct {
@@ -248,7 +260,6 @@ type CiMaterialBulkPatchResponse struct {
 
 type CiMaterialPatchResponse struct {
 	AppId   int            `json:"appId"`
-	AppName string         `json:"appName"`
 	Status  CiPatchStatus  `json:"status"`
 	Message CiPatchMessage `json:"message"`
 }
