@@ -88,7 +88,7 @@ type CiConfig struct {
 	BuildxK8sDriverOptions           string `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
 	GitProviders                     string `env:"GIT_PROVIDERS" envDefault:"github,gitlab"`
 	BuildxProvenanceMode             string `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
-	CIAutoTriggerBatchSize           int    `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"2"`
+	CIAutoTriggerBatchSize           int    `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"1"`
 }
 
 type CiVolumeMount struct {
