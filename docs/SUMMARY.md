@@ -106,7 +106,6 @@
 
 ## Resources
 
-* [Glossary](reference/glossary.md)
 * [Troubleshooting](FAQs/devtron-troubleshoot.md)
 * [Use Cases](user-guide/use-cases/README.md)
   * [Devtron Generic Helm Chart To Run CronJob Or One Time Job](user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job.md)
