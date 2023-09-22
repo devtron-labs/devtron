@@ -221,20 +221,24 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpda
 }
 
 func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial, patchRequest *bean.CiMaterialValuePatchRequest, value string) error {
+	// Change branch source is supported for SOURCE_TYPE_BRANCH_FIXED and SOURCE_TYPE_BRANCH_REGEX
 	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
 		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR) + string(ciPipelineMaterial.Type))
 	}
 
 	if ciPipelineMaterial.Regex != "" {
+		// Checking Trigger Access for Regex branch
 		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionTrigger, patchRequest.AppId); !ok {
 			return err
 		}
 	} else {
+		// Checking Admin Access for Fixed branch
 		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionUpdate, patchRequest.AppId); !ok {
 			return err
 		}
 	}
 
+	// In case of regex we are check if the branch match the regex
 	if ciPipelineMaterial.Regex != "" {
 		ok, err := regexp.MatchString(ciPipelineMaterial.Regex, value)
 		if err != nil {
