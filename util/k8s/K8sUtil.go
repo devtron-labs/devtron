@@ -647,8 +647,9 @@ func (impl K8sUtil) GetK8sInClusterRestConfig() (*rest.Config, error) {
 		return restConfig, nil
 	} else {
 		clusterConfig, err := rest.InClusterConfig()
+		impl.logger.Debugw("fetched cluster config", "clusterConfig", clusterConfig)
 		if err != nil {
-			impl.logger.Errorw("error in fetch default cluster config", "err", err)
+			impl.logger.Errorw("error in fetch default cluster config", "err", err, "clusterConfig", clusterConfig)
 			return nil, err
 		}
 		return clusterConfig, nil
