@@ -1934,7 +1934,7 @@ func (handler PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, actio
 		return false, err
 	}
 	if app.AppType != helper.CustomApp {
-		return false, errors.New("custom apps are not supported")
+		return false, errors.New("only custom apps supported")
 	}
 
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
