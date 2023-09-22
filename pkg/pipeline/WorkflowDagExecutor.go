@@ -537,6 +537,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, pipeline, ctx)
 	if err != nil {
+		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
 		return err
 	}
 	if isVulnerable {
@@ -650,6 +651,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(cdWf.CiArtifact, pipeline, context.Background())
 	if err != nil {
+		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPostStage", "err", err)
 		return err
 	}
 	if isVulnerable {
@@ -1640,6 +1642,14 @@ func (impl *WorkflowDagExecutorImpl) GetArtifactVulnerabilityStatus(artifact *re
 			cveStores = append(cveStores, &item.CveStore)
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "cvePolicyRepository.GetBlockedCVEList")
+		if cdPipeline.Environment.ClusterId == 0 {
+			envDetails, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("error fetching cluster details by env, GetArtifactVulnerabilityStatus", "envId", cdPipeline.EnvironmentId, "err", err)
+				return false, err
+			}
+			cdPipeline.Environment = *envDetails
+		}
 		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId, false)
 		span.End()
 		if err != nil {
@@ -1749,6 +1759,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 		isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
 		if err != nil {
+			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
 			return 0, err
 		}
 		if isVulnerable == true {
@@ -1782,6 +1793,12 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			span.End()
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
+			}
+			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
+			err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, err, triggeredAt, overrideRequest.UserId)
+			span.End()
+			if err1 != nil {
+				impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
 			}
 			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 		}
