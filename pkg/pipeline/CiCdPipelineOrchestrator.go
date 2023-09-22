@@ -193,16 +193,19 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bea
 func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string) (*pipelineConfig.CiPipelineMaterial, error) {
 	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
 	if err != nil {
+		impl.logger.Errorw("Error in getting UniquePipelineForAppIdAndEnvironmentId", "err", err)
 		return nil, err
 	}
 
 	ciPipelineMaterial, err := impl.findUniqueCiPipelineMaterial(pipeline.CiPipelineId)
 	if err != nil {
+		impl.logger.Errorw("Error in getting UniqueCiPipelineMaterial", "err", err)
 		return nil, err
 	}
 
 	err = impl.validateCiPipelineMaterial(ciPipelineMaterial, patchRequest, value)
 	if err != nil {
+		impl.logger.Errorw("Validation failed on CiPipelineMaterial", "err", err)
 		return nil, err
 	}
 

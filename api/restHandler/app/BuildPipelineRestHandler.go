@@ -327,7 +327,6 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndE
 	bulkPatchRequest, userId, err := handler.parseBulkSourceChangeRequest(w, r)
 	if err != nil {
 		handler.Logger.Errorw("Parse error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", bulkPatchRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
