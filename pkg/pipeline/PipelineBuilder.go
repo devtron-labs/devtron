@@ -171,6 +171,8 @@ type PipelineBuilder interface {
 	GetAppListForEnvironment(request appGroup2.AppGroupingRequest) ([]*AppBean, error)
 	GetDeploymentConfigMap(environmentId int) (map[string]bool, error)
 	IsGitopsConfigured() (bool, error)
+
+	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, error)
 }
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
@@ -3037,15 +3039,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
 	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-			AppId:       app.Id,
-			AccessToken: "",
-			Active:      true,
-			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
 		wf := &appWorkflow.AppWorkflow{
 			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
 			AppId:    app.Id,
@@ -3054,21 +3048,15 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		}
 		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
 		if err != nil {
-			impl.logger.Errorw("err", err)
+			impl.logger.Errorw("error in saving app workflow", "appId", app.Id, "err", err)
 			return 0, err
 		}
-		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			AppWorkflowId: savedAppWf.Id,
-			ComponentId:   externalCiPipeline.Id,
-			Type:          "WEBHOOK",
-			Active:        true,
-			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+		externalCiPipelineId, err := impl.CreateExternalCiAndAppWorkflowMapping(app.Id, savedAppWf.Id, userId, tx)
 		if err != nil {
+			impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "appId", app.Id, "err", err)
 			return 0, err
 		}
-		pipeline.ParentPipelineId = externalCiPipeline.Id
+		pipeline.ParentPipelineId = externalCiPipelineId
 		pipeline.AppWorkflowId = savedAppWf.Id
 	}
 
@@ -3085,8 +3073,11 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	//TODO: mark as created in our db
 	pipelineId, err := impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
 	if err != nil {
-		impl.logger.Errorw("error in ")
+		impl.logger.Errorw("error in creating cd pipeline", "appId", app.Id, "pipeline", pipeline)
 		return 0, err
+	}
+	if pipeline.RefPipelineId > 0 {
+		pipeline.SourceToNewPipelineId[pipeline.RefPipelineId] = pipelineId
 	}
 
 	//adding pipeline to workflow
@@ -3097,12 +3088,16 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	if pipeline.AppWorkflowId > 0 {
 		var parentPipelineId int
 		var parentPipelineType string
+
 		if pipeline.ParentPipelineId == 0 {
 			parentPipelineId = pipeline.CiPipelineId
 			parentPipelineType = "CI_PIPELINE"
 		} else {
 			parentPipelineId = pipeline.ParentPipelineId
 			parentPipelineType = pipeline.ParentPipelineType
+			if pipeline.ParentPipelineType != appWorkflow.WEBHOOK && pipeline.RefPipelineId > 0 && len(pipeline.SourceToNewPipelineId) > 0 {
+				parentPipelineId = pipeline.SourceToNewPipelineId[pipeline.ParentPipelineId]
+			}
 		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 			AppWorkflowId: pipeline.AppWorkflowId,
@@ -3175,6 +3170,33 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 
 	impl.logger.Debugw("pipeline created with GitMaterialId ", "id", pipelineId, "pipeline", pipeline)
 	return pipelineId, nil
+}
+
+func (impl PipelineBuilderImpl) CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, error) {
+	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
+		AppId:       appId,
+		AccessToken: "",
+		Active:      true,
+		AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+	}
+	externalCiPipeline, err := impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving external ci", "appId", appId, "err", err)
+		return 0, err
+	}
+	appWorkflowMap := &appWorkflow.AppWorkflowMapping{
+		AppWorkflowId: appWorkflowId,
+		ComponentId:   externalCiPipeline.Id,
+		Type:          "WEBHOOK",
+		Active:        true,
+		AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+	}
+	appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving app workflow mapping for external ci", "appId", appId, "appWorkflowId", appWorkflowId, "externalCiPipelineId", externalCiPipeline.Id, "err", err)
+		return 0, err
+	}
+	return externalCiPipeline.Id, nil
 }
 
 func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32) error {
