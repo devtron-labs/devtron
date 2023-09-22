@@ -171,16 +171,15 @@ func mergeConfigMaps(envLevelCMCS []bean.ConfigSecretMap, appLevelSecretCMCS []b
 	var finalMaps []*bean.ConfigSecretMap
 	for _, item := range envLevelCMCS {
 		envSecretNames = append(envSecretNames, item.Name)
-
 	}
-	for _, item := range appLevelSecretCMCS {
+	for i, _ := range appLevelSecretCMCS {
 		//else ignoring this value as override from configB
-		if !slices.Contains(envSecretNames, item.Name) {
-			finalMaps = append(finalMaps, &item)
+		if !slices.Contains(envSecretNames, appLevelSecretCMCS[i].Name) {
+			finalMaps = append(finalMaps, &appLevelSecretCMCS[i])
 		}
 	}
-	for _, item := range envLevelCMCS {
-		finalMaps = append(finalMaps, &item)
+	for i, _ := range envLevelCMCS {
+		finalMaps = append(finalMaps, &envLevelCMCS[i])
 	}
 	return finalMaps
 }
