@@ -247,6 +247,10 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	// execute auto trigger in batch on CI success event
 	totalCIArtifactCount := len(ciArtifactArr)
 	batchSize := impl.ciConfig.CIAutoTriggerBatchSize
+	// handling to avoid infinite loop
+	if batchSize <= 0 {
+		batchSize = 1
+	}
 	start := time.Now()
 	impl.logger.Infow("Started: auto trigger for children Stage/CD pipelines", "Artifact count", totalCIArtifactCount)
 	for i := 0; i < totalCIArtifactCount; {
