@@ -193,13 +193,13 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bea
 func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error) {
 	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
 	if err != nil {
-		impl.logger.Errorw("Error in getting UniquePipelineForAppIdAndEnvironmentId", "err", err)
+		impl.logger.Errorw("Error in getting UniquePipelineForAppIdAndEnvironmentId", "appId", patchRequest.AppId, "envId", patchRequest.EnvironmentId, "err", err)
 		return nil, err
 	}
 
 	ciPipelineMaterial, err := impl.findUniqueCiPipelineMaterial(pipeline.CiPipelineId)
 	if err != nil {
-		impl.logger.Errorw("Error in getting UniqueCiPipelineMaterial", "err", err)
+		impl.logger.Errorw("Error in getting UniqueCiPipelineMaterial", "CiPipelineId", pipeline.CiPipelineId, "err", err)
 		if strings.Contains(err.Error(), "ciPipelineMaterial not found") {
 			return nil, errors.New(string(bean.CI_BRANCH_TYPE_ERROR))
 		}

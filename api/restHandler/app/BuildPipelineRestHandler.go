@@ -259,7 +259,12 @@ func (handler PipelineConfigRestHandlerImpl) parseBulkSourceChangeRequest(w http
 	}
 	var patchRequest bean.CiMaterialBulkPatchRequest
 	err = decoder.Decode(&patchRequest)
-
+	if err != nil {
+		handler.Logger.Errorw("request err, BulkPatchCiPipeline", "err", err, "BulkPatchCiPipeline", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, 0, err
+	}
+	err = handler.validator.Struct(patchRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, BulkPatchCiPipeline", "err", err, "BulkPatchCiPipeline", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
