@@ -330,10 +330,8 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndE
 		return
 	}
 	token := r.Header.Get("token")
-	bulkPatchRequest.Token = token
 	// Here passing the checkAppSpecificAccess func to check RBAC
-	bulkPatchRequest.CheckAppSpecificAccess = handler.checkAppSpecificAccess
-	bulkPatchResponse, err := handler.pipelineBuilder.BulkPatchCiMaterialSource(bulkPatchRequest, userId)
+	bulkPatchResponse, err := handler.pipelineBuilder.BulkPatchCiMaterialSource(bulkPatchRequest, userId, token, handler.checkAppSpecificAccess)
 	if err != nil {
 		handler.Logger.Errorw("service err, BulkPatchCiPipelines", "err", err, "BulkPatchCiPipelines", bulkPatchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

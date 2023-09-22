@@ -74,7 +74,7 @@ type CiCdPipelineOrchestrator interface {
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
-	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string) (*pipelineConfig.CiPipelineMaterial, error)
+	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error)
 	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
@@ -190,7 +190,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bea
 	return patchRequest, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string) (*pipelineConfig.CiPipelineMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error) {
 	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("Error in getting UniquePipelineForAppIdAndEnvironmentId", "err", err)
@@ -203,7 +203,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest
 		return nil, err
 	}
 
-	err = impl.validateCiPipelineMaterial(ciPipelineMaterial, patchRequest, value)
+	err = impl.validateCiPipelineMaterial(ciPipelineMaterial, value, token, checkAppSpecificAccess, patchRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("Validation failed on CiPipelineMaterial", "err", err)
 		return nil, err
@@ -220,10 +220,9 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpda
 		return err
 	}
 	return nil
-
 }
 
-func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial, patchRequest *bean.CiMaterialValuePatchRequest, value string) error {
+func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error), appId int) error {
 	// Change branch source is supported for SOURCE_TYPE_BRANCH_FIXED and SOURCE_TYPE_BRANCH_REGEX
 	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
 		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR) + string(ciPipelineMaterial.Type))
@@ -231,12 +230,12 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 
 	if ciPipelineMaterial.Regex != "" {
 		// Checking Trigger Access for Regex branch
-		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionTrigger, patchRequest.AppId); !ok {
+		if ok, err := checkAppSpecificAccess(token, casbin.ActionTrigger, appId); !ok {
 			return err
 		}
 	} else {
 		// Checking Admin Access for Fixed branch
-		if ok, err := patchRequest.CheckAppSpecificAccess(patchRequest.Token, casbin.ActionUpdate, patchRequest.AppId); !ok {
+		if ok, err := checkAppSpecificAccess(token, casbin.ActionUpdate, appId); !ok {
 			return err
 		}
 	}

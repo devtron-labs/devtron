@@ -119,7 +119,7 @@ type PipelineBuilder interface {
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
 	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
-	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32) (*bean.CiMaterialBulkPatchResponse, error)
+	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
@@ -1677,7 +1677,7 @@ func (impl *PipelineBuilderImpl) PatchCiMaterialSource(ciPipeline *bean.CiMateri
 	return impl.ciCdPipelineOrchestrator.PatchCiMaterialSource(ciPipeline, userId)
 }
 
-func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32) (*bean.CiMaterialBulkPatchResponse, error) {
+func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error) {
 	response := &bean.CiMaterialBulkPatchResponse{}
 	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
 	for _, appId := range ciPipelines.AppIds {
@@ -1685,9 +1685,7 @@ func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiM
 			AppId:         appId,
 			EnvironmentId: ciPipelines.EnvironmentId,
 		}
-		ciPipeline.CheckAppSpecificAccess = ciPipelines.CheckAppSpecificAccess
-		ciPipeline.Token = ciPipelines.Token
-		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value)
+		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value, token, checkAppSpecificAccess)
 
 		if err == nil {
 			ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)

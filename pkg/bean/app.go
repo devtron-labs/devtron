@@ -239,19 +239,12 @@ type CiMaterialPatchRequest struct {
 type CiMaterialValuePatchRequest struct {
 	AppId         int `json:"appId" validate:"required"`
 	EnvironmentId int `json:"environmentId" validate:"required"`
-	AppSpecificRBAC
-}
-
-type AppSpecificRBAC struct {
-	CheckAppSpecificAccess func(token, action string, appId int) (bool, error) `json:"-"`
-	Token                  string
 }
 
 type CiMaterialBulkPatchRequest struct {
 	AppIds        []int  `json:"appIds" validate:"required"`
 	EnvironmentId int    `json:"environmentId" validate:"required"`
 	Value         string `json:"value,omitempty" validate:"required"`
-	AppSpecificRBAC
 }
 
 type CiMaterialBulkPatchResponse struct {
