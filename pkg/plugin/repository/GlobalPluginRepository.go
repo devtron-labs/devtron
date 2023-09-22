@@ -207,6 +207,9 @@ type GlobalPluginRepository interface {
 	UpdatePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) error
 	UpdatePluginTag(pluginTag *PluginTag, tx *pg.Tx) error
 	UpdatePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) error
+	UpdateInBulkPluginSteps(pluginSteps []*PluginStep, tx *pg.Tx) error
+	UpdateInBulkPluginStepVariables(pluginStepVariables []*PluginStepVariable, tx *pg.Tx) error
+	UpdateInBulkPluginStepConditions(pluginStepConditions []*PluginStepCondition, tx *pg.Tx) error
 }
 
 func NewGlobalPluginRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *GlobalPluginRepositoryImpl {
@@ -549,4 +552,17 @@ func (impl *GlobalPluginRepositoryImpl) UpdatePluginTag(pluginTag *PluginTag, tx
 
 func (impl *GlobalPluginRepositoryImpl) UpdatePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) error {
 	return tx.Update(pluginTagRelation)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginSteps(pluginSteps []*PluginStep, tx *pg.Tx) error {
+	_, err := tx.Model(&pluginSteps).Update()
+	return err
+}
+func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepVariables(pluginStepVariables []*PluginStepVariable, tx *pg.Tx) error {
+	_, err := tx.Model(&pluginStepVariables).Update()
+	return err
+}
+func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepConditions(pluginStepConditions []*PluginStepCondition, tx *pg.Tx) error {
+	_, err := tx.Model(&pluginStepConditions).Update()
+	return err
 }
