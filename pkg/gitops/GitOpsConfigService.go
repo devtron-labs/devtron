@@ -81,10 +81,11 @@ const (
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
-	SuccessfulStages []string          `json:"successfulStages"`
-	StageErrorMap    map[string]string `json:"stageErrorMap"`
-	ValidatedOn      time.Time         `json:"validatedOn"`
-	DeleteRepoFailed bool              `json:"deleteRepoFailed"`
+	SuccessfulStages    []string          `json:"successfulStages"`
+	StageErrorMap       map[string]string `json:"stageErrorMap"`
+	ValidatedOn         time.Time         `json:"validatedOn"`
+	DeleteRepoFailed    bool              `json:"deleteRepoFailed"`
+	IsValidationSkipped bool              `json:"isValidationSkipped"`
 }
 
 type GitOpsConfigServiceImpl struct {
@@ -688,7 +689,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
 	if impl.globalEnvVariables.SkipGitOpsValidation {
-		return DetailedErrorGitOpsConfigResponse{}
+		return DetailedErrorGitOpsConfigResponse{
+			IsValidationSkipped: true,
+		}
 	}
 	if config.Token == "" {
 		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
