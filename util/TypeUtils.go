@@ -1,17 +1,17 @@
 package util
 
-func GetDeReferencedArray[T any](t []*T) []T {
+func GetDeReferencedArray[T any](ptrObjects []*T) []T {
 	deReferencedArray := make([]T, 0)
-	for _, item := range t {
+	for _, item := range ptrObjects {
 		deReferencedArray = append(deReferencedArray, *item)
 	}
 	return deReferencedArray
 }
 
-func GetReferencedArray[T any](t []T) []*T {
+func GetReferencedArray[T any](objects []T) []*T {
 	deReferencedArray := make([]*T, 0)
-	for i, _ := range t {
-		deReferencedArray = append(deReferencedArray, &t[i])
+	for i, _ := range objects {
+		deReferencedArray = append(deReferencedArray, &objects[i])
 	}
 	return deReferencedArray
 }
