@@ -2,6 +2,7 @@ package variables
 
 import (
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/cache"
@@ -25,14 +26,17 @@ type ScopedVariableService interface {
 type ScopedVariableServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	scopedVariableRepository repository2.ScopedVariableRepository
+	qualifierMappingService  resourceQualifiers.QualifierMappingService
 	VariableNameConfig       *VariableConfig
 	VariableCache            *cache.VariableCacheObj
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository) (*ScopedVariableServiceImpl, error) {
+func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository,
+	qualifierMappingService resourceQualifiers.QualifierMappingService) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,
 		scopedVariableRepository: scopedVariableRepository,
+		qualifierMappingService:  qualifierMappingService,
 		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
 	}
 	cfg, err := GetVariableNameConfig()
@@ -100,6 +104,11 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		}
 	}(impl.scopedVariableRepository, tx)
 
+	err = impl.qualifierMappingService.DeleteAllQualifierMappings(auditLog, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting qualifier mappings", "err", err)
+		return err
+	}
 	err = impl.scopedVariableRepository.DeleteVariables(auditLog, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting variables", "err", err)
@@ -170,9 +179,8 @@ func (impl *ScopedVariableServiceImpl) storeVariableDefinitions(payload models.P
 
 func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Payload, variableNameToId map[string]int, auditLog sql.AuditLog, tx *pg.Tx) (map[int]string, error) {
 
-	variableScopes := make([]*repository2.VariableScope, 0)
+	variableScopes := make([]*models.VariableScope, 0)
 	for _, variable := range payload.Variables {
-
 		variableId := variableNameToId[variable.Definition.VarName]
 		for _, value := range variable.AttributeValues {
 			var varValue string
@@ -181,36 +189,39 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 				return nil, err
 			}
 			if value.AttributeType == models.Global {
-				scope := &repository2.VariableScope{
-					VariableDefinitionId: variableId,
-					QualifierId:          int(helper.GetQualifierId(value.AttributeType)),
-					Active:               true,
-					Data:                 varValue,
-					AuditLog:             auditLog,
+				scope := &models.VariableScope{
+					QualifierMapping: &resourceQualifiers.QualifierMapping{
+						ResourceId:   variableId,
+						ResourceType: resourceQualifiers.Variable,
+						QualifierId:  int(helper.GetQualifierId(value.AttributeType)),
+						Active:       true,
+						AuditLog:     auditLog,
+					},
+					Data: varValue,
 				}
 				variableScopes = append(variableScopes, scope)
 			}
 		}
 	}
-	parentVariableScope := make([]*repository2.VariableScope, 0)
-	childrenVariableScope := make([]*repository2.VariableScope, 0)
-	parentScopesMap := make(map[string]*repository2.VariableScope)
+	parentVariableScope := make([]*resourceQualifiers.QualifierMapping, 0)
+	childrenVariableScope := make([]*resourceQualifiers.QualifierMapping, 0)
+	parentScopesMap := make(map[string]*resourceQualifiers.QualifierMapping)
 
-	var parentVarScope []*repository2.VariableScope
+	var parentVarScope []*resourceQualifiers.QualifierMapping
 
 	for _, scope := range variableScopes {
-		parentVariableScope = append(parentVariableScope, scope)
+		parentVariableScope = append(parentVariableScope, scope.QualifierMapping)
 	}
 	var err error
 	if len(parentVariableScope) > 0 {
-		parentVarScope, err = impl.scopedVariableRepository.CreateVariableScope(parentVariableScope, tx)
+		parentVarScope, err = impl.qualifierMappingService.CreateQualifierMappings(parentVariableScope, tx)
 		if err != nil {
-			impl.logger.Errorw("error in getting parentVarScope", parentVarScope)
+			impl.logger.Errorw("error in getting parentVarScope", "parentVarScope", parentVarScope, "err", err)
 			return nil, err
 		}
 	}
 	scopeIdToVarData := make(map[int]string)
-	for _, parentVar := range parentVarScope {
+	for _, parentVar := range variableScopes {
 		scopeIdToVarData[parentVar.Id] = parentVar.Data
 	}
 	for _, childScope := range childrenVariableScope {
@@ -220,27 +231,27 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 		}
 	}
 	if len(childrenVariableScope) > 0 {
-		childVarScope, err := impl.scopedVariableRepository.CreateVariableScope(childrenVariableScope, tx)
+		childVarScope, err := impl.qualifierMappingService.CreateQualifierMappings(childrenVariableScope, tx)
 		if err != nil {
-			impl.logger.Errorw("error in getting childVarScope", err, childVarScope)
+			impl.logger.Errorw("error in getting childVarScope", "childVarScope", childVarScope, "err", err)
 			return nil, err
 		}
 	}
 	return scopeIdToVarData, nil
 }
 
-func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*repository2.VariableScope) map[int]int {
-	variableIdToVariableScopes := make(map[int][]*repository2.VariableScope)
+func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*resourceQualifiers.QualifierMapping) map[int]int {
+	variableIdToVariableScopes := make(map[int][]*resourceQualifiers.QualifierMapping)
 	variableIdToSelectedScopeId := make(map[int]int)
 	for _, vScope := range varScope {
-		variableId := vScope.VariableDefinitionId
+		variableId := vScope.ResourceId
 		variableIdToVariableScopes[variableId] = append(variableIdToVariableScopes[variableId], vScope)
 	}
 	// Filter out the unneeded scoped which were fetched from DB for the same variable and qualifier
 	for variableId, scopes := range variableIdToVariableScopes {
 
-		selectedScopes := make([]*repository2.VariableScope, 0)
-		compoundQualifierToScopes := make(map[repository2.Qualifier][]*repository2.VariableScope)
+		selectedScopes := make([]*resourceQualifiers.QualifierMapping, 0)
+		compoundQualifierToScopes := make(map[repository2.Qualifier][]*resourceQualifiers.QualifierMapping)
 
 		for _, variableScope := range scopes {
 			qualifier := repository2.Qualifier(variableScope.QualifierId)
@@ -260,7 +271,7 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*rep
 		variableIdToVariableScopes[variableId] = selectedScopes
 	}
 
-	var minScope *repository2.VariableScope
+	var minScope *resourceQualifiers.QualifierMapping
 	for variableId, scopes := range variableIdToVariableScopes {
 		minScope = helper.FindMinWithComparator(scopes, helper.QualifierComparator)
 		if minScope != nil {
@@ -270,9 +281,9 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*rep
 	return variableIdToSelectedScopeId
 }
 
-func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []*repository2.VariableScope, numQualifiers int) *repository2.VariableScope {
-	parentIdToChildScopes := make(map[int][]*repository2.VariableScope)
-	parentScopeIdToScope := make(map[int]*repository2.VariableScope, 0)
+func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []*resourceQualifiers.QualifierMapping, numQualifiers int) *resourceQualifiers.QualifierMapping {
+	parentIdToChildScopes := make(map[int][]*resourceQualifiers.QualifierMapping)
+	parentScopeIdToScope := make(map[int]*resourceQualifiers.QualifierMapping, 0)
 	parentScopeIds := make([]int, 0)
 	for _, scope := range scopes {
 		// is not parent so append it to the list in the map with key as its parent scopeID
@@ -294,7 +305,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 
 	// Now in the map only those will exist with all child matched or partial matches.
 	// Because only one will entry exist with all matched we'll return that scope.
-	var selectedParentScope *repository2.VariableScope
+	var selectedParentScope *resourceQualifiers.QualifierMapping
 	for parentScopeId, childScopes := range parentIdToChildScopes {
 		if len(childScopes) == numQualifiers {
 			selectedParentScope = parentScopeIdToScope[parentScopeId]
@@ -344,7 +355,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		return make([]*models.ScopedVariableData, 0), nil
 	}
 
-	varScope, err := impl.scopedVariableRepository.GetScopedVariableData(scope, variableIds)
+	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, variableIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting varScope", "err", err)
 		return nil, err
@@ -431,6 +442,15 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 	}
 	variables := make([]*models.Variables, 0)
 
+	varIdVsScopeMappings, varScopeIds, err := impl.getVariableScopes(dataForJson)
+	if err != nil {
+		return nil, err
+	}
+	scopeIdVsDataMap, err := impl.getVariableScopeData(varScopeIds)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, data := range dataForJson {
 		definition := models.Definition{
 			VarName:          data.Name,
@@ -441,12 +461,13 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 		}
 		attributes := make([]models.AttributeValue, 0)
 
-		scopeIdToVarScopes := make(map[int][]*repository2.VariableScope)
-		for _, scope := range data.VariableScope {
+		scopedVariables := varIdVsScopeMappings[data.Id]
+		scopeIdToVarScopes := make(map[int][]*resourceQualifiers.QualifierMapping)
+		for _, scope := range scopedVariables {
 			if scope.ParentIdentifier != 0 {
 				scopeIdToVarScopes[scope.ParentIdentifier] = append(scopeIdToVarScopes[scope.ParentIdentifier], scope)
 			} else {
-				scopeIdToVarScopes[scope.Id] = []*repository2.VariableScope{scope}
+				scopeIdToVarScopes[scope.Id] = []*resourceQualifiers.QualifierMapping{scope}
 			}
 		}
 		for parentScopeId, scopes := range scopeIdToVarScopes {
@@ -454,9 +475,11 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 				AttributeParams: make(map[models.IdentifierType]string),
 			}
 			for _, scope := range scopes {
-				if parentScopeId == scope.Id {
+				scopeId := scope.Id
+				if parentScopeId == scopeId {
+					variableData := scopeIdVsDataMap[scopeId]
 					var value interface{}
-					value, err = utils.DestringifyValue(scope.VariableData.Data)
+					value, err = utils.DestringifyValue(variableData.Data)
 					if err != nil {
 						return nil, err
 					}
@@ -484,6 +507,43 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 		return nil, nil
 	}
 	return payload, nil
+}
+
+func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*repository2.VariableDefinition) (map[int][]*resourceQualifiers.QualifierMapping, []int, error) {
+	varIdVsScopeMappings := make(map[int][]*resourceQualifiers.QualifierMapping)
+	var varScopeIds []int
+	varDefnIds := make([]int, len(dataForJson))
+	for _, variableDefinition := range dataForJson {
+		varDefnIds = append(varDefnIds, variableDefinition.Id)
+	}
+	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, varDefnIds)
+	if err != nil {
+		//TODO KB: handle this
+		return varIdVsScopeMappings, varScopeIds, err
+	}
+
+	for _, scopedVariableMapping := range scopedVariableMappings {
+		varId := scopedVariableMapping.ResourceId
+		varScopeIds = append(varScopeIds, scopedVariableMapping.Id)
+		variableScopes := varIdVsScopeMappings[varId]
+		variableScopes = append(variableScopes, scopedVariableMapping)
+		varIdVsScopeMappings[varId] = variableScopes
+	}
+	return varIdVsScopeMappings, varScopeIds, nil
+}
+
+func (impl *ScopedVariableServiceImpl) getVariableScopeData(scopeIds []int) (map[int]*repository2.VariableData, error) {
+	scopeIdVsVarDataMap := make(map[int]*repository2.VariableData, len(scopeIds))
+	variableDataArray, err := impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching data for scope ids", "err", err)
+		return scopeIdVsVarDataMap, err
+	}
+	for _, variableData := range variableDataArray {
+		variableScopeId := variableData.VariableScopeId
+		scopeIdVsVarDataMap[variableScopeId] = variableData
+	}
+	return scopeIdVsVarDataMap, nil
 }
 
 func getAuditLog(payload models.Payload) sql.AuditLog {
