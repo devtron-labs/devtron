@@ -624,6 +624,7 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 	}
 	if len(pluginStepsToRemove) > 0 {
 		//basically we need to update here with deleted as true
+		//TODO no need to mark deleted as true, just delete don't create that step
 		err = impl.deleteDeepPluginStepData(pluginStepsToRemove, pluginStepVariables, pluginStepConditions, pluginSteps, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleteDeepPluginStepData", "pluginMetadataId", pluginMetaData.Id, "err", err)
