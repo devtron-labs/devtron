@@ -319,6 +319,13 @@ func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, u
 			return nil, err
 		}
 		return pluginData, nil
+	case 2:
+		pluginData, err := impl.deletePlugin(pluginDto, userId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting plugin", "err", err, "pluginDto", pluginDto)
+			return nil, err
+		}
+		return pluginData, nil
 	}
 
 	return nil, nil
@@ -677,7 +684,7 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 
 	err = tx.Commit()
 	if err != nil {
-		impl.logger.Errorw("createPlugin, error in committing db transaction", "err", err)
+		impl.logger.Errorw("updatePlugin, error in committing db transaction", "err", err)
 		return nil, err
 	}
 	return pluginUpdateReq, nil
@@ -1298,4 +1305,84 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 	pluginMetadataResponse.PluginSteps = pluginStepsResp
 
 	return pluginMetadataResponse, nil
+}
+
+func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+	dbConnection := impl.globalPluginRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error
+	defer tx.Rollback()
+	pluginMetaData, err := impl.globalPluginRepository.GetMetaDataByPluginId(pluginDeleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in getting pluginMetadata, pluginId does not exist", "pluginId", pluginDeleteReq.Id, "err", err)
+		return nil, err
+	}
+	pluginMetaData.Deleted = true
+	pluginMetaData.UpdatedBy = userId
+	pluginMetaData.UpdatedOn = time.Now()
+	err = impl.globalPluginRepository.UpdatePluginMetadata(pluginMetaData, tx)
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in deleting pluginMetadata", "pluginId", pluginDeleteReq.Id, "err", err)
+		return nil, err
+	}
+	pluginSteps, err := impl.globalPluginRepository.GetPluginStepsByPluginId(pluginDeleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in getting pluginSteps", "pluginId", pluginDeleteReq.Id, "err", err)
+		return nil, err
+	}
+
+	for _, pluginStep := range pluginSteps {
+		pluginStep.Deleted = true
+		pluginStep.UpdatedBy = userId
+		pluginStep.UpdatedOn = time.Now()
+	}
+	err = impl.globalPluginRepository.UpdateInBulkPluginSteps(pluginSteps, tx)
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in deleting plugin steps in bulk", "pluginId", pluginMetaData.Id, "err", err)
+		return nil, err
+	}
+
+	pluginStepVariables, err := impl.globalPluginRepository.GetExposedVariablesByPluginId(pluginDeleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in getting pluginStepVariables", "pluginId", pluginDeleteReq.Id, "err", err)
+		return nil, err
+	}
+	for index, _ := range pluginStepVariables {
+		pluginStepVariables[index].Deleted = true
+		pluginStepVariables[index].UpdatedBy = userId
+		pluginStepVariables[index].UpdatedOn = time.Now()
+	}
+	err = impl.globalPluginRepository.UpdateInBulkPluginStepVariables(pluginStepVariables, tx)
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in deleting plugin step variables in bulk", "pluginId", pluginMetaData.Id, "err", err)
+		return nil, err
+	}
+
+	pluginStepConditions, err := impl.globalPluginRepository.GetConditionsByPluginId(pluginDeleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in getting pluginStepConditions", "pluginId", pluginDeleteReq.Id, "err", err)
+		return nil, err
+	}
+
+	for index, _ := range pluginStepConditions {
+		pluginStepConditions[index].Deleted = true
+		pluginStepConditions[index].UpdatedBy = userId
+		pluginStepConditions[index].UpdatedOn = time.Now()
+	}
+
+	err = impl.globalPluginRepository.UpdateInBulkPluginStepConditions(pluginStepConditions, tx)
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in deleting plugin step variable conditions in bulk", "pluginId", pluginMetaData.Id, "err", err)
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in committing db transaction", "err", err)
+		return nil, err
+	}
+	return pluginDeleteReq, nil
 }
