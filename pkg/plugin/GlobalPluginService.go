@@ -1338,11 +1338,12 @@ func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadat
 		pluginStep.Deleted = true
 		pluginStep.UpdatedBy = userId
 		pluginStep.UpdatedOn = time.Now()
-	}
-	err = impl.globalPluginRepository.UpdateInBulkPluginSteps(pluginSteps, tx)
-	if err != nil {
-		impl.logger.Errorw("deletePlugin, error in deleting plugin steps in bulk", "pluginId", pluginMetaData.Id, "err", err)
-		return nil, err
+
+		err := impl.globalPluginRepository.UpdatePluginSteps(pluginStep, tx)
+		if err != nil {
+			impl.logger.Errorw("deletePlugin, error in deleting plugin steps", "pluginId", pluginMetaData.Id, "err", err)
+			return nil, err
+		}
 	}
 
 	pluginStepVariables, err := impl.globalPluginRepository.GetExposedVariablesByPluginId(pluginDeleteReq.Id)
@@ -1350,15 +1351,16 @@ func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadat
 		impl.logger.Errorw("deletePlugin, error in getting pluginStepVariables", "pluginId", pluginDeleteReq.Id, "err", err)
 		return nil, err
 	}
-	for index, _ := range pluginStepVariables {
-		pluginStepVariables[index].Deleted = true
-		pluginStepVariables[index].UpdatedBy = userId
-		pluginStepVariables[index].UpdatedOn = time.Now()
-	}
-	err = impl.globalPluginRepository.UpdateInBulkPluginStepVariables(pluginStepVariables, tx)
-	if err != nil {
-		impl.logger.Errorw("deletePlugin, error in deleting plugin step variables in bulk", "pluginId", pluginMetaData.Id, "err", err)
-		return nil, err
+	for _, pluginStepVariable := range pluginStepVariables {
+		pluginStepVariable.Deleted = true
+		pluginStepVariable.UpdatedBy = userId
+		pluginStepVariable.UpdatedOn = time.Now()
+
+		err = impl.globalPluginRepository.UpdatePluginStepVariables(pluginStepVariable, tx)
+		if err != nil {
+			impl.logger.Errorw("deletePlugin, error in deleting plugin step variables", "pluginId", pluginMetaData.Id, "err", err)
+			return nil, err
+		}
 	}
 
 	pluginStepConditions, err := impl.globalPluginRepository.GetConditionsByPluginId(pluginDeleteReq.Id)
@@ -1367,16 +1369,16 @@ func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadat
 		return nil, err
 	}
 
-	for index, _ := range pluginStepConditions {
-		pluginStepConditions[index].Deleted = true
-		pluginStepConditions[index].UpdatedBy = userId
-		pluginStepConditions[index].UpdatedOn = time.Now()
-	}
+	for _, pluginStepCondition := range pluginStepConditions {
+		pluginStepCondition.Deleted = true
+		pluginStepCondition.UpdatedBy = userId
+		pluginStepCondition.UpdatedOn = time.Now()
 
-	err = impl.globalPluginRepository.UpdateInBulkPluginStepConditions(pluginStepConditions, tx)
-	if err != nil {
-		impl.logger.Errorw("deletePlugin, error in deleting plugin step variable conditions in bulk", "pluginId", pluginMetaData.Id, "err", err)
-		return nil, err
+		err = impl.globalPluginRepository.UpdatePluginStepConditions(pluginStepCondition, tx)
+		if err != nil {
+			impl.logger.Errorw("deletePlugin, error in deleting plugin step variable conditions", "pluginId", pluginMetaData.Id, "err", err)
+			return nil, err
+		}
 	}
 
 	err = tx.Commit()
