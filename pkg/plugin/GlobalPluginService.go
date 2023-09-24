@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -1210,9 +1211,12 @@ func (impl *GlobalPluginServiceImpl) GetAllDetailedPluginInfo() ([]*PluginMetada
 func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId int) (*PluginMetadataDto, error) {
 
 	pluginMetaData, err := impl.globalPluginRepository.GetMetaDataByPluginId(pluginId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginMetadata", "pluginId", pluginId, "err", err)
 		return nil, err
+	}
+	if err == pg.ErrNoRows {
+		return nil, errors.New("no plugin found for this id")
 	}
 	pluginStageMapping, err := impl.globalPluginRepository.GetPluginStageMappingByPluginId(pluginId)
 	if err != nil {
