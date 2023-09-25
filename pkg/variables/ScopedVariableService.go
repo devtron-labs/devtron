@@ -577,6 +577,7 @@ func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*reposito
 		varDefnIds = append(varDefnIds, variableDefinition.Id)
 	}
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	scope := models.Scope{}
 	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, scope, searchableKeyNameIdMap, varDefnIds)
 	if err != nil {
 		//TODO KB: handle this
