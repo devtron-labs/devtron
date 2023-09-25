@@ -34,14 +34,15 @@ func NewInstalledAppVersionHistoryRepositoryImpl(Logger *zap.SugaredLogger, dbCo
 }
 
 type InstalledAppVersionHistory struct {
-	TableName             struct{}  `sql:"installed_app_version_history" pg:",discard_unknown_columns"`
-	Id                    int       `sql:"id,pk"`
-	InstalledAppVersionId int       `sql:"installed_app_version_id,notnull"`
-	ValuesYamlRaw         string    `sql:"values_yaml_raw"`
-	Status                string    `sql:"status"`
-	GitHash               string    `sql:"git_hash"`
-	StartedOn             time.Time `sql:"started_on,type:timestamptz"`
-	FinishedOn            time.Time `sql:"finished_on,type:timestamptz"`
+	TableName               struct{}  `sql:"installed_app_version_history" pg:",discard_unknown_columns"`
+	Id                      int       `sql:"id,pk"`
+	InstalledAppVersionId   int       `sql:"installed_app_version_id,notnull"`
+	ValuesYamlRaw           string    `sql:"values_yaml_raw"`
+	Status                  string    `sql:"status"`
+	GitHash                 string    `sql:"git_hash"`
+	StartedOn               time.Time `sql:"started_on,type:timestamptz"`
+	FinishedOn              time.Time `sql:"finished_on,type:timestamptz"`
+	HelmReleaseStatusConfig string    `sql:"helm_release_status_config"`
 	sql.AuditLog
 }
 

@@ -56,6 +56,7 @@ type CiCdConfig struct {
 	ImageRetryInterval               int                                 `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
 	CiWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CI_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	BuildxK8sDriverOptions           string                              `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
+	CIAutoTriggerBatchSize           int                                 `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"1"`
 
 	//from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
