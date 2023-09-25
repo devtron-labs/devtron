@@ -1707,6 +1707,9 @@ func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiM
 
 func getPatchStatus(err error) bean.CiPatchStatus {
 	if err != nil {
+		if err.Error() == string(bean.CI_PATCH_NOT_AUTHORIZED) {
+			return bean.CI_PATCH_NOT_AUTHORIZED
+		}
 		return bean.CI_PATCH_FAILED
 	}
 	return bean.CI_PATCH_SUCCESS
