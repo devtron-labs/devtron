@@ -94,7 +94,7 @@ func (impl *ResourceFilterServiceImpl) ListFilters() ([]*FilterResponseBean, err
 }
 
 func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResponseBean, error) {
-
+	return nil, nil
 }
 
 func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterResponseBean, error) {
@@ -132,7 +132,7 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return nil, err
 	}
 
-	err = impl.saveQualifierMappings(tx, filterRequest.QualifierSelector)
+	err = impl.saveQualifierMappings(tx, createdFilterDataBean.Id, filterRequest.QualifierSelector)
 	if err != nil {
 		impl.logger.Errorw("error in saveQualifierMappings", "err", err, "QualifierSelector", filterRequest.QualifierSelector)
 		return nil, err
@@ -148,18 +148,19 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 }
 
 func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterResponseBean, error) {
-
+	//if mappings are edited delete all the existing mappings and create new mappings
+	return nil, nil
 }
 
 func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error {
-
+	return nil
 }
 
 func (impl *ResourceFilterServiceImpl) GetFiltersByAppIdEnvId(appId, envId int) ([]*FilterRequestResponseBean, error) {
-
+	return nil, nil
 }
 
-func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, qualifierSelector QualifierSelector) error {
+func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, resourceFilterId int, qualifierSelector QualifierSelector) error {
 	qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0)
 
 	//apps
@@ -169,7 +170,16 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, qualifie
 	//4) all existing apps in a project -> will get projectName and all applications array
 	//5) all existing and future apps in a project ->  will get projectName and empty applications array
 	if len(qualifierSelector.ApplicationSelectors) == 0 {
-		allExistingAndFutureAppsQualifierMapping := &resourceQualifiers.QualifierMapping{}
+		allExistingAndFutureAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
+			ResourceId:   resourceFilterId,
+			ResourceType: resourceQualifiers.Filter,
+			//IdentifierKey: get identifier key for app identifer
+			//qualifierId: get qualifierId
+			Active:                true,
+			IdentifierValueInt:    0,
+			IdentifierValueString: "0",
+		}
+		qualifierMappings = append(qualifierMappings, allExistingAndFutureAppsQualifierMapping)
 	}
 	//envs
 	//1) all existing and future prod envs -> get single EnvironmentSelector with clusterName as "0"(prod)
