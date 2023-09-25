@@ -2,6 +2,7 @@ package variables
 
 import (
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -27,6 +28,7 @@ type ScopedVariableServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	scopedVariableRepository repository2.ScopedVariableRepository
 	qualifierMappingService  resourceQualifiers.QualifierMappingService
+	devtronResourceService   devtronResource.DevtronResourceService
 	VariableNameConfig       *VariableConfig
 	VariableCache            *cache.VariableCacheObj
 }
@@ -355,7 +357,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, va
 		return make([]*models.ScopedVariableData, 0), nil
 	}
 
-	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, variableIds)
+	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, scope, searchableKeyNameIdMap, variableIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting varScope", "err", err)
 		return nil, err
@@ -516,7 +519,9 @@ func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*reposito
 	for _, variableDefinition := range dataForJson {
 		varDefnIds = append(varDefnIds, variableDefinition.Id)
 	}
-	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, varDefnIds)
+	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	scope := models.Scope{}
+	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, scope, searchableKeyNameIdMap, varDefnIds)
 	if err != nil {
 		//TODO KB: handle this
 		return varIdVsScopeMappings, varScopeIds, err
