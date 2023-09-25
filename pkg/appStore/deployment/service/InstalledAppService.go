@@ -956,9 +956,6 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			ReleaseIdentifier: &client.ReleaseIdentifier{
 				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
 				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
-				ClusterConfig: &client.ClusterConfig{
-					ClusterId: int32(installedAppVerison.InstalledApp.Environment.ClusterId),
-				},
 			},
 		}
 

@@ -3067,16 +3067,23 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 		}
 
 		releaseName := pipeline.DeploymentAppName
-		bearerToken := envOverride.Environment.Cluster.Config[k8s2.BearerToken]
-
+		cluster := envOverride.Environment.Cluster
+		bearerToken := cluster.Config[k8s2.BearerToken]
+		clusterConfig := &client2.ClusterConfig{
+			ClusterName:           cluster.ClusterName,
+			Token:                 bearerToken,
+			ApiServerUrl:          cluster.ServerUrl,
+			InsecureSkipTLSVerify: cluster.InsecureSkipTlsVerify,
+		}
+		if cluster.InsecureSkipTlsVerify == false {
+			clusterConfig.KeyData = cluster.Config[k8s2.TlsKey]
+			clusterConfig.CertData = cluster.Config[k8s2.CertData]
+			clusterConfig.CaData = cluster.Config[k8s2.CertificateAuthorityData]
+		}
 		releaseIdentifier := &client2.ReleaseIdentifier{
 			ReleaseName:      releaseName,
 			ReleaseNamespace: envOverride.Namespace,
-			ClusterConfig: &client2.ClusterConfig{
-				ClusterName:  envOverride.Environment.Cluster.ClusterName,
-				Token:        bearerToken,
-				ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
-			},
+			ClusterConfig:    clusterConfig,
 		}
 
 		if pipeline.DeploymentAppCreated {

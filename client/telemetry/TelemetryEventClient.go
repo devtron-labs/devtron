@@ -220,10 +220,16 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	for _, clusterDetail := range clusters {
 		req := &client.AppListRequest{}
 		config := &client.ClusterConfig{
-			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config[k8s.BearerToken],
-			ClusterId:    int32(clusterDetail.Id),
-			ClusterName:  clusterDetail.ClusterName,
+			ApiServerUrl:          clusterDetail.ServerUrl,
+			Token:                 clusterDetail.Config[k8s.BearerToken],
+			ClusterId:             int32(clusterDetail.Id),
+			ClusterName:           clusterDetail.ClusterName,
+			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
+		}
+		if clusterDetail.InsecureSkipTLSVerify == false {
+			config.KeyData = clusterDetail.Config[k8s.TlsKey]
+			config.CertData = clusterDetail.Config[k8s.CertData]
+			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 		applicationStream, err := impl.helmAppClient.ListApplication(context.Background(), req)
