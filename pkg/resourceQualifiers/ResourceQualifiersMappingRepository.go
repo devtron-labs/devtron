@@ -1,7 +1,9 @@
 package resourceQualifiers
 
 import (
+	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -11,7 +13,7 @@ type QualifiersMappingRepository interface {
 	//transaction util funcs
 	sql.TransactionWrapper
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
-	GetQualifierMappings(resourceType ResourceType, varIds []int) ([]*QualifierMapping, error)
+	GetQualifierMappings(resourceType ResourceType, scope models.Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(sql.AuditLog, *pg.Tx) error
 }
 
@@ -37,7 +39,7 @@ func (repo *ResourceQualifiersMappingRepositoryImpl) CreateQualifierMappings(qua
 	return qualifierMappings, nil
 }
 
-func (repo *ResourceQualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType ResourceType, resourceIds []int) ([]*QualifierMapping, error) {
+func (repo *ResourceQualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType ResourceType, scope models.Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
 	var qualifierMappings []*QualifierMapping
 	query := repo.dbConnection.Model(&qualifierMappings).
 		Where("active = ?", true).

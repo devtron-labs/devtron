@@ -3,11 +3,11 @@ package variables
 import (
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/cache"
 	"github.com/devtron-labs/devtron/pkg/variables/helper"
@@ -31,14 +31,14 @@ type ScopedVariableServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	scopedVariableRepository repository2.ScopedVariableRepository
 	qualifierMappingService  resourceQualifiers.QualifierMappingService
+	devtronResourceService   devtronResource.DevtronResourceService
 	VariableNameConfig       *VariableConfig
 	VariableCache            *cache.VariableCacheObj
 
 	//Enterprise only
-	appRepository          app.AppRepository
-	environmentRepository  repository.EnvironmentRepository
-	devtronResourceService devtronResource.DevtronResourceService
-	clusterRepository      repository.ClusterRepository
+	appRepository         app.AppRepository
+	environmentRepository repository.EnvironmentRepository
+	clusterRepository     repository.ClusterRepository
 }
 
 func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository,
@@ -233,16 +233,18 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 						impl.logger.Errorw("error in getting identifierValue", "err", err)
 						return nil, err
 					}
-					scope := &repository2.VariableScope{
-						VariableDefinitionId:  variableId,
-						QualifierId:           int(helper.GetQualifierId(value.AttributeType)),
-						IdentifierKey:         helper.GetIdentifierKey(identifierType, searchableKeyNameIdMap),
-						IdentifierValueInt:    identifierValue,
-						Active:                true,
-						CompositeKey:          compositeString,
-						IdentifierValueString: IdentifierName,
-						Data:                  varValue,
-						AuditLog:              auditLog,
+					scope := &models.VariableScope{
+						QualifierMapping: &resourceQualifiers.QualifierMapping{
+							ResourceId:            variableId,
+							QualifierId:           int(helper.GetQualifierId(value.AttributeType)),
+							IdentifierKey:         helper.GetIdentifierKey(identifierType, searchableKeyNameIdMap),
+							IdentifierValueInt:    identifierValue,
+							Active:                true,
+							CompositeKey:          compositeString,
+							IdentifierValueString: IdentifierName,
+							AuditLog:              auditLog,
+						},
+						Data: varValue,
 					}
 					variableScopes = append(variableScopes, scope)
 				}
@@ -574,7 +576,8 @@ func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*reposito
 	for _, variableDefinition := range dataForJson {
 		varDefnIds = append(varDefnIds, variableDefinition.Id)
 	}
-	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, varDefnIds)
+	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, scope, searchableKeyNameIdMap, varDefnIds)
 	if err != nil {
 		//TODO KB: handle this
 		return varIdVsScopeMappings, varScopeIds, err
