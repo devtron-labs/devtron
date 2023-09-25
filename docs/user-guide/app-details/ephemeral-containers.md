@@ -25,18 +25,25 @@ Wherever you can access pod resources in Devtron, you can launch an ephemeral co
 3. Go to the **App Details** tab.
 4. Under the **K8 Resources** tab, select **Pod** inside `Workloads`.
 5. Locate the pod you wish to debug. Hover and choose click **Terminal**.
+
     ![Figure 1: Opening a Terminal](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/terminal.jpg)
+
 6. Click **Launch Ephemeral Container** as shown below.
+
     ![Figure 2: Launching an Ephemeral Container](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/launch-ec-new.jpg)
+
 7. You get 2 tabs:
     * **Basic** - It provides the bare minimum configurations required to launch an ephemeral container.
+
     ![Figure 3: Basic View](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/basic.jpg)
+
     It contains 3 mandatory fields:
         * **Container name prefix** - Type a prefix to give to your ephemeral container, for e.g., *debug*. Your container name would look like `debug-jndvs`.
         * **Image** - Choose an image to run from the dropdown. Ephemeral containers need an image to run and provide the capability to debug, such as `curl`. You can use a custom image too.
         * **Target Container name** - Since a pod can have one or more containers, choose a target container you wish to debug, from the dropdown.
 
     * **Advanced** - It is particularly useful for advanced users that wish to use labels or annotations since it provides additional key-value options. Refer [Ephemeral Container Spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#ephemeralcontainer-v1-core) to view the supported options.
+    
     ![Figure 4: Advanced View](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/advanced.jpg)
     
     {% hint style="info" %}
