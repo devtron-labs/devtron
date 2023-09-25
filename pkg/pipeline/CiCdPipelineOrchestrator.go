@@ -1804,6 +1804,10 @@ func (impl CiCdPipelineOrchestratorImpl) createDockerRepoIfNeeded(dockerRegistry
 }
 func (impl CiCdPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error {
 	impl.logger.Debugw("attempting ecr repo creation ", "repo", dockerRepository)
+	if !impl.ciConfig.TryCreatingEcrRepo {
+		impl.logger.Warnw("not creating ecr repo, set TRY_CREATING_ECR_REPO flag true to enable")
+		return nil
+	}
 	err := util.CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey)
 	if err != nil {
 		if errors1.IsAlreadyExists(err) {
