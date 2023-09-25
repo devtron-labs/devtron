@@ -1687,9 +1687,8 @@ func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiM
 		}
 		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value, token, checkAppSpecificAccess)
 
-		ciPipelineMaterial.Type = pipelineConfig.SOURCE_TYPE_BRANCH_FIXED
-
 		if err == nil {
+			ciPipelineMaterial.Type = pipelineConfig.SOURCE_TYPE_BRANCH_FIXED
 			ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
 		}
 		response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
