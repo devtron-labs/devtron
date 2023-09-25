@@ -89,6 +89,7 @@ type CiConfig struct {
 	GitProviders                     string `env:"GIT_PROVIDERS" envDefault:"github,gitlab"`
 	BuildxProvenanceMode             string `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
 	CIAutoTriggerBatchSize           int    `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"1"`
+	SkipCreatingEcrRepo              bool   `env:"SKIP_CREATING_ECR_REPO" envDefault:"false"`
 }
 
 type CiVolumeMount struct {
