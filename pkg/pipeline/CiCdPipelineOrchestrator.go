@@ -250,7 +250,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 			return err
 		}
 		if !ok {
-			return errors.New(string(bean.CI_PATCH_REGEX_ERROR) + ciPipelineMaterial.Regex)
+			return errors.New(string(bean.CI_PATCH_REGEX_ERROR) + "“" + ciPipelineMaterial.Regex + "”")
 		}
 	}
 	return nil
