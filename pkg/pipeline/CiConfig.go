@@ -87,7 +87,7 @@ type CiConfig struct {
 	BuildxK8sDriverOptions           string `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
 	BuildxProvenanceMode             string `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
 	CIAutoTriggerBatchSize           int    `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"1"`
-	TryCreatingEcrRepo               bool   `env:"TRY_CREATING_ECR_REPO" envDefault:"true"`
+	SkipCreatingEcrRepo              bool   `env:"SKIP_CREATING_ECR_REPO" envDefault:"false"`
 }
 
 type CiVolumeMount struct {
