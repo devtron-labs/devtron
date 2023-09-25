@@ -309,6 +309,9 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//TODO extract envIds from request
+	envIds := []int{1, 2, 18}
+	envGroupId := 0
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -359,11 +362,21 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		}
 	}
 
-	response := appWorkflow.TriggerViewWorkflowConfig{
+	response := &appWorkflow.TriggerViewWorkflowConfig{
 		Workflows:        appWorkflows,
 		CiConfig:         ciPipelineViewData,
 		CdPipelines:      cdPipelinesForApp,
 		ExternalCiConfig: externalCiData,
+	}
+
+	if len(envIds) > 0 || envGroupId > 0 {
+		//filter based on envIds
+		response, err = handler.appWorkflowService.FilterWorkflowAndPipelinesOnEnvIds(response, envIds, envGroupId)
+		if err != nil {
+			handler.Logger.Errorw("service err, FilterResponseOnEnvIds", "appId", appId, "envIds", envIds, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	common.WriteJsonResp(w, err, response, http.StatusOK)
