@@ -9,6 +9,13 @@ const (
 	Filter                = 1
 )
 
+type QualifierSelector int
+
+const (
+	ApplicationSelector                  QualifierSelector = 0
+	EnvironmentSelectorQualifierSelector                   = 1
+)
+
 type QualifierMapping struct {
 	tableName             struct{}     `sql:"resource_qualifier_mapping" pg:",discard_unknown_columns"`
 	Id                    int          `sql:"id,pk"`
