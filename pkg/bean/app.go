@@ -183,6 +183,7 @@ const (
 	NORMAL   PipelineType = "NORMAL"
 	LINKED   PipelineType = "LINKED"
 	EXTERNAL PipelineType = "EXTERNAL"
+	CI_JOB   PipelineType = "CI_JOB"
 )
 
 const (
