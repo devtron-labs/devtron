@@ -786,7 +786,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
 				UserId:             createRequest.UserId,
 			}
-			if !ciPipeline.IsExternal && createRequest.CiBuildConfig.CiBuildType != bean2.SKIP_BUILD_BUILD_TYPE {
+			if !ciPipeline.IsExternal && ciPipeline.DockerConfigOverride.CiBuildConfig.CiBuildType != bean2.SKIP_BUILD_BUILD_TYPE {
 				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
 				if err != nil {
 					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
