@@ -80,7 +80,6 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		return nil, err
 	}
 	if len(templates) > 0 {
-		//TODO KB: put this logic inside WFTemplate.getEntrypoint
 		entryPoint = workflowTemplate.GetEntrypoint()
 	}
 
@@ -95,7 +94,6 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	impl.updateBlobStorageConfig(workflowTemplate, &ciCdTemplate)
 	templates = append(templates, ciCdTemplate)
 
-	//TODO KB: use func wfTemplate.createObjectMetadata
 	objectMeta := workflowTemplate.CreateObjectMetadata()
 
 	var (
