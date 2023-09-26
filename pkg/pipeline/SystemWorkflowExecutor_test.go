@@ -24,7 +24,7 @@ func TestSystemWorkflowExecute(t *testing.T) {
 	t.SkipNow()
 	logger, loggerErr := util.NewSugardLogger()
 	assert.Nil(t, loggerErr)
-	cdConfig, err := GetCdConfig()
+	cdConfig, err := GetCiCdConfig()
 	assert.Nil(t, err)
 	runtimeConfig, err := client.GetRuntimeConfig()
 	assert.Nil(t, err)

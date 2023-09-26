@@ -28,9 +28,9 @@ const (
 	CRED_ACCESS_KEY              = "accessKey"
 	CRED_SECRET_KEY              = "secretKey"
 	S3_ENDPOINT_URL              = "s3.amazonaws.com"
-	WORKFLOW_GENERATE_NAME_REGEX = "%s-"
 	DEVTRON_WORKFLOW_LABEL_KEY   = "devtron.ai/workflow-purpose"
 	DEVTRON_WORKFLOW_LABEL_VALUE = "cd"
+	WORKFLOW_GENERATE_NAME_REGEX = "%s-"
 	RESOURCE_CREATE_ACTION       = "create"
 )
 
@@ -72,35 +72,33 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateWorkflow(workflowName string, nam
 
 func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error) {
 
-	entryPoint := CD_WORKFLOW_NAME
+	entryPoint := workflowTemplate.WorkflowType
 	// get cm and cs argo step templates
-	templates, err := impl.getArgoTemplates(workflowTemplate.ConfigMaps, workflowTemplate.Secrets)
+	templates, err := impl.getArgoTemplates(workflowTemplate.ConfigMaps, workflowTemplate.Secrets, workflowTemplate.WorkflowType == bean.CI_WORKFLOW_NAME)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching argo templates and steps", "err", err)
 		return nil, err
 	}
 	if len(templates) > 0 {
-		entryPoint = CD_WORKFLOW_WITH_STAGES
+		entryPoint = workflowTemplate.GetEntrypoint()
 	}
 
 	wfContainer := workflowTemplate.Containers[0]
-	cdTemplate := v1alpha1.Template{
-		Name:      CD_WORKFLOW_NAME,
+	ciCdTemplate := v1alpha1.Template{
+		Name:      workflowTemplate.WorkflowType,
 		Container: &wfContainer,
 		ActiveDeadlineSeconds: &intstr.IntOrString{
 			IntVal: int32(*workflowTemplate.ActiveDeadlineSeconds),
 		},
 	}
-	impl.updateBlobStorageConfig(workflowTemplate, &cdTemplate)
-	templates = append(templates, cdTemplate)
+	impl.updateBlobStorageConfig(workflowTemplate, &ciCdTemplate)
+	templates = append(templates, ciCdTemplate)
+
+	objectMeta := workflowTemplate.CreateObjectMetadata()
 
 	var (
-		cdWorkflow = v1alpha1.Workflow{
-			ObjectMeta: v1.ObjectMeta{
-				GenerateName: fmt.Sprintf(WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix),
-				Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
-				Labels:       map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE},
-			},
+		ciCdWorkflow = v1alpha1.Workflow{
+			ObjectMeta: *objectMeta,
 			Spec: v1alpha1.WorkflowSpec{
 				ServiceAccountName: workflowTemplate.ServiceAccountName,
 				NodeSelector:       workflowTemplate.NodeSelector,
@@ -115,7 +113,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		}
 	)
 
-	wfTemplate, err := json.Marshal(cdWorkflow)
+	wfTemplate, err := json.Marshal(ciCdWorkflow)
 	if err != nil {
 		impl.logger.Errorw("error occurred while marshalling json", "err", err)
 		return nil, err
@@ -128,7 +126,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		return nil, err
 	}
 
-	createdWf, err := wfClient.Create(context.Background(), &cdWorkflow, v1.CreateOptions{})
+	createdWf, err := wfClient.Create(context.Background(), &ciCdWorkflow, v1.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in wf trigger", "err", err)
 		return nil, err
@@ -206,7 +204,7 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 	}
 }
 
-func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) ([]v1alpha1.Template, error) {
+func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap, isCi bool) ([]v1alpha1.Template, error) {
 	var templates []v1alpha1.Template
 	var steps []v1alpha1.ParallelSteps
 	cmIndex := 0
@@ -235,18 +233,27 @@ func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.Config
 		templates = append(templates, argoTemplate)
 		csIndex++
 	}
+	if len(templates) <= 0 {
+		return templates, nil
+	}
+	stepName := bean.CD_WORKFLOW_NAME
+	templateName := bean.CD_WORKFLOW_WITH_STAGES
+	if isCi {
+		stepName = bean.CI_WORKFLOW_NAME
+		templateName = bean.CI_WORKFLOW_WITH_STAGES
+	}
 
 	steps = append(steps, v1alpha1.ParallelSteps{
 		Steps: []v1alpha1.WorkflowStep{
 			{
 				Name:     "run-wf",
-				Template: CD_WORKFLOW_NAME,
+				Template: stepName,
 			},
 		},
 	})
 
 	templates = append(templates, v1alpha1.Template{
-		Name:  CD_WORKFLOW_WITH_STAGES,
+		Name:  templateName,
 		Steps: steps,
 	})
 

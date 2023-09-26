@@ -13,61 +13,6 @@ import (
 	"time"
 )
 
-const (
-	NoResourceFiltersFound               = "no active resource filters found"
-	AppAndEnvSelectorRequiredMessage     = "both application and environment selectors are required"
-	InvalidExpressions                   = "one or more expressions are invalid"
-	AllProjectsValue                     = "0"
-	AllProjectsInt                       = 0
-	AllExistingAndFutureProdEnvsValue    = "0"
-	AllExistingAndFutureProdEnvsInt      = 0
-	AllExistingAndFutureNonProdEnvsValue = "-1"
-	AllExistingAndFutureNonProdEnvsInt   = -1
-)
-
-type IdentifierType int
-
-const (
-	ProjectIdentifier     = 0
-	AppIdentifier         = 1
-	ClusterIdentifier     = 2
-	EnvironmentIdentifier = 3
-)
-
-type FilterMetaDataBean struct {
-	Id           int                `json:"id"`
-	TargetObject FilterTargetObject `json:"targetObject" validate:"required"`
-	Description  string             `json:"description" `
-	Name         string             `json:"name" validate:"required"`
-}
-
-type FilterRequestResponseBean struct {
-	*FilterMetaDataBean
-	Conditions        []ResourceCondition `json:"conditions"`
-	QualifierSelector QualifierSelector   `json:"qualifierSelector"`
-}
-
-type ResourceCondition struct {
-	ConditionType ResourceConditionType `json:"conditionType"`
-	Expression    string                `json:"expression"`
-	ErrorMsg      string                `json:"errorMsg"`
-}
-
-type QualifierSelector struct {
-	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors"`
-	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors"`
-}
-
-type ApplicationSelector struct {
-	ProjectName  string   `json:"projectName"`
-	Applications []string `json:"applications"`
-}
-
-type EnvironmentSelector struct {
-	ClusterName  string   `json:"clusterName"`
-	Environments []string `json:"environments"`
-}
-
 type ResourceFilterService interface {
 	//CRUD methods
 	ListFilters() ([]*FilterMetaDataBean, error)
@@ -78,25 +23,39 @@ type ResourceFilterService interface {
 
 	//GetFiltersByAppIdEnvId
 	GetFiltersByAppIdEnvId(appId, envId int) ([]*FilterRequestResponseBean, error)
+
+	CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error)
 }
 
 type ResourceFilterServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	qualifyingMappingService resourceQualifiers.QualifierMappingService
 	resourceFilterRepository ResourceFilterRepository
+	resourceFilterEvaluator  ResourceFilterEvaluator
 	appRepository            appRepository.AppRepository
 	teamRepository           team.TeamRepository
 	clusterRepository        clusterRepository.ClusterRepository
 	environmentRepository    clusterRepository.EnvironmentRepository
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger,
+func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
 	qualifyingMappingService resourceQualifiers.QualifierMappingService,
-	resourceFilterRepository ResourceFilterRepository) *ResourceFilterServiceImpl {
+	resourceFilterRepository ResourceFilterRepository,
+	resourceFilterEvaluator ResourceFilterEvaluator,
+	appRepository appRepository.AppRepository,
+	teamRepository team.TeamRepository,
+	clusterRepository clusterRepository.ClusterRepository,
+	environmentRepository clusterRepository.EnvironmentRepository,
+) *ResourceFilterServiceImpl {
 	return &ResourceFilterServiceImpl{
 		logger:                   logger,
 		qualifyingMappingService: qualifyingMappingService,
 		resourceFilterRepository: resourceFilterRepository,
+		resourceFilterEvaluator:  resourceFilterEvaluator,
+		appRepository:            appRepository,
+		teamRepository:           teamRepository,
+		clusterRepository:        clusterRepository,
+		environmentRepository:    environmentRepository,
 	}
 }
 
@@ -349,6 +308,24 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 		}
 	}
 	return teamsMap, appsMap, clustersMap, envsMap, nil
+}
+
+func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error) {
+	// fetch filters for given scope, use FilterEvaluator.Evaluate to check for access
+	filters, err := impl.GetFiltersByAppIdEnvId(scope.AppId, scope.EnvId)
+	if err != nil {
+		return ERROR, err
+	}
+	for _, filter := range filters {
+		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, metadata)
+		if err != nil {
+			return ERROR, nil
+		}
+		if !allowed {
+			return BLOCK, nil
+		}
+	}
+	return ALLOW, nil
 }
 
 func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId int32, resourceFilterId int, qualifierSelector QualifierSelector) error {

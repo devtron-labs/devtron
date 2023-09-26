@@ -12,6 +12,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -95,8 +96,7 @@ type BulkUpdateServiceImpl struct {
 	argoUserService                  argo.ArgoUserService
 	variableEntityMappingService     variables.VariableEntityMappingService
 	variableTemplateParser           parsers.VariableTemplateParser
-	resourceProtectionService protect.ResourceProtectionService
-
+	resourceProtectionService        protect.ResourceProtectionService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -1380,6 +1380,13 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 		artifact := artifacts[0] // fetch latest approved artifact in case of approval node configured
+		// TODO - SHASHWAT - EXPRESSION EVALUATOR HAS BEEN ADDED ALREADY. CHECK WHETHER THE ARTIFACT IS VALID OR NOT
+		if artifact.FilterState != resourceFilter.ALLOW {
+			if artifact.FilterState == resourceFilter.ERROR {
+				impl.logger.Errorw("service err, GetArtifactsByCDPipeline, error in evaluating filter expression", "cdPipelineId", pipeline.Id)
+			}
+			continue
+		}
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:     pipeline.Id,
 			AppId:          pipeline.AppId,

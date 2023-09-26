@@ -240,7 +240,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		Status:        appStoreBean.DEPLOY_INIT,
 	}
 
-	if !isInternalUse  && !environment.IsVirtualEnvironment  {
+	if !isInternalUse && !environment.IsVirtualEnvironment {
 		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {

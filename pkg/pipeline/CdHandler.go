@@ -40,9 +40,10 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -53,7 +54,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -83,14 +83,11 @@ type CdHandler interface {
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32, isAppStoreApplication bool)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
-	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error
+	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error
 }
 
 type CdHandlerImpl struct {
 	Logger                                 *zap.SugaredLogger
-	cdService                              CdWorkflowService
-	cdConfig                               *CdConfig
-	ciConfig                               *CiConfig
 	userService                            user.UserService
 	ciLogService                           CiLogService
 	ciArtifactRepository                   repository.CiArtifactRepository
@@ -123,40 +120,16 @@ type CdHandlerImpl struct {
 	imageTaggingService                    ImageTaggingService
 	eventFactory                           client2.EventFactory
 	k8sUtil                                *k8s.K8sUtil
+	workflowService                        WorkflowService
+	config                                 *CdConfig
 }
 
-func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	cdWorkflowService CdWorkflowService,
-	ciLogService CiLogService,
-	ciArtifactRepository repository.CiArtifactRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	pipelineRepository pipelineConfig.PipelineRepository,
-	envRepository repository2.EnvironmentRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	ciConfig *CiConfig, helmAppService client.HelmAppService,
-	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor,
-	appListingService app.AppListingService, appListingRepository repository.AppListingRepository,
-	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
-	application application.ServiceClient, argoUserService argo.ArgoUserService,
-	deploymentEventHandler app.DeploymentEventHandler,
-	eventClient client2.EventClient,
-	pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService,
-	pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService,
-	pipelineStatusTimelineService status.PipelineStatusTimelineService,
-	appService app.AppService,
-	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil,
-	installedAppRepository repository3.InstalledAppRepository,
-	installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository,
-	appGroupService appGroup2.AppGroupService,
+func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, appGroupService appGroup2.AppGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	imageTaggingService ImageTaggingService, eventFactory client2.EventFactory,
-	k8sUtil *k8s.K8sUtil) *CdHandlerImpl {
-	return &CdHandlerImpl{
+	eventFactory client2.EventFactory) *CdHandlerImpl {
+	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
-		cdConfig:                               cdConfig,
 		userService:                            userService,
-		cdService:                              cdWorkflowService,
 		ciLogService:                           ciLogService,
 		cdWorkflowRepository:                   cdWorkflowRepository,
 		ciArtifactRepository:                   ciArtifactRepository,
@@ -164,7 +137,6 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		envRepository:                          envRepository,
 		pipelineRepository:                     pipelineRepository,
 		ciWorkflowRepository:                   ciWorkflowRepository,
-		ciConfig:                               ciConfig,
 		helmAppService:                         helmAppService,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
 		workflowDagExecutor:                    workflowDagExecutor,
@@ -189,7 +161,14 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		imageTaggingService:                    imageTaggingService,
 		eventFactory:                           eventFactory,
 		k8sUtil:                                k8sUtil,
+		workflowService:                        workflowService,
 	}
+	config, err := GetCdConfig()
+	if err != nil {
+		return nil
+	}
+	cdh.config = config
+	return cdh
 }
 
 type ArgoPipelineStatusSyncEvent struct {
@@ -531,7 +510,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
 			Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
 		}
-		util3.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
+		util3.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if helmAppStatus == application.Healthy {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
@@ -572,31 +551,28 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		return 0, err
 	}
 
+	var clusterBean cluster.ClusterBean
+	if env != nil && env.Cluster != nil {
+		clusterBean = cluster.GetClusterBean(*env.Cluster)
+	}
+	clusterConfig, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return 0, err
+	}
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
 	} else if workflowRunner.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
-	// Terminate workflow
-	var restConfig *rest.Config
-	if isExtCluster {
-		var clusterBean cluster.ClusterBean
-		if env != nil && env.Cluster != nil {
-			clusterBean = cluster.GetClusterBean(*env.Cluster)
-		}
-		clusterConfig, err := clusterBean.GetClusterConfig()
-		if err != nil {
-			impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-			return 0, err
-		}
-		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
-		if err != nil {
-			impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
-			return 0, err
-		}
+	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
+		return 0, err
 	}
-	err = impl.cdService.TerminateWorkflow(workflowRunner.ExecutorType, workflowRunner.Name, workflowRunner.Namespace, restConfig)
+	// Terminate workflow
+	err = impl.workflowService.TerminateWorkflow(workflowRunner.ExecutorType, workflowRunner.Name, workflowRunner.Namespace, restConfig, isExtCluster, nil)
 	if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
@@ -640,7 +616,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 
 	ciArtifactLocationFormat := ciWorkflowConfig.CdArtifactLocationFormat
 	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
+		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
 	}
 
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
@@ -668,7 +644,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			EnvironmentName: savedWorkflow.CdWorkflow.Pipeline.Environment.Name,
 			Time:            time.Since(savedWorkflow.StartedOn).Seconds() - time.Since(savedWorkflow.FinishedOn).Seconds(),
 		}
-		util3.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
+		util3.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
 		}
@@ -685,7 +661,7 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	podName := ""
 	for k, v := range workflowStatus.Nodes {
 		impl.Logger.Debugw("extractWorkflowStatus", "workflowName", k, "v", v)
-		if v.TemplateName == CD_WORKFLOW_NAME {
+		if v.TemplateName == bean2.CD_WORKFLOW_NAME {
 			if v.BoundaryID == "" {
 				workflowName = k
 			} else {
@@ -918,40 +894,40 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	}
 
 	if cdConfig.LogsBucket == "" {
-		cdConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket //TODO -fixme
+		cdConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket() //TODO -fixme
 	}
 	if cdConfig.CdCacheRegion == "" {
-		cdConfig.CdCacheRegion = impl.cdConfig.DefaultCdLogsBucketRegion
+		cdConfig.CdCacheRegion = impl.config.GetDefaultCdLogsBucketRegion()
 	}
 
 	cdLogRequest := BuildLogRequest{
 		PipelineId:    cdWorkflow.CdWorkflow.PipelineId,
 		WorkflowId:    cdWorkflow.Id,
 		PodName:       cdWorkflow.PodName,
-		LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
-		CloudProvider: impl.ciConfig.CloudProvider,
+		LogsFilePath:  cdWorkflow.LogLocation, // impl.ciCdConfig.CiDefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
+		CloudProvider: impl.config.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
-			Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-			AccountName:       impl.ciConfig.AzureAccountName,
-			BlobContainerName: impl.ciConfig.AzureBlobContainerCiLog,
-			AccountKey:        impl.ciConfig.AzureAccountKey,
+			Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:       impl.config.AzureAccountName,
+			BlobContainerName: impl.config.AzureBlobContainerCiLog,
+			AccountKey:        impl.config.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
-			AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
-			Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
-			EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
-			IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+			AccessKey:         impl.config.BlobStorageS3AccessKey,
+			Passkey:           impl.config.BlobStorageS3SecretKey,
+			EndpointUrl:       impl.config.BlobStorageS3Endpoint,
+			IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
 			BucketName:        cdConfig.LogsBucket,
 			Region:            cdConfig.CdCacheRegion,
-			VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
+			VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
 		},
 		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
 			BucketName:             cdConfig.LogsBucket,
-			CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
+			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
 	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)
-	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.ciConfig.BaseLogLocationPath, cdLogRequest)
+	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, cdLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
 		return nil, nil, err
@@ -1102,43 +1078,43 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 
 	cdConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(pipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("unable to fetch ciConfig", "err", err)
+		impl.Logger.Errorw("unable to fetch ciCdConfig", "err", err)
 		return nil, err
 	}
 
 	if cdConfig.LogsBucket == "" {
-		cdConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
+		cdConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
 	if cdConfig.CdCacheRegion == "" {
-		cdConfig.CdCacheRegion = impl.cdConfig.DefaultCdLogsBucketRegion
+		cdConfig.CdCacheRegion = impl.config.GetDefaultCdLogsBucketRegion()
 	}
 
 	item := strconv.Itoa(wfr.Id)
 	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
-		AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
-		Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
-		EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
-		IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+		AccessKey:         impl.config.BlobStorageS3AccessKey,
+		Passkey:           impl.config.BlobStorageS3SecretKey,
+		EndpointUrl:       impl.config.BlobStorageS3Endpoint,
+		IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
 		BucketName:        cdConfig.LogsBucket,
 		Region:            cdConfig.CdCacheRegion,
-		VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
+		VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
 	}
 	azureBlobBaseConfig := &blob_storage.AzureBlobBaseConfig{
-		Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-		AccountKey:        impl.ciConfig.AzureAccountKey,
-		AccountName:       impl.ciConfig.AzureAccountName,
-		BlobContainerName: impl.ciConfig.AzureBlobContainerCiLog,
+		Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
+		AccountKey:        impl.config.AzureAccountKey,
+		AccountName:       impl.config.AzureAccountName,
+		BlobContainerName: impl.config.AzureBlobContainerCiLog,
 	}
 	gcpBlobBaseConfig := &blob_storage.GcpBlobBaseConfig{
 		BucketName:             cdConfig.LogsBucket,
-		CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
+		CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 	}
-	key := fmt.Sprintf("%s/"+impl.cdConfig.CdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, wfr.CdWorkflow.Id, wfr.Id)
-	baseLogLocationPathConfig := impl.cdConfig.BaseLogLocationPath
+	key := fmt.Sprintf("%s/"+impl.config.GetArtifactLocationFormat(), impl.config.GetDefaultArtifactKeyPrefix(), wfr.CdWorkflow.Id, wfr.Id)
+	baseLogLocationPathConfig := impl.config.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
 	request := &blob_storage.BlobStorageRequest{
-		StorageType:         impl.ciConfig.CloudProvider,
+		StorageType:         impl.config.CloudProvider,
 		SourceKey:           key,
 		DestinationKey:      destinationKey,
 		AzureBlobBaseConfig: azureBlobBaseConfig,
@@ -1609,11 +1585,11 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request appGr
 	return deploymentStatuses, err
 }
 
-func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error {
+func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error {
 	approvalActionType := approvalActionRequest.ActionType
 	artifactId := approvalActionRequest.ArtifactId
 	approvalRequestId := approvalActionRequest.ApprovalRequestId
-	if approvalActionType == bean2.APPROVAL_APPROVE_ACTION {
+	if approvalActionType == bean3.APPROVAL_APPROVE_ACTION {
 		//fetch approval request data, same user should not be Approval requester
 		approvalRequest, err := impl.deploymentApprovalRepository.FetchWithPipelineAndArtifactDetails(approvalRequestId)
 		if err != nil {
@@ -1671,7 +1647,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			}
 		}
 
-	} else if approvalActionType == bean2.APPROVAL_REQUEST_ACTION {
+	} else if approvalActionType == bean3.APPROVAL_REQUEST_ACTION {
 		pipelineId := approvalActionRequest.PipelineId
 		deploymentApprovalRequest := &pipelineConfig.DeploymentApprovalRequest{
 			PipelineId: pipelineId,
@@ -1713,7 +1689,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 	return nil
 }
 
-func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean2.UserApprovalActionRequest, userId int32) error {
+func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean3.UserApprovalActionRequest, userId int32) error {
 	eventType := util2.Approval
 	pipeline, err := impl.pipelineRepository.FindById(approvalActionRequest.PipelineId)
 	if err != nil {

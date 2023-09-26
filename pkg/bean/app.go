@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -212,6 +213,23 @@ const (
 	WEBHOOK_EVENT_NON_MERGED_ACTION_TYPE string = "non-merged"
 )
 
+type CiPatchStatus string
+
+const (
+	CI_PATCH_SUCCESS        CiPatchStatus = "Succeeded"
+	CI_PATCH_FAILED         CiPatchStatus = "Failed"
+	CI_PATCH_NOT_AUTHORIZED CiPatchStatus = "Not authorised"
+)
+
+type CiPatchMessage string
+
+const (
+	CI_PATCH_NOT_AUTHORIZED_MESSAGE CiPatchMessage = "You don't have permission to change branch"
+	CI_PATCH_MULTI_GIT_ERROR        CiPatchMessage = "Build pipeline is connected to multiple git repositories"
+	CI_PATCH_REGEX_ERROR            CiPatchMessage = "Provided branch does not match regex "
+	CI_BRANCH_TYPE_ERROR            CiPatchMessage = "Branch cannot be changed for pipeline as source type is “Pull request or Tag”"
+)
+
 func (a PatchAction) String() string {
 	return [...]string{"CREATE", "UPDATE_PIPELINE", "DELETE", "DEACTIVATE"}[a]
 
@@ -223,6 +241,27 @@ type CiMaterialPatchRequest struct {
 	AppId         int               `json:"appId" validate:"required"`
 	EnvironmentId int               `json:"environmentId" validate:"required"`
 	Source        *SourceTypeConfig `json:"source" validate:"required"`
+}
+
+type CiMaterialValuePatchRequest struct {
+	AppId         int `json:"appId" validate:"required"`
+	EnvironmentId int `json:"environmentId" validate:"required"`
+}
+
+type CiMaterialBulkPatchRequest struct {
+	AppIds        []int  `json:"appIds" validate:"required"`
+	EnvironmentId int    `json:"environmentId" validate:"required"`
+	Value         string `json:"value,omitempty" validate:"required"`
+}
+
+type CiMaterialBulkPatchResponse struct {
+	Apps []CiMaterialPatchResponse `json:"apps"`
+}
+
+type CiMaterialPatchResponse struct {
+	AppId   int            `json:"appId"`
+	Status  CiPatchStatus  `json:"status"`
+	Message CiPatchMessage `json:"message"`
 }
 
 type CiPatchRequest struct {
@@ -722,6 +761,7 @@ type CiArtifactBean struct {
 	UserApprovalMetadata   *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 	ImageReleaseTags       []*repository2.ImageTag              `json:"imageReleaseTags"`
 	ImageComment           *repository2.ImageComment            `json:"imageComment"`
+	FilterState            resourceFilter.FilterState           `json:"filterState"`
 }
 
 type CiArtifactResponse struct {

@@ -21,6 +21,7 @@ type ResourceFilterRestHandler interface {
 	UpdateFilter(w http.ResponseWriter, r *http.Request)
 	CreateFilter(w http.ResponseWriter, r *http.Request)
 	DeleteFilter(w http.ResponseWriter, r *http.Request)
+	ValidateExpression(w http.ResponseWriter, r *http.Request)
 }
 
 type ResourceFilterRestHandlerImpl struct {
@@ -29,12 +30,14 @@ type ResourceFilterRestHandlerImpl struct {
 	enforcerUtil          rbac.EnforcerUtil
 	enforcer              casbin.Enforcer
 	resourceFilterService resourceFilter.ResourceFilterService
+	celService            resourceFilter.CELEvaluatorService
 }
 
 func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserService,
 	enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer,
+	celService resourceFilter.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService) *ResourceFilterRestHandlerImpl {
 	return &ResourceFilterRestHandlerImpl{
 		logger:                logger,
@@ -42,6 +45,7 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcerUtil:          enforcerUtil,
 		enforcer:              enforcer,
 		resourceFilterService: resourceFilterService,
+		celService:            celService,
 	}
 }
 
@@ -192,6 +196,26 @@ func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	authorised, err := handler.applyAuth(userId)
+	if err != nil || !authorised {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request resourceFilter.ValidateRequestResponse
+	err = decoder.Decode(&request)
+
+	response := handler.celService.ValidateCELRequest(request)
+
+	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
 func (handler *ResourceFilterRestHandlerImpl) applyAuth(userId int32) (authorised bool, err error) {

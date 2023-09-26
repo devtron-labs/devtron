@@ -70,6 +70,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appGroup2 "github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
@@ -421,7 +422,7 @@ func InitializeApp() (*App, error) {
 		repository.NewNotificationSettingsRepositoryImpl,
 		wire.Bind(new(repository.NotificationSettingsRepository), new(*repository.NotificationSettingsRepositoryImpl)),
 		util.IntValidator,
-		pipeline.GetCiConfig,
+		pipeline.GetCiCdConfig,
 
 		pipeline.NewWorkflowServiceImpl,
 		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
@@ -548,9 +549,6 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewCdWorkflowRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CdWorkflowRepository), new(*pipelineConfig.CdWorkflowRepositoryImpl)),
 
-		pipeline.NewCdWorkflowServiceImpl,
-		wire.Bind(new(pipeline.CdWorkflowService), new(*pipeline.CdWorkflowServiceImpl)),
-
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
 
@@ -558,7 +556,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.WorkflowDagExecutor), new(*pipeline.WorkflowDagExecutorImpl)),
 		appClone.NewAppCloneServiceImpl,
 		wire.Bind(new(appClone.AppCloneService), new(*appClone.AppCloneServiceImpl)),
-		pipeline.GetCdConfig,
 
 		router.NewDeploymentGroupRouterImpl,
 		wire.Bind(new(router.DeploymentGroupRouter), new(*router.DeploymentGroupRouterImpl)),
@@ -850,6 +847,14 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiBuildConfigRepository), new(*pipelineConfig.CiBuildConfigRepositoryImpl)),
 		pipeline.NewCiBuildConfigServiceImpl,
 		wire.Bind(new(pipeline.CiBuildConfigService), new(*pipeline.CiBuildConfigServiceImpl)),
+		resourceFilter.NewCELServiceImpl,
+		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
+		resourceFilter.NewResourceFilterRepositoryImpl,
+		wire.Bind(new(resourceFilter.ResourceFilterRepository), new(*resourceFilter.ResourceFilterRepositoryImpl)),
+		resourceFilter.NewResourceFilterServiceImpl,
+		wire.Bind(new(resourceFilter.ResourceFilterService), new(*resourceFilter.ResourceFilterServiceImpl)),
+		resourceFilter.NewResourceFilterEvaluatorImpl,
+		wire.Bind(new(resourceFilter.ResourceFilterEvaluator), new(*resourceFilter.ResourceFilterEvaluatorImpl)),
 		pipeline.NewCiTemplateServiceImpl,
 		wire.Bind(new(pipeline.CiTemplateService), new(*pipeline.CiTemplateServiceImpl)),
 		router.NewGlobalCMCSRouterImpl,
@@ -896,12 +901,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
 		pipeline.NewArgoWorkflowExecutorImpl,
 		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
+		pipeline.NewSystemWorkflowExecutorImpl,
+		wire.Bind(new(pipeline.SystemWorkflowExecutor), new(*pipeline.SystemWorkflowExecutorImpl)),
 		repository5.NewManifestPushConfigRepository,
 		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
 		app.NewGitOpsManifestPushServiceImpl,
 		wire.Bind(new(app.GitOpsPushService), new(*app.GitOpsManifestPushServiceImpl)),
-		pipeline.NewSystemWorkflowExecutorImpl,
-		wire.Bind(new(pipeline.SystemWorkflowExecutor), new(*pipeline.SystemWorkflowExecutorImpl)),
 
 		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
 		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
