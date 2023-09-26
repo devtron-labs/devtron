@@ -12,6 +12,8 @@ import (
 
 const (
 	NoResourceFiltersFound               = "no active resource filters found"
+	AppAndEnvSelectorRequiredMessage     = "both application and environment selectors are required"
+	InvalidExpressions                   = "one or more expressions are invalid"
 	AllProjectsValue                     = "0"
 	AllProjectsInt                       = 0
 	AllExistingAndFutureProdEnvsValue    = "0"
@@ -118,7 +120,7 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 
 func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterResponseBean, error) {
 	if filterRequest == nil || len(filterRequest.QualifierSelector.EnvironmentSelectors) == 0 || len(filterRequest.QualifierSelector.ApplicationSelectors) == 0 {
-		return nil, errors.New("both application and environment selectors are required")
+		return nil, errors.New(AppAndEnvSelectorRequiredMessage)
 	}
 
 	//TODO: evaluate filterRequest.Conditions

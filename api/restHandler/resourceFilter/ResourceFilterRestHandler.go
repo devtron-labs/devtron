@@ -109,8 +109,15 @@ func (handler *ResourceFilterRestHandlerImpl) CreateFilter(w http.ResponseWriter
 	}
 	res, err := handler.resourceFilterService.CreateFilter(userId, req)
 	if err != nil {
+		statusCode := http.StatusInternalServerError
 		handler.logger.Errorw("error in getting active resource filters", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		if err.Error() == resourceFilter.AppAndEnvSelectorRequiredMessage {
+			statusCode = http.StatusBadRequest
+		} else if err.Error() == resourceFilter.InvalidExpressions {
+			err = nil
+			statusCode = http.StatusPreconditionFailed
+		}
+		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
