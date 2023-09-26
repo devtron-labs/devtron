@@ -79,7 +79,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	repository9 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -104,7 +104,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	repository8 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -119,6 +119,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	client2 "github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -387,8 +388,8 @@ func InitializeApp() (*App, error) {
 		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		//session.NewK8sClient,
-		repository9.NewImageTaggingRepositoryImpl,
-		wire.Bind(new(repository9.ImageTaggingRepository), new(*repository9.ImageTaggingRepositoryImpl)),
+		repository8.NewImageTaggingRepositoryImpl,
+		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
 		pipeline.NewImageTaggingServiceImpl,
 		wire.Bind(new(pipeline.ImageTaggingService), new(*pipeline.ImageTaggingServiceImpl)),
 		argocdServer.NewVersionServiceImpl,
@@ -900,8 +901,8 @@ func InitializeApp() (*App, error) {
 		app.NewGitOpsManifestPushServiceImpl,
 		wire.Bind(new(app.GitOpsPushService), new(*app.GitOpsManifestPushServiceImpl)),
 
-		repository8.NewDevtronResourceSearchableKeyRepositoryImpl,
-		wire.Bind(new(repository8.DevtronResourceSearchableKeyRepository), new(*repository8.DevtronResourceSearchableKeyRepositoryImpl)),
+		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
+		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
 
 		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
 		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
@@ -924,6 +925,12 @@ func InitializeApp() (*App, error) {
 		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 		// end: docker registry wire set injection
+
+		resourceQualifiers.NewQualifiersMappingRepositoryImpl,
+		wire.Bind(new(resourceQualifiers.QualifiersMappingRepository), new(*resourceQualifiers.QualifiersMappingRepositoryImpl)),
+
+		resourceQualifiers.NewQualifierMappingServiceImpl,
+		wire.Bind(new(resourceQualifiers.QualifierMappingService), new(*resourceQualifiers.QualifierMappingServiceImpl)),
 	)
 	return &App{}, nil
 }
