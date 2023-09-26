@@ -34,6 +34,7 @@ import (
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -58,6 +59,7 @@ type WebhookService interface {
 
 type WebhookServiceImpl struct {
 	ciArtifactRepository repository.CiArtifactRepository
+	ciConfig             *CiConfig
 	logger               *zap.SugaredLogger
 	ciPipelineRepository pipelineConfig.CiPipelineRepository
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository
@@ -76,7 +78,7 @@ func NewWebhookServiceImpl(
 	eventFactory client.EventFactory,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	workflowDagExecutor WorkflowDagExecutor, ciHandler CiHandler) *WebhookServiceImpl {
-	return &WebhookServiceImpl{
+	webhookImpl := &WebhookServiceImpl{
 		ciArtifactRepository: ciArtifactRepository,
 		logger:               logger,
 		ciPipelineRepository: ciPipelineRepository,
@@ -87,6 +89,13 @@ func NewWebhookServiceImpl(
 		workflowDagExecutor:  workflowDagExecutor,
 		ciHandler:            ciHandler,
 	}
+	config, err := GetCiConfig()
+	if err != nil {
+		return nil
+	}
+
+	webhookImpl.ciConfig = config
+	return webhookImpl
 }
 
 func (impl WebhookServiceImpl) AuthenticateExternalCiWebhook(apiKey string) (int, error) {
@@ -239,13 +248,40 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		impl.logger.Debugw("Trigger (manual) by user", "userId", request.UserId)
 	}
 	async := false
-	for _, ciArtifact := range ciArtifactArr {
-		err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, isCiManual, async, request.UserId)
-		if err != nil {
-			impl.logger.Errorw("error on handle  ci success event", "err", err)
-			return 0, err
-		}
+
+	// execute auto trigger in batch on CI success event
+	totalCIArtifactCount := len(ciArtifactArr)
+	batchSize := impl.ciConfig.CIAutoTriggerBatchSize
+	// handling to avoid infinite loop
+	if batchSize <= 0 {
+		batchSize = 1
 	}
+	start := time.Now()
+	impl.logger.Infow("Started: auto trigger for children Stage/CD pipelines", "Artifact count", totalCIArtifactCount)
+	for i := 0; i < totalCIArtifactCount; {
+		//requests left to process
+		remainingBatch := totalCIArtifactCount - i
+		if remainingBatch < batchSize {
+			batchSize = remainingBatch
+		}
+		var wg sync.WaitGroup
+		for j := 0; j < batchSize; j++ {
+			wg.Add(1)
+			index := i + j
+			go func(index int) {
+				defer wg.Done()
+				ciArtifact := ciArtifactArr[index]
+				// handle individual CiArtifact success event
+				err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, isCiManual, async, request.UserId)
+				if err != nil {
+					impl.logger.Errorw("error on handle  ci success event", "ciArtifactId", ciArtifact.Id, "err", err)
+				}
+			}(index)
+		}
+		wg.Wait()
+		i += batchSize
+	}
+	impl.logger.Debugw("Completed: auto trigger for children Stage/CD pipelines", "Time taken", time.Since(start).Seconds())
 	return artifact.Id, err
 }
 
