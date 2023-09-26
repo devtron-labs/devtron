@@ -21,7 +21,7 @@ type ResourceFilterService interface {
 	//GetFiltersByAppIdEnvId
 	GetFiltersByAppIdEnvId(appId, envId int) ([]*FilterRequestResponseBean, error)
 
-	CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (bool, error)
+	CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error)
 }
 
 type ResourceFilterServiceImpl struct {
@@ -134,19 +134,22 @@ func (impl *ResourceFilterServiceImpl) GetFiltersByAppIdEnvId(appId, envId int) 
 	return nil, nil
 }
 
-func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (bool, error) {
+func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error) {
 	// fetch filters for given scope, use FilterEvaluator.Evaluate to check for access
 	filters, err := impl.GetFiltersByAppIdEnvId(scope.AppId, scope.EnvId)
 	if err != nil {
-		return false, err
+		return ERROR, err
 	}
 	for _, filter := range filters {
-		allowed := impl.resourceFilterEvaluator.EvaluateFilter(filter, metadata)
+		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, metadata)
+		if err != nil {
+			return ERROR, nil
+		}
 		if !allowed {
-			return false, nil
+			return BLOCK, nil
 		}
 	}
-	return true, nil
+	return ALLOW, nil
 }
 
 func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId int32, resourceFilterId int, qualifierSelector QualifierSelector) error {

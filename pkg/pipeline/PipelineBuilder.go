@@ -4048,15 +4048,11 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		metadata := resourceFilter.ExpressionMetadata{
 			Params: params,
 		}
-		artifactAllowed, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+		filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
 		if err != nil {
-			impl.logger.Errorw("error in evaluating expression", "pipelineId", pipeline.Id, "err", err)
-			ciArtifacts[i].FilterState = resourceFilter.ERROR
-		} else if artifactAllowed {
-			ciArtifacts[i].FilterState = resourceFilter.ALLOW
-		} else {
-			ciArtifacts[i].FilterState = resourceFilter.BLOCK
+			return ciArtifactsResponse, err
 		}
+		ciArtifacts[i].FilterState = filterState
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id

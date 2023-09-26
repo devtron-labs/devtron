@@ -5,7 +5,7 @@ import (
 )
 
 type ResourceFilterEvaluator interface {
-	EvaluateFilter(filter *FilterRequestResponseBean, expressionMetadata ExpressionMetadata) bool
+	EvaluateFilter(filter *FilterRequestResponseBean, expressionMetadata ExpressionMetadata) (bool, error)
 }
 
 type ResourceFilterEvaluatorImpl struct {
@@ -20,7 +20,7 @@ func NewResourceFilterEvaluatorImpl(logger *zap.SugaredLogger, celEvaluator CELE
 	}, nil
 }
 
-func (impl *ResourceFilterEvaluatorImpl) EvaluateFilter(filter *FilterRequestResponseBean, expressionMetadata ExpressionMetadata) bool {
+func (impl *ResourceFilterEvaluatorImpl) EvaluateFilter(filter *FilterRequestResponseBean, expressionMetadata ExpressionMetadata) (bool, error) {
 	resourceConditions := filter.Conditions
 	exprResponse := expressionResponse{}
 	for _, resourceCondition := range resourceConditions {
@@ -31,7 +31,7 @@ func (impl *ResourceFilterEvaluatorImpl) EvaluateFilter(filter *FilterRequestRes
 		}
 		response, err := impl.celEvaluator.EvaluateCELRequest(celRequest)
 		if err != nil {
-			return false
+			return false, err
 		}
 		if resourceCondition.IsFailCondition() {
 			exprResponse.blockConditionAvail = true
@@ -41,5 +41,5 @@ func (impl *ResourceFilterEvaluatorImpl) EvaluateFilter(filter *FilterRequestRes
 			exprResponse.allowResponse = response
 		}
 	}
-	return exprResponse.getFinalResponse()
+	return exprResponse.getFinalResponse(), nil
 }
