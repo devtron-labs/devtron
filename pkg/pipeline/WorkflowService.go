@@ -45,8 +45,6 @@ import (
 	"strings"
 )
 
-// TODO: move isCi/isJob to workflowRequest
-
 type WorkflowService interface {
 	SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, string, error)
 	//DeleteWorkflow(wfName string, namespace string) error

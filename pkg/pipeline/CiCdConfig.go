@@ -56,7 +56,6 @@ type CiCdConfig struct {
 	ImageRetryInterval               int                                 `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
 	CiWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CI_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	BuildxK8sDriverOptions           string                              `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
-	BuildxProvenanceMode             string                              `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
 	CIAutoTriggerBatchSize           int                                 `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"1"`
 	SkipCreatingEcrRepo              bool                                `env:"SKIP_CREATING_ECR_REPO" envDefault:"false"`
 
@@ -114,6 +113,7 @@ type CiCdConfig struct {
 	BuildLogTTLValue               int                          `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	BaseLogLocationPath            string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	InAppLoggingEnabled            bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
+	BuildxProvenanceMode           string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
 }
 
 type CiConfig struct {
