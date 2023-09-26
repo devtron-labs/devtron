@@ -2,6 +2,7 @@ package resourceFilter
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -9,26 +10,36 @@ import (
 	"time"
 )
 
-const NoResourceFiltersFound = "no active resource filters found"
+const (
+	NoResourceFiltersFound               = "no active resource filters found"
+	AppAndEnvSelectorRequiredMessage     = "both application and environment selectors are required"
+	InvalidExpressions                   = "one or more expressions are invalid"
+	AllProjectsValue                     = "0"
+	AllProjectsInt                       = 0
+	AllExistingAndFutureProdEnvsValue    = "0"
+	AllExistingAndFutureProdEnvsInt      = 0
+	AllExistingAndFutureNonProdEnvsValue = "-1"
+	AllExistingAndFutureNonProdEnvsInt   = -1
+)
 
 type IdentifierType int
 
 const (
-	ProjectIdentifier = 0
-	AppIdentifier     = 1
-	ClusterIdentifier = 2
-	EnvironmentIdentifier
+	ProjectIdentifier     = 0
+	AppIdentifier         = 1
+	ClusterIdentifier     = 2
+	EnvironmentIdentifier = 3
 )
 
 type FilterResponseBean struct {
-	Id          int    `json:"id"`
-	Description string `json:"description"`
-	Name        string `json:"name"`
+	Id           int                `json:"id"`
+	TargetObject FilterTargetObject `json:"targetObject" validate:"required"`
+	Description  string             `json:"description" `
+	Name         string             `json:"name" validate:"required"`
 }
 
 type FilterRequestResponseBean struct {
 	*FilterResponseBean
-	TargetObject      FilterTargetObject  `json:"targetObject"`
 	Conditions        []ResourceCondition `json:"conditions"`
 	QualifierSelector QualifierSelector   `json:"qualifierSelector"`
 }
@@ -36,6 +47,7 @@ type FilterRequestResponseBean struct {
 type ResourceCondition struct {
 	ConditionType ResourceConditionType `json:"conditionType"`
 	Expression    string                `json:"expression"`
+	ErrorMsg      string                `json:"errorMsg"`
 }
 
 type QualifierSelector struct {
@@ -107,7 +119,11 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 }
 
 func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterResponseBean, error) {
+	if filterRequest == nil || len(filterRequest.QualifierSelector.EnvironmentSelectors) == 0 || len(filterRequest.QualifierSelector.ApplicationSelectors) == 0 {
+		return nil, errors.New(AppAndEnvSelectorRequiredMessage)
+	}
 
+	//TODO: evaluate filterRequest.Conditions
 	tx, err := impl.resourceFilterRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting db transaction", "err", err)
@@ -115,7 +131,12 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 	}
 	defer impl.resourceFilterRepository.RollbackTx(tx)
 	currentTime := time.Now()
-
+	auditLog := sql.AuditLog{
+		CreatedOn: currentTime,
+		UpdatedOn: currentTime,
+		CreatedBy: userId,
+		UpdatedBy: userId,
+	}
 	conditionExpression, err := getJsonStringFromResourceCondition(filterRequest.Conditions)
 	if err != nil {
 		impl.logger.Errorw("error in converting resourceFilterConditions to json string", "err", err, "resourceFilterConditions", filterRequest.Conditions)
@@ -127,12 +148,7 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		Deleted:             false,
 		TargetObject:        filterRequest.TargetObject,
 		ConditionExpression: conditionExpression,
-		AuditLog: sql.AuditLog{
-			CreatedOn: currentTime,
-			UpdatedOn: currentTime,
-			CreatedBy: userId,
-			UpdatedBy: userId,
-		},
+		AuditLog:            auditLog,
 	}
 
 	createdFilterDataBean, err := impl.resourceFilterRepository.CreateResourceFilter(tx, filterDataBean)
@@ -141,7 +157,7 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return nil, err
 	}
 
-	err = impl.saveQualifierMappings(tx, createdFilterDataBean.Id, filterRequest.QualifierSelector)
+	err = impl.saveQualifierMappings(tx, userId, createdFilterDataBean.Id, filterRequest.QualifierSelector)
 	if err != nil {
 		impl.logger.Errorw("error in saveQualifierMappings", "err", err, "QualifierSelector", filterRequest.QualifierSelector)
 		return nil, err
@@ -169,15 +185,23 @@ func (impl *ResourceFilterServiceImpl) GetFiltersByAppIdEnvId(appId, envId int) 
 	return nil, nil
 }
 
-func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, resourceFilterId int, qualifierSelector QualifierSelector) error {
+func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId int32, resourceFilterId int, qualifierSelector QualifierSelector) error {
 	qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0)
 	//TODO: build these maps
 	projectNameToIdMap := make(map[string]int)
 	appNameToIdMap := make(map[string]int)
+	clusterNameToIdMap := make(map[string]int)
+	envNameToIdMap := make(map[string]int)
 	//apps
-
-	//case-1) all existing and future applications -> will get empty ApplicationSelector , db entry (proj,0,*)
-	if len(qualifierSelector.ApplicationSelectors) == 0 {
+	currentTime := time.Now()
+	auditLog := sql.AuditLog{
+		CreatedOn: currentTime,
+		UpdatedOn: currentTime,
+		CreatedBy: userId,
+		UpdatedBy: userId,
+	}
+	//case-1) all existing and future applications -> will get empty ApplicationSelector , db entry (proj,0,"0")
+	if len(qualifierSelector.ApplicationSelectors) == 1 && qualifierSelector.ApplicationSelectors[0].ProjectName == AllProjectsValue {
 		allExistingAndFutureAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:   resourceFilterId,
 			ResourceType: resourceQualifiers.Filter,
@@ -186,48 +210,96 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, resource
 			//IdentifierKey: get identifier key for proj
 			IdentifierKey:         ProjectIdentifier,
 			Active:                true,
-			IdentifierValueInt:    0,
-			IdentifierValueString: "*",
+			IdentifierValueInt:    AllProjectsInt,
+			IdentifierValueString: AllProjectsValue,
+			AuditLog:              auditLog,
 		}
 		qualifierMappings = append(qualifierMappings, allExistingAndFutureAppsQualifierMapping)
-	}
+	} else {
 
-	for _, appSelector := range qualifierSelector.ApplicationSelectors {
-		//case-2) all existing and future apps in a project ->  will get projectName and empty applications array
-		if len(appSelector.Applications) == 0 {
-			allExistingAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
-				ResourceId:            resourceFilterId,
-				ResourceType:          resourceQualifiers.Filter,
-				IdentifierKey:         ProjectIdentifier,
-				Active:                true,
-				IdentifierValueInt:    projectNameToIdMap[appSelector.ProjectName],
-				IdentifierValueString: "*",
+		for _, appSelector := range qualifierSelector.ApplicationSelectors {
+			//case-2) all existing and future apps in a project ->  will get projectName and empty applications array
+			if len(appSelector.Applications) == 0 {
+				allExistingAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
+					ResourceId:            resourceFilterId,
+					ResourceType:          resourceQualifiers.Filter,
+					IdentifierKey:         ProjectIdentifier,
+					Active:                true,
+					IdentifierValueInt:    projectNameToIdMap[appSelector.ProjectName],
+					IdentifierValueString: appSelector.ProjectName,
+					AuditLog:              auditLog,
+				}
+				qualifierMappings = append(qualifierMappings, allExistingAppsQualifierMapping)
 			}
-			qualifierMappings = append(qualifierMappings, allExistingAppsQualifierMapping)
-		}
-		//case-3) all existing applications -> will get all apps in payload
-		//case-4) particular apps -> will get ApplicationSelectors array
-		//case-5) all existing apps in a project -> will get projectName and all applications array
-		for _, appName := range appSelector.Applications {
-			qualifierMapping := &resourceQualifiers.QualifierMapping{
-				ResourceId:            resourceFilterId,
-				ResourceType:          resourceQualifiers.Filter,
-				IdentifierKey:         AppIdentifier,
-				Active:                true,
-				IdentifierValueInt:    appNameToIdMap[appName],
-				IdentifierValueString: appName,
+			//case-3) all existing applications -> will get all apps in payload
+			//case-4) particular apps -> will get ApplicationSelectors array
+			//case-5) all existing apps in a project -> will get projectName and all applications array
+			for _, appName := range appSelector.Applications {
+				appQualifierMapping := &resourceQualifiers.QualifierMapping{
+					ResourceId:            resourceFilterId,
+					ResourceType:          resourceQualifiers.Filter,
+					IdentifierKey:         AppIdentifier,
+					Active:                true,
+					IdentifierValueInt:    appNameToIdMap[appName],
+					IdentifierValueString: appName,
+					AuditLog:              auditLog,
+				}
+				qualifierMappings = append(qualifierMappings, appQualifierMapping)
 			}
-			qualifierMappings = append(qualifierMappings, qualifierMapping)
 		}
 	}
 
 	//envs
-	//1) all existing and future prod envs -> get single EnvironmentSelector with clusterName as "0"(prod)
-	//2) all existing and future non-prod envs -> get single EnvironmentSelector with clusterName as "-1"(non-prod)
-	//3) all existing and future envs of a cluster ->  get clusterName and empty environments list
-	//4) all existing envs of a cluster -> get clusterName and all the envs list
-	//5) particular envs , will get EnvironmentSelector array
-
+	//1) all existing and future prod envs -> get single EnvironmentSelector with clusterName as "0"(prod) (cluster,0,"0")
+	//2) all existing and future non-prod envs -> get single EnvironmentSelector with clusterName as "-1"(non-prod) (cluster,-1,"-1")
+	if len(qualifierSelector.ApplicationSelectors) == 1 && (qualifierSelector.EnvironmentSelectors[0].ClusterName == AllExistingAndFutureProdEnvsValue || qualifierSelector.EnvironmentSelectors[0].ClusterName == AllExistingAndFutureNonProdEnvsValue) {
+		envSelector := qualifierSelector.EnvironmentSelectors[0]
+		allExistingAndFutureEnvQualifierMapping := &resourceQualifiers.QualifierMapping{
+			ResourceId:    resourceFilterId,
+			ResourceType:  resourceQualifiers.Filter,
+			IdentifierKey: ClusterIdentifier,
+			Active:        true,
+			AuditLog:      auditLog,
+		}
+		if envSelector.ClusterName == AllExistingAndFutureProdEnvsValue {
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureProdEnvsInt
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureProdEnvsValue
+		} else {
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureNonProdEnvsInt
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureNonProdEnvsValue
+		}
+		qualifierMappings = append(qualifierMappings, allExistingAndFutureEnvQualifierMapping)
+	} else {
+		for _, envSelector := range qualifierSelector.EnvironmentSelectors {
+			//3) all existing and future envs of a cluster ->  get clusterName and empty environments list (cluster,clusterId,clusterName)
+			if len(envSelector.Environments) == 0 {
+				allCurrentAndFutureEnvsInClusterQualifierMapping := &resourceQualifiers.QualifierMapping{
+					ResourceId:            resourceFilterId,
+					ResourceType:          resourceQualifiers.Filter,
+					IdentifierKey:         ClusterIdentifier,
+					IdentifierValueInt:    clusterNameToIdMap[envSelector.ClusterName],
+					IdentifierValueString: envSelector.ClusterName,
+					Active:                true,
+					AuditLog:              auditLog,
+				}
+				qualifierMappings = append(qualifierMappings, allCurrentAndFutureEnvsInClusterQualifierMapping)
+			}
+			//4) all existing envs of a cluster -> get clusterName and all the envs list
+			//5) particular envs , will get EnvironmentSelector array
+			for _, env := range envSelector.Environments {
+				envQualifierMapping := &resourceQualifiers.QualifierMapping{
+					ResourceId:            resourceFilterId,
+					ResourceType:          resourceQualifiers.Filter,
+					IdentifierKey:         EnvironmentIdentifier,
+					IdentifierValueInt:    envNameToIdMap[env],
+					IdentifierValueString: env,
+					Active:                true,
+					AuditLog:              auditLog,
+				}
+				qualifierMappings = append(qualifierMappings, envQualifierMapping)
+			}
+		}
+	}
 	_, err := impl.qualifyingMappingService.CreateQualifierMappings(qualifierMappings, tx)
 	return err
 }
