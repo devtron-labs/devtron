@@ -680,7 +680,6 @@ func filterInsideWorkflowForEnvFilter(appWorkflowMappings []AppWorkflowMappingDt
 		if _, ok := componentIdToWorkflowMapping[appWorkflowMapping.ParentType][appWorkflowMapping.ParentId]; ok {
 			a := componentIdToWorkflowMapping[appWorkflowMapping.ParentType][appWorkflowMapping.ParentId]
 			a.ChildPipelinesIds = append(a.ChildPipelinesIds, appWorkflowMapping.ComponentId)
-
 		}
 	}
 
@@ -689,28 +688,25 @@ func filterInsideWorkflowForEnvFilter(appWorkflowMappings []AppWorkflowMappingDt
 		for _, workflow := range mapping {
 			if len(workflow.ChildPipelinesIds) == 0 {
 				leafPipelines = append(leafPipelines, workflow)
+				workflow.IsLast = true
 			}
 		}
 	}
-	for i := 0; i < len(leafPipelines); i++ {
+	leafPipelineSize := len(leafPipelines)
+	for i := 0; i < leafPipelineSize; i++ {
 		parentPipelineId := leafPipelines[i].ParentId
 		parentPipelineType := leafPipelines[i].ParentType
 		if slices.Contains(cdPipelineIdsFiltered, leafPipelines[i].ComponentId) {
-			if !componentIdToWorkflowMapping[leafPipelines[i].Type][leafPipelines[i].ComponentId].IsNewLeaf {
-				//check initial leaf cd-pipelines and mark them as last and those appended at runtime won't be considered
-				componentIdToWorkflowMapping[leafPipelines[i].Type][leafPipelines[i].ComponentId].IsLast = true
-			}
 			continue
 		} else {
 			componentIdToWorkflowMapping = deleteLeafPipelineFromMapping(leafPipelines[i], componentIdToWorkflowMapping)
 		}
-		for componentIdToWorkflowMapping[parentPipelineType][parentPipelineId].Type != ciType {
+		if componentIdToWorkflowMapping[parentPipelineType][parentPipelineId].Type != ciType {
 			if len(componentIdToWorkflowMapping[parentPipelineType][parentPipelineId].ChildPipelinesIds) == 0 {
 				//this means it's not an intersection
-				componentIdToWorkflowMapping[parentPipelineType][parentPipelineId].IsNewLeaf = true
 				leafPipelines = append(leafPipelines, componentIdToWorkflowMapping[parentPipelineType][parentPipelineId])
+				leafPipelineSize += 1
 			}
-			break
 		}
 	}
 	return componentIdToWorkflowMapping
