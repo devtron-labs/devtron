@@ -157,13 +157,13 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 		return
 	}
 	req.Id = filterId
-	res, err := handler.resourceFilterService.UpdateFilter(userId, req)
+	err = handler.resourceFilterService.UpdateFilter(userId, req)
 	if err != nil {
 		handler.logger.Errorw("error in updating active resource filters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
 func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter, r *http.Request) {
