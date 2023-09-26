@@ -55,6 +55,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowsByEnvironmentId(request appGroup2.AppGroupingRequest) ([]*AppWorkflowDto, error)
 
 	FilterWorkflowAndPipelinesOnEnvIds(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error)
+	FindCdPipelinesByAppId(appId int) (*bean.CdPipelines, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -623,10 +624,6 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request appGr
 func (impl AppWorkflowServiceImpl) FilterWorkflowAndPipelinesOnEnvIds(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error) {
 	cdPipelines := triggerViewConfig.CdPipelines.Pipelines
 
-	cdPipelineIdToWorkflowRespMapping := make(map[int]*bean.CDPipelineConfigObject)
-	for _, cdPipeline := range cdPipelines {
-		cdPipelineIdToWorkflowRespMapping[cdPipeline.Id] = cdPipeline
-	}
 	cdPipelineIdsFiltered := make([]int, 0)
 	for _, cdPipeline := range cdPipelines {
 		if slices.Contains(envIds, cdPipeline.EnvironmentId) {
@@ -749,4 +746,31 @@ func deleteChildCdFromParentWorkflowMapping(deleteFrom []int, toDelete int) []in
 		}
 	}
 	return newArray
+}
+
+func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPipelines, error) {
+	dbPipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("FindCdPipelinesByAppId, error in fetching cdPipeline", "appId", appId, "err", err)
+		return nil, err
+	}
+	cdPipelines := &bean.CdPipelines{
+		AppId: appId,
+	}
+	for _, pipeline := range dbPipelines {
+		cdPipelineConfigObj := &bean.CDPipelineConfigObject{
+			Id:                pipeline.Id,
+			EnvironmentId:     pipeline.EnvironmentId,
+			EnvironmentName:   pipeline.Environment.Name,
+			CiPipelineId:      pipeline.CiPipelineId,
+			TriggerType:       pipeline.TriggerType,
+			Name:              pipeline.Name,
+			DeploymentAppType: pipeline.DeploymentAppType,
+			AppName:           pipeline.DeploymentAppName,
+			AppId:             pipeline.AppId,
+		}
+		cdPipelines.Pipelines = append(cdPipelines.Pipelines, cdPipelineConfigObj)
+	}
+
+	return cdPipelines, nil
 }
