@@ -78,7 +78,7 @@ func NewWebhookServiceImpl(
 	eventFactory client.EventFactory,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	workflowDagExecutor WorkflowDagExecutor, ciHandler CiHandler) *WebhookServiceImpl {
-	webhookImpl := &WebhookServiceImpl{
+	webhookHandler := &WebhookServiceImpl{
 		ciArtifactRepository: ciArtifactRepository,
 		logger:               logger,
 		ciPipelineRepository: ciPipelineRepository,
@@ -93,9 +93,8 @@ func NewWebhookServiceImpl(
 	if err != nil {
 		return nil
 	}
-
-	webhookImpl.ciConfig = config
-	return webhookImpl
+	webhookHandler.ciConfig = config
+	return webhookHandler
 }
 
 func (impl WebhookServiceImpl) AuthenticateExternalCiWebhook(apiKey string) (int, error) {
