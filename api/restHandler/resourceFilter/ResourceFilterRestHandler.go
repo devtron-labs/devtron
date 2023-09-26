@@ -107,7 +107,6 @@ func (handler *ResourceFilterRestHandlerImpl) CreateFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
 	res, err := handler.resourceFilterService.CreateFilter(userId, req)
 	if err != nil {
 		handler.logger.Errorw("error in getting active resource filters", "err", err)
