@@ -2,8 +2,10 @@ package resourceFilter
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/pipeline/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -78,6 +80,10 @@ func (handler *ResourceFilterRestHandlerImpl) GetFilterById(w http.ResponseWrite
 
 	vars := mux.Vars(r)
 	filterId, err := strconv.Atoi(vars["Id"])
+	if err != nil {
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param Id '%s'", vars["Id"])), nil, http.StatusBadRequest)
+		return
+	}
 	res, err := handler.resourceFilterService.GetFilterById(filterId)
 	if err != nil {
 		handler.logger.Errorw("error in getting  resource filter", "err", err, "filterId", filterId)
@@ -135,6 +141,13 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 		return
 	}
 
+	vars := mux.Vars(r)
+	filterId, err := strconv.Atoi(vars["Id"])
+	if err != nil {
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param Id '%s'", vars["Id"])), nil, http.StatusBadRequest)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	req := &resourceFilter.FilterRequestResponseBean{}
 	err = decoder.Decode(req)
@@ -143,7 +156,7 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	req.Id = filterId
 	res, err := handler.resourceFilterService.UpdateFilter(userId, req)
 	if err != nil {
 		handler.logger.Errorw("error in updating active resource filters", "err", err)

@@ -13,6 +13,7 @@ type QualifiersMappingRepository interface {
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(ResourceType, sql.AuditLog, *pg.Tx) error
+	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
 }
 
 type QualifiersMappingRepositoryImpl struct {
@@ -62,6 +63,17 @@ func (repo *QualifiersMappingRepositoryImpl) DeleteAllQualifierMappings(resource
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Where("resource_type = ?", resourceType).
+		Update()
+	return err
+}
+func (repo *QualifiersMappingRepositoryImpl) DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	_, err := tx.Model(&QualifierMapping{}).
+		Set("updated_by = ?", auditLog.UpdatedBy).
+		Set("updated_on = ?", auditLog.UpdatedOn).
+		Set("active = ?", false).
+		Where("active = ?", true).
+		Where("resource_type = ?", resourceType).
+		Where("resource_id = ?", resourceId).
 		Update()
 	return err
 }

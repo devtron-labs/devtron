@@ -71,7 +71,7 @@ func (repo *ResourceFilterRepositoryImpl) UpdateFilter(tx *pg.Tx, filter *Resour
 
 func (repo *ResourceFilterRepositoryImpl) GetById(id int) (*ResourceFilter, error) {
 	filter := &ResourceFilter{}
-	err := repo.dbConnection.Model(filter).Where("id = ?", id).Select()
+	err := repo.dbConnection.Model(filter).Where("id = ? and deleted = false", id).Select()
 	return filter, err
 }
 
