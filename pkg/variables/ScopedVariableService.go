@@ -120,7 +120,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		}
 	}(impl.scopedVariableRepository, tx)
 
-	err = impl.qualifierMappingService.DeleteAllQualifierMappings(auditLog, tx)
+	err = impl.qualifierMappingService.DeleteAllQualifierMappings(resourceQualifiers.Variable, auditLog, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting qualifier mappings", "err", err)
 		return err

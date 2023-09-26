@@ -11,7 +11,7 @@ import (
 type QualifierMappingService interface {
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope models.Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
-	DeleteAllQualifierMappings(sql.AuditLog, *pg.Tx) error
+	DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error
 }
 
 type QualifierMappingServiceImpl struct {
@@ -34,6 +34,6 @@ func (impl QualifierMappingServiceImpl) GetQualifierMappings(resourceType Resour
 	return impl.qualifierMappingRepository.GetQualifierMappings(resourceType, scope, searchableIdMap, resourceIds)
 }
 
-func (impl QualifierMappingServiceImpl) DeleteAllQualifierMappings(auditLog sql.AuditLog, tx *pg.Tx) error {
-	return impl.qualifierMappingRepository.DeleteAllQualifierMappings(auditLog, tx)
+func (impl QualifierMappingServiceImpl) DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error {
+	return impl.qualifierMappingRepository.DeleteAllQualifierMappings(resourceType, auditLog, tx)
 }
