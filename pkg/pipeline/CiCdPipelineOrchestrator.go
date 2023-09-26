@@ -92,7 +92,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	GitSensorClient               gitSensor.Client
-	ciConfig                      *CiConfig
+	ciConfig                      *CiCdConfig
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	envRepository                 repository2.EnvironmentRepository
 	attributesService             attributes.AttributesService
@@ -119,7 +119,7 @@ func NewCiCdPipelineOrchestrator(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	GitSensorClient gitSensor.Client, ciConfig *CiConfig,
+	GitSensorClient gitSensor.Client, ciConfig *CiCdConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,
