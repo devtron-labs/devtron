@@ -670,7 +670,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 
 			//VARIABLE_RESOLVE
 			env, _ := impl.envRepository.FindById(envId)
-			scope := models.Scope{
+			scope := models.S{
 				AppId:     appId,
 				EnvId:     envId,
 				ClusterId: env.ClusterId,

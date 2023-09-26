@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/expressionEvaluator"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -1380,7 +1381,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 		}
 		artifact := artifacts[0] // fetch latest approved artifact in case of approval node configured
 		// TODO - SHASHWAT - EXPRESSION EVALUATOR HAS BEEN ADDED ALREADY. CHECK WHETHER THE ARTIFACT IS VALID OR NOT
-		if !artifact.IsFilteredConditionSatisfied {
+		if artifact.FilterState != expressionEvaluator.ALLOW {
 			continue
 		}
 		overrideRequest := &bean.ValuesOverrideRequest{

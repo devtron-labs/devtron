@@ -24,6 +24,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/expressionEvaluator"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"time"
@@ -716,13 +717,13 @@ type CiArtifactBean struct {
 	WfrId                         int             `json:"wfrId"`
 	DeployedBy                    string          `json:"deployedBy"`
 	//TriggeredByEmail              string                               `json:"triggeredByEmail"`
-	TriggeredBy                  int32                                `json:"triggeredBy"`
-	CiConfigureSourceType        pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
-	CiConfigureSourceValue       string                               `json:"ciConfigureSourceValue"`
-	UserApprovalMetadata         *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
-	ImageReleaseTags             []*repository2.ImageTag              `json:"imageReleaseTags"`
-	ImageComment                 *repository2.ImageComment            `json:"imageComment"`
-	IsFilteredConditionSatisfied bool                                 `json:"isFilteredConditionSatisfied"`
+	TriggeredBy            int32                                `json:"triggeredBy"`
+	CiConfigureSourceType  pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue string                               `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata   *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
+	ImageReleaseTags       []*repository2.ImageTag              `json:"imageReleaseTags"`
+	ImageComment           *repository2.ImageComment            `json:"imageComment"`
+	FilterState            expressionEvaluator.FilterState      `json:"filterState"`
 }
 
 type CiArtifactResponse struct {

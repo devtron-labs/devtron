@@ -1,4 +1,4 @@
-package pipeline
+package expressionEvaluator
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 
 type CELService interface {
 	EvaluateCELRequest(request CELRequest) (bool, error)
-	ValidateCELRequest(request CELRequest) (*cel.Ast, *cel.Env, error)
+	ValidateCELRequest(request ValidateRequest) []ValidateResponse
 	GetParamsFromArtifact(artifact string) []CELParam
 }
 
@@ -33,16 +33,28 @@ const (
 	ParamTypeInteger ParamValuesType = "integer"
 )
 
+type FilterState int
+
+const (
+	BLOCK FilterState = 0
+	ALLOW FilterState = 1
+	ERROR FilterState = 2
+)
+
+type ValidateRequest struct {
+	Expressions []string `json:"expressions"`
+}
+
+type ValidateResponse struct {
+	Expression        string `json:"expression"`
+	IsExpressionValid bool   `json:"isExpressionValid"`
+	Error             string `json:"error"`
+}
+
 type CELRequest struct {
 	Expression string     `json:"expression"`
 	Params     []CELParam `json:"params"`
 }
-
-//type CELResponse struct {
-//	Request           CELRequest
-//	IsExpressionValid bool   `json:"isExpressionValid"`
-//	err               string `json:"err"`
-//}
 
 type CELParam struct {
 	ParamName string          `json:"paramName"`
@@ -52,7 +64,7 @@ type CELParam struct {
 
 func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error) {
 
-	ast, env, err := impl.ValidateCELRequest(request)
+	ast, env, err := impl.validate(request)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while validating CEL request", "request", request)
 		return false, err
@@ -81,7 +93,7 @@ func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error)
 
 }
 
-func (impl *CELServiceImpl) ValidateCELRequest(request CELRequest) (*cel.Ast, *cel.Env, error) {
+func (impl *CELServiceImpl) validate(request CELRequest) (*cel.Ast, *cel.Env, error) {
 
 	var declarations []*expr.Decl
 
@@ -108,6 +120,41 @@ func (impl *CELServiceImpl) ValidateCELRequest(request CELRequest) (*cel.Ast, *c
 	}
 
 	return ast, env, nil
+}
+
+func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequest) []ValidateResponse {
+
+	var response []ValidateResponse
+
+	params := []CELParam{
+		{
+			ParamName: "containerName",
+			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "image",
+			Type:      ParamTypeString,
+		},
+	}
+
+	for _, e := range request.Expressions {
+		validateExpression := CELRequest{
+			Expression: e,
+			Params:     params,
+		}
+		var resp ValidateResponse
+		resp.Expression = e
+		_, _, err := impl.validate(validateExpression)
+		if err != nil {
+			resp.IsExpressionValid = false
+			resp.Error = err.Error()
+		} else {
+			resp.IsExpressionValid = true
+		}
+		response = append(response, resp)
+	}
+
+	return response
 }
 
 func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {
@@ -143,62 +190,3 @@ func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string) []CELParam {
 	}
 	return params
 }
-
-//func Evaluate(request CELRequest) (bool, error) {
-//
-//	ast, env, err := Validate(request)
-//	if err != nil {
-//		return false, err
-//	}
-//
-//	prg, err := env.Program(ast)
-//	if err != nil {
-//		return false, fmt.Errorf("program construction error: %s", err)
-//	}
-//
-//	valuesMap := make(map[string]interface{})
-//	for _, param := range request.Params {
-//		valuesMap[param.ParamName] = param.Value
-//	}
-//
-//	out, _, err := prg.Eval(valuesMap)
-//	if err != nil {
-//		return false, err
-//	}
-//
-//	if boolValue, ok := out.Value().(bool); ok {
-//		return boolValue, nil
-//	}
-//
-//	return false, fmt.Errorf("expression did not evaluate to a boolean")
-//
-//}
-//
-//func Validate(request CELRequest) (*cel.Ast, *cel.Env, error) {
-//
-//	var declarations []*expr.Decl
-//
-//	for _, param := range request.Params {
-//		declsType, err := getDeclarationType(param.Type)
-//		if err != nil {
-//			return nil, nil, fmt.Errorf("invalid parameter type '%s' for '%s': %v", param.Type, param.Type, err)
-//		}
-//		declaration := decls.NewVar(param.ParamName, declsType)
-//		declarations = append(declarations, declaration)
-//	}
-//
-//	env, err := cel.NewEnv(
-//		cel.Declarations(declarations...),
-//	)
-//	if err != nil {
-//		return nil, nil, err
-//	}
-//
-//	ast, issues := env.Compile(request.Expression)
-//	if issues != nil && issues.Err() != nil {
-//		return nil, nil, fmt.Errorf("type-check error: %s", issues.Err())
-//	}
-//
-//	return ast, env, nil
-//}
-//
