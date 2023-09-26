@@ -106,6 +106,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/expressionEvaluator"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
@@ -846,8 +847,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiBuildConfigRepository), new(*pipelineConfig.CiBuildConfigRepositoryImpl)),
 		pipeline.NewCiBuildConfigServiceImpl,
 		wire.Bind(new(pipeline.CiBuildConfigService), new(*pipeline.CiBuildConfigServiceImpl)),
-		pipeline.NewCELServiceImpl,
-		wire.Bind(new(pipeline.CELService), new(*pipeline.CELServiceImpl)),
+		expressionEvaluator.NewCELServiceImpl,
+		wire.Bind(new(expressionEvaluator.CELService), new(*expressionEvaluator.CELServiceImpl)),
 		pipeline.NewCiTemplateServiceImpl,
 		wire.Bind(new(pipeline.CiTemplateService), new(*pipeline.CiTemplateServiceImpl)),
 		router.NewGlobalCMCSRouterImpl,

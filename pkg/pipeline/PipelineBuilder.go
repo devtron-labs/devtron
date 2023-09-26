@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/expressionEvaluator"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -242,7 +243,7 @@ type PipelineBuilderImpl struct {
 	imageTaggingService                             ImageTaggingService
 	variableEntityMappingService                    variables.VariableEntityMappingService
 	variableTemplateParser                          parsers.VariableTemplateParser
-	celService                                      CELService
+	celService                                      expressionEvaluator.CELService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -301,7 +302,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	attributesRepository repository.AttributesRepository,
 	imageTaggingService ImageTaggingService,
 	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser, celService CELService) *PipelineBuilderImpl {
+	variableTemplateParser parsers.VariableTemplateParser, celService expressionEvaluator.CELService) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -4042,7 +4043,7 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 
 		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
 
-		request := CELRequest{
+		request := expressionEvaluator.CELRequest{
 			Expression: `containerName == "shashwatdadhich/test" && image == "6a824121-1-11"`,
 			Params:     params,
 		}
@@ -4050,8 +4051,13 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		evaluatorResponse, err1 := impl.celService.EvaluateCELRequest(request)
 		if err1 != nil {
 			impl.logger.Errorw("error in evaluating expression", "err", err, "expression", request.Expression)
+			ciArtifacts[i].FilterState = expressionEvaluator.ERROR
+		} else if evaluatorResponse {
+			ciArtifacts[i].FilterState = expressionEvaluator.ALLOW
+		} else {
+			ciArtifacts[i].FilterState = expressionEvaluator.BLOCK
 		}
-		ciArtifacts[i].IsFilteredConditionSatisfied = evaluatorResponse
+
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id

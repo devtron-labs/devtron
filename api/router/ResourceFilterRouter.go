@@ -40,4 +40,8 @@ func (impl ResourceFilterRouterImpl) InitResourceFilterRouter(router *mux.Router
 	router.Path("/filters/{id}").
 		HandlerFunc(impl.resourceFilterRestHandler.DeleteFilter).
 		Methods("DELETE")
+
+	router.Path("/expression/validate").
+		HandlerFunc(impl.resourceFilterRestHandler.ValidateExpression).
+		Methods("POST")
 }
