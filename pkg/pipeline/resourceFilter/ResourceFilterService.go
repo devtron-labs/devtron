@@ -11,6 +11,15 @@ import (
 
 const NoResourceFiltersFound = "no active resource filters found"
 
+type IdentifierType int
+
+const (
+	ProjectIdentifier = 0
+	AppIdentifier     = 1
+	ClusterIdentifier = 2
+	EnvironmentIdentifier
+)
+
 type FilterResponseBean struct {
 	Id          int    `json:"id"`
 	Description string `json:"description"`
@@ -162,25 +171,56 @@ func (impl *ResourceFilterServiceImpl) GetFiltersByAppIdEnvId(appId, envId int) 
 
 func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, resourceFilterId int, qualifierSelector QualifierSelector) error {
 	qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0)
-
+	//TODO: build these maps
+	projectNameToIdMap := make(map[string]int)
+	appNameToIdMap := make(map[string]int)
 	//apps
-	//1) all existing applications -> will get all apps in payload
-	//2) all existing and future applications -> will get empty ApplicationSelector
-	//3) particular apps -> will get ApplicationSelectors array
-	//4) all existing apps in a project -> will get projectName and all applications array
-	//5) all existing and future apps in a project ->  will get projectName and empty applications array
+
+	//case-1) all existing and future applications -> will get empty ApplicationSelector , db entry (proj,0,*)
 	if len(qualifierSelector.ApplicationSelectors) == 0 {
 		allExistingAndFutureAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:   resourceFilterId,
 			ResourceType: resourceQualifiers.Filter,
-			//IdentifierKey: get identifier key for app identifer
+
 			//qualifierId: get qualifierId
+			//IdentifierKey: get identifier key for proj
+			IdentifierKey:         ProjectIdentifier,
 			Active:                true,
 			IdentifierValueInt:    0,
-			IdentifierValueString: "0",
+			IdentifierValueString: "*",
 		}
 		qualifierMappings = append(qualifierMappings, allExistingAndFutureAppsQualifierMapping)
 	}
+
+	for _, appSelector := range qualifierSelector.ApplicationSelectors {
+		//case-2) all existing and future apps in a project ->  will get projectName and empty applications array
+		if len(appSelector.Applications) == 0 {
+			allExistingAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
+				ResourceId:            resourceFilterId,
+				ResourceType:          resourceQualifiers.Filter,
+				IdentifierKey:         ProjectIdentifier,
+				Active:                true,
+				IdentifierValueInt:    projectNameToIdMap[appSelector.ProjectName],
+				IdentifierValueString: "*",
+			}
+			qualifierMappings = append(qualifierMappings, allExistingAppsQualifierMapping)
+		}
+		//case-3) all existing applications -> will get all apps in payload
+		//case-4) particular apps -> will get ApplicationSelectors array
+		//case-5) all existing apps in a project -> will get projectName and all applications array
+		for _, appName := range appSelector.Applications {
+			qualifierMapping := &resourceQualifiers.QualifierMapping{
+				ResourceId:            resourceFilterId,
+				ResourceType:          resourceQualifiers.Filter,
+				IdentifierKey:         AppIdentifier,
+				Active:                true,
+				IdentifierValueInt:    appNameToIdMap[appName],
+				IdentifierValueString: appName,
+			}
+			qualifierMappings = append(qualifierMappings, qualifierMapping)
+		}
+	}
+
 	//envs
 	//1) all existing and future prod envs -> get single EnvironmentSelector with clusterName as "0"(prod)
 	//2) all existing and future non-prod envs -> get single EnvironmentSelector with clusterName as "-1"(non-prod)
