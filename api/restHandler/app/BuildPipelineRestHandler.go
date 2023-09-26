@@ -386,7 +386,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 			CiBuildConfig: &bean1.CiBuildConfigBean{
 				Id:                        0,
 				GitMaterialId:             patchRequest.CiPipeline.CiMaterial[0].GitMaterialId,
-				BuildContextGitMaterialId: 0,
+				BuildContextGitMaterialId: patchRequest.CiPipeline.CiMaterial[0].GitMaterialId,
 				UseRootBuildContext:       false,
 				CiBuildType:               bean1.SKIP_BUILD_BUILD_TYPE,
 				DockerBuildConfig:         nil,
