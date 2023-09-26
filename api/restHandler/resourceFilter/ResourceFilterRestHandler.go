@@ -197,7 +197,7 @@ func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request resourceFilter.ValidateRequest
+	var request resourceFilter.ValidateRequestResponse
 	err = decoder.Decode(&request)
 
 	response := handler.celService.ValidateCELRequest(request)

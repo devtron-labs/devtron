@@ -11,7 +11,7 @@ import (
 
 type CELEvaluatorService interface {
 	EvaluateCELRequest(request CELRequest) (bool, error)
-	ValidateCELRequest(request ValidateRequest) []ValidateResponse
+	ValidateCELRequest(request ValidateRequestResponse) ValidateRequestResponse
 	GetParamsFromArtifact(artifact string) []ExpressionParam
 }
 
@@ -33,14 +33,8 @@ const (
 	ERROR FilterState = 2
 )
 
-type ValidateRequest struct {
-	Expressions []string `json:"expressions"`
-}
-
-type ValidateResponse struct {
-	Expression        string `json:"expression"`
-	IsExpressionValid bool   `json:"isExpressionValid"`
-	Error             string `json:"error"`
+type ValidateRequestResponse struct {
+	Conditions []*ResourceCondition `json:"conditions"`
 }
 
 type CELRequest struct {
@@ -110,9 +104,7 @@ func (impl *CELServiceImpl) validate(request CELRequest) (*cel.Ast, *cel.Env, er
 	return ast, env, nil
 }
 
-func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequest) []ValidateResponse {
-
-	var response []ValidateResponse
+func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) ValidateRequestResponse {
 
 	params := []ExpressionParam{
 		{
@@ -125,24 +117,18 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequest) []Valida
 		},
 	}
 
-	for _, e := range request.Expressions {
+	for _, e := range request.Conditions {
 		validateExpression := CELRequest{
-			Expression:         e,
+			Expression:         e.Expression,
 			ExpressionMetadata: ExpressionMetadata{Params: params},
 		}
-		var resp ValidateResponse
-		resp.Expression = e
 		_, _, err := impl.validate(validateExpression)
 		if err != nil {
-			resp.IsExpressionValid = false
-			resp.Error = err.Error()
-		} else {
-			resp.IsExpressionValid = true
+			e.ErrorMsg = err.Error()
 		}
-		response = append(response, resp)
 	}
 
-	return response
+	return request
 }
 
 func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {
