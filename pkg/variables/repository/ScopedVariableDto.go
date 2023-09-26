@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 )
@@ -43,15 +44,9 @@ type VariableData struct {
 	sql.AuditLog
 }
 
-type Qualifier int
+var CompoundQualifiers []resourceQualifiers.Qualifier
 
-const (
-	GLOBAL_QUALIFIER Qualifier = 5
-)
-
-var CompoundQualifiers []Qualifier
-
-func GetNumOfChildQualifiers(qualifier Qualifier) int {
+func GetNumOfChildQualifiers(qualifier resourceQualifiers.Qualifier) int {
 	return 0
 }
 
