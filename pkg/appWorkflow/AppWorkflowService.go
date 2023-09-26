@@ -92,7 +92,7 @@ type AppWorkflowMappingDto struct {
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 	UserId                     int32  `json:"-"`
 	IsLast                     bool   `json:"isLast"`
-	IsInEnvFilter              bool   `json:"isInEnvFilter,omitempty"`
+	IsNewLeaf                  bool   `json:"isNewLeaf,omitempty"`
 	ChildPipelinesIds          []int  `json:"childPipelinesIds"`
 }
 
@@ -649,7 +649,7 @@ func (impl AppWorkflowServiceImpl) FilterWorkflowAndPipelinesOnEnvIds(triggerVie
 		}
 		for _, appWorkflowMapping := range workflow.AppWorkflowMappingDto {
 			if _, ok := componentIdToWorkflowMapping[appWorkflowMapping.Type][appWorkflowMapping.ComponentId]; ok {
-				newAppWorkflowMappingDto = append(newAppWorkflowMappingDto, appWorkflowMapping)
+				newAppWorkflowMappingDto = append(newAppWorkflowMappingDto, *componentIdToWorkflowMapping[appWorkflowMapping.Type][appWorkflowMapping.ComponentId])
 			}
 		}
 		triggerViewConfig.Workflows[index].AppWorkflowMappingDto = newAppWorkflowMappingDto
@@ -695,12 +695,11 @@ func filterInsideWorkflowForEnvFilter(appWorkflowMappings []AppWorkflowMappingDt
 			}
 		}
 	}
-	initialLeafPipelinesSize := len(leafPipelines)
 	for i := 0; i < len(leafPipelines); i++ {
 		parentPipelineId := leafPipelines[i].ParentId
 		parentPipelineType := leafPipelines[i].ParentType
 		if slices.Contains(cdPipelineIdsFiltered, leafPipelines[i].ComponentId) {
-			if len(leafPipelines) == initialLeafPipelinesSize {
+			if !componentIdToWorkflowMapping[leafPipelines[i].Type][leafPipelines[i].ComponentId].IsNewLeaf {
 				//check initial leaf cd-pipelines and mark them as last and those appended at runtime won't be considered
 				componentIdToWorkflowMapping[leafPipelines[i].Type][leafPipelines[i].ComponentId].IsLast = true
 			}
@@ -710,7 +709,8 @@ func filterInsideWorkflowForEnvFilter(appWorkflowMappings []AppWorkflowMappingDt
 		}
 		for componentIdToWorkflowMapping[parentPipelineType][parentPipelineId].Type != ciType {
 			if len(componentIdToWorkflowMapping[parentPipelineType][parentPipelineId].ChildPipelinesIds) == 0 {
-				//this means it's not an intersection, will come in next iteration via other leaf cd pipeline
+				//this means it's not an intersection
+				componentIdToWorkflowMapping[parentPipelineType][parentPipelineId].IsNewLeaf = true
 				leafPipelines = append(leafPipelines, componentIdToWorkflowMapping[parentPipelineType][parentPipelineId])
 			}
 			break
