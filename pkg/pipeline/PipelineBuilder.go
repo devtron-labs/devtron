@@ -21,7 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/expressionEvaluator"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -243,7 +244,8 @@ type PipelineBuilderImpl struct {
 	imageTaggingService                             ImageTaggingService
 	variableEntityMappingService                    variables.VariableEntityMappingService
 	variableTemplateParser                          parsers.VariableTemplateParser
-	celService                                      expressionEvaluator.CELService
+	celService                                      resourceFilter.CELEvaluatorService
+	resourceFilterService                           resourceFilter.ResourceFilterService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -302,7 +304,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	attributesRepository repository.AttributesRepository,
 	imageTaggingService ImageTaggingService,
 	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser, celService expressionEvaluator.CELService) *PipelineBuilderImpl {
+	variableTemplateParser parsers.VariableTemplateParser, celService resourceFilter.CELEvaluatorService, resourceFilterService resourceFilter.ResourceFilterService) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -377,6 +379,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		variableEntityMappingService:                    variableEntityMappingService,
 		variableTemplateParser:                          variableTemplateParser,
 		celService:                                      celService,
+		resourceFilterService:                           resourceFilterService,
 	}
 }
 
@@ -4040,24 +4043,20 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
 		// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR First check whether this env has filter enabled
-
+		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId}
 		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
-
-		request := expressionEvaluator.CELRequest{
-			Expression: `containerName == "shashwatdadhich/test" && image == "6a824121-1-11"`,
-			Params:     params,
+		metadata := resourceFilter.ExpressionMetadata{
+			Params: params,
 		}
-
-		evaluatorResponse, err1 := impl.celService.EvaluateCELRequest(request)
-		if err1 != nil {
-			impl.logger.Errorw("error in evaluating expression", "err", err, "expression", request.Expression)
-			ciArtifacts[i].FilterState = expressionEvaluator.ERROR
-		} else if evaluatorResponse {
-			ciArtifacts[i].FilterState = expressionEvaluator.ALLOW
+		artifactAllowed, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+		if err != nil {
+			impl.logger.Errorw("error in evaluating expression", "pipelineId", pipeline.Id, "err", err)
+			ciArtifacts[i].FilterState = resourceFilter.ERROR
+		} else if artifactAllowed {
+			ciArtifacts[i].FilterState = resourceFilter.ALLOW
 		} else {
-			ciArtifacts[i].FilterState = expressionEvaluator.BLOCK
+			ciArtifacts[i].FilterState = resourceFilter.BLOCK
 		}
-
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id

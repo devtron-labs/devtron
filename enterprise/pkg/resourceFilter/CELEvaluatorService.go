@@ -1,4 +1,4 @@
-package expressionEvaluator
+package resourceFilter
 
 import (
 	"fmt"
@@ -9,10 +9,10 @@ import (
 	"strings"
 )
 
-type CELService interface {
+type CELEvaluatorService interface {
 	EvaluateCELRequest(request CELRequest) (bool, error)
 	ValidateCELRequest(request ValidateRequest) []ValidateResponse
-	GetParamsFromArtifact(artifact string) []CELParam
+	GetParamsFromArtifact(artifact string) []ExpressionParam
 }
 
 type CELServiceImpl struct {
@@ -24,14 +24,6 @@ func NewCELServiceImpl(logger *zap.SugaredLogger) *CELServiceImpl {
 		Logger: logger,
 	}
 }
-
-type ParamValuesType string
-
-const (
-	ParamTypeString  ParamValuesType = "string"
-	ParamTypeObject  ParamValuesType = "object"
-	ParamTypeInteger ParamValuesType = "integer"
-)
 
 type FilterState int
 
@@ -52,14 +44,8 @@ type ValidateResponse struct {
 }
 
 type CELRequest struct {
-	Expression string     `json:"expression"`
-	Params     []CELParam `json:"params"`
-}
-
-type CELParam struct {
-	ParamName string          `json:"paramName"`
-	Value     interface{}     `json:"value"`
-	Type      ParamValuesType `json:"type"`
+	Expression         string             `json:"expression"`
+	ExpressionMetadata ExpressionMetadata `json:"params"`
 }
 
 func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error) {
@@ -75,8 +61,9 @@ func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error)
 		return false, fmt.Errorf("program construction error: %s", err)
 	}
 
+	expressionMetadata := request.ExpressionMetadata
 	valuesMap := make(map[string]interface{})
-	for _, param := range request.Params {
+	for _, param := range expressionMetadata.Params {
 		valuesMap[param.ParamName] = param.Value
 	}
 
@@ -97,7 +84,8 @@ func (impl *CELServiceImpl) validate(request CELRequest) (*cel.Ast, *cel.Env, er
 
 	var declarations []*expr.Decl
 
-	for _, param := range request.Params {
+	expressionMetadata := request.ExpressionMetadata
+	for _, param := range expressionMetadata.Params {
 		declsType, err := getDeclarationType(param.Type)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid parameter type '%s' for '%s': %v", param.Type, param.Type, err)
@@ -126,7 +114,7 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequest) []Valida
 
 	var response []ValidateResponse
 
-	params := []CELParam{
+	params := []ExpressionParam{
 		{
 			ParamName: "containerName",
 			Type:      ParamTypeString,
@@ -139,8 +127,8 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequest) []Valida
 
 	for _, e := range request.Expressions {
 		validateExpression := CELRequest{
-			Expression: e,
-			Params:     params,
+			Expression:         e,
+			ExpressionMetadata: ExpressionMetadata{Params: params},
 		}
 		var resp ValidateResponse
 		resp.Expression = e
@@ -170,13 +158,13 @@ func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {
 	}
 }
 
-func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string) []CELParam {
+func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string) []ExpressionParam {
 
 	lastColonIndex := strings.LastIndex(artifact, ":")
 
 	containerName := artifact[:lastColonIndex]
 	image := artifact[lastColonIndex+1:]
-	params := []CELParam{
+	params := []ExpressionParam{
 		{
 			ParamName: "containerName",
 			Value:     containerName,

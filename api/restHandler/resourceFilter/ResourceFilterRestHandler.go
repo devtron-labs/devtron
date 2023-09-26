@@ -3,8 +3,7 @@ package resourceFilter
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/expressionEvaluator"
-	"github.com/devtron-labs/devtron/pkg/pipeline/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -29,14 +28,14 @@ type ResourceFilterRestHandlerImpl struct {
 	enforcerUtil          rbac.EnforcerUtil
 	enforcer              casbin.Enforcer
 	resourceFilterService resourceFilter.ResourceFilterService
-	celService            expressionEvaluator.CELService
+	celService            resourceFilter.CELEvaluatorService
 }
 
 func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserService,
 	enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer,
-	celService expressionEvaluator.CELService,
+	celService resourceFilter.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService) *ResourceFilterRestHandlerImpl {
 	return &ResourceFilterRestHandlerImpl{
 		logger:                logger,
@@ -198,7 +197,7 @@ func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request expressionEvaluator.ValidateRequest
+	var request resourceFilter.ValidateRequest
 	err = decoder.Decode(&request)
 
 	response := handler.celService.ValidateCELRequest(request)

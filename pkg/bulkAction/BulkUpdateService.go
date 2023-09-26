@@ -12,6 +12,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -24,7 +25,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/expressionEvaluator"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -1381,7 +1381,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 		}
 		artifact := artifacts[0] // fetch latest approved artifact in case of approval node configured
 		// TODO - SHASHWAT - EXPRESSION EVALUATOR HAS BEEN ADDED ALREADY. CHECK WHETHER THE ARTIFACT IS VALID OR NOT
-		if artifact.FilterState != expressionEvaluator.ALLOW {
+		if artifact.FilterState != resourceFilter.ALLOW {
 			continue
 		}
 		overrideRequest := &bean.ValuesOverrideRequest{

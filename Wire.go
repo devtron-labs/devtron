@@ -70,6 +70,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appGroup2 "github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
@@ -106,7 +107,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	"github.com/devtron-labs/devtron/pkg/expressionEvaluator"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
@@ -847,8 +847,14 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiBuildConfigRepository), new(*pipelineConfig.CiBuildConfigRepositoryImpl)),
 		pipeline.NewCiBuildConfigServiceImpl,
 		wire.Bind(new(pipeline.CiBuildConfigService), new(*pipeline.CiBuildConfigServiceImpl)),
-		expressionEvaluator.NewCELServiceImpl,
-		wire.Bind(new(expressionEvaluator.CELService), new(*expressionEvaluator.CELServiceImpl)),
+		resourceFilter.NewCELServiceImpl,
+		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
+		resourceFilter.NewResourceFilterRepositoryImpl,
+		wire.Bind(new(resourceFilter.ResourceFilterRepository), new(*resourceFilter.ResourceFilterRepositoryImpl)),
+		resourceFilter.NewResourceFilterServiceImpl,
+		wire.Bind(new(resourceFilter.ResourceFilterService), new(*resourceFilter.ResourceFilterServiceImpl)),
+		resourceFilter.NewResourceFilterEvaluatorImpl,
+		wire.Bind(new(resourceFilter.ResourceFilterEvaluator), new(*resourceFilter.ResourceFilterEvaluatorImpl)),
 		pipeline.NewCiTemplateServiceImpl,
 		wire.Bind(new(pipeline.CiTemplateService), new(*pipeline.CiTemplateServiceImpl)),
 		router.NewGlobalCMCSRouterImpl,

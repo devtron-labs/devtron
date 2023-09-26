@@ -47,7 +47,7 @@ type ResourceFilterRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 }
 
-func NewPipelineStageRepository(logger *zap.SugaredLogger,
+func NewResourceFilterRepositoryImpl(logger *zap.SugaredLogger,
 	dbConnection *pg.DB) *ResourceFilterRepositoryImpl {
 	return &ResourceFilterRepositoryImpl{
 		logger:              logger,

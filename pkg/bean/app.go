@@ -20,11 +20,11 @@ package bean
 import (
 	"encoding/json"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/expressionEvaluator"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"time"
@@ -723,7 +723,7 @@ type CiArtifactBean struct {
 	UserApprovalMetadata   *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 	ImageReleaseTags       []*repository2.ImageTag              `json:"imageReleaseTags"`
 	ImageComment           *repository2.ImageComment            `json:"imageComment"`
-	FilterState            expressionEvaluator.FilterState      `json:"filterState"`
+	FilterState            resourceFilter.FilterState           `json:"filterState"`
 }
 
 type CiArtifactResponse struct {
