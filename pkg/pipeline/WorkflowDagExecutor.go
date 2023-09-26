@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util5 "github.com/devtron-labs/devtron/util/k8s"
@@ -122,6 +123,7 @@ type WorkflowDagExecutorImpl struct {
 	pipelineStageService          PipelineStageService
 	config                        *CdConfig
 	celService                    resourceFilter.CELEvaluatorService
+	resourceFilterService         resourceFilter.ResourceFilterService
 }
 
 const (
@@ -218,7 +220,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
 	pipelineStageRepository repository4.PipelineStageRepository,
-	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService, celService resourceFilter.CELEvaluatorService) *WorkflowDagExecutorImpl {
+	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService, celService resourceFilter.CELEvaluatorService, resourceFilterService resourceFilter.ResourceFilterService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -257,6 +259,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineStageRepository:       pipelineStageRepository,
 		pipelineStageService:          pipelineStageService,
 		celService:                    celService,
+		resourceFilterService:         resourceFilterService,
 	}
 	config, err := GetCdConfig()
 	if err != nil {
@@ -1907,15 +1910,13 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 	}
 	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
 	// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR - First check whether this env has filter enabled
+	scope := resourceQualifiers.Scope{AppId: overrideRequest.AppId, EnvId: overrideRequest.EnvId}
 	params := impl.celService.GetParamsFromArtifact(artifact.Image)
-	request := resourceFilter.CELRequest{
-		Expression: `containerName == "shashwatdadhich/test" && image == "6a824121-1-11"`,
-		Params:     params,
+	metadata := resourceFilter.ExpressionMetadata{
+		Params: params,
 	}
-
-	evaluatorResponse, err1 := impl.celService.EvaluateCELRequest(request)
-	if err1 != nil || !evaluatorResponse {
-		impl.logger.Errorw("error in evaluating expression", "err", err, "expression", request.Expression)
+	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+	if err != nil || filterState != resourceFilter.ALLOW {
 		return 0, "", err
 	}
 	if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
