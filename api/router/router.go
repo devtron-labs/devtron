@@ -222,7 +222,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		appGroupingRouter:                  appGroupingRouter,
 		rbacRoleRouter:                     rbacRoleRouter,
 		scopedVariableRouter:               scopedVariableRouter,
-
 	}
 	return r
 }
