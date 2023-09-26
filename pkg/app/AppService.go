@@ -2752,8 +2752,8 @@ func getPatchWitSyncPolicyAndIgnoreDifferences(patch *v1alpha1.Application, hpaE
 		patch.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
 	} else {
 		//remove ignore differences
-		patch.Spec.SyncPolicy = nil
-		patch.Spec.IgnoreDifferences = nil
+		patch.Spec.SyncPolicy = &v1alpha1.SyncPolicy{}
+		patch.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{}
 	}
 
 	return patch
