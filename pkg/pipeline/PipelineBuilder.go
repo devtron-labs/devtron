@@ -242,6 +242,7 @@ type PipelineBuilderImpl struct {
 	imageTaggingService                             ImageTaggingService
 	variableEntityMappingService                    variables.VariableEntityMappingService
 	variableTemplateParser                          parsers.VariableTemplateParser
+	celService                                      CELService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -300,7 +301,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	attributesRepository repository.AttributesRepository,
 	imageTaggingService ImageTaggingService,
 	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser) *PipelineBuilderImpl {
+	variableTemplateParser parsers.VariableTemplateParser, celService CELService) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -374,6 +375,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		imageTaggingService:                             imageTaggingService,
 		variableEntityMappingService:                    variableEntityMappingService,
 		variableTemplateParser:                          variableTemplateParser,
+		celService:                                      celService,
 	}
 }
 
@@ -4036,6 +4038,20 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		ciArtifacts[i].TriggeredBy = ciWorkflow.TriggeredBy
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
+		// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR First check whether this env has filter enabled
+
+		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
+
+		request := CELRequest{
+			Expression: `containerName == "shashwatdadhich/test" && image == "6a824121-1-11"`,
+			Params:     params,
+		}
+
+		evaluatorResponse, err1 := impl.celService.EvaluateCELRequest(request)
+		if err1 != nil {
+			impl.logger.Errorw("error in evaluating expression", "err", err, "expression", request.Expression)
+		}
+		ciArtifacts[i].IsFilteredConditionSatisfied = evaluatorResponse
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id

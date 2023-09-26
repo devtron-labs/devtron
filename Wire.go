@@ -849,6 +849,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiBuildConfigRepository), new(*pipelineConfig.CiBuildConfigRepositoryImpl)),
 		pipeline.NewCiBuildConfigServiceImpl,
 		wire.Bind(new(pipeline.CiBuildConfigService), new(*pipeline.CiBuildConfigServiceImpl)),
+		pipeline.NewCELServiceImpl,
+		wire.Bind(new(pipeline.CELService), new(*pipeline.CELServiceImpl)),
 		pipeline.NewCiTemplateServiceImpl,
 		wire.Bind(new(pipeline.CiTemplateService), new(*pipeline.CiTemplateServiceImpl)),
 		router.NewGlobalCMCSRouterImpl,

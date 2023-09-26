@@ -716,12 +716,13 @@ type CiArtifactBean struct {
 	WfrId                         int             `json:"wfrId"`
 	DeployedBy                    string          `json:"deployedBy"`
 	//TriggeredByEmail              string                               `json:"triggeredByEmail"`
-	TriggeredBy            int32                                `json:"triggeredBy"`
-	CiConfigureSourceType  pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
-	CiConfigureSourceValue string                               `json:"ciConfigureSourceValue"`
-	UserApprovalMetadata   *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
-	ImageReleaseTags       []*repository2.ImageTag              `json:"imageReleaseTags"`
-	ImageComment           *repository2.ImageComment            `json:"imageComment"`
+	TriggeredBy                  int32                                `json:"triggeredBy"`
+	CiConfigureSourceType        pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue       string                               `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata         *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
+	ImageReleaseTags             []*repository2.ImageTag              `json:"imageReleaseTags"`
+	ImageComment                 *repository2.ImageComment            `json:"imageComment"`
+	IsFilteredConditionSatisfied bool                                 `json:"isFilteredConditionSatisfied"`
 }
 
 type CiArtifactResponse struct {

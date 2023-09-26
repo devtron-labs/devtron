@@ -120,6 +120,7 @@ type WorkflowDagExecutorImpl struct {
 	helmRepoPushService           app.HelmRepoPushService
 	pipelineStageRepository       repository4.PipelineStageRepository
 	pipelineStageService          PipelineStageService
+	celService                    CELService
 }
 
 const (
@@ -217,7 +218,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
 	pipelineStageRepository repository4.PipelineStageRepository,
-	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService) *WorkflowDagExecutorImpl {
+	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService, celService CELService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -256,6 +257,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		k8sCommonService:              k8sCommonService,
 		pipelineStageRepository:       pipelineStageRepository,
 		pipelineStageService:          pipelineStageService,
+		celService:                    celService,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -1895,7 +1897,18 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		imageTag = strings.Split(artifact.Image, ":")[1]
 	}
 	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
+	// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR - First check whether this env has filter enabled
+	params := impl.celService.GetParamsFromArtifact(artifact.Image)
+	request := CELRequest{
+		Expression: `containerName == "shashwatdadhich/test" && image == "6a824121-1-11"`,
+		Params:     params,
+	}
 
+	evaluatorResponse, err1 := impl.celService.EvaluateCELRequest(request)
+	if err1 != nil || !evaluatorResponse {
+		impl.logger.Errorw("error in evaluating expression", "err", err, "expression", request.Expression)
+		return 0, "", err
+	}
 	if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		cdWf := &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
