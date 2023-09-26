@@ -4,4 +4,4 @@
 .env
 /cmd/external-app/devtron-ea
 devtron
-/vendor/github.com/argoproj
+/vendor/github.com/argoproj/argo-cd/assets
