@@ -80,7 +80,7 @@ func (handler *ResourceFilterRestHandlerImpl) GetFilterById(w http.ResponseWrite
 	filterId, err := strconv.Atoi(vars["Id"])
 	res, err := handler.resourceFilterService.GetFilterById(filterId)
 	if err != nil {
-		handler.logger.Errorw("error in getting active resource filters", "err", err)
+		handler.logger.Errorw("error in getting  resource filter", "err", err, "filterId", filterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -110,7 +110,7 @@ func (handler *ResourceFilterRestHandlerImpl) CreateFilter(w http.ResponseWriter
 	res, err := handler.resourceFilterService.CreateFilter(userId, req)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
-		handler.logger.Errorw("error in getting active resource filters", "err", err)
+		handler.logger.Errorw("error in creating resource filters", "err", err)
 		if err.Error() == resourceFilter.AppAndEnvSelectorRequiredMessage {
 			statusCode = http.StatusBadRequest
 		} else if err.Error() == resourceFilter.InvalidExpressions {
@@ -146,7 +146,7 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 
 	res, err := handler.resourceFilterService.UpdateFilter(userId, req)
 	if err != nil {
-		handler.logger.Errorw("error in getting active resource filters", "err", err)
+		handler.logger.Errorw("error in updating active resource filters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -174,7 +174,7 @@ func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter
 
 	err = handler.resourceFilterService.DeleteFilter(userId, filterId)
 	if err != nil {
-		handler.logger.Errorw("error in getting active resource filters", "err", err)
+		handler.logger.Errorw("error in deleting resource filters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
