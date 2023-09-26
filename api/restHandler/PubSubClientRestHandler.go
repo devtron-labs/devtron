@@ -35,7 +35,7 @@ type PubSubClientRestHandler interface {
 type PubSubClientRestHandlerImpl struct {
 	pubsubClient *pubsub.PubSubClientServiceImpl
 	logger       *zap.SugaredLogger
-	cdConfig     *pipeline.CdConfig
+	cdConfig     *pipeline.CiCdConfig
 }
 
 type PublishRequest struct {
@@ -43,7 +43,7 @@ type PublishRequest struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-func NewPubSubClientRestHandlerImpl(pubsubClient *pubsub.PubSubClientServiceImpl, logger *zap.SugaredLogger, cdConfig *pipeline.CdConfig) *PubSubClientRestHandlerImpl {
+func NewPubSubClientRestHandlerImpl(pubsubClient *pubsub.PubSubClientServiceImpl, logger *zap.SugaredLogger, cdConfig *pipeline.CiCdConfig) *PubSubClientRestHandlerImpl {
 	return &PubSubClientRestHandlerImpl{
 		pubsubClient: pubsubClient,
 		logger:       logger,

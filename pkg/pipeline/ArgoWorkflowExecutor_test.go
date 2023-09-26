@@ -27,7 +27,7 @@ func TestExecuteWorkflow(t *testing.T) {
 	t.SkipNow()
 	logger, loggerErr := util.NewSugardLogger()
 	assert.Nil(t, loggerErr)
-	cdConfig, err := GetCdConfig()
+	cdConfig, err := GetCiCdConfig()
 	assert.Nil(t, err)
 	workflowExecutorImpl := NewArgoWorkflowExecutorImpl(logger)
 
@@ -260,13 +260,15 @@ func getGcpBlobStorage() *blob_storage.GcpBlobConfig {
 	}
 }
 
-func getBaseWorkflowTemplate(cdConfig *CdConfig) bean.WorkflowTemplate {
+func getBaseWorkflowTemplate(cdConfig *CiCdConfig) bean.WorkflowTemplate {
 
 	workflowTemplate := bean.WorkflowTemplate{}
 	workflowTemplate.WfControllerInstanceID = "random-controller-id"
 	workflowTemplate.Namespace = "default"
 	workflowTemplate.ActiveDeadlineSeconds = pointer.Int64Ptr(3600)
 	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
+	clusterConfig := deepCopyClusterConfig(*cdConfig.ClusterConfig)
+	workflowTemplate.ClusterConfig = &clusterConfig
 	workflowTemplate.WorkflowNamePrefix = "workflow-mock-prefix-" + strconv.Itoa(rand.Intn(1000))
 	workflowTemplate.TTLValue = pointer.Int32Ptr(3600)
 	var containers []v12.Container
@@ -371,7 +373,7 @@ func getCdTemplate(workflow v1alpha1.Workflow) v1alpha1.Template {
 	templates := workflow.Spec.Templates
 	for _, template := range templates {
 		templateName := template.Name
-		if templateName == CD_WORKFLOW_NAME {
+		if templateName == bean.CD_WORKFLOW_NAME {
 			cdTemplate = template
 		}
 	}

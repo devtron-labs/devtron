@@ -94,7 +94,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	GitSensorClient               gitSensor.Client
-	ciConfig                      *CiConfig
+	ciConfig                      *CiCdConfig
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	envRepository                 repository2.EnvironmentRepository
 	attributesService             attributes.AttributesService
@@ -124,7 +124,7 @@ func NewCiCdPipelineOrchestrator(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	GitSensorClient gitSensor.Client, ciConfig *CiConfig,
+	GitSensorClient gitSensor.Client, ciConfig *CiCdConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,
@@ -1895,6 +1895,10 @@ func (impl CiCdPipelineOrchestratorImpl) createDockerRepoIfNeeded(dockerRegistry
 }
 func (impl CiCdPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error {
 	impl.logger.Debugw("attempting ecr repo creation ", "repo", dockerRepository)
+	if impl.ciConfig.SkipCreatingEcrRepo {
+		impl.logger.Warnw("not creating ecr repo, set SKIP_CREATING_ECR_REPO flag false to enable")
+		return nil
+	}
 	err := util.CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey)
 	if err != nil {
 		if errors1.IsAlreadyExists(err) {
