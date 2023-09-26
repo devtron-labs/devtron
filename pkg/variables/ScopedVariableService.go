@@ -23,7 +23,7 @@ import (
 
 type ScopedVariableService interface {
 	CreateVariables(payload models.Payload) error
-	GetScopedVariables(scope models.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
+	GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
 	GetJsonForVariables() (*models.Payload, error)
 }
 
@@ -306,19 +306,19 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*res
 	for variableId, scopes := range variableIdToVariableScopes {
 
 		selectedScopes := make([]*resourceQualifiers.QualifierMapping, 0)
-		compoundQualifierToScopes := make(map[repository2.Qualifier][]*resourceQualifiers.QualifierMapping)
+		compoundQualifierToScopes := make(map[resourceQualifiers.Qualifier][]*resourceQualifiers.QualifierMapping)
 
 		for _, variableScope := range scopes {
-			qualifier := repository2.Qualifier(variableScope.QualifierId)
-			if slices.Contains(repository2.CompoundQualifiers, qualifier) {
+			qualifier := resourceQualifiers.Qualifier(variableScope.QualifierId)
+			if slices.Contains(resourceQualifiers.CompoundQualifiers, qualifier) {
 				compoundQualifierToScopes[qualifier] = append(compoundQualifierToScopes[qualifier], variableScope)
 			} else {
 				selectedScopes = append(selectedScopes, variableScope)
 			}
 		}
 
-		for _, qualifier := range repository2.CompoundQualifiers {
-			selectedScope := impl.selectScopeForCompoundQualifier(compoundQualifierToScopes[qualifier], repository2.GetNumOfChildQualifiers(qualifier))
+		for _, qualifier := range resourceQualifiers.CompoundQualifiers {
+			selectedScope := impl.selectScopeForCompoundQualifier(compoundQualifierToScopes[qualifier], resourceQualifiers.GetNumOfChildQualifiers(qualifier))
 			if selectedScope != nil {
 				selectedScopes = append(selectedScopes, selectedScope)
 			}
@@ -369,7 +369,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 	return selectedParentScope
 }
 
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope models.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	// getting all variables from cache
 	allVariableDefinitions := impl.VariableCache.GetData()
@@ -487,7 +487,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 	if allVariableDefinitions != nil && len(allVariableDefinitions) == 0 {
 		return nil, nil
 	}
-	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
+	dataForJson, err := impl.scopedVariableRepository.GetAllVariableDefinition()
 	if err != nil {
 		impl.logger.Errorw("error in getting data for json", "err", err)
 		return nil, err
@@ -546,7 +546,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 					attribute.VariableValue = models.VariableValue{
 						Value: value,
 					}
-					attribute.AttributeType = helper.GetAttributeType(repository2.Qualifier(scope.QualifierId))
+					attribute.AttributeType = helper.GetAttributeType(resourceQualifiers.Qualifier(scope.QualifierId))
 				}
 			}
 			if len(attribute.AttributeParams) == 0 {
@@ -577,7 +577,7 @@ func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*reposito
 		varDefnIds = append(varDefnIds, variableDefinition.Id)
 	}
 	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
-	scope := models.Scope{}
+	scope := resourceQualifiers.Scope{}
 	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, scope, searchableKeyNameIdMap, varDefnIds)
 	if err != nil {
 		//TODO KB: handle this

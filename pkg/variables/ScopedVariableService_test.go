@@ -10,6 +10,7 @@ import (
 	mocks3 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	mocks4 "github.com/devtron-labs/devtron/pkg/devtronResource/mocks"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/repository/mocks"
@@ -142,95 +143,113 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 		},
 	}
 
-	parentScope := []*repository.VariableScope{
+	parentScope := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    2,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    2,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    3,
-			VariableDefinitionId:  2,
-			QualifierId:           3,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "default_cluster",
-			CompositeKey:          "",
-			Data:                  "value2",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            2,
+				QualifierId:           3,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "default_cluster",
+				CompositeKey:          "",
+			},
+			Data: "value2",
 		},
 	}
-	parentScope1 := []*repository.VariableScope{
+	parentScope1 := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "1-dev-test-Dev",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "1-dev-test-Dev",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    2,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "1-dev-test-Dev",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    2,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "1-dev-test-Dev",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    3,
-			VariableDefinitionId:  1,
-			QualifierId:           2,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            1,
+				QualifierId:           2,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    4,
-			VariableDefinitionId:  1,
-			QualifierId:           3,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    4,
+				ResourceId:            1,
+				QualifierId:           3,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                   5,
-			VariableDefinitionId: 1,
-			QualifierId:          5,
-			IdentifierKey:        7,
-			Data:                 "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:            5,
+				ResourceId:    1,
+				QualifierId:   5,
+				IdentifierKey: 7,
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    6,
-			VariableDefinitionId:  1,
-			QualifierId:           4,
-			IdentifierKey:         8,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "default_cluster",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    6,
+				ResourceId:            1,
+				QualifierId:           4,
+				IdentifierKey:         8,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "default_cluster",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 	}
 	searchableKeyMap := map[bean.DevtronResourceSearchableKeyName]int{
@@ -892,7 +911,7 @@ func InitScopedVariableServiceImpl(t *testing.T) (*ScopedVariableServiceImpl, *m
 	environmentRepository := mocks3.NewEnvironmentRepository(t)
 	devtronResourceService := mocks4.NewDevtronResourceService(t)
 	clusterRepository := mocks3.NewClusterRepository(t)
-	//clusterRepository
+	resourceQualifiers.NewQualifierMappingServiceImpl()
 	impl, _ := NewScopedVariableServiceImpl(logger, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository)
 
 	return impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository
@@ -944,62 +963,74 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 			Description: "Variable 1",
 		},
 	}
-	variableScope := []*repository.VariableScope{
+	variableScope := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			Data:                  "value-1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+			},
+			Data: "value-1",
 		},
 		{
-			Id:                    2,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			Data:                  "value-1",
-			ParentIdentifier:      1,
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    2,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				ParentIdentifier:      1,
+			},
+			Data: "value-1",
 		},
 		{
-			Id:                    3,
-			VariableDefinitionId:  1,
-			QualifierId:           2,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value-2",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            1,
+				QualifierId:           2,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data: "value-2",
 		},
 		{
-			Id:                    4,
-			VariableDefinitionId:  1,
-			QualifierId:           3,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "",
-			Data:                  "value-3",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    4,
+				ResourceId:            1,
+				QualifierId:           3,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "",
+			},
+			Data: "value-3",
 		},
 		{
-			Id:                   5,
-			VariableDefinitionId: 1,
-			QualifierId:          5,
-			IdentifierKey:        7,
-			Data:                 "value-4",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:            5,
+				ResourceId:    1,
+				QualifierId:   5,
+				IdentifierKey: 7,
+			},
+			Data: "value-4",
 		},
 		{
-			Id:                    6,
-			VariableDefinitionId:  1,
-			QualifierId:           4,
-			IdentifierKey:         8,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "default_cluster",
-			CompositeKey:          "",
-			Data:                  "value-5",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    6,
+				ResourceId:            1,
+				QualifierId:           4,
+				IdentifierKey:         8,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "default_cluster",
+				CompositeKey:          "",
+			},
+			Data: "value-5",
 		},
 	}
 	varData := []*repository.VariableData{
@@ -1036,49 +1067,57 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 			Data:            "\"" + "value-private" + "\"",
 		},
 	}
-	variableScope1 := []*repository.VariableScope{
+	variableScope1 := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			Data:                  "value-1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+			},
+			Data: "value-1",
 		},
 
 		{
-			Id:                    3,
-			VariableDefinitionId:  1,
-			QualifierId:           2,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value-2",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            1,
+				QualifierId:           2,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data: "value-2",
 		},
 		{
-			Id:                   5,
-			VariableDefinitionId: 1,
-			QualifierId:          5,
-			IdentifierKey:        7,
-			Data:                 "value-4",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:            5,
+				ResourceId:    1,
+				QualifierId:   5,
+				IdentifierKey: 7,
+			},
+			Data: "value-4",
 		},
 	}
-	variableScope2 := []*repository.VariableScope{
+	variableScope2 := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           3,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			Data:                  "value-1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           3,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+			},
+			Data: "value-1",
 		},
 	}
 
-	scope := models.Scope{AppId: 1, ClusterId: 1, EnvId: 1}
-	scope1 := models.Scope{AppId: 1}
+	scope := resourceQualifiers.Scope{AppId: 1, ClusterId: 1, EnvId: 1}
+	scope1 := resourceQualifiers.Scope{AppId: 1}
 	scopedVariableData := []*models.ScopedVariableData{
 		{
 			VariableName:     "Var1",
@@ -1120,7 +1159,7 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 		},
 	}
 	type args struct {
-		scope        models.Scope
+		scope        resourceQualifiers.Scope
 		varNames     []string
 		isSuperAdmin bool
 	}
@@ -1347,66 +1386,78 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			Data:            "value1",
 		},
 	}
-	variableScope := []*repository.VariableScope{
+	variableScope := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			Data:                  "value1",
-			VariableData:          variableData[0],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+			},
+			VariableData: variableData[0],
+			Data:         "value1",
 		},
 		{
-			Id:                    2,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			Data:                  "value1",
-			ParentIdentifier:      1,
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    2,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				ParentIdentifier:      1,
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    3,
-			VariableDefinitionId:  1,
-			QualifierId:           2,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value1",
-			VariableData:          variableData[1],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            1,
+				QualifierId:           2,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data:         "value1",
+			VariableData: variableData[1],
 		},
 		{
-			Id:                    4,
-			VariableDefinitionId:  1,
-			QualifierId:           3,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "",
-			Data:                  "value1",
-			VariableData:          variableData[2],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    4,
+				ResourceId:            1,
+				QualifierId:           3,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "",
+			},
+			Data:         "value1",
+			VariableData: variableData[2],
 		},
 		{
-			Id:                   5,
-			VariableDefinitionId: 1,
-			QualifierId:          5,
-			Data:                 "value1",
-			VariableData:         variableData[3],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:          5,
+				ResourceId:  1,
+				QualifierId: 5,
+			},
+			Data:         "value1",
+			VariableData: variableData[3],
 		},
 		{
-			Id:                    6,
-			VariableDefinitionId:  1,
-			QualifierId:           4,
-			IdentifierKey:         8,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "default_cluster",
-			CompositeKey:          "",
-			Data:                  "value1",
-			VariableData:          variableData[4],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    6,
+				ResourceId:            1,
+				QualifierId:           4,
+				IdentifierKey:         8,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "default_cluster",
+				CompositeKey:          "",
+			},
+			Data:         "value1",
+			VariableData: variableData[4],
 		},
 	}
 
