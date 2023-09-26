@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"time"
@@ -60,21 +61,22 @@ type ImageDetailsFromCR struct {
 }
 
 type CiCompleteEvent struct {
-	CiProjectDetails   []pipeline.CiProjectDetails `json:"ciProjectDetails"`
-	DockerImage        string                      `json:"dockerImage" validate:"required,image-validator"`
-	Digest             string                      `json:"digest"`
-	PipelineId         int                         `json:"pipelineId"`
-	WorkflowId         *int                        `json:"workflowId"`
-	TriggeredBy        int32                       `json:"triggeredBy"`
-	PipelineName       string                      `json:"pipelineName"`
-	DataSource         string                      `json:"dataSource"`
-	MaterialType       string                      `json:"materialType"`
-	Metrics            util.CIMetrics              `json:"metrics"`
-	AppName            string                      `json:"appName"`
-	IsArtifactUploaded bool                        `json:"isArtifactUploaded"`
-	FailureReason      string                      `json:"failureReason"`
-	ImageDetailsFromCR *ImageDetailsFromCR         `json:"imageDetailsFromCR"`
+	CiProjectDetails   []bean2.CiProjectDetails `json:"ciProjectDetails"`
+	DockerImage        string                   `json:"dockerImage" validate:"required,image-validator"`
+	Digest             string                   `json:"digest"`
+	PipelineId         int                      `json:"pipelineId"`
+	WorkflowId         *int                     `json:"workflowId"`
+	TriggeredBy        int32                    `json:"triggeredBy"`
+	PipelineName       string                   `json:"pipelineName"`
+	DataSource         string                   `json:"dataSource"`
+	MaterialType       string                   `json:"materialType"`
+	Metrics            util.CIMetrics           `json:"metrics"`
+	AppName            string                   `json:"appName"`
+	IsArtifactUploaded bool                     `json:"isArtifactUploaded"`
+	FailureReason      string                   `json:"failureReason"`
+	ImageDetailsFromCR *ImageDetailsFromCR      `json:"imageDetailsFromCR"`
 }
+
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{

@@ -72,16 +72,14 @@ type WebhookServiceImpl struct {
 
 func NewWebhookServiceImpl(
 	ciArtifactRepository repository.CiArtifactRepository,
-	ciConfig *CiConfig,
 	logger *zap.SugaredLogger,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appService app.AppService, eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	workflowDagExecutor WorkflowDagExecutor, ciHandler CiHandler) *WebhookServiceImpl {
-	return &WebhookServiceImpl{
+	webhookHandler := &WebhookServiceImpl{
 		ciArtifactRepository: ciArtifactRepository,
-		ciConfig:             ciConfig,
 		logger:               logger,
 		ciPipelineRepository: ciPipelineRepository,
 		appService:           appService,
@@ -91,6 +89,12 @@ func NewWebhookServiceImpl(
 		workflowDagExecutor:  workflowDagExecutor,
 		ciHandler:            ciHandler,
 	}
+	config, err := GetCiConfig()
+	if err != nil {
+		return nil
+	}
+	webhookHandler.ciConfig = config
+	return webhookHandler
 }
 
 func (impl WebhookServiceImpl) AuthenticateExternalCiWebhook(apiKey string) (int, error) {
