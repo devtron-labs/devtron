@@ -712,6 +712,7 @@ func (impl *PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trig
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			PipelineType:             bean.PipelineType(pipeline.PipelineType),
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
