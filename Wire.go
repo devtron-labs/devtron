@@ -65,11 +65,6 @@ import (
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/enterprise/api/drafts"
-	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
-	"github.com/devtron-labs/devtron/enterprise/api/protect"
-	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
-	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appGroup2 "github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
@@ -79,7 +74,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	repository9 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -104,7 +99,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	repository8 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -924,6 +919,12 @@ func InitializeApp() (*App, error) {
 		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 		// end: docker registry wire set injection
+
+		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
+		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
+
+		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
+		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
 	)
 	return &App{}, nil
 }
