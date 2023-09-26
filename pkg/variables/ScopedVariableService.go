@@ -487,7 +487,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 	if allVariableDefinitions != nil && len(allVariableDefinitions) == 0 {
 		return nil, nil
 	}
-	dataForJson, err := impl.scopedVariableRepository.GetAllVariableScopeAndDefinition()
+	dataForJson, err := impl.scopedVariableRepository.GetAllVariableDefinition()
 	if err != nil {
 		impl.logger.Errorw("error in getting data for json", "err", err)
 		return nil, err
