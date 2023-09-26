@@ -65,6 +65,11 @@ import (
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/drafts"
+	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/api/protect"
+	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
+	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appGroup2 "github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
@@ -114,6 +119,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	client2 "github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -382,8 +388,8 @@ func InitializeApp() (*App, error) {
 		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		//session.NewK8sClient,
-		repository9.NewImageTaggingRepositoryImpl,
-		wire.Bind(new(repository9.ImageTaggingRepository), new(*repository9.ImageTaggingRepositoryImpl)),
+		repository8.NewImageTaggingRepositoryImpl,
+		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
 		pipeline.NewImageTaggingServiceImpl,
 		wire.Bind(new(pipeline.ImageTaggingService), new(*pipeline.ImageTaggingServiceImpl)),
 		argocdServer.NewVersionServiceImpl,
@@ -897,8 +903,8 @@ func InitializeApp() (*App, error) {
 		pipeline.NewSystemWorkflowExecutorImpl,
 		wire.Bind(new(pipeline.SystemWorkflowExecutor), new(*pipeline.SystemWorkflowExecutorImpl)),
 
-		repository8.NewDevtronResourceSearchableKeyRepositoryImpl,
-		wire.Bind(new(repository8.DevtronResourceSearchableKeyRepository), new(*repository8.DevtronResourceSearchableKeyRepositoryImpl)),
+		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
+		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
 
 		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
 		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
@@ -922,11 +928,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 		// end: docker registry wire set injection
 
-		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
-		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
+		resourceQualifiers.NewQualifiersMappingRepositoryImpl,
+		wire.Bind(new(resourceQualifiers.QualifiersMappingRepository), new(*resourceQualifiers.QualifiersMappingRepositoryImpl)),
 
-		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
-		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+		resourceQualifiers.NewQualifierMappingServiceImpl,
+		wire.Bind(new(resourceQualifiers.QualifierMappingService), new(*resourceQualifiers.QualifierMappingServiceImpl)),
 	)
 	return &App{}, nil
 }
