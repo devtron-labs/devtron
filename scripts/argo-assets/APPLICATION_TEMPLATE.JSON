@@ -22,25 +22,6 @@
       "repoURL": "{{.RepoUrl}}",
       "targetRevision": "master"
     },
-    "ignoreDifferences": [
-      {
-        "group": "apps",
-        "jsonPointers": [
-          "spec/replicas"
-        ],
-        "kind": "Deployment"
-      },
-      {
-        "group": "argoproj.io",
-        "jsonPointers": [
-          "spec/replicas"
-        ],
-        "kind": "Rollout"
-      }
-    ],
-    "syncOptions": [
-      "RespectIgnoreDifferences={{.RespectIgnoreDifferences}}"
-    ],
     "syncPolicy": {
       "automated": {
         "prune": true

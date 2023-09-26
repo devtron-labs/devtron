@@ -19,15 +19,14 @@ import (
 )
 
 type AppTemplate struct {
-	ApplicationName          string
-	Namespace                string
-	TargetNamespace          string
-	TargetServer             string
-	Project                  string
-	ValuesFile               string
-	RepoPath                 string
-	RepoUrl                  string
-	RespectIgnoreDifferences bool
+	ApplicationName string
+	Namespace       string
+	TargetNamespace string
+	TargetServer    string
+	Project         string
+	ValuesFile      string
+	RepoPath        string
+	RepoUrl         string
 }
 
 const TimeoutSlow = 30 * time.Second

@@ -103,6 +103,7 @@ type AppServiceConfig struct {
 	GetPipelineDeployedWithinHours      int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12"` //in hours
 	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"`             //in seconds
 	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
+	EnableIgnoreDiffSyncPolicy          bool   `env:"ENABLE_IGNORE_DIFF_SYNC_POLICY" envDefault:"false"`
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
@@ -349,7 +350,7 @@ func (impl *AppServiceImpl) SetPipelineFieldsInOverrideRequest(overrideRequest *
 func (impl *AppServiceImpl) getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
 }
-func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, hpaEnabled bool, userId int32) (string, error) {
+func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
 	//repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
@@ -369,18 +370,16 @@ func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, envConfig
 		if appNamespace == "" {
 			appNamespace = "default"
 		}
-		respectIgnoreDifferences := hpaEnabled
 		namespace := argocdServer.DevtronInstalationNs
 		appRequest := &argocdServer.AppTemplate{
-			ApplicationName:          argoAppName,
-			Namespace:                namespace,
-			TargetNamespace:          appNamespace,
-			TargetServer:             envModel.Cluster.ServerUrl,
-			Project:                  "default",
-			ValuesFile:               impl.getValuesFileForEnv(envModel.Id),
-			RepoPath:                 chart.ChartLocation,
-			RepoUrl:                  chart.GitRepoUrl,
-			RespectIgnoreDifferences: respectIgnoreDifferences,
+			ApplicationName: argoAppName,
+			Namespace:       namespace,
+			TargetNamespace: appNamespace,
+			TargetServer:    envModel.Cluster.ServerUrl,
+			Project:         "default",
+			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
+			RepoPath:        chart.ChartLocation,
+			RepoUrl:         chart.GitRepoUrl,
 		}
 
 		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
@@ -1722,7 +1721,7 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 	}
 	impl.logger.Debugw("new pipeline found", "pipeline", valuesOverrideResponse.Pipeline)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
-	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, hpaEnabled, overrideRequest.UserId)
+	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
@@ -2699,8 +2698,9 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 			RepoURL:        envOverride.Chart.GitRepoUrl,
 			TargetRevision: "master",
 		}
-
-		patchReq = getPatchWitSyncPolicyAndIgnoreDifferences(patchReq, hpaEnabled)
+		if impl.appStatusConfig.EnableIgnoreDiffSyncPolicy {
+			patchReq = getPatchWitSyncPolicyAndIgnoreDifferences(patchReq, hpaEnabled)
+		}
 		if patchReq != nil {
 			impl.logger.Debugw("pipeline update req ", "res", patchReq)
 			reqbyte, err := json.Marshal(*patchReq)
@@ -2727,8 +2727,6 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 
 func getPatchWitSyncPolicyAndIgnoreDifferences(patch *v1alpha1.Application, hpaEnabled bool) *v1alpha1.Application {
 	respectIgnoreDifferences := "RespectIgnoreDifferences=true"
-	dontRespectIgnoreDifferences := "RespectIgnoreDifferences=false"
-
 	//init new patch object if nil
 	if patch == nil {
 		patch = &v1alpha1.Application{}
@@ -2737,25 +2735,25 @@ func getPatchWitSyncPolicyAndIgnoreDifferences(patch *v1alpha1.Application, hpaE
 	//add syncOptions
 	syncOptions := v1alpha1.SyncOptions{}
 	if hpaEnabled {
+		//add ignore differences
+		patch.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"spec/replicas"},
+			},
+			{
+				Group:        "argoproj.io",
+				Kind:         "Rollout",
+				JSONPointers: []string{"spec/replicas"},
+			},
+		}
 		syncOptions = syncOptions.AddOption(respectIgnoreDifferences)
+		patch.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
 	} else {
-		syncOptions = syncOptions.AddOption(dontRespectIgnoreDifferences)
-	}
-
-	patch.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
-
-	//add ignore differences
-	patch.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{
-		{
-			Group:        "apps",
-			Kind:         "Deployment",
-			JSONPointers: []string{"spec/replicas"},
-		},
-		{
-			Group:        "argoproj.io",
-			Kind:         "Rollout",
-			JSONPointers: []string{"spec/replicas"},
-		},
+		//remove ignore differences
+		patch.Spec.SyncPolicy = nil
+		patch.Spec.IgnoreDifferences = nil
 	}
 
 	return patch
