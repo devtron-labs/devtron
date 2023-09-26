@@ -103,6 +103,10 @@ func ExtractChartVersion(chartVersion string) (int, int, error) {
 	return chartMajorVersion, chartMinorVersion, nil
 }
 
+func ExtractEcrImage(registryId, region, repoName, tag string) string {
+	return fmt.Sprintf("%s.dkr.ecr.%s.amazonaws.com/%s:%s", registryId, region, repoName, tag)
+}
+
 type Closer interface {
 	Close() error
 }

@@ -20,6 +20,7 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/caarlos0/env/v6"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -27,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
+	"time"
 )
 
 type CiEventConfig struct {
@@ -52,6 +54,11 @@ type CiEventHandlerImpl struct {
 	ciEventConfig  *CiEventConfig
 }
 
+type ImageDetailsFromCR struct {
+	ImageDetails []types.ImageDetail `json:"imageDetails"`
+	Region       string              `json:"region"`
+}
+
 type CiCompleteEvent struct {
 	CiProjectDetails   []pipeline.CiProjectDetails `json:"ciProjectDetails"`
 	DockerImage        string                      `json:"dockerImage" validate:"required,image-validator"`
@@ -66,6 +73,7 @@ type CiCompleteEvent struct {
 	AppName            string                      `json:"appName"`
 	IsArtifactUploaded bool                        `json:"isArtifactUploaded"`
 	FailureReason      string                      `json:"failureReason"`
+	ImageDetailsFromCR *ImageDetailsFromCR         `json:"imageDetailsFromCR"`
 }
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
@@ -107,10 +115,26 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
 				return
 			}
+		} else if ciCompleteEvent.ImageDetailsFromCR != nil {
+			for _, detail := range ciCompleteEvent.ImageDetailsFromCR.ImageDetails {
+				request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent)
+				if err != nil {
+					impl.logger.Error("Error while creating request for pipelineID: ",
+						ciCompleteEvent.PipelineId, "error: ", err)
+					return
+				}
+				resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
+				if err != nil {
+					impl.logger.Error("Error while sending event for CI success for pipelineID: ",
+						ciCompleteEvent.PipelineId, "request: ", request, "error: ", err)
+					return
+				}
+				impl.logger.Debug(resp)
+			}
+
 		} else {
 			util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
-
-			resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
+			resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req, &time.Time{})
 			if err != nil {
 				impl.logger.Error("Error while sending event for CI success for pipelineID: ",
 					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
@@ -187,6 +211,22 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 		DataSource:         event.DataSource,
 		PipelineName:       event.PipelineName,
 		MaterialInfo:       rawMaterialInfo,
+		UserId:             event.TriggeredBy,
+		WorkflowId:         event.WorkflowId,
+		IsArtifactUploaded: event.IsArtifactUploaded,
+	}
+	return request, nil
+}
+
+func (impl *CiEventHandlerImpl) BuildCIArtifactRequestForImageFromCR(imageDetails types.ImageDetail, region string, event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error) {
+	if event.TriggeredBy == 0 {
+		event.TriggeredBy = 1 // system triggered event
+	}
+	request := &pipeline.CiArtifactWebhookRequest{
+		Image:              util.ExtractEcrImage(*imageDetails.RegistryId, region, *imageDetails.RepositoryName, imageDetails.ImageTags[0]),
+		ImageDigest:        *imageDetails.ImageDigest,
+		DataSource:         event.DataSource,
+		PipelineName:       event.PipelineName,
 		UserId:             event.TriggeredBy,
 		WorkflowId:         event.WorkflowId,
 		IsArtifactUploaded: event.IsArtifactUploaded,

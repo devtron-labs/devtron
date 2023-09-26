@@ -52,7 +52,7 @@ type CiArtifactWebhookRequest struct {
 
 type WebhookService interface {
 	AuthenticateExternalCiWebhook(apiKey string) (int, error)
-	HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error)
+	HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error)
 	HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error)
 	HandleCiStepFailedEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (err error)
 }
@@ -139,7 +139,7 @@ func (impl WebhookServiceImpl) HandleCiStepFailedEvent(ciPipelineId int, request
 	return nil
 }
 
-func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error) {
+func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error) {
 	impl.logger.Infow("webhook for artifact save", "req", request)
 	if request.WorkflowId != nil {
 		savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)
@@ -178,6 +178,11 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		return 0, err
 	}
 	materialJson = dst.Bytes()
+	createdOn := time.Now()
+	updatedOn := time.Now()
+	if !imagePushedAt.IsZero() {
+		createdOn = *imagePushedAt
+	}
 	artifact := &repository.CiArtifact{
 		Image:              request.Image,
 		ImageDigest:        request.ImageDigest,
@@ -188,7 +193,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		ScanEnabled:        pipeline.ScanEnabled,
 		Scanned:            false,
 		IsArtifactUploaded: request.IsArtifactUploaded,
-		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
 	}
 	if pipeline.ScanEnabled {
 		artifact.Scanned = true
