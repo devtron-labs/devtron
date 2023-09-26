@@ -708,6 +708,20 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	envIdsString := v.Get("envIds")
+	envIds := make([]int, 0)
+	if len(envIdsString) > 0 {
+		envIdsSlices := strings.Split(envIdsString, ",")
+		for _, envId := range envIdsSlices {
+			id, err := strconv.Atoi(envId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+				return
+			}
+			envIds = append(envIds, id)
+		}
+	}
 	//RBAC
 	handler.Logger.Infow("request payload, GetCiPipelineMin", "appId", appId)
 	token := r.Header.Get("token")
@@ -717,7 +731,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWri
 		return
 	}
 	//RBAC
-	ciPipelines, err := handler.pipelineBuilder.GetCiPipelineMin(appId)
+	ciPipelines, err := handler.pipelineBuilder.GetCiPipelineMin(appId, envIds)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipelineMin", "err", err, "appId", appId)
 		if util.IsErrNoRows(err) {

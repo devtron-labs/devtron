@@ -170,7 +170,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 
 	v := r.URL.Query()
 	envIdsString := v.Get("envIds")
-	var envIds []int
+	envIds := make([]int, 0)
 	if len(envIdsString) > 0 {
 		envIdsSlices := strings.Split(envIdsString, ",")
 		for _, envId := range envIdsSlices {
@@ -348,7 +348,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	}
 	v := r.URL.Query()
 	envIdsString := v.Get("envIds")
-	var envIds []int
+	envIds := make([]int, 0)
 	if len(envIdsString) > 0 {
 		envIdsSlices := strings.Split(envIdsString, ",")
 		for _, envId := range envIdsSlices {
