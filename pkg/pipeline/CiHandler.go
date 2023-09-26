@@ -213,7 +213,7 @@ func (impl *CiHandlerImpl) HandleReTriggerCI(workflowStatus v1alpha1.WorkflowSta
 }
 
 func (impl *CiHandlerImpl) reTriggerCi(status, message string, retryCount int, ciWorkFlow *pipelineConfig.CiWorkflow) error {
-	if !(status == string(v1alpha1.NodeFailed) && message == POD_DELETED_MESSAGE) || (retryCount >= impl.ciConfig.MaxCiWorkflowRetries) {
+	if !(status == string(v1alpha1.NodeError) && message == POD_DELETED_MESSAGE) || (retryCount >= impl.ciConfig.MaxCiWorkflowRetries) {
 		return errors.New("ci-workflow retrigger condition not met, not re-triggering")
 	}
 	impl.Logger.Debugw("HandleReTriggerCI for ciWorkflow ", "ReferenceCiWorkflowId", ciWorkFlow.Id)

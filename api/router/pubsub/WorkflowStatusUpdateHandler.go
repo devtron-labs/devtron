@@ -133,7 +133,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				eventType = util.Fail
 			}
 
-			if wfrStatus == string(v1alpha1.NodeFailed) && wfStatus.Message == pipeline.POD_DELETED_MESSAGE {
+			if wfrStatus == string(v1alpha1.NodeError) && wfStatus.Message == pipeline.POD_DELETED_MESSAGE {
 				err = impl.cdHandler.HandleCdStageReTrigger(wfr)
 				if err != nil {
 					impl.logger.Errorw("error in HandleCdStageReTrigger", "error", err)
