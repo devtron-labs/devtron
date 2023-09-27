@@ -93,8 +93,7 @@ type AppWorkflowMappingDto struct {
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 	UserId                     int32  `json:"-"`
 	IsLast                     bool   `json:"isLast"`
-	ChildPipelinesIds          []int  `json:"childPipelinesIds"`
-
+	ChildPipelinesIds          []int  `json:"-"`
 }
 
 type AllAppWorkflowComponentDetails struct {
@@ -632,6 +631,7 @@ func (impl AppWorkflowServiceImpl) FilterWorkflowAndPipelinesOnEnvIds(triggerVie
 		}
 	}
 
+	workflowsToDelete := make([]AppWorkflowDto, 0)
 	for index, workflow := range triggerViewConfig.Workflows {
 		newAppWorkflowMappingDto := make([]AppWorkflowMappingDto, 0)
 		ciType := "CI_PIPELINE"
@@ -642,7 +642,7 @@ func (impl AppWorkflowServiceImpl) FilterWorkflowAndPipelinesOnEnvIds(triggerVie
 		}
 		componentIdToWorkflowMapping := filterInsideWorkflowForEnvFilter(workflow.AppWorkflowMappingDto, cdPipelineIdsFiltered, ciType)
 		if componentIdToWorkflowMapping == nil {
-			deleteFilteredOutAppWorkflowFromResp(triggerViewConfig, workflow)
+			workflowsToDelete = append(workflowsToDelete, workflow)
 			continue
 		}
 		for _, appWorkflowMapping := range workflow.AppWorkflowMappingDto {
@@ -651,6 +651,9 @@ func (impl AppWorkflowServiceImpl) FilterWorkflowAndPipelinesOnEnvIds(triggerVie
 			}
 		}
 		triggerViewConfig.Workflows[index].AppWorkflowMappingDto = newAppWorkflowMappingDto
+	}
+	for _, workflowToDelete := range workflowsToDelete {
+		deleteFilteredOutAppWorkflowFromResp(triggerViewConfig, workflowToDelete)
 	}
 
 	return triggerViewConfig, nil
