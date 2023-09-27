@@ -83,7 +83,7 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(r
 	return qualifierMappings, nil
 }
 
-func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClause(query *orm.Query, scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
+func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClause(query *orm.Query, scope *Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
 	return query.Where(
 		"(((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
 			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
@@ -98,7 +98,7 @@ func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClause(query *orm.Quer
 	)
 }
 
-func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType ResourceType, scope *Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
 	var qualifierMappings []*QualifierMapping
 	query := repo.dbConnection.Model(&qualifierMappings).
 		Where("active = ?", true).
@@ -109,7 +109,9 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType R
 	}
 
 	// Enterprise Only
-	query = repo.addScopeWhereClause(query, scope, searchableIdMap)
+	if scope != nil {
+		query = repo.addScopeWhereClause(query, scope, searchableIdMap)
+	}
 
 	err := query.Select()
 	if err != nil {
