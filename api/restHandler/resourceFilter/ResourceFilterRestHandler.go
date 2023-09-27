@@ -83,7 +83,7 @@ func (handler *ResourceFilterRestHandlerImpl) GetFilterById(w http.ResponseWrite
 	}
 
 	vars := mux.Vars(r)
-	filterId, err := strconv.Atoi(vars["Id"])
+	filterId, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param Id '%s'", vars["Id"])), nil, http.StatusBadRequest)
 		return
@@ -146,7 +146,7 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 	}
 
 	vars := mux.Vars(r)
-	filterId, err := strconv.Atoi(vars["Id"])
+	filterId, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param Id '%s'", vars["Id"])), nil, http.StatusBadRequest)
 		return
@@ -183,10 +183,11 @@ func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter
 	}
 
 	vars := mux.Vars(r)
-	filterId, err := strconv.Atoi(vars["Id"])
+	filterId, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.logger.Errorw("error in getting active resource filters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 
 	err = handler.resourceFilterService.DeleteFilter(userId, filterId)
