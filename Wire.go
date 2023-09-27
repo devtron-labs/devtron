@@ -66,7 +66,6 @@ import (
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	appGroup2 "github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
@@ -75,6 +74,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	resourceGroup "github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
@@ -82,7 +82,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
-	"github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
@@ -97,6 +96,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -111,6 +112,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
+	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -198,7 +200,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chartConfig.EnvConfigOverrideRepository), new(*chartConfig.EnvConfigOverrideRepositoryImpl)),
 		chartConfig.NewPipelineOverrideRepository,
 		wire.Bind(new(chartConfig.PipelineOverrideRepository), new(*chartConfig.PipelineOverrideRepositoryImpl)),
-		util.MergeUtil{},
+		//util.MergeUtil{},
+		wire.Struct(new(util.MergeUtil), "*"),
 		util.NewSugardLogger,
 
 		deployment.NewDeploymentConfigRestHandlerImpl,
@@ -863,16 +866,16 @@ func InitializeApp() (*App, error) {
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
 
-		router.NewAppGroupingRouterImpl,
-		wire.Bind(new(router.AppGroupingRouter), new(*router.AppGroupingRouterImpl)),
-		restHandler.NewAppGroupRestHandlerImpl,
-		wire.Bind(new(restHandler.AppGroupRestHandler), new(*restHandler.AppGroupRestHandlerImpl)),
-		appGroup.NewAppGroupServiceImpl,
-		wire.Bind(new(appGroup.AppGroupService), new(*appGroup.AppGroupServiceImpl)),
-		appGroup2.NewAppGroupRepositoryImpl,
-		wire.Bind(new(appGroup2.AppGroupRepository), new(*appGroup2.AppGroupRepositoryImpl)),
-		appGroup2.NewAppGroupMappingRepositoryImpl,
-		wire.Bind(new(appGroup2.AppGroupMappingRepository), new(*appGroup2.AppGroupMappingRepositoryImpl)),
+		router.NewResourceGroupingRouterImpl,
+		wire.Bind(new(router.ResourceGroupingRouter), new(*router.ResourceGroupingRouterImpl)),
+		restHandler.NewResourceGroupRestHandlerImpl,
+		wire.Bind(new(restHandler.ResourceGroupRestHandler), new(*restHandler.ResourceGroupRestHandlerImpl)),
+		resourceGroup2.NewResourceGroupServiceImpl,
+		wire.Bind(new(resourceGroup2.ResourceGroupService), new(*resourceGroup2.ResourceGroupServiceImpl)),
+		resourceGroup.NewResourceGroupRepositoryImpl,
+		wire.Bind(new(resourceGroup.ResourceGroupRepository), new(*resourceGroup.ResourceGroupRepositoryImpl)),
+		resourceGroup.NewResourceGroupMappingRepositoryImpl,
+		wire.Bind(new(resourceGroup.ResourceGroupMappingRepository), new(*resourceGroup.ResourceGroupMappingRepositoryImpl)),
 		pipeline.NewArgoWorkflowExecutorImpl,
 		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
 		pipeline.NewSystemWorkflowExecutorImpl,
@@ -897,6 +900,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dockerRegistryRepository.DockerRegistryIpsConfigRepository), new(*dockerRegistryRepository.DockerRegistryIpsConfigRepositoryImpl)),
 		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
+		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
+		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
+
+		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
+		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+
 		// end: docker registry wire set injection
 	)
 	return &App{}, nil

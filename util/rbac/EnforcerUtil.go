@@ -19,6 +19,7 @@ package rbac
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -61,6 +62,7 @@ type EnforcerUtil interface {
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
 	GetAllActiveTeamNames() ([]string, error)
+	GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) map[int]string
 }
 
 type EnforcerUtilImpl struct {
@@ -91,6 +93,29 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 			clusterRepository: clusterRepository,
 		},
 	}
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) map[int]string {
+
+	objects := make(map[int]string)
+	application, err := impl.appRepo.FindById(appId)
+	if err != nil {
+		impl.logger.Errorw("error occurred in fetching appa", "appId", appId)
+		return objects
+	}
+
+	var appName = application.AppName
+	envs, err := impl.environmentRepository.FindByIds(util.GetReferencedArray(envIds))
+	if err != nil {
+		impl.logger.Errorw("error occurred in fetching environments", "envIds", envIds)
+		return objects
+	}
+	for _, env := range envs {
+		if _, ok := objects[env.Id]; !ok {
+			objects[env.Id] = fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
+		}
+	}
+	return objects
 }
 
 func (impl EnforcerUtilImpl) GetRbacObjectsByAppIds(appIds []int) map[int]string {

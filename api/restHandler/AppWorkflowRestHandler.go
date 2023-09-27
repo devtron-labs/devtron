@@ -23,10 +23,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
-	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -168,6 +168,21 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		return
 	}
 
+	v := r.URL.Query()
+	envIdsString := v.Get("envIds")
+	envIds := make([]int, 0)
+	if len(envIdsString) > 0 {
+		envIdsSlices := strings.Split(envIdsString, ",")
+		for _, envId := range envIdsSlices {
+			id, err := strconv.Atoi(envId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+				return
+			}
+			envIds = append(envIds, id)
+		}
+	}
+
 	// RBAC enforcer applying
 	object := impl.enforcerUtil.GetAppRBACName(app.AppName)
 	impl.Logger.Debugw("rbac object for other environment list", "object", object)
@@ -183,6 +198,28 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	if len(envIds) > 0 {
+		cdPipelineWfData, err := impl.appWorkflowService.FindCdPipelinesByAppId(appId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching cdPipelines for app", "appId", appId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		triggerViewPayload := &appWorkflow.TriggerViewWorkflowConfig{
+			Workflows:   workflowsList,
+			CdPipelines: cdPipelineWfData,
+		}
+		//filter based on envIds
+		response, err := impl.appWorkflowService.FilterWorkflowAndPipelinesOnEnvIds(triggerViewPayload, envIds)
+		if err != nil {
+			impl.Logger.Errorw("service err, FindAppWorkflow", "appId", appId, "envIds", envIds, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		workflowsList = response.Workflows
+	}
+
 	workflows["appId"] = app.Id
 	workflows["appName"] = app.AppName
 	if len(workflowsList) > 0 {
@@ -267,10 +304,22 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
+	//request := resourceGroup2.ResourceGroupingRequest{
+	//	EnvId:           envId,
+	//	ResourceGroupId: appGroupId,
+	//	AppIds:          appIds,
+	//	EmailId:         userEmailId,
+	//	CheckAuthBatch:  impl.checkAuthBatch,
+	//	UserId:          userId,
+	//	Ctx:             r.Context(),
+	//}
+	request := resourceGroup2.ResourceGroupingRequest{
+		//EnvId:           envId,
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup2.APP_GROUP,
+		//AppIds:          appIds,
+		ResourceIds:    appIds,
 		EmailId:        userEmailId,
 		CheckAuthBatch: impl.checkAuthBatch,
 		UserId:         userId,
@@ -308,6 +357,20 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		handler.Logger.Errorw("error in getting app details", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+	v := r.URL.Query()
+	envIdsString := v.Get("envIds")
+	envIds := make([]int, 0)
+	if len(envIdsString) > 0 {
+		envIdsSlices := strings.Split(envIdsString, ",")
+		for _, envId := range envIdsSlices {
+			id, err := strconv.Atoi(envId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+				return
+			}
+			envIds = append(envIds, id)
+		}
 	}
 
 	// RBAC enforcer applying
@@ -359,11 +422,21 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		}
 	}
 
-	response := appWorkflow.TriggerViewWorkflowConfig{
+	response := &appWorkflow.TriggerViewWorkflowConfig{
 		Workflows:        appWorkflows,
 		CiConfig:         ciPipelineViewData,
 		CdPipelines:      cdPipelinesForApp,
 		ExternalCiConfig: externalCiData,
+	}
+
+	if len(envIds) > 0 {
+		//filter based on envIds
+		response, err = handler.appWorkflowService.FilterWorkflowAndPipelinesOnEnvIds(response, envIds)
+		if err != nil {
+			handler.Logger.Errorw("service err, FilterResponseOnEnvIds", "appId", appId, "envIds", envIds, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	common.WriteJsonResp(w, err, response, http.StatusOK)

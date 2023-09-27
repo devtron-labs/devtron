@@ -13,10 +13,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -749,6 +749,20 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	envIdsString := v.Get("envIds")
+	envIds := make([]int, 0)
+	if len(envIdsString) > 0 {
+		envIdsSlices := strings.Split(envIdsString, ",")
+		for _, envId := range envIdsSlices {
+			id, err := strconv.Atoi(envId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+				return
+			}
+			envIds = append(envIds, id)
+		}
+	}
 	//RBAC
 	handler.Logger.Infow("request payload, GetCiPipelineMin", "appId", appId)
 	token := r.Header.Get("token")
@@ -758,7 +772,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWri
 		return
 	}
 	//RBAC
-	ciPipelines, err := handler.pipelineBuilder.GetCiPipelineMin(appId)
+	ciPipelines, err := handler.pipelineBuilder.GetCiPipelineMin(appId, envIds)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipelineMin", "err", err, "appId", appId)
 		if util.IsErrNoRows(err) {
@@ -1598,10 +1612,22 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
+	//request := resourceGroup.ResourceGroupingRequest{
+	//	EnvId:           envId,
+	//	ResourceGroupId: appGroupId,
+	//	AppIds:          appIds,
+	//	EmailId:         userEmailId,
+	//	CheckAuthBatch:  handler.checkAuthBatch,
+	//	UserId:          userId,
+	//	Ctx:             r.Context(),
+	//}
+	request := resourceGroup.ResourceGroupingRequest{
+		//EnvId:           envId,
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup.APP_GROUP,
+		//AppIds:          appIds,
+		ResourceIds:    appIds,
 		EmailId:        userEmailId,
 		CheckAuthBatch: handler.checkAuthBatch,
 		UserId:         userId,
@@ -1660,10 +1686,22 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironmentMin(w htt
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
+	//request := resourceGroup.ResourceGroupingRequest{
+	//	EnvId:           envId,
+	//	ResourceGroupId: appGroupId,
+	//	AppIds:          appIds,
+	//	EmailId:         userEmailId,
+	//	CheckAuthBatch:  handler.checkAuthBatch,
+	//	UserId:          userId,
+	//	Ctx:             r.Context(),
+	//}
+	request := resourceGroup.ResourceGroupingRequest{
+		//EnvId:           envId,
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup.APP_GROUP,
+		//AppIds:          appIds,
+		ResourceIds:    appIds,
 		EmailId:        userEmailId,
 		CheckAuthBatch: handler.checkAuthBatch,
 		UserId:         userId,
@@ -1722,10 +1760,22 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.R
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
+	//request := resourceGroup.ResourceGroupingRequest{
+	//	EnvId:           envId,
+	//	ResourceGroupId: appGroupId,
+	//	AppIds:          appIds,
+	//	EmailId:         userEmailId,
+	//	CheckAuthBatch:  handler.checkAuthBatch,
+	//	UserId:          userId,
+	//	Ctx:             r.Context(),
+	//}
+	request := resourceGroup.ResourceGroupingRequest{
+		//EnvId:           envId,
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup.APP_GROUP,
+		//AppIds:          appIds,
+		ResourceIds:    appIds,
 		EmailId:        userEmailId,
 		CheckAuthBatch: handler.checkAuthBatch,
 		UserId:         userId,
