@@ -504,12 +504,10 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 
 		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
-		if createRequest.DockerConfigOverride.CiBuildConfig.CiBuildType != bean2.SKIP_BUILD_BUILD_TYPE {
-			err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
-			if err != nil {
-				impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
-				return nil, err
-			}
+		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
+		if err != nil {
+			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
+			return nil, err
 		}
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
 			ciBuildConfigBean.Id = savedTemplateOverride.CiBuildConfigId
@@ -865,12 +863,10 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				UserId:             createRequest.UserId,
 			}
 			if !ciPipeline.IsExternal {
-				if ciPipeline.DockerConfigOverride.CiBuildConfig.CiBuildType != bean2.SKIP_BUILD_BUILD_TYPE {
-					err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
-					if err != nil {
-						impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
-						return nil, err
-					}
+				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+				if err != nil {
+					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+					return nil, err
 				}
 				err := impl.ciTemplateService.Save(ciTemplateBean)
 				if err != nil {
