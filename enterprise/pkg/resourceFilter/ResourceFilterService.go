@@ -644,7 +644,8 @@ func (impl *ResourceFilterServiceImpl) appendAppAndEnvSelectors(appSelectors []A
 			ProjectName:  apps[0].Team.Name,
 			Applications: []string{apps[0].AppName},
 		}
-		for _, app := range apps {
+		for i := 1; i < len(apps); i++ {
+			app := apps[i]
 			if apps[prev].TeamId != app.TeamId {
 				appSelectors = append(appSelectors, appSelector)
 				appSelector = ApplicationSelector{
@@ -664,7 +665,8 @@ func (impl *ResourceFilterServiceImpl) appendAppAndEnvSelectors(appSelectors []A
 			ClusterName:  envs[0].Cluster.ClusterName,
 			Environments: []string{envs[0].Name},
 		}
-		for _, env := range envs {
+		for i := 1; i < len(envs); i++ {
+			env := envs[i]
 			if envs[prev].ClusterId != env.ClusterId {
 				envSelectors = append(envSelectors, envSelector)
 				envSelector = EnvironmentSelector{
