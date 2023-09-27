@@ -11,7 +11,7 @@ type QualifiersMappingRepository interface {
 	//transaction util funcs
 	sql.TransactionWrapper
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
-	GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
+	GetQualifierMappings(resourceType ResourceType, scope *Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(ResourceType, sql.AuditLog, *pg.Tx) error
 }
 
@@ -37,7 +37,7 @@ func (repo *QualifiersMappingRepositoryImpl) CreateQualifierMappings(qualifierMa
 	return qualifierMappings, nil
 }
 
-func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType ResourceType, scope *Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
 	var qualifierMappings []*QualifierMapping
 	query := repo.dbConnection.Model(&qualifierMappings).
 		Where("active = ?", true).
