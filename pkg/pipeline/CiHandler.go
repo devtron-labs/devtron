@@ -202,6 +202,17 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 	if err != nil {
 		return 0, err
 	}
+
+	ciArtifact, err := impl.ciArtifactRepository.GetLatestArtifactTimeByCiPipelineId(ciTriggerRequest.PipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("Error in GetLatestArtifactTimeByCiPipelineId", "err", err, "pipelineId", ciTriggerRequest.PipelineId)
+	}
+
+	createdOn := time.Time{}
+	if err != pg.ErrNoRows {
+		createdOn = ciArtifact.CreatedOn
+	}
+
 	trigger := Trigger{
 		PipelineId:                ciTriggerRequest.PipelineId,
 		CommitHashes:              commitHashes,
@@ -211,7 +222,7 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 		ExtraEnvironmentVariables: extraEnvironmentVariables,
 		EnvironmentId:             ciTriggerRequest.EnvironmentId,
 		PipelineType:              ciTriggerRequest.PipelineType,
-		CiArtifactLastFetch:       ciTriggerRequest.CiArtifactLastFetch,
+		CiArtifactLastFetch:       createdOn,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
 

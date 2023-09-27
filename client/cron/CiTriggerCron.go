@@ -11,7 +11,6 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
-	"time"
 )
 
 type CiTriggerCron interface {
@@ -79,11 +78,11 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 	if err != nil {
 		return
 	}
-	artifacts, err := impl.ciArtifactRepository.GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds)
-	mp := make(map[int]time.Time)
-	for _, artifact := range artifacts {
-		mp[artifact.PipelineId] = artifact.CreatedOn
-	}
+	//artifacts, err := impl.ciArtifactRepository.GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds)
+	//mp := make(map[int]time.Time)
+	//for _, artifact := range artifacts {
+	//	mp[artifact.PipelineId] = artifact.CreatedOn
+	//}
 	for _, ciPipelineId := range ciPipelineIds {
 		//_, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId, false)
 		//if err != nil {
@@ -105,12 +104,11 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 		//	ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
 		//}
 		ciTriggerRequest := bean.CiTriggerRequest{
-			PipelineId:          ciPipelineId,
-			CiPipelineMaterial:  ciPipelineMaterials,
-			TriggeredBy:         1,
-			InvalidateCache:     false,
-			CiArtifactLastFetch: mp[ciPipelineId],
-			PipelineType:        bean2.CI_JOB,
+			PipelineId:         ciPipelineId,
+			CiPipelineMaterial: ciPipelineMaterials,
+			TriggeredBy:        1,
+			InvalidateCache:    false,
+			PipelineType:       bean2.CI_JOB,
 		}
 		_, err = impl.ciHandler.HandleCIManual(ciTriggerRequest)
 		if err != nil {
