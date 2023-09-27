@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 )
@@ -31,6 +32,7 @@ type ResourceFilterRestHandlerImpl struct {
 	enforcer              casbin.Enforcer
 	resourceFilterService resourceFilter.ResourceFilterService
 	celService            resourceFilter.CELEvaluatorService
+	validator             *validator.Validate
 }
 
 func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
@@ -38,7 +40,8 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer,
 	celService resourceFilter.CELEvaluatorService,
-	resourceFilterService resourceFilter.ResourceFilterService) *ResourceFilterRestHandlerImpl {
+	resourceFilterService resourceFilter.ResourceFilterService,
+	validator *validator.Validate) *ResourceFilterRestHandlerImpl {
 	return &ResourceFilterRestHandlerImpl{
 		logger:                logger,
 		userAuthService:       userAuthService,
@@ -46,6 +49,7 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcer:              enforcer,
 		resourceFilterService: resourceFilterService,
 		celService:            celService,
+		validator:             validator,
 	}
 }
 
@@ -117,6 +121,12 @@ func (handler *ResourceFilterRestHandlerImpl) CreateFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	err = handler.validator.Struct(*req)
+	if err != nil {
+		handler.logger.Errorw("request err, Save", "error", err, "request", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	res, err := handler.resourceFilterService.CreateFilter(userId, req)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
@@ -160,6 +170,14 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	err = handler.validator.Struct(*req)
+	if err != nil {
+		handler.logger.Errorw("request err, Save", "error", err, "request", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
 	req.Id = filterId
 	err = handler.resourceFilterService.UpdateFilter(userId, req)
 	if err != nil {
