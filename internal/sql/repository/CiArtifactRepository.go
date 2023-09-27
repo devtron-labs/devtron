@@ -255,14 +255,14 @@ func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipe
 }
 
 func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error) {
-	var artifacts *CiArtifact
+	artifacts := &CiArtifact{}
 	query := "select cws.pipeline_id, cws.created_on from " +
 		"(SELECT  pipeline_id, MAX(created_on) created_on " +
 		"FROM ci_artifact " +
 		"GROUP BY pipeline_id) cws " +
 		"where cws.pipeline_id = ? ; "
 
-	_, err := impl.dbConnection.Query(&artifacts, query, ciPipelineId)
+	_, err := impl.dbConnection.Query(artifacts, query, ciPipelineId)
 	if err != nil {
 		return nil, err
 	}
