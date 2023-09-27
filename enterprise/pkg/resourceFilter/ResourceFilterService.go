@@ -399,11 +399,9 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 	//case-1) all existing and future applications -> will get empty ApplicationSelector , db entry (proj,0,"0")
 	if len(qualifierSelector.ApplicationSelectors) == 1 && qualifierSelector.ApplicationSelectors[0].ProjectName == AllProjectsValue {
 		allExistingAndFutureAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
-			ResourceId:   resourceFilterId,
-			ResourceType: resourceQualifiers.Filter,
-
-			//qualifierId: get qualifierId
-			//IdentifierKey: get identifier key for proj
+			ResourceId:            resourceFilterId,
+			ResourceType:          resourceQualifiers.Filter,
+			QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 			IdentifierKey:         ProjectIdentifier,
 			Active:                true,
 			IdentifierValueInt:    AllProjectsInt,
@@ -418,6 +416,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 			if len(appSelector.Applications) == 0 {
 				allExistingAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
 					ResourceId:            resourceFilterId,
+					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 					ResourceType:          resourceQualifiers.Filter,
 					IdentifierKey:         ProjectIdentifier,
 					Active:                true,
@@ -433,6 +432,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 			for _, appName := range appSelector.Applications {
 				appQualifierMapping := &resourceQualifiers.QualifierMapping{
 					ResourceId:            resourceFilterId,
+					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 					ResourceType:          resourceQualifiers.Filter,
 					IdentifierKey:         AppIdentifier,
 					Active:                true,
@@ -452,6 +452,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 		envSelector := qualifierSelector.EnvironmentSelectors[0]
 		allExistingAndFutureEnvQualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:    resourceFilterId,
+			QualifierId:   int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 			ResourceType:  resourceQualifiers.Filter,
 			IdentifierKey: ClusterIdentifier,
 			Active:        true,
@@ -471,6 +472,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 			if len(envSelector.Environments) == 0 {
 				allCurrentAndFutureEnvsInClusterQualifierMapping := &resourceQualifiers.QualifierMapping{
 					ResourceId:            resourceFilterId,
+					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 					ResourceType:          resourceQualifiers.Filter,
 					IdentifierKey:         ClusterIdentifier,
 					IdentifierValueInt:    clusterNameToIdMap[envSelector.ClusterName],
@@ -485,6 +487,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 			for _, env := range envSelector.Environments {
 				envQualifierMapping := &resourceQualifiers.QualifierMapping{
 					ResourceId:            resourceFilterId,
+					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 					ResourceType:          resourceQualifiers.Filter,
 					IdentifierKey:         EnvironmentIdentifier,
 					IdentifierValueInt:    envNameToIdMap[env],
