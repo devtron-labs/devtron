@@ -183,6 +183,7 @@ const (
 	NORMAL   PipelineType = "NORMAL"
 	LINKED   PipelineType = "LINKED"
 	EXTERNAL PipelineType = "EXTERNAL"
+	CI_JOB   PipelineType = "CI_JOB"
 )
 
 const (
@@ -312,11 +313,13 @@ type CiPipelineMaterial struct {
 }
 
 type CiTriggerRequest struct {
-	PipelineId         int                  `json:"pipelineId"`
-	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
-	TriggeredBy        int32                `json:"triggeredBy"`
-	InvalidateCache    bool                 `json:"invalidateCache"`
-	EnvironmentId      int                  `json:"environmentId"`
+	PipelineId          int                  `json:"pipelineId"`
+	CiPipelineMaterial  []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
+	TriggeredBy         int32                `json:"triggeredBy"`
+	InvalidateCache     bool                 `json:"invalidateCache"`
+	EnvironmentId       int                  `json:"environmentId"`
+	PipelineType        string               `json:"pipelineType"`
+	CiArtifactLastFetch time.Time            `json:"ciArtifactLastFetch"`
 }
 
 type CiTrigger struct {

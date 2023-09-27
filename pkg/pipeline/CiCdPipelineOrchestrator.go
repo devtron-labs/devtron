@@ -504,10 +504,12 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 
 		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
-		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
-		if err != nil {
-			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
-			return nil, err
+		if createRequest.DockerConfigOverride.CiBuildConfig.CiBuildType != bean2.SKIP_BUILD_BUILD_TYPE {
+			err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
+			if err != nil {
+				impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
+				return nil, err
+			}
 		}
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
 			ciBuildConfigBean.Id = savedTemplateOverride.CiBuildConfigId
@@ -729,6 +731,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			Deleted:                  false,
 			ScanEnabled:              createRequest.ScanEnabled,
 			IsDockerConfigOverridden: ciPipeline.IsDockerConfigOverridden,
+			PipelineType:             string(ciPipeline.PipelineType),
 			AuditLog:                 sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 		}
 		err = impl.ciPipelineRepository.Save(ciPipelineObject, tx)
@@ -785,7 +788,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 			pipelineMaterials = append(pipelineMaterials, material)
 		}
-		err = impl.ciPipelineMaterialRepository.Save(tx, pipelineMaterials...)
+		if len(pipelineMaterials) != 0 {
+			err = impl.ciPipelineMaterialRepository.Save(tx, pipelineMaterials...)
+		}
 		if err != nil {
 			impl.logger.Errorf("error in saving pipelineMaterials in db", "materials", pipelineMaterials, "err", err)
 			return nil, err
@@ -803,7 +808,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 
 		} else {
 			//save pipeline in db end
-			err = impl.AddPipelineMaterialInGitSensor(pipelineMaterials)
+			if len(pipelineMaterials) != 0 {
+				err = impl.AddPipelineMaterialInGitSensor(pipelineMaterials)
+			}
 			if err != nil {
 				impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", pipelineMaterials, "err", err)
 				return nil, err
@@ -858,10 +865,12 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				UserId:             createRequest.UserId,
 			}
 			if !ciPipeline.IsExternal {
-				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
-				if err != nil {
-					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
-					return nil, err
+				if ciPipeline.DockerConfigOverride.CiBuildConfig.CiBuildType != bean2.SKIP_BUILD_BUILD_TYPE {
+					err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+					if err != nil {
+						impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+						return nil, err
+					}
 				}
 				err := impl.ciTemplateService.Save(ciTemplateBean)
 				if err != nil {

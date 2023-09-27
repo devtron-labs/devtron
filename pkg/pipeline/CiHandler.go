@@ -187,6 +187,8 @@ type Trigger struct {
 	InvalidateCache           bool
 	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
 	EnvironmentId             int
+	PipelineType              string
+	CiArtifactLastFetch       time.Time
 }
 
 const WorkflowCancel = "CANCELLED"
@@ -208,6 +210,8 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 		InvalidateCache:           ciTriggerRequest.InvalidateCache,
 		ExtraEnvironmentVariables: extraEnvironmentVariables,
 		EnvironmentId:             ciTriggerRequest.EnvironmentId,
+		PipelineType:              ciTriggerRequest.PipelineType,
+		CiArtifactLastFetch:       ciTriggerRequest.CiArtifactLastFetch,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
 
