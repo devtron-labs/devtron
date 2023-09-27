@@ -15,7 +15,7 @@ const (
 	VARIABLE_TYPE_REF_PLUGIN  = "REF_PLUGIN"
 )
 
-const JOB_CI string = "JOB_CI"
+const CI_JOB string = "CI_JOB"
 
 type WorkflowPipelineType string
 

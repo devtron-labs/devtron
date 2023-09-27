@@ -121,14 +121,14 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
-	if trigger.PipelineType == bean2.JOB_CI {
-		ciMaterials[0].GitMaterialId = 0
-		ciMaterials[0].GitMaterial = nil
-	}
 	if err != nil {
 		return 0, err
 	}
-
+	if trigger.PipelineType == bean2.CI_JOB && len(ciMaterials) != 0 {
+		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
+		ciMaterials[0].GitMaterial = nil
+		ciMaterials[0].GitMaterialId = 0
+	}
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return 0, err

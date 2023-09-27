@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"time"
@@ -24,10 +25,11 @@ type CiTriggerCronImpl struct {
 	pipelineStageRepository repository.PipelineStageRepository
 	ciHandler               pipeline.CiHandler
 	ciArtifactRepository    repository2.CiArtifactRepository
+	globalPluginRepository  repository3.GlobalPluginRepository
 }
 
 func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, pipelineStageRepository repository.PipelineStageRepository,
-	ciHandler pipeline.CiHandler, ciArtifactRepository repository2.CiArtifactRepository) *CiTriggerCronImpl {
+	ciHandler pipeline.CiHandler, ciArtifactRepository repository2.CiArtifactRepository, globalPluginRepository repository3.GlobalPluginRepository) *CiTriggerCronImpl {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -38,6 +40,7 @@ func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, p
 		ciHandler:               ciHandler,
 		cfg:                     cfg,
 		ciArtifactRepository:    ciArtifactRepository,
+		globalPluginRepository:  globalPluginRepository,
 	}
 
 	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", cfg.SourceControllerCronTime), impl.TriggerCiCron)
@@ -49,8 +52,8 @@ func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, p
 }
 
 type CiTriggerCronConfig struct {
-	SourceControllerCronTime int `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"2"`
-	PluginIds                int `env:"PLUGIN_IDS"  envDefault:"2"`
+	SourceControllerCronTime int    `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"2"`
+	PluginName               string `env:"PLUGIN_IDS"  envDefault:"Polling Plugin"`
 }
 
 func GetCiTriggerCronConfig() (*CiTriggerCronConfig, error) {
@@ -65,7 +68,14 @@ func GetCiTriggerCronConfig() (*CiTriggerCronConfig, error) {
 
 // UpdateCiWorkflowStatusFailedCron this function will execute periodically
 func (impl *CiTriggerCronImpl) TriggerCiCron() {
-	ciPipelineIds, err := impl.pipelineStageRepository.GetAllCiPipelineIdsByPluginIdAndStageType(impl.cfg.PluginIds, string(repository.PIPELINE_STAGE_TYPE_POST_CI))
+
+	plugin, err := impl.globalPluginRepository.GetPluginByName(impl.cfg.PluginName)
+
+	if err != nil || len(plugin) == 0 {
+		return
+	}
+
+	ciPipelineIds, err := impl.pipelineStageRepository.GetAllCiPipelineIdsByPluginIdAndStageType(plugin[0].Id, string(repository.PIPELINE_STAGE_TYPE_POST_CI))
 	if err != nil {
 		return
 	}
@@ -100,7 +110,7 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 			TriggeredBy:         1,
 			InvalidateCache:     false,
 			CiArtifactLastFetch: mp[ciPipelineId],
-			PipelineType:        bean2.JOB_CI,
+			PipelineType:        bean2.CI_JOB,
 		}
 		_, err = impl.ciHandler.HandleCIManual(ciTriggerRequest)
 		if err != nil {
