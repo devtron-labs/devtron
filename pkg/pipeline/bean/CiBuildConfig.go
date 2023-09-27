@@ -25,6 +25,7 @@ type CiBuildConfigBean struct {
 	CiBuildType               CiBuildType        `json:"ciBuildType"`
 	DockerBuildConfig         *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
 	BuildPackConfig           *BuildPackConfig   `json:"buildPackConfig"`
+	PipelineType              string             `json:"pipelineType"`
 }
 
 type DockerBuildConfig struct {
