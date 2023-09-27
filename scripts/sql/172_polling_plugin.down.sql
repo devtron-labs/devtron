@@ -1,0 +1,11 @@
+DELETE FROM plugin_step_variable WHERE name = 'AWS_REGION';
+DELETE FROM plugin_step_variable WHERE name = 'DOCKER_REGISTRY_URL';
+DELETE FROM plugin_step_variable WHERE name = 'LAST_FETCHED_TIME';
+DELETE FROM plugin_step_variable WHERE name = 'SECRET_KEY';
+DELETE FROM plugin_step_variable WHERE name = 'ACCESS_KEY';
+DELETE FROM plugin_step_variable WHERE name = 'REPOSITORY';
+DELETE FROM plugin_step WHERE plugin_id = (SELECT id FROM plugin_metadata WHERE name='Pull images from container repository');
+DELETE FROM script_path_arg_port_mapping WHERE type_of_mapping ='FILE_PATH' and file_path_on_disk ='/polling-plugin';
+DELETE FROM plugin_stage_mapping WHERE plugin_id =(SELECT id FROM plugin_metadata WHERE name='Pull images from container repository');
+DELETE FROM plugin_tag_relation WHERE tag_id= (SELECT id FROM plugin_tag WHERE name='Image source');
+DELETE FROM plugin_metadata WHERE name ='Pull images from container repository';
