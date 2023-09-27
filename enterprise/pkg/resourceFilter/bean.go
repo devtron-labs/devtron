@@ -28,21 +28,21 @@ const (
 
 type FilterMetaDataBean struct {
 	Id           int                 `json:"id"`
-	TargetObject *FilterTargetObject `json:"targetObject" validate:"required"`
+	TargetObject *FilterTargetObject `json:"targetObject" validate:"required,min=0,max=1"`
 	Description  string              `json:"description" `
-	Name         string              `json:"name" validate:"required"`
+	Name         string              `json:"name" validate:"required,max=300"`
 }
 
 type FilterRequestResponseBean struct {
 	*FilterMetaDataBean
-	Conditions        []ResourceCondition `json:"conditions"`
-	QualifierSelector QualifierSelector   `json:"qualifierSelector"`
+	Conditions        []ResourceCondition `json:"conditions" validate:"required,dive"`
+	QualifierSelector QualifierSelector   `json:"qualifierSelector" validate:"required,dive"`
 }
 
 type ResourceCondition struct {
-	ConditionType ResourceConditionType `json:"conditionType"`
-	Expression    string                `json:"expression"`
-	ErrorMsg      string                `json:"errorMsg"`
+	ConditionType ResourceConditionType `json:"conditionType" validate:"min=0,max=1"`
+	Expression    string                `json:"expression" validate:"required,min=1""`
+	ErrorMsg      string                `json:"errorMsg,omitempty"`
 }
 
 func (condition ResourceCondition) IsFailCondition() bool {
@@ -50,17 +50,17 @@ func (condition ResourceCondition) IsFailCondition() bool {
 }
 
 type QualifierSelector struct {
-	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors"`
-	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors"`
+	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors" validate:"required,dive"`
+	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors" validate:"required,dive"`
 }
 
 type ApplicationSelector struct {
-	ProjectName  string   `json:"projectName"`
+	ProjectName  string   `json:"projectName" validate:"required,min=1"`
 	Applications []string `json:"applications"`
 }
 
 type EnvironmentSelector struct {
-	ClusterName  string   `json:"clusterName"`
+	ClusterName  string   `json:"clusterName" validate:"min=1"`
 	Environments []string `json:"environments"`
 }
 
