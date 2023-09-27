@@ -134,6 +134,8 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return filterRequest, errors.New(InvalidExpressions)
 	}
 	//validation done
+
+	//unique name validation
 	filterNames, err := impl.resourceFilterRepository.GetDistinctFilterNames()
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -144,6 +146,7 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 			return nil, errors.New("filter already exists with this name")
 		}
 	}
+	//unique name validation done
 
 	tx, err := impl.resourceFilterRepository.StartTx()
 	if err != nil {
@@ -473,79 +476,68 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 	}
 
 	//envs
+	allClusterEnvSelectors, otherEnvSelectors, err := extractAllTypesOfEnvSelectors(qualifierSelector.EnvironmentSelectors)
+	if err != nil {
+		return err
+	}
 	//1) all existing and future prod envs -> get single EnvironmentSelector with clusterName as "0"(prod) (cluster,0,"0")
 	//2) all existing and future non-prod envs -> get single EnvironmentSelector with clusterName as "-1"(non-prod) (cluster,-1,"-1")
-	if isAllEnvRequest(qualifierSelector) {
-		for _, envSelector := range qualifierSelector.EnvironmentSelectors {
-			//envSelector := qualifierSelector.EnvironmentSelectors[0]
-			allExistingAndFutureEnvQualifierMapping := &resourceQualifiers.QualifierMapping{
-				ResourceId:    resourceFilterId,
-				QualifierId:   int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
-				ResourceType:  resourceQualifiers.Filter,
-				IdentifierKey: GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap),
-				Active:        true,
-				AuditLog:      auditLog,
-			}
-			if envSelector.ClusterName == AllExistingAndFutureProdEnvsValue {
-				allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureProdEnvsInt
-				allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureProdEnvsValue
-			} else {
-				allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureNonProdEnvsInt
-				allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureNonProdEnvsValue
-			}
-			qualifierMappings = append(qualifierMappings, allExistingAndFutureEnvQualifierMapping)
+	for _, envSelector := range allClusterEnvSelectors {
+		allExistingAndFutureEnvQualifierMapping := &resourceQualifiers.QualifierMapping{
+			ResourceId:    resourceFilterId,
+			QualifierId:   int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
+			ResourceType:  resourceQualifiers.Filter,
+			IdentifierKey: GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap),
+			Active:        true,
+			AuditLog:      auditLog,
 		}
-	} else {
-		for _, envSelector := range qualifierSelector.EnvironmentSelectors {
-			//3) all existing and future envs of a cluster ->  get clusterName and empty environments list (cluster,clusterId,clusterName)
-			if len(envSelector.Environments) == 0 {
-				allCurrentAndFutureEnvsInClusterQualifierMapping := &resourceQualifiers.QualifierMapping{
-					ResourceId:            resourceFilterId,
-					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
-					ResourceType:          resourceQualifiers.Filter,
-					IdentifierKey:         GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap),
-					IdentifierValueInt:    clusterNameToIdMap[envSelector.ClusterName],
-					IdentifierValueString: envSelector.ClusterName,
-					Active:                true,
-					AuditLog:              auditLog,
-				}
-				qualifierMappings = append(qualifierMappings, allCurrentAndFutureEnvsInClusterQualifierMapping)
+		if envSelector.ClusterName == AllExistingAndFutureProdEnvsValue {
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureProdEnvsInt
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureProdEnvsValue
+		} else {
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureNonProdEnvsInt
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureNonProdEnvsValue
+		}
+		qualifierMappings = append(qualifierMappings, allExistingAndFutureEnvQualifierMapping)
+	}
+
+	for _, envSelector := range otherEnvSelectors {
+		//3) all existing and future envs of a cluster ->  get clusterName and empty environments list (cluster,clusterId,clusterName)
+		if len(envSelector.Environments) == 0 {
+			allCurrentAndFutureEnvsInClusterQualifierMapping := &resourceQualifiers.QualifierMapping{
+				ResourceId:            resourceFilterId,
+				QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
+				ResourceType:          resourceQualifiers.Filter,
+				IdentifierKey:         GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap),
+				IdentifierValueInt:    clusterNameToIdMap[envSelector.ClusterName],
+				IdentifierValueString: envSelector.ClusterName,
+				Active:                true,
+				AuditLog:              auditLog,
 			}
-			//4) all existing envs of a cluster -> get clusterName and all the envs list
-			//5) particular envs , will get EnvironmentSelector array
-			for _, env := range envSelector.Environments {
-				envQualifierMapping := &resourceQualifiers.QualifierMapping{
-					ResourceId:            resourceFilterId,
-					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
-					ResourceType:          resourceQualifiers.Filter,
-					IdentifierKey:         GetIdentifierKey(EnvironmentIdentifier, searchableKeyNameIdMap),
-					IdentifierValueInt:    envNameToIdMap[env],
-					IdentifierValueString: env,
-					Active:                true,
-					AuditLog:              auditLog,
-				}
-				qualifierMappings = append(qualifierMappings, envQualifierMapping)
+			qualifierMappings = append(qualifierMappings, allCurrentAndFutureEnvsInClusterQualifierMapping)
+		}
+		//4) all existing envs of a cluster -> get clusterName and all the envs list
+		//5) particular envs , will get EnvironmentSelector array
+		for _, env := range envSelector.Environments {
+			envQualifierMapping := &resourceQualifiers.QualifierMapping{
+				ResourceId:            resourceFilterId,
+				QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
+				ResourceType:          resourceQualifiers.Filter,
+				IdentifierKey:         GetIdentifierKey(EnvironmentIdentifier, searchableKeyNameIdMap),
+				IdentifierValueInt:    envNameToIdMap[env],
+				IdentifierValueString: env,
+				Active:                true,
+				AuditLog:              auditLog,
 			}
+			qualifierMappings = append(qualifierMappings, envQualifierMapping)
 		}
 	}
+
 	_, err = impl.qualifyingMappingService.CreateQualifierMappings(qualifierMappings, tx)
 	if err != nil {
 		impl.logger.Errorw("error in CreateQualifierMappings", "qualifierMappings", qualifierMappings, "err", err)
 	}
 	return err
-}
-
-func isAllEnvRequest(qualifierSelector QualifierSelector) bool {
-	n := len(qualifierSelector.EnvironmentSelectors)
-	if n <= 2 {
-		for _, environmentSelector := range qualifierSelector.EnvironmentSelectors {
-			if !(environmentSelector.ClusterName == AllExistingAndFutureProdEnvsValue || environmentSelector.ClusterName == AllExistingAndFutureNonProdEnvsValue) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
 }
 
 func (impl *ResourceFilterServiceImpl) convertToFilterMappings(qualifierMappings []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping {
@@ -730,4 +722,58 @@ func (impl *ResourceFilterServiceImpl) appendAppAndEnvSelectors(appSelectors []A
 	}
 
 	return appSelectors, envSelectors
+}
+
+func extractAllTypesOfEnvSelectors(envSelectors []EnvironmentSelector) ([]EnvironmentSelector, []EnvironmentSelector, error) {
+	//type1: allExistingFutureProdEnvs
+	//type2: allExistingFutureNonProdEnvs
+	//type3: allExistingFutureEnvsOfACluster
+	//type4: remaining types
+	allExistingFutureProdEnvSelectors := make([]EnvironmentSelector, 0)
+	allExistingFutureNonProdEnvSelectors := make([]EnvironmentSelector, 0)
+	allExistingFutureEnvsOfACluster := make([]EnvironmentSelector, 0)
+	otherEnvSelectors := make([]EnvironmentSelector, 0)
+
+	//ValidCases:
+	//   case1 : type1 + type4(nonProdEnvs),
+	//   case2 : type2 + type4(prodEnvs),
+	//   case3 : type1 + type2
+
+	for _, envSelector := range envSelectors {
+		//order of these cases are **IMPORTANT**
+		if envSelector.ClusterName == AllExistingAndFutureProdEnvsValue {
+			allExistingFutureProdEnvSelectors = append(allExistingFutureProdEnvSelectors, envSelector)
+		} else if envSelector.ClusterName == AllExistingAndFutureNonProdEnvsValue {
+			allExistingFutureNonProdEnvSelectors = append(allExistingFutureNonProdEnvSelectors, envSelector)
+		} else if len(envSelector.Environments) == 0 {
+			allExistingFutureEnvsOfACluster = append(allExistingFutureEnvsOfACluster, envSelector)
+		} else {
+			otherEnvSelectors = append(otherEnvSelectors, envSelector)
+		}
+	}
+
+	//InValidCases:
+	//   case1: multiple type1 or multiple type2
+	if len(allExistingFutureProdEnvSelectors) > 1 || len(allExistingFutureNonProdEnvSelectors) > 1 {
+		return nil, nil, errors.New("multiple selectors of type allExistingFutureProdEnvSelector or allExistingFutureNonProdEnvSelector found, invalid selectors request")
+	}
+
+	//   case2: type1 + type2 + type4
+	if len(allExistingFutureProdEnvSelectors) != 0 && len(allExistingFutureNonProdEnvSelectors) != 0 && len(otherEnvSelectors) != 0 {
+		return nil, nil, errors.New("some other selectors found along with allExistingFutureProdEnvSelector and allExistingFutureNonProdEnvSelector found, invalid selectors request")
+	}
+
+	//   case3: type1 + type3
+	//   case4: type2 + type3
+	if (len(allExistingFutureProdEnvSelectors) != 0 || len(allExistingFutureNonProdEnvSelectors) != 0) && len(allExistingFutureEnvsOfACluster) != 0 {
+		return nil, nil, errors.New(" invalid selectors combinations found")
+	}
+
+	//TODO: handle(requires db call and then validate)
+	//   case5: type1 + type4(prodEnvs)
+	//   case6: type2 + type4(nonProdEnvs)
+
+	allClusterEnvSelectors := append(allExistingFutureProdEnvSelectors, allExistingFutureNonProdEnvSelectors...)
+	otherEnvSelectors = append(otherEnvSelectors, allExistingFutureEnvsOfACluster...)
+	return allClusterEnvSelectors, otherEnvSelectors, nil
 }
