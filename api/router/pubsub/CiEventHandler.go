@@ -121,14 +121,13 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 				detail := util.GetLatestImageAccToImagePushedAt(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
 				request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent)
 				if err != nil {
-					impl.logger.Error("Error while creating request for pipelineID: ",
-						ciCompleteEvent.PipelineId, "error: ", err)
+					impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 					return
 				}
 				resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
 				if err != nil {
-					impl.logger.Error("Error while sending event for CI success for pipelineID: ",
-						ciCompleteEvent.PipelineId, "request: ", request, "error: ", err)
+					impl.logger.Error("Error while sending event for CI success for pipelineID", "pipelineId",
+						ciCompleteEvent.PipelineId, "request", request, "err", err)
 					return
 				}
 				impl.logger.Debug(resp)
