@@ -11,7 +11,7 @@ INSERT INTO "plugin_stage_mapping" ("plugin_id","stage_type","created_on", "crea
 VALUES ((SELECT id FROM plugin_metadata WHERE name='Pull images from container repository'),0,'now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_pipeline_script" ("id","type","mount_directory_from_host","container_image_path","deleted","created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_pipeline_script'),'CONTAINER_IMAGE','t','shivamnagar409/test:6f079f45-36-45','f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_pipeline_script'),'CONTAINER_IMAGE','t','quay.io/devtron/test:da2e28cd-1596-13065','f','now()',1,'now()',1);
 
 INSERT INTO "script_path_arg_port_mapping" ("id", "type_of_mapping", "file_path_on_disk","file_path_on_container","script_id","deleted","created_on","created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_script_path_arg_port_mapping'),'FILE_PATH','/polling-plugin' ,'/output',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
