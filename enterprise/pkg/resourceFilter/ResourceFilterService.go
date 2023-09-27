@@ -227,6 +227,11 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		impl.logger.Errorw("error in saveQualifierMappings for resourceFilter", "resourceFilterId", resourceFilter.Id, "qualifierMappings", filterRequest.QualifierSelector, "err", err)
 		return err
 	}
+	err = impl.resourceFilterRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err, "resourceFilterId", filterRequest.Id)
+		return err
+	}
 	return nil
 }
 
@@ -257,6 +262,11 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 	err = impl.qualifyingMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(resourceQualifiers.Filter, id, sql.AuditLog{UpdatedBy: userId, UpdatedOn: currentTime}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in DeleteAllQualifierMappingsByResourceTypeAndId", "err", err, "resourceType", resourceQualifiers.Filter, "resourceId", id)
+		return err
+	}
+	err = impl.resourceFilterRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err, "resourceFilterId", id)
 		return err
 	}
 	return nil

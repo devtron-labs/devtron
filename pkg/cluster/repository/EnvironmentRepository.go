@@ -285,6 +285,9 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Enviro
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindByIdsOrderByCluster(ids []int) ([]*Environment, error) {
 	var envs []*Environment
+	if len(ids) == 0 {
+		return envs, nil
+	}
 	err := repositoryImpl.dbConnection.
 		Model(&envs).
 		Column("environment.*,Cluster").
