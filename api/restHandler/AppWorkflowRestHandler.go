@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -172,14 +173,10 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	envIdsString := v.Get("envIds")
 	envIds := make([]int, 0)
 	if len(envIdsString) > 0 {
-		envIdsSlices := strings.Split(envIdsString, ",")
-		for _, envId := range envIdsSlices {
-			id, err := strconv.Atoi(envId)
-			if err != nil {
-				common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
-				return
-			}
-			envIds = append(envIds, id)
+		envIds, err = util2.SplitCommaSeparatedIntValues(envIdsString)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+			return
 		}
 	}
 
@@ -352,14 +349,10 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	envIdsString := v.Get("envIds")
 	envIds := make([]int, 0)
 	if len(envIdsString) > 0 {
-		envIdsSlices := strings.Split(envIdsString, ",")
-		for _, envId := range envIdsSlices {
-			id, err := strconv.Atoi(envId)
-			if err != nil {
-				common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
-				return
-			}
-			envIds = append(envIds, id)
+		envIds, err = util2.SplitCommaSeparatedIntValues(envIdsString)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+			return
 		}
 	}
 
