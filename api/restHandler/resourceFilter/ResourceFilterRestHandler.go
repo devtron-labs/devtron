@@ -212,6 +212,11 @@ func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.Response
 	}
 	var request resourceFilter.ValidateRequestResponse
 	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, UpdateRoleGroup", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	response := handler.celService.ValidateCELRequest(request)
 
