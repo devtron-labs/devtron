@@ -464,24 +464,26 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 	//envs
 	//1) all existing and future prod envs -> get single EnvironmentSelector with clusterName as "0"(prod) (cluster,0,"0")
 	//2) all existing and future non-prod envs -> get single EnvironmentSelector with clusterName as "-1"(non-prod) (cluster,-1,"-1")
-	if len(qualifierSelector.ApplicationSelectors) == 1 && (qualifierSelector.EnvironmentSelectors[0].ClusterName == AllExistingAndFutureProdEnvsValue || qualifierSelector.EnvironmentSelectors[0].ClusterName == AllExistingAndFutureNonProdEnvsValue) {
-		envSelector := qualifierSelector.EnvironmentSelectors[0]
-		allExistingAndFutureEnvQualifierMapping := &resourceQualifiers.QualifierMapping{
-			ResourceId:    resourceFilterId,
-			QualifierId:   int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
-			ResourceType:  resourceQualifiers.Filter,
-			IdentifierKey: GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap),
-			Active:        true,
-			AuditLog:      auditLog,
+	if isAllEnvRequest(qualifierSelector) {
+		for _, envSelector := range qualifierSelector.EnvironmentSelectors {
+			//envSelector := qualifierSelector.EnvironmentSelectors[0]
+			allExistingAndFutureEnvQualifierMapping := &resourceQualifiers.QualifierMapping{
+				ResourceId:    resourceFilterId,
+				QualifierId:   int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
+				ResourceType:  resourceQualifiers.Filter,
+				IdentifierKey: GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap),
+				Active:        true,
+				AuditLog:      auditLog,
+			}
+			if envSelector.ClusterName == AllExistingAndFutureProdEnvsValue {
+				allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureProdEnvsInt
+				allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureProdEnvsValue
+			} else {
+				allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureNonProdEnvsInt
+				allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureNonProdEnvsValue
+			}
+			qualifierMappings = append(qualifierMappings, allExistingAndFutureEnvQualifierMapping)
 		}
-		if envSelector.ClusterName == AllExistingAndFutureProdEnvsValue {
-			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureProdEnvsInt
-			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureProdEnvsValue
-		} else {
-			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureNonProdEnvsInt
-			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureNonProdEnvsValue
-		}
-		qualifierMappings = append(qualifierMappings, allExistingAndFutureEnvQualifierMapping)
 	} else {
 		for _, envSelector := range qualifierSelector.EnvironmentSelectors {
 			//3) all existing and future envs of a cluster ->  get clusterName and empty environments list (cluster,clusterId,clusterName)
@@ -520,6 +522,19 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 		impl.logger.Errorw("error in CreateQualifierMappings", "qualifierMappings", qualifierMappings, "err", err)
 	}
 	return err
+}
+
+func isAllEnvRequest(qualifierSelector QualifierSelector) bool {
+	n := len(qualifierSelector.EnvironmentSelectors)
+	if n <= 2 {
+		for _, environmentSelector := range qualifierSelector.EnvironmentSelectors {
+			if !(environmentSelector.ClusterName == AllExistingAndFutureProdEnvsValue || environmentSelector.ClusterName == AllExistingAndFutureNonProdEnvsValue) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func (impl *ResourceFilterServiceImpl) convertToFilterMappings(qualifierMappings []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping {

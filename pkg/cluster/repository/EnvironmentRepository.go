@@ -290,7 +290,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByIdsOrderByCluster(ids []in
 	}
 	err := repositoryImpl.dbConnection.
 		Model(&envs).
-		Column("environment.*,Cluster").
+		Column("environment.*", "Cluster").
 		Where("environment.active = ?", true).
 		Where("environment.id in (?)", pg.In(ids)).
 		Order("environment.cluster_id").
