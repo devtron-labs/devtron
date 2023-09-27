@@ -136,7 +136,7 @@ type PipelineBuilder interface {
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
-	FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error)
+	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error)
 	FindAppsByTeamId(teamId int) ([]*AppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
@@ -3850,7 +3850,7 @@ func (impl *PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, par
 	return ciArtifacts, nil
 }
 
-func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error) {
+func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error) {
 	var deployedCiArtifacts []bean.CiArtifactBean
 	var deployedCiArtifactsResponse bean.CiArtifactResponse
 
@@ -3871,6 +3871,14 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, 
 	for _, item := range users {
 		userEmails[item.Id] = item.EmailId
 	}
+
+	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", appId)
+		return deployedCiArtifactsResponse, err
+	}
+	artifactIds := make([]int, 0)
+
 	for _, cdWfr := range cdWfrs {
 		ciArtifact := &repository.CiArtifact{}
 		if cdWfr.CdWorkflow != nil && cdWfr.CdWorkflow.CiArtifact != nil {
@@ -3893,6 +3901,21 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, 
 			WfrId:        cdWfr.Id,
 			DeployedBy:   userEmail,
 		})
+		artifactIds = append(artifactIds, ciArtifact.Id)
+	}
+	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", appId, "artifactIds", artifactIds)
+		return deployedCiArtifactsResponse, err
+	}
+
+	for i, _ := range deployedCiArtifacts {
+		if imageTaggingResp := imageTagsDataMap[deployedCiArtifacts[i].Id]; imageTaggingResp != nil {
+			deployedCiArtifacts[i].ImageReleaseTags = imageTaggingResp
+		}
+		if imageCommentResp := imageCommentsDataMap[deployedCiArtifacts[i].Id]; imageCommentResp != nil {
+			deployedCiArtifacts[i].ImageComment = imageCommentResp
+		}
 	}
 
 	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
