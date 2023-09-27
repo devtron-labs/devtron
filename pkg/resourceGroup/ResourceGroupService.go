@@ -142,7 +142,7 @@ func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroup
 	defer tx.Rollback()
 	existingModel, err := impl.resourceGroupRepository.FindByNameAndParentResource(request.Name, request.ParentResourceId, request.GroupType.getResourceKey(resourceKeyToId))
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in create app group", "error", err)
+		impl.logger.Errorw("error in getting group", "error", err)
 		return nil, err
 	}
 
@@ -164,7 +164,7 @@ func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroup
 
 	_, err = impl.resourceGroupRepository.Save(model, tx)
 	if err != nil {
-		impl.logger.Errorw("error in creating app group", "error", err)
+		impl.logger.Errorw("error in creating resource group", "error", err)
 		return nil, err
 	}
 
@@ -177,7 +177,7 @@ func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroup
 		}
 		_, err = impl.resourceGroupMappingRepository.Save(mapping, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating app group", "error", err)
+			impl.logger.Errorw("error in creating resource group", "error", err)
 			return nil, err
 		}
 	}
@@ -198,7 +198,7 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 	// fetching existing resourceIds in resource group
 	mappings, err := impl.resourceGroupMappingRepository.FindByResourceGroupId(request.Id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update app group", "error", err)
+		impl.logger.Errorw("error in getting group mappings", "error", err, "id", request.Id)
 		return nil, err
 	}
 
@@ -211,7 +211,7 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 	defer tx.Rollback()
 	existingModel, err := impl.resourceGroupRepository.FindById(request.Id)
 	if err != nil {
-		impl.logger.Errorw("error in update app group", "error", err)
+		impl.logger.Errorw("error in getting resource group", "error", err, "id", request.Id)
 		return nil, err
 	}
 	request.ParentResourceId = existingModel.ResourceId
@@ -227,7 +227,7 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 		existingModel.UpdatedBy = request.UserId
 		err = impl.resourceGroupRepository.Update(existingModel, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating app group", "error", err)
+			impl.logger.Errorw("error in updating app group", "error", err)
 			return nil, err
 		}
 	}
@@ -260,7 +260,7 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 		}
 		_, err = impl.resourceGroupMappingRepository.Save(mapping, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating app group", "error", err)
+			impl.logger.Errorw("error in creating resource group", "error", err)
 			return nil, err
 		}
 	}
@@ -268,7 +268,7 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 	for _, resourceGroupMapping := range requestedToEliminate {
 		err = impl.resourceGroupMappingRepository.Delete(resourceGroupMapping, tx)
 		if err != nil {
-			impl.logger.Errorw("error in deleting app group", "error", err)
+			impl.logger.Errorw("error in deleting resource group mapping", "error", err)
 			return nil, err
 		}
 	}
@@ -287,7 +287,7 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 	resourceGroups, err := impl.resourceGroupRepository.FindActiveListByParentResource(parentResourceId, groupType.getResourceKey(resourceKeyToId))
 
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update resource group", "error", err)
+		impl.logger.Errorw("error in getting resource group", "error", err, "id", parentResourceId)
 		return nil, err
 	}
 	for _, resourceGroup := range resourceGroups {
@@ -298,7 +298,7 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 	}
 	resourceGroupMappings, err := impl.resourceGroupMappingRepository.FindByResourceGroupIds(resourceGroupIds)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update app group", "error", err)
+		impl.logger.Errorw("error in getting group mappings", "error", err, "ids", resourceGroupIds)
 		return nil, err
 	}
 
@@ -384,7 +384,7 @@ func (impl *ResourceGroupServiceImpl) GetResourceIdsByResourceGroupId(resourceGr
 	resourceIds := make([]int, 0)
 	resourceGroups, err := impl.resourceGroupMappingRepository.FindByResourceGroupId(resourceGroupId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update app group", "error", err)
+		impl.logger.Errorw("error in getting resource groups", "error", err, "id", resourceGroupId)
 		return nil, err
 	}
 	for _, resourceGroup := range resourceGroups {
@@ -405,20 +405,20 @@ func (impl *ResourceGroupServiceImpl) DeleteResourceGroup(resourceGroupId int, g
 	resourceIdsForAuthorization := make(map[int]int)
 	mappings, err := impl.resourceGroupMappingRepository.FindByResourceGroupId(resourceGroupId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetch app group mappings", "error", err)
+		impl.logger.Errorw("error in fetch group mappings", "error", err, "id", resourceGroupId)
 		return false, err
 	}
 
-	resourceGroup, err := impl.resourceGroupRepository.FindById(resourceGroupId)
+	savedResourceGroup, err := impl.resourceGroupRepository.FindById(resourceGroupId)
 	if err != nil {
-		impl.logger.Errorw("error in update app group", "error", err)
+		impl.logger.Errorw("error in getting resource group", "error", err, "id", resourceGroupId)
 		return false, err
 	}
 
 	for _, mapping := range mappings {
 		resourceIdsForAuthorization[mapping.ResourceId] = mapping.ResourceId
 	}
-	unauthorizedResources, err := impl.checkAuthForResources(resourceIdsForAuthorization, emailId, checkAuthBatch, casbin.ActionDelete, groupType, resourceGroup.ResourceId)
+	unauthorizedResources, err := impl.checkAuthForResources(resourceIdsForAuthorization, emailId, checkAuthBatch, casbin.ActionDelete, groupType, savedResourceGroup.ResourceId)
 	if err != nil {
 		return false, err
 	}
@@ -431,10 +431,10 @@ func (impl *ResourceGroupServiceImpl) DeleteResourceGroup(resourceGroupId int, g
 		return false, err
 	}
 
-	resourceGroup.Active = false
-	resourceGroup.UpdatedOn = time.Now()
-	resourceGroup.UpdatedBy = 1
-	err = impl.resourceGroupRepository.Update(resourceGroup, tx)
+	savedResourceGroup.Active = false
+	savedResourceGroup.UpdatedOn = time.Now()
+	savedResourceGroup.UpdatedBy = 1
+	err = impl.resourceGroupRepository.Update(savedResourceGroup, tx)
 	if err != nil {
 		return false, err
 	}
