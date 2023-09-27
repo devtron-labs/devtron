@@ -96,11 +96,17 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 }
 
 func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities []repository.Entity) (map[repository.Entity][]string, error) {
+
+	entityIdToVariableNames := make(map[repository.Entity][]string)
+	if len(entities) == 0 {
+		return entityIdToVariableNames, nil
+	}
+
 	variableEntityMappings, err := impl.variableEntityMappingRepository.GetVariablesForEntities(entities)
 	if err != nil {
 		return nil, err
 	}
-	entityIdToVariableNames := make(map[repository.Entity][]string)
+
 	for _, mapping := range variableEntityMappings {
 		vars := entityIdToVariableNames[mapping.Entity]
 		vars = append(vars, mapping.VariableName)

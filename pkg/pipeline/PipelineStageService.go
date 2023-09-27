@@ -1697,7 +1697,7 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 
 	resolvedResponse, err := impl.fetchScopedVariablesAndResolveTemplate(unresolvedResponse, pipelineStageIds, scope)
 	if err != nil {
-		impl.logger.Errorw("error in resolving stage request", "err", err)
+		impl.logger.Errorw("error in resolving stage request", "err", err, "pipelineStageIds", pipelineStageIds)
 		return resolvedResponse, err
 	}
 	return resolvedResponse, nil
@@ -2135,7 +2135,7 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 
 	responseJson, err := json.Marshal(unresolvedResponse)
 	if err != nil {
-		impl.logger.Errorw("Error in marshaling stage", "error", err)
+		impl.logger.Errorw("Error in marshaling stage", "error", err, "unresolvedResponse", unresolvedResponse)
 		return nil, err
 	}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parsers.VariableParserRequest{
@@ -2146,7 +2146,7 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 	})
 	err = parserResponse.Error
 	if err != nil {
-		impl.logger.Errorw("Error in parsing stage", "error", err)
+		impl.logger.Errorw("Error in parsing stage", "error", err, "template", responseJson, "vars", scopedVariables)
 		return nil, err
 	}
 	resolvedResponse := &bean.PrePostAndRefPluginStepsResponse{}
