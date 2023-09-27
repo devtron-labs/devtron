@@ -27,10 +27,10 @@ const (
 )
 
 type FilterMetaDataBean struct {
-	Id           int                `json:"id"`
-	TargetObject FilterTargetObject `json:"targetObject" validate:"required"`
-	Description  string             `json:"description" `
-	Name         string             `json:"name" validate:"required"`
+	Id           int                 `json:"id"`
+	TargetObject *FilterTargetObject `json:"targetObject" validate:"required"`
+	Description  string              `json:"description" `
+	Name         string              `json:"name" validate:"required"`
 }
 
 type FilterRequestResponseBean struct {

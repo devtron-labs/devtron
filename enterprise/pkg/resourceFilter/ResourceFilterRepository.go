@@ -21,13 +21,13 @@ const (
 )
 
 type ResourceFilter struct {
-	tableName           struct{}           `sql:"resource_filter" pg:",discard_unknown_columns"`
-	Id                  int                `sql:"id"`
-	Name                string             `sql:"name"`
-	Description         string             `sql:"description"`
-	TargetObject        FilterTargetObject `sql:"target_object"`
-	ConditionExpression string             `sql:"condition_expression"`
-	Deleted             bool               `sql:"deleted"`
+	tableName           struct{}            `sql:"resource_filter" pg:",discard_unknown_columns"`
+	Id                  int                 `sql:"id"`
+	Name                string              `sql:"name"`
+	Description         string              `sql:"description"`
+	TargetObject        *FilterTargetObject `sql:"target_object"`
+	ConditionExpression string              `sql:"condition_expression"`
+	Deleted             *bool               `sql:"deleted"`
 	sql.AuditLog
 }
 

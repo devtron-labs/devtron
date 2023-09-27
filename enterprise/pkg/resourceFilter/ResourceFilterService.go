@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"time"
 )
 
@@ -154,7 +155,7 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 	filterDataBean := &ResourceFilter{
 		Name:                filterRequest.Name,
 		Description:         filterRequest.Description,
-		Deleted:             false,
+		Deleted:             pointer.Bool(false),
 		TargetObject:        filterRequest.TargetObject,
 		ConditionExpression: conditionExpression,
 		AuditLog:            auditLog,
@@ -208,7 +209,7 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 	resourceFilter.Name = filterRequest.Name
 	resourceFilter.Description = filterRequest.Description
 	resourceFilter.UpdatedOn = currentTime
-	resourceFilter.Deleted = false
+	resourceFilter.Deleted = pointer.Bool(false)
 	resourceFilter.TargetObject = filterRequest.TargetObject
 	resourceFilter.ConditionExpression = conditionExpression
 	err = impl.resourceFilterRepository.UpdateFilter(tx, resourceFilter)
@@ -247,7 +248,7 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 	currentTime := time.Now()
 	resourceFilter.UpdatedBy = userId
 	resourceFilter.UpdatedOn = currentTime
-	resourceFilter.Deleted = true
+	resourceFilter.Deleted = pointer.Bool(true)
 	err = impl.resourceFilterRepository.UpdateFilter(tx, resourceFilter)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateFilter", "err", err, "resourceFilter", resourceFilter)
