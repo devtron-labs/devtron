@@ -107,6 +107,9 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableDefinition() ([]*Variabl
 
 func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]*VariableData, error) {
 	var variableData []*VariableData
+	if len(scopeIds) == 0 {
+		return variableData, nil
+	}
 	err := impl.dbConnection.
 		Model(&variableData).
 		Where("variable_scope_id in(?)", pg.In(scopeIds)).
