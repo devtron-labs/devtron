@@ -16,6 +16,22 @@ const (
 	EnvironmentSelectorQualifierSelector                   = 1
 )
 
+const (
+	AllProjectsValue                     = "0"
+	AllProjectsInt                       = 0
+	AllExistingAndFutureProdEnvsValue    = "0"
+	AllExistingAndFutureProdEnvsInt      = 0
+	AllExistingAndFutureNonProdEnvsValue = "-1"
+	AllExistingAndFutureNonProdEnvsInt   = -1
+)
+
+func GetEnvIdentifierValue(scope Scope) int {
+	if scope.IsProdEnv {
+		return AllExistingAndFutureProdEnvsInt
+	}
+	return AllExistingAndFutureNonProdEnvsInt
+}
+
 type QualifierMapping struct {
 	tableName             struct{}     `sql:"resource_qualifier_mapping" pg:",discard_unknown_columns"`
 	Id                    int          `sql:"id,pk"`

@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 )
 
@@ -42,10 +43,32 @@ func (repo *QualifiersMappingRepositoryImpl) CreateQualifierMappings(qualifierMa
 	return qualifierMappings, nil
 }
 
+func (impl *QualifiersMappingRepositoryImpl) addScopeWhereClauseForFilter(query *orm.Query, scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
+	return query.Where(
+		"((identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (identifier_key = ? AND identifier_value_int IN (?)) "+
+			"OR (identifier_key = ? AND identifier_value_int IN (?)) "+
+			"OR (identifier_key = ? AND identifier_value_int = ?))",
+		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId,
+		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_APP_NAME], pg.In([]int{scope.ProjectId, AllProjectsInt}),
+		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In([]int{scope.EnvId, GetEnvIdentifierValue(scope)}),
+		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], scope.ClusterId,
+	)
+}
+
 func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilter(scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*QualifierMapping, error) {
 	var qualifierMappings []*QualifierMapping
-	// TODO don't throw pgNoRows error, handle it here only
-	return qualifierMappings, nil
+	query := repo.dbConnection.Model(&qualifierMappings).
+		Where("active = ?", true).
+		Where("resource_type = ?", Filter)
+
+	query = repo.addScopeWhereClauseForFilter(query, scope, searchableIdMap)
+	err := query.Select()
+	if err == pg.ErrNoRows {
+		repo.logger.Errorw("no qualifier mappings found", "scope", scope)
+		err = nil
+	}
+	return qualifierMappings, err
 }
 func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error) {
 	var qualifierMappings []*QualifierMapping
@@ -59,16 +82,34 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(r
 	}
 	return qualifierMappings, nil
 }
+
+func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClause(query *orm.Query, scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
+	return query.Where(
+		"(((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ?)",
+		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId, APP_AND_ENV_QUALIFIER,
+		APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId,
+		ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId,
+		CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], scope.ClusterId,
+		GLOBAL_QUALIFIER,
+	)
+}
+
 func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
 	var qualifierMappings []*QualifierMapping
 	query := repo.dbConnection.Model(&qualifierMappings).
 		Where("active = ?", true).
-		Where("resource_type = ?", resourceType).
-		Where("(qualifier_id = ?)", GLOBAL_QUALIFIER)
+		Where("resource_type = ?", resourceType)
 
 	if len(resourceIds) > 0 {
 		query = query.Where("resource_id IN (?)", pg.In(resourceIds))
 	}
+
+	// Enterprise Only
+	query = repo.addScopeWhereClause(query, scope, searchableIdMap)
 
 	err := query.Select()
 	if err != nil {

@@ -1,10 +1,11 @@
 package resourceQualifiers
 
 type Scope struct {
-	AppId     int `json:"appId"`
-	EnvId     int `json:"envId"`
-	ClusterId int `json:"clusterId"`
-	ProjectId int `json:"projectId"`
+	AppId     int  `json:"appId"`
+	EnvId     int  `json:"envId"`
+	ClusterId int  `json:"clusterId"`
+	ProjectId int  `json:"projectId"`
+	IsProdEnv bool `json:"isProdEnv"`
 }
 
 type Qualifier int

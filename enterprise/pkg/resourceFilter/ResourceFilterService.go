@@ -549,8 +549,8 @@ func (impl *ResourceFilterServiceImpl) checkForEnvQualifier(scope resourceQualif
 	}
 	envIdentifierValueInt := envFilterQualifier.IdentifierValueInt
 	if envFilterQualifier.IdentifierKey == ClusterIdentifier {
-		envAllowed = envIdentifierValueInt == AllExistingAndFutureProdEnvsInt ||
-			envIdentifierValueInt == AllExistingAndFutureNonProdEnvsInt || envIdentifierValueInt == scope.ClusterId
+		envIdentifierScopeValue := resourceQualifiers.GetEnvIdentifierValue(scope)
+		envAllowed = envIdentifierValueInt == envIdentifierScopeValue || envIdentifierValueInt == scope.ClusterId
 	} else {
 		// check for env identifier value
 		envAllowed = envIdentifierValueInt == scope.EnvId
