@@ -422,8 +422,8 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	if patchRequest.CiPipeline.PipelineType == bean.CI_JOB {
 		patchRequest.CiPipeline.IsDockerConfigOverridden = true
 		patchRequest.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
-			DockerRegistry:   "",
-			DockerRepository: "",
+			DockerRegistry:   ciConf.DockerRegistry,
+			DockerRepository: ciConf.DockerRepository,
 			CiBuildConfig: &bean1.CiBuildConfigBean{
 				Id:                        0,
 				GitMaterialId:             patchRequest.CiPipeline.CiMaterial[0].GitMaterialId,
