@@ -117,7 +117,7 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 		},
 	}
 
-	for _, e := range request.Conditions {
+	for i, e := range request.Conditions {
 		validateExpression := CELRequest{
 			Expression:         e.Expression,
 			ExpressionMetadata: ExpressionMetadata{Params: params},
@@ -127,6 +127,7 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 			errored = true
 			e.ErrorMsg = err.Error()
 		}
+		request.Conditions[i] = e
 	}
 
 	return request, errored
