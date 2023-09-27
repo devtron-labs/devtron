@@ -4,6 +4,7 @@ import (
 	"errors"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -27,15 +28,16 @@ type ResourceFilterService interface {
 }
 
 type ResourceFilterServiceImpl struct {
-	logger                   *zap.SugaredLogger
-	qualifyingMappingService resourceQualifiers.QualifierMappingService
-	resourceFilterRepository ResourceFilterRepository
-	resourceFilterEvaluator  ResourceFilterEvaluator
-	appRepository            appRepository.AppRepository
-	teamRepository           team.TeamRepository
-	clusterRepository        clusterRepository.ClusterRepository
-	environmentRepository    clusterRepository.EnvironmentRepository
-	ceLEvaluatorService      CELEvaluatorService
+	logger                              *zap.SugaredLogger
+	qualifyingMappingService            resourceQualifiers.QualifierMappingService
+	resourceFilterRepository            ResourceFilterRepository
+	resourceFilterEvaluator             ResourceFilterEvaluator
+	appRepository                       appRepository.AppRepository
+	teamRepository                      team.TeamRepository
+	clusterRepository                   clusterRepository.ClusterRepository
+	environmentRepository               clusterRepository.EnvironmentRepository
+	ceLEvaluatorService                 CELEvaluatorService
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyServiceImpl
 }
 
 func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
@@ -47,17 +49,19 @@ func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	environmentRepository clusterRepository.EnvironmentRepository,
 	ceLEvaluatorService CELEvaluatorService,
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyServiceImpl,
 ) *ResourceFilterServiceImpl {
 	return &ResourceFilterServiceImpl{
-		logger:                   logger,
-		qualifyingMappingService: qualifyingMappingService,
-		resourceFilterRepository: resourceFilterRepository,
-		resourceFilterEvaluator:  resourceFilterEvaluator,
-		appRepository:            appRepository,
-		teamRepository:           teamRepository,
-		clusterRepository:        clusterRepository,
-		environmentRepository:    environmentRepository,
-		ceLEvaluatorService:      ceLEvaluatorService,
+		logger:                              logger,
+		qualifyingMappingService:            qualifyingMappingService,
+		resourceFilterRepository:            resourceFilterRepository,
+		resourceFilterEvaluator:             resourceFilterEvaluator,
+		appRepository:                       appRepository,
+		teamRepository:                      teamRepository,
+		clusterRepository:                   clusterRepository,
+		environmentRepository:               environmentRepository,
+		ceLEvaluatorService:                 ceLEvaluatorService,
+		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
 	}
 }
 
@@ -396,13 +400,14 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 		CreatedBy: userId,
 		UpdatedBy: userId,
 	}
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	//case-1) all existing and future applications -> will get empty ApplicationSelector , db entry (proj,0,"0")
 	if len(qualifierSelector.ApplicationSelectors) == 1 && qualifierSelector.ApplicationSelectors[0].ProjectName == AllProjectsValue {
 		allExistingAndFutureAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:            resourceFilterId,
 			ResourceType:          resourceQualifiers.Filter,
 			QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
-			IdentifierKey:         ProjectIdentifier,
+			IdentifierKey:         GetIdentifierKey(ProjectIdentifier, searchableKeyNameIdMap),
 			Active:                true,
 			IdentifierValueInt:    AllProjectsInt,
 			IdentifierValueString: AllProjectsValue,
@@ -418,7 +423,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 					ResourceId:            resourceFilterId,
 					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 					ResourceType:          resourceQualifiers.Filter,
-					IdentifierKey:         ProjectIdentifier,
+					IdentifierKey:         GetIdentifierKey(ProjectIdentifier, searchableKeyNameIdMap),
 					Active:                true,
 					IdentifierValueInt:    projectNameToIdMap[appSelector.ProjectName],
 					IdentifierValueString: appSelector.ProjectName,
@@ -434,7 +439,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 					ResourceId:            resourceFilterId,
 					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 					ResourceType:          resourceQualifiers.Filter,
-					IdentifierKey:         AppIdentifier,
+					IdentifierKey:         GetIdentifierKey(AppIdentifier, searchableKeyNameIdMap),
 					Active:                true,
 					IdentifierValueInt:    appNameToIdMap[appName],
 					IdentifierValueString: appName,
@@ -454,7 +459,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 			ResourceId:    resourceFilterId,
 			QualifierId:   int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 			ResourceType:  resourceQualifiers.Filter,
-			IdentifierKey: ClusterIdentifier,
+			IdentifierKey: GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap),
 			Active:        true,
 			AuditLog:      auditLog,
 		}
@@ -474,7 +479,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 					ResourceId:            resourceFilterId,
 					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 					ResourceType:          resourceQualifiers.Filter,
-					IdentifierKey:         ClusterIdentifier,
+					IdentifierKey:         GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap),
 					IdentifierValueInt:    clusterNameToIdMap[envSelector.ClusterName],
 					IdentifierValueString: envSelector.ClusterName,
 					Active:                true,
@@ -489,7 +494,7 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 					ResourceId:            resourceFilterId,
 					QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 					ResourceType:          resourceQualifiers.Filter,
-					IdentifierKey:         EnvironmentIdentifier,
+					IdentifierKey:         GetIdentifierKey(EnvironmentIdentifier, searchableKeyNameIdMap),
 					IdentifierValueInt:    envNameToIdMap[env],
 					IdentifierValueString: env,
 					Active:                true,
@@ -547,8 +552,9 @@ func (impl *ResourceFilterServiceImpl) checkForEnvQualifier(scope resourceQualif
 	if envFilterQualifier == nil {
 		return envAllowed
 	}
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	envIdentifierValueInt := envFilterQualifier.IdentifierValueInt
-	if envFilterQualifier.IdentifierKey == ClusterIdentifier {
+	if envFilterQualifier.IdentifierKey == GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap) {
 		envIdentifierScopeValue := resourceQualifiers.GetEnvIdentifierValue(scope)
 		envAllowed = envIdentifierValueInt == envIdentifierScopeValue || envIdentifierValueInt == scope.ClusterId
 	} else {
@@ -565,8 +571,9 @@ func (impl *ResourceFilterServiceImpl) checkForAppQualifier(scope resourceQualif
 	if appFilterQualifier == nil {
 		return appAllowed
 	}
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	appIdentifierValueInt := appFilterQualifier.IdentifierValueInt
-	if appFilterQualifier.IdentifierKey == ProjectIdentifier {
+	if appFilterQualifier.IdentifierKey == GetIdentifierKey(ProjectIdentifier, searchableKeyNameIdMap) {
 		appAllowed = appIdentifierValueInt == AllProjectsInt || appIdentifierValueInt == scope.ProjectId
 	} else {
 		// check for app identifier value
@@ -576,9 +583,10 @@ func (impl *ResourceFilterServiceImpl) checkForAppQualifier(scope resourceQualif
 }
 
 func (impl *ResourceFilterServiceImpl) filterAppQualifier(qualifierMappings []*resourceQualifiers.QualifierMapping) *resourceQualifiers.QualifierMapping {
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	for _, qualifierMapping := range qualifierMappings {
 		identifierKey := qualifierMapping.IdentifierKey
-		if identifierKey == ProjectIdentifier || identifierKey == AppIdentifier {
+		if identifierKey == GetIdentifierKey(ProjectIdentifier, searchableKeyNameIdMap) || identifierKey == GetIdentifierKey(AppIdentifier, searchableKeyNameIdMap) {
 			return qualifierMapping
 		}
 	}
@@ -586,9 +594,10 @@ func (impl *ResourceFilterServiceImpl) filterAppQualifier(qualifierMappings []*r
 }
 
 func (impl *ResourceFilterServiceImpl) filterEnvQualifier(qualifierMappings []*resourceQualifiers.QualifierMapping) *resourceQualifiers.QualifierMapping {
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	for _, qualifierMapping := range qualifierMappings {
 		identifierKey := qualifierMapping.IdentifierKey
-		if identifierKey == ClusterIdentifier || identifierKey == EnvironmentIdentifier {
+		if identifierKey == GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap) || identifierKey == GetIdentifierKey(EnvironmentIdentifier, searchableKeyNameIdMap) {
 			return qualifierMapping
 		}
 	}
@@ -599,18 +608,19 @@ func (impl *ResourceFilterServiceImpl) makeQualifierSelector(qualifierMappings [
 	appSelectors, envSelectors := make([]ApplicationSelector, 0), make([]EnvironmentSelector, 0)
 	appIds, envIds := make([]int, 0), make([]int, 0)
 	resp := QualifierSelector{}
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	for _, qualifierMapping := range qualifierMappings {
-		if qualifierMapping.IdentifierKey == ProjectIdentifier || qualifierMapping.IdentifierKey == AppIdentifier {
+		if qualifierMapping.IdentifierKey == GetIdentifierKey(ProjectIdentifier, searchableKeyNameIdMap) || qualifierMapping.IdentifierKey == GetIdentifierKey(AppIdentifier, searchableKeyNameIdMap) {
 			appSelector := ApplicationSelector{}
-			if qualifierMapping.IdentifierKey == ProjectIdentifier {
+			if qualifierMapping.IdentifierKey == GetIdentifierKey(ProjectIdentifier, searchableKeyNameIdMap) {
 				appSelector.ProjectName = qualifierMapping.IdentifierValueString
 				appSelector.Applications = make([]string, 0)
 			} else {
 				appIds = append(appIds, qualifierMapping.IdentifierValueInt)
 			}
 
-		} else if qualifierMapping.IdentifierKey == ClusterIdentifier || qualifierMapping.IdentifierKey == EnvironmentIdentifier {
-			if qualifierMapping.IdentifierKey == ClusterIdentifier {
+		} else if qualifierMapping.IdentifierKey == GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap) || qualifierMapping.IdentifierKey == GetIdentifierKey(EnvironmentIdentifier, searchableKeyNameIdMap) {
+			if qualifierMapping.IdentifierKey == GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap) {
 				envSelector := EnvironmentSelector{}
 				envSelector.ClusterName = qualifierMapping.IdentifierValueString
 				envSelector.Environments = make([]string, 0)

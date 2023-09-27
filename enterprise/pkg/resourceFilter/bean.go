@@ -1,6 +1,9 @@
 package resourceFilter
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+)
 
 const (
 	NoResourceFiltersFound               = "no active resource filters found"
@@ -137,4 +140,20 @@ func convertToFilterBean(resourceFilter *ResourceFilter) (*FilterRequestResponse
 		Conditions: resourceConditions,
 	}
 	return filterResponseBean, nil
+}
+
+func GetIdentifierKey(identifierType IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) int {
+	switch identifierType {
+	case AppIdentifier:
+		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID]
+	case ClusterIdentifier:
+		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]
+	case EnvironmentIdentifier:
+		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
+	case ProjectIdentifier:
+		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_ID]
+	default:
+		//TODO: revisit
+		return -1
+	}
 }
