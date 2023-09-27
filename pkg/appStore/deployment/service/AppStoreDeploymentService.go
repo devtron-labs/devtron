@@ -712,6 +712,9 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 
 	app, err := impl.appRepository.FindById(installAppVersionRequest.AppId)
 	if err != nil {
+		if err == pg.ErrNoRows {
+			return nil, fmt.Errorf("App not found in database")
+		}
 		return nil, err
 	}
 	model, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
@@ -877,7 +880,7 @@ func (impl AppStoreDeploymentServiceImpl) createEnvironmentIfNotExists(installAp
 	}
 
 	environmentBean := &cluster2.EnvironmentBean{
-		Environment: cluster2.BuildEnvironmentIdentifer(cluster.ClusterName, namespace),
+		Environment: cluster2.BuildEnvironmentName(cluster.ClusterName, namespace),
 		ClusterId:   clusterId,
 		Namespace:   namespace,
 		Default:     false,
@@ -1347,7 +1350,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		installedAppVersion, err = impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
 		if err != nil {
 			impl.logger.Errorw("error in fetching installedAppVersion by installAppVersionRequest id ", "err", err)
-			return nil, err
+			return nil, fmt.Errorf("The values are outdated. Please make your changes to the latest version and try again.")
 		}
 		// version is upgraded if appStoreApplication version from request payload is not equal to installed app version saved in DB
 		if installedAppVersion.AppStoreApplicationVersionId != installAppVersionRequest.AppStoreVersion {
@@ -1548,6 +1551,9 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
 	if err != nil {
+		if err == pg.ErrNoRows {
+			return nil, fmt.Errorf("values are outdated. please fetch the latest version and try again")
+		}
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}

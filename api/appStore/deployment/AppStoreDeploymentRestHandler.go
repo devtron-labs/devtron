@@ -35,6 +35,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -291,6 +292,11 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installAppId)
 	if err != nil {
 		handler.Logger.Error(err)
+		if err == pg.ErrNoRows {
+			err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "App not found in database", InternalMessage: err.Error()}
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

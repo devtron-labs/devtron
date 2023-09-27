@@ -585,7 +585,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	clusterBean, err := impl.environmentClusterMappingsService.FindClusterByEnvId(bean.ClusterId)
+	clusterBean, err := impl.environmentClusterMappingsService.FindClusterByEnvId(envId)
 	if err != nil {
 		impl.logger.Errorw("request err, FindById", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
