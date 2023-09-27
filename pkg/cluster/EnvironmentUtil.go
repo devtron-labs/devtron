@@ -17,8 +17,13 @@
 
 package cluster
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
-func BuildEnvironmentIdentifer(clusterName string, namespace string) string {
-	return fmt.Sprintf("%s__%s", clusterName, namespace)
+func BuildEnvironmentName(clusterName string, namespace string) string {
+	// Here we are replacing the (_) with (-) in clusterName as we don't support (_) in environment Name
+	clusterName = strings.ReplaceAll(clusterName, "_", "-")
+	return fmt.Sprintf("%s--%s", clusterName, namespace)
 }
