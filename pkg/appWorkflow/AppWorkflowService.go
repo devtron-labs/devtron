@@ -738,7 +738,7 @@ func filterMappingOnFilteredCdPipelineIds(componentIdWorkflowMapping map[string]
 		}
 		if componentIdWorkflowMapping[parentPipelineType][parentPipelineId].Type != ciType {
 			if len(componentIdWorkflowMapping[parentPipelineType][parentPipelineId].ChildPipelinesIds) == 0 {
-				//this means it's not an intersection
+				//this means this pipeline has become leaf, so append this pipelineId in leafPipelines for further processing
 				leafPipelines = append(leafPipelines, componentIdWorkflowMapping[parentPipelineType][parentPipelineId])
 				leafPipelineSize += 1
 			}
