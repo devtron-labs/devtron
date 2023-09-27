@@ -36,9 +36,3 @@ then
  fi
 fi' WHERE id=(select script_id from  plugin_step inner join plugin_metadata on plugin_step.plugin_id=plugin_metadata.id  where plugin_metadata.name='Sonarqube');
 
-
-/* changing webhook trigger in git_sensor  */
-
-
-
-DELETE FROM git_host_webhook_event_selectors where  event_id=2 and name='pull request id';
