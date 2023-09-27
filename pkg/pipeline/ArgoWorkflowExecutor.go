@@ -28,9 +28,9 @@ const (
 	CRED_ACCESS_KEY              = "accessKey"
 	CRED_SECRET_KEY              = "secretKey"
 	S3_ENDPOINT_URL              = "s3.amazonaws.com"
-	WORKFLOW_GENERATE_NAME_REGEX = "%s-"
 	DEVTRON_WORKFLOW_LABEL_KEY   = "devtron.ai/workflow-purpose"
 	DEVTRON_WORKFLOW_LABEL_VALUE = "cd"
+	WORKFLOW_GENERATE_NAME_REGEX = "%s-"
 	RESOURCE_CREATE_ACTION       = "create"
 )
 

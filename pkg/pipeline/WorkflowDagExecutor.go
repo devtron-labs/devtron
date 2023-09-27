@@ -618,7 +618,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	cdStageWorkflowRequest.StageType = PRE
-
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
@@ -750,6 +749,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		}
 		runner.Namespace = env.Namespace
 	}
+
 	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	if err != nil {
 		return err
