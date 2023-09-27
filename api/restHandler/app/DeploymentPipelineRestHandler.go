@@ -1498,23 +1498,6 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
 		return
 	}
-	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(app.Id)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", app.Id)
-		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
-		return
-	}
-
-	ciArtifactResponse.AppReleaseTagNames = appTags
-
-	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(cdPipelineId)
-	ciArtifactResponse.TagsEditable = prodEnvExists && triggerAccess
-	ciArtifactResponse.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
-	if err != nil {
-		handler.Logger.Errorw("service err, GetProdEnvByCdPipelineId", "err", err, "cdPipelineId", app.Id)
-		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
-		return
-	}
 	ciArtifactResponse.RequestedUserId = userId
 	common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusOK)
 }
