@@ -77,7 +77,6 @@ type CiCompleteEvent struct {
 	ImageDetailsFromCR *ImageDetailsFromCR      `json:"imageDetailsFromCR"`
 }
 
-
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
 		logger:         logger,
@@ -103,6 +102,8 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			impl.logger.Error("error while unmarshalling json data", "error", err)
 			return
 		}
+		impl.logger.Infow("msgData", "msgdata", msg.Data)
+		impl.logger.Infow("ciCompleteEvent", ciCompleteEvent)
 		impl.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)
 		req, err := impl.BuildCiArtifactRequest(ciCompleteEvent)
 		if err != nil {
@@ -125,6 +126,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 						ciCompleteEvent.PipelineId, "error: ", err)
 					return
 				}
+				impl.logger.Infow("request Build ci Artifact:", "request", request)
 				resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
 				if err != nil {
 					impl.logger.Error("Error while sending event for CI success for pipelineID: ",
