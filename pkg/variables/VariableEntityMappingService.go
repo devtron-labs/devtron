@@ -75,6 +75,7 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 	if len(variablesToDelete) > 0 {
 		err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, utils.ToStringArray(variablesToDelete), entity, userId)
 		if err != nil {
+			impl.logger.Errorw("error in deleting variables for entity", "err", err)
 			return err
 		}
 	}
@@ -82,6 +83,7 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 	if len(newVariableMappings) > 0 {
 		err = impl.variableEntityMappingRepository.SaveVariableEntityMappings(tx, newVariableMappings)
 		if err != nil {
+			impl.logger.Errorw("error in saving variables for entity", "err", err)
 			return err
 		}
 	}
@@ -89,6 +91,7 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 	if passedTx == nil {
 		err = impl.variableEntityMappingRepository.CommitTx(tx)
 		if err != nil {
+			impl.logger.Errorw("error in committing transaction for UpdateVariablesForEntity", "err", err)
 			return err
 		}
 	}
@@ -104,6 +107,7 @@ func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities 
 
 	variableEntityMappings, err := impl.variableEntityMappingRepository.GetVariablesForEntities(entities)
 	if err != nil {
+		impl.logger.Errorw("error in fetching mappings for entities", "err", err)
 		return nil, err
 	}
 
@@ -118,6 +122,7 @@ func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities 
 func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities []repository.Entity, userId int32, tx *pg.Tx) error {
 	err := impl.variableEntityMappingRepository.DeleteAllVariablesForEntities(tx, entities, userId)
 	if err != nil {
+		impl.logger.Errorw("error in deleting mappings for entities", "err", err)
 		return err
 	}
 	return nil

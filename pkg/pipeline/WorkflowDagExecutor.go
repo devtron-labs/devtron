@@ -894,7 +894,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				},
 			}}, runner.TriggeredBy)
 			if err != nil {
-				impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s", err)
+				impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s %d %s", err, runner.Id, variableSnapshot)
 			}
 		}
 	} else {
