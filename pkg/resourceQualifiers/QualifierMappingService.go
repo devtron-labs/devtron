@@ -9,9 +9,9 @@ import (
 
 type QualifierMappingService interface {
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
-	GetQualifierMappings(resourceType ResourceType, scope Scope, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilter(scope Scope) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
+	GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
 }
@@ -34,7 +34,7 @@ func (impl QualifierMappingServiceImpl) CreateQualifierMappings(qualifierMapping
 	return impl.qualifierMappingRepository.CreateQualifierMappings(qualifierMappings, tx)
 }
 
-func (impl QualifierMappingServiceImpl) GetQualifierMappings(resourceType ResourceType, scope Scope, resourceIds []int) ([]*QualifierMapping, error) {
+func (impl QualifierMappingServiceImpl) GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error) {
 	searchableIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	return impl.qualifierMappingRepository.GetQualifierMappings(resourceType, scope, searchableIdMap, resourceIds)
 }

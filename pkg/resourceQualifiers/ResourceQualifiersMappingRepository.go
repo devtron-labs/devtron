@@ -14,7 +14,7 @@ type QualifiersMappingRepository interface {
 	//transaction util funcs
 	sql.TransactionWrapper
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
-	GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
+	GetQualifierMappings(resourceType ResourceType, scope *Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilter(scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(ResourceType, sql.AuditLog, *pg.Tx) error

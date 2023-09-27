@@ -410,7 +410,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		return make([]*models.ScopedVariableData, 0), nil
 	}
 
-	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, scope, variableIds)
+	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, &scope, variableIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting varScope", "err", err)
 		return nil, err
@@ -575,8 +575,7 @@ func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*reposito
 	for _, variableDefinition := range dataForJson {
 		varDefnIds = append(varDefnIds, variableDefinition.Id)
 	}
-	scope := resourceQualifiers.Scope{}
-	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, scope, varDefnIds)
+	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, nil, varDefnIds)
 	if err != nil {
 		//TODO KB: handle this
 		return varIdVsScopeMappings, varScopeIds, err
