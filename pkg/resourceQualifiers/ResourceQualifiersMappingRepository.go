@@ -12,6 +12,7 @@ type QualifiersMappingRepository interface {
 	sql.TransactionWrapper
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
+	GetQualifierMappingsForFilter(scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(ResourceType, sql.AuditLog, *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
 }
@@ -35,6 +36,12 @@ func (repo *QualifiersMappingRepositoryImpl) CreateQualifierMappings(qualifierMa
 	if err != nil {
 		return nil, err
 	}
+	return qualifierMappings, nil
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilter(scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*QualifierMapping, error) {
+	var qualifierMappings []*QualifierMapping
+	// TODO don't throw pgNoRows error, handle it here only
 	return qualifierMappings, nil
 }
 

@@ -352,6 +352,7 @@ func (impl *AppServiceImpl) SetPipelineFieldsInOverrideRequest(overrideRequest *
 	overrideRequest.EnvName = pipeline.Environment.Name
 	overrideRequest.ClusterId = pipeline.Environment.ClusterId
 	overrideRequest.AppId = pipeline.AppId
+	overrideRequest.ProjectId = pipeline.App.TeamId
 	overrideRequest.AppName = pipeline.App.AppName
 	overrideRequest.DeploymentAppType = pipeline.DeploymentAppType
 }

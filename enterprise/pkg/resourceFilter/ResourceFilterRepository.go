@@ -39,6 +39,7 @@ type ResourceFilterRepository interface {
 	UpdateFilter(tx *pg.Tx, filter *ResourceFilter) error
 	ListAll() ([]*ResourceFilter, error)
 	GetById(id int) (*ResourceFilter, error)
+	GetByIds(ids []int) ([]*ResourceFilter, error)
 }
 
 type ResourceFilterRepositoryImpl struct {
@@ -75,8 +76,23 @@ func (repo *ResourceFilterRepositoryImpl) GetById(id int) (*ResourceFilter, erro
 	return filter, err
 }
 
+func (repo *ResourceFilterRepositoryImpl) GetByIds(ids []int) ([]*ResourceFilter, error) {
+	var resourceFilters []*ResourceFilter
+	err := repo.dbConnection.Model(&resourceFilters).
+		Where("id IN (?)", pg.In(ids)).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error occurred while fetching filter", "ids", ids, "err", err)
+		if err == pg.ErrNoRows {
+			err = nil
+		}
+	}
+	return resourceFilters, err
+}
+
 func (repo *ResourceFilterRepositoryImpl) ListAll() ([]*ResourceFilter, error) {
 	list := make([]*ResourceFilter, 0)
-	err := repo.dbConnection.Model(list).Where("deleted=false").Select()
+	err := repo.dbConnection.Model(list).Where("deleted=?", false).Select()
 	return list, err
 }

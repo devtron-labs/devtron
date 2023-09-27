@@ -1,7 +1,6 @@
 package resourceFilter
 
 import (
-	"encoding/json"
 	"errors"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -21,8 +20,8 @@ type ResourceFilterService interface {
 	CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterMetaDataBean, error)
 	DeleteFilter(userId int32, id int) error
 
-	//GetFiltersByAppIdEnvId
-	GetFiltersByAppIdEnvId(appId, envId int) ([]*FilterRequestResponseBean, error)
+	//GetFiltersByScope
+	GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterRequestResponseBean, error)
 
 	CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error)
 }
@@ -219,8 +218,23 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 	return nil
 }
 
-func (impl *ResourceFilterServiceImpl) GetFiltersByAppIdEnvId(appId, envId int) ([]*FilterRequestResponseBean, error) {
-	return nil, nil
+func (impl *ResourceFilterServiceImpl) GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterRequestResponseBean, error) {
+	// fetch all the qualifier mappings, club them by filterIds, check for each filter whether it is eligible or not, then fetch filter details
+	var filters []*FilterRequestResponseBean
+	qualifierMappings, err := impl.qualifyingMappingService.GetQualifierMappingsForFilter(scope)
+	if err != nil {
+		return filters, err
+	}
+	eligibleFilterIds := impl.extractEligibleFilters(scope, qualifierMappings)
+	resourceFilters, err := impl.resourceFilterRepository.GetByIds(eligibleFilterIds)
+	if err != nil {
+		return filters, err
+	}
+	filters, err = convertToResponseBeans(resourceFilters)
+	if err != nil {
+		impl.logger.Errorw("error occurred while converting db dtos to beans", "scope", scope, "err", err)
+	}
+	return filters, err
 }
 
 func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSelector) (map[string]int, map[string]int, map[string]int, map[string]int, error) {
@@ -312,7 +326,7 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 
 func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error) {
 	// fetch filters for given scope, use FilterEvaluator.Evaluate to check for access
-	filters, err := impl.GetFiltersByAppIdEnvId(scope.AppId, scope.EnvId)
+	filters, err := impl.GetFiltersByScope(scope)
 	if err != nil {
 		return ERROR, err
 	}
@@ -448,11 +462,91 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 	return err
 }
 
-func getJsonStringFromResourceCondition(resourceConditions []ResourceCondition) (string, error) {
-
-	jsonBytes, err := json.Marshal(resourceConditions)
-	if err != nil {
-		return "", err
+func (impl *ResourceFilterServiceImpl) convertToFilterMappings(qualifierMappings []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping {
+	filterIdVsMappings := make(map[int][]*resourceQualifiers.QualifierMapping, 0)
+	for _, qualifierMapping := range qualifierMappings {
+		filterId := qualifierMapping.QualifierId
+		filterMappings := filterIdVsMappings[filterId]
+		filterMappings = append(filterMappings, qualifierMapping)
+		filterIdVsMappings[filterId] = filterMappings
 	}
-	return string(jsonBytes), nil
+	return filterIdVsMappings
+}
+
+func (impl *ResourceFilterServiceImpl) extractEligibleFilters(scope resourceQualifiers.Scope, qualifierMappings []*resourceQualifiers.QualifierMapping) []int {
+	filterIdVsMappings := impl.convertToFilterMappings(qualifierMappings)
+	var eligibleFilterIds []int
+	for filterId, filterMappings := range filterIdVsMappings {
+		eligible := impl.checkForFilterEligibility(scope, filterMappings)
+		if eligible {
+			eligibleFilterIds = append(eligibleFilterIds, filterId)
+		}
+	}
+	return eligibleFilterIds
+}
+
+func (impl *ResourceFilterServiceImpl) checkForFilterEligibility(scope resourceQualifiers.Scope, filterMappings []*resourceQualifiers.QualifierMapping) bool {
+
+	//club app qualifiers, shortlist project qualifiers or app qualifiers, if not found, return false
+	appAllowed := impl.checkForAppQualifier(scope, filterMappings)
+	// club env qualifiers, shortlist cluster qualifiers or env qualifiers, if not found, return false
+	envAllowed := impl.checkForEnvQualifier(scope, filterMappings)
+
+	eligible := appAllowed && envAllowed
+	return eligible
+}
+
+func (impl *ResourceFilterServiceImpl) checkForEnvQualifier(scope resourceQualifiers.Scope, filterMappings []*resourceQualifiers.QualifierMapping) bool {
+	var envAllowed bool
+	var envFilterQualifier *resourceQualifiers.QualifierMapping
+	envFilterQualifier = impl.filterEnvQualifier(filterMappings)
+	if envFilterQualifier == nil {
+		return envAllowed
+	}
+	envIdentifierValueInt := envFilterQualifier.IdentifierValueInt
+	if envFilterQualifier.IdentifierKey == ClusterIdentifier {
+		envAllowed = envIdentifierValueInt == AllExistingAndFutureProdEnvsInt ||
+			envIdentifierValueInt == AllExistingAndFutureNonProdEnvsInt || envIdentifierValueInt == scope.ClusterId
+	} else {
+		// check for env identifier value
+		envAllowed = envIdentifierValueInt == scope.EnvId
+	}
+	return envAllowed
+}
+
+func (impl *ResourceFilterServiceImpl) checkForAppQualifier(scope resourceQualifiers.Scope, filterMappings []*resourceQualifiers.QualifierMapping) bool {
+	var appAllowed bool
+	var appFilterQualifier *resourceQualifiers.QualifierMapping
+	appFilterQualifier = impl.filterAppQualifier(filterMappings)
+	if appFilterQualifier == nil {
+		return appAllowed
+	}
+	appIdentifierValueInt := appFilterQualifier.IdentifierValueInt
+	if appFilterQualifier.IdentifierKey == ProjectIdentifier {
+		appAllowed = appIdentifierValueInt == AllProjectsInt || appIdentifierValueInt == scope.ProjectId
+	} else {
+		// check for app identifier value
+		appAllowed = appIdentifierValueInt == scope.AppId
+	}
+	return appAllowed
+}
+
+func (impl *ResourceFilterServiceImpl) filterAppQualifier(qualifierMappings []*resourceQualifiers.QualifierMapping) *resourceQualifiers.QualifierMapping {
+	for _, qualifierMapping := range qualifierMappings {
+		identifierKey := qualifierMapping.IdentifierKey
+		if identifierKey == ProjectIdentifier || identifierKey == AppIdentifier {
+			return qualifierMapping
+		}
+	}
+	return nil
+}
+
+func (impl *ResourceFilterServiceImpl) filterEnvQualifier(qualifierMappings []*resourceQualifiers.QualifierMapping) *resourceQualifiers.QualifierMapping {
+	for _, qualifierMapping := range qualifierMappings {
+		identifierKey := qualifierMapping.IdentifierKey
+		if identifierKey == ClusterIdentifier || identifierKey == EnvironmentIdentifier {
+			return qualifierMapping
+		}
+	}
+	return nil
 }

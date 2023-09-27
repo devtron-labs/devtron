@@ -4120,7 +4120,7 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
 		// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR First check whether this env has filter enabled
-		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId}
+		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: pipeline.Environment.ClusterId}
 		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
 		metadata := resourceFilter.ExpressionMetadata{
 			Params: params,
