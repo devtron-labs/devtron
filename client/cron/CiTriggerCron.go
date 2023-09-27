@@ -65,7 +65,7 @@ func GetCiTriggerCronConfig() (*CiTriggerCronConfig, error) {
 
 // UpdateCiWorkflowStatusFailedCron this function will execute periodically
 func (impl *CiTriggerCronImpl) TriggerCiCron() {
-	ciPipelineIds, err := impl.pipelineStageRepository.GetAllCiPipelineIdsByPluginIdAndStageType(impl.cfg.PluginIds, "POST_CI")
+	ciPipelineIds, err := impl.pipelineStageRepository.GetAllCiPipelineIdsByPluginIdAndStageType(impl.cfg.PluginIds, string(repository.PIPELINE_STAGE_TYPE_POST_CI))
 	if err != nil {
 		return
 	}
