@@ -200,7 +200,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chartConfig.EnvConfigOverrideRepository), new(*chartConfig.EnvConfigOverrideRepositoryImpl)),
 		chartConfig.NewPipelineOverrideRepository,
 		wire.Bind(new(chartConfig.PipelineOverrideRepository), new(*chartConfig.PipelineOverrideRepositoryImpl)),
-		//util.MergeUtil{},
 		wire.Struct(new(util.MergeUtil), "*"),
 		util.NewSugardLogger,
 

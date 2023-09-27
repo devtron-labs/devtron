@@ -63,8 +63,7 @@ func NewResourceGroupServiceImpl(logger *zap.SugaredLogger, resourceGroupReposit
 }
 
 type ResourceGroupingRequest struct {
-	//EnvId              int `json:"envId,omitempty"`
-	ResourceGroupId   int //`json:"appGroupId,omitempty"`
+	ResourceGroupId   int
 	ParentResourceId  int
 	ResourceGroupType ResourceGroupType
 	ResourceIds       []int                                                                                           `json:"appIds,omitempty"`
@@ -134,24 +133,6 @@ func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroup
 		return nil, err
 	}
 
-	// authorization starts
-	//appIdsForAuthorization := make(map[int]int)
-	//for _, appId := range request.AppIds {
-	//	appIdsForAuthorization[appId] = appId
-	//}
-	//unauthorizedApps, err := impl.checkAuthForApps(appIdsForAuthorization, request.EmailId, request.CheckAuthBatch, casbin.ActionCreate)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if len(unauthorizedApps) > 0 {
-	//	userMessage := make(map[string]interface{})
-	//	userMessage["message"] = "unauthorized for few requested apps"
-	//	userMessage["unauthorizedApps"] = unauthorizedApps
-	//	err = &util.ApiError{Code: "403", HttpStatusCode: 403, UserMessage: userMessage}
-	//	return nil, err
-	//}
-	// authorization ends
-
 	dbConnection := impl.resourceGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -220,24 +201,6 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
 	}
-
-	// authorization starts here
-	//appIdsForAuthorization := make(map[int]int)
-	//for _, appId := range request.AppIds {
-	//	appIdsForAuthorization[appId] = appId
-	//}
-	//unauthorizedApps, err := impl.checkAuthForApps(appIdsForAuthorization, request.EmailId, request.CheckAuthBatch, casbin.ActionUpdate)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if len(unauthorizedApps) > 0 {
-	//	userMessage := make(map[string]interface{})
-	//	userMessage["message"] = "unauthorized for few requested apps"
-	//	userMessage["unauthorizedApps"] = unauthorizedApps
-	//	err = &util.ApiError{Code: "403", HttpStatusCode: 403, UserMessage: userMessage}
-	//	return nil, err
-	//}
-	// authorization ends
 
 	dbConnection := impl.resourceGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -321,7 +284,6 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 	resourceKeyToId := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
 	resourceGroupDtos := make([]*ResourceGroupDto, 0)
 	var resourceGroupIds []int
-	//appGroups, err := impl.resourceGroupRepository.FindActiveListByEnvId(envId)
 	resourceGroups, err := impl.resourceGroupRepository.FindActiveListByParentResource(parentResourceId, groupType.getResourceKey(resourceKeyToId))
 
 	if err != nil && err != pg.ErrNoRows {
@@ -517,31 +479,6 @@ func (impl *ResourceGroupServiceImpl) checkAuthForResources(resourceIdsForAuthor
 	return unauthorizedResources, nil
 }
 
-//func (impl *ResourceGroupServiceImpl) checkAuthForResources(appIdsForAuthorization map[int]int, emailId string,
-//	checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool, action string) ([]string, error) {
-//	//authorization block starts here
-//	unauthorizedApps := make([]string, 0)
-//	var appObjectArr []string
-//	var appIds []int
-//	for appId, _ := range appIdsForAuthorization {
-//		appIds = append(appIds, appId)
-//	}
-//	objects := impl.enforcerUtil.GetRbacObjectsByAppIds(appIds)
-//	for _, object := range objects {
-//		appObjectArr = append(appObjectArr, object)
-//	}
-//	appResults := checkAuthBatch(emailId, appObjectArr, action)
-//	for _, appId := range appIds {
-//		appObject := objects[appId]
-//		if !appResults[appObject] {
-//			//if user unauthorized
-//			unauthorizedApps = append(unauthorizedApps, strings.Split(appObject, "/")[1])
-//		}
-//	}
-//	//authorization block ends here
-//	return unauthorizedApps, nil
-//}
-
 func (impl *ResourceGroupServiceImpl) checkAuthForResourceGroup(request *ResourceGroupDto, action string) error {
 	resourceIdsForAuthorization := make(map[int]int)
 	for _, resourceId := range request.ResourceIds {
@@ -563,24 +500,6 @@ func (impl *ResourceGroupServiceImpl) checkAuthForResourceGroup(request *Resourc
 }
 
 func (impl *ResourceGroupServiceImpl) CheckResourceGroupPermissions(request *ResourceGroupDto) (bool, error) {
-	// authorization starts
-	//appIdsForAuthorization := make(map[int]int)
-	//for _, appId := range request.AppIds {
-	//	appIdsForAuthorization[appId] = appId
-	//}
-	//unauthorizedApps, err := impl.checkAuthForResources(appIdsForAuthorization, request.EmailId, request.CheckAuthBatch, casbin.ActionCreate, request.GroupType, request.ParentResourceId)
-	//if err != nil {
-	//	return false, err
-	//}
-	//if len(unauthorizedApps) > 0 {
-	//	userMessage := make(map[string]interface{})
-	//	userMessage["message"] = "unauthorized for few requested apps"
-	//	userMessage["unauthorizedApps"] = unauthorizedApps
-	//	err = &util.ApiError{Code: "403", HttpStatusCode: 403, UserMessage: userMessage}
-	//	return false, err
-	//}
-	//// authorization ends
-	//return true, nil
 	err := impl.checkAuthForResourceGroup(request, casbin.ActionCreate)
 	if err != nil {
 		return false, err

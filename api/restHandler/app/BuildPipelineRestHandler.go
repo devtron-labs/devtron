@@ -1612,26 +1612,16 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 			return
 		}
 	}
-	//request := resourceGroup.ResourceGroupingRequest{
-	//	EnvId:           envId,
-	//	ResourceGroupId: appGroupId,
-	//	AppIds:          appIds,
-	//	EmailId:         userEmailId,
-	//	CheckAuthBatch:  handler.checkAuthBatch,
-	//	UserId:          userId,
-	//	Ctx:             r.Context(),
-	//}
+
 	request := resourceGroup.ResourceGroupingRequest{
-		//EnvId:           envId,
 		ParentResourceId:  envId,
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup.APP_GROUP,
-		//AppIds:          appIds,
-		ResourceIds:    appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiPipelinesForAppGrouping")
 	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(request)
@@ -1686,26 +1676,15 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironmentMin(w htt
 			return
 		}
 	}
-	//request := resourceGroup.ResourceGroupingRequest{
-	//	EnvId:           envId,
-	//	ResourceGroupId: appGroupId,
-	//	AppIds:          appIds,
-	//	EmailId:         userEmailId,
-	//	CheckAuthBatch:  handler.checkAuthBatch,
-	//	UserId:          userId,
-	//	Ctx:             r.Context(),
-	//}
 	request := resourceGroup.ResourceGroupingRequest{
-		//EnvId:           envId,
 		ParentResourceId:  envId,
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup.APP_GROUP,
-		//AppIds:          appIds,
-		ResourceIds:    appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiPipelinesForAppGrouping")
 	results, err := handler.pipelineBuilder.GetCiPipelineByEnvironmentMin(request)
@@ -1760,26 +1739,15 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.R
 			return
 		}
 	}
-	//request := resourceGroup.ResourceGroupingRequest{
-	//	EnvId:           envId,
-	//	ResourceGroupId: appGroupId,
-	//	AppIds:          appIds,
-	//	EmailId:         userEmailId,
-	//	CheckAuthBatch:  handler.checkAuthBatch,
-	//	UserId:          userId,
-	//	Ctx:             r.Context(),
-	//}
 	request := resourceGroup.ResourceGroupingRequest{
-		//EnvId:           envId,
 		ParentResourceId:  envId,
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup.APP_GROUP,
-		//AppIds:          appIds,
-		ResourceIds:    appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchExternalCiPipelinesForAppGrouping")
 	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(request)

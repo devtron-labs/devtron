@@ -1265,14 +1265,6 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) getAppIdsForGroup(groupId int) ([]int, error) {
-	appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(groupId)
-	if err != nil {
-		return nil, err
-	}
-	return appIds, nil
-}
-
 func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error) {
 	cdWorkflowStatus := make([]*pipelineConfig.CdWorkflowStatus, 0)
 	var pipelines []*pipelineConfig.Pipeline

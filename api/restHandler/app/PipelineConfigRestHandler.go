@@ -724,16 +724,14 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		}
 	}
 	request := resourceGroup2.ResourceGroupingRequest{
-		//EnvId:           envId,
 		ParentResourceId:  envId,
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
-		//AppIds:          appIds,
-		ResourceIds:    appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiStatusForBuildAndDeployInResourceGrouping")
@@ -858,26 +856,15 @@ func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http
 			return
 		}
 	}
-	//request := resourceGroup2.ResourceGroupingRequest{
-	//	EnvId:           envId,
-	//	ResourceGroupId: appGroupId,
-	//	AppIds:          appIds,
-	//	EmailId:         userEmailId,
-	//	CheckAuthBatch:  handler.checkAuthBatch,
-	//	UserId:          userId,
-	//	Ctx:             r.Context(),
-	//}
 	request := resourceGroup2.ResourceGroupingRequest{
-		//EnvId:           envId,
 		ParentResourceId:  envId,
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
-		//AppIds:          appIds,
-		ResourceIds:    appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	results, err := handler.pipelineBuilder.GetAppListForEnvironment(request)
 	if err != nil {
@@ -929,26 +916,16 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironm
 			return
 		}
 	}
-	//request := resourceGroup2.ResourceGroupingRequest{
-	//	EnvId:           envId,
-	//	ResourceGroupId: appGroupId,
-	//	AppIds:          appIds,
-	//	EmailId:         userEmailId,
-	//	CheckAuthBatch:  handler.checkAuthBatch,
-	//	UserId:          userId,
-	//	Ctx:             r.Context(),
-	//}
+
 	request := resourceGroup2.ResourceGroupingRequest{
-		//EnvId:           envId,
 		ParentResourceId:  envId,
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
-		//AppIds:          appIds,
-		ResourceIds:    appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.FetchAppDeploymentStatusForEnvironments")
 	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(request)

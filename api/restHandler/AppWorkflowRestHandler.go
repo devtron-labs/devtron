@@ -304,26 +304,16 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 			return
 		}
 	}
-	//request := resourceGroup2.ResourceGroupingRequest{
-	//	EnvId:           envId,
-	//	ResourceGroupId: appGroupId,
-	//	AppIds:          appIds,
-	//	EmailId:         userEmailId,
-	//	CheckAuthBatch:  impl.checkAuthBatch,
-	//	UserId:          userId,
-	//	Ctx:             r.Context(),
-	//}
+
 	request := resourceGroup2.ResourceGroupingRequest{
-		//EnvId:           envId,
 		ParentResourceId:  envId,
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
-		//AppIds:          appIds,
-		ResourceIds:    appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: impl.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    impl.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	workflows := make(map[string]interface{})
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchAppWorkflowsInAppGrouping")
