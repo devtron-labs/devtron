@@ -12,6 +12,7 @@ type QualifierMappingService interface {
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilter(scope Scope) ([]*QualifierMapping, error)
+	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
 }
@@ -43,6 +44,9 @@ func (impl QualifierMappingServiceImpl) GetQualifierMappingsForFilter(scope Scop
 	return impl.qualifierMappingRepository.GetQualifierMappingsForFilter(scope, searchableKeyNameIdMap)
 }
 
+func (impl QualifierMappingServiceImpl) GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error) {
+	return impl.qualifierMappingRepository.GetQualifierMappingsForFilterById(resourceId)
+}
 func (impl QualifierMappingServiceImpl) DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error {
 	return impl.qualifierMappingRepository.DeleteAllQualifierMappings(resourceType, auditLog, tx)
 }

@@ -17,7 +17,7 @@ type ResourceFilterService interface {
 	ListFilters() ([]*FilterMetaDataBean, error)
 	GetFilterById(id int) (*FilterRequestResponseBean, error)
 	UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) error
-	CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterMetaDataBean, error)
+	CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error)
 	DeleteFilter(userId int32, id int) error
 
 	//GetFiltersByScope
@@ -35,6 +35,7 @@ type ResourceFilterServiceImpl struct {
 	teamRepository           team.TeamRepository
 	clusterRepository        clusterRepository.ClusterRepository
 	environmentRepository    clusterRepository.EnvironmentRepository
+	ceLEvaluatorService      CELEvaluatorService
 }
 
 func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
@@ -45,6 +46,7 @@ func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
 	teamRepository team.TeamRepository,
 	clusterRepository clusterRepository.ClusterRepository,
 	environmentRepository clusterRepository.EnvironmentRepository,
+	ceLEvaluatorService CELEvaluatorService,
 ) *ResourceFilterServiceImpl {
 	return &ResourceFilterServiceImpl{
 		logger:                   logger,
@@ -55,6 +57,7 @@ func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
 		teamRepository:           teamRepository,
 		clusterRepository:        clusterRepository,
 		environmentRepository:    environmentRepository,
+		ceLEvaluatorService:      ceLEvaluatorService,
 	}
 }
 
@@ -81,15 +84,51 @@ func (impl *ResourceFilterServiceImpl) ListFilters() ([]*FilterMetaDataBean, err
 }
 
 func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResponseBean, error) {
-	return nil, nil
+	if id == 0 {
+		return nil, errors.New("filter not found for given id")
+	}
+	filter, err := impl.resourceFilterRepository.GetById(id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching filter by id", "err", err, "filterId", id)
+		if err == pg.ErrNoRows {
+			err = errors.New("filter not found for given id")
+		}
+		return nil, err
+	}
+	resp, err := convertToFilterBean(filter)
+	if err != nil {
+		impl.logger.Errorw("error in convertToFilterBean", "err", err, "filter.ConditionExpression", filter.ConditionExpression)
+		return nil, err
+	}
+
+	qualifierMappings, err := impl.qualifyingMappingService.GetQualifierMappingsForFilterById(id)
+	if err != nil {
+		impl.logger.Errorw("error in GetQualifierMappingsForFilterById", "err", err, "filterId", id)
+		return nil, err
+	}
+	qualifierSelector, err := impl.makeQualifierSelector(qualifierMappings)
+	if err != nil {
+		impl.logger.Errorw("error in makeQualifierSelector", "error", err, "filterId", id)
+		return nil, err
+	}
+	resp.QualifierSelector = qualifierSelector
+
+	return resp, nil
 }
 
-func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterMetaDataBean, error) {
+func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error) {
 	if filterRequest == nil || len(filterRequest.QualifierSelector.EnvironmentSelectors) == 0 || len(filterRequest.QualifierSelector.ApplicationSelectors) == 0 {
 		return nil, errors.New(AppAndEnvSelectorRequiredMessage)
 	}
 
-	//TODO: evaluate filterRequest.Conditions
+	//validating given condition expressions
+	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
+	if errored {
+		filterRequest.Conditions = validateResp.Conditions
+		impl.logger.Errorw("error in validating expression", "Conditions", validateResp.Conditions)
+		return filterRequest, errors.New(InvalidExpressions)
+	}
+	//validation done
 	tx, err := impl.resourceFilterRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting db transaction", "err", err)
@@ -135,7 +174,7 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return nil, err
 	}
 	filterRequest.Id = createdFilterDataBean.Id
-	return filterRequest.FilterMetaDataBean, nil
+	return filterRequest, nil
 }
 
 func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) error {
@@ -170,17 +209,17 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 	resourceFilter.ConditionExpression = conditionExpression
 	err = impl.resourceFilterRepository.UpdateFilter(tx, resourceFilter)
 	if err != nil {
-		//TODO: add error log
+		impl.logger.Errorw("error in updating filter", "resourceFilter", resourceFilter, "err", err)
 		return err
 	}
 	err = impl.qualifyingMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(resourceQualifiers.Filter, resourceFilter.Id, sql.AuditLog{UpdatedBy: userId, UpdatedOn: currentTime}, tx)
 	if err != nil {
-		//TODO: add error log
+		impl.logger.Errorw("error in DeleteAllQualifierMappingsByResourceTypeAndId", "resourceType", resourceQualifiers.Filter, "resourceId", resourceFilter.Id, "err", err)
 		return err
 	}
 	err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, filterRequest.QualifierSelector)
 	if err != nil {
-		//TODO: add error log
+		impl.logger.Errorw("error in saveQualifierMappings for resourceFilter", "resourceFilterId", resourceFilter.Id, "qualifierMappings", filterRequest.QualifierSelector, "err", err)
 		return err
 	}
 	return nil
@@ -207,12 +246,12 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 	resourceFilter.Deleted = true
 	err = impl.resourceFilterRepository.UpdateFilter(tx, resourceFilter)
 	if err != nil {
-		//TODO: log error
+		impl.logger.Errorw("error in UpdateFilter", "err", err, "resourceFilter", resourceFilter)
 		return err
 	}
 	err = impl.qualifyingMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(resourceQualifiers.Filter, id, sql.AuditLog{UpdatedBy: userId, UpdatedOn: currentTime}, tx)
 	if err != nil {
-		//TODO: log error
+		impl.logger.Errorw("error in DeleteAllQualifierMappingsByResourceTypeAndId", "err", err, "resourceType", resourceQualifiers.Filter, "resourceId", id)
 		return err
 	}
 	return nil
@@ -269,7 +308,7 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 		appObjs, err := impl.appRepository.FindByNames(apps)
 		if err != nil {
 			if err == pg.ErrNoRows {
-				//TODO: log error
+				impl.logger.Errorw("error in finding apps with appNames", "appNames", apps)
 				err = errors.New("none of the selected apps are active")
 				return teamsMap, appsMap, clustersMap, envsMap, err
 			}
@@ -284,7 +323,7 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 		teamObjs, err := impl.teamRepository.FindByNames(teams)
 		if err != nil {
 			if err == pg.ErrNoRows {
-				//TODO: log error
+				impl.logger.Errorw("error in finding teams with teamNames", "teamNames", teams)
 				err = errors.New("none of the selected projects are active")
 				return teamsMap, appsMap, clustersMap, envsMap, err
 			}
@@ -298,8 +337,8 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 		envObjs, err := impl.environmentRepository.FindByNames(envs)
 		if err != nil {
 			if err == pg.ErrNoRows {
-				//TODO: log error
-				err = errors.New("none of the apps selected environments are active")
+				impl.logger.Errorw("error in finding envs with envNames", "envNames", envs)
+				err = errors.New("none of the selected environments are active")
 				return teamsMap, appsMap, clustersMap, envsMap, err
 			}
 		}
@@ -312,7 +351,7 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 		clusterObjs, err := impl.clusterRepository.FindByNames(clusters)
 		if err != nil {
 			if err == pg.ErrNoRows {
-				//TODO: log error
+				impl.logger.Errorw("error in finding clusters with clusterNames", "clusterNames", clusters)
 				err = errors.New("none of the selected clusters are active")
 				return teamsMap, appsMap, clustersMap, envsMap, err
 			}
@@ -344,10 +383,9 @@ func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers
 
 func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId int32, resourceFilterId int, qualifierSelector QualifierSelector) error {
 	qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0)
-	//TODO: build these maps
 	projectNameToIdMap, appNameToIdMap, clusterNameToIdMap, envNameToIdMap, err := impl.getIdsMaps(qualifierSelector)
 	if err != nil {
-		//TODO: log error
+		impl.logger.Errorw("error in making name to id maps for apps,envs,projects,clusters", "qualifierSelector", qualifierSelector, "err", err)
 		return err
 	}
 	//apps
@@ -459,6 +497,9 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 		}
 	}
 	_, err = impl.qualifyingMappingService.CreateQualifierMappings(qualifierMappings, tx)
+	if err != nil {
+		impl.logger.Errorw("error in CreateQualifierMappings", "qualifierMappings", qualifierMappings, "err", err)
+	}
 	return err
 }
 
@@ -549,4 +590,90 @@ func (impl *ResourceFilterServiceImpl) filterEnvQualifier(qualifierMappings []*r
 		}
 	}
 	return nil
+}
+
+func (impl *ResourceFilterServiceImpl) makeQualifierSelector(qualifierMappings []*resourceQualifiers.QualifierMapping) (QualifierSelector, error) {
+	appSelectors, envSelectors := make([]ApplicationSelector, 0), make([]EnvironmentSelector, 0)
+	appIds, envIds := make([]int, 0), make([]int, 0)
+	resp := QualifierSelector{}
+	for _, qualifierMapping := range qualifierMappings {
+		if qualifierMapping.IdentifierKey == ProjectIdentifier || qualifierMapping.IdentifierKey == AppIdentifier {
+			appSelector := ApplicationSelector{}
+			if qualifierMapping.IdentifierKey == ProjectIdentifier {
+				appSelector.ProjectName = qualifierMapping.IdentifierValueString
+				appSelector.Applications = make([]string, 0)
+			} else {
+				appIds = append(appIds, qualifierMapping.IdentifierValueInt)
+			}
+
+		} else if qualifierMapping.IdentifierKey == ClusterIdentifier || qualifierMapping.IdentifierKey == EnvironmentIdentifier {
+			if qualifierMapping.IdentifierKey == ClusterIdentifier {
+				envSelector := EnvironmentSelector{}
+				envSelector.ClusterName = qualifierMapping.IdentifierValueString
+				envSelector.Environments = make([]string, 0)
+			} else {
+				envIds = append(envIds, qualifierMapping.IdentifierValueInt)
+			}
+		}
+	}
+
+	apps, err := impl.appRepository.FindAppAndProjectByIdsOrderByTeam(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching apps by appIds", "err", err, "appIds", appIds)
+		return resp, err
+	}
+
+	envs, err := impl.environmentRepository.FindByIdsOrderByCluster(envIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching envs by envIds", "err", err, "envIds", envIds)
+		return resp, err
+	}
+	appSelectors, envSelectors = impl.appendAppAndEnvSelectors(appSelectors, envSelectors, apps, envs)
+	resp.ApplicationSelectors = appSelectors
+	resp.EnvironmentSelectors = envSelectors
+	return resp, nil
+}
+
+func (impl *ResourceFilterServiceImpl) appendAppAndEnvSelectors(appSelectors []ApplicationSelector, envSelectors []EnvironmentSelector, apps []*appRepository.App, envs []*clusterRepository.Environment) ([]ApplicationSelector, []EnvironmentSelector) {
+	if len(apps) > 0 {
+		prev := 0
+		appSelector := ApplicationSelector{
+			ProjectName:  apps[0].Team.Name,
+			Applications: []string{apps[0].AppName},
+		}
+		for _, app := range apps {
+			if apps[prev].TeamId != app.TeamId {
+				appSelectors = append(appSelectors, appSelector)
+				appSelector = ApplicationSelector{
+					ProjectName:  app.Team.Name,
+					Applications: []string{app.AppName},
+				}
+			} else {
+				appSelector.Applications = append(appSelector.Applications, app.AppName)
+			}
+		}
+		appSelectors = append(appSelectors, appSelector)
+	}
+
+	if len(envs) > 0 {
+		prev := 0
+		envSelector := EnvironmentSelector{
+			ClusterName:  envs[0].Cluster.ClusterName,
+			Environments: []string{envs[0].Name},
+		}
+		for _, env := range envs {
+			if envs[prev].ClusterId != env.ClusterId {
+				envSelectors = append(envSelectors, envSelector)
+				envSelector = EnvironmentSelector{
+					ClusterName:  env.Cluster.ClusterName,
+					Environments: []string{env.Name},
+				}
+			} else {
+				envSelector.Environments = append(envSelector.Environments, env.Name)
+			}
+		}
+		envSelectors = append(envSelectors, envSelector)
+	}
+
+	return appSelectors, envSelectors
 }

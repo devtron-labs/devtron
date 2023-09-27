@@ -218,8 +218,7 @@ func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.Response
 		return
 	}
 
-	response := handler.celService.ValidateCELRequest(request)
-
+	response, _ := handler.celService.ValidateCELRequest(request)
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 

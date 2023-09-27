@@ -1,6 +1,8 @@
 package resourceQualifiers
 
 import (
+	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -13,6 +15,7 @@ type QualifiersMappingRepository interface {
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilter(scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*QualifierMapping, error)
+	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(ResourceType, sql.AuditLog, *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
 }
@@ -44,7 +47,18 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilter(scope
 	// TODO don't throw pgNoRows error, handle it here only
 	return qualifierMappings, nil
 }
-
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error) {
+	var qualifierMappings []*QualifierMapping
+	err := repo.dbConnection.Model(&qualifierMappings).
+		Where("active = ?", true).
+		Where("resource_type = ?", Filter).
+		Where("resource_id = ?", resourceId).
+		Select()
+	if err == pg.ErrNoRows {
+		return qualifierMappings, errors.New(fmt.Sprintf("no qualifier mappings found for given filter id %v", resourceId))
+	}
+	return qualifierMappings, nil
+}
 func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType ResourceType, scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
 	var qualifierMappings []*QualifierMapping
 	query := repo.dbConnection.Model(&qualifierMappings).

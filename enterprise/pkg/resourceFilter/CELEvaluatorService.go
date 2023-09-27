@@ -11,7 +11,7 @@ import (
 
 type CELEvaluatorService interface {
 	EvaluateCELRequest(request CELRequest) (bool, error)
-	ValidateCELRequest(request ValidateRequestResponse) ValidateRequestResponse
+	ValidateCELRequest(request ValidateRequestResponse) (ValidateRequestResponse, bool)
 	GetParamsFromArtifact(artifact string) []ExpressionParam
 }
 
@@ -34,7 +34,7 @@ const (
 )
 
 type ValidateRequestResponse struct {
-	Conditions []*ResourceCondition `json:"conditions"`
+	Conditions []ResourceCondition `json:"conditions"`
 }
 
 type CELRequest struct {
@@ -104,8 +104,8 @@ func (impl *CELServiceImpl) validate(request CELRequest) (*cel.Ast, *cel.Env, er
 	return ast, env, nil
 }
 
-func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) ValidateRequestResponse {
-
+func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) (ValidateRequestResponse, bool) {
+	errored := false
 	params := []ExpressionParam{
 		{
 			ParamName: "containerName",
@@ -124,11 +124,12 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 		}
 		_, _, err := impl.validate(validateExpression)
 		if err != nil {
+			errored = true
 			e.ErrorMsg = err.Error()
 		}
 	}
 
-	return request
+	return request, errored
 }
 
 func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {

@@ -31,6 +31,10 @@ type ResourceFilter struct {
 	sql.AuditLog
 }
 
+func (o *ResourceFilter) GetMetaData() {
+
+}
+
 type ResourceFilterRepository interface {
 	//transaction util funcs
 	sql.TransactionWrapper
