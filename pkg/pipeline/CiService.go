@@ -121,6 +121,9 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
+	if trigger.PipelineType == bean2.JOB_CI {
+		ciMaterials = nil
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -544,6 +547,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		//use root build context i.e '.'
 		buildContextCheckoutPath = "."
 	}
+
+	ciBuildConfigBean.PipelineType = trigger.PipelineType
+
 	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
 		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
@@ -601,6 +607,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageRetryInterval:         impl.config.ImageRetryInterval,
 		WorkflowExecutor:           impl.config.GetWorkflowExecutorType(),
 		Type:                       bean2.CI_WORKFLOW_PIPELINE_TYPE,
+		CiArtifactLastFetch:        trigger.CiArtifactLastFetch,
 	}
 	if dockerRegistry != nil {
 

@@ -385,7 +385,7 @@ func (impl *PipelineStageRepositoryImpl) GetAllCiPipelineIdsByPluginIdAndStageTy
 	var ciPipelineIds []int
 	query := "Select ps.ci_pipeline_id from pipeline_stage ps " +
 		"INNER JOIN pipeline_stage_step pss ON pss.pipeline_stage_id = ps.id " +
-		"where pss.ref_plugin_id = ? and ps.type = ?"
+		"where pss.ref_plugin_id = ? and ps.type = ? and pss.deleted = false and ps.deleted = false"
 	_, err := impl.dbConnection.Query(&ciPipelineIds, query, pluginId, stageType)
 	if err != nil {
 		impl.logger.Errorw("err in getting ciPipelineIds by PluginId and StepType", "err", err, "pluginId", pluginId, "stageType", stageType)
