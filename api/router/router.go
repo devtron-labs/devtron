@@ -129,6 +129,7 @@ type MuxRouter struct {
 	configDraftRouter                  drafts.ConfigDraftRouter
 	resourceProtectionRouter           protect.ResourceProtectionRouter
 	scopedVariableRouter               ScopedVariableRouter
+	resourceFilterRouter               ResourceFilterRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -160,7 +161,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
 	globalTagRouter globalTag.GlobalTagRouter, rbacRoleRouter user.RbacRoleRouter,
 	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
-    scopedVariableRouter ScopedVariableRouter) *MuxRouter {
+	scopedVariableRouter ScopedVariableRouter,
+	resourceFilterRouter ResourceFilterRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -235,6 +237,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		scopedVariableRouter:               scopedVariableRouter,
 		configDraftRouter:                  configDraftRouter,
 		resourceProtectionRouter:           resourceProtectionRouter,
+		resourceFilterRouter:               resourceFilterRouter,
 	}
 	return r
 }
@@ -303,6 +306,9 @@ func (r MuxRouter) Init() {
 
 	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
+
+	resourceFilterRouter := r.Router.PathPrefix("/orchestrator/filters").Subrouter()
+	r.resourceFilterRouter.InitResourceFilterRouter(resourceFilterRouter)
 
 	projectManagementRouter := r.Router.PathPrefix("/orchestrator/project-management").Subrouter()
 	r.ProjectManagementRouter.InitProjectManagementRouter(projectManagementRouter)

@@ -20,24 +20,24 @@ func NewResourceFilterRouterImpl(resourceFilterRestHandler resourceFilter.Resour
 	return router
 }
 
-func (impl ResourceFilterRouterImpl) InitResourceFilterRouter(router *mux.Router) {
-	router.Path("/filters").
+func (impl *ResourceFilterRouterImpl) InitResourceFilterRouter(router *mux.Router) {
+	router.Path("").
 		HandlerFunc(impl.resourceFilterRestHandler.ListFilters).
 		Methods("GET")
 
-	router.Path("/filters/{id}").
+	router.Path("/{id}").
 		HandlerFunc(impl.resourceFilterRestHandler.GetFilterById).
 		Methods("GET")
 
-	router.Path("/filters").
+	router.Path("").
 		HandlerFunc(impl.resourceFilterRestHandler.CreateFilter).
 		Methods("PUT")
 
-	router.Path("/filters/{id}").
+	router.Path("/{id}").
 		HandlerFunc(impl.resourceFilterRestHandler.UpdateFilter).
 		Methods("POST")
 
-	router.Path("/filters/{id}").
+	router.Path("/{id}").
 		HandlerFunc(impl.resourceFilterRestHandler.DeleteFilter).
 		Methods("DELETE")
 
