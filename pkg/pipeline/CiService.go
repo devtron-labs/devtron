@@ -122,7 +122,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if trigger.PipelineType == bean2.JOB_CI {
-		ciMaterials = nil
+		ciMaterials[0].GitMaterialId = 0
+		ciMaterials[0].GitMaterial = nil
 	}
 	if err != nil {
 		return 0, err
