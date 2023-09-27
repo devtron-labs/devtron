@@ -540,7 +540,7 @@ func isAllEnvRequest(qualifierSelector QualifierSelector) bool {
 func (impl *ResourceFilterServiceImpl) convertToFilterMappings(qualifierMappings []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping {
 	filterIdVsMappings := make(map[int][]*resourceQualifiers.QualifierMapping, 0)
 	for _, qualifierMapping := range qualifierMappings {
-		filterId := qualifierMapping.QualifierId
+		filterId := qualifierMapping.ResourceId
 		filterMappings := filterIdVsMappings[filterId]
 		filterMappings = append(filterMappings, qualifierMapping)
 		filterIdVsMappings[filterId] = filterMappings
