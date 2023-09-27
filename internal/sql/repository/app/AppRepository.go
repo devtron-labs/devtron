@@ -444,7 +444,7 @@ func (repo AppRepositoryImpl) FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*A
 		Column("app.*", "Team").
 		Where("app.active = ?", true).
 		Where("app.id in (?)", pg.In(ids)).
-		Group("app.team_id").
+		Order("app.team_id").
 		Select()
 	return apps, err
 }

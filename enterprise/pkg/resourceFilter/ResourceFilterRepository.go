@@ -85,7 +85,7 @@ func (repo *ResourceFilterRepositoryImpl) GetByIds(ids []int) ([]*ResourceFilter
 	if len(ids) == 0 {
 		return resourceFilters, nil
 	}
-	err := repo.dbConnection.Model(resourceFilters).
+	err := repo.dbConnection.Model(&resourceFilters).
 		Where("id IN (?)", pg.In(ids)).
 		Where("deleted = ?", false).
 		Select()
