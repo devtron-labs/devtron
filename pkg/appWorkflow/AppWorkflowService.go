@@ -673,7 +673,7 @@ func filterInsideWorkflowForEnvFilter(appWorkflowMappings []AppWorkflowMappingDt
 	componentIdToWorkflowMapping := make(map[string]map[int]*AppWorkflowMappingDto)
 	isPresent := false
 	for _, appWorkflowMapping := range appWorkflowMappings {
-		if slices.Contains(cdPipelineIdsFiltered, appWorkflowMapping.ComponentId) {
+		if appWorkflowMapping.Type == "CD_PIPELINE" && slices.Contains(cdPipelineIdsFiltered, appWorkflowMapping.ComponentId) {
 			isPresent = true
 			break
 		}
@@ -734,7 +734,7 @@ func filterMappingOnFilteredCdPipelineIds(componentIdWorkflowMapping map[string]
 		if slices.Contains(cdPipelineIdsFiltered, leafPipelines[i].ComponentId) {
 			continue
 		} else {
-			componentIdWorkflowMapping = deleteLeafPipelineFromMapping(leafPipelines[i], componentIdWorkflowMapping)
+			componentIdWorkflowMapping = deleteLeafPipelineFromMapping(leafPipelines[i], componentIdWorkflowMapping, ciType)
 		}
 		if componentIdWorkflowMapping[parentPipelineType][parentPipelineId].Type != ciType {
 			if len(componentIdWorkflowMapping[parentPipelineType][parentPipelineId].ChildPipelinesIds) == 0 {
@@ -750,12 +750,12 @@ func filterMappingOnFilteredCdPipelineIds(componentIdWorkflowMapping map[string]
 // deleteLeafPipelineFromMapping deletes a particular mapping of appWorkflow from
 // map[string]map[int]*AppWorkflowMappingDto also it deletes the child cdPipelineId
 // from the that appWorkflow's parent's ChildPipelinesIds object inside AppWorkflowMappingDto
-func deleteLeafPipelineFromMapping(appWorkflowToDelete *AppWorkflowMappingDto, componentIdToWorkflowMapping map[string]map[int]*AppWorkflowMappingDto) map[string]map[int]*AppWorkflowMappingDto {
+func deleteLeafPipelineFromMapping(appWorkflowToDelete *AppWorkflowMappingDto, componentIdToWorkflowMapping map[string]map[int]*AppWorkflowMappingDto, ciType string) map[string]map[int]*AppWorkflowMappingDto {
 	newMapping := make(map[string]map[int]*AppWorkflowMappingDto)
 
 	for pipelineType, mappings := range componentIdToWorkflowMapping {
 		for componentId, workflow := range mappings {
-			if workflow.ComponentId != appWorkflowToDelete.ComponentId {
+			if workflow.ComponentId != appWorkflowToDelete.ComponentId || pipelineType == ciType {
 				a := workflow
 				if newMapping[pipelineType] == nil {
 					newMapping[pipelineType] = make(map[int]*AppWorkflowMappingDto)
