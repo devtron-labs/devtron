@@ -74,7 +74,7 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 		return
 	}
 
-	ciPipelineIds, err := impl.pipelineStageRepository.GetAllCiPipelineIdsByPluginIdAndStageType(plugin[0].Id, string(repository.PIPELINE_STAGE_TYPE_POST_CI))
+	ciPipelineIds, err := impl.pipelineStageRepository.GetAllCiPipelineIdsByPluginIdAndStageType(plugin[0].Id, string(repository.PIPELINE_STAGE_TYPE_PRE_CI))
 	if err != nil {
 		return
 	}
