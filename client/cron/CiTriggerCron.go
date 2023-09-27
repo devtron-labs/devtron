@@ -52,7 +52,7 @@ func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, p
 
 type CiTriggerCronConfig struct {
 	SourceControllerCronTime int    `env:"CI_TRIGGER_CRON_TIME" envDefault:"2"`
-	PluginName               string `env:"PLUGIN_IDS"  envDefault:"Pull images from container repository"`
+	PluginName               string `env:"PLUGIN_NAME"  envDefault:"Pull images from container repository"`
 }
 
 func GetCiTriggerCronConfig() (*CiTriggerCronConfig, error) {
@@ -67,9 +67,7 @@ func GetCiTriggerCronConfig() (*CiTriggerCronConfig, error) {
 
 // UpdateCiWorkflowStatusFailedCron this function will execute periodically
 func (impl *CiTriggerCronImpl) TriggerCiCron() {
-
 	plugin, err := impl.globalPluginRepository.GetPluginByName(impl.cfg.PluginName)
-
 	if err != nil || len(plugin) == 0 {
 		return
 	}
@@ -78,31 +76,8 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 	if err != nil {
 		return
 	}
-	//artifacts, err := impl.ciArtifactRepository.GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds)
-	//mp := make(map[int]time.Time)
-	//for _, artifact := range artifacts {
-	//	mp[artifact.PipelineId] = artifact.CreatedOn
-	//}
 	for _, ciPipelineId := range ciPipelineIds {
-		//_, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId, false)
-		//if err != nil {
-		//	return
-		//}
 		var ciPipelineMaterials []bean.CiPipelineMaterial
-
-		//for _, material := range materials {
-		//	if len(material.History) == 0 {
-		//		return
-		//	}
-		//	ciPipelineMaterial := bean.CiPipelineMaterial{
-		//		Id:            material.Id,
-		//		GitMaterialId: material.GitMaterialId,
-		//		GitCommit: bean.GitCommit{
-		//			Commit: material.History[0].Commit,
-		//		},
-		//	}
-		//	ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
-		//}
 		ciTriggerRequest := bean.CiTriggerRequest{
 			PipelineId:         ciPipelineId,
 			CiPipelineMaterial: ciPipelineMaterials,
