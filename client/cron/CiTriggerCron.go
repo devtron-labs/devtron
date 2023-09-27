@@ -51,7 +51,7 @@ func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, p
 }
 
 type CiTriggerCronConfig struct {
-	SourceControllerCronTime int    `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"2"`
+	SourceControllerCronTime int    `env:"CI_TRIGGER_CRON_TIME" envDefault:"2"`
 	PluginName               string `env:"PLUGIN_IDS"  envDefault:"Pull images from container repository"`
 }
 
