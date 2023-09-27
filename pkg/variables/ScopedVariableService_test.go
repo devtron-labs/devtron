@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	mocks4 "github.com/devtron-labs/devtron/pkg/devtronResource/mocks"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	mocks5 "github.com/devtron-labs/devtron/pkg/resourceQualifiers/mocks"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/repository/mocks"
@@ -403,7 +404,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository := InitScopedVariableServiceImpl(t)
+			impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository, _ := InitScopedVariableServiceImpl(t)
 			var err error
 			tx := &pg.Tx{}
 			if tt.name == "Valid case with all data available" {
@@ -904,17 +905,17 @@ func TestScopedVariableServiceImpl_IsValidPayload(t *testing.T) {
 
 }
 
-func InitScopedVariableServiceImpl(t *testing.T) (*ScopedVariableServiceImpl, *mocks.ScopedVariableRepository, *mocks2.AppRepository, *mocks3.EnvironmentRepository, *mocks4.DevtronResourceService, *mocks3.ClusterRepository) {
+func InitScopedVariableServiceImpl(t *testing.T) (*ScopedVariableServiceImpl, *mocks.ScopedVariableRepository, *mocks2.AppRepository, *mocks3.EnvironmentRepository, *mocks4.DevtronResourceService, *mocks3.ClusterRepository, *mocks5.QualifierMappingService) {
 	logger, _ := util2.NewSugardLogger()
 	scopedVariableRepository := mocks.NewScopedVariableRepository(t)
 	appRepository := mocks2.NewAppRepository(t)
 	environmentRepository := mocks3.NewEnvironmentRepository(t)
 	devtronResourceService := mocks4.NewDevtronResourceService(t)
 	clusterRepository := mocks3.NewClusterRepository(t)
-	resourceQualifiers.NewQualifierMappingServiceImpl()
-	impl, _ := NewScopedVariableServiceImpl(logger, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository)
+	qualifierMappingService := mocks5.NewQualifierMappingService(t)
+	impl, _ := NewScopedVariableServiceImpl(logger, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository, qualifierMappingService)
 
-	return impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository
+	return impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository, qualifierMappingService
 }
 
 func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
@@ -1234,7 +1235,7 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl, scopedVariableRepository, _, _, devtronResourceService, _ := InitScopedVariableServiceImpl(t)
+			impl, scopedVariableRepository, _, _, devtronResourceService, _, _ := InitScopedVariableServiceImpl(t)
 			if tt.name == "NoVariablesFound" {
 				scopedVariableRepository.On("GetAllVariables").Return(nil, nil)
 			}
@@ -1470,7 +1471,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			Description:      "Variable 1",
 			ShortDescription: "ShortDescription-Variable 1",
 			Active:           true,
-			VariableScope:    variableScope,
+			//VariableScope:    variableScope,
 		},
 	}
 
@@ -1486,7 +1487,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
-			name:    "test for error cases in GetAllVariableScopeAndDefinition",
+			name:    "test for error cases in GetAllVariableDefinition",
 			want:    nil,
 			wantErr: assert.Error,
 		},
@@ -1498,16 +1499,17 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl, scopedVariableRepository, _, _, devtronResourceService, _ := InitScopedVariableServiceImpl(t)
+			impl, scopedVariableRepository, _, _, devtronResourceService, _, qualifierMappingService := InitScopedVariableServiceImpl(t)
 			if tt.name == "test for getting json" {
-				scopedVariableRepository.On("GetAllVariableScopeAndDefinition").Return(variableDefinition, nil)
+				scopedVariableRepository.On("GetAllVariableDefinition").Return(variableDefinition, nil)
+				qualifierMappingService.On("").Return()
 				devtronResourceService.On("GetAllSearchableKeyIdNameMap").Return(searchableKeyMap)
 			}
-			if tt.name == "test for error cases in GetAllVariableScopeAndDefinition" {
-				scopedVariableRepository.On("GetAllVariableScopeAndDefinition").Return(nil, errors.New("error in getting data for json"))
+			if tt.name == "test for error cases in GetAllVariableDefinition" {
+				scopedVariableRepository.On("GetAllVariableDefinition").Return(nil, errors.New("error in getting data for json"))
 			}
 			if tt.name == "test for empty payload" {
-				scopedVariableRepository.On("GetAllVariableScopeAndDefinition").Return(nil, nil)
+				scopedVariableRepository.On("GetAllVariableDefinition").Return(nil, nil)
 				devtronResourceService.On("GetAllSearchableKeyIdNameMap").Return(searchableKeyMap)
 			}
 			got, err := impl.GetJsonForVariables()

@@ -3,10 +3,8 @@
 package mocks
 
 import (
-	bean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
-	mock "github.com/stretchr/testify/mock"
-
 	pg "github.com/go-pg/pg"
+	mock "github.com/stretchr/testify/mock"
 
 	resourceQualifiers "github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 
@@ -58,25 +56,91 @@ func (_m *QualifierMappingService) DeleteAllQualifierMappings(resourceType resou
 	return r0
 }
 
-// GetQualifierMappings provides a mock function with given fields: resourceType, scope, searchableIdMap, resourceIds
-func (_m *QualifierMappingService) GetQualifierMappings(resourceType resourceQualifiers.ResourceType, scope resourceQualifiers.Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*resourceQualifiers.QualifierMapping, error) {
-	ret := _m.Called(resourceType, scope, searchableIdMap, resourceIds)
+// DeleteAllQualifierMappingsByResourceTypeAndId provides a mock function with given fields: resourceType, resourceId, auditLog, tx
+func (_m *QualifierMappingService) DeleteAllQualifierMappingsByResourceTypeAndId(resourceType resourceQualifiers.ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	ret := _m.Called(resourceType, resourceId, auditLog, tx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(resourceQualifiers.ResourceType, int, sql.AuditLog, *pg.Tx) error); ok {
+		r0 = rf(resourceType, resourceId, auditLog, tx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// GetQualifierMappings provides a mock function with given fields: resourceType, scope, resourceIds
+func (_m *QualifierMappingService) GetQualifierMappings(resourceType resourceQualifiers.ResourceType, scope resourceQualifiers.Scope, resourceIds []int) ([]*resourceQualifiers.QualifierMapping, error) {
+	ret := _m.Called(resourceType, scope, resourceIds)
 
 	var r0 []*resourceQualifiers.QualifierMapping
 	var r1 error
-	if rf, ok := ret.Get(0).(func(resourceQualifiers.ResourceType, resourceQualifiers.Scope, map[bean.DevtronResourceSearchableKeyName]int, []int) ([]*resourceQualifiers.QualifierMapping, error)); ok {
-		return rf(resourceType, scope, searchableIdMap, resourceIds)
+	if rf, ok := ret.Get(0).(func(resourceQualifiers.ResourceType, resourceQualifiers.Scope, []int) ([]*resourceQualifiers.QualifierMapping, error)); ok {
+		return rf(resourceType, scope, resourceIds)
 	}
-	if rf, ok := ret.Get(0).(func(resourceQualifiers.ResourceType, resourceQualifiers.Scope, map[bean.DevtronResourceSearchableKeyName]int, []int) []*resourceQualifiers.QualifierMapping); ok {
-		r0 = rf(resourceType, scope, searchableIdMap, resourceIds)
+	if rf, ok := ret.Get(0).(func(resourceQualifiers.ResourceType, resourceQualifiers.Scope, []int) []*resourceQualifiers.QualifierMapping); ok {
+		r0 = rf(resourceType, scope, resourceIds)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*resourceQualifiers.QualifierMapping)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(resourceQualifiers.ResourceType, resourceQualifiers.Scope, map[bean.DevtronResourceSearchableKeyName]int, []int) error); ok {
-		r1 = rf(resourceType, scope, searchableIdMap, resourceIds)
+	if rf, ok := ret.Get(1).(func(resourceQualifiers.ResourceType, resourceQualifiers.Scope, []int) error); ok {
+		r1 = rf(resourceType, scope, resourceIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetQualifierMappingsForFilter provides a mock function with given fields: scope
+func (_m *QualifierMappingService) GetQualifierMappingsForFilter(scope resourceQualifiers.Scope) ([]*resourceQualifiers.QualifierMapping, error) {
+	ret := _m.Called(scope)
+
+	var r0 []*resourceQualifiers.QualifierMapping
+	var r1 error
+	if rf, ok := ret.Get(0).(func(resourceQualifiers.Scope) ([]*resourceQualifiers.QualifierMapping, error)); ok {
+		return rf(scope)
+	}
+	if rf, ok := ret.Get(0).(func(resourceQualifiers.Scope) []*resourceQualifiers.QualifierMapping); ok {
+		r0 = rf(scope)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*resourceQualifiers.QualifierMapping)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(resourceQualifiers.Scope) error); ok {
+		r1 = rf(scope)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetQualifierMappingsForFilterById provides a mock function with given fields: resourceId
+func (_m *QualifierMappingService) GetQualifierMappingsForFilterById(resourceId int) ([]*resourceQualifiers.QualifierMapping, error) {
+	ret := _m.Called(resourceId)
+
+	var r0 []*resourceQualifiers.QualifierMapping
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) ([]*resourceQualifiers.QualifierMapping, error)); ok {
+		return rf(resourceId)
+	}
+	if rf, ok := ret.Get(0).(func(int) []*resourceQualifiers.QualifierMapping); ok {
+		r0 = rf(resourceId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*resourceQualifiers.QualifierMapping)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(resourceId)
 	} else {
 		r1 = ret.Error(1)
 	}
