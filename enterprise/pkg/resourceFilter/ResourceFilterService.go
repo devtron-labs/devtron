@@ -134,6 +134,17 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return filterRequest, errors.New(InvalidExpressions)
 	}
 	//validation done
+	filterNames, err := impl.resourceFilterRepository.GetDistinctFilterNames()
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+
+	for _, name := range filterNames {
+		if name == filterRequest.Name {
+			return nil, errors.New("filter already exists with this name")
+		}
+	}
+
 	tx, err := impl.resourceFilterRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting db transaction", "err", err)
@@ -641,6 +652,7 @@ func (impl *ResourceFilterServiceImpl) makeQualifierSelector(qualifierMappings [
 			if qualifierMapping.IdentifierKey == GetIdentifierKey(ProjectIdentifier, searchableKeyNameIdMap) {
 				appSelector.ProjectName = qualifierMapping.IdentifierValueString
 				appSelector.Applications = make([]string, 0)
+				appSelectors = append(appSelectors, appSelector)
 			} else {
 				appIds = append(appIds, qualifierMapping.IdentifierValueInt)
 			}
@@ -650,6 +662,7 @@ func (impl *ResourceFilterServiceImpl) makeQualifierSelector(qualifierMappings [
 				envSelector := EnvironmentSelector{}
 				envSelector.ClusterName = qualifierMapping.IdentifierValueString
 				envSelector.Environments = make([]string, 0)
+				envSelectors = append(envSelectors, envSelector)
 			} else {
 				envIds = append(envIds, qualifierMapping.IdentifierValueInt)
 			}

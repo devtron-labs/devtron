@@ -44,6 +44,7 @@ type ResourceFilterRepository interface {
 	ListAll() ([]*ResourceFilter, error)
 	GetById(id int) (*ResourceFilter, error)
 	GetByIds(ids []int) ([]*ResourceFilter, error)
+	GetDistinctFilterNames() ([]string, error)
 }
 
 type ResourceFilterRepositoryImpl struct {
@@ -101,5 +102,17 @@ func (repo *ResourceFilterRepositoryImpl) GetByIds(ids []int) ([]*ResourceFilter
 func (repo *ResourceFilterRepositoryImpl) ListAll() ([]*ResourceFilter, error) {
 	list := make([]*ResourceFilter, 0)
 	err := repo.dbConnection.Model(&list).Where("deleted=?", false).Select()
+	return list, err
+}
+
+func (repo *ResourceFilterRepositoryImpl) GetDistinctFilterNames() ([]string, error) {
+	list := make([]string, 0)
+	query := "SELECT DISTINCT name " +
+		" FROM resource_filter " +
+		" WHERE deleted = false"
+	_, err := repo.dbConnection.Query(&list, query)
+	if err != nil {
+		return nil, err
+	}
 	return list, err
 }
