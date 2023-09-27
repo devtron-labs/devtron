@@ -50,7 +50,7 @@ func (impl *QualifiersMappingRepositoryImpl) addScopeWhereClauseForFilter(query 
 			"OR (identifier_key = ? AND identifier_value_int IN (?)) "+
 			"OR (identifier_key = ? AND identifier_value_int = ?))",
 		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId,
-		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_APP_NAME], pg.In([]int{scope.ProjectId, AllProjectsInt}),
+		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_ID], pg.In([]int{scope.ProjectId, AllProjectsInt}),
 		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In([]int{scope.EnvId, GetEnvIdentifierValue(scope)}),
 		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], scope.ClusterId,
 	)
