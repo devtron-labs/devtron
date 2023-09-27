@@ -127,7 +127,7 @@ func (handler *ResourceFilterRestHandlerImpl) CreateFilter(w http.ResponseWriter
 			err = nil
 			statusCode = http.StatusPreconditionFailed
 		}
-		common.WriteJsonResp(w, err, nil, statusCode)
+		common.WriteJsonResp(w, err, res, statusCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
