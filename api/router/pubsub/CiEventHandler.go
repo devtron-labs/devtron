@@ -119,7 +119,8 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 				return
 			}
 		} else if ciCompleteEvent.ImageDetailsFromCR != nil {
-			for _, detail := range ciCompleteEvent.ImageDetailsFromCR.ImageDetails {
+			if len(ciCompleteEvent.ImageDetailsFromCR.ImageDetails) > 0 {
+				detail := util.GetLatestImageAccToImagePushedAt(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
 				request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent)
 				if err != nil {
 					impl.logger.Error("Error while creating request for pipelineID: ",
