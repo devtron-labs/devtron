@@ -135,7 +135,7 @@ func InitClusterNoteService() {
 	ciPipelineHistoryRepository := repository4.NewCiPipelineHistoryRepositoryImpl(conn, logger)
 	ciPipelineMaterialRepository := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(conn, logger)
 	GitSensorClient, err := gitSensor.NewGitSensorClient(logger, &gitSensor.ClientConfig{})
-	ciConfig := &CiConfig{}
+	ciConfig := &CiCdConfig{}
 	appWorkflowRepository := appWorkflow.NewAppWorkflowRepositoryImpl(logger, conn)
 	envRepository := repository3.NewEnvironmentRepositoryImpl(conn, logger, nil)
 	attributesService := attributes.NewAttributesServiceImpl(logger, nil)
