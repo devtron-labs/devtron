@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
+	resourceFilter2 "github.com/devtron-labs/devtron/api/restHandler/resourceFilter"
 	"github.com/devtron-labs/devtron/api/restHandler/scopedVariable"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
@@ -855,6 +856,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(resourceFilter.ResourceFilterService), new(*resourceFilter.ResourceFilterServiceImpl)),
 		resourceFilter.NewResourceFilterEvaluatorImpl,
 		wire.Bind(new(resourceFilter.ResourceFilterEvaluator), new(*resourceFilter.ResourceFilterEvaluatorImpl)),
+		resourceFilter2.NewResourceFilterRestHandlerImpl,
+		wire.Bind(new(resourceFilter2.ResourceFilterRestHandler), new(*resourceFilter2.ResourceFilterRestHandlerImpl)),
+		router.NewResourceFilterRouterImpl,
+		wire.Bind(new(router.ResourceFilterRouter), new(*router.ResourceFilterRouterImpl)),
 		pipeline.NewCiTemplateServiceImpl,
 		wire.Bind(new(pipeline.CiTemplateService), new(*pipeline.CiTemplateServiceImpl)),
 		router.NewGlobalCMCSRouterImpl,
