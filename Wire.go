@@ -844,6 +844,8 @@ func InitializeApp() (*App, error) {
 		pipeline.NewDeploymentConfigServiceImpl,
 		pipelineConfig.NewCiTemplateOverrideRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiTemplateOverrideRepository), new(*pipelineConfig.CiTemplateOverrideRepositoryImpl)),
+		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
+		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
 		pipelineConfig.NewCiBuildConfigRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiBuildConfigRepository), new(*pipelineConfig.CiBuildConfigRepositoryImpl)),
 		pipeline.NewCiBuildConfigServiceImpl,
@@ -916,8 +918,6 @@ func InitializeApp() (*App, error) {
 		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
 		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
 
-		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
-		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
 		app.NewHelmRepoPushServiceImpl,
 		wire.Bind(new(app.HelmRepoPushService), new(*app.HelmRepoPushServiceImpl)),
 

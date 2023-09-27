@@ -37,7 +37,7 @@ type ResourceFilterServiceImpl struct {
 	clusterRepository                   clusterRepository.ClusterRepository
 	environmentRepository               clusterRepository.EnvironmentRepository
 	ceLEvaluatorService                 CELEvaluatorService
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyServiceImpl
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceService
 }
 
 func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
@@ -49,7 +49,7 @@ func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	environmentRepository clusterRepository.EnvironmentRepository,
 	ceLEvaluatorService CELEvaluatorService,
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyServiceImpl,
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceService,
 ) *ResourceFilterServiceImpl {
 	return &ResourceFilterServiceImpl{
 		logger:                              logger,
