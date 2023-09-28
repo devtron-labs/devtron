@@ -313,41 +313,8 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 	}
 
 	resourceIdsMap := make(map[int][]int)
-
-	var resourceIds []int
-	authorizedResources := make(map[int]bool)
 	for _, resourceGroupMapping := range resourceGroupMappings {
-		resourceIds = append(resourceIds, resourceGroupMapping.ResourceId)
-	}
-
-	//authorization block starts here
-	var rbacObjectArr []string
-	var objects map[int]string
-	if groupType == APP_GROUP {
-		objects = impl.enforcerUtil.GetRbacObjectsByAppIds(resourceIds)
-	} else if groupType == ENV_GROUP {
-		objects, _ = impl.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(resourceIds, parentResourceId)
-	}
-	for _, object := range objects {
-		rbacObjectArr = append(rbacObjectArr, object)
-	}
-	results := checkAuthBatch(emailId, rbacObjectArr, casbin.ActionGet)
-	for _, resourceId := range resourceIds {
-		appObject := objects[resourceId]
-		if !results[appObject] {
-			//if user unauthorized, skip items
-			continue
-		}
-		authorizedResources[resourceId] = true
-	}
-	//authorization block ends here
-
-	//resourceIdsMap := make(map[int][]int)
-	for _, resourceGroupMapping := range resourceGroupMappings {
-		// if this resource from the group have the permission add in the result set
-		if _, ok := authorizedResources[resourceGroupMapping.ResourceId]; ok {
-			resourceIdsMap[resourceGroupMapping.ResourceGroupId] = append(resourceIdsMap[resourceGroupMapping.ResourceGroupId], resourceGroupMapping.ResourceId)
-		}
+		resourceIdsMap[resourceGroupMapping.ResourceGroupId] = append(resourceIdsMap[resourceGroupMapping.ResourceGroupId], resourceGroupMapping.ResourceId)
 	}
 
 	for _, resourceGroup := range resourceGroups {
