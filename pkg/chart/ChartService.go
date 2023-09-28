@@ -483,7 +483,7 @@ func (impl ChartServiceImpl) extractAndMapVariables(template string, entityId in
 	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
 		EntityType: entityType,
 		EntityId:   entityId,
-	}, userId)
+	}, userId, nil)
 	if err != nil {
 		return err
 	}

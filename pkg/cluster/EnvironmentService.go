@@ -493,6 +493,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				Description:            model.Description,
 				IsVirtualEnvironment:   model.IsVirtualEnvironment,
 				AllowedDeploymentTypes: allowedDeploymentConfigString,
+				ClusterId:              model.ClusterId,
 			})
 		}
 	} else {
@@ -506,6 +507,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				ClusterName:           model.Cluster.ClusterName,
 				Description:           model.Description,
 				IsVirtualEnvironment:  model.IsVirtualEnvironment,
+				ClusterId:             model.ClusterId,
 			})
 		}
 	}

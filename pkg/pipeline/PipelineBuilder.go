@@ -3394,7 +3394,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy)
+	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
 	if err != nil {
 		return 0, err
 	}
@@ -3489,7 +3489,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	return pipelineId, nil
 }
 
-func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32) error {
+func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32, tx *pg.Tx) error {
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
 	if err != nil {
 		return err
@@ -3497,7 +3497,7 @@ func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId
 	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository6.Entity{
 		EntityType: entityType,
 		EntityId:   entityId,
-	}, userId)
+	}, userId, tx)
 	if err != nil {
 		return err
 	}
