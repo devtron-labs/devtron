@@ -2,11 +2,11 @@
 * @vikramdevtron @kripanshdevtron @nishant-d
 
 #DOCS
-docs/ @ashokdevtron @uxarya-d @prakarsh-d
+docs/ @ashokdevtron @uxarya-d @prakarsh-dt
 
 #Helm Charts
 charts/devtron/ @prakarsh-dt @pawan-mehta-dt @nishant-d
-scripts/devtron-reference-helm-charts @prakarsh-d @pawan-mehta-dt @nishant-d
+scripts/devtron-reference-helm-charts @prakarsh-dt @pawan-mehta-dt @nishant-d
 
 #Github Specific
 .github/ @prakarsh-dt @nishant-d
