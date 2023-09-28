@@ -30,6 +30,13 @@ type RefPluginObject struct {
 	Steps []*StepObject `json:"steps"`
 }
 
+type PrePostAndRefPluginStepsResponse struct {
+	PreStageSteps    []*StepObject
+	PostStageSteps   []*StepObject
+	RefPluginData    []*RefPluginObject
+	VariableSnapshot map[string]string
+}
+
 type StepObject struct {
 	Name                     string             `json:"name"`
 	Index                    int                `json:"index"`
