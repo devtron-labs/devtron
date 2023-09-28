@@ -606,12 +606,17 @@ func (impl *ResourceFilterServiceImpl) checkForFilterEligibility(scope resourceQ
 }
 
 func (impl *ResourceFilterServiceImpl) checkForEnvQualifier(scope resourceQualifiers.Scope, filterMappings []*resourceQualifiers.QualifierMapping) bool {
-	var envAllowed bool
-	var envFilterQualifier *resourceQualifiers.QualifierMapping
-	envFilterQualifier = impl.filterEnvQualifier(filterMappings)
-	if envFilterQualifier == nil {
-		return envAllowed
+	envFilterQualifiers := impl.filterEnvQualifier(filterMappings)
+	for _, envFilterQualifier := range envFilterQualifiers {
+		if allowed := impl.isEnvAllowed(scope, envFilterQualifier); allowed {
+			return allowed
+		}
 	}
+	return false
+}
+
+func (impl *ResourceFilterServiceImpl) isEnvAllowed(scope resourceQualifiers.Scope, envFilterQualifier *resourceQualifiers.QualifierMapping) bool {
+	var envAllowed bool
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	envIdentifierValueInt := envFilterQualifier.IdentifierValueInt
 	if envFilterQualifier.IdentifierKey == GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap) {
@@ -653,15 +658,16 @@ func (impl *ResourceFilterServiceImpl) filterAppQualifier(qualifierMappings []*r
 	return nil
 }
 
-func (impl *ResourceFilterServiceImpl) filterEnvQualifier(qualifierMappings []*resourceQualifiers.QualifierMapping) *resourceQualifiers.QualifierMapping {
+func (impl *ResourceFilterServiceImpl) filterEnvQualifier(qualifierMappings []*resourceQualifiers.QualifierMapping) []*resourceQualifiers.QualifierMapping {
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
+	res := make([]*resourceQualifiers.QualifierMapping, 0)
 	for _, qualifierMapping := range qualifierMappings {
 		identifierKey := qualifierMapping.IdentifierKey
 		if identifierKey == GetIdentifierKey(ClusterIdentifier, searchableKeyNameIdMap) || identifierKey == GetIdentifierKey(EnvironmentIdentifier, searchableKeyNameIdMap) {
-			return qualifierMapping
+			res = append(res, qualifierMapping)
 		}
 	}
-	return nil
+	return res
 }
 
 func (impl *ResourceFilterServiceImpl) makeQualifierSelector(qualifierMappings []*resourceQualifiers.QualifierMapping) (QualifierSelector, error) {
