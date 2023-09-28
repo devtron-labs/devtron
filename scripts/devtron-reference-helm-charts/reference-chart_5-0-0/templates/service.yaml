@@ -82,12 +82,12 @@ spec:
 {{- end }}
 {{- end }}
 ---
-{{- if .Values.serviceheadless.enabled  }}
+{{- if .Values.serviceHeadless.enabled  }}
 apiVersion: v1
 kind: Service
 metadata:
-  {{- if .Values.serviceheadless.name }}
-  name: {{ .Values.serviceheadless.name }}
+  {{- if .Values.serviceHeadless.name }}
+  name: {{ .Values.serviceHeadless.name }}
   {{- else }}
   name: {{ template ".servicename" . }}-headless
   {{- end }}
@@ -97,12 +97,12 @@ metadata:
     envId: {{ $.Values.env | quote }}
     chart: {{ template ".Chart.Name .chart" . }}
     release: {{ .Release.Name }}
-{{- if .Values.serviceheadless.labels }}
-{{ toYaml .Values.serviceheadless.labels | indent 4 }}
+{{- if .Values.serviceHeadless.labels }}
+{{ toYaml .Values.serviceHeadless.labels | indent 4 }}
 {{- end }}
-{{- if .Values.serviceheadless.annotations }}
+{{- if .Values.serviceHeadless.annotations }}
   annotations:
-{{ toYaml .Values.serviceheadless.annotations | indent 4 }}
+{{ toYaml .Values.serviceHeadless.annotations | indent 4 }}
 {{- end}}
 spec:
   type: ClusterIP

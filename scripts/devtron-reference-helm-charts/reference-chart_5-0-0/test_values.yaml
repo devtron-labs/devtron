@@ -11,7 +11,7 @@ rolloutAnnotations:
   name: devops-team
   Company: Devtron
   Job: DevOps
-serviceheadless:
+serviceHeadless:
   name: testing-headless
   enabled: true
   labels: 
