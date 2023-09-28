@@ -236,7 +236,9 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 		impl.Logger.Errorw("err", "err", err)
 		return 0, err
 	}
+
 	isValidBuildSequence, err := impl.validateBuildSequence(gitCiTriggerRequest, ciPipeline.Id)
+
 	if !isValidBuildSequence {
 		return 0, errors.New("ignoring older build for ciMaterial " + strconv.Itoa(gitCiTriggerRequest.CiPipelineMaterial.Id) +
 			" commit " + gitCiTriggerRequest.CiPipelineMaterial.GitCommit.Commit)
