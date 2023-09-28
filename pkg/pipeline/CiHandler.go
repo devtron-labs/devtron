@@ -231,6 +231,7 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 	}
 
 	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipeline.Id)
+
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return 0, err
