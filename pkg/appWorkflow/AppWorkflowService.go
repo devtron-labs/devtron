@@ -314,6 +314,17 @@ func (impl AppWorkflowServiceImpl) FindAllAppWorkflowMapping(workflowIds []int) 
 		impl.Logger.Errorw("error occurred while fetching app wf mapping", "workflowIds", workflowIds, "err", err)
 		return nil, err
 	}
+	parentPipelineIdsSet := make(map[string]map[int]bool)
+	for _, w := range appWorkflowMappings {
+		if w.Type == "CD_PIPELINE" {
+			if parentPipelineIdsSet[w.ParentType] == nil {
+				parentPipelineIdsSet[w.ParentType] = make(map[int]bool)
+			}
+			if _, ok := parentPipelineIdsSet[w.ParentType][w.ParentId]; !ok {
+				parentPipelineIdsSet[w.ParentType][w.ParentId] = true
+			}
+		}
+	}
 	var workflowMappingDtos []AppWorkflowMappingDto
 	var cdPipelineIds []int
 	for _, w := range appWorkflowMappings {
@@ -326,6 +337,10 @@ func (impl AppWorkflowServiceImpl) FindAllAppWorkflowMapping(workflowIds []int) 
 			ParentType:    w.ParentType,
 		}
 		if w.Type == "CD_PIPELINE" {
+			isPresentAsParent := parentPipelineIdsSet[w.Type][w.ComponentId]
+			if !isPresentAsParent {
+				workflow.IsLast = true
+			}
 			cdPipelineIds = append(cdPipelineIds, w.ComponentId)
 		}
 		workflowMappingDtos = append(workflowMappingDtos, workflow)
@@ -714,9 +729,8 @@ func fetchAllLeafPipelines(componentIdToWorkflowMapping map[string]map[int]*AppW
 	leafPipelines := make([]*AppWorkflowMappingDto, 0)
 	for _, mapping := range componentIdToWorkflowMapping {
 		for _, workflow := range mapping {
-			if len(workflow.ChildPipelinesIds) == 0 {
+			if workflow.IsLast {
 				leafPipelines = append(leafPipelines, workflow)
-				workflow.IsLast = true
 			}
 		}
 	}
