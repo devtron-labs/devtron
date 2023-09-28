@@ -100,6 +100,16 @@ func (groupType ResourceGroupType) getMappedResourceKey(resourceKeyToId map[bean
 	return 0
 }
 
+func (groupType ResourceGroupType) getResourceFromRbacObject(object string, envObjectToName map[string]string) string {
+	switch groupType {
+	case ENV_GROUP:
+		return envObjectToName[object]
+	case APP_GROUP:
+		return strings.Split(object, "/")[1]
+	}
+	return ""
+}
+
 type ResourceGroupDto struct {
 	Id               int                                                                     `json:"id,omitempty"`
 	Name             string                                                                  `json:"name,omitempty" validate:"required,max=30,name-component"`
@@ -316,7 +326,7 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 	if groupType == APP_GROUP {
 		objects = impl.enforcerUtil.GetRbacObjectsByAppIds(resourceIds)
 	} else if groupType == ENV_GROUP {
-		objects = impl.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(resourceIds, parentResourceId)
+		objects, _ = impl.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(resourceIds, parentResourceId)
 	}
 	for _, object := range objects {
 		rbacObjectArr = append(rbacObjectArr, object)
@@ -457,10 +467,12 @@ func (impl *ResourceGroupServiceImpl) checkAuthForResources(resourceIdsForAuthor
 	}
 
 	var objects map[int]string
+	var envObjectToName map[string]string
+
 	if groupType == APP_GROUP {
 		objects = impl.enforcerUtil.GetRbacObjectsByAppIds(resourceIds)
 	} else if groupType == ENV_GROUP {
-		objects = impl.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(resourceIds, parentResourceId)
+		objects, envObjectToName = impl.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(resourceIds, parentResourceId)
 	}
 
 	for _, object := range objects {
@@ -472,7 +484,7 @@ func (impl *ResourceGroupServiceImpl) checkAuthForResources(resourceIdsForAuthor
 		resourceObject := objects[resourceId]
 		if !results[resourceObject] {
 			//if user unauthorized
-			unauthorizedResources = append(unauthorizedResources, strings.Split(resourceObject, "/")[1])
+			unauthorizedResources = append(unauthorizedResources, groupType.getResourceFromRbacObject(resourceObject, envObjectToName))
 		}
 	}
 	//authorization block ends here
