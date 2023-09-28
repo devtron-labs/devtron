@@ -376,6 +376,7 @@ type CiPipelineMinResponse struct {
 	AppName          string `json:"appName,omitempty"`
 	ParentCiPipeline int    `json:"parentCiPipeline"`
 	ParentAppId      int    `json:"parentAppId"`
+	PipelineType     string `json:"pipelineType"`
 }
 
 type TestExecutorImageProperties struct {
