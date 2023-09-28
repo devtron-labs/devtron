@@ -2069,7 +2069,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
-			return 0,"", err
+			return 0, "", err
 		}
 		if isVulnerable == true {
 			// if image vulnerable, update timeline status and return
@@ -2081,7 +2081,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 			if err != nil {
 				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
-				return 0,"", err
+				return 0, "", err
 			}
 			runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 				Pipeline: cdPipeline,
@@ -2109,7 +2109,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			if err1 != nil {
 				impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
 			}
-			return 0,"", fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
+			return 0, "", fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
 		releaseId, manifest, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
@@ -2186,7 +2186,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
-			return 0, err
+			return 0, "", err
 		}
 	}
 	return releaseId, helmPackageName, err
