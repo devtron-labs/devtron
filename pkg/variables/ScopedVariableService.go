@@ -257,15 +257,15 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*res
 
 		for _, variableScope := range scopes {
 			qualifier := resourceQualifiers.Qualifier(variableScope.QualifierId)
-			if slices.Contains(repository2.CompoundQualifiers, qualifier) {
+			if slices.Contains(resourceQualifiers.CompoundQualifiers, qualifier) {
 				compoundQualifierToScopes[qualifier] = append(compoundQualifierToScopes[qualifier], variableScope)
 			} else {
 				selectedScopes = append(selectedScopes, variableScope)
 			}
 		}
 
-		for _, qualifier := range repository2.CompoundQualifiers {
-			selectedScope := impl.selectScopeForCompoundQualifier(compoundQualifierToScopes[qualifier], repository2.GetNumOfChildQualifiers(qualifier))
+		for _, qualifier := range resourceQualifiers.CompoundQualifiers {
+			selectedScope := impl.selectScopeForCompoundQualifier(compoundQualifierToScopes[qualifier], resourceQualifiers.GetNumOfChildQualifiers(qualifier))
 			if selectedScope != nil {
 				selectedScopes = append(selectedScopes, selectedScope)
 			}
@@ -514,9 +514,12 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*repository2.VariableDefinition) (map[int][]*resourceQualifiers.QualifierMapping, []int, error) {
 	varIdVsScopeMappings := make(map[int][]*resourceQualifiers.QualifierMapping)
 	var varScopeIds []int
-	varDefnIds := make([]int, len(dataForJson))
+	varDefnIds := make([]int, 0, len(dataForJson))
 	for _, variableDefinition := range dataForJson {
 		varDefnIds = append(varDefnIds, variableDefinition.Id)
+	}
+	if len(varDefnIds) == 0 {
+		return varIdVsScopeMappings, varScopeIds, nil
 	}
 	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, nil, varDefnIds)
 	if err != nil {
@@ -536,6 +539,9 @@ func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*reposito
 
 func (impl *ScopedVariableServiceImpl) getVariableScopeData(scopeIds []int) (map[int]*repository2.VariableData, error) {
 	scopeIdVsVarDataMap := make(map[int]*repository2.VariableData, len(scopeIds))
+	if len(scopeIds) == 0 {
+		return scopeIdVsVarDataMap, nil
+	}
 	variableDataArray, err := impl.scopedVariableRepository.GetDataForScopeIds(scopeIds)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching data for scope ids", "err", err)
