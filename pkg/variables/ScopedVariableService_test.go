@@ -920,16 +920,6 @@ func InitScopedVariableServiceImpl(t *testing.T) (*ScopedVariableServiceImpl, *m
 
 func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 	t.Setenv("VARIABLE_CACHE_ENABLED", "false")
-	searchableKeyMap := map[bean.DevtronResourceSearchableKeyName]int{
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_APP_NAME:           1,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ENV_NAME:           2,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_IS_ALL_PRODUCTION_ENV:      3,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_BRANCH:         4,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_TRIGGER_ACTION: 5,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID:                     6,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID:                     7,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID:                 8,
-	}
 	varDef := []*repository.VariableDefinition{
 		{
 			Id:          1,
@@ -1235,43 +1225,88 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl, scopedVariableRepository, _, _, devtronResourceService, _, _ := InitScopedVariableServiceImpl(t)
+			impl, scopedVariableRepository, _, _, _, _, qualifierMappingService := InitScopedVariableServiceImpl(t)
 			if tt.name == "NoVariablesFound" {
 				scopedVariableRepository.On("GetAllVariables").Return(nil, nil)
 			}
 			if tt.name == "get scoped variable data" {
+				var varIds []int
+				for _, definition := range varDef {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", []int{1}).Return(varData, nil)
 			}
 			if tt.name == "test for  error cases  in GetScopedVariableData" {
+				var varIds []int
+				for _, definition := range varDef {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				var scopeIds []int
+				for _, varScope := range variableScope {
+					mappings = append(mappings, varScope.QualifierMapping)
+					scopeIds = append(scopeIds, varScope.Id)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope, searchableKeyMap, mock.AnythingOfType("[]int")).Return(nil, errors.New("error in getting varScope"))
+				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(nil, errors.New("error in getting varScope"))
 			}
 			if tt.name == "test for  error cases  in GetDataForScopeIds" {
+				var varIds []int
+				for _, definition := range varDef {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(nil, errors.New("error in getting variable data"))
 			}
 			if tt.name == "get data when varName is not provided" {
+				var varIds []int
+				for _, definition := range varDef {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(varData, nil)
 			}
 			if tt.name == "get scoped variable data for provided appId" {
+				var varIds []int
+				for _, definition := range varDef1 {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope1 {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope1, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef1, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope1, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope1, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(varData, nil)
 			}
 			if tt.name == "test for private variable" {
+				var varIds []int
+				for _, definition := range varDef2 {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope2 {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope1, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef2, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope1, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope2, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(varData1, nil)
 			}
 
