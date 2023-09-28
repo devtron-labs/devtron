@@ -17,10 +17,10 @@ const (
 )
 
 const (
-	AllProjectsValue                     = "0"
-	AllProjectsInt                       = 0
-	AllExistingAndFutureProdEnvsValue    = "0"
-	AllExistingAndFutureProdEnvsInt      = 0
+	AllProjectsValue                     = "-1"
+	AllProjectsInt                       = -1
+	AllExistingAndFutureProdEnvsValue    = "-2"
+	AllExistingAndFutureProdEnvsInt      = -2
 	AllExistingAndFutureNonProdEnvsValue = "-1"
 	AllExistingAndFutureNonProdEnvsInt   = -1
 )

@@ -347,7 +347,7 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 	envsMap := make(map[string]int)
 	clustersMap := make(map[string]int)
 	for _, appSelector := range qualifierSelector.ApplicationSelectors {
-		if appSelector.ProjectName != AllProjectsValue {
+		if appSelector.ProjectName != resourceQualifiers.AllProjectsValue {
 			teams = append(teams, appSelector.ProjectName)
 		}
 		for _, app := range appSelector.Applications {
@@ -356,7 +356,7 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 	}
 
 	for _, envSelector := range qualifierSelector.EnvironmentSelectors {
-		if envSelector.ClusterName != AllExistingAndFutureProdEnvsValue && envSelector.ClusterName != AllExistingAndFutureNonProdEnvsValue {
+		if envSelector.ClusterName != resourceQualifiers.AllExistingAndFutureProdEnvsValue && envSelector.ClusterName != resourceQualifiers.AllExistingAndFutureNonProdEnvsValue {
 			clusters = append(clusters, envSelector.ClusterName)
 		}
 		for _, env := range envSelector.Environments {
@@ -458,15 +458,15 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 	}
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	//case-1) all existing and future applications -> will get empty ApplicationSelector , db entry (proj,0,"0")
-	if len(qualifierSelector.ApplicationSelectors) == 1 && qualifierSelector.ApplicationSelectors[0].ProjectName == AllProjectsValue {
+	if len(qualifierSelector.ApplicationSelectors) == 1 && qualifierSelector.ApplicationSelectors[0].ProjectName == resourceQualifiers.AllProjectsValue {
 		allExistingAndFutureAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:            resourceFilterId,
 			ResourceType:          resourceQualifiers.Filter,
 			QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
 			IdentifierKey:         GetIdentifierKey(ProjectIdentifier, searchableKeyNameIdMap),
 			Active:                true,
-			IdentifierValueInt:    AllProjectsInt,
-			IdentifierValueString: AllProjectsValue,
+			IdentifierValueInt:    resourceQualifiers.AllProjectsInt,
+			IdentifierValueString: resourceQualifiers.AllProjectsValue,
 			AuditLog:              auditLog,
 		}
 		qualifierMappings = append(qualifierMappings, allExistingAndFutureAppsQualifierMapping)
@@ -522,12 +522,12 @@ func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId i
 			Active:        true,
 			AuditLog:      auditLog,
 		}
-		if envSelector.ClusterName == AllExistingAndFutureProdEnvsValue {
-			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureProdEnvsInt
-			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureProdEnvsValue
+		if envSelector.ClusterName == resourceQualifiers.AllExistingAndFutureProdEnvsValue {
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = resourceQualifiers.AllExistingAndFutureProdEnvsInt
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = resourceQualifiers.AllExistingAndFutureProdEnvsValue
 		} else {
-			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = AllExistingAndFutureNonProdEnvsInt
-			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = AllExistingAndFutureNonProdEnvsValue
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueInt = resourceQualifiers.AllExistingAndFutureNonProdEnvsInt
+			allExistingAndFutureEnvQualifierMapping.IdentifierValueString = resourceQualifiers.AllExistingAndFutureNonProdEnvsValue
 		}
 		qualifierMappings = append(qualifierMappings, allExistingAndFutureEnvQualifierMapping)
 	}
@@ -639,7 +639,7 @@ func (impl *ResourceFilterServiceImpl) checkForAppQualifier(scope resourceQualif
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	appIdentifierValueInt := appFilterQualifier.IdentifierValueInt
 	if appFilterQualifier.IdentifierKey == GetIdentifierKey(ProjectIdentifier, searchableKeyNameIdMap) {
-		appAllowed = appIdentifierValueInt == AllProjectsInt || appIdentifierValueInt == scope.ProjectId
+		appAllowed = appIdentifierValueInt == resourceQualifiers.AllProjectsInt || appIdentifierValueInt == scope.ProjectId
 	} else {
 		// check for app identifier value
 		appAllowed = appIdentifierValueInt == scope.AppId
@@ -792,9 +792,9 @@ func extractAllTypesOfEnvSelectors(envSelectors []EnvironmentSelector) ([]Enviro
 
 	for _, envSelector := range envSelectors {
 		//order of these cases are **IMPORTANT**
-		if envSelector.ClusterName == AllExistingAndFutureProdEnvsValue {
+		if envSelector.ClusterName == resourceQualifiers.AllExistingAndFutureProdEnvsValue {
 			allExistingFutureProdEnvSelectors = append(allExistingFutureProdEnvSelectors, envSelector)
-		} else if envSelector.ClusterName == AllExistingAndFutureNonProdEnvsValue {
+		} else if envSelector.ClusterName == resourceQualifiers.AllExistingAndFutureNonProdEnvsValue {
 			allExistingFutureNonProdEnvSelectors = append(allExistingFutureNonProdEnvSelectors, envSelector)
 		} else if len(envSelector.Environments) == 0 {
 			allExistingFutureEnvsOfACluster = append(allExistingFutureEnvsOfACluster, envSelector)

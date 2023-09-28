@@ -6,15 +6,9 @@ import (
 )
 
 const (
-	NoResourceFiltersFound               = "no active resource filters found"
-	AppAndEnvSelectorRequiredMessage     = "both application and environment selectors are required"
-	InvalidExpressions                   = "one or more expressions are invalid"
-	AllProjectsValue                     = "0"
-	AllProjectsInt                       = 0
-	AllExistingAndFutureProdEnvsValue    = "0"
-	AllExistingAndFutureProdEnvsInt      = 0
-	AllExistingAndFutureNonProdEnvsValue = "-1"
-	AllExistingAndFutureNonProdEnvsInt   = -1
+	NoResourceFiltersFound           = "no active resource filters found"
+	AppAndEnvSelectorRequiredMessage = "both application and environment selectors are required"
+	InvalidExpressions               = "one or more expressions are invalid"
 )
 
 type IdentifierType int
