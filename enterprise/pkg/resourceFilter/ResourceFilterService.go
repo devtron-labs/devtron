@@ -11,6 +11,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
+	"strings"
 	"time"
 )
 
@@ -125,6 +126,9 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 	if filterRequest == nil || len(filterRequest.QualifierSelector.EnvironmentSelectors) == 0 || len(filterRequest.QualifierSelector.ApplicationSelectors) == 0 {
 		return nil, errors.New(AppAndEnvSelectorRequiredMessage)
 	}
+	if strings.Contains(filterRequest.Name, " ") {
+		return nil, errors.New("spaces are not allowed in name")
+	}
 
 	//validating given condition expressions
 	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
@@ -205,6 +209,10 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		return errors.New(InvalidExpressions)
 	}
 	//validation done
+
+	if strings.Contains(filterRequest.Name, " ") {
+		return errors.New("spaces are not allowed in name")
+	}
 
 	//if mappings are edited delete all the existing mappings and create new mappings
 	conditionExpression, err := getJsonStringFromResourceCondition(filterRequest.Conditions)
