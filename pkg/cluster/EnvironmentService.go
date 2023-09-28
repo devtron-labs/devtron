@@ -742,6 +742,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
 		return err
 	}
+
 	//deleting auth roles entries for this environment
 	err = impl.userAuthService.DeleteRoles(bean.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier)
 	if err != nil {
