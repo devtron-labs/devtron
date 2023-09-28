@@ -692,24 +692,22 @@ func (impl *ResourceFilterServiceImpl) makeQualifierSelector(qualifierMappings [
 		}
 	}
 
-	apps, err := impl.appRepository.FindAppAndProjectByIdsOrderByTeam(appIds)
+	appSelectors, envSelectors, err := impl.updateAppAndEnvSelectors(appSelectors, envSelectors, appIds, envIds)
 	if err != nil {
-		impl.logger.Errorw("error in fetching apps by appIds", "err", err, "appIds", appIds)
+		impl.logger.Errorw("error in fetching apps by appIds or envs by envIds", "err", err, "appIds", appIds)
 		return resp, err
 	}
-
-	envs, err := impl.environmentRepository.FindByIdsOrderByCluster(envIds)
-	if err != nil {
-		impl.logger.Errorw("error in fetching envs by envIds", "err", err, "envIds", envIds)
-		return resp, err
-	}
-	appSelectors, envSelectors = impl.appendAppAndEnvSelectors(appSelectors, envSelectors, apps, envs)
 	resp.ApplicationSelectors = appSelectors
 	resp.EnvironmentSelectors = envSelectors
 	return resp, nil
 }
 
-func (impl *ResourceFilterServiceImpl) appendAppAndEnvSelectors(appSelectors []ApplicationSelector, envSelectors []EnvironmentSelector, apps []*appRepository.App, envs []*clusterRepository.Environment) ([]ApplicationSelector, []EnvironmentSelector) {
+func (impl *ResourceFilterServiceImpl) updateAppAndEnvSelectors(appSelectors []ApplicationSelector, envSelectors []EnvironmentSelector, appIds []int, envIds []int) ([]ApplicationSelector, []EnvironmentSelector, error) {
+	apps, envs, err := impl.fetchAppsAndEnvs(appIds, envIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching apps by appIds or envs by envIds", "err", err, "appIds", appIds)
+		return nil, nil, err
+	}
 	if len(apps) > 0 {
 		prev := 0
 		appSelector := ApplicationSelector{
@@ -752,7 +750,22 @@ func (impl *ResourceFilterServiceImpl) appendAppAndEnvSelectors(appSelectors []A
 		envSelectors = append(envSelectors, envSelector)
 	}
 
-	return appSelectors, envSelectors
+	return appSelectors, envSelectors, nil
+}
+
+func (impl *ResourceFilterServiceImpl) fetchAppsAndEnvs(appIds []int, envIds []int) ([]*appRepository.App, []*clusterRepository.Environment, error) {
+	apps, err := impl.appRepository.FindAppAndProjectByIdsOrderByTeam(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching apps by appIds", "err", err, "appIds", appIds)
+		return apps, nil, err
+	}
+
+	envs, err := impl.environmentRepository.FindByIdsOrderByCluster(envIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching envs by envIds", "err", err, "envIds", envIds)
+		return apps, envs, err
+	}
+	return apps, envs, nil
 }
 
 func extractAllTypesOfEnvSelectors(envSelectors []EnvironmentSelector) ([]EnvironmentSelector, []EnvironmentSelector, error) {
@@ -769,6 +782,7 @@ func extractAllTypesOfEnvSelectors(envSelectors []EnvironmentSelector) ([]Enviro
 	//   case1 : type1 + type4(nonProdEnvs),
 	//   case2 : type2 + type4(prodEnvs),
 	//   case3 : type1 + type2
+	//   case4 : (type1 or type2) + type3
 
 	for _, envSelector := range envSelectors {
 		//order of these cases are **IMPORTANT**
@@ -789,20 +803,14 @@ func extractAllTypesOfEnvSelectors(envSelectors []EnvironmentSelector) ([]Enviro
 		return nil, nil, errors.New("multiple selectors of type allExistingFutureProdEnvSelector or allExistingFutureNonProdEnvSelector found, invalid selectors request")
 	}
 
-	//   case2: type1 + type2 + type4
-	if len(allExistingFutureProdEnvSelectors) != 0 && len(allExistingFutureNonProdEnvSelectors) != 0 && len(otherEnvSelectors) != 0 {
+	//   case2: type1 + type2 + (type4 or type3)
+	if len(allExistingFutureProdEnvSelectors) != 0 && len(allExistingFutureNonProdEnvSelectors) != 0 && (len(otherEnvSelectors) != 0 || len(allExistingFutureEnvsOfACluster) != 0) {
 		return nil, nil, errors.New("some other selectors found along with allExistingFutureProdEnvSelector and allExistingFutureNonProdEnvSelector found, invalid selectors request")
 	}
 
-	//   case3: type1 + type3
-	//   case4: type2 + type3
-	if (len(allExistingFutureProdEnvSelectors) != 0 || len(allExistingFutureNonProdEnvSelectors) != 0) && len(allExistingFutureEnvsOfACluster) != 0 {
-		return nil, nil, errors.New(" invalid selectors combinations found")
-	}
-
 	//TODO: handle(requires db call and then validate)
-	//   case5: type1 + type4(prodEnvs)
-	//   case6: type2 + type4(nonProdEnvs)
+	//   case3: type1 + type4(prodEnvs)
+	//   case4: type2 + type4(nonProdEnvs)
 
 	allClusterEnvSelectors := append(allExistingFutureProdEnvSelectors, allExistingFutureNonProdEnvSelectors...)
 	otherEnvSelectors = append(otherEnvSelectors, allExistingFutureEnvsOfACluster...)
