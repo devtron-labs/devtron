@@ -30,6 +30,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util5 "github.com/devtron-labs/devtron/util/k8s"
@@ -120,6 +123,8 @@ type WorkflowDagExecutorImpl struct {
 	pipelineStageRepository       repository4.PipelineStageRepository
 	pipelineStageService          PipelineStageService
 	config                        *CdConfig
+
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 }
 
 const (
@@ -216,7 +221,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
 	pipelineStageRepository repository4.PipelineStageRepository,
-	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService) *WorkflowDagExecutorImpl {
+	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -254,6 +261,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		k8sCommonService:              k8sCommonService,
 		pipelineStageRepository:       pipelineStageRepository,
 		pipelineStageService:          pipelineStageService,
+		variableSnapshotHistoryService: variableSnapshotHistoryService,
 	}
 	config, err := GetCdConfig()
 	if err != nil {
@@ -401,10 +409,9 @@ func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage 
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
-	var err error
-	preStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipeline.Id, "err", err)
+
+	preStage, err := impl.getPipelineStage(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
+	if err != nil {
 		return err
 	}
 
@@ -435,11 +442,19 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) triggerStageForBulk(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
-	var err error
-	preStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
+func (impl *WorkflowDagExecutorImpl) getPipelineStage(pipelineId int, stageType repository4.PipelineStageType) (*repository4.PipelineStage, error) {
+	stage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipelineId, stageType)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipeline.Id, "err", err)
+		impl.logger.Errorw("error in fetching CD pipeline stage", "cdPipelineId", pipelineId, "stage ", stage, "err", err)
+		return nil, err
+	}
+	return stage, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) triggerStageForBulk(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
+
+	preStage, err := impl.getPipelineStage(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
+	if err != nil {
 		return err
 	}
 
@@ -1036,24 +1051,44 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	var refPluginsData []*bean3.RefPluginObject
 	//if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
 	//case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
-	pipelineStage, err := impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(cdPipeline.Id)
+	pipelineStage, err := impl.getPipelineStage(cdPipeline.Id, runner.WorkflowType.WorkflowTypeToStageType())
 	if err != nil {
-		impl.logger.Errorw("error in getting pipelineStages by cdPipelineId", "err", err, "cdPipelineId", cdPipeline.Id)
 		return nil, err
 	}
-	if len(pipelineStage) > 0 {
+	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting environment by id", "err", err)
+		return nil, err
+	}
+	if pipelineStage != nil {
+		//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
+		//since user sees the environment of the CD pipeline
+		scope := models2.Scope{
+			AppId:     cdPipeline.App.Id,
+			EnvId:     env.Id,
+			ClusterId: env.ClusterId,
+		}
+		var variableSnapshot map[string]string
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-			preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, bean3.CdStage)
+			//preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, preCdStage, scope)
 			if err != nil {
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
 			}
+			preDeploySteps = prePostAndRefPluginResponse.PreStageSteps
+			refPluginsData = prePostAndRefPluginResponse.RefPluginData
+			variableSnapshot = prePostAndRefPluginResponse.VariableSnapshot
 		} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-			_, postDeploySteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, bean3.CdStage)
+			//_, postDeploySteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, postCdStage, scope)
 			if err != nil {
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
 			}
+			postDeploySteps = prePostAndRefPluginResponse.PostStageSteps
+			refPluginsData = prePostAndRefPluginResponse.RefPluginData
+			variableSnapshot = prePostAndRefPluginResponse.VariableSnapshot
 			deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
 			if err != nil {
 				impl.logger.Errorw("error in getting deployStageWfr, deployStageTriggeredByUser and pipelineReleaseCounter wf request", "err", err, "cdPipelineId", cdPipeline.Id)
@@ -1063,6 +1098,20 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			return nil, fmt.Errorf("unsupported workflow triggerd")
 		}
 
+		//Save Scoped VariableSnapshot
+		if len(variableSnapshot) > 0 {
+			variableMapBytes, _ := json.Marshal(variableSnapshot)
+			err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository5.VariableSnapshotHistoryBean{{
+				VariableSnapshot: variableMapBytes,
+				HistoryReference: repository5.HistoryReference{
+					HistoryReferenceId:   runner.Id,
+					HistoryReferenceType: repository5.HistoryReferenceTypeCDWORKFLOWRUNNER,
+				},
+			}}, runner.TriggeredBy)
+			if err != nil {
+				impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s %d %s", err, runner.Id, variableSnapshot)
+			}
+		}
 	} else {
 		//in this case no plugin script is not present for this cdPipeline hence going with attaching preStage or postStage config
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
@@ -1111,11 +1160,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 
 	extraEnvVariables := make(map[string]string)
-	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("error in getting environment by id", "err", err)
-		return nil, err
-	}
 	if env != nil {
 		extraEnvVariables[CD_PIPELINE_ENV_NAME_KEY] = env.Name
 		if env.Cluster != nil {
@@ -1372,9 +1416,8 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 		return err
 	}
 
-	postStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipelineOverride.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_POST_CD)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipelineOverride.Pipeline, "err", err)
+	postStage, err := impl.getPipelineStage(pipelineOverride.Id, repository4.PIPELINE_STAGE_TYPE_POST_CD)
+	if err != nil {
 		return err
 	}
 
