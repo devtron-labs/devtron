@@ -85,16 +85,16 @@ type TriggerViewWorkflowConfig struct {
 }
 
 type AppWorkflowMappingDto struct {
-	Id                         int    `json:"id,omitempty"`
-	AppWorkflowId              int    `json:"appWorkflowId"`
-	Type                       string `json:"type"`
-	ComponentId                int    `json:"componentId"`
-	ParentId                   int    `json:"parentId"`
-	ParentType                 string `json:"parentType"`
-	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
-	UserId                     int32  `json:"-"`
-	IsLast                     bool   `json:"isLast"`
-	ChildPipelinesIds          []int  `json:"-"`
+	Id                         int        `json:"id,omitempty"`
+	AppWorkflowId              int        `json:"appWorkflowId"`
+	Type                       string     `json:"type"`
+	ComponentId                int        `json:"componentId"`
+	ParentId                   int        `json:"parentId"`
+	ParentType                 string     `json:"parentType"`
+	DeploymentAppDeleteRequest bool       `json:"deploymentAppDeleteRequest"`
+	UserId                     int32      `json:"-"`
+	IsLast                     bool       `json:"isLast"`
+	ChildPipelinesIds          mapset.Set `json:"-"`
 }
 
 func (dto AppWorkflowMappingDto) getPipelineIdentifier() PipelineIdentifier {
@@ -659,7 +659,7 @@ func (impl AppWorkflowServiceImpl) FilterWorkflows(triggerViewConfig *TriggerVie
 		}
 	}
 
-	workflowsToDelete := make([]AppWorkflowDto, 0)
+	filteredWorkflows := make([]AppWorkflowDto, 0)
 	for index, workflow := range triggerViewConfig.Workflows {
 		isPresent := false
 		for _, appWorkflowMapping := range workflow.AppWorkflowMappingDto {
@@ -670,20 +670,13 @@ func (impl AppWorkflowServiceImpl) FilterWorkflows(triggerViewConfig *TriggerVie
 		}
 		//filter out all those env which not exist in cdPipelineIdsFiltered
 		if !isPresent {
-			workflowsToDelete = append(workflowsToDelete, workflow)
 			continue
 		}
-		ciType := CI_PIPELINE_TYPE
-		for _, awm := range workflow.AppWorkflowMappingDto {
-			if awm.Type == appWorkflow.WEBHOOK {
-				ciType = appWorkflow.WEBHOOK
-			}
-		}
-		triggerViewConfig.Workflows[index].AppWorkflowMappingDto = filterCdPipelines(workflow.AppWorkflowMappingDto, cdPipelineIdsFiltered, ciType)
+
+		triggerViewConfig.Workflows[index].AppWorkflowMappingDto = filterCdPipelines(workflow.AppWorkflowMappingDto, cdPipelineIdsFiltered)
+		filteredWorkflows = append(filteredWorkflows, triggerViewConfig.Workflows[index])
 	}
-	for _, workflowToDelete := range workflowsToDelete {
-		deleteFilteredOutAppWorkflowFromResp(triggerViewConfig, workflowToDelete)
-	}
+	triggerViewConfig.Workflows = filteredWorkflows
 
 	return triggerViewConfig, nil
 }
@@ -702,7 +695,7 @@ func deleteFilteredOutAppWorkflowFromResp(triggerViewConfig *TriggerViewWorkflow
 // filterCdPipelines filters the appWorkflowMapping based on the filteredCdPipelines and
 // prepares a componentIdToWorkflowMapping which maps type of ci (CI_PIPELINE/WEBHOOK) with map of
 // componentId (i.e. ciPipelineId in case of ci or pipelineId in case of cd) and AppWorkflowMappingDto
-func filterCdPipelines(appWorkflowMappings []AppWorkflowMappingDto, cdPipelineIdsFiltered mapset.Set, ciType string) []AppWorkflowMappingDto {
+func filterCdPipelines(appWorkflowMappings []AppWorkflowMappingDto, cdPipelineIdsFiltered mapset.Set) []AppWorkflowMappingDto {
 	componentIdToWorkflowMapping := make(map[PipelineIdentifier]*AppWorkflowMappingDto)
 
 	leafPipelines := make([]*AppWorkflowMappingDto, 0)
@@ -710,22 +703,22 @@ func filterCdPipelines(appWorkflowMappings []AppWorkflowMappingDto, cdPipelineId
 		if appWorkflowMapping.IsLast {
 			leafPipelines = append(leafPipelines, &appWorkflowMappings[i])
 		}
+		appWorkflowMappings[i].ChildPipelinesIds = mapset.NewSet()
 		componentIdToWorkflowMapping[appWorkflowMapping.getPipelineIdentifier()] = &appWorkflowMappings[i]
 	}
 
 	for _, appWorkflowMapping := range appWorkflowMappings {
-		a := componentIdToWorkflowMapping[appWorkflowMapping.getParentPipelineIdentifier()]
-		if _, ok := componentIdToWorkflowMapping[appWorkflowMapping.getParentPipelineIdentifier()]; ok {
-			a.ChildPipelinesIds = append(a.ChildPipelinesIds, appWorkflowMapping.ComponentId)
+		if appWorkflow, ok := componentIdToWorkflowMapping[appWorkflowMapping.getParentPipelineIdentifier()]; ok {
+			appWorkflow.ChildPipelinesIds.Add(appWorkflowMapping.ComponentId)
 		}
 	}
 
-	componentIdToWorkflowMapping = filterMappingOnFilteredCdPipelineIds(componentIdToWorkflowMapping, leafPipelines, cdPipelineIdsFiltered, ciType)
+	identifierToFilteredWorkflowMapping := filterMappingOnFilteredCdPipelineIds(componentIdToWorkflowMapping, leafPipelines, cdPipelineIdsFiltered)
 
 	newAppWorkflowMappingDto := make([]AppWorkflowMappingDto, 0)
 	for _, appWorkflowMapping := range appWorkflowMappings {
-		if _, ok := componentIdToWorkflowMapping[appWorkflowMapping.getPipelineIdentifier()]; ok {
-			newAppWorkflowMappingDto = append(newAppWorkflowMappingDto, *componentIdToWorkflowMapping[appWorkflowMapping.getPipelineIdentifier()])
+		if _, ok := identifierToFilteredWorkflowMapping[appWorkflowMapping.getPipelineIdentifier()]; ok {
+			newAppWorkflowMappingDto = append(newAppWorkflowMappingDto, *identifierToFilteredWorkflowMapping[appWorkflowMapping.getPipelineIdentifier()])
 		}
 	}
 	return newAppWorkflowMappingDto
@@ -736,26 +729,24 @@ func filterCdPipelines(appWorkflowMappings []AppWorkflowMappingDto, cdPipelineId
 // stage where one leaf cd-pipeline is not in cdPipelineIdsFiltered then we can delete the trailing leaf
 // cd-pipeline from componentIdWorkflowMapping's list of AppWorkflowMappingDto and also truncate the child
 // cd-pipeline id present in the parent's ChildPipelinesIds object inside AppWorkflowMappingDto.
-func filterMappingOnFilteredCdPipelineIds(componentIdWorkflowMapping map[PipelineIdentifier]*AppWorkflowMappingDto,
-	leafPipelines []*AppWorkflowMappingDto, cdPipelineIdsFiltered mapset.Set, ciType string) map[PipelineIdentifier]*AppWorkflowMappingDto {
+func filterMappingOnFilteredCdPipelineIds(identifierToFilteredWorkflowMapping map[PipelineIdentifier]*AppWorkflowMappingDto,
+	leafPipelines []*AppWorkflowMappingDto, cdPipelineIdsFiltered mapset.Set) map[PipelineIdentifier]*AppWorkflowMappingDto {
 
 	leafPipelineSize := len(leafPipelines)
 	for i := 0; i < leafPipelineSize; i++ {
 		if cdPipelineIdsFiltered.Contains(leafPipelines[i].ComponentId) {
 			continue
 		} else {
-			componentIdWorkflowMapping = deleteLeafPipelineFromMapping(leafPipelines[i], componentIdWorkflowMapping)
+			identifierToFilteredWorkflowMapping = deleteLeafPipelineFromMapping(leafPipelines[i], identifierToFilteredWorkflowMapping)
 		}
-		if componentIdWorkflowMapping[leafPipelines[i].getParentPipelineIdentifier()].Type != ciType {
-			if len(componentIdWorkflowMapping[leafPipelines[i].getParentPipelineIdentifier()].ChildPipelinesIds) == 0 {
-				//this means this pipeline has become leaf, so append this pipelineId in leafPipelines for further processing
-				leafPipelines = append(leafPipelines, componentIdWorkflowMapping[leafPipelines[i].getParentPipelineIdentifier()])
-				leafPipelineSize += 1
-			}
+		if identifierToFilteredWorkflowMapping[leafPipelines[i].getParentPipelineIdentifier()].ChildPipelinesIds.Cardinality() == 0 {
+			//this means this pipeline has become leaf, so append this pipelineId in leafPipelines for further processing
+			leafPipelines = append(leafPipelines, identifierToFilteredWorkflowMapping[leafPipelines[i].getParentPipelineIdentifier()])
+			leafPipelineSize += 1
 		}
 
 	}
-	return componentIdWorkflowMapping
+	return identifierToFilteredWorkflowMapping
 }
 
 // deleteLeafPipelineFromMapping deletes a particular mapping of appWorkflow from
@@ -768,26 +759,10 @@ func deleteLeafPipelineFromMapping(appWorkflowToDelete *AppWorkflowMappingDto, c
 		if workflowMappings.ComponentId != appWorkflowToDelete.ComponentId {
 			newMapping[pipelineIdentifier] = workflowMappings
 		}
-		componentIdToWorkflowMapping = newMapping
 	}
 	//also delete the child component id entry from appWorkflowToDelete parent's children cd list
-	workflowToDeletePipelineIdentifier := PipelineIdentifier{
-		PipelineType: appWorkflowToDelete.ParentType,
-		PipelineId:   appWorkflowToDelete.ParentId,
-	}
-	newChildPipelinesArray := deleteChildCdFromParentWorkflowMapping(componentIdToWorkflowMapping[workflowToDeletePipelineIdentifier].ChildPipelinesIds, appWorkflowToDelete.ComponentId)
-	componentIdToWorkflowMapping[workflowToDeletePipelineIdentifier].ChildPipelinesIds = newChildPipelinesArray
-	return componentIdToWorkflowMapping
-}
-
-func deleteChildCdFromParentWorkflowMapping(deleteFrom []int, toDelete int) []int {
-	newArray := make([]int, 0)
-	for _, element := range deleteFrom {
-		if element != toDelete {
-			newArray = append(newArray, element)
-		}
-	}
-	return newArray
+	newMapping[appWorkflowToDelete.getParentPipelineIdentifier()].ChildPipelinesIds.Remove(appWorkflowToDelete.ComponentId)
+	return newMapping
 }
 
 func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPipelines, error) {
