@@ -618,6 +618,7 @@ func (impl *ResourceFilterServiceImpl) updateAppAndEnvSelectors(appSelectors []A
 					ProjectName:  app.Team.Name,
 					Applications: []string{app.AppName},
 				}
+				prev = i
 			} else {
 				appSelector.Applications = append(appSelector.Applications, app.AppName)
 			}
@@ -639,6 +640,7 @@ func (impl *ResourceFilterServiceImpl) updateAppAndEnvSelectors(appSelectors []A
 					ClusterName:  env.Cluster.ClusterName,
 					Environments: []string{env.Name},
 				}
+				prev = i
 			} else {
 				envSelector.Environments = append(envSelector.Environments, env.Name)
 			}
