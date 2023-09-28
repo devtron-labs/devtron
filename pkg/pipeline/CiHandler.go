@@ -223,6 +223,7 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 	if err != nil {
 		return 0, err
 	}
+
 	if ciPipeline.IsManual {
 		impl.Logger.Debugw("not handling manual pipeline", "pipelineId", ciPipeline.Id)
 		return 0, err
