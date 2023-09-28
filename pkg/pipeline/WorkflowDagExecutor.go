@@ -1529,7 +1529,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
 	if err != nil || filterState != resourceFilter.ALLOW {
-		return err
+		return fmt.Errorf("the artifact does not pass filtering condition")
+
 	}
 	// need to check for approved artifact only in case configured
 	approvalRequestId, err := impl.checkApprovalNodeForDeployment(triggeredBy, pipeline, artifactId)
@@ -2031,7 +2032,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 	}
 	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
 	if err != nil || filterState != resourceFilter.ALLOW {
-		return 0, "", err
+		return 0, "", fmt.Errorf("the artifact does not pass filtering condition")
 	}
 	if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		cdWf := &pipelineConfig.CdWorkflow{
