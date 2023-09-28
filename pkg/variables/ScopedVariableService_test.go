@@ -404,11 +404,12 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository, _ := InitScopedVariableServiceImpl(t)
+			impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository, qualifierMappingService := InitScopedVariableServiceImpl(t)
 			var err error
 			tx := &pg.Tx{}
 			if tt.name == "Valid case with all data available" {
 
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -419,12 +420,17 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(parentScope, nil)
+				var parentQMappings []*resourceQualifiers.QualifierMapping
+				for _, variableScope := range parentScope {
+					parentQMappings = append(parentQMappings, variableScope.QualifierMapping)
+				}
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(parentQMappings, nil)
 				scopedVariableRepository.On("CreateVariableData", mock.AnythingOfType("[]*repository.VariableData"), tx).Return(nil)
 
 			}
 			if tt.name == "Valid case with all scopes in variable  available" {
 				scopedVariableRepository.On("GetAllVariableMetadata").Maybe().Return(varDef, nil)
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -434,7 +440,11 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(parentScope1, nil)
+				var parentQMappings []*resourceQualifiers.QualifierMapping
+				for _, variableScope := range parentScope1 {
+					parentQMappings = append(parentQMappings, variableScope.QualifierMapping)
+				}
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(parentQMappings, nil)
 				scopedVariableRepository.On("CreateVariableData", mock.AnythingOfType("[]*repository.VariableData"), tx).Return(nil)
 
 			}
@@ -444,6 +454,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error in Deletion" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(errors.New("error in deletion"))
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -451,6 +462,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error in saving data in variable definition" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -459,12 +471,13 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error in saving data in variable scope" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
 				scopedVariableRepository.On("GetAllVariableMetadata").Maybe().Return(varDef, nil)
 				scopedVariableRepository.On("CreateVariableDefinition", mock.AnythingOfType("[]*repository.VariableDefinition"), tx).Return(varDef, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(nil, errors.New("error in saving variable scope"))
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(nil, errors.New("error in saving qualifier mapping"))
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
@@ -472,6 +485,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error in saving data in variable data" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -481,11 +495,16 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(parentScope1, nil)
+				var parentQMappings []*resourceQualifiers.QualifierMapping
+				for _, variableScope := range parentScope1 {
+					parentQMappings = append(parentQMappings, variableScope.QualifierMapping)
+				}
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(parentQMappings, nil)
 				scopedVariableRepository.On("CreateVariableData", mock.AnythingOfType("[]*repository.VariableData"), tx).Return(errors.New("error in saving variable data"))
 
 			}
 			if tt.name == "Test for committing transaction" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -496,11 +515,16 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(parentScope1, nil)
+				var parentQMappings []*resourceQualifiers.QualifierMapping
+				for _, variableScope := range parentScope1 {
+					parentQMappings = append(parentQMappings, variableScope.QualifierMapping)
+				}
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(parentQMappings, nil)
 				scopedVariableRepository.On("CreateVariableData", mock.AnythingOfType("[]*repository.VariableData"), tx).Return(nil)
 
 			}
 			if tt.name == "Test for error cases in createVariableScopes wrong appNameToId" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -513,6 +537,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error cases in createVariableScopes wrong envNameToId" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -525,6 +550,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error cases in createVariableScopes wrong clusterNameToId" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
