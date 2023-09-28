@@ -737,6 +737,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 	deleteRequest := existingEnv
 	deleteRequest.UpdatedOn = time.Now()
 	deleteRequest.UpdatedBy = userId
+
 	err = impl.environmentRepository.MarkEnvironmentDeleted(deleteRequest, tx)
 
 	if err != nil {
