@@ -1522,6 +1522,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		return err
 	}
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
+	impl.logger.Infow("scope for auto trigger ", "scope", scope)
 	params := impl.celService.GetParamsFromArtifact(artifact.Image)
 	metadata := resourceFilter.ExpressionMetadata{
 		Params: params,
