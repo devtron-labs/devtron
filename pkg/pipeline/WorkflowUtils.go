@@ -674,8 +674,8 @@ func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) v1
 			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
 		},
 		Requests: v12.ResourceList{
-			v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.LimitCpu),
-			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
+			v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.ReqCpu),
+			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.ReqMem),
 		},
 	}
 }
