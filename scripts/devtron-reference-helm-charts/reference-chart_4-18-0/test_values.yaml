@@ -11,6 +11,13 @@ rolloutAnnotations:
   name: abhinav
   Company: Devtron
   Job: DevOps
+serviceHeadless:
+  name: testing-headless
+  enabled: false
+  labels: 
+    test: devtron
+  annotations:
+    test: devtron  
 
 containerSpec:
   lifecycle: 

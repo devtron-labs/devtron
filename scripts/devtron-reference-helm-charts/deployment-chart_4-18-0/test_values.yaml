@@ -6,7 +6,13 @@ deploymentLabels:
   name: kunalverma
   Company: Devtron
   Job: DevRel
-
+serviceHeadless:
+  name: testing-headless
+  enabled: true
+  labels: 
+    test: devtron
+  annotations:
+    test: devtron  
 deploymentAnnotations:
   name: kunalverma
   Company: Devtron

@@ -81,3 +81,47 @@ spec:
     app: {{ template ".Chart.Name .name" . }}
 {{- end }}
 {{- end }}
+---
+{{- if .Values.serviceHeadless.enabled  }}
+apiVersion: v1
+kind: Service
+metadata:
+  {{- if .Values.serviceHeadless.name }}
+  name: {{ .Values.serviceHeadless.name }}
+  {{- else }}
+  name: {{ template ".servicename" . }}-headless
+  {{- end }}
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+{{- if .Values.serviceHeadless.labels }}
+{{ toYaml .Values.serviceHeadless.labels | indent 4 }}
+{{- end }}
+{{- if .Values.serviceHeadless.annotations }}
+  annotations:
+{{ toYaml .Values.serviceHeadless.annotations | indent 4 }}
+{{- end}}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    {{- range .Values.ContainerPort }}
+      {{- if .servicePort }}
+    - port: {{ .servicePort }}
+      {{- else }}
+    - port: {{ .port }}
+       {{- end }}
+      {{- if .targetPort }}
+      targetPort: {{ .targetPort }}
+      {{- else }}
+      targetPort: {{ .name }}
+      {{- end }}
+      protocol: TCP
+      name: {{ .name }}
+    {{- end }}
+  selector:
+    app: {{ template ".Chart.Name .name" . }}
+{{- end }}
