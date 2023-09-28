@@ -726,6 +726,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		impl.logger.Errorw("No matching entry found for delete.", "id", deleteReq.Id)
 		return err
 	}
+
 	dbConnection := impl.environmentRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
