@@ -59,8 +59,8 @@ func (handler *ResourceFilterRestHandlerImpl) ListFilters(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	authorised, err := handler.applyAuth(userId)
-	if err != nil || !authorised {
+	authorised := handler.applyAuth(userId)
+	if !authorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -80,8 +80,8 @@ func (handler *ResourceFilterRestHandlerImpl) GetFilterById(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	authorised, err := handler.applyAuth(userId)
-	if err != nil || !authorised {
+	authorised := handler.applyAuth(userId)
+	if !authorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -107,8 +107,8 @@ func (handler *ResourceFilterRestHandlerImpl) CreateFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	authorised, err := handler.applyAuth(userId)
-	if err != nil || !authorised {
+	authorised := handler.applyAuth(userId)
+	if !authorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -149,8 +149,8 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	authorised, err := handler.applyAuth(userId)
-	if err != nil || !authorised {
+	authorised := handler.applyAuth(userId)
+	if !authorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -194,8 +194,8 @@ func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	authorised, err := handler.applyAuth(userId)
-	if err != nil || !authorised {
+	authorised := handler.applyAuth(userId)
+	if !authorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -224,8 +224,8 @@ func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	authorised, err := handler.applyAuth(userId)
-	if err != nil || !authorised {
+	authorised := handler.applyAuth(userId)
+	if !authorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -241,18 +241,11 @@ func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.Response
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
-func (handler *ResourceFilterRestHandlerImpl) applyAuth(userId int32) (authorised bool, err error) {
+func (handler *ResourceFilterRestHandlerImpl) applyAuth(userId int32) bool {
 
 	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-
 	if err != nil {
 		handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-		return false, err
 	}
-
-	if !isSuperAdmin {
-		return false, nil
-	}
-
-	return true, nil
+	return isSuperAdmin
 }
