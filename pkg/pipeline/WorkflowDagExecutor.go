@@ -564,7 +564,32 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
 	}
+	var env *repository2.Environment
 	var err error
+	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw(" unable to find env ", "err", err)
+		return err
+	}
+
+	// Todo - optimize
+	app, err := impl.appRepository.FindById(pipeline.AppId)
+	if err != nil {
+		return err
+	}
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
+	impl.logger.Infow("scope for auto trigger ", "scope", scope)
+	params := impl.celService.GetParamsFromArtifact(artifact.Image)
+	metadata := resourceFilter.ExpressionMetadata{
+		Params: params,
+	}
+	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+	if err != nil || filterState != resourceFilter.ALLOW {
+		return fmt.Errorf("the artifact does not pass filtering condition")
+
+	}
 	if cdWf == nil {
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
@@ -590,21 +615,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
 		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 	}
-	var env *repository2.Environment
 	if pipeline.RunPreStageInEnv {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw(" unable to find env ", "err", err)
-			return err
-		}
 		impl.logger.Debugw("env", "env", env)
 		runner.Namespace = env.Namespace
 	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
+	_, span1 := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
 	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
-	span.End()
+	span1.End()
 	if err != nil {
 		return err
 	}
@@ -745,6 +762,37 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 
+	var env *repository2.Environment
+	var err error
+	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw(" unable to find env ", "err", err)
+		return err
+	}
+
+	// Todo - optimize
+	app, err := impl.appRepository.FindById(pipeline.AppId)
+	if err != nil {
+		return err
+	}
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
+	impl.logger.Infow("scope for auto trigger ", "scope", scope)
+	if cdWf.CiArtifact == nil || cdWf.CiArtifact.Id == 0 {
+		cdWf.CiArtifact, err = impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
+		if err != nil {
+			impl.logger.Errorw("error fetching artifact data", "err", err)
+			return err
+		}
+	}
+	params := impl.celService.GetParamsFromArtifact(cdWf.CiArtifact.Image)
+	metadata := resourceFilter.ExpressionMetadata{
+		Params: params,
+	}
+	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+	if err != nil || filterState != resourceFilter.ALLOW {
+		return fmt.Errorf("the artifact does not pass filtering condition")
+	}
+
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:               pipeline.Name,
 		WorkflowType:       bean.CD_WORKFLOW_TYPE_POST,
@@ -758,14 +806,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_POST), pipeline.Name),
 		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 	}
-	var env *repository2.Environment
-	var err error
 	if pipeline.RunPostStageInEnv {
-		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw(" unable to find env ", "err", err)
-			return err
-		}
 		runner.Namespace = env.Namespace
 	}
 
@@ -774,13 +815,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 
-	if cdWf.CiArtifact == nil || cdWf.CiArtifact.Id == 0 {
-		cdWf.CiArtifact, err = impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
-		if err != nil {
-			impl.logger.Errorw("error fetching artifact data", "err", err)
-			return err
-		}
-	}
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(cdWf.CiArtifact, pipeline, context.Background())
 	if err != nil {
