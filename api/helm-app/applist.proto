@@ -77,6 +77,7 @@ message AppDetail{
   ChartMetadata chartMetadata = 7;
   ResourceTreeResponse resourceTreeResponse = 8;
   EnvironmentDetails environmentDetails = 9;
+  bool ReleaseExist = 10;
 }
 
 message AppStatus{
@@ -265,6 +266,7 @@ message InstallReleaseRequest {
   int32 historyMax = 7;
   RegistryCredential RegistryCredential = 8;
   bool IsOCIRepo = 9;
+  int32 installAppVersionHistoryId = 10;
 }
 
 message InstallReleaseResponse {

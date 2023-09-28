@@ -54,16 +54,18 @@ Lets take `Codacy` as an example and configure it in the Pre-Build stage in the 
 * Enter a descriptive message for the task in the `Description` field. It is an optional field. <br>`Note`: The description is available by default.
 * In the **Input Variables**, provide the information in the following fields:
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/plugins-latest/codacy-details-pre-build-stage.jpg)
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/codacy-1.jpg)
 
- | Variable | Format | Description |
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/codacy-2.jpg)
+
+| Variable | Format | Description |
 | ---- | ---- | ---- |
-| CodacyEndpoint | String | API endpoint for Codacy. |
-| GitProvider | String | Git provider for the scanning. |
-| CodacyApiToken | String | API token for Codacy. If it is provided, it will be used, otherwise it will be picked from Global secret (CODACY_API_TOKEN). |
-| Organisation | String | Your Organisation for Codacy.|
-| RepoName | String | Your Repository name. |
-| Branch | String | Your branch name. |
+| CodacyEndpoint | String | API endpoint for Codacy |
+| GitProvider | String | Git provider for the scanning |
+| CodacyApiToken | String | API token for Codacy. If it is provided, it will be used, otherwise it will be picked from Global secret (CODACY_API_TOKEN) |
+| Organisation | String | Your Organization for Codacy|
+| RepoName | String | Your Repository name |
+| Branch | String | Your branch name |
 
 * In `Trigger/Skip Condition`, set the trigger conditions to execute a task or `Set skip conditions`. As an exmple: CodacyEndpoint equal to https://app.codacy.com.<br>`Note`: You can set more than one condition.
 
@@ -96,17 +98,17 @@ K6 is an open-source tool and cloud service that makes load testing easy for dev
 
  | Variable | Format | Description |
 | ---- | ---- | ---- |
-| RelativePathToScript | String | Checkout path + script path along with script name. |
-| PrometheusUsername | String | Username of Prometheus account. |
-| PrometheusApiKey | String | API key of Prometheus account. |
-| PrometheusRemoteWriteEndpoint | String | Remote write endpoint of Prometheus account. |
+| RelativePathToScript | String | Checkout path + script path along with script name |
+| PrometheusUsername | String | Username of Prometheus account |
+| PrometheusApiKey | String | API key of Prometheus account |
+| PrometheusRemoteWriteEndpoint | String | Remote write endpoint of Prometheus account |
 | OutputType | String | `Log` or `Prometheus` |
 
 * `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
 
 * Click **Update Pipeline**.
 
-#### Sonarqube
+#### SonarQube
 
 Configuring `Sonarqube` in pre-build or post build task enhances your workflow with Continuous Code Quality & Code Security.
 
@@ -116,7 +118,7 @@ Configuring `Sonarqube` in pre-build or post build task enhances your workflow w
 2. Click **+ Add task**.
 3. Select **Sonarqube** from **PRESET PLUGINS**.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/preset-plugin-sonarqube-2.png)
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/sonarqube.jpg)
 
 * Enter a relevant name in the `Task name` field. It is a mandatory field.
 * Enter a descriptive message for the task in the `Description` field. It is an optional field.
@@ -124,13 +126,13 @@ Configuring `Sonarqube` in pre-build or post build task enhances your workflow w
 
  | Variable | Format | Description |
 | ---- | ---- | ---- |
-| SonarqubeProjectKey | String | Project key of sonarqube account. |
-| SonarqubeApiKey | String | API key of Sonarqube account. |
-| SonarqubeEndpoint | String | API endpoint of Sonarqube account. |
-| CheckoutPath | String | Checkout path of Git material. |
-| UsePropertiesFileFromProject | Boolean | Enter either `true` or `false` accordingly whether you want the poll to generate report or not. |
-| CheckForSonarAnalysisReport | Boolean | Enter either `true` or `false` accordingly whether you want the poll to generate report or not. |
-| AbortPipelineOnPolicyCheckFailed | Boolean | Enter either `true` or `false` accordingly whether you want to check if the policy fails or not. |
+| SonarqubeProjectKey | String | Project key of SonarQube account |
+| SonarqubeApiKey | String | API key of SonarQube account |
+| SonarqubeEndpoint | String | API endpoint of SonarQube account |
+| CheckoutPath | String | Checkout path of Git material |
+| UsePropertiesFileFromProject | Boolean | Enter either `true` or `false` accordingly whether the configuration file should be fetched from the project's source code |
+| CheckForSonarAnalysisReport | Boolean | Enter either `true` or `false` accordingly whether you want poll or actively check for the generation of the SonarQube analysis report |
+| AbortPipelineOnPolicyCheckFailed | Boolean | Enter either `true` or `false` accordingly whether you want to check if the policy fails or not |
 
 * `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
 
@@ -156,14 +158,14 @@ Configuring `Dependency Track for Python` in pre-build or post build task create
  | Variable | Format | Description |
 | ---- | ---- | ---- |
 | ProjectManifestType | String | Type of your Python project manifest which is used to build cycloneDx [Software Bill of Materials (SBOM)](https://owasp.org/www-community/Component_Analysis#software-bill-of-materials-sbom). E.g., PIP, Poetry etc. |
-| RelativePathToPoetryLock | String | Path to your poetry.lock file inside your project. |
-| RelativePathToPipfile | String | Path to your Pipfile.lock file inside your project. |
-| RelativePathToRequirementTxt | String | Path to your requirements.txt file inside your project. |
-| DTrackEndpoint | String | API endpoint of your dependency track account. |
-| DTrackProjectName | String | Name of your dependency track project. |
-| DTrackProjectVersion | String | Version of dependency track project. |
-| DTrackApiKey | String | API key of your dependency track account. |
-| CheckoutPath | String | Checkout path of Git material. |
+| RelativePathToPoetryLock | String | Path to your poetry.lock file inside your project |
+| RelativePathToPipfile | String | Path to your Pipfile.lock file inside your project |
+| RelativePathToRequirementTxt | String | Path to your requirements.txt file inside your project |
+| DTrackEndpoint | String | API endpoint of your dependency track account |
+| DTrackProjectName | String | Name of your dependency track project |
+| DTrackProjectVersion | String | Version of dependency track project |
+| DTrackApiKey | String | API key of your dependency track account |
+| CheckoutPath | String | Checkout path of Git material |
 
 * `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
 
@@ -189,11 +191,11 @@ Configuring `Dependency Track for NodeJs` in pre-build or post build task create
 
  | Variable | Format | Description |
 | ---- | ---- | ---- |
-| DTrackEndpoint | String | API endpoint of your dependency track account. |
-| DTrackProjectName | String | Name of your dependency track project. |
-| DTrackProjectVersion | String | Version of dependency track project. |
-| DTrackApiKey | String | API key of your dependency track account. |
-| CheckoutPath | String | Checkout path of Git material. |
+| DTrackEndpoint | String | API endpoint of your dependency track account |
+| DTrackProjectName | String | Name of your dependency track project |
+| DTrackProjectVersion | String | Version of dependency track project |
+| DTrackApiKey | String | API key of your dependency track account |
+| CheckoutPath | String | Checkout path of Git material |
 
 * `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
 
@@ -219,12 +221,12 @@ Configuring `Dependency Track for NodeJs` in pre-build or post build task create
 
  | Variable | Format | Description |
 | ---- | ---- | ---- |
-| BuildToolType | String | Type of build tool your project is using. E.g., Maven, or Gradle. |
-| DTrackEndpoint | String | API endpoint of your dependency track account. |
-| DTrackProjectName | String | Name of your dependency track project. |
-| DTrackProjectVersion | String | Version of dependency track project. |
-| DTrackApiKey | String | API key of your dependency track account. |
-| CheckoutPath | String | Checkout path of Git material. |
+| BuildToolType | String | Type of build tool your project is using. E.g., Maven, or Gradle |
+| DTrackEndpoint | String | API endpoint of your dependency track account |
+| DTrackProjectName | String | Name of your dependency track project |
+| DTrackProjectVersion | String | Version of dependency track project |
+| DTrackApiKey | String | API key of your dependency track account |
+| CheckoutPath | String | Checkout path of Git material |
 
 * `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
 
@@ -276,12 +278,12 @@ Codacy is an automated code analysis/quality tool that helps developers to ship 
 
  | Variable | Format | Description |
 | ---- | ---- | ---- |
-| CodacyEndpoint | String | API endpoint for Codacy. |
-| GitProvider | String | Git provider for the scanning. |
+| CodacyEndpoint | String | API endpoint for Codacy |
+| GitProvider | String | Git provider for the scanning |
 | CodacyApiToken | String | API token for Codacy. If it is provided, it will be used, otherwise it will be picked from Global secret (CODACY_API_TOKEN). |
-| Organisation | String | Your Organisation for Codacy.|
-| RepoName | String | Your Repository name. |
-| Branch | String | Your branch name. |
+| Organisation | String | Your Organization for Codacy|
+| RepoName | String | Your Repository name |
+| Branch | String | Your branch name |
 
 * `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
 
@@ -346,9 +348,9 @@ This example creates a Pre-build task from a container image. The output variabl
 | Mount custom code | Optional | Enable to mount the custom code in the container. Enter the script in the box below. <ul><li>Mount above code at (required): Path where the code should be mounted</li></ul> |
 | Command | Optional | The command to be executed inside the container |
 | Args | Optional | The arguments to be passed to the command mentioned in the previous field |
-| Port mapping | Optional | The port number on which the container listens. The port number exposes the container to outside services |
-| Mount code to container | Optional | Mounts the source code inside the container. Default is "No". If set to "Yes", enter the path  |
-| Mount directory from host | Optional | Mount any directory from the host into the container. This can be used to mount code or even output directories |
+| Port mapping | Optional | The port number on which the container listens. The port number exposes the container to outside services. |
+| Mount code to container | Optional | Mounts the source code inside the container. Default is "No". If set to "Yes", enter the path. |
+| Mount directory from host | Optional | Mount any directory from the host into the container. This can be used to mount code or even output directories. |
 | Output directory path | Optional | Directory path for the script output files such as logs, errors, etc. |
   
 * Select **Update Pipeline**.
