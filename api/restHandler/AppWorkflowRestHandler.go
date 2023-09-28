@@ -208,7 +208,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 			CdPipelines: cdPipelineWfData,
 		}
 		//filter based on envIds
-		response, err := impl.appWorkflowService.FilterWorkflowAndPipelinesOnEnvIds(triggerViewPayload, envIds)
+		response, err := impl.appWorkflowService.FilterWorkflows(triggerViewPayload, envIds)
 		if err != nil {
 			impl.Logger.Errorw("service err, FindAppWorkflow", "appId", appId, "envIds", envIds, "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -414,7 +414,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 
 	if len(envIds) > 0 {
 		//filter based on envIds
-		response, err = handler.appWorkflowService.FilterWorkflowAndPipelinesOnEnvIds(response, envIds)
+		response, err = handler.appWorkflowService.FilterWorkflows(response, envIds)
 		if err != nil {
 			handler.Logger.Errorw("service err, FilterResponseOnEnvIds", "appId", appId, "envIds", envIds, "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
