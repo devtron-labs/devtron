@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/util"
 )
 
 type ConfigMapRootJson struct {
@@ -60,4 +61,11 @@ func (configSecret ConfigSecretMap) GetDataMap() (map[string]string, error) {
 	var datamap map[string]string
 	err := json.Unmarshal(configSecret.Data, &datamap)
 	return datamap, err
+}
+func (configSecretJson ConfigSecretJson) GetDereferencedSecrets() []ConfigSecretMap {
+	return util.GetDeReferencedArray(configSecretJson.Secrets)
+}
+
+func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigSecretMap) {
+	configSecretJson.Secrets = util.GetReferencedArray(secrets)
 }
