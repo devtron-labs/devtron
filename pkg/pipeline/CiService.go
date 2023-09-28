@@ -32,9 +32,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/models"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"net/http"
@@ -83,7 +83,7 @@ type CiServiceImpl struct {
 	envRepository                 repository1.EnvironmentRepository
 	appRepository                 appRepository.AppRepository
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
-	config                        *CiConfig
+	config                         *CiConfig
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -163,7 +163,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	scope := models.Scope{
+	scope := resourceQualifiers.Scope{
 		AppId: pipeline.App.Id,
 	}
 	env, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
