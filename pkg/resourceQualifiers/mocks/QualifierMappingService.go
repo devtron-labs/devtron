@@ -71,15 +71,15 @@ func (_m *QualifierMappingService) DeleteAllQualifierMappingsByResourceTypeAndId
 }
 
 // GetQualifierMappings provides a mock function with given fields: resourceType, scope, resourceIds
-func (_m *QualifierMappingService) GetQualifierMappings(resourceType resourceQualifiers.ResourceType, scope resourceQualifiers.Scope, resourceIds []int) ([]*resourceQualifiers.QualifierMapping, error) {
+func (_m *QualifierMappingService) GetQualifierMappings(resourceType resourceQualifiers.ResourceType, scope *resourceQualifiers.Scope, resourceIds []int) ([]*resourceQualifiers.QualifierMapping, error) {
 	ret := _m.Called(resourceType, scope, resourceIds)
 
 	var r0 []*resourceQualifiers.QualifierMapping
 	var r1 error
-	if rf, ok := ret.Get(0).(func(resourceQualifiers.ResourceType, resourceQualifiers.Scope, []int) ([]*resourceQualifiers.QualifierMapping, error)); ok {
+	if rf, ok := ret.Get(0).(func(resourceQualifiers.ResourceType, *resourceQualifiers.Scope, []int) ([]*resourceQualifiers.QualifierMapping, error)); ok {
 		return rf(resourceType, scope, resourceIds)
 	}
-	if rf, ok := ret.Get(0).(func(resourceQualifiers.ResourceType, resourceQualifiers.Scope, []int) []*resourceQualifiers.QualifierMapping); ok {
+	if rf, ok := ret.Get(0).(func(resourceQualifiers.ResourceType, *resourceQualifiers.Scope, []int) []*resourceQualifiers.QualifierMapping); ok {
 		r0 = rf(resourceType, scope, resourceIds)
 	} else {
 		if ret.Get(0) != nil {
@@ -87,7 +87,7 @@ func (_m *QualifierMappingService) GetQualifierMappings(resourceType resourceQua
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(resourceQualifiers.ResourceType, resourceQualifiers.Scope, []int) error); ok {
+	if rf, ok := ret.Get(1).(func(resourceQualifiers.ResourceType, *resourceQualifiers.Scope, []int) error); ok {
 		r1 = rf(resourceType, scope, resourceIds)
 	} else {
 		r1 = ret.Error(1)

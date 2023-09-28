@@ -1360,7 +1360,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			},
 		},
 	}
-	variableData := []*repository.VariableData{
+	variableDataArray := []*repository.VariableData{
 		{
 			Id:              1,
 			VariableScopeId: 1,
@@ -1397,8 +1397,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 				IdentifierValueInt:    3,
 				IdentifierValueString: "dev-test",
 			},
-			VariableData: variableData[0],
-			Data:         "value1",
+			Data: "value1",
 		},
 		{
 			QualifierMapping: &resourceQualifiers.QualifierMapping{
@@ -1422,8 +1421,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 				IdentifierValueString: "dev-test",
 				CompositeKey:          "",
 			},
-			Data:         "value1",
-			VariableData: variableData[1],
+			Data: "value1",
 		},
 		{
 			QualifierMapping: &resourceQualifiers.QualifierMapping{
@@ -1435,8 +1433,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 				IdentifierValueString: "Dev",
 				CompositeKey:          "",
 			},
-			Data:         "value1",
-			VariableData: variableData[2],
+			Data: "value1",
 		},
 		{
 			QualifierMapping: &resourceQualifiers.QualifierMapping{
@@ -1444,8 +1441,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 				ResourceId:  1,
 				QualifierId: 5,
 			},
-			Data:         "value1",
-			VariableData: variableData[3],
+			Data: "value1",
 		},
 		{
 			QualifierMapping: &resourceQualifiers.QualifierMapping{
@@ -1457,8 +1453,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 				IdentifierValueString: "default_cluster",
 				CompositeKey:          "",
 			},
-			Data:         "value1",
-			VariableData: variableData[4],
+			Data: "value1",
 		},
 	}
 
@@ -1471,7 +1466,6 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			Description:      "Variable 1",
 			ShortDescription: "ShortDescription-Variable 1",
 			Active:           true,
-			//VariableScope:    variableScope,
 		},
 	}
 
@@ -1502,7 +1496,19 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			impl, scopedVariableRepository, _, _, devtronResourceService, _, qualifierMappingService := InitScopedVariableServiceImpl(t)
 			if tt.name == "test for getting json" {
 				scopedVariableRepository.On("GetAllVariableDefinition").Return(variableDefinition, nil)
-				qualifierMappingService.On("").Return()
+
+				var varDefIds []int
+				for _, definition := range variableDefinition {
+					varDefIds = append(varDefIds, definition.Id)
+				}
+				var qualifierMappings []*resourceQualifiers.QualifierMapping
+				var scopeIds []int
+				for _, varScope := range variableScope {
+					qualifierMappings = append(qualifierMappings, varScope.QualifierMapping)
+					scopeIds = append(scopeIds, varScope.Id)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("*resourceQualifiers.Scope"), varDefIds).Return(qualifierMappings, nil)
+				scopedVariableRepository.On("GetDataForScopeIds", scopeIds).Return(variableDataArray, nil)
 				devtronResourceService.On("GetAllSearchableKeyIdNameMap").Return(searchableKeyMap)
 			}
 			if tt.name == "test for error cases in GetAllVariableDefinition" {
