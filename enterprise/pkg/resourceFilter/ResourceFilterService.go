@@ -227,6 +227,23 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		}
 		return err
 	}
+
+	//validate if update request have different name stored in db
+	if resourceFilter.Name != filterRequest.Name {
+		//unique name validation
+		filterNames, err := impl.resourceFilterRepository.GetDistinctFilterNames()
+		if err != nil && err != pg.ErrNoRows {
+			return err
+		}
+
+		for _, name := range filterNames {
+			if name == filterRequest.Name {
+				return errors.New("filter already exists with this name")
+			}
+		}
+		//unique name validation done
+	}
+
 	currentTime := time.Now()
 	resourceFilter.UpdatedBy = userId
 	resourceFilter.Name = filterRequest.Name
