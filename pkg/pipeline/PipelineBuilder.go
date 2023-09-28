@@ -1167,13 +1167,15 @@ func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipeline
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := bean.PipelineType(bean.NORMAL)
+		pipelineType := bean.NORMAL
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
-			pipelineType = bean.PipelineType(bean.LINKED)
+			pipelineType = bean.LINKED
 		} else if pipeline.IsExternal == true {
-			pipelineType = bean.PipelineType(bean.EXTERNAL)
+			pipelineType = bean.EXTERNAL
+		} else if pipeline.PipelineType == string(bean.CI_JOB) {
+			pipelineType = bean.CI_JOB
 		}
 
 		ciPipeline := &bean.CiPipelineMin{

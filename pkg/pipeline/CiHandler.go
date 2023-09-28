@@ -164,6 +164,7 @@ type WorkflowResponse struct {
 	EnvironmentName      string                                      `json:"environmentName"`
 	ImageReleaseTags     []*repository2.ImageTag                     `json:"imageReleaseTags"`
 	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
+	PipelineType         string                                      `json:"pipelineType"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -650,6 +651,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
 		EnvironmentId:      workflow.EnvironmentId,
 		EnvironmentName:    environmentName,
+		PipelineType:       workflow.CiPipeline.PipelineType,
 	}
 	return workflowResponse, nil
 }
