@@ -50,8 +50,8 @@ func (condition ResourceCondition) IsFailCondition() bool {
 }
 
 type QualifierSelector struct {
-	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors" validate:"required,dive"`
-	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors" validate:"required,dive"`
+	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors" validate:"required,dive,min=1"`
+	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors" validate:"required,dive,min=1"`
 }
 
 type ApplicationSelector struct {

@@ -11,6 +11,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
+	"strings"
 	"time"
 )
 
@@ -125,6 +126,9 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 	if filterRequest == nil || len(filterRequest.QualifierSelector.EnvironmentSelectors) == 0 || len(filterRequest.QualifierSelector.ApplicationSelectors) == 0 {
 		return nil, errors.New(AppAndEnvSelectorRequiredMessage)
 	}
+	if strings.Contains(filterRequest.Name, " ") {
+		return nil, errors.New("spaces are not allowed in name")
+	}
 
 	//validating given condition expressions
 	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
@@ -197,6 +201,19 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 }
 
 func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) error {
+	//validating given condition expressions
+	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
+	if errored {
+		filterRequest.Conditions = validateResp.Conditions
+		impl.logger.Errorw("error in validating expression", "Conditions", validateResp.Conditions)
+		return errors.New(InvalidExpressions)
+	}
+	//validation done
+
+	if strings.Contains(filterRequest.Name, " ") {
+		return errors.New("spaces are not allowed in name")
+	}
+
 	//if mappings are edited delete all the existing mappings and create new mappings
 	conditionExpression, err := getJsonStringFromResourceCondition(filterRequest.Conditions)
 	if err != nil {
@@ -218,6 +235,23 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		}
 		return err
 	}
+
+	//validate if update request have different name stored in db
+	if resourceFilter.Name != filterRequest.Name {
+		//unique name validation
+		filterNames, err := impl.resourceFilterRepository.GetDistinctFilterNames()
+		if err != nil && err != pg.ErrNoRows {
+			return err
+		}
+
+		for _, name := range filterNames {
+			if name == filterRequest.Name {
+				return errors.New("filter already exists with this name")
+			}
+		}
+		//unique name validation done
+	}
+
 	currentTime := time.Now()
 	resourceFilter.UpdatedBy = userId
 	resourceFilter.Name = filterRequest.Name
