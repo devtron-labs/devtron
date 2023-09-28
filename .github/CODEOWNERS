@@ -1,15 +1,12 @@
 #ALL
-* @vikramdevtron @kripanshdevtron @nishant-d @pghildiyal
+* @vikramdevtron @kripanshdevtron @nishant-d
 
 #DOCS
-docs/ @ashokdevtron @uxarya-d @prakarsh-d  @nishant-d
+docs/ @ashokdevtron @uxarya-d @prakarsh-d
 
-#Charts
-charts/devtron/ @prakarsh-d @pawan-mehta-dt @nishant-d
+#Helm Charts
+charts/devtron/ @prakarsh-dt @pawan-mehta-dt @nishant-d
+scripts/devtron-reference-helm-charts @prakarsh-d @pawan-mehta-dt @nishant-d
 
 #Github Specific
-.github/ @prakarsh-d @nishant-d
-
-#Reference helm charts
-
-script/devtron-reference-helm-charts/ @prakarsh-d @pawan-mehta-dt
+.github/ @prakarsh-dt @nishant-d
