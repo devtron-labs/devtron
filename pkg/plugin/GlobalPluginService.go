@@ -856,6 +856,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepStepVariableConditionsData(pluginSt
 			impl.logger.Errorw("saveDeepStepVariableConditionsData, error in saving plugin step condition", "pluginStepId", pluginStepVariableId, "err", err)
 			return err
 		}
+		pluginStepCondition.Id = pluginStepConditionData.Id
 	}
 	return nil
 }
@@ -1030,7 +1031,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepVariableData(pluginStepId
 			impl.logger.Errorw("saveDeepPluginStepVariableData, error in saving plugin step variable", "pluginStepVariableData", pluginStepVariableData, "err", err)
 			return err
 		}
-
+		pluginStepVariable.Id = pluginStepVariableData.Id
 		for _, pluginStepCondition := range pluginStepVariable.PluginStepCondition {
 			pluginStepConditionData := &repository.PluginStepCondition{
 				PluginStepId:        pluginStepId,
@@ -1050,6 +1051,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepVariableData(pluginStepId
 				impl.logger.Errorw("saveDeepPluginStepVariableData, error in saving plugin step condition", "pluginStepId", pluginStepId, "err", err)
 				return err
 			}
+			pluginStepCondition.Id = pluginStepConditionData.Id
 		}
 	}
 	return nil

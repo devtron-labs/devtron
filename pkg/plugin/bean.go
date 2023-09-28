@@ -51,7 +51,7 @@ type PluginVariableDto struct {
 	DefaultValue              string                                  `json:"defaultValue"`
 	Value                     string                                  `json:"value,omitempty"`
 	VariableType              string                                  `json:"variableType"`
-	ValueType                 repository.PluginStepVariableValueType  `json:"variableType,omitempty"`
+	ValueType                 repository.PluginStepVariableValueType  `json:"valueType,omitempty"`
 	PreviousStepIndex         int                                     `json:"previousStepIndex,omitempty"`
 	VariableStepIndex         int                                     `json:"variableStepIndex"`
 	VariableStepIndexInPlugin int                                     `json:"variableStepIndexInPlugin"`
