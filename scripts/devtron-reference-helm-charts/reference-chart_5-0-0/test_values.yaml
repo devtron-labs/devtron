@@ -11,7 +11,13 @@ rolloutAnnotations:
   name: devops-team
   Company: Devtron
   Job: DevOps
-
+serviceheadless:
+  name: testing-headless
+  enabled: true
+  labels: 
+    test: devtron
+  annotations:
+    test: devtron  
 containerSpec:
   lifecycle: 
     enabled: true
