@@ -30,9 +30,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/models"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"path/filepath"
@@ -56,23 +56,23 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                        *zap.SugaredLogger
-	workflowService               WorkflowService
-	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	eventClient                   client.EventClient
-	eventFactory                  client.EventFactory
-	mergeUtil                     *util.MergeUtil
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
-	pipelineStageService          PipelineStageService
-	userService                   user.UserService
-	ciTemplateService             CiTemplateService
-	appCrudOperationService       app.AppCrudOperationService
-	envRepository                 repository1.EnvironmentRepository
-	appRepository                 appRepository.AppRepository
+	Logger                         *zap.SugaredLogger
+	workflowService                WorkflowService
+	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
+	eventClient                    client.EventClient
+	eventFactory                   client.EventFactory
+	mergeUtil                      *util.MergeUtil
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	prePostCiScriptHistoryService  history.PrePostCiScriptHistoryService
+	pipelineStageService           PipelineStageService
+	userService                    user.UserService
+	ciTemplateService              CiTemplateService
+	appCrudOperationService        app.AppCrudOperationService
+	envRepository                  repository1.EnvironmentRepository
+	appRepository                  appRepository.AppRepository
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
-	config                        *CiConfig
+	config                         *CiConfig
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -86,21 +86,21 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
-		Logger:                        Logger,
-		workflowService:               workflowService,
-		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
-		ciWorkflowRepository:          ciWorkflowRepository,
-		eventClient:                   eventClient,
-		eventFactory:                  eventFactory,
-		mergeUtil:                     mergeUtil,
-		ciPipelineRepository:          ciPipelineRepository,
-		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
-		pipelineStageService:          pipelineStageService,
-		userService:                   userService,
-		ciTemplateService:             ciTemplateService,
-		appCrudOperationService:       appCrudOperationService,
-		envRepository:                 envRepository,
-		appRepository:                 appRepository,
+		Logger:                         Logger,
+		workflowService:                workflowService,
+		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		ciWorkflowRepository:           ciWorkflowRepository,
+		eventClient:                    eventClient,
+		eventFactory:                   eventFactory,
+		mergeUtil:                      mergeUtil,
+		ciPipelineRepository:           ciPipelineRepository,
+		prePostCiScriptHistoryService:  prePostCiScriptHistoryService,
+		pipelineStageService:           pipelineStageService,
+		userService:                    userService,
+		ciTemplateService:              ciTemplateService,
+		appCrudOperationService:        appCrudOperationService,
+		envRepository:                  envRepository,
+		appRepository:                  appRepository,
 		variableSnapshotHistoryService: variableSnapshotHistoryService,
 	}
 	config, err := GetCiConfig()
@@ -149,7 +149,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	scope := models.Scope{
+	scope := resourceQualifiers.Scope{
 		AppId: pipeline.App.Id,
 	}
 	env, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)

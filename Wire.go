@@ -97,6 +97,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -905,6 +907,12 @@ func InitializeApp() (*App, error) {
 
 		resourceQualifiers.NewQualifierMappingServiceImpl,
 		wire.Bind(new(resourceQualifiers.QualifierMappingService), new(*resourceQualifiers.QualifierMappingServiceImpl)),
+
+		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
+		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
+
+		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
+		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
 	)
 	return &App{}, nil
 }

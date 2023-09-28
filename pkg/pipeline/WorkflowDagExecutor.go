@@ -28,8 +28,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -898,7 +898,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if pipelineStage != nil {
 		//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
 		//since user sees the environment of the CD pipeline
-		scope := models2.Scope{
+		scope := resourceQualifiers.Scope{
 			AppId:     cdPipeline.App.Id,
 			EnvId:     env.Id,
 			ClusterId: env.ClusterId,
