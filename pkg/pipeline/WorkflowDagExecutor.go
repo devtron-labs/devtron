@@ -1511,6 +1511,25 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 
 	artifactId := artifact.Id
+	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching env", "err", err)
+		return err
+	}
+	// Todo - optimize
+	app, err := impl.appRepository.FindById(pipeline.AppId)
+	if err != nil {
+		return err
+	}
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
+	params := impl.celService.GetParamsFromArtifact(artifact.Image)
+	metadata := resourceFilter.ExpressionMetadata{
+		Params: params,
+	}
+	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+	if err != nil || filterState != resourceFilter.ALLOW {
+		return err
+	}
 	// need to check for approved artifact only in case configured
 	approvalRequestId, err := impl.checkApprovalNodeForDeployment(triggeredBy, pipeline, artifactId)
 	if err != nil {
@@ -1588,11 +1607,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		}
 		for _, item := range imageScanResult {
 			cveStores = append(cveStores, &item.CveStore)
-		}
-		env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching env", "err", err)
-			return err
 		}
 		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, env.ClusterId, pipeline.EnvironmentId, pipeline.AppId, false)
 		if err != nil {
