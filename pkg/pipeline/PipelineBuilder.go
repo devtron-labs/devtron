@@ -4887,6 +4887,7 @@ func (impl *PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2
 			AppName:          pipeline.App.AppName,
 			ParentCiPipeline: ciPipeline.ParentCiPipeline,
 			ParentAppId:      parentAppId,
+			PipelineType:     ciPipeline.PipelineType,
 		}
 		results = append(results, result)
 		authorizedIds = append(authorizedIds, pipeline.CiPipelineId)
