@@ -732,6 +732,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		impl.logger.Errorw("error in establishing connection", "err", err)
 		return err
 	}
+
 	// Rollback tx on error.
 	defer tx.Rollback()
 	deleteRequest := existingEnv
