@@ -101,7 +101,11 @@ func (repo *ResourceFilterRepositoryImpl) GetByIds(ids []int) ([]*ResourceFilter
 
 func (repo *ResourceFilterRepositoryImpl) ListAll() ([]*ResourceFilter, error) {
 	list := make([]*ResourceFilter, 0)
-	err := repo.dbConnection.Model(&list).Where("deleted=?", false).Select()
+	err := repo.dbConnection.
+		Model(&list).
+		Where("deleted=?", false).
+		Order("name").
+		Select()
 	return list, err
 }
 
