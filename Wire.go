@@ -821,6 +821,10 @@ func InitializeApp() (*App, error) {
 		cron.NewCiStatusUpdateCronImpl,
 		wire.Bind(new(cron.CiStatusUpdateCron), new(*cron.CiStatusUpdateCronImpl)),
 
+		cron.GetCiTriggerCronConfig,
+		cron.NewCiTriggerCronImpl,
+		wire.Bind(new(cron.CiTriggerCron), new(*cron.CiTriggerCronImpl)),
+
 		restHandler.NewPipelineStatusTimelineRestHandlerImpl,
 		wire.Bind(new(restHandler.PipelineStatusTimelineRestHandler), new(*restHandler.PipelineStatusTimelineRestHandlerImpl)),
 

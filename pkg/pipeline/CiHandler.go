@@ -189,6 +189,8 @@ type Trigger struct {
 	InvalidateCache           bool
 	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
 	EnvironmentId             int
+	PipelineType              string
+	CiArtifactLastFetch       time.Time
 }
 
 const WorkflowCancel = "CANCELLED"
@@ -202,6 +204,18 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 	if err != nil {
 		return 0, err
 	}
+
+	ciArtifact, err := impl.ciArtifactRepository.GetLatestArtifactTimeByCiPipelineId(ciTriggerRequest.PipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("Error in GetLatestArtifactTimeByCiPipelineId", "err", err, "pipelineId", ciTriggerRequest.PipelineId)
+		return 0, err
+	}
+
+	createdOn := time.Time{}
+	if err != pg.ErrNoRows {
+		createdOn = ciArtifact.CreatedOn
+	}
+
 	trigger := Trigger{
 		PipelineId:                ciTriggerRequest.PipelineId,
 		CommitHashes:              commitHashes,
@@ -210,6 +224,8 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 		InvalidateCache:           ciTriggerRequest.InvalidateCache,
 		ExtraEnvironmentVariables: extraEnvironmentVariables,
 		EnvironmentId:             ciTriggerRequest.EnvironmentId,
+		PipelineType:              ciTriggerRequest.PipelineType,
+		CiArtifactLastFetch:       createdOn,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
 
