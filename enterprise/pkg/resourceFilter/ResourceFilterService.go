@@ -123,9 +123,6 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 }
 
 func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error) {
-	if filterRequest == nil || len(filterRequest.QualifierSelector.EnvironmentSelectors) == 0 || len(filterRequest.QualifierSelector.ApplicationSelectors) == 0 {
-		return nil, errors.New(AppAndEnvSelectorRequiredMessage)
-	}
 	if strings.Contains(filterRequest.Name, " ") {
 		return nil, errors.New("spaces are not allowed in name")
 	}
