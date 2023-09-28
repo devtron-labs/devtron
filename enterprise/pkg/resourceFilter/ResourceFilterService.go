@@ -197,6 +197,15 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 }
 
 func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) error {
+	//validating given condition expressions
+	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
+	if errored {
+		filterRequest.Conditions = validateResp.Conditions
+		impl.logger.Errorw("error in validating expression", "Conditions", validateResp.Conditions)
+		return errors.New(InvalidExpressions)
+	}
+	//validation done
+
 	//if mappings are edited delete all the existing mappings and create new mappings
 	conditionExpression, err := getJsonStringFromResourceCondition(filterRequest.Conditions)
 	if err != nil {
