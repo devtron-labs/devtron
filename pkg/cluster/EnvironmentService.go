@@ -752,6 +752,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
 	}
+
 	err = tx.Commit()
 	if err != nil {
 		return err
