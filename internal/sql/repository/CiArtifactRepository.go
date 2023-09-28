@@ -127,6 +127,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIds(
 }
 
 func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
+	//TODO: fix if multiple workflow
 	artifact := &CiArtifact{}
 	err := impl.dbConnection.Model(artifact).
 		Column("ci_artifact.*").
