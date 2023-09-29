@@ -531,7 +531,7 @@ func (impl CiPipelineRepositoryImpl) GetExternalCiPipelineByArtifactId(artifactI
 func (impl CiPipelineRepositoryImpl) FindCiPipelineByAppIdAndEnvIds(appId int, envIds []int) ([]*CiPipeline, error) {
 	var pipelines []*CiPipeline
 	query := `SELECT DISTINCT ci_pipeline.* FROM ci_pipeline INNER JOIN pipeline ON pipeline.ci_pipeline_id = ci_pipeline.id WHERE ci_pipeline.app_id = ? 
-              AND pipeline.environment_id IN (?) AND ci_pipeline.deleted = false;`
+              AND pipeline.environment_id IN (?) AND ci_pipeline.deleted = false AND pipeline.deleted = false;`
 	_, err := impl.dbConnection.Query(&pipelines, query, appId, pg.In(envIds))
 	return pipelines, err
 }
