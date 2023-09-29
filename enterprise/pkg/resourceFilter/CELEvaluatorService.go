@@ -150,19 +150,26 @@ func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string) []ExpressionP
 
 	lastColonIndex := strings.LastIndex(artifact, ":")
 
-	containerName := artifact[:lastColonIndex]
-	image := artifact[lastColonIndex+1:]
+	containerRepository := artifact[:lastColonIndex]
+	containerImageTag := artifact[lastColonIndex+1:]
+	containerImage := artifact
 	params := []ExpressionParam{
 		{
-			ParamName: "containerName",
-			Value:     containerName,
+			ParamName: "containerRepository",
+			Value:     containerRepository,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "image",
-			Value:     image,
+			ParamName: "containerImage",
+			Value:     containerImage,
+			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "containerImageTag",
+			Value:     containerImageTag,
 			Type:      ParamTypeString,
 		},
 	}
+
 	return params
 }
