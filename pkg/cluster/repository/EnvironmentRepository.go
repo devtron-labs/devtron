@@ -79,6 +79,7 @@ type EnvironmentRepository interface {
 	FindAllActiveWithFilter() ([]*Environment, error)
 	FindEnvClusterInfosByIds([]int) ([]*EnvCluserInfo, error)
 	FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*Environment, error)
+	FindByIdsOrderByCluster(ids []int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -280,6 +281,21 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Enviro
 	var apps []*Environment
 	err := repositoryImpl.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
 	return apps, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByIdsOrderByCluster(ids []int) ([]*Environment, error) {
+	var envs []*Environment
+	if len(ids) == 0 {
+		return envs, nil
+	}
+	err := repositoryImpl.dbConnection.
+		Model(&envs).
+		Column("environment.*", "Cluster").
+		Where("environment.active = ?", true).
+		Where("environment.id in (?)", pg.In(ids)).
+		Order("environment.cluster_id").
+		Select()
+	return envs, err
 }
 
 func (repo EnvironmentRepositoryImpl) MarkEnvironmentDeleted(deleteReq *Environment, tx *pg.Tx) error {

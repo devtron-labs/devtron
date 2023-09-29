@@ -2,8 +2,8 @@ package helper
 
 import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
-	"github.com/devtron-labs/devtron/pkg/variables/repository"
 )
 
 func GetIdentifierTypeFromAttributeType(attribute models.AttributeType) []models.IdentifierType {
@@ -47,34 +47,34 @@ func GetIdentifierKey(identifierType models.IdentifierType, searchableKeyNameIdM
 	}
 }
 
-func GetQualifierId(attributeType models.AttributeType) repository.Qualifier {
+func GetQualifierId(attributeType models.AttributeType) resourceQualifiers.Qualifier {
 	switch attributeType {
 	case models.ApplicationEnv:
-		return repository.APP_AND_ENV_QUALIFIER
+		return resourceQualifiers.APP_AND_ENV_QUALIFIER
 	case models.Application:
-		return repository.APP_QUALIFIER
+		return resourceQualifiers.APP_QUALIFIER
 	case models.Env:
-		return repository.ENV_QUALIFIER
+		return resourceQualifiers.ENV_QUALIFIER
 	case models.Cluster:
-		return repository.CLUSTER_QUALIFIER
+		return resourceQualifiers.CLUSTER_QUALIFIER
 	case models.Global:
-		return repository.GLOBAL_QUALIFIER
+		return resourceQualifiers.GLOBAL_QUALIFIER
 	default:
 		return 0
 	}
 }
 
-func GetAttributeType(qualifier repository.Qualifier) models.AttributeType {
+func GetAttributeType(qualifier resourceQualifiers.Qualifier) models.AttributeType {
 	switch qualifier {
-	case repository.APP_AND_ENV_QUALIFIER:
+	case resourceQualifiers.APP_AND_ENV_QUALIFIER:
 		return models.ApplicationEnv
-	case repository.APP_QUALIFIER:
+	case resourceQualifiers.APP_QUALIFIER:
 		return models.Application
-	case repository.ENV_QUALIFIER:
+	case resourceQualifiers.ENV_QUALIFIER:
 		return models.Env
-	case repository.CLUSTER_QUALIFIER:
+	case resourceQualifiers.CLUSTER_QUALIFIER:
 		return models.Cluster
-	case repository.GLOBAL_QUALIFIER:
+	case resourceQualifiers.GLOBAL_QUALIFIER:
 		return models.Global
 	default:
 		return ""

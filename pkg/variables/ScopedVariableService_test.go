@@ -10,6 +10,8 @@ import (
 	mocks3 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	mocks4 "github.com/devtron-labs/devtron/pkg/devtronResource/mocks"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	mocks5 "github.com/devtron-labs/devtron/pkg/resourceQualifiers/mocks"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/repository/mocks"
@@ -142,95 +144,113 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 		},
 	}
 
-	parentScope := []*repository.VariableScope{
+	parentScope := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    2,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    2,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    3,
-			VariableDefinitionId:  2,
-			QualifierId:           3,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "default_cluster",
-			CompositeKey:          "",
-			Data:                  "value2",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            2,
+				QualifierId:           3,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "default_cluster",
+				CompositeKey:          "",
+			},
+			Data: "value2",
 		},
 	}
-	parentScope1 := []*repository.VariableScope{
+	parentScope1 := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "1-dev-test-Dev",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "1-dev-test-Dev",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    2,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "1-dev-test-Dev",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    2,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "1-dev-test-Dev",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    3,
-			VariableDefinitionId:  1,
-			QualifierId:           2,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            1,
+				QualifierId:           2,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    4,
-			VariableDefinitionId:  1,
-			QualifierId:           3,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    4,
+				ResourceId:            1,
+				QualifierId:           3,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                   5,
-			VariableDefinitionId: 1,
-			QualifierId:          5,
-			IdentifierKey:        7,
-			Data:                 "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:            5,
+				ResourceId:    1,
+				QualifierId:   5,
+				IdentifierKey: 7,
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    6,
-			VariableDefinitionId:  1,
-			QualifierId:           4,
-			IdentifierKey:         8,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "default_cluster",
-			CompositeKey:          "",
-			Data:                  "value1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    6,
+				ResourceId:            1,
+				QualifierId:           4,
+				IdentifierKey:         8,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "default_cluster",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 	}
 	searchableKeyMap := map[bean.DevtronResourceSearchableKeyName]int{
@@ -384,11 +404,12 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository := InitScopedVariableServiceImpl(t)
+			impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository, qualifierMappingService := InitScopedVariableServiceImpl(t)
 			var err error
 			tx := &pg.Tx{}
 			if tt.name == "Valid case with all data available" {
 
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -399,12 +420,17 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(parentScope, nil)
+				var parentQMappings []*resourceQualifiers.QualifierMapping
+				for _, variableScope := range parentScope {
+					parentQMappings = append(parentQMappings, variableScope.QualifierMapping)
+				}
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(parentQMappings, nil)
 				scopedVariableRepository.On("CreateVariableData", mock.AnythingOfType("[]*repository.VariableData"), tx).Return(nil)
 
 			}
 			if tt.name == "Valid case with all scopes in variable  available" {
 				scopedVariableRepository.On("GetAllVariableMetadata").Maybe().Return(varDef, nil)
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -414,7 +440,11 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(parentScope1, nil)
+				var parentQMappings []*resourceQualifiers.QualifierMapping
+				for _, variableScope := range parentScope1 {
+					parentQMappings = append(parentQMappings, variableScope.QualifierMapping)
+				}
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(parentQMappings, nil)
 				scopedVariableRepository.On("CreateVariableData", mock.AnythingOfType("[]*repository.VariableData"), tx).Return(nil)
 
 			}
@@ -424,6 +454,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error in Deletion" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(errors.New("error in deletion"))
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -431,6 +462,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error in saving data in variable definition" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -439,12 +471,13 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error in saving data in variable scope" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
 				scopedVariableRepository.On("GetAllVariableMetadata").Maybe().Return(varDef, nil)
 				scopedVariableRepository.On("CreateVariableDefinition", mock.AnythingOfType("[]*repository.VariableDefinition"), tx).Return(varDef, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(nil, errors.New("error in saving variable scope"))
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(nil, errors.New("error in saving qualifier mapping"))
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
@@ -452,6 +485,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error in saving data in variable data" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -461,11 +495,16 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(parentScope1, nil)
+				var parentQMappings []*resourceQualifiers.QualifierMapping
+				for _, variableScope := range parentScope1 {
+					parentQMappings = append(parentQMappings, variableScope.QualifierMapping)
+				}
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(parentQMappings, nil)
 				scopedVariableRepository.On("CreateVariableData", mock.AnythingOfType("[]*repository.VariableData"), tx).Return(errors.New("error in saving variable data"))
 
 			}
 			if tt.name == "Test for committing transaction" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -476,11 +515,16 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 				appRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(appNameToId, nil)
 				environmentRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(envNameToId, nil)
 				clusterRepository.On("FindByNames", mock.AnythingOfType("[]string")).Return(clusterNameToId, nil)
-				scopedVariableRepository.On("CreateVariableScope", mock.AnythingOfType("[]*repository.VariableScope"), tx).Return(parentScope1, nil)
+				var parentQMappings []*resourceQualifiers.QualifierMapping
+				for _, variableScope := range parentScope1 {
+					parentQMappings = append(parentQMappings, variableScope.QualifierMapping)
+				}
+				qualifierMappingService.On("CreateQualifierMappings", mock.AnythingOfType("[]*resourceQualifiers.QualifierMapping"), tx).Return(parentQMappings, nil)
 				scopedVariableRepository.On("CreateVariableData", mock.AnythingOfType("[]*repository.VariableData"), tx).Return(nil)
 
 			}
 			if tt.name == "Test for error cases in createVariableScopes wrong appNameToId" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -493,6 +537,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error cases in createVariableScopes wrong envNameToId" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -505,6 +550,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 
 			}
 			if tt.name == "Test for error cases in createVariableScopes wrong clusterNameToId" {
+				qualifierMappingService.On("DeleteAllQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("DeleteVariables", mock.AnythingOfType("AuditLog"), tx).Return(nil)
 				scopedVariableRepository.On("StartTx").Return(tx, nil)
 				scopedVariableRepository.On("RollbackTx", tx).Return(nil)
@@ -885,31 +931,21 @@ func TestScopedVariableServiceImpl_IsValidPayload(t *testing.T) {
 
 }
 
-func InitScopedVariableServiceImpl(t *testing.T) (*ScopedVariableServiceImpl, *mocks.ScopedVariableRepository, *mocks2.AppRepository, *mocks3.EnvironmentRepository, *mocks4.DevtronResourceService, *mocks3.ClusterRepository) {
+func InitScopedVariableServiceImpl(t *testing.T) (*ScopedVariableServiceImpl, *mocks.ScopedVariableRepository, *mocks2.AppRepository, *mocks3.EnvironmentRepository, *mocks4.DevtronResourceService, *mocks3.ClusterRepository, *mocks5.QualifierMappingService) {
 	logger, _ := util2.NewSugardLogger()
 	scopedVariableRepository := mocks.NewScopedVariableRepository(t)
 	appRepository := mocks2.NewAppRepository(t)
 	environmentRepository := mocks3.NewEnvironmentRepository(t)
 	devtronResourceService := mocks4.NewDevtronResourceService(t)
 	clusterRepository := mocks3.NewClusterRepository(t)
-	//clusterRepository
-	impl, _ := NewScopedVariableServiceImpl(logger, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository)
+	qualifierMappingService := mocks5.NewQualifierMappingService(t)
+	impl, _ := NewScopedVariableServiceImpl(logger, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository, qualifierMappingService)
 
-	return impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository
+	return impl, scopedVariableRepository, appRepository, environmentRepository, devtronResourceService, clusterRepository, qualifierMappingService
 }
 
 func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 	t.Setenv("VARIABLE_CACHE_ENABLED", "false")
-	searchableKeyMap := map[bean.DevtronResourceSearchableKeyName]int{
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_APP_NAME:           1,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ENV_NAME:           2,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_IS_ALL_PRODUCTION_ENV:      3,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_BRANCH:         4,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_TRIGGER_ACTION: 5,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID:                     6,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID:                     7,
-		bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID:                 8,
-	}
 	varDef := []*repository.VariableDefinition{
 		{
 			Id:          1,
@@ -944,62 +980,74 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 			Description: "Variable 1",
 		},
 	}
-	variableScope := []*repository.VariableScope{
+	variableScope := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			Data:                  "value-1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+			},
+			Data: "value-1",
 		},
 		{
-			Id:                    2,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			Data:                  "value-1",
-			ParentIdentifier:      1,
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    2,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				ParentIdentifier:      1,
+			},
+			Data: "value-1",
 		},
 		{
-			Id:                    3,
-			VariableDefinitionId:  1,
-			QualifierId:           2,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value-2",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            1,
+				QualifierId:           2,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data: "value-2",
 		},
 		{
-			Id:                    4,
-			VariableDefinitionId:  1,
-			QualifierId:           3,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "",
-			Data:                  "value-3",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    4,
+				ResourceId:            1,
+				QualifierId:           3,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "",
+			},
+			Data: "value-3",
 		},
 		{
-			Id:                   5,
-			VariableDefinitionId: 1,
-			QualifierId:          5,
-			IdentifierKey:        7,
-			Data:                 "value-4",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:            5,
+				ResourceId:    1,
+				QualifierId:   5,
+				IdentifierKey: 7,
+			},
+			Data: "value-4",
 		},
 		{
-			Id:                    6,
-			VariableDefinitionId:  1,
-			QualifierId:           4,
-			IdentifierKey:         8,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "default_cluster",
-			CompositeKey:          "",
-			Data:                  "value-5",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    6,
+				ResourceId:            1,
+				QualifierId:           4,
+				IdentifierKey:         8,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "default_cluster",
+				CompositeKey:          "",
+			},
+			Data: "value-5",
 		},
 	}
 	varData := []*repository.VariableData{
@@ -1036,49 +1084,57 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 			Data:            "\"" + "value-private" + "\"",
 		},
 	}
-	variableScope1 := []*repository.VariableScope{
+	variableScope1 := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			Data:                  "value-1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+			},
+			Data: "value-1",
 		},
 
 		{
-			Id:                    3,
-			VariableDefinitionId:  1,
-			QualifierId:           2,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value-2",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            1,
+				QualifierId:           2,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data: "value-2",
 		},
 		{
-			Id:                   5,
-			VariableDefinitionId: 1,
-			QualifierId:          5,
-			IdentifierKey:        7,
-			Data:                 "value-4",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:            5,
+				ResourceId:    1,
+				QualifierId:   5,
+				IdentifierKey: 7,
+			},
+			Data: "value-4",
 		},
 	}
-	variableScope2 := []*repository.VariableScope{
+	variableScope2 := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           3,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			Data:                  "value-1",
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           3,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+			},
+			Data: "value-1",
 		},
 	}
 
-	scope := models.Scope{AppId: 1, ClusterId: 1, EnvId: 1}
-	scope1 := models.Scope{AppId: 1}
+	scope := resourceQualifiers.Scope{AppId: 1, ClusterId: 1, EnvId: 1}
+	scope1 := resourceQualifiers.Scope{AppId: 1}
 	scopedVariableData := []*models.ScopedVariableData{
 		{
 			VariableName:     "Var1",
@@ -1120,7 +1176,7 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 		},
 	}
 	type args struct {
-		scope        models.Scope
+		scope        resourceQualifiers.Scope
 		varNames     []string
 		isSuperAdmin bool
 	}
@@ -1195,43 +1251,88 @@ func TestScopedVariableServiceImpl_GetScopedVariables(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl, scopedVariableRepository, _, _, devtronResourceService, _ := InitScopedVariableServiceImpl(t)
+			impl, scopedVariableRepository, _, _, _, _, qualifierMappingService := InitScopedVariableServiceImpl(t)
 			if tt.name == "NoVariablesFound" {
 				scopedVariableRepository.On("GetAllVariables").Return(nil, nil)
 			}
 			if tt.name == "get scoped variable data" {
+				var varIds []int
+				for _, definition := range varDef {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", []int{1}).Return(varData, nil)
 			}
 			if tt.name == "test for  error cases  in GetScopedVariableData" {
+				var varIds []int
+				for _, definition := range varDef {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				var scopeIds []int
+				for _, varScope := range variableScope {
+					mappings = append(mappings, varScope.QualifierMapping)
+					scopeIds = append(scopeIds, varScope.Id)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope, searchableKeyMap, mock.AnythingOfType("[]int")).Return(nil, errors.New("error in getting varScope"))
+				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(nil, errors.New("error in getting varScope"))
 			}
 			if tt.name == "test for  error cases  in GetDataForScopeIds" {
+				var varIds []int
+				for _, definition := range varDef {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(nil, errors.New("error in getting variable data"))
 			}
 			if tt.name == "get data when varName is not provided" {
+				var varIds []int
+				for _, definition := range varDef {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(varData, nil)
 			}
 			if tt.name == "get scoped variable data for provided appId" {
+				var varIds []int
+				for _, definition := range varDef1 {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope1 {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope1, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef1, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope1, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope1, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(varData, nil)
 			}
 			if tt.name == "test for private variable" {
+				var varIds []int
+				for _, definition := range varDef2 {
+					varIds = append(varIds, definition.Id)
+				}
+				var mappings []*resourceQualifiers.QualifierMapping
+				for _, varScope := range variableScope2 {
+					mappings = append(mappings, varScope.QualifierMapping)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, &scope1, varIds).Return(mappings, nil)
 				scopedVariableRepository.On("GetAllVariables").Return(varDef2, nil)
-				devtronResourceService.On("GetAllSearchableKeyNameIdMap").Return(searchableKeyMap)
-				scopedVariableRepository.On("GetScopedVariableData", scope1, searchableKeyMap, mock.AnythingOfType("[]int")).Return(variableScope2, nil)
 				scopedVariableRepository.On("GetDataForScopeIds", mock.AnythingOfType("[]int")).Return(varData1, nil)
 			}
 
@@ -1320,7 +1421,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			},
 		},
 	}
-	variableData := []*repository.VariableData{
+	variableDataArray := []*repository.VariableData{
 		{
 			Id:              1,
 			VariableScopeId: 1,
@@ -1347,66 +1448,73 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			Data:            "value1",
 		},
 	}
-	variableScope := []*repository.VariableScope{
+	variableScope := []*models.VariableScope{
 		{
-			Id:                    1,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			Data:                  "value1",
-			VariableData:          variableData[0],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    1,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    2,
-			VariableDefinitionId:  1,
-			QualifierId:           1,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			Data:                  "value1",
-			ParentIdentifier:      1,
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    2,
+				ResourceId:            1,
+				QualifierId:           1,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				ParentIdentifier:      1,
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    3,
-			VariableDefinitionId:  1,
-			QualifierId:           2,
-			IdentifierKey:         6,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "dev-test",
-			CompositeKey:          "",
-			Data:                  "value1",
-			VariableData:          variableData[1],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    3,
+				ResourceId:            1,
+				QualifierId:           2,
+				IdentifierKey:         6,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "dev-test",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    4,
-			VariableDefinitionId:  1,
-			QualifierId:           3,
-			IdentifierKey:         7,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "Dev",
-			CompositeKey:          "",
-			Data:                  "value1",
-			VariableData:          variableData[2],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    4,
+				ResourceId:            1,
+				QualifierId:           3,
+				IdentifierKey:         7,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "Dev",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 		{
-			Id:                   5,
-			VariableDefinitionId: 1,
-			QualifierId:          5,
-			Data:                 "value1",
-			VariableData:         variableData[3],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:          5,
+				ResourceId:  1,
+				QualifierId: 5,
+			},
+			Data: "value1",
 		},
 		{
-			Id:                    6,
-			VariableDefinitionId:  1,
-			QualifierId:           4,
-			IdentifierKey:         8,
-			IdentifierValueInt:    3,
-			IdentifierValueString: "default_cluster",
-			CompositeKey:          "",
-			Data:                  "value1",
-			VariableData:          variableData[4],
+			QualifierMapping: &resourceQualifiers.QualifierMapping{
+				Id:                    6,
+				ResourceId:            1,
+				QualifierId:           4,
+				IdentifierKey:         8,
+				IdentifierValueInt:    3,
+				IdentifierValueString: "default_cluster",
+				CompositeKey:          "",
+			},
+			Data: "value1",
 		},
 	}
 
@@ -1419,7 +1527,6 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			Description:      "Variable 1",
 			ShortDescription: "ShortDescription-Variable 1",
 			Active:           true,
-			VariableScope:    variableScope,
 		},
 	}
 
@@ -1435,7 +1542,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
-			name:    "test for error cases in GetAllVariableScopeAndDefinition",
+			name:    "test for error cases in GetAllVariableDefinition",
 			want:    nil,
 			wantErr: assert.Error,
 		},
@@ -1447,16 +1554,29 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl, scopedVariableRepository, _, _, devtronResourceService, _ := InitScopedVariableServiceImpl(t)
+			impl, scopedVariableRepository, _, _, devtronResourceService, _, qualifierMappingService := InitScopedVariableServiceImpl(t)
 			if tt.name == "test for getting json" {
-				scopedVariableRepository.On("GetAllVariableScopeAndDefinition").Return(variableDefinition, nil)
+				scopedVariableRepository.On("GetAllVariableDefinition").Return(variableDefinition, nil)
+
+				var varDefIds []int
+				for _, definition := range variableDefinition {
+					varDefIds = append(varDefIds, definition.Id)
+				}
+				var qualifierMappings []*resourceQualifiers.QualifierMapping
+				var scopeIds []int
+				for _, varScope := range variableScope {
+					qualifierMappings = append(qualifierMappings, varScope.QualifierMapping)
+					scopeIds = append(scopeIds, varScope.Id)
+				}
+				qualifierMappingService.On("GetQualifierMappings", resourceQualifiers.Variable, mock.AnythingOfType("*resourceQualifiers.Scope"), varDefIds).Return(qualifierMappings, nil)
+				scopedVariableRepository.On("GetDataForScopeIds", scopeIds).Return(variableDataArray, nil)
 				devtronResourceService.On("GetAllSearchableKeyIdNameMap").Return(searchableKeyMap)
 			}
-			if tt.name == "test for error cases in GetAllVariableScopeAndDefinition" {
-				scopedVariableRepository.On("GetAllVariableScopeAndDefinition").Return(nil, errors.New("error in getting data for json"))
+			if tt.name == "test for error cases in GetAllVariableDefinition" {
+				scopedVariableRepository.On("GetAllVariableDefinition").Return(nil, errors.New("error in getting data for json"))
 			}
 			if tt.name == "test for empty payload" {
-				scopedVariableRepository.On("GetAllVariableScopeAndDefinition").Return(nil, nil)
+				scopedVariableRepository.On("GetAllVariableDefinition").Return(nil, nil)
 				devtronResourceService.On("GetAllSearchableKeyIdNameMap").Return(searchableKeyMap)
 			}
 			got, err := impl.GetJsonForVariables()

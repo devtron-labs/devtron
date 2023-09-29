@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -764,6 +765,7 @@ type CiArtifactBean struct {
 	UserApprovalMetadata   *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 	ImageReleaseTags       []*repository2.ImageTag              `json:"imageReleaseTags"`
 	ImageComment           *repository2.ImageComment            `json:"imageComment"`
+	FilterState            resourceFilter.FilterState           `json:"filterState"`
 }
 
 type CiArtifactResponse struct {
