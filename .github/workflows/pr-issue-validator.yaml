@@ -61,13 +61,17 @@ jobs:
             ### Here we are taking only the numerical value ie. issue number
             ### head -n1 only prints the 1st line.
             ### grep -o -E "[0-9]+ basically outputs only the number between [0-9]+
-            issue_num=$(echo "$PR_BODY" | grep -iE "$pattern1" | head -n1 | grep -o -E "[0-9]+")
+            echo "$PR_BODY" | grep -iE "$pattern1" | head -n1 | grep -o -E "[0-9]+" | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
             echo "issue_num is : $issue_num"
         elif echo "$PR_BODY" | grep -iEq "$pattern2"; then
-            issue_num=$(echo "$PR_BODY" | grep -iE "$pattern2" | head -n1 | awk -F '/' '{print $NF}')
+            echo "$PR_BODY" | grep -iE "$pattern2" | head -n1 | awk -F '/' '{print $NF}' | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
             echo "issue_num is : $issue_num"
         elif echo "$PR_BODY" | grep -iEq "$pattern3"; then
-            issue_num=$(echo "$PR_BODY" | grep -iE "$pattern3" | head -n1 | awk -F '#' '{print $NF}')
+            echo "$PR_BODY" | grep -iE "$pattern3" | head -n1 | awk -F '#' '{print $NF}' | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
+            echo "issue_num is : $issue_num"
         else
             echo "No Issue number detected hence failing the PR Validation check."
             gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
