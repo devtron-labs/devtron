@@ -190,7 +190,7 @@ type AppService interface {
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	GetCmSecretNew(appId int, envId int, isJob bool) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
-	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
+	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, error)
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 	GetGitOpsRepoPrefix() string
@@ -1698,7 +1698,7 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
 	chartGitAttr, err = impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, userId)
 	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
+		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 		return "", nil, err
 	}
 	return gitOpsRepoName, chartGitAttr, nil
@@ -1833,11 +1833,9 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 
 	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
 
-	if valuesOverrideResponse.Artifact.ScanEnabled {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
-		_ = impl.MarkImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId)
-		span.End()
-	}
+	_, spann := otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
+	_ = impl.MarkImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled)
+	spann.End()
 
 	middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
 
@@ -1986,7 +1984,7 @@ func (impl *AppServiceImpl) autoHealChartLocationInChart(ctx context.Context, en
 	return nil
 }
 
-func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error {
+func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error {
 	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
 	executionHistory, err := impl.imageScanHistoryRepository.FindByImageDigest(imageDigest)
 	if err != nil && err != pg.ErrNoRows {
@@ -2004,7 +2002,7 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
 	if err != nil && err != pg.ErrNoRows {
 		return err
-	} else if err == pg.ErrNoRows || ot == nil {
+	} else if err == pg.ErrNoRows && isScanEnabled {
 		imageScanDeployInfo := &security.ImageScanDeployInfo{
 			ImageScanExecutionHistoryId: ids,
 			ScanObjectMetaId:            appId,
@@ -2025,7 +2023,12 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 		}
 	} else {
 		// Updating Execution history for Latest Deployment to fetch out security Vulnerabilities for latest deployed info
-		ot.ImageScanExecutionHistoryId = ids
+		if isScanEnabled {
+			ot.ImageScanExecutionHistoryId = ids
+		} else {
+			arr := []int{-1}
+			ot.ImageScanExecutionHistoryId = arr
+		}
 		err = impl.imageScanDeployInfoRepository.Update(ot)
 		if err != nil {
 			impl.logger.Errorw("error in updating deploy info for latest deployed image", "err", err)
