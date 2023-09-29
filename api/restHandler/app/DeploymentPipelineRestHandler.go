@@ -16,8 +16,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -110,7 +110,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 	}
 	chartRefId := templateRequest.ChartRefId
 	//VARIABLE_RESOLVE
-	scope := models.Scope{
+	scope := resourceQualifiers.Scope{
 		AppId: templateRequest.AppId,
 	}
 	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
@@ -575,7 +575,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	}
 
 	//VARIABLE_RESOLVE
-	scope := models.Scope{
+	scope := resourceQualifiers.Scope{
 		AppId:     request.AppId,
 		EnvId:     request.EnvId,
 		ClusterId: envConfigProperties.ClusterId,
@@ -696,7 +696,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 	}
 	chartRefId := envConfigProperties.ChartRefId
 	//VARIABLE_RESOLVE
-	scope := models.Scope{
+	scope := resourceQualifiers.Scope{
 		AppId:     appId,
 		EnvId:     environmentId,
 		ClusterId: envConfigProperties.ClusterId,
@@ -805,7 +805,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	}
 	chartRefId := envConfigProperties.ChartRefId
 	//VARIABLE_RESOLVE
-	scope := models.Scope{
+	scope := resourceQualifiers.Scope{
 		AppId:     appId,
 		EnvId:     envId,
 		ClusterId: envConfigProperties.ClusterId,
@@ -1291,7 +1291,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	}
 	chartRefId := templateRequest.ChartRefId
 	//VARIABLE_RESOLVE
-	scope := models.Scope{
+	scope := resourceQualifiers.Scope{
 		AppId: templateRequest.AppId,
 	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.DeploymentTemplateValidate")
