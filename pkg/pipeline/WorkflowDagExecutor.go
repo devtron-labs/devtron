@@ -1416,7 +1416,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 		return err
 	}
 
-	postStage, err := impl.getPipelineStage(pipelineOverride.Id, repository4.PIPELINE_STAGE_TYPE_POST_CD)
+	postStage, err := impl.getPipelineStage(pipelineOverride.PipelineId, repository4.PIPELINE_STAGE_TYPE_POST_CD)
 	if err != nil {
 		return err
 	}
