@@ -2,6 +2,7 @@ package resourceFilter
 
 import (
 	"errors"
+	"fmt"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
@@ -336,12 +337,18 @@ func (impl *ResourceFilterServiceImpl) GetFiltersByScope(scope resourceQualifier
 	return filters, err
 }
 
-func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSelector) (map[string]int, map[string]int, map[string]int, map[string]int, error) {
+func (impl *ResourceFilterServiceImpl) validateOwnershipAndGetIdMaps(qualifierSelector QualifierSelector) (map[string]int, map[string]int, map[string]int, map[string]int, error) {
 	teams := make([]string, 0)
 	apps := make([]string, 0)
 	envs := make([]string, 0)
 	clusters := make([]string, 0)
 
+	//stores requested app to team mappings
+	appToTeamMap := make(map[string]string)
+	//stores requested env to cluster mappings
+	envToClusterMap := make(map[string]string)
+
+	//stores name vs id maps
 	teamsMap := make(map[string]int)
 	appsMap := make(map[string]int)
 	envsMap := make(map[string]int)
@@ -352,6 +359,7 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 		}
 		for _, app := range appSelector.Applications {
 			apps = append(apps, app)
+			appToTeamMap[app] = appSelector.ProjectName
 		}
 	}
 
@@ -361,21 +369,7 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 		}
 		for _, env := range envSelector.Environments {
 			envs = append(envs, env)
-		}
-	}
-
-	if len(apps) > 0 {
-		appObjs, err := impl.appRepository.FindByNames(apps)
-		if err != nil {
-			if err == pg.ErrNoRows {
-				impl.logger.Errorw("error in finding apps with appNames", "appNames", apps)
-				err = errors.New("none of the selected apps are active")
-				return teamsMap, appsMap, clustersMap, envsMap, err
-			}
-		}
-
-		for _, appObj := range appObjs {
-			appsMap[appObj.AppName] = appObj.Id
+			envToClusterMap[env] = envSelector.ClusterName
 		}
 	}
 
@@ -393,17 +387,23 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 		}
 	}
 
-	if len(envs) > 0 {
-		envObjs, err := impl.environmentRepository.FindByNames(envs)
+	if len(apps) > 0 {
+		appObjs, err := impl.appRepository.FindByNames(apps)
 		if err != nil {
 			if err == pg.ErrNoRows {
-				impl.logger.Errorw("error in finding envs with envNames", "envNames", envs)
-				err = errors.New("none of the selected environments are active")
+				impl.logger.Errorw("error in finding apps with appNames", "appNames", apps)
+				err = errors.New("none of the selected apps are active")
 				return teamsMap, appsMap, clustersMap, envsMap, err
 			}
 		}
-		for _, envObj := range envObjs {
-			envsMap[envObj.Name] = envObj.Id
+
+		for _, appObj := range appObjs {
+			actualTeamId := appObj.TeamId
+			requestedTeamName := appToTeamMap[appObj.AppName]
+			if actualTeamId != teamsMap[requestedTeamName] {
+				return teamsMap, appsMap, clustersMap, envsMap, errors.New(fmt.Sprintf("invalid request payload,msg : app '%s' doesn't belong to project '%s'", appObj.AppName, requestedTeamName))
+			}
+			appsMap[appObj.AppName] = appObj.Id
 		}
 	}
 
@@ -420,6 +420,26 @@ func (impl *ResourceFilterServiceImpl) getIdsMaps(qualifierSelector QualifierSel
 			clustersMap[clusterObj.ClusterName] = clusterObj.Id
 		}
 	}
+
+	if len(envs) > 0 {
+		envObjs, err := impl.environmentRepository.FindByNames(envs)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				impl.logger.Errorw("error in finding envs with envNames", "envNames", envs)
+				err = errors.New("none of the selected environments are active")
+				return teamsMap, appsMap, clustersMap, envsMap, err
+			}
+		}
+		for _, envObj := range envObjs {
+			actualClusterId := envObj.ClusterId
+			requestedClusterName := envToClusterMap[envObj.Name]
+			if actualClusterId != clustersMap[requestedClusterName] {
+				return teamsMap, appsMap, clustersMap, envsMap, errors.New(fmt.Sprintf("invalid request payload,msg : environment '%s' doesn't belong to cluster '%s'", envObj.Name, requestedClusterName))
+			}
+			envsMap[envObj.Name] = envObj.Id
+		}
+	}
+
 	return teamsMap, appsMap, clustersMap, envsMap, nil
 }
 
@@ -442,9 +462,9 @@ func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers
 }
 
 func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId int32, resourceFilterId int, qualifierSelector QualifierSelector) error {
-	projectNameToIdMap, appNameToIdMap, clusterNameToIdMap, envNameToIdMap, err := impl.getIdsMaps(qualifierSelector)
+	projectNameToIdMap, appNameToIdMap, clusterNameToIdMap, envNameToIdMap, err := impl.validateOwnershipAndGetIdMaps(qualifierSelector)
 	if err != nil {
-		impl.logger.Errorw("error in making name to id maps for apps,envs,projects,clusters", "qualifierSelector", qualifierSelector, "err", err)
+		impl.logger.Errorw("error in validateOwnershipAndGetIdMaps", "qualifierSelector", qualifierSelector, "err", err)
 		return err
 	}
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
