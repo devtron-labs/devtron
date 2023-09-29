@@ -1,0 +1,1 @@
+ALTER TABLE ci_pipeline DROP COLUMN IF EXISTS ci_pipeline_type;

@@ -729,6 +729,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			Deleted:                  false,
 			ScanEnabled:              createRequest.ScanEnabled,
 			IsDockerConfigOverridden: ciPipeline.IsDockerConfigOverridden,
+			PipelineType:             string(ciPipeline.PipelineType),
 			AuditLog:                 sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 		}
 		err = impl.ciPipelineRepository.Save(ciPipelineObject, tx)
@@ -785,7 +786,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 			pipelineMaterials = append(pipelineMaterials, material)
 		}
-		err = impl.ciPipelineMaterialRepository.Save(tx, pipelineMaterials...)
+		if len(pipelineMaterials) != 0 {
+			err = impl.ciPipelineMaterialRepository.Save(tx, pipelineMaterials...)
+		}
 		if err != nil {
 			impl.logger.Errorf("error in saving pipelineMaterials in db", "materials", pipelineMaterials, "err", err)
 			return nil, err
@@ -803,7 +806,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 
 		} else {
 			//save pipeline in db end
-			err = impl.AddPipelineMaterialInGitSensor(pipelineMaterials)
+			if len(pipelineMaterials) != 0 {
+				err = impl.AddPipelineMaterialInGitSensor(pipelineMaterials)
+			}
 			if err != nil {
 				impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", pipelineMaterials, "err", err)
 				return nil, err
