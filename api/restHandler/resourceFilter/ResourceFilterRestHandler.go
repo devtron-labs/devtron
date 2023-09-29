@@ -16,6 +16,8 @@ import (
 	"strconv"
 )
 
+const InvalidExpressionsStatusCode = 209
+
 type ResourceFilterRestHandler interface {
 	ListFilters(w http.ResponseWriter, r *http.Request)
 	GetFilterById(w http.ResponseWriter, r *http.Request)
@@ -135,7 +137,7 @@ func (handler *ResourceFilterRestHandlerImpl) CreateFilter(w http.ResponseWriter
 			statusCode = http.StatusBadRequest
 		} else if err.Error() == resourceFilter.InvalidExpressions {
 			err = nil
-			statusCode = http.StatusPreconditionFailed
+			statusCode = InvalidExpressionsStatusCode
 		}
 		common.WriteJsonResp(w, err, res, statusCode)
 		return
@@ -187,7 +189,7 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 			statusCode = http.StatusBadRequest
 		} else if err.Error() == resourceFilter.InvalidExpressions {
 			err = nil
-			statusCode = http.StatusPreconditionFailed
+			statusCode = InvalidExpressionsStatusCode
 		}
 		common.WriteJsonResp(w, err, res, statusCode)
 		return
