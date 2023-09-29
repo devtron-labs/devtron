@@ -530,9 +530,7 @@ func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*reposito
 	for _, scopedVariableMapping := range scopedVariableMappings {
 		varId := scopedVariableMapping.ResourceId
 		varScopeIds = append(varScopeIds, scopedVariableMapping.Id)
-		variableScopes := varIdVsScopeMappings[varId]
-		variableScopes = append(variableScopes, scopedVariableMapping)
-		varIdVsScopeMappings[varId] = variableScopes
+		varIdVsScopeMappings[varId] = append(varIdVsScopeMappings[varId], scopedVariableMapping)
 	}
 	return varIdVsScopeMappings, varScopeIds, nil
 }
