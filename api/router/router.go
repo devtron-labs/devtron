@@ -121,6 +121,7 @@ type MuxRouter struct {
 	appGroupingRouter                  AppGroupingRouter
 	rbacRoleRouter                     user.RbacRoleRouter
 	scopedVariableRouter               ScopedVariableRouter
+	ciTriggerCron                      cron.CiTriggerCron
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -151,7 +152,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
 	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
 	rbacRoleRouter user.RbacRoleRouter,
-	scopedVariableRouter ScopedVariableRouter) *MuxRouter {
+	scopedVariableRouter ScopedVariableRouter,
+	ciTriggerCron cron.CiTriggerCron) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -222,6 +224,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		appGroupingRouter:                  appGroupingRouter,
 		rbacRoleRouter:                     rbacRoleRouter,
 		scopedVariableRouter:               scopedVariableRouter,
+		ciTriggerCron:                      ciTriggerCron,
 	}
 	return r
 }
