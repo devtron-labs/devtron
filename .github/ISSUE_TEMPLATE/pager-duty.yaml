@@ -1,7 +1,7 @@
-name: "🐛 Bug Report"
+name: "🐛 Pager duty Bug Report"
 description: "Submit a bug report to help us improve"
 title: "Bug: "
-labels: [bug] [pager-duty]
+labels: ["bug","pager-duty"]
 assignees: ["prakarsh-dt","vikramdevtron","kripanshdevtron","vivek-devtron"]
 body:
   - type: markdown
