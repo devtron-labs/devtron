@@ -60,7 +60,7 @@ func TestK8sUtil_checkIfNsExists(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			impl := k8sUtilClient
 			k8s, _ := impl.GetCoreV1Client(clusterConfig)
-			gotExists, err := impl.checkIfNsExists(tt.namespace, k8s)
+			gotExists, err := impl.CheckIfNsExists(tt.namespace, k8s)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("K8sUtil.checkIfNsExists() error = %v, wantErr %v", err, tt.wantErr)
 				return

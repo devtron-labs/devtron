@@ -2283,7 +2283,7 @@ func (impl *PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipel
 				Namespace:   pipeline.Environment.Namespace,
 			}
 			deleteResourceResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
-			if forceDelete {
+			if forceDelete || (err != nil && strings.Contains(err.Error(), "namespace does not exist")) {
 				impl.logger.Warnw("error while deletion of helm application, ignore error and delete from db since force delete req", "error", err, "pipelineId", pipeline.Id)
 			} else {
 				if err != nil {

@@ -407,6 +407,13 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
 	}
+	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
+	//that case DeleteApplication returned with grpc error and the user was not able to delete the
+	//cd-pipeline after helm app is created in that namespace.
+	exists, err := impl.checkIfNsExists(config, app.Namespace)
+	if !exists {
+		return nil, errors.New("namespace does not exist")
+	}
 
 	req := &ReleaseIdentifier{
 		ClusterConfig:    config,
@@ -424,6 +431,27 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		Success: &deleteApplicationResponse.Success,
 	}
 	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) checkIfNsExists(clusterConfig *ClusterConfig, namespace string) (bool, error) {
+	config := &k8s.ClusterConfig{
+		ClusterName:           clusterConfig.ClusterName,
+		Host:                  clusterConfig.ApiServerUrl,
+		BearerToken:           clusterConfig.Token,
+		InsecureSkipTLSVerify: true,
+	}
+	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "error", err, "clusterConfig", config)
+		return false, err
+	}
+	exists, err := impl.K8sUtil.CheckIfNsExists(namespace, v12Client)
+	if err != nil {
+		impl.logger.Errorw("error in checking if namespace exists or not", "error", err, "clusterConfig", config)
+		return false, err
+	}
+
+	return exists, nil
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
