@@ -17,6 +17,7 @@ import (
 type CiCdConfig struct {
 
 	//from ciConfig
+
 	DefaultCacheBucket               string                              `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
 	DefaultCacheBucketRegion         string                              `env:"DEFAULT_CACHE_BUCKET_REGION" envDefault:"us-east-2"`
 	CiLogsKeyPrefix                  string                              `env:"CI_LOGS_KEY_PREFIX" envDxefault:"my-artifacts"`
