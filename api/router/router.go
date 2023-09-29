@@ -129,6 +129,7 @@ type MuxRouter struct {
 	configDraftRouter                  drafts.ConfigDraftRouter
 	resourceProtectionRouter           protect.ResourceProtectionRouter
 	scopedVariableRouter               ScopedVariableRouter
+	ciTriggerCron                      cron.CiTriggerCron
 	resourceFilterRouter               ResourceFilterRouter
 }
 
@@ -161,7 +162,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
 	globalTagRouter globalTag.GlobalTagRouter, rbacRoleRouter user.RbacRoleRouter,
 	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
-	scopedVariableRouter ScopedVariableRouter,
+	scopedVariableRouter ScopedVariableRouter, ciTriggerCron cron.CiTriggerCron,
 	resourceFilterRouter ResourceFilterRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -235,6 +236,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		rbacRoleRouter:                     rbacRoleRouter,
 		globalPolicyRouter:                 globalPolicyRouter,
 		scopedVariableRouter:               scopedVariableRouter,
+		ciTriggerCron:                      ciTriggerCron,
 		configDraftRouter:                  configDraftRouter,
 		resourceProtectionRouter:           resourceProtectionRouter,
 		resourceFilterRouter:               resourceFilterRouter,

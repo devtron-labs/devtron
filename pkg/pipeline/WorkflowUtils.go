@@ -375,6 +375,7 @@ type WorkflowRequest struct {
 	DeploymentReleaseCounter int                                 `json:"deploymentReleaseCounter,omitempty"`
 	WorkflowExecutor         pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
 	PrePostDeploySteps       []*bean.StepObject                  `json:"prePostDeploySteps"`
+	CiArtifactLastFetch      time.Time                           `json:"ciArtifactLastFetch"`
 	Type                     bean.WorkflowPipelineType
 	Pipeline                 *pipelineConfig.Pipeline
 	Env                      *repository2.Environment
@@ -684,8 +685,8 @@ func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) v1
 			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
 		},
 		Requests: v12.ResourceList{
-			v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.LimitCpu),
-			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
+			v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.ReqCpu),
+			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.ReqMem),
 		},
 	}
 }

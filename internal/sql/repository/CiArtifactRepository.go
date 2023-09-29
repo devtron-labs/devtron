@@ -20,6 +20,7 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"strings"
 	"time"
@@ -59,6 +60,8 @@ type CiArtifactRepository interface {
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, searchString string, parentType bean.WorkflowType) ([]*CiArtifact, error)
 
+	GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error)
+	GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error)
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
 	SaveAll(artifacts []*CiArtifact) error
@@ -238,6 +241,37 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 		artifactsAll = append(artifactsAll, a)
 	}
 	return artifactsAll, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error) {
+	artifacts := make([]*CiArtifact, 0)
+	query := "select cws.pipeline_id, cws.created_on from " +
+		"(SELECT  pipeline_id, MAX(created_on) created_on " +
+		"FROM ci_artifact " +
+		"GROUP BY pipeline_id) cws " +
+		"where cws.pipeline_id IN (" + helper.GetCommaSepratedString(ciPipelineIds) + "); "
+
+	_, err := impl.dbConnection.Query(&artifacts, query)
+	if err != nil {
+		return nil, err
+	}
+	return artifacts, nil
+}
+
+// GetLatestArtifactTimeByCiPipelineId will fetch latest ci artifact time(created) against that ci pipeline
+func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error) {
+	artifacts := &CiArtifact{}
+	query := "select cws.pipeline_id, cws.created_on from " +
+		"(SELECT  pipeline_id, MAX(created_on) created_on " +
+		"FROM ci_artifact " +
+		"GROUP BY pipeline_id) cws " +
+		"where cws.pipeline_id = ? ; "
+
+	_, err := impl.dbConnection.Query(artifacts, query, ciPipelineId)
+	if err != nil {
+		return nil, err
+	}
+	return artifacts, nil
 }
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error) {

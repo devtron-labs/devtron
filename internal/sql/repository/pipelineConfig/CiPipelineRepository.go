@@ -47,6 +47,7 @@ type CiPipeline struct {
 	ParentCiPipeline         int    `sql:"parent_ci_pipeline"`
 	ScanEnabled              bool   `sql:"scan_enabled,notnull"`
 	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden, notnull"`
+	PipelineType             string `sql:"ci_pipeline_type"`
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
