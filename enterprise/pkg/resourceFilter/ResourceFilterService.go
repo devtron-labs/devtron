@@ -20,7 +20,7 @@ type ResourceFilterService interface {
 	//CRUD methods
 	ListFilters() ([]*FilterMetaDataBean, error)
 	GetFilterById(id int) (*FilterRequestResponseBean, error)
-	UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) error
+	UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error)
 	CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error)
 	DeleteFilter(userId int32, id int) error
 
@@ -198,40 +198,40 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 	return filterRequest, nil
 }
 
-func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) error {
+func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error) {
 	//validating given condition expressions
 	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
 	if errored {
 		filterRequest.Conditions = validateResp.Conditions
 		impl.logger.Errorw("error in validating expression", "Conditions", validateResp.Conditions)
-		return errors.New(InvalidExpressions)
+		return filterRequest, errors.New(InvalidExpressions)
 	}
 	//validation done
 
 	if strings.Contains(filterRequest.Name, " ") {
-		return errors.New("spaces are not allowed in name")
+		return filterRequest, errors.New("spaces are not allowed in name")
 	}
 
 	//if mappings are edited delete all the existing mappings and create new mappings
 	conditionExpression, err := getJsonStringFromResourceCondition(filterRequest.Conditions)
 	if err != nil {
 		impl.logger.Errorw("error in converting resourceFilterConditions to json string", "err", err, "resourceFilterConditions", filterRequest.Conditions)
-		return err
+		return filterRequest, err
 	}
 
 	tx, err := impl.resourceFilterRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction", "err", err)
-		return err
+		return filterRequest, err
 	}
 	defer impl.resourceFilterRepository.RollbackTx(tx)
 
 	resourceFilter, err := impl.resourceFilterRepository.GetById(filterRequest.Id)
 	if err != nil || resourceFilter == nil {
 		if err == pg.ErrNoRows {
-			return errors.New("filter with given id not found")
+			return filterRequest, errors.New("filter with given id not found")
 		}
-		return err
+		return filterRequest, err
 	}
 
 	//validate if update request have different name stored in db
@@ -239,12 +239,12 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		//unique name validation
 		filterNames, err := impl.resourceFilterRepository.GetDistinctFilterNames()
 		if err != nil && err != pg.ErrNoRows {
-			return err
+			return filterRequest, err
 		}
 
 		for _, name := range filterNames {
 			if name == filterRequest.Name {
-				return errors.New("filter already exists with this name")
+				return filterRequest, errors.New("filter already exists with this name")
 			}
 		}
 		//unique name validation done
@@ -261,24 +261,24 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 	err = impl.resourceFilterRepository.UpdateFilter(tx, resourceFilter)
 	if err != nil {
 		impl.logger.Errorw("error in updating filter", "resourceFilter", resourceFilter, "err", err)
-		return err
+		return filterRequest, err
 	}
 	err = impl.qualifyingMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(resourceQualifiers.Filter, resourceFilter.Id, sql.AuditLog{UpdatedBy: userId, UpdatedOn: currentTime}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in DeleteAllQualifierMappingsByResourceTypeAndId", "resourceType", resourceQualifiers.Filter, "resourceId", resourceFilter.Id, "err", err)
-		return err
+		return filterRequest, err
 	}
 	err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, filterRequest.QualifierSelector)
 	if err != nil {
 		impl.logger.Errorw("error in saveQualifierMappings for resourceFilter", "resourceFilterId", resourceFilter.Id, "qualifierMappings", filterRequest.QualifierSelector, "err", err)
-		return err
+		return filterRequest, err
 	}
 	err = impl.resourceFilterRepository.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction", "err", err, "resourceFilterId", filterRequest.Id)
-		return err
+		return filterRequest, err
 	}
-	return nil
+	return filterRequest, nil
 }
 
 func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error {

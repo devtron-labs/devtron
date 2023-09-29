@@ -179,10 +179,17 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 	}
 
 	req.Id = filterId
-	err = handler.resourceFilterService.UpdateFilter(userId, req)
+	res, err := handler.resourceFilterService.UpdateFilter(userId, req)
 	if err != nil {
-		handler.logger.Errorw("error in updating active resource filters", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		statusCode := http.StatusInternalServerError
+		handler.logger.Errorw("error in updating resource filters", "err", err)
+		if err.Error() == resourceFilter.AppAndEnvSelectorRequiredMessage {
+			statusCode = http.StatusBadRequest
+		} else if err.Error() == resourceFilter.InvalidExpressions {
+			err = nil
+			statusCode = http.StatusPreconditionFailed
+		}
+		common.WriteJsonResp(w, err, res, statusCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
