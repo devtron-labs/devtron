@@ -209,7 +209,7 @@ istio:
     selector:
       enabled: false
     mtls:
-      mode:
+      mode: ""
     portLevelMtls: {}
   requestAuthentication:
     enabled: false

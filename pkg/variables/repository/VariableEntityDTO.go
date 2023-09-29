@@ -21,4 +21,5 @@ type EntityType int
 const (
 	EntityTypeDeploymentTemplateAppLevel EntityType = 1
 	EntityTypeDeploymentTemplateEnvLevel EntityType = 2
+	EntityTypePipelineStage              EntityType = 3
 )

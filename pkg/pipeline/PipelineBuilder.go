@@ -119,6 +119,7 @@ type PipelineBuilder interface {
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
 	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
+	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
@@ -135,7 +136,7 @@ type PipelineBuilder interface {
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
-	FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error)
+	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error)
 	FindAppsByTeamId(teamId int) ([]*AppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
@@ -192,7 +193,7 @@ type PipelineBuilderImpl struct {
 	pipelineConfigRepository         chartConfig.PipelineConfigRepository
 	mergeUtil                        util.MergeUtil
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
-	ciConfig                         *CiConfig
+	ciConfig                         *CiCdConfig
 	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
 	appService                       app.AppService
 	imageScanResultRepository        security.ImageScanResultRepository
@@ -258,7 +259,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	mergeUtil util.MergeUtil,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	ciConfig *CiConfig,
+	ciConfig *CiCdConfig,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
@@ -449,12 +450,42 @@ func (impl *PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO)
 	existingMaterial.UpdatedBy = request.UserId
 
 	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
-
 	if err != nil {
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
+
 	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial)
+
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	var materials []*pipelineConfig.CiPipelineMaterial
+	for _, pipeline := range pipelines {
+		materialDbObject, err := impl.ciPipelineMaterialRepository.GetByPipelineIdAndGitMaterialId(pipeline.Id, request.Material.Id)
+		if err != nil {
+			return err
+		}
+		if len(materialDbObject) == 0 {
+			continue
+		}
+		materialDbObject[0].Active = false
+		materials = append(materials, materialDbObject[0])
+	}
+
+	if len(materials) == 0 {
+		return nil
+	}
+
+	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -760,7 +791,7 @@ func (impl *PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConf
 		return nil, err
 	}
 	//TODO fill these variables
-	//ciConfig.CiPipeline=
+	//ciCdConfig.CiPipeline=
 	//--------pipeline population start
 	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -1159,7 +1190,7 @@ func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipeline
 func (impl *PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error) {
 	originalCiConf, err := impl.getCiTemplateVariables(updateRequest.AppId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching original ciConfig for update", "appId", updateRequest.Id, "err", err)
+		impl.logger.Errorw("error in fetching original ciCdConfig for update", "appId", updateRequest.Id, "err", err)
 		return nil, err
 	}
 	if originalCiConf.Version != updateRequest.Version {
@@ -1644,6 +1675,52 @@ func (impl *PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) 
 
 func (impl *PipelineBuilderImpl) PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error) {
 	return impl.ciCdPipelineOrchestrator.PatchCiMaterialSource(ciPipeline, userId)
+}
+
+func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error) {
+	response := &bean.CiMaterialBulkPatchResponse{}
+	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
+	for _, appId := range ciPipelines.AppIds {
+		ciPipeline := &bean.CiMaterialValuePatchRequest{
+			AppId:         appId,
+			EnvironmentId: ciPipelines.EnvironmentId,
+		}
+		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value, token, checkAppSpecificAccess)
+
+		if err == nil {
+			ciPipelineMaterial.Type = pipelineConfig.SOURCE_TYPE_BRANCH_FIXED
+			ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
+		}
+		response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
+			AppId:   appId,
+			Status:  getPatchStatus(err),
+			Message: getPatchMessage(err),
+		})
+	}
+	if len(ciPipelineMaterials) == 0 {
+		return response, nil
+	}
+	if err := impl.ciCdPipelineOrchestrator.UpdateCiPipelineMaterials(ciPipelineMaterials); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func getPatchStatus(err error) bean.CiPatchStatus {
+	if err != nil {
+		if err.Error() == string(bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE) {
+			return bean.CI_PATCH_NOT_AUTHORIZED
+		}
+		return bean.CI_PATCH_FAILED
+	}
+	return bean.CI_PATCH_SUCCESS
+}
+
+func getPatchMessage(err error) bean.CiPatchMessage {
+	if err != nil {
+		return bean.CiPatchMessage(err.Error())
+	}
+	return ""
 }
 
 func (impl *PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
@@ -3132,7 +3209,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		return 0, err
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy)
+	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
 	if err != nil {
 		return 0, err
 	}
@@ -3177,7 +3254,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	return pipelineId, nil
 }
 
-func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32) error {
+func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32, tx *pg.Tx) error {
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
 	if err != nil {
 		return err
@@ -3185,7 +3262,7 @@ func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId
 	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository6.Entity{
 		EntityType: entityType,
 		EntityId:   entityId,
-	}, userId)
+	}, userId, tx)
 	if err != nil {
 		return err
 	}
@@ -3765,7 +3842,7 @@ func (impl *PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, par
 	return ciArtifacts, nil
 }
 
-func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error) {
+func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error) {
 	var deployedCiArtifacts []bean.CiArtifactBean
 	var deployedCiArtifactsResponse bean.CiArtifactResponse
 
@@ -3786,6 +3863,14 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, 
 	for _, item := range users {
 		userEmails[item.Id] = item.EmailId
 	}
+
+	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", appId)
+		return deployedCiArtifactsResponse, err
+	}
+	artifactIds := make([]int, 0)
+
 	for _, cdWfr := range cdWfrs {
 		ciArtifact := &repository.CiArtifact{}
 		if cdWfr.CdWorkflow != nil && cdWfr.CdWorkflow.CiArtifact != nil {
@@ -3808,6 +3893,21 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, 
 			WfrId:        cdWfr.Id,
 			DeployedBy:   userEmail,
 		})
+		artifactIds = append(artifactIds, ciArtifact.Id)
+	}
+	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", appId, "artifactIds", artifactIds)
+		return deployedCiArtifactsResponse, err
+	}
+
+	for i, _ := range deployedCiArtifacts {
+		if imageTaggingResp := imageTagsDataMap[deployedCiArtifacts[i].Id]; imageTaggingResp != nil {
+			deployedCiArtifacts[i].ImageReleaseTags = imageTaggingResp
+		}
+		if imageCommentResp := imageCommentsDataMap[deployedCiArtifacts[i].Id]; imageCommentResp != nil {
+			deployedCiArtifacts[i].ImageComment = imageCommentResp
+		}
 	}
 
 	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
