@@ -22,6 +22,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/juju/errors"
 	"io"
@@ -31,6 +32,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -101,6 +103,10 @@ func ExtractChartVersion(chartVersion string) (int, int, error) {
 		return 0, 0, err
 	}
 	return chartMajorVersion, chartMinorVersion, nil
+}
+
+func ExtractEcrImage(registryId, region, repoName, tag string) string {
+	return fmt.Sprintf("%s.dkr.ecr.%s.amazonaws.com/%s:%s", registryId, region, repoName, tag)
 }
 
 type Closer interface {
@@ -335,4 +341,11 @@ func MatchRegexExpression(exp string, text string) (bool, error) {
 	}
 	matched := rExp.Match([]byte(text))
 	return matched, nil
+}
+
+func GetLatestImageAccToImagePushedAt(imageDetails []types.ImageDetail) types.ImageDetail {
+	sort.Slice(imageDetails, func(i, j int) bool {
+		return imageDetails[i].ImagePushedAt.After(*imageDetails[j].ImagePushedAt)
+	})
+	return imageDetails[0]
 }

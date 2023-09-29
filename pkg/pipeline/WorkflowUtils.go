@@ -375,6 +375,7 @@ type WorkflowRequest struct {
 	DeploymentReleaseCounter int                                 `json:"deploymentReleaseCounter,omitempty"`
 	WorkflowExecutor         pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
 	PrePostDeploySteps       []*bean.StepObject                  `json:"prePostDeploySteps"`
+	CiArtifactLastFetch      time.Time                           `json:"ciArtifactLastFetch"`
 	Type                     bean.WorkflowPipelineType
 	Pipeline                 *pipelineConfig.Pipeline
 	Env                      *repository2.Environment

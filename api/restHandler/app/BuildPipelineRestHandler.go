@@ -416,7 +416,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
 		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
-		ciConfigRequest.CiBuildConfig.CiBuildType = "skip-build"
+		ciConfigRequest.CiBuildConfig.CiBuildType = bean1.SKIP_BUILD_TYPE
 		ciConfigRequest.UserId = patchRequest.UserId
 		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
@@ -434,6 +434,22 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	if app.AppType == helper.Job {
 		patchRequest.IsJob = true
+	}
+	if patchRequest.CiPipeline.PipelineType == bean.CI_JOB {
+		patchRequest.CiPipeline.IsDockerConfigOverridden = true
+		patchRequest.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+			DockerRegistry:   ciConf.DockerRegistry,
+			DockerRepository: ciConf.DockerRepository,
+			CiBuildConfig: &bean1.CiBuildConfigBean{
+				Id:                        0,
+				GitMaterialId:             patchRequest.CiPipeline.CiMaterial[0].GitMaterialId,
+				BuildContextGitMaterialId: patchRequest.CiPipeline.CiMaterial[0].GitMaterialId,
+				UseRootBuildContext:       false,
+				CiBuildType:               bean1.SKIP_BUILD_TYPE,
+				DockerBuildConfig:         nil,
+				BuildPackConfig:           nil,
+			},
+		}
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
