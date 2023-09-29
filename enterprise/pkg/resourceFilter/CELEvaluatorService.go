@@ -108,11 +108,15 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 	errored := false
 	params := []ExpressionParam{
 		{
-			ParamName: "containerName",
+			ParamName: "containerRepository",
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "image",
+			ParamName: "containerImage",
+			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "containerImageTag",
 			Type:      ParamTypeString,
 		},
 	}
