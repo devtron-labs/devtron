@@ -8,9 +8,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository3 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
@@ -24,7 +24,7 @@ type PipelineStageService interface {
 	CreatePipelineStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, pipelineId int, userId int32) error
 	UpdatePipelineStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, pipelineId int, userId int32) error
 	DeletePipelineStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error
-	BuildPrePostAndRefPluginStepsDataForWfRequest(pipelineId int, stageType string, scope models.Scope) (*bean.PrePostAndRefPluginStepsResponse, error)
+	BuildPrePostAndRefPluginStepsDataForWfRequest(pipelineId int, stageType string, scope resourceQualifiers.Scope) (*bean.PrePostAndRefPluginStepsResponse, error)
 	GetCiPipelineStageDataDeepCopy(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
 	GetCdPipelineStageDataDeepCopy(cdPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error)
 	GetCdPipelineStageDataDeepCopyForPipelineIds(cdPipelineIds []int) (map[int][]*bean.PipelineStageDto, error)
@@ -1622,7 +1622,7 @@ func (impl *PipelineStageServiceImpl) DeletePipelineStage(stageReq *bean.Pipelin
 //DeleteCiStage and related methods starts
 
 // BuildPrePostAndRefPluginStepsDataForWfRequest and related methods starts
-func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequest(pipelineId int, stageType string, scope models.Scope) (*bean.PrePostAndRefPluginStepsResponse, error) {
+func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequest(pipelineId int, stageType string, scope resourceQualifiers.Scope) (*bean.PrePostAndRefPluginStepsResponse, error) {
 	//get all stages By pipelineId (it can be ciPipelineId or cdPipelineId)
 	var pipelineStages []*repository.PipelineStage
 	var err error
@@ -2094,7 +2094,7 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 
 //BuildPrePostAndRefPluginStepsDataForWfRequest and related methods ends
 
-func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unresolvedResponse *bean.PrePostAndRefPluginStepsResponse, pipelineStageIds []int, scope models.Scope) (*bean.PrePostAndRefPluginStepsResponse, error) {
+func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unresolvedResponse *bean.PrePostAndRefPluginStepsResponse, pipelineStageIds []int, scope resourceQualifiers.Scope) (*bean.PrePostAndRefPluginStepsResponse, error) {
 
 	entities := make([]repository3.Entity, 0)
 	for _, stageId := range pipelineStageIds {
