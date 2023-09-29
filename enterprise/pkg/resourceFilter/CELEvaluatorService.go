@@ -46,7 +46,7 @@ func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error)
 
 	ast, env, err := impl.validate(request)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while validating CEL request", "request", request)
+		impl.Logger.Errorw("error occurred while validating CEL request", "request", request, "err", err)
 		return false, err
 	}
 
