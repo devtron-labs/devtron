@@ -743,6 +743,7 @@ func (impl *PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trig
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			PipelineType:             bean.PipelineType(pipeline.PipelineType),
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
@@ -875,6 +876,7 @@ func (impl *PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConf
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			PipelineType:             bean.PipelineType(pipeline.PipelineType),
 		}
 		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
 		if err != nil && err != pg.ErrNoRows {
@@ -1173,13 +1175,15 @@ func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int, envIds []int) ([]*b
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := bean.PipelineType(bean.NORMAL)
+		pipelineType := bean.NORMAL
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
-			pipelineType = bean.PipelineType(bean.LINKED)
+			pipelineType = bean.LINKED
 		} else if pipeline.IsExternal == true {
-			pipelineType = bean.PipelineType(bean.EXTERNAL)
+			pipelineType = bean.EXTERNAL
+		} else if pipeline.PipelineType == string(bean.CI_JOB) {
+			pipelineType = bean.CI_JOB
 		}
 
 		ciPipeline := &bean.CiPipelineMin{
@@ -3217,7 +3221,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		return 0, err
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy)
+	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
 	if err != nil {
 		return 0, err
 	}
@@ -3262,7 +3266,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 	return pipelineId, nil
 }
 
-func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32) error {
+func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32, tx *pg.Tx) error {
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
 	if err != nil {
 		return err
@@ -3270,7 +3274,7 @@ func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId
 	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository6.Entity{
 		EntityType: entityType,
 		EntityId:   entityId,
-	}, userId)
+	}, userId, tx)
 	if err != nil {
 		return err
 	}
@@ -4289,6 +4293,7 @@ func (impl *PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+		PipelineType:             bean.PipelineType(pipeline.PipelineType),
 	}
 	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipelineId)
 	if err != nil && err != pg.ErrNoRows {
@@ -4764,6 +4769,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(request resourceGroup
 				ExternalCiConfig:         externalCiConfig,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+				PipelineType:             bean.PipelineType(pipeline.PipelineType),
 			}
 			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]
 			if ok {
@@ -4889,6 +4895,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request resourceGr
 			AppName:          pipeline.App.AppName,
 			ParentCiPipeline: ciPipeline.ParentCiPipeline,
 			ParentAppId:      parentAppId,
+			PipelineType:     ciPipeline.PipelineType,
 		}
 		results = append(results, result)
 		authorizedIds = append(authorizedIds, pipeline.CiPipelineId)
