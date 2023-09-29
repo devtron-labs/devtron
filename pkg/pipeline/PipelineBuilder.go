@@ -142,7 +142,7 @@ type PipelineBuilder interface {
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	GetAppList() ([]AppBean, error)
-	GetCiPipelineMin(appId int) ([]*bean.CiPipelineMin, error)
+	GetCiPipelineMin(appId int, envIds []int) ([]*bean.CiPipelineMin, error)
 
 	FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error)
 	FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
@@ -1143,8 +1143,16 @@ func (impl *PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) 
 	return externalCiConfig, err
 }
 
-func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipelineMin, error) {
-	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
+func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int, envIds []int) ([]*bean.CiPipelineMin, error) {
+	pipelines := make([]*pipelineConfig.CiPipeline, 0)
+	var err error
+	if len(envIds) > 0 {
+		//filter ci_pipelines based on env list
+		pipelines, err = impl.ciPipelineRepository.FindCiPipelineByAppIdAndEnvIds(appId, envIds)
+	} else {
+		pipelines, err = impl.ciPipelineRepository.FindByAppId(appId)
+	}
+
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err

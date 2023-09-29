@@ -168,6 +168,21 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		return
 	}
 
+	v := r.URL.Query()
+	envIdsString := v.Get("envIds")
+	envIds := make([]int, 0)
+	if len(envIdsString) > 0 {
+		envIdsSlices := strings.Split(envIdsString, ",")
+		for _, envId := range envIdsSlices {
+			id, err := strconv.Atoi(envId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+				return
+			}
+			envIds = append(envIds, id)
+		}
+	}
+
 	// RBAC enforcer applying
 	object := impl.enforcerUtil.GetAppRBACName(app.AppName)
 	impl.Logger.Debugw("rbac object for other environment list", "object", object)
@@ -183,6 +198,28 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	if len(envIds) > 0 {
+		cdPipelineWfData, err := impl.appWorkflowService.FindCdPipelinesByAppId(appId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching cdPipelines for app", "appId", appId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		triggerViewPayload := &appWorkflow.TriggerViewWorkflowConfig{
+			Workflows:   workflowsList,
+			CdPipelines: cdPipelineWfData,
+		}
+		//filter based on envIds
+		response, err := impl.appWorkflowService.FilterWorkflowAndPipelinesOnEnvIds(triggerViewPayload, envIds)
+		if err != nil {
+			impl.Logger.Errorw("service err, FindAppWorkflow", "appId", appId, "envIds", envIds, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		workflowsList = response.Workflows
+	}
+
 	workflows["appId"] = app.Id
 	workflows["appName"] = app.AppName
 	if len(workflowsList) > 0 {
@@ -309,6 +346,20 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	envIdsString := v.Get("envIds")
+	envIds := make([]int, 0)
+	if len(envIdsString) > 0 {
+		envIdsSlices := strings.Split(envIdsString, ",")
+		for _, envId := range envIdsSlices {
+			id, err := strconv.Atoi(envId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+				return
+			}
+			envIds = append(envIds, id)
+		}
+	}
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -359,11 +410,21 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		}
 	}
 
-	response := appWorkflow.TriggerViewWorkflowConfig{
+	response := &appWorkflow.TriggerViewWorkflowConfig{
 		Workflows:        appWorkflows,
 		CiConfig:         ciPipelineViewData,
 		CdPipelines:      cdPipelinesForApp,
 		ExternalCiConfig: externalCiData,
+	}
+
+	if len(envIds) > 0 {
+		//filter based on envIds
+		response, err = handler.appWorkflowService.FilterWorkflowAndPipelinesOnEnvIds(response, envIds)
+		if err != nil {
+			handler.Logger.Errorw("service err, FilterResponseOnEnvIds", "appId", appId, "envIds", envIds, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	common.WriteJsonResp(w, err, response, http.StatusOK)
