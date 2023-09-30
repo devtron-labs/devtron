@@ -81,7 +81,7 @@ type ClusterEnvDto struct {
 	IsVirtualCluster bool      `json:"isVirtualCluster"`
 }
 
-type AppGroupingResponse struct {
+type ResourceGroupingResponse struct {
 	EnvList  []EnvironmentBean `json:"envList"`
 	EnvCount int               `json:"envCount"`
 }

@@ -37,13 +37,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
-	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -81,8 +81,8 @@ type CdHandler interface {
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32, isAppStoreApplication bool)
-	FetchAppWorkflowStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error)
-	FetchAppDeploymentStatusForEnvironments(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
+	FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error)
+	FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
 	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error
 }
 
@@ -115,7 +115,7 @@ type CdHandlerImpl struct {
 	installedAppRepository                 repository3.InstalledAppRepository
 	installedAppVersionHistoryRepository   repository3.InstalledAppVersionHistoryRepository
 	appRepository                          app2.AppRepository
-	appGroupService                        appGroup2.AppGroupService
+	resourceGroupService                   resourceGroup2.ResourceGroupService
 	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
 	imageTaggingService                    ImageTaggingService
 	eventFactory                           client2.EventFactory
@@ -124,7 +124,7 @@ type CdHandlerImpl struct {
 	config                                 *CdConfig
 }
 
-func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, appGroupService appGroup2.AppGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService,
+func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	eventFactory client2.EventFactory) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
@@ -156,7 +156,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		installedAppRepository:                 installedAppRepository,
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
 		appRepository:                          appRepository,
-		appGroupService:                        appGroupService,
+		resourceGroupService:                   resourceGroupService,
 		deploymentApprovalRepository:           deploymentApprovalRepository,
 		imageTaggingService:                    imageTaggingService,
 		eventFactory:                           eventFactory,
@@ -1321,22 +1321,22 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error) {
+func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error) {
 	cdWorkflowStatus := make([]*pipelineConfig.CdWorkflowStatus, 0)
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
-	if request.AppGroupId > 0 {
-		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+	if request.ResourceGroupId > 0 {
+		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
 		if err != nil {
 			return nil, err
 		}
 		//override appIds if already provided app group id in request.
-		request.AppIds = appIds
+		request.ResourceIds = appIds
 	}
-	if len(request.AppIds) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	if len(request.ResourceIds) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.ParentResourceId, request.ResourceIds)
 	} else {
-		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.ParentResourceId)
 	}
 	if err != nil {
 		impl.Logger.Errorw("error in fetching pipelines", "request", request, "err", err)
@@ -1472,26 +1472,26 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error) {
-	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "pipelineBuilder.authorizationDeploymentStatusForAppGrouping")
+func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error) {
+	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "pipelineBuilder.authorizationDeploymentStatusForResourceGrouping")
 	deploymentStatuses := make([]*pipelineConfig.AppDeploymentStatus, 0)
 	deploymentStatusesMap := make(map[int]*pipelineConfig.AppDeploymentStatus)
 	pipelineAppMap := make(map[int]int)
 	statusMap := make(map[int]string)
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
-	if request.AppGroupId > 0 {
-		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+	if request.ResourceGroupId > 0 {
+		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
 		if err != nil {
 			return nil, err
 		}
 		//override appIds if already provided app group id in request.
-		request.AppIds = appIds
+		request.ResourceIds = appIds
 	}
-	if len(request.AppIds) > 0 {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	if len(request.ResourceIds) > 0 {
+		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.ParentResourceId, request.ResourceIds)
 	} else {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.ParentResourceId)
 	}
 	if err != nil {
 		impl.Logger.Errorw("error in fetching pipelines", "request", request, "err", err)

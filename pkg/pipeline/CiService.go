@@ -83,7 +83,7 @@ type CiServiceImpl struct {
 	envRepository                  repository1.EnvironmentRepository
 	appRepository                  appRepository.AppRepository
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
-	config                         *CiConfig
+	config                        *CiConfig
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
