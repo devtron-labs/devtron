@@ -28,10 +28,10 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
-	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
@@ -81,7 +81,7 @@ type CiHandler interface {
 	FetchMaterialInfoByArtifactId(ciArtifactId int, envId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
-	FetchCiStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CiWorkflowStatus, error)
+	FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest) ([]*pipelineConfig.CiWorkflowStatus, error)
 }
 
 type CiHandlerImpl struct {
@@ -101,13 +101,13 @@ type CiHandlerImpl struct {
 	K8sUtil                      *k8s.K8sUtil
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
-	appGroupService              appGroup2.AppGroupService
+	resourceGroupService         resourceGroup.ResourceGroupService
 	envRepository                repository3.EnvironmentRepository
 	imageTaggingService          ImageTaggingService
 	config                       *CiConfig
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupService appGroup2.AppGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -125,7 +125,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		K8sUtil:                      K8sUtil,
 		cdPipelineRepository:         cdPipelineRepository,
 		enforcerUtil:                 enforcerUtil,
-		appGroupService:              appGroupService,
+		resourceGroupService:         resourceGroupService,
 		envRepository:                envRepository,
 		imageTaggingService:          imageTaggingService,
 	}
@@ -1515,22 +1515,22 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	return nil
 }
 
-func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CiWorkflowStatus, error) {
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	ciWorkflowStatuses := make([]*pipelineConfig.CiWorkflowStatus, 0)
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
-	if request.AppGroupId > 0 {
-		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+	if request.ResourceGroupId > 0 {
+		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
 		if err != nil {
 			return nil, err
 		}
 		//override appIds if already provided app group id in request.
-		request.AppIds = appIds
+		request.ResourceIds = appIds
 	}
-	if len(request.AppIds) > 0 {
-		cdPipelines, err = impl.cdPipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	if len(request.ResourceIds) > 0 {
+		cdPipelines, err = impl.cdPipelineRepository.FindActiveByInFilter(request.ParentResourceId, request.ResourceIds)
 	} else {
-		cdPipelines, err = impl.cdPipelineRepository.FindActiveByEnvId(request.EnvId)
+		cdPipelines, err = impl.cdPipelineRepository.FindActiveByEnvId(request.ParentResourceId)
 	}
 	if err != nil {
 		impl.Logger.Errorw("error in fetching pipelines", "request", request, "err", err)
