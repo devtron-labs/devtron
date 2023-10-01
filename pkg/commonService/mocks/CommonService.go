@@ -14,6 +14,32 @@ type CommonService struct {
 	mock.Mock
 }
 
+// EnvironmentList provides a mock function with given fields:
+func (_m *CommonService) EnvironmentList() (*commonService.EnvironmentList, error) {
+	ret := _m.Called()
+
+	var r0 *commonService.EnvironmentList
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (*commonService.EnvironmentList, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() *commonService.EnvironmentList); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*commonService.EnvironmentList)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FetchLatestChart provides a mock function with given fields: appId, envId
 func (_m *CommonService) FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error) {
 	ret := _m.Called(appId, envId)
