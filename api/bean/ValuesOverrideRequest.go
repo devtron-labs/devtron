@@ -72,6 +72,7 @@ type ValuesOverrideRequest struct {
 	AppName                               string                      `json:"-"`
 	PipelineName                          string                      `json:"-"`
 	DeploymentAppType                     string                      `json:"-"`
+	hpaEnabled                            bool
 }
 
 type BulkCdDeployEvent struct {

@@ -23,8 +23,8 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/util"
+	errors2 "github.com/juju/errors"
 	"io"
 	v13 "k8s.io/api/policy/v1"
 	v1beta12 "k8s.io/api/policy/v1beta1"
@@ -617,10 +617,10 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(ctx context.Context, namespac
 	if err != nil {
 		return nil, err
 	} else if len(pods.Items) > 1 {
-		err = &util.ApiError{Code: "406", HttpStatusCode: 200, UserMessage: "found more than one pod for label selector"}
+		err = errors2.New("found more than one pod for label selector")
 		return nil, err
 	} else if len(pods.Items) == 0 {
-		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no pod found for label selector"}
+		err = errors2.New("no pod found for label selector")
 		return nil, err
 	} else {
 		return &pods.Items[0], nil
