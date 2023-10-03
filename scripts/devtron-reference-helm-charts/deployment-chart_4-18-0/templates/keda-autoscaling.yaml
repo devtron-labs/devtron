@@ -4,11 +4,11 @@ kind: ScaledObject
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}-keda
   labels:
-    app: { { template ".Chart.Name .name" . } }
-    appId: { { $.Values.app | quote } }
-    envId: { { $.Values.env | quote } }
-    chart: { { template ".Chart.Name .chart" . } }
-    release: { { .Release.Name } }
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
   {{- if .Values.appLabels }}
   {{ toYaml .Values.appLabels | indent 4 }}
   {{- end }}
@@ -46,8 +46,10 @@ spec:
   advanced: 
 {{ toYaml $.Values.kedaAutoscaling.advanced | indent 4 }}
 {{- end }}
+{{- if $.Values.kedaAutoscaling.triggers }}
   triggers:
-{{ toYaml .Values.kedaAutoscaling.triggers | indent 2}}
+{{ toYaml .Values.kedaAutoscaling.triggers | indent 4}}
+{{- end }}
 {{- if $.Values.kedaAutoscaling.authenticationRef }}
     authenticationRef: 
 {{ toYaml $.Values.kedaAutoscaling.authenticationRef | indent 6 }}
