@@ -1,7 +1,43 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+kedaAutoscaling:
+  enabled: true
+  envSourceContainerName: "" # Optional. Default: .spec.template.spec.containers[0]
+  cooldownPeriod: 300 # Optional. Default: 300 seconds
+  minReplicaCount: 1 
+  maxReplicaCount: 2
+  idleReplicaCount: 0 # Optional. Must be less than minReplicaCount
+  pollingInterval: 30 # Optional. Default: 30 seconds
+  # The fallback section is optional. It defines a number of replicas to fallback to if a scaler is in an error state.
+  fallback: {} # Optional. Section to specify fallback options
+    # failureThreshold: 3 # Mandatory if fallback section is included
+    # replicas: 6
+  advanced: {}
+    # horizontalPodAutoscalerConfig: # Optional. Section to specify HPA related options
+    # behavior: # Optional. Use to modify HPA's scaling behavior
+    #   scaleDown:
+    #     stabilizationWindowSeconds: 300
+    #     policies:
+    #     - type: Percent
+    #       value: 100
+    #       periodSeconds: 15
+  triggers: 
+  - type: kubernetes-workload
+    name: trig_one
+    metadata:
+      podSelector: 'pod=workload-test'
+  - type: metrics-api
+    name: trig_two
+    metadata:
+      url: "https://mockbin.org/bin/336a8d99-9e09-4f1f-979d-851a6d1b1423"
+      valueLocation: "tasks"
 
+  triggerAuthentication:
+    enabled: true
+    name: "trigger-test"
+    spec: {}
+  authenticationRef: {}
 deploymentLabels:
   name: kunalverma
   Company: Devtron
