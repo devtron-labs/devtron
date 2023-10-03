@@ -47,7 +47,7 @@ spec:
 {{ toYaml $.Values.kedaAutoscaling.advanced | indent 4 }}
 {{- end }}
   triggers:
-{{ toYaml .Values.kedaAutoscaling.triggers | indent 4}}
+{{ toYaml .Values.kedaAutoscaling.triggers | indent 2}}
 {{- if $.Values.kedaAutoscaling.authenticationRef }}
     authenticationRef: 
 {{ toYaml $.Values.kedaAutoscaling.authenticationRef | indent 6 }}
