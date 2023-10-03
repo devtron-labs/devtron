@@ -127,6 +127,10 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
+	err := impl.checkForActiveChart(configMapRequest)
+	if err != nil {
+		return nil, err
+	}
 	configData := configMapRequest.ConfigData[0]
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
@@ -492,6 +496,10 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
+	err := impl.checkForActiveChart(configMapRequest)
+	if err != nil {
+		return nil, err
+	}
 	configData := configMapRequest.ConfigData[0]
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
@@ -587,6 +595,18 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		return nil, err
 	}
 	return configMapRequest, nil
+}
+
+func (impl ConfigMapServiceImpl) checkForActiveChart(configMapRequest *bean.ConfigDataRequest) error {
+	chart, err := impl.chartRepository.FindActiveChart(configMapRequest.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in FindActiveChart", "error", err, "chart", chart)
+		return err
+	}
+	if err == pg.ErrNoRows {
+		return errors.New("please save Base Deployment Template before creating ConfigMaps/Secrets")
+	}
+	return nil
 }
 
 func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*bean.ConfigDataRequest, error) {
