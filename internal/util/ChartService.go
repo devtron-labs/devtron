@@ -22,8 +22,6 @@ import (
 	"context"
 	"fmt"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"sync"
-
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -84,6 +82,8 @@ type ChartTemplateService interface {
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
 	LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, string, error)
+	LoadChartFromDir(dir string) (*chart.Chart, error)
+	CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -95,7 +95,6 @@ type ChartTemplateServiceImpl struct {
 	gitOpsConfigRepository repository.GitOpsConfigRepository
 	userRepository         repository2.UserRepository
 	chartRepository        chartRepoRepository.ChartRepository
-	locker                 *sync.Mutex
 }
 
 type ChartValues struct {
@@ -113,7 +112,6 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	gitFactory *GitFactory, globalEnvVariables *util.GlobalEnvVariables,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	userRepository repository2.UserRepository, chartRepository chartRepoRepository.ChartRepository) *ChartTemplateServiceImpl {
-	mu := &sync.Mutex{}
 	return &ChartTemplateServiceImpl{
 		randSource:             rand.NewSource(time.Now().UnixNano()),
 		logger:                 logger,
@@ -124,7 +122,6 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigRepository: gitOpsConfigRepository,
 		userRepository:         userRepository,
 		chartRepository:        chartRepository,
-		locker:                 mu,
 	}
 }
 
@@ -743,8 +740,6 @@ func (impl ChartTemplateServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGi
 
 func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, string, error) {
 
-	defer impl.locker.Unlock()
-	impl.locker.Lock()
 	var chartBytesArr []byte
 	//this function is removed in latest helm release and is replaced by Loader in loader package
 	chart, err := chartutil.LoadDir(ChartPath)
@@ -775,6 +770,32 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 	}
 
 	return chartBytesArr, chartZipPath, err
+}
+
+func (impl ChartTemplateServiceImpl) LoadChartFromDir(dir string) (*chart.Chart, error) {
+	//this function is removed in latest helm release and is replaced by Loader in loader package
+	chart, err := chartutil.LoadDir(dir)
+	if err != nil {
+		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
+		return chart, err
+	}
+	return chart, nil
+}
+
+func (impl ChartTemplateServiceImpl) CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error) {
+	var chartBytesArr []byte
+	chartZipPath, err := chartutil.Save(chart, outputChartPathDir)
+	if err != nil {
+		impl.logger.Errorw("error in saving", "err", err, "dir")
+		return chartBytesArr, err
+	}
+
+	chartBytesArr, err = ioutil.ReadFile(chartZipPath)
+	if err != nil {
+		impl.logger.Errorw("There is a problem with os.Open", "err", err)
+		return nil, err
+	}
+	return chartBytesArr, nil
 }
 
 func IsHelmApp(deploymentAppType string) bool {

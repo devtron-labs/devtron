@@ -2,6 +2,7 @@ package generateManifest
 
 import (
 	"context"
+	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -13,6 +14,8 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
+	"strconv"
+	"time"
 )
 
 type DeploymentTemplateRequest struct {
@@ -218,12 +221,24 @@ func (impl DeploymentTemplateServiceImpl) GetManifest(ctx context.Context, chart
 		return nil, err
 	}
 
-	chartBytes, chartZipPath, err := impl.chartTemplateServiceImpl.LoadChartInBytes(refChart, false, "", "")
+	outputChartPathDir := fmt.Sprintf("%s-%v", refChart, strconv.FormatInt(time.Now().UnixNano(), 16))
+
+	//load chart from given refChart
+	chart, err := impl.chartTemplateServiceImpl.LoadChartFromDir(refChart)
 	if err != nil {
-		impl.Logger.Errorw("error in getting chart", "err", err)
+		impl.Logger.Errorw("error in LoadChartFromDir", "err", err, "chartRefId", chartRefId)
 		return nil, err
 	}
-	defer impl.chartTemplateServiceImpl.CleanDir(chartZipPath)
+
+	//create the .tgz file in temp location
+	chartBytes, err := impl.chartTemplateServiceImpl.CreateZipFileForChart(chart, outputChartPathDir)
+	if err != nil {
+		impl.Logger.Errorw("error in CreateZipFileForChart", "err", err, "chartRefId", chartRefId)
+		return nil, err
+	}
+
+	//deleted the .tgz temp file after reading chart bytes
+	defer impl.chartTemplateServiceImpl.CleanDir(outputChartPathDir)
 
 	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
 	if err != nil {
