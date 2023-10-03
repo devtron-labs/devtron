@@ -1,5 +1,6 @@
 # Mandatory configs
 podDisruptionBudget: {}
+
 deploymentLabels: {}
 deploymentAnnotations: {}
 
