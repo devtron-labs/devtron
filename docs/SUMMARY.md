@@ -77,6 +77,7 @@
     * [Rollback Deployment](user-guide/deploying-application/rollback-deployment.md)
   * [App Details](user-guide/creating-application/app-details.md)
     * [Debugging Deployment And Monitoring](user-guide/debugging-deployment-and-monitoring.md)
+    * [Using Ephemeral Containers](user-guide/app-details/ephemeral-containers.md)
     * [Application Metrics](user-guide/creating-application/app-metrics.md) 
   * [Overview](user-guide/creating-application/overview.md)
 * [Jobs](user-guide/jobs/README.md)
@@ -106,6 +107,7 @@
 
 ## Resources
 
+* [Glossary](reference/glossary.md)
 * [Troubleshooting](FAQs/devtron-troubleshoot.md)
 * [Use Cases](user-guide/use-cases/README.md)
   * [Devtron Generic Helm Chart To Run CronJob Or One Time Job](user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job.md)

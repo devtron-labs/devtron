@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	mocks6 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	mocks3 "github.com/devtron-labs/devtron/pkg/commonService/mocks"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	mocks5 "github.com/devtron-labs/devtron/pkg/pipeline/history/mocks"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 		Deleted:       true,
 	}
 	type args struct {
-		createJobEnvOverrideRequest *CreateJobEnvOverridePayload
+		createJobEnvOverrideRequest *bean.CreateJobEnvOverridePayload
 		getByAppError               error
 		getByAppResponse            *chartConfig.ConfigMapEnvModel
 	}
@@ -58,7 +59,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 		{
 			name: "create environment override",
 			args: args{
-				createJobEnvOverrideRequest: &CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest: &bean.CreateJobEnvOverridePayload{
 					AppId: 22,
 					EnvId: 5,
 				},
@@ -71,7 +72,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 		{
 			name: "create deleted override",
 			args: args{
-				createJobEnvOverrideRequest: &CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest: &bean.CreateJobEnvOverridePayload{
 					AppId: 22,
 					EnvId: 5,
 				},
@@ -129,7 +130,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentDelete(t *testing.T) {
 	envRepository := mocks6.NewEnvironmentRepository(t)
 
 	type args struct {
-		createJobEnvOverrideRequest *CreateJobEnvOverridePayload
+		createJobEnvOverrideRequest *bean.CreateJobEnvOverridePayload
 	}
 	configMap := &chartConfig.ConfigMapEnvModel{
 		AppId:         1,
@@ -144,7 +145,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentDelete(t *testing.T) {
 		{
 			name: "Delete configMap",
 			args: args{
-				createJobEnvOverrideRequest: &CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest: &bean.CreateJobEnvOverridePayload{
 					AppId: 1,
 					EnvId: 1,
 				},

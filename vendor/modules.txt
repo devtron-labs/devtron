@@ -270,6 +270,13 @@ github.com/aws/aws-sdk-go/service/sso
 github.com/aws/aws-sdk-go/service/sso/ssoiface
 github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
+# github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0
+## explicit; go 1.15
+github.com/aws/aws-sdk-go-v2/service/ecr/types
+# github.com/aws/smithy-go v1.14.2
+## explicit; go 1.15
+github.com/aws/smithy-go
+github.com/aws/smithy-go/document
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
@@ -339,7 +346,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.0-20230407072229-d4f665f5ca12
+# github.com/devtron-labs/common-lib v0.0.2
 ## explicit; go 1.18
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/pubsub-lib

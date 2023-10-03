@@ -1,28 +1,28 @@
 package helper
 
 import (
-	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 )
 
-func QualifierComparator(a, b repository2.Qualifier) bool {
+func QualifierComparator(a, b resourceQualifiers.Qualifier) bool {
 	return GetPriority(a) < GetPriority(b)
 }
-func FindMinWithComparator(variableScope []*repository2.VariableScope, comparator func(a, b repository2.Qualifier) bool) *repository2.VariableScope {
+func FindMinWithComparator(variableScope []*resourceQualifiers.QualifierMapping, comparator func(a, b resourceQualifiers.Qualifier) bool) *resourceQualifiers.QualifierMapping {
 	if len(variableScope) == 0 {
 		return nil
 	}
 	min := variableScope[0]
 	for _, val := range variableScope {
-		if comparator(repository2.Qualifier(val.QualifierId), repository2.Qualifier(min.QualifierId)) {
+		if comparator(resourceQualifiers.Qualifier(val.QualifierId), resourceQualifiers.Qualifier(min.QualifierId)) {
 			min = val
 		}
 	}
 	return min
 }
 
-func GetPriority(qualifier repository2.Qualifier) int {
+func GetPriority(qualifier resourceQualifiers.Qualifier) int {
 	switch qualifier {
-	case repository2.GLOBAL_QUALIFIER:
+	case resourceQualifiers.GLOBAL_QUALIFIER:
 		return 5
 	default:
 		return 0

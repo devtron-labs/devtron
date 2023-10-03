@@ -5,14 +5,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
 
 type VariableEntityMappingService interface {
-	UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32) error
+	UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32, tx *pg.Tx) error
 	GetAllMappingsForEntities(entities []repository.Entity) (map[repository.Entity][]string, error)
-	DeleteMappingsForEntities(entities []repository.Entity, userId int32) error
+	DeleteMappingsForEntities(entities []repository.Entity, userId int32, tx *pg.Tx) error
 }
 
 type VariableEntityMappingServiceImpl struct {
@@ -27,7 +28,7 @@ func NewVariableEntityMappingServiceImpl(variableEntityMappingRepository reposit
 	}
 }
 
-func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32) error {
+func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32, passedTx *pg.Tx) error {
 
 	variableMappings, err := impl.variableEntityMappingRepository.GetVariablesForEntities([]repository.Entity{entity})
 
@@ -58,17 +59,23 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 		})
 	}
 
-	tx, err := impl.variableEntityMappingRepository.StartTx()
-	defer func() {
-		err = impl.variableEntityMappingRepository.RollbackTx(tx)
-		if err != nil {
-			impl.logger.Infow("error in rolling back transaction", "err", err)
-		}
-	}()
+	var tx *pg.Tx
+	if passedTx == nil {
+		tx, err = impl.variableEntityMappingRepository.StartTx()
+		defer func() {
+			err = impl.variableEntityMappingRepository.RollbackTx(tx)
+			if err != nil {
+				impl.logger.Infow("error in rolling back transaction", "err", err)
+			}
+		}()
+	} else {
+		tx = passedTx
+	}
 
 	if len(variablesToDelete) > 0 {
 		err = impl.variableEntityMappingRepository.DeleteVariablesForEntity(tx, utils.ToStringArray(variablesToDelete), entity, userId)
 		if err != nil {
+			impl.logger.Errorw("error in deleting variables for entity", "err", err)
 			return err
 		}
 	}
@@ -76,23 +83,34 @@ func (impl VariableEntityMappingServiceImpl) UpdateVariablesForEntity(variableNa
 	if len(newVariableMappings) > 0 {
 		err = impl.variableEntityMappingRepository.SaveVariableEntityMappings(tx, newVariableMappings)
 		if err != nil {
+			impl.logger.Errorw("error in saving variables for entity", "err", err)
 			return err
 		}
 	}
 
-	err = impl.variableEntityMappingRepository.CommitTx(tx)
-	if err != nil {
-		return err
+	if passedTx == nil {
+		err = impl.variableEntityMappingRepository.CommitTx(tx)
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction for UpdateVariablesForEntity", "err", err)
+			return err
+		}
 	}
 	return nil
 }
 
 func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities []repository.Entity) (map[repository.Entity][]string, error) {
+
+	entityIdToVariableNames := make(map[repository.Entity][]string)
+	if len(entities) == 0 {
+		return entityIdToVariableNames, nil
+	}
+
 	variableEntityMappings, err := impl.variableEntityMappingRepository.GetVariablesForEntities(entities)
 	if err != nil {
+		impl.logger.Errorw("error in fetching mappings for entities", "err", err)
 		return nil, err
 	}
-	entityIdToVariableNames := make(map[repository.Entity][]string)
+
 	for _, mapping := range variableEntityMappings {
 		vars := entityIdToVariableNames[mapping.Entity]
 		vars = append(vars, mapping.VariableName)
@@ -101,9 +119,10 @@ func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities 
 	return entityIdToVariableNames, nil
 }
 
-func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities []repository.Entity, userId int32) error {
-	err := impl.variableEntityMappingRepository.DeleteAllVariablesForEntities(entities, userId)
+func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities []repository.Entity, userId int32, tx *pg.Tx) error {
+	err := impl.variableEntityMappingRepository.DeleteAllVariablesForEntities(tx, entities, userId)
 	if err != nil {
+		impl.logger.Errorw("error in deleting mappings for entities", "err", err)
 		return err
 	}
 	return nil

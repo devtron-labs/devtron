@@ -21,6 +21,10 @@ on:
 jobs:
   validate-PR-issue:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: write
 
     steps:
     - name: Checkout repository
@@ -28,7 +32,7 @@ jobs:
 
     - name: Validate Issue Reference
       env:
-        GITHUB_TOKEN: ${{ secrets.GIT_TARGET_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
         PR_BODY: ${{ github.event.pull_request.body }}
         url: ${{ github.event.pull_request.url }}
         PRNUM: ${{ github.event.pull_request.number }}

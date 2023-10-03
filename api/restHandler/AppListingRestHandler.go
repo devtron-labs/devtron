@@ -1345,10 +1345,10 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.ResourceTreeAndNotesContainer, installedApps repository.InstalledApps) (bean.ResourceTreeAndNotesContainer, error) {
+func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.AppDetailsContainer, installedApps repository.InstalledApps) (bean.AppDetailsContainer, error) {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	err := handler.installedAppService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps)
+	err := handler.installedAppService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps, "", "")
 	return resourceTreeAndNotesContainer, err
 }
 func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
@@ -1420,7 +1420,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
 		}
-		resourceTreeAndNotesContainer := bean.ResourceTreeAndNotesContainer{}
+		resourceTreeAndNotesContainer := bean.AppDetailsContainer{}
 		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp)
 		if err != nil {
 			common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
@@ -1590,7 +1590,9 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		if detail != nil {
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			releaseStatus := util2.InterfaceToMapAdapter(detail.ReleaseStatus)
 			applicationStatus := detail.ApplicationStatus
+			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
 			if applicationStatus == application.Healthy {
 				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)

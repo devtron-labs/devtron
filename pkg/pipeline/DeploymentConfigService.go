@@ -8,6 +8,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -95,7 +96,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	return configResp, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(scope models.Scope, entity repository6.Entity) (map[string]string, error) {
+func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(scope resourceQualifiers.Scope, entity repository6.Entity) (map[string]string, error) {
 
 	variableMap := make(map[string]string)
 	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
@@ -145,7 +146,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 				impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 				return nil, err
 			}
-			scope := models.Scope{
+			scope := resourceQualifiers.Scope{
 				AppId:     pipeline.AppId,
 				EnvId:     pipeline.EnvironmentId,
 				ClusterId: pipeline.Environment.ClusterId,
@@ -182,7 +183,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			return nil, err
 		}
 		//Scope contains env and cluster ID because a pipeline will always have those even if inheriting base template
-		scope := models.Scope{
+		scope := resourceQualifiers.Scope{
 			AppId:     pipeline.AppId,
 			EnvId:     pipeline.EnvironmentId,
 			ClusterId: pipeline.Environment.ClusterId,
