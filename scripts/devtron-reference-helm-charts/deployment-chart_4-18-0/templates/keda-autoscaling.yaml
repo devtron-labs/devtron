@@ -46,10 +46,8 @@ spec:
   advanced: 
 {{ toYaml $.Values.kedaAutoscaling.advanced | indent 4 }}
 {{- end }}
-{{- if $.Values.kedaAutoscaling.triggers }}
   triggers:
 {{ toYaml .Values.kedaAutoscaling.triggers | indent 4}}
-{{- end }}
 {{- if $.Values.kedaAutoscaling.authenticationRef }}
     authenticationRef: 
 {{ toYaml $.Values.kedaAutoscaling.authenticationRef | indent 6 }}
