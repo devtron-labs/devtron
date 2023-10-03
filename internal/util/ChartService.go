@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"sync"
 
 	"io/ioutil"
 	"math/rand"
@@ -94,6 +95,7 @@ type ChartTemplateServiceImpl struct {
 	gitOpsConfigRepository repository.GitOpsConfigRepository
 	userRepository         repository2.UserRepository
 	chartRepository        chartRepoRepository.ChartRepository
+	locker                 *sync.Mutex
 }
 
 type ChartValues struct {
@@ -111,6 +113,7 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	gitFactory *GitFactory, globalEnvVariables *util.GlobalEnvVariables,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	userRepository repository2.UserRepository, chartRepository chartRepoRepository.ChartRepository) *ChartTemplateServiceImpl {
+	mu := &sync.Mutex{}
 	return &ChartTemplateServiceImpl{
 		randSource:             rand.NewSource(time.Now().UnixNano()),
 		logger:                 logger,
@@ -121,6 +124,7 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigRepository: gitOpsConfigRepository,
 		userRepository:         userRepository,
 		chartRepository:        chartRepository,
+		locker:                 mu,
 	}
 }
 
@@ -739,6 +743,8 @@ func (impl ChartTemplateServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGi
 
 func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, string, error) {
 
+	defer impl.locker.Unlock()
+	impl.locker.Lock()
 	var chartBytesArr []byte
 	//this function is removed in latest helm release and is replaced by Loader in loader package
 	chart, err := chartutil.LoadDir(ChartPath)
