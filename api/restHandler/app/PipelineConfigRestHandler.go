@@ -25,9 +25,9 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
+	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
@@ -727,17 +727,18 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+	request := resourceGroup2.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup2.APP_GROUP,
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
-	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiStatusForBuildAndDeployInAppGrouping")
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiStatusForBuildAndDeployInResourceGrouping")
 	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(request)
 	span.End()
 	if err != nil {
@@ -751,7 +752,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 
-	_, span = otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCdStatusForBuildAndDeployInAppGrouping")
+	_, span = otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCdStatusForBuildAndDeployInResourceGrouping")
 	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(request)
 	span.End()
 	if err != nil {
@@ -859,14 +860,15 @@ func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+	request := resourceGroup2.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup2.APP_GROUP,
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	results, err := handler.pipelineBuilder.GetAppListForEnvironment(request)
 	if err != nil {
@@ -918,14 +920,16 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironm
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+
+	request := resourceGroup2.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup2.APP_GROUP,
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.FetchAppDeploymentStatusForEnvironments")
 	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(request)

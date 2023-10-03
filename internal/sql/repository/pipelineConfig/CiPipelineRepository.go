@@ -44,6 +44,7 @@ type CiPipeline struct {
 	ParentCiPipeline         int    `sql:"parent_ci_pipeline"`
 	ScanEnabled              bool   `sql:"scan_enabled,notnull"`
 	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden, notnull"`
+	PipelineType             string `sql:"ci_pipeline_type"`
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
@@ -97,6 +98,7 @@ type CiPipelineRepository interface {
 	UpdateCiPipelineScript(script *CiPipelineScript, tx *pg.Tx) error
 	MarkCiPipelineScriptsInactiveByCiPipelineId(ciPipelineId int, tx *pg.Tx) error
 	FindByAppId(appId int) (pipelines []*CiPipeline, err error)
+	FindCiPipelineByAppIdAndEnvIds(appId int, envIds []int) ([]*CiPipeline, error)
 	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
@@ -525,4 +527,12 @@ func (impl CiPipelineRepositoryImpl) GetExternalCiPipelineByArtifactId(artifactI
 		" WHERE ecp.active=true AND cia.id=?"
 	_, err := impl.dbConnection.Query(ciPipeline, query, artifactId)
 	return ciPipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindCiPipelineByAppIdAndEnvIds(appId int, envIds []int) ([]*CiPipeline, error) {
+	var pipelines []*CiPipeline
+	query := `SELECT DISTINCT ci_pipeline.* FROM ci_pipeline INNER JOIN pipeline ON pipeline.ci_pipeline_id = ci_pipeline.id WHERE ci_pipeline.app_id = ? 
+              AND pipeline.environment_id IN (?) AND ci_pipeline.deleted = false AND pipeline.deleted = false;`
+	_, err := impl.dbConnection.Query(&pipelines, query, appId, pg.In(envIds))
+	return pipelines, err
 }

@@ -48,6 +48,7 @@ type K8sApplicationService interface {
 		rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) (bool, error)
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*bean3.ResourceInfo, error)
+	GetAllApiResourceGVKWithoutAuthorization(ctx context.Context, clusterId int) (*k8s2.GetAllApiResourcesResponse, error)
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *k8s2.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s2.ApplyResourcesResponse, error)
@@ -428,8 +429,9 @@ func (impl *K8sApplicationServiceImpl) GetResourceInfo(ctx context.Context) (*be
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error) {
-	impl.logger.Infow("getting all api-resources", "clusterId", clusterId)
+// GetAllApiResourceGVKWithoutAuthorization  This function will the all the available api resource GVK list for specific cluster
+func (impl *K8sApplicationServiceImpl) GetAllApiResourceGVKWithoutAuthorization(ctx context.Context, clusterId int) (*k8s2.GetAllApiResourcesResponse, error) {
+	impl.logger.Infow("getting all api-resources without auth", "clusterId", clusterId)
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster rest config", "clusterId", clusterId, "err", err)
@@ -439,7 +441,6 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 	if err != nil {
 		return nil, err
 	}
-
 	// FILTER STARTS
 	// 1) remove ""/v1 event kind if event kind exist in events.k8s.io/v1 and ""/v1
 	k8sEventIndex := -1
@@ -453,11 +454,28 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 				k8sEventIndex = index
 			}
 		}
+		if gvk.Kind == "Node" {
+			allApiResources = append(allApiResources[:index], allApiResources[index+1:]...)
+		}
 	}
 	if k8sEventIndex > -1 && v1EventIndex > -1 {
 		allApiResources = append(allApiResources[:v1EventIndex], allApiResources[v1EventIndex+1:]...)
 	}
 	// FILTER ENDS
+
+	response := &k8s2.GetAllApiResourcesResponse{
+		ApiResources: allApiResources,
+	}
+	return response, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error) {
+	impl.logger.Infow("getting all api-resources", "clusterId", clusterId)
+	apiResourceGVKResponse, err := impl.GetAllApiResourceGVKWithoutAuthorization(ctx, clusterId)
+	if err != nil {
+		return nil, err
+	}
+	allApiResources := apiResourceGVKResponse.ApiResources
 
 	// RBAC FILER STARTS
 	allowedAll := isSuperAdmin

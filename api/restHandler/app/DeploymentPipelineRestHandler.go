@@ -11,12 +11,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
-	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -112,8 +113,11 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
-
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId)
+	//VARIABLE_RESOLVE
+	scope := resourceQualifiers.Scope{
+		AppId: templateRequest.AppId,
+	}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
 	if !validate {
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
@@ -574,7 +578,13 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 		return
 	}
 
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId)
+	//VARIABLE_RESOLVE
+	scope := resourceQualifiers.Scope{
+		AppId:     request.AppId,
+		EnvId:     request.EnvId,
+		ClusterId: envConfigProperties.ClusterId,
+	}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId, scope)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", request)
 		common.WriteJsonResp(w, err2, "validation err, UpdateAppOverrid", http.StatusBadRequest)
@@ -689,7 +699,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		return
 	}
 	chartRefId := envConfigProperties.ChartRefId
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId)
+	//VARIABLE_RESOLVE
+	scope := resourceQualifiers.Scope{
+		AppId:     appId,
+		EnvId:     environmentId,
+		ClusterId: envConfigProperties.ClusterId,
+	}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
@@ -792,7 +808,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		return
 	}
 	chartRefId := envConfigProperties.ChartRefId
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId)
+	//VARIABLE_RESOLVE
+	scope := resourceQualifiers.Scope{
+		AppId:     appId,
+		EnvId:     envId,
+		ClusterId: envConfigProperties.ClusterId,
+	}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
@@ -1337,8 +1359,12 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
+	//VARIABLE_RESOLVE
+	scope := resourceQualifiers.Scope{
+		AppId: templateRequest.AppId,
+	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.DeploymentTemplateValidate")
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId)
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
 	span.End()
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", templateRequest)
@@ -1405,11 +1431,30 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		return
 	}
 	//rbac block ends here
+	//rbac for edit tags access
+	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
 
-	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, offset, limit)
+	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, "unable to fetch artifacts", http.StatusInternalServerError)
+		return
+	}
+	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(app.Id)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", app.Id)
+		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
+		return
+	}
+
+	ciArtifactResponse.AppReleaseTagNames = appTags
+
+	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(cdPipelineId)
+	ciArtifactResponse.TagsEditable = prodEnvExists && triggerAccess
+	ciArtifactResponse.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
+	if err != nil {
+		handler.Logger.Errorw("service err, GetProdEnvByCdPipelineId", "err", err, "cdPipelineId", app.Id)
+		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusOK)
@@ -2420,16 +2465,18 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+
+	request := resourceGroup2.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup2.APP_GROUP,
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
-	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForAppGrouping")
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForResourceGrouping")
 	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(request)
 	span.End()
 	if err != nil {
@@ -2482,16 +2529,19 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+
+	request := resourceGroup2.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup2.APP_GROUP,
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
-	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForAppGrouping")
+
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForResourceGrouping")
 	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironmentMin(request)
 	span.End()
 	if err != nil {

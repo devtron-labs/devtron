@@ -8,6 +8,10 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
+	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
@@ -28,6 +32,8 @@ type DeploymentConfigServiceImpl struct {
 	configMapRepository          chartConfig.ConfigMapRepository
 	configMapHistoryService      history.ConfigMapHistoryService
 	chartRefRepository           chartRepoRepository.ChartRefRepository
+	variableEntityMappingService variables.VariableEntityMappingService
+	scopedVariableService        variables.ScopedVariableService
 }
 
 func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -39,7 +45,9 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	configMapHistoryService history.ConfigMapHistoryService,
-	chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigServiceImpl {
+	chartRefRepository chartRepoRepository.ChartRefRepository,
+	variableEntityMappingService variables.VariableEntityMappingService,
+	scopedVariableService variables.ScopedVariableService) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
 		logger:                       logger,
 		envConfigOverrideRepository:  envConfigOverrideRepository,
@@ -51,6 +59,8 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		configMapRepository:          configMapRepository,
 		configMapHistoryService:      configMapHistoryService,
 		chartRefRepository:           chartRefRepository,
+		variableEntityMappingService: variableEntityMappingService,
+		scopedVariableService:        scopedVariableService,
 	}
 }
 
@@ -86,6 +96,27 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	return configResp, nil
 }
 
+func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(scope resourceQualifiers.Scope, entity repository6.Entity) (map[string]string, error) {
+
+	variableMap := make(map[string]string)
+	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
+	if err != nil {
+		return variableMap, err
+	}
+	scopedVariables := make([]*models.ScopedVariableData, 0)
+	if _, ok := entityToVariables[entity]; ok && len(entityToVariables[entity]) > 0 {
+		scopedVariables, err = impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
+		if err != nil {
+			return variableMap, err
+		}
+	}
+
+	for _, variable := range scopedVariables {
+		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+	}
+	return variableMap, nil
+}
+
 func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
 	isAppMetricsEnabled := false
 	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
@@ -115,6 +146,20 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 				impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 				return nil, err
 			}
+			scope := resourceQualifiers.Scope{
+				AppId:     pipeline.AppId,
+				EnvId:     pipeline.EnvironmentId,
+				ClusterId: pipeline.Environment.ClusterId,
+			}
+			entity := repository6.Entity{
+				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
+				EntityId:   envOverride.Id,
+			}
+			scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(scope, entity)
+			if err != nil {
+				return nil, err
+			}
+
 			deploymentTemplateConfig = &history.HistoryDetailDto{
 				TemplateName:        envOverride.Chart.ChartName,
 				TemplateVersion:     chartRef.Version,
@@ -123,6 +168,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 					DisplayName: "values.yaml",
 					Value:       envOverride.EnvOverrideValues,
 				},
+				VariableSnapshot: scopedVariablesMap,
 			}
 		}
 	} else {
@@ -136,6 +182,20 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 			return nil, err
 		}
+		//Scope contains env and cluster ID because a pipeline will always have those even if inheriting base template
+		scope := resourceQualifiers.Scope{
+			AppId:     pipeline.AppId,
+			EnvId:     pipeline.EnvironmentId,
+			ClusterId: pipeline.Environment.ClusterId,
+		}
+		entity := repository6.Entity{
+			EntityType: repository6.EntityTypeDeploymentTemplateAppLevel,
+			EntityId:   chart.Id,
+		}
+		scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(scope, entity)
+		if err != nil {
+			return nil, err
+		}
 		deploymentTemplateConfig = &history.HistoryDetailDto{
 			TemplateName:        chart.ChartName,
 			TemplateVersion:     chartRef.Version,
@@ -144,6 +204,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 				DisplayName: "values.yaml",
 				Value:       chart.GlobalOverride,
 			},
+			VariableSnapshot: scopedVariablesMap,
 		}
 	}
 	return deploymentTemplateConfig, nil
