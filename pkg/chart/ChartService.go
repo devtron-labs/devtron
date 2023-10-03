@@ -22,8 +22,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 
@@ -81,7 +81,7 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
-	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int, scope models2.Scope) (bool, error)
+	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
@@ -1330,7 +1330,7 @@ const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
-func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope models2.Scope, template string) (string, error) {
+func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string) (string, error) {
 
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
 	if err != nil {
@@ -1356,7 +1356,7 @@ func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope models2.Sc
 	return resolvedTemplate, nil
 }
 
-func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope models2.Scope) (bool, error) {
+func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "JsonSchemaExtractFromFile")
 	schemajson, version, err := impl.JsonSchemaExtractFromFile(chartRefId)
 	span.End()

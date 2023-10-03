@@ -74,9 +74,3 @@ func (value VariableValue) StringValue() string {
 	}
 	return value.Value.(string)
 }
-
-type Scope struct {
-	AppId     int `json:"appId"`
-	EnvId     int `json:"envId"`
-	ClusterId int `json:"clusterId"`
-}
