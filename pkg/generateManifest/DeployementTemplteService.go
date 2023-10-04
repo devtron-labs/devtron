@@ -14,6 +14,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
+	"os"
 	"strconv"
 	"time"
 )
@@ -222,7 +223,9 @@ func (impl DeploymentTemplateServiceImpl) GetManifest(ctx context.Context, chart
 	}
 
 	outputChartPathDir := fmt.Sprintf("%s-%v", refChart, strconv.FormatInt(time.Now().UnixNano(), 16))
-
+	if _, err := os.Stat(outputChartPathDir); os.IsNotExist(err) {
+		_ = os.Mkdir(outputChartPathDir, 0755)
+	}
 	//load chart from given refChart
 	chart, err := impl.chartTemplateServiceImpl.LoadChartFromDir(refChart)
 	if err != nil {
