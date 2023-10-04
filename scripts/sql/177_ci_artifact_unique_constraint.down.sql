@@ -1,0 +1,1 @@
+ALTER TABLE ONLY public.ci_artifact ADD CONSTRAINT unique_ci_workflow_id UNIQUE (ci_workflow_id);

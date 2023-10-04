@@ -1,0 +1,1 @@
+ALTER TABLE ci_artifact DROP CONSTRAINT unique_ci_workflow_id;
