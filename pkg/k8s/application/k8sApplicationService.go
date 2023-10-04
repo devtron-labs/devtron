@@ -455,6 +455,9 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResourceGVKWithoutAuthorization(
 				k8sEventIndex = index
 			}
 		}
+		if gvk.Kind == "Node" {
+			allApiResources = append(allApiResources[:index], allApiResources[index+1:]...)
+		}
 	}
 	if k8sEventIndex > -1 && v1EventIndex > -1 {
 		allApiResources = append(allApiResources[:v1EventIndex], allApiResources[v1EventIndex+1:]...)

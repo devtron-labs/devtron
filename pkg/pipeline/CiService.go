@@ -30,7 +30,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"path/filepath"
 	"strconv"
@@ -53,22 +56,23 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                        *zap.SugaredLogger
-	workflowService               WorkflowService
-	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	eventClient                   client.EventClient
-	eventFactory                  client.EventFactory
-	mergeUtil                     *util.MergeUtil
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
-	pipelineStageService          PipelineStageService
-	userService                   user.UserService
-	ciTemplateService             CiTemplateService
-	appCrudOperationService       app.AppCrudOperationService
-	envRepository                 repository1.EnvironmentRepository
-	appRepository                 appRepository.AppRepository
-	config                        *CiConfig
+	Logger                         *zap.SugaredLogger
+	workflowService                WorkflowService
+	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
+	eventClient                    client.EventClient
+	eventFactory                   client.EventFactory
+	mergeUtil                      *util.MergeUtil
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	prePostCiScriptHistoryService  history.PrePostCiScriptHistoryService
+	pipelineStageService           PipelineStageService
+	userService                    user.UserService
+	ciTemplateService              CiTemplateService
+	appCrudOperationService        app.AppCrudOperationService
+	envRepository                  repository1.EnvironmentRepository
+	appRepository                  appRepository.AppRepository
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
+	config                         *CiConfig
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -78,23 +82,26 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
-	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository) *CiServiceImpl {
+	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+) *CiServiceImpl {
 	cis := &CiServiceImpl{
-		Logger:                        Logger,
-		workflowService:               workflowService,
-		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
-		ciWorkflowRepository:          ciWorkflowRepository,
-		eventClient:                   eventClient,
-		eventFactory:                  eventFactory,
-		mergeUtil:                     mergeUtil,
-		ciPipelineRepository:          ciPipelineRepository,
-		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
-		pipelineStageService:          pipelineStageService,
-		userService:                   userService,
-		ciTemplateService:             ciTemplateService,
-		appCrudOperationService:       appCrudOperationService,
-		envRepository:                 envRepository,
-		appRepository:                 appRepository,
+		Logger:                         Logger,
+		workflowService:                workflowService,
+		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		ciWorkflowRepository:           ciWorkflowRepository,
+		eventClient:                    eventClient,
+		eventFactory:                   eventFactory,
+		mergeUtil:                      mergeUtil,
+		ciPipelineRepository:           ciPipelineRepository,
+		prePostCiScriptHistoryService:  prePostCiScriptHistoryService,
+		pipelineStageService:           pipelineStageService,
+		userService:                    userService,
+		ciTemplateService:              ciTemplateService,
+		appCrudOperationService:        appCrudOperationService,
+		envRepository:                  envRepository,
+		appRepository:                  appRepository,
+		variableSnapshotHistoryService: variableSnapshotHistoryService,
 	}
 	config, err := GetCiConfig()
 	if err != nil {
@@ -124,7 +131,11 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
+	if trigger.PipelineType == bean2.CI_JOB && len(ciMaterials) != 0 {
+		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
+		ciMaterials[0].GitMaterial = nil
+		ciMaterials[0].GitMaterialId = 0
+	}
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return 0, err
@@ -141,23 +152,35 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		impl.Logger.Errorw("could not fetch ci config", "pipeline", trigger.PipelineId)
 		return 0, err
 	}
+
+	scope := resourceQualifiers.Scope{
+		AppId: pipeline.App.Id,
+	}
 	env, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
 	if err != nil {
 		return 0, err
 	}
 	if isJob && env != nil {
 		ciWorkflowConfig.Namespace = env.Namespace
+
+		//This will be populated for jobs running in selected environment
+		scope.EnvId = env.Id
+		scope.ClusterId = env.ClusterId
 	}
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.config.GetDefaultNamespace()
 	}
 
-	preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, bean2.CiStage)
-
+	//preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
+	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, bean2.CiStage, scope)
 	if err != nil {
 		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
 		return 0, err
 	}
+	preCiSteps := prePostAndRefPluginResponse.PreStageSteps
+	postCiSteps := prePostAndRefPluginResponse.PostStageSteps
+	refPluginsData := prePostAndRefPluginResponse.RefPluginData
+	variableSnapshot := prePostAndRefPluginResponse.VariableSnapshot
 
 	if len(preCiSteps) == 0 && isJob {
 		return 0, &util.ApiError{
@@ -206,6 +229,21 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 	impl.Logger.Debugw("ci triggered", " pipeline ", trigger.PipelineId)
+
+	//Save Scoped VariableSnapshot
+	if len(variableSnapshot) > 0 {
+		variableMapBytes, _ := json.Marshal(variableSnapshot)
+		err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository4.VariableSnapshotHistoryBean{{
+			VariableSnapshot: variableMapBytes,
+			HistoryReference: repository4.HistoryReference{
+				HistoryReferenceId:   savedCiWf.Id,
+				HistoryReferenceType: repository4.HistoryReferenceTypeCIWORKFLOW,
+			},
+		}}, trigger.TriggeredBy)
+		if err != nil {
+			impl.Logger.Errorf("Not able to save variable snapshot for CI trigger %s", err)
+		}
+	}
 
 	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
@@ -444,22 +482,15 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			afterDockerBuildScripts = append(afterDockerBuildScripts, ciTask)
 		}
 	}
-	var err error
+
 	if !(len(beforeDockerBuildScripts) == 0 && len(afterDockerBuildScripts) == 0) {
 		//found beforeDockerBuildScripts/afterDockerBuildScripts
 		//building preCiSteps & postCiSteps from them, refPluginsData not needed
 		preCiSteps = buildCiStepsDataFromDockerBuildScripts(beforeDockerBuildScripts)
 		postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
 		refPluginsData = []*bean2.RefPluginObject{}
-	} else {
-		//beforeDockerBuildScripts & afterDockerBuildScripts not found
-		//getting preCiStepsData, postCiStepsData & refPluginsData
-		preCiSteps, postCiSteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, bean2.CiStage)
-		if err != nil {
-			impl.Logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
-			return nil, err
-		}
 	}
+
 	dockerImageTag := impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
@@ -544,6 +575,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		//use root build context i.e '.'
 		buildContextCheckoutPath = "."
 	}
+
+	ciBuildConfigBean.PipelineType = trigger.PipelineType
+
 	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
 		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
@@ -601,6 +635,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageRetryInterval:         impl.config.ImageRetryInterval,
 		WorkflowExecutor:           impl.config.GetWorkflowExecutorType(),
 		Type:                       bean2.CI_WORKFLOW_PIPELINE_TYPE,
+		CiArtifactLastFetch:        trigger.CiArtifactLastFetch,
 	}
 	if dockerRegistry != nil {
 

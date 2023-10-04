@@ -39,9 +39,9 @@ autoPromotionSeconds: 30
 
 Spec:
  Affinity:
-  Key:
+  Key: ""
 #  Key: kops.k8s.io/instancegroup 
-  Values:
+  Values: ""
 
 
 image:

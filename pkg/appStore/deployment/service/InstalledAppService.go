@@ -883,8 +883,14 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
 	//check notes.txt in db
 	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
+	if err != nil && err != pg.ErrNoRows {
+		return "", err
+	}
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
+		if err == pg.ErrNoRows {
+			return "", fmt.Errorf("values are outdated. please fetch the latest version and try again")
+		}
 		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
 		return "", err
 	}
