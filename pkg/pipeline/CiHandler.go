@@ -227,18 +227,22 @@ func (impl *CiHandlerImpl) reTriggerCi(status, message string, retryCount int, c
 		return errors.New("ci-workflow retrigger condition not met, not re-triggering")
 	}
 	impl.Logger.Debugw("HandleReTriggerCI for ciWorkflow ", "ReferenceCiWorkflowId", ciWorkFlow.Id)
-
+	ciPipelineMaterialIds := make([]int, 0, len(ciWorkFlow.GitTriggers))
+	for id, _ := range ciWorkFlow.GitTriggers {
+		ciPipelineMaterialIds = append(ciPipelineMaterialIds, id)
+	}
+	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByIdsIncludeDeleted(ciPipelineMaterialIds)
 	trigger := Trigger{
 		PipelineId:      ciWorkFlow.CiPipelineId,
 		CommitHashes:    ciWorkFlow.GitTriggers,
-		CiMaterials:     nil,
+		CiMaterials:     ciMaterials,
 		TriggeredBy:     1,
 		InvalidateCache: true, //TODO: ciTriggerRequest.InvalidateCache,
 		//TODO: ExtraEnvironmentVariables: extraEnvironmentVariables,
 		EnvironmentId:         ciWorkFlow.EnvironmentId,
 		ReferenceCiWorkflowId: ciWorkFlow.Id,
 	}
-	_, err := impl.ciService.TriggerCiPipeline(trigger)
+	_, err = impl.ciService.TriggerCiPipeline(trigger)
 
 	if err != nil {
 		impl.Logger.Errorw("error occured in retriggering ciWorkflow", "triggerDetails", trigger, "err", err)
