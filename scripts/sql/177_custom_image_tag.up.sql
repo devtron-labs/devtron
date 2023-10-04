@@ -28,4 +28,4 @@ CREATE INDEX IF NOT EXISTS image_path_index ON image_path_reservation (image_pat
 ALTER TABLE ci_workflow
     ADD column IF NOT EXISTS image_path_reservation_id int;
 ALTER TABLE ci_workflow
-    ADD CONSTRAINT fk_image_path_reservation_id FOREIGN KEY (image_path_reservation_id) REFERENCES image_path (id);
+    ADD CONSTRAINT fk_image_path_reservation_id FOREIGN KEY (image_path_reservation_id) REFERENCES image_path_reservation (id);
