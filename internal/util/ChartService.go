@@ -784,6 +784,9 @@ func (impl ChartTemplateServiceImpl) LoadChartFromDir(dir string) (*chart.Chart,
 
 func (impl ChartTemplateServiceImpl) CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error) {
 	var chartBytesArr []byte
+	if _, err := os.Stat(outputChartPathDir); os.IsNotExist(err) {
+		_ = os.Mkdir(outputChartPathDir, 0755)
+	}
 	chartZipPath, err := chartutil.Save(chart, outputChartPathDir)
 	if err != nil {
 		impl.logger.Errorw("error in saving", "err", err, "dir")
