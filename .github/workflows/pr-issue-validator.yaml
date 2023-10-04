@@ -21,6 +21,10 @@ on:
 jobs:
   validate-PR-issue:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: write
 
     steps:
     - name: Checkout repository
@@ -28,7 +32,7 @@ jobs:
 
     - name: Validate Issue Reference
       env:
-        GITHUB_TOKEN: ${{ secrets.GIT_TARGET_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
         PR_BODY: ${{ github.event.pull_request.body }}
         url: ${{ github.event.pull_request.url }}
         PRNUM: ${{ github.event.pull_request.number }}
@@ -41,19 +45,36 @@ jobs:
           gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
           exit 0
         fi
-        pattern="((Fixes|Resolves) #[0-9]+)"
+        
+        ### For ex: Fixes #2123
+        pattern1="((Fixes|Resolves) #[0-9]+)"
+        
+        ### For ex: Resolves https://github.com/devtron-labs/devtron/issues/2123
+        pattern2="((Fixes|Resolves) https://github.com/devtron-labs/devtron/issues/[0-9]+)"
+        
+        ### For ex: Fixes devtron-labs/devtron#2123
+        pattern3="((Fixes|Resolves) devtron-labs/devtron#[0-9]+)"
+        
         # Get the pull request body
         PR_BODY=$(jq -r '.pull_request.body' $GITHUB_EVENT_PATH)
         echo "PR_BODY = $PR_BODY"
 
-        ### Checks if PR_BODY has Fixes #<issue_number> or not
+        ### Checks if PR_BODY matches pattern1 or pattern2 or pattern3 or none
         ### grep -i (case insensitive) -E (enables extended regular expression in grep) -q (this option suppresses normal output)
-        if echo "$PR_BODY" | grep -iEq "$pattern"; then
-        # if [[ "$PR_BODY" =~ "$pattern" ]]; then
+        if echo "$PR_BODY" | grep -iEq "$pattern1"; then
             ### Here we are taking only the numerical value ie. issue number
             ### head -n1 only prints the 1st line.
             ### grep -o -E "[0-9]+ basically outputs only the number between [0-9]+
-            issue_num=$(echo "$PR_BODY" | grep -iE "$pattern" | head -n1 | grep -o -E "[0-9]+")
+            echo "$PR_BODY" | grep -iE "$pattern1" | head -n1 | grep -o -E "[0-9]+" | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
+            echo "issue_num is : $issue_num"
+        elif echo "$PR_BODY" | grep -iEq "$pattern2"; then
+            echo "$PR_BODY" | grep -iE "$pattern2" | head -n1 | awk -F '/' '{print $NF}' | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
+            echo "issue_num is : $issue_num"
+        elif echo "$PR_BODY" | grep -iEq "$pattern3"; then
+            echo "$PR_BODY" | grep -iE "$pattern3" | head -n1 | awk -F '#' '{print $NF}' | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
             echo "issue_num is : $issue_num"
         else
             echo "No Issue number detected hence failing the PR Validation check."

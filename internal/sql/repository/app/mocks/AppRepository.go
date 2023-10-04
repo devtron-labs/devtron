@@ -588,6 +588,32 @@ func (_m *AppRepository) FindByIds(ids []*int) ([]*app.App, error) {
 	return r0, r1
 }
 
+// FindByNames provides a mock function with given fields: appNames
+func (_m *AppRepository) FindByNames(appNames []string) ([]*app.App, error) {
+	ret := _m.Called(appNames)
+
+	var r0 []*app.App
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]string) ([]*app.App, error)); ok {
+		return rf(appNames)
+	}
+	if rf, ok := ret.Get(0).(func([]string) []*app.App); ok {
+		r0 = rf(appNames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*app.App)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(appNames)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindEnvironmentIdForInstalledApp provides a mock function with given fields: appId
 func (_m *AppRepository) FindEnvironmentIdForInstalledApp(appId int) (int, error) {
 	ret := _m.Called(appId)

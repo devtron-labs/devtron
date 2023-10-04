@@ -2,6 +2,8 @@ package chart
 
 import (
 	"encoding/json"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"strings"
 )
 
 func PatchWinterSoldierConfig(override json.RawMessage, newChartType string) (json.RawMessage, error) {
@@ -48,6 +50,20 @@ func PatchWinterSoldierIfExists(newChartType string, jsonMap map[string]json.Raw
 	}
 	jsonMap["winterSoldier"] = winterSoldierMarshalled
 	return jsonMap, nil
+}
+
+func SetReservedChartList(devtronChartList []*chartRepoRepository.ChartRef) {
+	reservedChartRefNamesList := []ReservedChartList{
+		{Name: strings.ToLower(RolloutChartType), LocationPrefix: ""},
+		{Name: "", LocationPrefix: ReferenceChart},
+	}
+	for _, devtronChart := range devtronChartList {
+		reservedChartRefNamesList = append(reservedChartRefNamesList, ReservedChartList{
+			Name:           strings.ToLower(devtronChart.Name),
+			LocationPrefix: strings.Split(devtronChart.Location, "_")[0],
+		})
+	}
+	ReservedChartRefNamesList = &reservedChartRefNamesList
 }
 
 //func IsFlaggerCanaryEnabled(override json.RawMessage) (bool, error) {

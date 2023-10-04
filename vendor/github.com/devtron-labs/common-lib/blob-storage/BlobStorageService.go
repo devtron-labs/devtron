@@ -12,6 +12,7 @@ import (
 type BlobStorageService interface {
 	PutWithCommand(request *BlobStorageRequest) error
 	Get(request *BlobStorageRequest) (bool, error)
+	DeleteObjectForS3(request *BlobStorageRequest) error
 }
 
 type BlobStorageServiceImpl struct {
@@ -75,4 +76,39 @@ func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int6
 	}
 
 	return downloadSuccess, numBytes, err
+}
+
+// TODO: Have not Tested it
+func (impl *BlobStorageServiceImpl) DeleteObjectForS3(request *BlobStorageRequest) error {
+	if request.StorageType == BLOB_STORAGE_S3 {
+		awsS3Blob := AwsS3Blob{}
+		err := awsS3Blob.DeleteObjectFromBlob(request)
+		if err != nil {
+			impl.logger.Errorw("error in deleting object from S3", "err", err, "DestinationKey", request.DestinationKey, "StorageType", request.StorageType)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (impl *BlobStorageServiceImpl) UploadToBlobWithSession(request *BlobStorageRequest) error {
+	var err error
+	switch request.StorageType {
+	case BLOB_STORAGE_S3:
+		awsS3Blob := AwsS3Blob{}
+		_, err = awsS3Blob.UploadWithSession(request)
+	case BLOB_STORAGE_AZURE:
+		azureBlob := AzureBlob{}
+		err = azureBlob.UploadBlob(context.Background(), request.DestinationKey, request.AzureBlobBaseConfig, request.SourceKey, request.AzureBlobBaseConfig.BlobContainerName)
+	case BLOB_STORAGE_GCP:
+		gcpBlob := GCPBlob{}
+		err = gcpBlob.UploadBlob(request)
+	default:
+		return fmt.Errorf("blob-storage %s not supported", request.StorageType)
+	}
+	if err != nil {
+		log.Println(" -----> push err", err)
+	}
+	return err
 }
