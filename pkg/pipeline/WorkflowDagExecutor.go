@@ -519,17 +519,18 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 	cdWorkflowExecutorType := impl.config.GetWorkflowExecutorType()
 	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:               pipeline.Name,
-		WorkflowType:       bean.CD_WORKFLOW_TYPE_PRE,
-		ExecutorType:       cdWorkflowExecutorType,
-		Status:             pipelineConfig.WorkflowStarting, //starting
-		TriggeredBy:        triggeredBy,
-		StartedOn:          triggeredAt,
-		Namespace:          impl.config.GetDefaultNamespace(),
-		BlobStorageEnabled: impl.config.BlobStorageEnabled,
-		CdWorkflowId:       cdWf.Id,
-		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
-		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+		Name:                  pipeline.Name,
+		WorkflowType:          bean.CD_WORKFLOW_TYPE_PRE,
+		ExecutorType:          cdWorkflowExecutorType,
+		Status:                pipelineConfig.WorkflowStarting, //starting
+		TriggeredBy:           triggeredBy,
+		StartedOn:             triggeredAt,
+		Namespace:             impl.config.GetDefaultNamespace(),
+		BlobStorageEnabled:    impl.config.BlobStorageEnabled,
+		CdWorkflowId:          cdWf.Id,
+		LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
+		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+		RefCdWorkflowRunnerId: refCdWorkflowRunnerId,
 	}
 	var env *repository2.Environment
 	if pipeline.RunPreStageInEnv {

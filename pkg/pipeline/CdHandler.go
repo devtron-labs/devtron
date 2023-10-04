@@ -176,6 +176,7 @@ const WorklowTypePre = "PRE"
 const WorklowTypePost = "POST"
 
 func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error {
+	impl.Logger.Infow("HandleCdStageReTrigger", "runnerId", runner.Id)
 	var err error
 	// do not re-trigger if retries = 0 or last workflow is aborted
 	if runner == nil || impl.config.MaxCdWorkflowRunnerRetries == 0 || runner.Status == WorkflowCancel {
