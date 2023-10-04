@@ -224,7 +224,11 @@ func (impl DeploymentTemplateServiceImpl) GetManifest(ctx context.Context, chart
 
 	outputChartPathDir := fmt.Sprintf("%s-%v", refChart, strconv.FormatInt(time.Now().UnixNano(), 16))
 	if _, err := os.Stat(outputChartPathDir); os.IsNotExist(err) {
-		_ = os.Mkdir(outputChartPathDir, 0755)
+		err = os.Mkdir(outputChartPathDir, 0755)
+		if err != nil {
+			impl.Logger.Errorw("error in creating temp outputChartPathDir", "err", err, "outputChartPathDir", outputChartPathDir, "chartRefId", chartRefId)
+			return nil, err
+		}
 	}
 	//load chart from given refChart
 	chart, err := impl.chartTemplateServiceImpl.LoadChartFromDir(refChart)
