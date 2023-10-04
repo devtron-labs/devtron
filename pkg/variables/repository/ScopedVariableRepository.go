@@ -2,9 +2,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 )
 
@@ -13,7 +11,6 @@ type ScopedVariableRepository interface {
 	sql.TransactionWrapper
 	// Create
 	CreateVariableDefinition(variableDefinition []*VariableDefinition, tx *pg.Tx) ([]*VariableDefinition, error)
-	CreateVariableScope(variableDefinition []*VariableScope, tx *pg.Tx) ([]*VariableScope, error)
 	CreateVariableData(variableDefinition []*VariableData, tx *pg.Tx) error
 
 	// Get
@@ -21,8 +18,7 @@ type ScopedVariableRepository interface {
 	GetAllVariableMetadata() ([]*VariableDefinition, error)
 	GetVariablesForVarIds(ids []int) ([]*VariableDefinition, error)
 	GetVariablesByNames(vars []string) ([]*VariableDefinition, error)
-	GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error)
-	GetScopedVariableData(scope models.Scope, varIds []int) ([]*VariableScope, error)
+	GetAllVariableDefinition() ([]*VariableDefinition, error)
 	GetDataForScopeIds(scopeIds []int) ([]*VariableData, error)
 
 	// Delete
@@ -51,15 +47,6 @@ func (impl *ScopedVariableRepositoryImpl) CreateVariableDefinition(variableDefin
 	return variableDefinition, nil
 }
 
-func (impl *ScopedVariableRepositoryImpl) CreateVariableScope(variableScope []*VariableScope, tx *pg.Tx) ([]*VariableScope, error) {
-	err := tx.Insert(&variableScope)
-	if err != nil {
-		return nil, err
-	}
-	return variableScope, nil
-
-}
-
 func (impl *ScopedVariableRepositoryImpl) CreateVariableData(variableDefinition []*VariableData, tx *pg.Tx) error {
 	return tx.Insert(&variableDefinition)
 }
@@ -77,7 +64,7 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableMetadata() ([]*VariableD
 	variableDefinition := make([]*VariableDefinition, 0)
 	err := impl.
 		dbConnection.Model(&variableDefinition).
-		Column("id", "name", "data_type", "var_type,short_description").
+		Column("id", "name", "data_type", "var_type", "short_description").
 		Where("active = ?", true).
 		Select()
 	if err == pg.ErrNoRows {
@@ -100,18 +87,15 @@ func (impl *ScopedVariableRepositoryImpl) GetVariablesByNames(vars []string) ([]
 	var variableDefinition []*VariableDefinition
 	err := impl.dbConnection.Model(&variableDefinition).Where("active = ?", true).
 		Where("name in (?)", pg.In(vars)).Select()
-	impl.logger.Info("variableDefinition: ", variableDefinition)
+	impl.logger.Debug("variableDefinition: ", variableDefinition)
 	return variableDefinition, err
 }
 
-func (impl *ScopedVariableRepositoryImpl) GetAllVariableScopeAndDefinition() ([]*VariableDefinition, error) {
+func (impl *ScopedVariableRepositoryImpl) GetAllVariableDefinition() ([]*VariableDefinition, error) {
 	var variableDefinition []*VariableDefinition
 	err := impl.dbConnection.
 		Model(&variableDefinition).
-		Column("variable_definition.*", "VariableScope", "VariableScope.VariableData").
-		Relation("VariableScope", func(q *orm.Query) (query *orm.Query, err error) {
-			return q.Where("variable_scope.active = ?", true), nil
-		}).
+		Column("variable_definition.*").
 		Where("variable_definition.active = ?", true).
 		Select()
 	if err != nil {
@@ -120,25 +104,12 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableScopeAndDefinition() ([]
 	return variableDefinition, err
 
 }
-func (impl *ScopedVariableRepositoryImpl) GetScopedVariableData(scope models.Scope, varIds []int) ([]*VariableScope, error) {
-	var variableScopes []*VariableScope
-	query := impl.dbConnection.Model(&variableScopes).
-		Where("active = ?", true).
-		Where("(qualifier_id = ?)", GLOBAL_QUALIFIER)
-
-	if len(varIds) > 0 {
-		query = query.Where("variable_definition_id IN (?)", pg.In(varIds))
-	}
-
-	err := query.Select()
-	if err != nil {
-		return nil, err
-	}
-	return variableScopes, nil
-}
 
 func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]*VariableData, error) {
 	var variableData []*VariableData
+	if len(scopeIds) == 0 {
+		return variableData, nil
+	}
 	err := impl.dbConnection.
 		Model(&variableData).
 		Where("variable_scope_id in(?)", pg.In(scopeIds)).
@@ -148,16 +119,7 @@ func (impl *ScopedVariableRepositoryImpl) GetDataForScopeIds(scopeIds []int) ([]
 }
 
 func (impl *ScopedVariableRepositoryImpl) DeleteVariables(auditLog sql.AuditLog, tx *pg.Tx) error {
-	_, err := tx.Model(&VariableScope{}).
-		Set("updated_by = ?", auditLog.UpdatedBy).
-		Set("updated_on = ?", auditLog.UpdatedOn).
-		Set("active = ?", false).
-		Where("active = ?", true).
-		Update()
-	if err != nil {
-		return err
-	}
-	_, err = tx.Model(&VariableDefinition{}).
+	_, err := tx.Model(&VariableDefinition{}).
 		Set("updated_by = ?", auditLog.UpdatedBy).
 		Set("updated_on = ?", auditLog.UpdatedOn).
 		Set("active = ?", false).

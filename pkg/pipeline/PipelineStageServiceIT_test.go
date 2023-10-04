@@ -12,6 +12,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -22,9 +26,10 @@ import (
 	"time"
 )
 
-const CiPipelineStageCreateReqJson = `{"appId":1,"appWorkflowId":0,"action":0,"ciPipelineRequest":{"active":true,"ciMaterial":[{"gitMaterialId":1,"id":0,"source":{"type":"SOURCE_TYPE_BRANCH_FIXED","value":"main","regex":""}}],"dockerArgs":{},"externalCiConfig":{},"id":0,"isExternal":false,"isManual":false,"name":"ci-1-xyze","linkedCount":0,"scanEnabled":false,"preBuildStage":{"id":0,"steps":[{"id":1,"index":1,"name":"Task 1","description":"chbsdkhbc","stepType":"INLINE","directoryPath":"","inlineStepDetail":{"scriptType":"CONTAINER_IMAGE","script":"echo \"ifudsbvnv\"","conditionDetails":[],"inputVariables":[{"id":1,"name":"Hello","value":"","format":"STRING","description":"jnsdvbdvbsd","defaultValue":"","variableType":"GLOBAL","refVariableStepIndex":0,"refVariableName":"WORKING_DIRECTORY","refVariableStage":""}],"outputVariables":null,"commandArgsMap":[{"command":"echo","args":["\"HOSTNAME\"","\"PORT\""]}],"portMap":[{"portOnLocal":8080,"portOnContainer":9090}],"mountCodeToContainer":true,"mountDirectoryFromHost":true,"mountCodeToContainerPath":"/sourcecode","mountPathMap":[{"filePathOnDisk":"./test","filePathOnContainer":"./test_container"}],"containerImagePath":"python:latest","isMountCustomScript":true,"storeScriptAt":"./directory/script"},"outputDirectoryPath":["./test1"]},{"id":2,"index":2,"name":"K6 Load testing","description":"K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.","stepType":"REF_PLUGIN","directoryPath":"","pluginRefStepDetail":{"id":0,"pluginId":1,"conditionDetails":[{"id":0,"conditionOnVariable":"RelativePathToScript","conditionOperator":"==","conditionType":"TRIGGER","conditionalValue":"svfsv"},{"id":0,"conditionOnVariable":"PrometheusApiKey","conditionOperator":"==","conditionType":"TRIGGER","conditionalValue":"dfbeavafsv"}],"inputVariables":[{"id":1,"name":"RelativePathToScript","format":"STRING","description":"checkout path + script path along with script name","isExposed":true,"allowEmptyValue":false,"defaultValue":"/./script.js","variableType":"NEW","variableStepIndexInPlugin":1,"value":"dethdt","refVariableName":"","refVariableStage":""},{"id":2,"name":"PrometheusUsername","format":"STRING","description":"username of prometheus account","isExposed":true,"allowEmptyValue":true,"defaultValue":"","variableType":"NEW","variableStepIndexInPlugin":1,"value":"ghmfnbd","refVariableName":"","refVariableStage":""},{"id":3,"name":"PrometheusApiKey","format":"STRING","description":"api key of prometheus account","isExposed":true,"allowEmptyValue":true,"defaultValue":"","variableType":"NEW","variableStepIndexInPlugin":1,"value":"afegs","refVariableName":"","refVariableStage":""},{"id":4,"name":"PrometheusRemoteWriteEndpoint","format":"STRING","description":"remote write endpoint of prometheus account","isExposed":true,"allowEmptyValue":true,"defaultValue":"","variableType":"NEW","variableStepIndexInPlugin":1,"value":"aef","refVariableName":"","refVariableStage":""},{"id":5,"name":"OutputType","format":"STRING","description":"output type - LOG or PROMETHEUS","isExposed":true,"allowEmptyValue":false,"defaultValue":"LOG","variableType":"NEW","variableStepIndexInPlugin":1,"value":"fdgn","refVariableName":"","refVariableStage":""}]}},{"id":3,"index":3,"name":"Task 3","description":"sfdbvf","stepType":"INLINE","directoryPath":"","inlineStepDetail":{"scriptType":"SHELL","script":"#!/bin/sh \nset -eo pipefail \n#set -v  ## uncomment this to debug the script \n","conditionDetails":[{"id":0,"conditionOnVariable":"Hello","conditionOperator":"==","conditionType":"PASS","conditionalValue":"aedfrwgwr"},{"id":0,"conditionOnVariable":"Hello","conditionOperator":"!=","conditionType":"PASS","conditionalValue":"tegegr"}],"inputVariables":[],"outputVariables":[{"id":1,"name":"Hello","value":"","format":"STRING","description":"dsuihvsuvhbdv","defaultValue":"","variableType":"NEW","refVariableStepIndex":0,"refVariableName":""}],"commandArgsMap":[{"command":"","args":[]}],"portMap":[],"mountCodeToContainer":false,"mountDirectoryFromHost":false},"outputDirectoryPath":["./test2"]}]},"postBuildStage":{},"dockerConfigOverride":{}}}`
-const CiPipelineStageUpdateReqJson = `{"appId":1,"appWorkflowId":3,"action":1,"ciPipelineRequest":{"isManual":false,"dockerArgs":{},"isExternal":false,"parentCiPipeline":0,"parentAppId":0,"appId":1,"externalCiConfig":{"id":0,"webhookUrl":"","payload":"","accessKey":"","payloadOption":null,"schema":null,"responses":null,"projectId":0,"projectName":"","environmentId":"","environmentName":"","environmentIdentifier":"","appId":0,"appName":"","role":""},"ciMaterial":[{"gitMaterialId":1,"id":3,"source":{"type":"SOURCE_TYPE_BRANCH_FIXED","value":"main","regex":""}}],"name":"ci-1-unov","id":3,"active":true,"linkedCount":0,"scanEnabled":false,"appWorkflowId":3,"preBuildStage":{"id":5,"type":"PRE_CI","steps":[{"id":9,"name":"K6 Load testing","description":"K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.","index":1,"stepType":"REF_PLUGIN","outputDirectoryPath":null,"inlineStepDetail":null,"pluginRefStepDetail":{"pluginId":1,"inputVariables":[{"id":44,"name":"RelativePathToScript","format":"STRING","description":"checkout path + script path along with script name","isExposed":true,"defaultValue":"/./script.js","value":"sfds","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":45,"name":"PrometheusUsername","format":"STRING","description":"username of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"sdf","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":46,"name":"PrometheusApiKey","format":"STRING","description":"api key of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"hter","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":47,"name":"PrometheusRemoteWriteEndpoint","format":"STRING","description":"remote write endpoint of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"ewq","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":48,"name":"OutputType","format":"STRING","description":"output type - LOG or PROMETHEUS","isExposed":true,"defaultValue":"LOG","value":"erg","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""}],"outputVariables":null,"conditionDetails":null},"triggerIfParentStageFail":false},{"id":10,"name":"Task 3","description":"","index":3,"stepType":"INLINE","outputDirectoryPath":["./asap"],"inlineStepDetail":{"scriptType":"CONTAINER_IMAGE","script":null,"storeScriptAt":null,"mountDirectoryFromHost":false,"containerImagePath":"alpine:latest","commandArgsMap":[{"command":"echo","args":["HOSTNAME"]}],"inputVariables":null,"outputVariables":null,"conditionDetails":null,"portMap":[],"mountCodeToContainerPath":null,"mountPathMap":null},"pluginRefStepDetail":null,"triggerIfParentStageFail":false},{"id":8,"name":"Task 1","description":"","index":2,"stepType":"INLINE","outputDirectoryPath":["./test"],"inlineStepDetail":{"scriptType":"SHELL","script":"#!/bin/sh \nset -eo pipefail \necho \"Hello from inside pre-build stage\"\n#set -v  ## uncomment this to debug the script \n","storeScriptAt":"","mountDirectoryFromHost":false,"commandArgsMap":[{"command":"","args":null}],"inputVariables":null,"outputVariables":null,"conditionDetails":null},"pluginRefStepDetail":null,"triggerIfParentStageFail":false}]},"postBuildStage":{},"isDockerConfigOverridden":false,"dockerConfigOverride":{}}}`
-const CiPipelineStageDeleteReqJson = `{"appId":1,"appWorkflowId":8,"action":2,"ciPipelineRequest":{"isManual":false,"dockerArgs":{},"isExternal":false,"parentCiPipeline":0,"parentAppId":0,"appId":1,"externalCiConfig":{"id":0,"webhookUrl":"","payload":"","accessKey":"","payloadOption":null,"schema":null,"responses":null,"projectId":0,"projectName":"","environmentId":"","environmentName":"","environmentIdentifier":"","appId":0,"appName":"","role":""},"ciMaterial":[{"gitMaterialId":1,"id":8,"source":{"type":"SOURCE_TYPE_BRANCH_FIXED","value":"main","regex":""}}],"name":"ci-1-unjn","id":8,"active":true,"linkedCount":0,"scanEnabled":false,"appWorkflowId":8,"preBuildStage":{"id":7,"type":"PRE_CI","steps":[{"id":11,"name":"Task 1","description":"","index":1,"stepType":"INLINE","outputDirectoryPath":["./test"],"inlineStepDetail":{"scriptType":"SHELL","script":"#!/bin/sh \nset -eo pipefail \necho \"Prakash\"\n#set -v  ## uncomment this to debug the script \n","storeScriptAt":"","mountDirectoryFromHost":false,"commandArgsMap":[{"command":"","args":null}],"inputVariables":null,"outputVariables":null,"conditionDetails":null},"pluginRefStepDetail":null,"triggerIfParentStageFail":false},{"id":12,"name":"K6 Load testing","description":"K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.","index":2,"stepType":"REF_PLUGIN","outputDirectoryPath":null,"inlineStepDetail":null,"pluginRefStepDetail":{"pluginId":1,"inputVariables":[{"id":49,"name":"RelativePathToScript","format":"STRING","description":"checkout path + script path along with script name","isExposed":true,"defaultValue":"/./script.js","value":"sfds","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":50,"name":"PrometheusUsername","format":"STRING","description":"username of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"sdf","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":51,"name":"PrometheusApiKey","format":"STRING","description":"api key of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"hter","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":52,"name":"PrometheusRemoteWriteEndpoint","format":"STRING","description":"remote write endpoint of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"ewq","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":53,"name":"OutputType","format":"STRING","description":"output type - LOG or PROMETHEUS","isExposed":true,"defaultValue":"LOG","value":"erg","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""}],"outputVariables":null,"conditionDetails":null},"triggerIfParentStageFail":false},{"id":13,"name":"Task 3","description":"","index":3,"stepType":"INLINE","outputDirectoryPath":["./asap"],"inlineStepDetail":{"scriptType":"CONTAINER_IMAGE","script":"","storeScriptAt":"","mountDirectoryFromHost":false,"containerImagePath":"alpine:latest","commandArgsMap":[{"command":"echo","args":["HOSTNAME"]}],"inputVariables":null,"outputVariables":null,"conditionDetails":null,"portMap":[]},"pluginRefStepDetail":null,"triggerIfParentStageFail":false}]},"isDockerConfigOverridden":false,"dockerConfigOverride":{},"postBuildStage":{}}}`
+const CiPipelineStageCreateReqJson = `{"appId":1,"appWorkflowId":0,"action":0,"ciPipeline":{"active":true,"ciMaterial":[{"gitMaterialId":1,"id":0,"source":{"type":"SOURCE_TYPE_BRANCH_FIXED","value":"main","regex":""}}],"dockerArgs":{},"externalCiConfig":{},"id":0,"isExternal":false,"isManual":false,"name":"ci-1-xyze","linkedCount":0,"scanEnabled":false,"preBuildStage":{"id":0,"steps":[{"id":1,"index":1,"name":"Task 1","description":"chbsdkhbc","stepType":"INLINE","directoryPath":"","inlineStepDetail":{"scriptType":"CONTAINER_IMAGE","script":"echo \"ifudsbvnv\"","conditionDetails":[],"inputVariables":[{"id":1,"name":"Hello","value":"","format":"STRING","description":"jnsdvbdvbsd","defaultValue":"","variableType":"GLOBAL","refVariableStepIndex":0,"refVariableName":"WORKING_DIRECTORY","refVariableStage":""}],"outputVariables":null,"commandArgsMap":[{"command":"echo","args":["\"HOSTNAME\"","\"PORT\""]}],"portMap":[{"portOnLocal":8080,"portOnContainer":9090}],"mountCodeToContainer":true,"mountDirectoryFromHost":true,"mountCodeToContainerPath":"/sourcecode","mountPathMap":[{"filePathOnDisk":"./test","filePathOnContainer":"./test_container"}],"containerImagePath":"python:latest","isMountCustomScript":true,"storeScriptAt":"./directory/script"},"outputDirectoryPath":["./test1"]},{"id":2,"index":2,"name":"K6 Load testing","description":"K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.","stepType":"REF_PLUGIN","directoryPath":"","pluginRefStepDetail":{"id":0,"pluginId":1,"conditionDetails":[{"id":0,"conditionOnVariable":"RelativePathToScript","conditionOperator":"==","conditionType":"TRIGGER","conditionalValue":"svfsv"},{"id":0,"conditionOnVariable":"PrometheusApiKey","conditionOperator":"==","conditionType":"TRIGGER","conditionalValue":"dfbeavafsv"}],"inputVariables":[{"id":1,"name":"RelativePathToScript","format":"STRING","description":"checkout path + script path along with script name","isExposed":true,"allowEmptyValue":false,"defaultValue":"/./script.js","variableType":"NEW","variableStepIndexInPlugin":1,"value":"dethdt","refVariableName":"","refVariableStage":""},{"id":2,"name":"PrometheusUsername","format":"STRING","description":"username of prometheus account","isExposed":true,"allowEmptyValue":true,"defaultValue":"","variableType":"NEW","variableStepIndexInPlugin":1,"value":"ghmfnbd","refVariableName":"","refVariableStage":""},{"id":3,"name":"PrometheusApiKey","format":"STRING","description":"api key of prometheus account","isExposed":true,"allowEmptyValue":true,"defaultValue":"","variableType":"NEW","variableStepIndexInPlugin":1,"value":"afegs","refVariableName":"","refVariableStage":""},{"id":4,"name":"PrometheusRemoteWriteEndpoint","format":"STRING","description":"remote write endpoint of prometheus account","isExposed":true,"allowEmptyValue":true,"defaultValue":"","variableType":"NEW","variableStepIndexInPlugin":1,"value":"aef","refVariableName":"","refVariableStage":""},{"id":5,"name":"OutputType","format":"STRING","description":"output type - LOG or PROMETHEUS","isExposed":true,"allowEmptyValue":false,"defaultValue":"LOG","variableType":"NEW","variableStepIndexInPlugin":1,"value":"fdgn","refVariableName":"","refVariableStage":""}]}},{"id":3,"index":3,"name":"Task 3","description":"sfdbvf","stepType":"INLINE","directoryPath":"","inlineStepDetail":{"scriptType":"SHELL","script":"#!/bin/sh \nset -eo pipefail \n#set -v  ## uncomment this to debug the script \n","conditionDetails":[{"id":0,"conditionOnVariable":"Hello","conditionOperator":"==","conditionType":"PASS","conditionalValue":"aedfrwgwr"},{"id":0,"conditionOnVariable":"Hello","conditionOperator":"!=","conditionType":"PASS","conditionalValue":"tegegr"}],"inputVariables":[],"outputVariables":[{"id":1,"name":"Hello","value":"","format":"STRING","description":"dsuihvsuvhbdv","defaultValue":"","variableType":"NEW","refVariableStepIndex":0,"refVariableName":""}],"commandArgsMap":[{"command":"","args":[]}],"portMap":[],"mountCodeToContainer":false,"mountDirectoryFromHost":false},"outputDirectoryPath":["./test2"]}]},"postBuildStage":{},"dockerConfigOverride":{}}}`
+const CiPipelineStageUpdateReqJson = `{"appId":1,"appWorkflowId":3,"action":1,"ciPipeline":{"isManual":false,"dockerArgs":{},"isExternal":false,"parentCiPipeline":0,"parentAppId":0,"appId":1,"externalCiConfig":{"id":0,"webhookUrl":"","payload":"","accessKey":"","payloadOption":null,"schema":null,"responses":null,"projectId":0,"projectName":"","environmentId":"","environmentName":"","environmentIdentifier":"","appId":0,"appName":"","role":""},"ciMaterial":[{"gitMaterialId":1,"id":3,"source":{"type":"SOURCE_TYPE_BRANCH_FIXED","value":"main","regex":""}}],"name":"ci-1-unov","id":3,"active":true,"linkedCount":0,"scanEnabled":false,"appWorkflowId":3,"preBuildStage":{"id":5,"type":"PRE_CI","steps":[{"id":9,"name":"K6 Load testing","description":"K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.","index":1,"stepType":"REF_PLUGIN","outputDirectoryPath":null,"inlineStepDetail":null,"pluginRefStepDetail":{"pluginId":1,"inputVariables":[{"id":44,"name":"RelativePathToScript","format":"STRING","description":"checkout path + script path along with script name","isExposed":true,"defaultValue":"/./script.js","value":"sfds","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":45,"name":"PrometheusUsername","format":"STRING","description":"username of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"sdf","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":46,"name":"PrometheusApiKey","format":"STRING","description":"api key of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"hter","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":47,"name":"PrometheusRemoteWriteEndpoint","format":"STRING","description":"remote write endpoint of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"ewq","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":48,"name":"OutputType","format":"STRING","description":"output type - LOG or PROMETHEUS","isExposed":true,"defaultValue":"LOG","value":"erg","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""}],"outputVariables":null,"conditionDetails":null},"triggerIfParentStageFail":false},{"id":10,"name":"Task 3","description":"","index":3,"stepType":"INLINE","outputDirectoryPath":["./asap"],"inlineStepDetail":{"scriptType":"CONTAINER_IMAGE","script":null,"storeScriptAt":null,"mountDirectoryFromHost":false,"containerImagePath":"alpine:latest","commandArgsMap":[{"command":"echo","args":["HOSTNAME"]}],"inputVariables":null,"outputVariables":null,"conditionDetails":null,"portMap":[],"mountCodeToContainerPath":null,"mountPathMap":null},"pluginRefStepDetail":null,"triggerIfParentStageFail":false},{"id":8,"name":"Task 1","description":"","index":2,"stepType":"INLINE","outputDirectoryPath":["./test"],"inlineStepDetail":{"scriptType":"SHELL","script":"#!/bin/sh \nset -eo pipefail \necho \"Hello from inside pre-build stage\"\n#set -v  ## uncomment this to debug the script \n","storeScriptAt":"","mountDirectoryFromHost":false,"commandArgsMap":[{"command":"","args":null}],"inputVariables":null,"outputVariables":null,"conditionDetails":null},"pluginRefStepDetail":null,"triggerIfParentStageFail":false}]},"postBuildStage":{},"isDockerConfigOverridden":false,"dockerConfigOverride":{}}}`
+const CiPipelineStageDeleteReqJson = `{"appId":1,"appWorkflowId":8,"action":2,"ciPipeline":{"isManual":false,"dockerArgs":{},"isExternal":false,"parentCiPipeline":0,"parentAppId":0,"appId":1,"externalCiConfig":{"id":0,"webhookUrl":"","payload":"","accessKey":"","payloadOption":null,"schema":null,"responses":null,"projectId":0,"projectName":"","environmentId":"","environmentName":"","environmentIdentifier":"","appId":0,"appName":"","role":""},"ciMaterial":[{"gitMaterialId":1,"id":8,"source":{"type":"SOURCE_TYPE_BRANCH_FIXED","value":"main","regex":""}}],"name":"ci-1-unjn","id":8,"active":true,"linkedCount":0,"scanEnabled":false,"appWorkflowId":8,"preBuildStage":{"id":7,"type":"PRE_CI","steps":[{"id":11,"name":"Task 1","description":"","index":1,"stepType":"INLINE","outputDirectoryPath":["./test"],"inlineStepDetail":{"scriptType":"SHELL","script":"#!/bin/sh \nset -eo pipefail \necho \"Prakash\"\n#set -v  ## uncomment this to debug the script \n","storeScriptAt":"","mountDirectoryFromHost":false,"commandArgsMap":[{"command":"","args":null}],"inputVariables":null,"outputVariables":null,"conditionDetails":null},"pluginRefStepDetail":null,"triggerIfParentStageFail":false},{"id":12,"name":"K6 Load testing","description":"K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.","index":2,"stepType":"REF_PLUGIN","outputDirectoryPath":null,"inlineStepDetail":null,"pluginRefStepDetail":{"pluginId":1,"inputVariables":[{"id":49,"name":"RelativePathToScript","format":"STRING","description":"checkout path + script path along with script name","isExposed":true,"defaultValue":"/./script.js","value":"sfds","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":50,"name":"PrometheusUsername","format":"STRING","description":"username of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"sdf","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":51,"name":"PrometheusApiKey","format":"STRING","description":"api key of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"hter","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":52,"name":"PrometheusRemoteWriteEndpoint","format":"STRING","description":"remote write endpoint of prometheus account","isExposed":true,"allowEmptyValue":true,"value":"ewq","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""},{"id":53,"name":"OutputType","format":"STRING","description":"output type - LOG or PROMETHEUS","isExposed":true,"defaultValue":"LOG","value":"erg","variableType":"NEW","variableStepIndexInPlugin":1,"refVariableStage":""}],"outputVariables":null,"conditionDetails":null},"triggerIfParentStageFail":false},{"id":13,"name":"Task 3","description":"","index":3,"stepType":"INLINE","outputDirectoryPath":["./asap"],"inlineStepDetail":{"scriptType":"CONTAINER_IMAGE","script":"","storeScriptAt":"","mountDirectoryFromHost":false,"containerImagePath":"alpine:latest","commandArgsMap":[{"command":"echo","args":["HOSTNAME"]}],"inputVariables":null,"outputVariables":null,"conditionDetails":null,"portMap":[]},"pluginRefStepDetail":null,"triggerIfParentStageFail":false}]},"isDockerConfigOverridden":false,"dockerConfigOverride":{},"postBuildStage":{}}}`
+const ScopedVariablePayload = `{"variables":[{"definition":{"varName":"KAFKA","dataType":"primitive","varType":"public","description":"Enter any notes for additional details","shortDescription":"Some description for variables"},"attributeValue":[{"variableValue":{"value":"Global"},"attributeType":"Global","attributeParams":null}]},{"definition":{"varName":"NewVariable","dataType":"primitive","varType":"private","description":"New Notes","shortDescription":"New Descriotion"},"attributeValue":[{"variableValue":{"value":"gg"},"attributeType":"Global","attributeParams":null}]},{"definition":{"varName":"test-var-1","dataType":"primitive","varType":"public","description":"","shortDescription":""},"attributeValue":[{"variableValue":{"value":"test1"},"attributeType":"Global","attributeParams":null}]},{"definition":{"varName":"test-var-2","dataType":"primitive","varType":"public","description":"","shortDescription":""},"attributeValue":[{"variableValue":{"value":"test2"},"attributeType":"Global","attributeParams":null}]}]}`
 
 var ciPipelineId int
 var cdPipelineId int
@@ -61,7 +66,7 @@ var pipelineStageReq = &bean.PipelineStageDto{
 					},
 				},
 				ScriptType: repository2.SCRIPT_TYPE_SHELL,
-				Script:     "#!/bin/sh \nset -eo pipefail \necho \"Prakash\"\n#set -v  ## uncomment this to debug the script \n",
+				Script:     "#!/bin/sh \nset -eo pipefail \necho \"@{{test-var}}\"\n#set -v  ## uncomment this to debug the script \n",
 			},
 		},
 		{
@@ -209,6 +214,367 @@ var pipelineStageReq = &bean.PipelineStageDto{
 	},
 	TriggerType: pipelineConfig.TRIGGER_TYPE_AUTOMATIC,
 }
+var pipelineStageReqUnresolved = &bean.PipelineStageDto{
+	Id:          0,
+	Name:        "",
+	Description: "",
+	Type:        repository.PIPELINE_STAGE_TYPE_PRE_CI,
+	Steps: []*bean.PipelineStageStepDto{
+		{
+			Id:                  1,
+			Name:                "Task-1",
+			Description:         "@{{test-var-1}}",
+			Index:               1,
+			StepType:            repository.PIPELINE_STEP_TYPE_INLINE,
+			OutputDirectoryPath: []string{"./@{{test-var-1}}"},
+			InlineStepDetail: &bean.InlineStepDetailDto{
+				OutputVariables: []*bean.StepVariableDto{
+					{
+						Id:                        1,
+						Name:                      "Hello",
+						Format:                    "STRING",
+						Description:               "dsuihvsuvhbdv",
+						IsExposed:                 false,
+						AllowEmptyValue:           false,
+						DefaultValue:              "",
+						Value:                     "",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 0,
+						ReferenceVariableStage:    "",
+					},
+				},
+				ScriptType: repository2.SCRIPT_TYPE_SHELL,
+				Script:     "#!/bin/sh \nset -eo pipefail \necho \"@{{test-var-1}}\"\n#set -v  ## uncomment this to debug the script \n",
+			},
+		},
+		{
+			Id:          2,
+			Name:        "K6-LoadTesting",
+			Description: "K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.",
+			Index:       2,
+			StepType:    repository.PIPELINE_STEP_TYPE_REF_PLUGIN,
+			RefPluginStepDetail: &bean.RefPluginStepDetailDto{
+				PluginId: 1,
+				ConditionDetails: []*bean.ConditionDetailDto{
+					{
+						Id:                  0,
+						ConditionOnVariable: "RelativePathToScript",
+						ConditionType:       "TRIGGER",
+						ConditionalOperator: "==",
+						ConditionalValue:    "@{{test-var-1}}",
+					},
+					{
+						Id:                  0,
+						ConditionOnVariable: "PrometheusApiKey",
+						ConditionType:       "TRIGGER",
+						ConditionalOperator: "!=",
+						ConditionalValue:    "dfbeavafsv",
+					},
+				},
+				InputVariables: []*bean.StepVariableDto{
+					{
+						Id:                        1,
+						Name:                      "RelativePathToScript",
+						Format:                    "STRING",
+						Description:               "checkout path + script path along with script name",
+						IsExposed:                 true,
+						AllowEmptyValue:           false,
+						DefaultValue:              "/./script.js",
+						Value:                     "sfds",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+					{
+						Id:                        2,
+						Name:                      "PrometheusUsername",
+						Format:                    "STRING",
+						Description:               "username of prometheus accoun",
+						IsExposed:                 true,
+						AllowEmptyValue:           true,
+						DefaultValue:              "",
+						Value:                     "sdf",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+					{
+						Id:                        3,
+						Name:                      "PrometheusApiKey",
+						Format:                    "STRING",
+						Description:               "api key of prometheus account",
+						IsExposed:                 true,
+						AllowEmptyValue:           true,
+						DefaultValue:              "",
+						Value:                     "gwrsd",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+					{
+						Id:                        4,
+						Name:                      "PrometheusRemoteWriteEndpoint",
+						Format:                    "STRING",
+						Description:               "remote write endpoint of prometheus account",
+						IsExposed:                 true,
+						AllowEmptyValue:           true,
+						DefaultValue:              "",
+						Value:                     "ewq",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+					{
+						Id:                        5,
+						Name:                      "OutputType",
+						Format:                    "STRING",
+						Description:               "output type - LOG or PROMETHEUS",
+						IsExposed:                 true,
+						AllowEmptyValue:           false,
+						DefaultValue:              "LOG",
+						Value:                     "Log",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+				},
+			},
+		},
+		{
+			Id:                  3,
+			Name:                "Task 3",
+			Description:         "",
+			Index:               3,
+			StepType:            repository.PIPELINE_STEP_TYPE_INLINE,
+			OutputDirectoryPath: []string{"./@{{test-var-2}}"},
+			InlineStepDetail: &bean.InlineStepDetailDto{
+				ScriptType:               repository2.SCRIPT_TYPE_CONTAINER_IMAGE,
+				Script:                   "#!/bin/sh \nset -eo pipefail \necho \"@{{test-var-2}}\"\n#set -v  ## uncomment this to debug the script \n",
+				MountCodeToContainer:     true,
+				MountCodeToContainerPath: "/sourcecode",
+				MountDirectoryFromHost:   true,
+				ContainerImagePath:       "alpine:latest",
+				CommandArgsMap: []*bean.CommandArgsMap{
+					{
+						Command: "echo",
+						Args:    []string{"HOSTNAME", "PORT"},
+					},
+				},
+				InputVariables: []*bean.StepVariableDto{
+					{
+						Id:                        1,
+						Name:                      "Hello",
+						Format:                    "STRING",
+						Description:               "jnsdvbdvbsd",
+						IsExposed:                 false,
+						AllowEmptyValue:           false,
+						DefaultValue:              "",
+						Value:                     "",
+						ValueType:                 "GLOBAL",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "WORKING_DIRECTORY",
+						VariableStepIndexInPlugin: 0,
+						ReferenceVariableStage:    "",
+					},
+				},
+			},
+		},
+	},
+	TriggerType: pipelineConfig.TRIGGER_TYPE_AUTOMATIC,
+}
+
+var pipelineStageReqResolved = &bean.PipelineStageDto{
+	Id:          0,
+	Name:        "",
+	Description: "",
+	Type:        repository.PIPELINE_STAGE_TYPE_PRE_CI,
+	Steps: []*bean.PipelineStageStepDto{
+		{
+			Id:                  1,
+			Name:                "Task-1",
+			Description:         "test1",
+			Index:               1,
+			StepType:            repository.PIPELINE_STEP_TYPE_INLINE,
+			OutputDirectoryPath: []string{"./test1"},
+			InlineStepDetail: &bean.InlineStepDetailDto{
+				OutputVariables: []*bean.StepVariableDto{
+					{
+						Id:                        1,
+						Name:                      "Hello",
+						Format:                    "STRING",
+						Description:               "dsuihvsuvhbdv",
+						IsExposed:                 false,
+						AllowEmptyValue:           false,
+						DefaultValue:              "",
+						Value:                     "",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 0,
+						ReferenceVariableStage:    "",
+					},
+				},
+				ScriptType: repository2.SCRIPT_TYPE_SHELL,
+				Script:     "#!/bin/sh \nset -eo pipefail \necho \"test1\"\n#set -v  ## uncomment this to debug the script \n",
+			},
+		},
+		{
+			Id:          2,
+			Name:        "K6-LoadTesting",
+			Description: "K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.",
+			Index:       2,
+			StepType:    repository.PIPELINE_STEP_TYPE_REF_PLUGIN,
+			RefPluginStepDetail: &bean.RefPluginStepDetailDto{
+				PluginId: 1,
+				ConditionDetails: []*bean.ConditionDetailDto{
+					{
+						Id:                  0,
+						ConditionOnVariable: "RelativePathToScript",
+						ConditionType:       "TRIGGER",
+						ConditionalOperator: "==",
+						ConditionalValue:    "test1",
+					},
+					{
+						Id:                  0,
+						ConditionOnVariable: "PrometheusApiKey",
+						ConditionType:       "TRIGGER",
+						ConditionalOperator: "!=",
+						ConditionalValue:    "dfbeavafsv",
+					},
+				},
+				InputVariables: []*bean.StepVariableDto{
+					{
+						Id:                        1,
+						Name:                      "RelativePathToScript",
+						Format:                    "STRING",
+						Description:               "checkout path + script path along with script name",
+						IsExposed:                 true,
+						AllowEmptyValue:           false,
+						DefaultValue:              "/./script.js",
+						Value:                     "sfds",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+					{
+						Id:                        2,
+						Name:                      "PrometheusUsername",
+						Format:                    "STRING",
+						Description:               "username of prometheus accoun",
+						IsExposed:                 true,
+						AllowEmptyValue:           true,
+						DefaultValue:              "",
+						Value:                     "sdf",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+					{
+						Id:                        3,
+						Name:                      "PrometheusApiKey",
+						Format:                    "STRING",
+						Description:               "api key of prometheus account",
+						IsExposed:                 true,
+						AllowEmptyValue:           true,
+						DefaultValue:              "",
+						Value:                     "gwrsd",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+					{
+						Id:                        4,
+						Name:                      "PrometheusRemoteWriteEndpoint",
+						Format:                    "STRING",
+						Description:               "remote write endpoint of prometheus account",
+						IsExposed:                 true,
+						AllowEmptyValue:           true,
+						DefaultValue:              "",
+						Value:                     "ewq",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+					{
+						Id:                        5,
+						Name:                      "OutputType",
+						Format:                    "STRING",
+						Description:               "output type - LOG or PROMETHEUS",
+						IsExposed:                 true,
+						AllowEmptyValue:           false,
+						DefaultValue:              "LOG",
+						Value:                     "Log",
+						ValueType:                 "NEW",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "",
+						VariableStepIndexInPlugin: 1,
+						ReferenceVariableStage:    "",
+					},
+				},
+			},
+		},
+		{
+			Id:                  3,
+			Name:                "Task 3",
+			Description:         "",
+			Index:               3,
+			StepType:            repository.PIPELINE_STEP_TYPE_INLINE,
+			OutputDirectoryPath: []string{"./test2"},
+			InlineStepDetail: &bean.InlineStepDetailDto{
+				ScriptType:               repository2.SCRIPT_TYPE_CONTAINER_IMAGE,
+				Script:                   "#!/bin/sh \nset -eo pipefail \necho \"test2\"\n#set -v  ## uncomment this to debug the script \n",
+				MountCodeToContainer:     true,
+				MountCodeToContainerPath: "/sourcecode",
+				MountDirectoryFromHost:   true,
+				ContainerImagePath:       "alpine:latest",
+				CommandArgsMap: []*bean.CommandArgsMap{
+					{
+						Command: "echo",
+						Args:    []string{"HOSTNAME", "PORT"},
+					},
+				},
+				InputVariables: []*bean.StepVariableDto{
+					{
+						Id:                        1,
+						Name:                      "Hello",
+						Format:                    "STRING",
+						Description:               "jnsdvbdvbsd",
+						IsExposed:                 false,
+						AllowEmptyValue:           false,
+						DefaultValue:              "",
+						Value:                     "",
+						ValueType:                 "GLOBAL",
+						PreviousStepIndex:         0,
+						ReferenceVariableName:     "WORKING_DIRECTORY",
+						VariableStepIndexInPlugin: 0,
+						ReferenceVariableStage:    "",
+					},
+				},
+			},
+		},
+	},
+	TriggerType: pipelineConfig.TRIGGER_TYPE_AUTOMATIC,
+}
 
 func getDbConnAndLoggerService(t *testing.T) (*zap.SugaredLogger, *pg.DB) {
 	cfg, _ := sql.GetConfig()
@@ -225,8 +591,11 @@ func getPipelineStageServiceImpl(t *testing.T) *PipelineStageServiceImpl {
 
 	pipelineStageRepoImpl := repository.NewPipelineStageRepository(logger, dbConnection)
 	pipelineRepoImpl := pipelineConfig.NewPipelineRepositoryImpl(dbConnection, logger)
-
-	pipelineStageServiceImpl := NewPipelineStageService(logger, pipelineStageRepoImpl, nil, pipelineRepoImpl)
+	scopedVarServiceImpl, _ := variables.NewScopedVariableServiceImpl(logger, repository4.NewScopedVariableRepository(dbConnection, logger))
+	entityMappingServiceImpl := variables.NewVariableEntityMappingServiceImpl(repository4.NewVariableEntityMappingRepository(logger, dbConnection), logger)
+	templateParserImpl := parsers.NewVariableTemplateParserImpl(logger)
+	pluginRepository := repository2.NewGlobalPluginRepository(logger, dbConnection)
+	pipelineStageServiceImpl := NewPipelineStageService(logger, pipelineStageRepoImpl, pluginRepository, pipelineRepoImpl, scopedVarServiceImpl, entityMappingServiceImpl, templateParserImpl)
 	return pipelineStageServiceImpl
 }
 
@@ -554,6 +923,33 @@ func TestPipelineStageService_DeletePipelineStage(t *testing.T) {
 		})
 	}
 
+}
+
+func TestPipelineStageService_BuildPrePostAndRefPluginStepsDataForWfRequest_WithScopedVariables(t *testing.T) {
+	t.Setenv("VARIABLE_CACHE_ENABLED", "false")
+	pipelineStageServiceImpl := getPipelineStageServiceImpl(t)
+	logger, dbConnection := getDbConnAndLoggerService(t)
+	scopedVarServiceImpl, _ := variables.NewScopedVariableServiceImpl(logger, repository4.NewScopedVariableRepository(dbConnection, logger))
+	templateParserImpl := parsers.NewVariableTemplateParserImpl(logger)
+	payload := models.Payload{}
+	json.Unmarshal([]byte(ScopedVariablePayload), &payload)
+
+	err := scopedVarServiceImpl.CreateVariables(payload)
+	assert.Nil(t, err)
+
+	err = pipelineStageServiceImpl.UpdatePipelineStage(pipelineStageReqUnresolved, repository.PIPELINE_STAGE_TYPE_PRE_CI, ciPipelineId, 1)
+	assert.Nil(t, err)
+
+	resolvedRequest, err := pipelineStageServiceImpl.BuildPrePostAndRefPluginStepsDataForWfRequest(ciPipelineId, ciEvent, models.Scope{
+		AppId:     1,
+		EnvId:     1,
+		ClusterId: 1,
+	})
+	assert.Nil(t, err)
+	requestJson, _ := json.Marshal(resolvedRequest)
+	extractVariables, err := templateParserImpl.ExtractVariables(string(requestJson))
+	assert.Nil(t, err)
+	assert.Len(t, extractVariables, 0)
 }
 
 //func TestMain(m *testing.M) {

@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -123,7 +124,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 		return
 	}
 
-	var scope models.Scope
+	var scope resourceQualifiers.Scope
 	scopeQueryParam := r.URL.Query().Get("scope")
 	if scopeQueryParam != "" {
 		if err := json.Unmarshal([]byte(scopeQueryParam), &scope); err != nil {

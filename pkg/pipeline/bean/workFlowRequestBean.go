@@ -15,6 +15,8 @@ const (
 	VARIABLE_TYPE_REF_PLUGIN  = "REF_PLUGIN"
 )
 
+const CI_JOB string = "CI_JOB"
+
 type WorkflowPipelineType string
 
 const (
@@ -26,6 +28,13 @@ const (
 type RefPluginObject struct {
 	Id    int           `json:"id"`
 	Steps []*StepObject `json:"steps"`
+}
+
+type PrePostAndRefPluginStepsResponse struct {
+	PreStageSteps    []*StepObject
+	PostStageSteps   []*StepObject
+	RefPluginData    []*RefPluginObject
+	VariableSnapshot map[string]string
 }
 
 type StepObject struct {

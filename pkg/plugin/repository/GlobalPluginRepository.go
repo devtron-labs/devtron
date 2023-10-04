@@ -184,6 +184,7 @@ type GlobalPluginRepository interface {
 	GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error)
 	GetExposedVariablesForAllPlugins() ([]*PluginStepVariable, error)
 	GetConditionsByStepId(stepId int) ([]*PluginStepCondition, error)
+	GetPluginByName(pluginName string) ([]*PluginMetadata, error)
 	GetAllPluginMetaData() ([]*PluginMetadata, error)
 	GetPluginStepsByPluginId(pluginId int) ([]*PluginStep, error)
 	GetConditionsByPluginId(pluginId int) ([]*PluginStepCondition, error)
@@ -397,6 +398,20 @@ func (impl *GlobalPluginRepositoryImpl) GetConditionsByStepId(stepId int) ([]*Pl
 		return nil, err
 	}
 	return conditions, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginByName(pluginName string) ([]*PluginMetadata, error) {
+	var plugin []*PluginMetadata
+	err := impl.dbConnection.Model(&plugin).
+		Where("name = ?", pluginName).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting pluginMetadata by pluginName", "err", err, "pluginName", pluginName)
+		return nil, err
+	}
+	return plugin, nil
+
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetAllPluginMetaData() ([]*PluginMetadata, error) {

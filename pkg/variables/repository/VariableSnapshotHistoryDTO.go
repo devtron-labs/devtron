@@ -26,4 +26,6 @@ type HistoryReferenceType int
 
 const (
 	HistoryReferenceTypeDeploymentTemplate HistoryReferenceType = 1
+	HistoryReferenceTypeCIWORKFLOW         HistoryReferenceType = 2
+	HistoryReferenceTypeCDWORKFLOWRUNNER   HistoryReferenceType = 3
 )
