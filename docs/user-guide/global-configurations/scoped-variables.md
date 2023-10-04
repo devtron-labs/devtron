@@ -129,11 +129,23 @@ Only a super-admin can edit existing scoped variables.
 
 ## How to Use a Scoped Variable
 
-Once a variable is defined, it can be used by your authorized users on Devtron. A scoped variable widget would appear on the screen supporting its usage. 
+Once a variable is defined, it can be used by your authorized users on Devtron. A scoped variable widget would appear only on the screens that support its usage. 
 
 Currently, the widget is shown only on `Edit build pipeline` and `Edit deployment pipeline` screens under **App Configuration** → **Workflow Editor**.
 
-Upon clicking on the widget, a list of variables will be visible. You can click on the variable to copy and paste it into any desired input field. It would be pasted in the following format: `@{{variable-name}}`
+![Figure 8: Unexpanded Widget](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/scoped-variables/widget1.jpg)
+
+Upon clicking on the widget, a list of variables will be visible. 
+
+![Figure 9: Expanded Widget](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/scoped-variables/widget-expanded.jpg)
+
+Use the copy button to copy a relevant variable of your choice.
+
+![Figure 10: Copying a Variable](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/scoped-variables/display-value.jpg)
+
+It would appear in the following format upon pasting it within an input field: `@{{variable-name}}`
+
+![Figure 11: Pasting a Variable](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/scoped-variables/paste-value.jpg)
 
 
 {% hint style="info" %}
