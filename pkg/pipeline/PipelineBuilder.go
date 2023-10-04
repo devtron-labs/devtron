@@ -20,7 +20,9 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	errors2 "errors"
 	"fmt"
+	models2 "github.com/devtron-labs/devtron/api/helm-app/models"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -2291,7 +2293,7 @@ func (impl *PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipel
 				Namespace:   pipeline.Environment.Namespace,
 			}
 			deleteResourceResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
-			if forceDelete {
+			if forceDelete || errors2.As(err, &models2.NamespaceNotExistError{}) {
 				impl.logger.Warnw("error while deletion of helm application, ignore error and delete from db since force delete req", "error", err, "pipelineId", pipeline.Id)
 			} else {
 				if err != nil {
