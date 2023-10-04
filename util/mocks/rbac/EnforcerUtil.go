@@ -7,9 +7,9 @@ package mock_rbac
 import (
 	reflect "reflect"
 
-	application "github.com/devtron-labs/devtron/client/k8s/application"
 	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean "github.com/devtron-labs/devtron/pkg/bean"
+	application "github.com/devtron-labs/devtron/util/k8s"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -293,7 +293,7 @@ func (mr *MockEnforcerUtilMockRecorder) GetProjectAdminRBACNameBYAppName(appName
 }
 
 // GetRBACNameForClusterEntity mocks base method.
-func (m *MockEnforcerUtil) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (string, string) {
+func (m *MockEnforcerUtil) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier k8s.ResourceIdentifier) (string, string) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRBACNameForClusterEntity", clusterName, resourceIdentifier)
 	ret0, _ := ret[0].(string)

@@ -25,6 +25,7 @@
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
   * [Custom charts](user-guide/global-configurations/custom-charts.md)
   * [SSO Login Services](user-guide/global-configurations/sso-login.md)
+    * [Example - Okta SSO](user-guide/global-configurations/okta.md)
   * [Authorization](user-guide/global-configurations/authorization/README.md)
     * [User Permissions](user-guide/global-configurations/authorization/user-access.md)
     * [Permission Groups](user-guide/global-configurations/authorization/permission-groups.md)
@@ -76,6 +77,7 @@
     * [Rollback Deployment](user-guide/deploying-application/rollback-deployment.md)
   * [App Details](user-guide/creating-application/app-details.md)
     * [Debugging Deployment And Monitoring](user-guide/debugging-deployment-and-monitoring.md)
+    * [Using Ephemeral Containers](user-guide/app-details/ephemeral-containers.md)
     * [Application Metrics](user-guide/creating-application/app-metrics.md) 
   * [Overview](user-guide/creating-application/overview.md)
 * [Jobs](user-guide/jobs/README.md)
@@ -105,6 +107,7 @@
 
 ## Resources
 
+* [Glossary](reference/glossary.md)
 * [Troubleshooting](FAQs/devtron-troubleshoot.md)
 * [Use Cases](user-guide/use-cases/README.md)
   * [Devtron Generic Helm Chart To Run CronJob Or One Time Job](user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job.md)
@@ -112,5 +115,6 @@
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
+* [Devtron on Graviton](reference/graviton.md)
 * [Release Notes](https://github.com/devtron-labs/devtron/releases)
 

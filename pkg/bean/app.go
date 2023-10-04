@@ -185,6 +185,7 @@ const (
 	NORMAL   PipelineType = "NORMAL"
 	LINKED   PipelineType = "LINKED"
 	EXTERNAL PipelineType = "EXTERNAL"
+	CI_JOB   PipelineType = "CI_JOB"
 )
 
 const (
@@ -208,6 +209,23 @@ const (
 	WEBHOOK_EVENT_NON_MERGED_ACTION_TYPE string = "non-merged"
 )
 
+type CiPatchStatus string
+
+const (
+	CI_PATCH_SUCCESS        CiPatchStatus = "Succeeded"
+	CI_PATCH_FAILED         CiPatchStatus = "Failed"
+	CI_PATCH_NOT_AUTHORIZED CiPatchStatus = "Not authorised"
+)
+
+type CiPatchMessage string
+
+const (
+	CI_PATCH_NOT_AUTHORIZED_MESSAGE CiPatchMessage = "You don't have permission to change branch"
+	CI_PATCH_MULTI_GIT_ERROR        CiPatchMessage = "Build pipeline is connected to multiple git repositories"
+	CI_PATCH_REGEX_ERROR            CiPatchMessage = "Provided branch does not match regex "
+	CI_BRANCH_TYPE_ERROR            CiPatchMessage = "Branch cannot be changed for pipeline as source type is “Pull request or Tag”"
+)
+
 func (a PatchAction) String() string {
 	return [...]string{"CREATE", "UPDATE_SOURCE", "DELETE", "DEACTIVATE"}[a]
 
@@ -224,6 +242,27 @@ type CiMaterialPatchRequest struct {
 type CustomTagData struct {
 	TagPattern string `json:"tagPattern"`
 	CounterX   int    `json:"counterX"`
+}
+
+type CiMaterialValuePatchRequest struct {
+	AppId         int `json:"appId" validate:"required"`
+	EnvironmentId int `json:"environmentId" validate:"required"`
+}
+
+type CiMaterialBulkPatchRequest struct {
+	AppIds        []int  `json:"appIds" validate:"required"`
+	EnvironmentId int    `json:"environmentId" validate:"required"`
+	Value         string `json:"value,omitempty" validate:"required"`
+}
+
+type CiMaterialBulkPatchResponse struct {
+	Apps []CiMaterialPatchResponse `json:"apps"`
+}
+
+type CiMaterialPatchResponse struct {
+	AppId   int            `json:"appId"`
+	Status  CiPatchStatus  `json:"status"`
+	Message CiPatchMessage `json:"message"`
 }
 
 type CiPatchRequest struct {
@@ -281,11 +320,13 @@ type CiPipelineMaterial struct {
 }
 
 type CiTriggerRequest struct {
-	PipelineId         int                  `json:"pipelineId"`
-	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
-	TriggeredBy        int32                `json:"triggeredBy"`
-	InvalidateCache    bool                 `json:"invalidateCache"`
-	EnvironmentId      int                  `json:"environmentId"`
+	PipelineId          int                  `json:"pipelineId"`
+	CiPipelineMaterial  []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
+	TriggeredBy         int32                `json:"triggeredBy"`
+	InvalidateCache     bool                 `json:"invalidateCache"`
+	EnvironmentId       int                  `json:"environmentId"`
+	PipelineType        string               `json:"pipelineType"`
+	CiArtifactLastFetch time.Time            `json:"ciArtifactLastFetch"`
 }
 
 type CiTrigger struct {
@@ -336,6 +377,7 @@ type CiPipelineMinResponse struct {
 	AppName          string `json:"appName,omitempty"`
 	ParentCiPipeline int    `json:"parentCiPipeline"`
 	ParentAppId      int    `json:"parentAppId"`
+	PipelineType     string `json:"pipelineType"`
 }
 
 type TestExecutorImageProperties struct {

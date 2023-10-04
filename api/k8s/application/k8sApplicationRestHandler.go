@@ -48,6 +48,7 @@ type K8sApplicationRestHandler interface {
 	RotatePod(w http.ResponseWriter, r *http.Request)
 	CreateEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request)
+	GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -262,7 +263,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 			Namespace: appIdentifier.Namespace,
 		},
 	}
-	validRequests := make([]k8s.ResourceRequestBean, 0)
 	var resourceTreeInf map[string]interface{}
 	bytes, _ := json.Marshal(appDetail.ResourceTreeResponse)
 	err = json.Unmarshal(bytes, &resourceTreeInf)
@@ -270,7 +270,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("unmarshal error of resource tree response"), nil, http.StatusInternalServerError)
 		return
 	}
-	validRequests = handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTreeInf, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.IngressKind})
+	validRequests := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTreeInf, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.IngressKind})
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for this app", "appId", clusterIdString)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
@@ -740,6 +740,34 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceInfo(w http.ResponseWri
 	}
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 	return
+}
+
+// GetAllApiResourceGVKWithoutAuthorization  This function will the all the available api resource GVK list for specific cluster
+func (handler *K8sApplicationRestHandlerImpl) GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// get clusterId from request
+	vars := mux.Vars(r)
+	clusterId, err := strconv.Atoi(vars["clusterId"])
+	if err != nil {
+		handler.logger.Errorw("request err in getting clusterId in GetAllApiResources", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// get data from service
+	response, err := handler.k8sApplicationService.GetAllApiResourceGVKWithoutAuthorization(r.Context(), clusterId)
+	if err != nil {
+		handler.logger.Errorw("error in getting api-resources", "clusterId", clusterId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.ResponseWriter, r *http.Request) {

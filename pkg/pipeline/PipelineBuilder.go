@@ -21,6 +21,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"net/http"
+	"net/url"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -28,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg"
-	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -37,6 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -44,12 +54,6 @@ import (
 	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.opentelemetry.io/otel"
-	"net/http"
-	"net/url"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -116,6 +120,7 @@ type PipelineBuilder interface {
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
 	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
+	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
@@ -132,13 +137,13 @@ type PipelineBuilder interface {
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
-	FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error)
+	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error)
 	FindAppsByTeamId(teamId int) ([]*AppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	GetAppList() ([]AppBean, error)
-	GetCiPipelineMin(appId int) ([]*bean.CiPipelineMin, error)
+	GetCiPipelineMin(appId int, envIds []int) ([]*bean.CiPipelineMin, error)
 
 	FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error)
 	FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
@@ -159,13 +164,13 @@ type PipelineBuilder interface {
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, deploymentTypeValidationConfig map[string]bool)
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
-	GetCiPipelineByEnvironment(request appGroup2.AppGroupingRequest) ([]*bean.CiConfigRequest, error)
-	GetCiPipelineByEnvironmentMin(request appGroup2.AppGroupingRequest) ([]*bean.CiPipelineMinResponse, error)
-	GetCdPipelinesByEnvironment(request appGroup2.AppGroupingRequest) (cdPipelines *bean.CdPipelines, err error)
-	GetCdPipelinesByEnvironmentMin(request appGroup2.AppGroupingRequest) (cdPipelines []*bean.CDPipelineConfigObject, err error)
-	GetExternalCiByEnvironment(request appGroup2.AppGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
-	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.AppGroupingResponse, error)
-	GetAppListForEnvironment(request appGroup2.AppGroupingRequest) ([]*AppBean, error)
+	GetCiPipelineByEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiConfigRequest, error)
+	GetCiPipelineByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiPipelineMinResponse, error)
+	GetCdPipelinesByEnvironment(request resourceGroup2.ResourceGroupingRequest) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) (cdPipelines []*bean.CDPipelineConfigObject, err error)
+	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
+	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
+	GetAppListForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*AppBean, error)
 	GetDeploymentConfigMap(environmentId int) (map[string]bool, error)
 	IsGitopsConfigured() (bool, error)
 }
@@ -189,7 +194,7 @@ type PipelineBuilderImpl struct {
 	pipelineConfigRepository         chartConfig.PipelineConfigRepository
 	mergeUtil                        util.MergeUtil
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
-	ciConfig                         *CiConfig
+	ciConfig                         *CiCdConfig
 	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
 	appService                       app.AppService
 	imageScanResultRepository        security.ImageScanResultRepository
@@ -226,13 +231,15 @@ type PipelineBuilderImpl struct {
 	ArgoUserService                                 argo.ArgoUserService
 	workflowDagExecutor                             WorkflowDagExecutor
 	enforcerUtil                                    rbac.EnforcerUtil
-	appGroupService                                 appGroup2.AppGroupService
+	resourceGroupService                            resourceGroup2.ResourceGroupService
 	chartDeploymentService                          util.ChartDeploymentService
 	K8sUtil                                         *util4.K8sUtil
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
 	imageTaggingService                             ImageTaggingService
 	customTagService                                pkg.CustomTagService
+	variableEntityMappingService                    variables.VariableEntityMappingService
+	variableTemplateParser                          parsers.VariableTemplateParser
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -254,7 +261,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	mergeUtil util.MergeUtil,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	ciConfig *CiConfig,
+	ciConfig *CiCdConfig,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
@@ -283,12 +290,15 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	workflowDagExecutor WorkflowDagExecutor,
 	enforcerUtil rbac.EnforcerUtil, ArgoUserService argo.ArgoUserService,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	appGroupService appGroup2.AppGroupService,
+	resourceGroupService resourceGroup2.ResourceGroupService,
 	chartDeploymentService util.ChartDeploymentService,
 	K8sUtil *util4.K8sUtil,
 	attributesRepository repository.AttributesRepository,
 	imageTaggingService ImageTaggingService,
-	customTagService pkg.CustomTagService) *PipelineBuilderImpl {
+	customTagService pkg.CustomTagService,
+	variableEntityMappingService variables.VariableEntityMappingService,
+	variableTemplateParser parsers.VariableTemplateParser) *PipelineBuilderImpl {
+
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {
@@ -351,13 +361,15 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		workflowDagExecutor:                             workflowDagExecutor,
 		enforcerUtil:                                    enforcerUtil,
 		ciWorkflowRepository:                            ciWorkflowRepository,
-		appGroupService:                                 appGroupService,
+		resourceGroupService:                            resourceGroupService,
 		chartDeploymentService:                          chartDeploymentService,
 		K8sUtil:                                         K8sUtil,
 		attributesRepository:                            attributesRepository,
 		securityConfig:                                  securityConfig,
 		imageTaggingService:                             imageTaggingService,
 		customTagService:                                customTagService,
+		variableEntityMappingService:                    variableEntityMappingService,
+		variableTemplateParser:                          variableTemplateParser,
 	}
 }
 
@@ -442,12 +454,42 @@ func (impl *PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO)
 	existingMaterial.UpdatedBy = request.UserId
 
 	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
-
 	if err != nil {
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
+
 	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial)
+
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	var materials []*pipelineConfig.CiPipelineMaterial
+	for _, pipeline := range pipelines {
+		materialDbObject, err := impl.ciPipelineMaterialRepository.GetByPipelineIdAndGitMaterialId(pipeline.Id, request.Material.Id)
+		if err != nil {
+			return err
+		}
+		if len(materialDbObject) == 0 {
+			continue
+		}
+		materialDbObject[0].Active = false
+		materials = append(materials, materialDbObject[0])
+	}
+
+	if len(materials) == 0 {
+		return nil
+	}
+
+	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -705,6 +747,7 @@ func (impl *PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trig
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			PipelineType:             bean.PipelineType(pipeline.PipelineType),
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
@@ -753,7 +796,7 @@ func (impl *PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConf
 		return nil, err
 	}
 	//TODO fill these variables
-	//ciConfig.CiPipeline=
+	//ciCdConfig.CiPipeline=
 	//--------pipeline population start
 	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -837,6 +880,7 @@ func (impl *PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConf
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			PipelineType:             bean.PipelineType(pipeline.PipelineType),
 		}
 		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
 		if err != nil && err != pg.ErrNoRows {
@@ -1103,8 +1147,16 @@ func (impl *PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) 
 	return externalCiConfig, err
 }
 
-func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipelineMin, error) {
-	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
+func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int, envIds []int) ([]*bean.CiPipelineMin, error) {
+	pipelines := make([]*pipelineConfig.CiPipeline, 0)
+	var err error
+	if len(envIds) > 0 {
+		//filter ci_pipelines based on env list
+		pipelines, err = impl.ciPipelineRepository.FindCiPipelineByAppIdAndEnvIds(appId, envIds)
+	} else {
+		pipelines, err = impl.ciPipelineRepository.FindByAppId(appId)
+	}
+
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
@@ -1127,13 +1179,15 @@ func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipeline
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := bean.PipelineType(bean.NORMAL)
+		pipelineType := bean.NORMAL
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
-			pipelineType = bean.PipelineType(bean.LINKED)
+			pipelineType = bean.LINKED
 		} else if pipeline.IsExternal == true {
-			pipelineType = bean.PipelineType(bean.EXTERNAL)
+			pipelineType = bean.EXTERNAL
+		} else if pipeline.PipelineType == string(bean.CI_JOB) {
+			pipelineType = bean.CI_JOB
 		}
 
 		ciPipeline := &bean.CiPipelineMin{
@@ -1149,10 +1203,10 @@ func (impl *PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipeline
 	return ciPipelineResp, err
 }
 
-func (impl *PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error) {
+func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error) {
 	originalCiConf, err := impl.getCiTemplateVariables(updateRequest.AppId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching original ciConfig for update", "appId", updateRequest.Id, "err", err)
+		impl.logger.Errorw("error in fetching original ciCdConfig for update", "appId", updateRequest.Id, "err", err)
 		return nil, err
 	}
 	if originalCiConf.Version != updateRequest.Version {
@@ -1255,7 +1309,7 @@ func (impl *PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigRe
 	return originalCiConf, nil
 }
 
-func (impl *PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error) {
+func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error) {
 	impl.logger.Debugw("pipeline create request received", "req", createRequest)
 
 	//-----------fetch data
@@ -1637,6 +1691,52 @@ func (impl *PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) 
 
 func (impl *PipelineBuilderImpl) PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error) {
 	return impl.ciCdPipelineOrchestrator.PatchCiMaterialSource(ciPipeline, userId)
+}
+
+func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error) {
+	response := &bean.CiMaterialBulkPatchResponse{}
+	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
+	for _, appId := range ciPipelines.AppIds {
+		ciPipeline := &bean.CiMaterialValuePatchRequest{
+			AppId:         appId,
+			EnvironmentId: ciPipelines.EnvironmentId,
+		}
+		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value, token, checkAppSpecificAccess)
+
+		if err == nil {
+			ciPipelineMaterial.Type = pipelineConfig.SOURCE_TYPE_BRANCH_FIXED
+			ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
+		}
+		response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
+			AppId:   appId,
+			Status:  getPatchStatus(err),
+			Message: getPatchMessage(err),
+		})
+	}
+	if len(ciPipelineMaterials) == 0 {
+		return response, nil
+	}
+	if err := impl.ciCdPipelineOrchestrator.UpdateCiPipelineMaterials(ciPipelineMaterials); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func getPatchStatus(err error) bean.CiPatchStatus {
+	if err != nil {
+		if err.Error() == string(bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE) {
+			return bean.CI_PATCH_NOT_AUTHORIZED
+		}
+		return bean.CI_PATCH_FAILED
+	}
+	return bean.CI_PATCH_SUCCESS
+}
+
+func getPatchMessage(err error) bean.CiPatchMessage {
+	if err != nil {
+		return bean.CiPatchMessage(err.Error())
+	}
+	return ""
 }
 
 func (impl *PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
@@ -3124,6 +3224,11 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 		return 0, err
 	}
+	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
+	if err != nil {
+		return 0, err
+	}
 	// strategies for pipeline ids, there is only one is default
 	defaultCount := 0
 	for _, item := range pipeline.Strategies {
@@ -3163,6 +3268,21 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 
 	impl.logger.Debugw("pipeline created with GitMaterialId ", "id", pipelineId, "pipeline", pipeline)
 	return pipelineId, nil
+}
+
+func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32, tx *pg.Tx) error {
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	if err != nil {
+		return err
+	}
+	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository6.Entity{
+		EntityType: entityType,
+		EntityId:   entityId,
+	}, userId, tx)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl *PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
@@ -3738,7 +3858,7 @@ func (impl *PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, par
 	return ciArtifacts, nil
 }
 
-func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error) {
+func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error) {
 	var deployedCiArtifacts []bean.CiArtifactBean
 	var deployedCiArtifactsResponse bean.CiArtifactResponse
 
@@ -3759,6 +3879,14 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, 
 	for _, item := range users {
 		userEmails[item.Id] = item.EmailId
 	}
+
+	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", appId)
+		return deployedCiArtifactsResponse, err
+	}
+	artifactIds := make([]int, 0)
+
 	for _, cdWfr := range cdWfrs {
 		ciArtifact := &repository.CiArtifact{}
 		if cdWfr.CdWorkflow != nil && cdWfr.CdWorkflow.CiArtifact != nil {
@@ -3781,6 +3909,21 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, 
 			WfrId:        cdWfr.Id,
 			DeployedBy:   userEmail,
 		})
+		artifactIds = append(artifactIds, ciArtifact.Id)
+	}
+	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", appId, "artifactIds", artifactIds)
+		return deployedCiArtifactsResponse, err
+	}
+
+	for i, _ := range deployedCiArtifacts {
+		if imageTaggingResp := imageTagsDataMap[deployedCiArtifacts[i].Id]; imageTaggingResp != nil {
+			deployedCiArtifacts[i].ImageReleaseTags = imageTaggingResp
+		}
+		if imageCommentResp := imageCommentsDataMap[deployedCiArtifacts[i].Id]; imageCommentResp != nil {
+			deployedCiArtifacts[i].ImageComment = imageCommentResp
+		}
 	}
 
 	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
@@ -4154,6 +4297,7 @@ func (impl *PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+		PipelineType:             bean.PipelineType(pipeline.PipelineType),
 	}
 	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
@@ -4491,23 +4635,23 @@ func (impl *PipelineBuilderImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDelet
 	return acdAppFound, nil
 }
 
-func (impl *PipelineBuilderImpl) GetCiPipelineByEnvironment(request appGroup2.AppGroupingRequest) ([]*bean.CiConfigRequest, error) {
+func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiConfigRequest, error) {
 	ciPipelinesConfigByApps := make([]*bean.CiConfigRequest, 0)
-	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "ciHandler.AppGroupingCiPipelinesAuthorization")
+	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "ciHandler.ResourceGroupingCiPipelinesAuthorization")
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
-	if request.AppGroupId > 0 {
-		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+	if request.ResourceGroupId > 0 {
+		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
 		if err != nil {
 			return nil, err
 		}
 		//override appIds if already provided app group id in request.
-		request.AppIds = appIds
+		request.ResourceIds = appIds
 	}
-	if len(request.AppIds) > 0 {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	if len(request.ResourceIds) > 0 {
+		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.ParentResourceId, request.ResourceIds)
 	} else {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.ParentResourceId)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
@@ -4639,6 +4783,7 @@ func (impl *PipelineBuilderImpl) GetCiPipelineByEnvironment(request appGroup2.Ap
 				ExternalCiConfig:         externalCiConfig,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+				PipelineType:             bean.PipelineType(pipeline.PipelineType),
 			}
 			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]
 			if ok {
@@ -4690,22 +4835,22 @@ func (impl *PipelineBuilderImpl) GetCiPipelineByEnvironment(request appGroup2.Ap
 	return ciPipelinesConfigByApps, err
 }
 
-func (impl *PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.AppGroupingRequest) ([]*bean.CiPipelineMinResponse, error) {
+func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiPipelineMinResponse, error) {
 	results := make([]*bean.CiPipelineMinResponse, 0)
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
-	if request.AppGroupId > 0 {
-		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+	if request.ResourceGroupId > 0 {
+		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
 		if err != nil {
 			return results, err
 		}
 		//override appIds if already provided app group id in request.
-		request.AppIds = appIds
+		request.ResourceIds = appIds
 	}
-	if len(request.AppIds) > 0 {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	if len(request.ResourceIds) > 0 {
+		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.ParentResourceId, request.ResourceIds)
 	} else {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.ParentResourceId)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
@@ -4764,6 +4909,7 @@ func (impl *PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2
 			AppName:          pipeline.App.AppName,
 			ParentCiPipeline: ciPipeline.ParentCiPipeline,
 			ParentAppId:      parentAppId,
+			PipelineType:     ciPipeline.PipelineType,
 		}
 		results = append(results, result)
 		authorizedIds = append(authorizedIds, pipeline.CiPipelineId)
@@ -4773,17 +4919,17 @@ func (impl *PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2
 	return results, err
 }
 
-func (impl *PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.AppGroupingRequest) (cdPipelines *bean.CdPipelines, err error) {
-	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "cdHandler.authorizationCdPipelinesForAppGrouping")
-	if request.AppGroupId > 0 {
-		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(request resourceGroup2.ResourceGroupingRequest) (cdPipelines *bean.CdPipelines, err error) {
+	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "cdHandler.authorizationCdPipelinesForResourceGrouping")
+	if request.ResourceGroupId > 0 {
+		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
 		if err != nil {
 			return nil, err
 		}
 		//override appIds if already provided app group id in request.
-		request.AppIds = appIds
+		request.ResourceIds = appIds
 	}
-	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(request.EnvId, request.AppIds)
+	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(request.ParentResourceId, request.ResourceIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "err", err)
 		return cdPipelines, err
@@ -4880,21 +5026,21 @@ func (impl *PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.A
 	return cdPipelines, err
 }
 
-func (impl *PipelineBuilderImpl) GetCdPipelinesByEnvironmentMin(request appGroup2.AppGroupingRequest) (cdPipelines []*bean.CDPipelineConfigObject, err error) {
-	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "cdHandler.authorizationCdPipelinesForAppGrouping")
-	if request.AppGroupId > 0 {
-		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) (cdPipelines []*bean.CDPipelineConfigObject, err error) {
+	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "cdHandler.authorizationCdPipelinesForResourceGrouping")
+	if request.ResourceGroupId > 0 {
+		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
 		if err != nil {
 			return cdPipelines, err
 		}
 		//override appIds if already provided app group id in request.
-		request.AppIds = appIds
+		request.ResourceIds = appIds
 	}
 	var pipelines []*pipelineConfig.Pipeline
-	if len(request.AppIds) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	if len(request.ResourceIds) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.ParentResourceId, request.ResourceIds)
 	} else {
-		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.ParentResourceId)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
@@ -4931,22 +5077,22 @@ func (impl *PipelineBuilderImpl) GetCdPipelinesByEnvironmentMin(request appGroup
 	return cdPipelines, err
 }
 
-func (impl *PipelineBuilderImpl) GetExternalCiByEnvironment(request appGroup2.AppGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error) {
-	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "ciHandler.authorizationExternalCiForAppGrouping")
+func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error) {
+	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "ciHandler.authorizationExternalCiForResourceGrouping")
 	externalCiConfigs := make([]*bean.ExternalCiConfig, 0)
 	var cdPipelines []*pipelineConfig.Pipeline
-	if request.AppGroupId > 0 {
-		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+	if request.ResourceGroupId > 0 {
+		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
 		if err != nil {
 			return nil, err
 		}
 		//override appIds if already provided app group id in request.
-		request.AppIds = appIds
+		request.ResourceIds = appIds
 	}
-	if len(request.AppIds) > 0 {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	if len(request.ResourceIds) > 0 {
+		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.ParentResourceId, request.ResourceIds)
 	} else {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.ParentResourceId)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
@@ -5099,8 +5245,8 @@ func (impl *PipelineBuilderImpl) GetExternalCiByEnvironment(request appGroup2.Ap
 	return externalCiConfigs, err
 }
 
-func (impl *PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.AppGroupingResponse, error) {
-	result := &cluster.AppGroupingResponse{}
+func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error) {
+	result := &cluster.ResourceGroupingResponse{}
 	var models []*repository2.Environment
 	var beans []cluster.EnvironmentBean
 	var err error
@@ -5200,22 +5346,22 @@ func (impl *PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName
 	return result, nil
 }
 
-func (impl *PipelineBuilderImpl) GetAppListForEnvironment(request appGroup2.AppGroupingRequest) ([]*AppBean, error) {
+func (impl PipelineBuilderImpl) GetAppListForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*AppBean, error) {
 	var applicationList []*AppBean
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
-	if request.AppGroupId > 0 {
-		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+	if request.ResourceGroupId > 0 {
+		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
 		if err != nil {
 			return nil, err
 		}
 		//override appIds if already provided app group id in request.
-		request.AppIds = appIds
+		request.ResourceIds = appIds
 	}
-	if len(request.AppIds) > 0 {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	if len(request.ResourceIds) > 0 {
+		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.ParentResourceId, request.ResourceIds)
 	} else {
-		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.ParentResourceId)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)

@@ -17,6 +17,7 @@ SERVER_MODE_FULL= FULL
 SERVER_MODE_EA_ONLY=EA_ONLY
 #TEST_BRANCH=PUT_YOUR_BRANCH_HERE
 #LATEST_HASH=PUT_YOUR_HASH_HERE
+GOFLAGS:= $(GOFLAGS) -buildvcs=false
 include $(ENV_FILE)
 export
 
@@ -30,7 +31,7 @@ wire:
 	wire
 
 clean:
-	rm -f devtron
+	rm -rf devtron
 
 test-all: test-unit
 	echo 'test cases ran successfully'

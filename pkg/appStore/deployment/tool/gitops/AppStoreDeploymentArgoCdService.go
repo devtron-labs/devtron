@@ -54,7 +54,7 @@ type AppStoreDeploymentArgoCdService interface {
 	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error
-	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
+	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -108,7 +108,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 }
 
 // UpdateChartInfo this will update chart info in acd app, needed when repo for an app is changed
-func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error {
 	installAppVersionRequest, err := impl.patchAcdApp(ctx, installAppVersionRequest, ChartGitAttribute)
 	if err != nil {
 		return err
@@ -378,6 +378,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 
 	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
 	if err != nil {
+		if err == pg.ErrNoRows {
+			return nil, fmt.Errorf("values are outdated. please fetch the latest version and try again")
+		}
 		impl.Logger.Errorw("error while fetching installed version", "error", err)
 		return result, err
 	}
@@ -394,10 +397,14 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 			return result, err
 		}
 		for _, updateHistory := range versionHistory {
-			user, err := impl.userService.GetById(updateHistory.CreatedBy)
-			if err != nil {
+			emailId := "anonymous"
+			user, err := impl.userService.GetByIdIncludeDeleted(updateHistory.CreatedBy)
+			if err != nil && !util.IsErrNoRows(err) {
 				impl.Logger.Errorw("error while fetching user Details", "error", err)
 				return result, err
+			}
+			if user != nil {
+				emailId = user.EmailId
 			}
 			history = append(history, &client.HelmAppDeploymentDetail{
 				ChartMetadata: &client.ChartMetadata{
@@ -407,7 +414,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
 					Sources:      sources,
 				},
-				DeployedBy:   user.EmailId,
+				DeployedBy:   emailId,
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
 				DeployedAt: &timestamp.Timestamp{
 					Seconds: updateHistory.CreatedOn.Unix(),

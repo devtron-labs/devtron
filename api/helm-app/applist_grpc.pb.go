@@ -38,6 +38,7 @@ const (
 	ApplicationService_InstallReleaseWithCustomChart_FullMethodName = "/ApplicationService/InstallReleaseWithCustomChart"
 	ApplicationService_GetNotes_FullMethodName                      = "/ApplicationService/GetNotes"
 	ApplicationService_UpgradeReleaseWithCustomChart_FullMethodName = "/ApplicationService/UpgradeReleaseWithCustomChart"
+	ApplicationService_ValidateOCIRegistry_FullMethodName           = "/ApplicationService/ValidateOCIRegistry"
 )
 
 // ApplicationServiceClient is the client API for ApplicationService service.
@@ -63,6 +64,7 @@ type ApplicationServiceClient interface {
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest, opts ...grpc.CallOption) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*ChartNotesResponse, error)
 	UpgradeReleaseWithCustomChart(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
+	ValidateOCIRegistry(ctx context.Context, in *RegistryCredential, opts ...grpc.CallOption) (*OCIRegistryResponse, error)
 }
 
 type applicationServiceClient struct {
@@ -267,6 +269,15 @@ func (c *applicationServiceClient) UpgradeReleaseWithCustomChart(ctx context.Con
 	return out, nil
 }
 
+func (c *applicationServiceClient) ValidateOCIRegistry(ctx context.Context, in *RegistryCredential, opts ...grpc.CallOption) (*OCIRegistryResponse, error) {
+	out := new(OCIRegistryResponse)
+	err := c.cc.Invoke(ctx, ApplicationService_ValidateOCIRegistry_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
@@ -290,6 +301,7 @@ type ApplicationServiceServer interface {
 	InstallReleaseWithCustomChart(context.Context, *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(context.Context, *InstallReleaseRequest) (*ChartNotesResponse, error)
 	UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
+	ValidateOCIRegistry(context.Context, *RegistryCredential) (*OCIRegistryResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -353,6 +365,9 @@ func (UnimplementedApplicationServiceServer) GetNotes(context.Context, *InstallR
 }
 func (UnimplementedApplicationServiceServer) UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpgradeReleaseWithCustomChart not implemented")
+}
+func (UnimplementedApplicationServiceServer) ValidateOCIRegistry(context.Context, *RegistryCredential) (*OCIRegistryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateOCIRegistry not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -712,6 +727,24 @@ func _ApplicationService_UpgradeReleaseWithCustomChart_Handler(srv interface{}, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_ValidateOCIRegistry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegistryCredential)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).ValidateOCIRegistry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ApplicationService_ValidateOCIRegistry_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).ValidateOCIRegistry(ctx, req.(*RegistryCredential))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -790,6 +823,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpgradeReleaseWithCustomChart",
 			Handler:    _ApplicationService_UpgradeReleaseWithCustomChart_Handler,
+		},
+		{
+			MethodName: "ValidateOCIRegistry",
+			Handler:    _ApplicationService_ValidateOCIRegistry_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

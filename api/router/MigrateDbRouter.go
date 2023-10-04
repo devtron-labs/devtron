@@ -33,7 +33,6 @@ func NewMigrateDbRouterImpl(migrateDbRestHandler restHandler.MigrateDbRestHandle
 	return &MigrateDbRouterImpl{migrateDbRestHandler: migrateDbRestHandler}
 }
 func (impl MigrateDbRouterImpl) InitMigrateDbRouter(migrateRouter *mux.Router) {
-
 	migrateRouter.Path("/db").
 		HandlerFunc(impl.migrateDbRestHandler.SaveDbConfig).
 		Methods("POST")

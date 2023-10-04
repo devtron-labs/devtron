@@ -1,6 +1,8 @@
 package deployment
 
-import "github.com/gorilla/mux"
+import (
+	"github.com/gorilla/mux"
+)
 
 type DeploymentConfigRouter interface {
 	Init(configRouter *mux.Router)
@@ -21,6 +23,8 @@ func (router DeploymentConfigRouterImpl) Init(configRouter *mux.Router) {
 		HandlerFunc(router.deploymentRestHandler.CreateChartFromFile).Methods("POST")
 	configRouter.Path("/upload").
 		HandlerFunc(router.deploymentRestHandler.SaveChart).Methods("PUT")
+	configRouter.Path("/download/{chartRefId}").
+		HandlerFunc(router.deploymentRestHandler.DownloadChart).Methods("GET")
 	configRouter.Path("/fetch").
 		HandlerFunc(router.deploymentRestHandler.GetUploadedCharts).Methods("GET")
 }

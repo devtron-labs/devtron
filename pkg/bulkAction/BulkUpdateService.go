@@ -27,6 +27,9 @@ import (
 	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -89,6 +92,8 @@ type BulkUpdateServiceImpl struct {
 	appWorkflowService               appWorkflow2.AppWorkflowService
 	pubsubClient                     *pubsub.PubSubClientServiceImpl
 	argoUserService                  argo.ArgoUserService
+	variableEntityMappingService     variables.VariableEntityMappingService
+	variableTemplateParser           parsers.VariableTemplateParser
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -118,7 +123,9 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	appWorkflowService appWorkflow2.AppWorkflowService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
-	argoUserService argo.ArgoUserService) (*BulkUpdateServiceImpl, error) {
+	argoUserService argo.ArgoUserService,
+	variableEntityMappingService variables.VariableEntityMappingService,
+	variableTemplateParser parsers.VariableTemplateParser) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -152,6 +159,8 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		appWorkflowService:               appWorkflowService,
 		pubsubClient:                     pubsubClient,
 		argoUserService:                  argoUserService,
+		variableTemplateParser:           variableTemplateParser,
+		variableEntityMappingService:     variableEntityMappingService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
@@ -454,6 +463,12 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 							}
+							//VARIABLE_MAPPING_UPDATE
+							//NOTE: this flow is doesn't have the user info, therefore updated by is being set to the last updated by
+							err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.UpdatedBy)
+							if err != nil {
+								return nil
+							}
 						}
 					}
 				}
@@ -522,6 +537,11 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
 							}
+							//VARIABLE_MAPPING_UPDATE
+							err = impl.extractAndMapVariables(chartEnv.EnvOverrideValues, chartEnv.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, chartEnv.UpdatedBy)
+							if err != nil {
+								return nil
+							}
 						}
 					}
 				}
@@ -532,6 +552,21 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 		deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "All matching apps are updated successfully")
 	}
 	return deploymentTemplateBulkUpdateResponse
+}
+
+func (impl BulkUpdateServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	if err != nil {
+		return err
+	}
+	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
+		EntityType: entityType,
+		EntityId:   entityId,
+	}, userId, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpdatePayload) *CmAndSecretBulkUpdateResponse {

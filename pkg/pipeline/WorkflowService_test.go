@@ -400,7 +400,7 @@ func Test_getCiTemplateWithConfigMapsAndSecrets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getCiTemplateWithConfigMapsAndSecrets(tt.args.configMaps, tt.args.secrets, tt.args.ciTemplate, tt.args.existingConfigMap, tt.args.existingSecrets)
+			got, err := getCiTemplateWithConfigMapsAndSecrets(tt.args.configMaps, tt.args.secrets, tt.args.ciTemplate)
 			if !tt.wantErr(t, err, fmt.Sprintf("getCiTemplateWithConfigMapsAndSecrets(%v, %v, %v, %v, %v)", tt.args.configMaps, tt.args.secrets, tt.args.ciTemplate, tt.args.existingConfigMap, tt.args.existingSecrets)) {
 				return
 			}
@@ -468,7 +468,7 @@ func Test_processConfigMapsAndSecrets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantErr(t, processConfigMapsAndSecrets(tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.volumes, tt.args.templates), fmt.Sprintf("processConfigMapsAndSecrets(%v, %v, %v, %v, %v, %v, %v)", tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.volumes, tt.args.templates))
+			tt.wantErr(t, processConfigMapsAndSecrets(tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.templates), fmt.Sprintf("processConfigMapsAndSecrets(%v, %v, %v, %v, %v, %v, %v)", tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.volumes, tt.args.templates))
 		})
 	}
 }
@@ -540,7 +540,7 @@ func Test_processConfigMapsAndSecrets1(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := processConfigMapsAndSecrets(tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.volumes, tt.args.templates)
+			err := processConfigMapsAndSecrets(tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.templates)
 
 			if tt.wantErr {
 				if err == nil {

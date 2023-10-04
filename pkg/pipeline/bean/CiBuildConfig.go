@@ -12,7 +12,7 @@ type CiBuildType string
 const (
 	SELF_DOCKERFILE_BUILD_TYPE    CiBuildType = "self-dockerfile-build"
 	MANAGED_DOCKERFILE_BUILD_TYPE CiBuildType = "managed-dockerfile-build"
-	SKIP_BUILD_BUILD_TYPE         CiBuildType = "skip-build"
+	SKIP_BUILD_TYPE               CiBuildType = "skip-build"
 	BUILDPACK_BUILD_TYPE          CiBuildType = "buildpack-build"
 )
 const Main = "main"
@@ -25,6 +25,7 @@ type CiBuildConfigBean struct {
 	CiBuildType               CiBuildType        `json:"ciBuildType"`
 	DockerBuildConfig         *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
 	BuildPackConfig           *BuildPackConfig   `json:"buildPackConfig"`
+	PipelineType              string             `json:"pipelineType"`
 }
 
 type DockerBuildConfig struct {
@@ -37,6 +38,7 @@ type DockerBuildConfig struct {
 	DockerBuildOptions     map[string]string   `json:"dockerBuildOptions,omitempty"`
 	BuildContext           string              `json:"buildContext,omitempty"`
 	UseBuildx              bool                `json:"useBuildx"`
+	BuildxProvenanceMode   string              `json:"buildxProvenanceMode"`
 	BuildxK8sDriverOptions []map[string]string `json:"buildxK8SDriverOptions,omitempty"`
 }
 
