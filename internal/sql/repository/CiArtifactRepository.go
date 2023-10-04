@@ -134,6 +134,8 @@ func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 	err := impl.dbConnection.Model(artifact).
 		Column("ci_artifact.*").
 		Where("ci_artifact.ci_workflow_id = ? ", wfId).
+		Order("ci_artifact.created_on DESC").
+		Limit(1).
 		Select()
 	return artifact, err
 }
@@ -254,7 +256,7 @@ func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipe
 	return artifacts, nil
 }
 
-//GetLatestArtifactTimeByCiPipelineId will fetch latest ci artifact time(created) against that ci pipeline
+// GetLatestArtifactTimeByCiPipelineId will fetch latest ci artifact time(created) against that ci pipeline
 func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error) {
 	artifacts := &CiArtifact{}
 	query := "select cws.pipeline_id, cws.created_on from " +

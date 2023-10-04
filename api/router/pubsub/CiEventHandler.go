@@ -118,19 +118,34 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			}
 		} else if ciCompleteEvent.ImageDetailsFromCR != nil {
 			if len(ciCompleteEvent.ImageDetailsFromCR.ImageDetails) > 0 {
-				detail := util.GetLatestImageAccToImagePushedAt(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
-				request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent)
-				if err != nil {
-					impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
-					return
+				//detail := util.GetLatestImageAccToImagePushedAt(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
+				//request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent)
+				//if err != nil {
+				//	impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
+				//	return
+				//}
+				//resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
+				//if err != nil {
+				//	impl.logger.Error("Error while sending event for CI success for pipelineID", "pipelineId",
+				//		ciCompleteEvent.PipelineId, "request", request, "err", err)
+				//	return
+				//}
+				//impl.logger.Debug(resp)
+				imageDetails := util.GetReverseSortedImageDetails(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
+				for _, detail := range imageDetails {
+					request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent)
+					if err != nil {
+						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
+						return
+					}
+					resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
+					if err != nil {
+						impl.logger.Error("Error while sending event for CI success for pipelineID", "pipelineId",
+							ciCompleteEvent.PipelineId, "request", request, "err", err)
+						return
+					}
+					impl.logger.Debug(resp)
 				}
-				resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
-				if err != nil {
-					impl.logger.Error("Error while sending event for CI success for pipelineID", "pipelineId",
-						ciCompleteEvent.PipelineId, "request", request, "err", err)
-					return
-				}
-				impl.logger.Debug(resp)
 			}
 
 		} else {
