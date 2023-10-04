@@ -183,10 +183,12 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return nil, err
 	}
 
-	err = impl.saveQualifierMappings(tx, userId, createdFilterDataBean.Id, filterRequest.QualifierSelector)
-	if err != nil {
-		impl.logger.Errorw("error in saveQualifierMappings", "err", err, "QualifierSelector", filterRequest.QualifierSelector)
-		return nil, err
+	if len(filterRequest.QualifierSelector.EnvironmentSelectors) > 0 && len(filterRequest.QualifierSelector.ApplicationSelectors) > 0 {
+		err = impl.saveQualifierMappings(tx, userId, createdFilterDataBean.Id, filterRequest.QualifierSelector)
+		if err != nil {
+			impl.logger.Errorw("error in saveQualifierMappings", "err", err, "QualifierSelector", filterRequest.QualifierSelector)
+			return nil, err
+		}
 	}
 
 	err = impl.resourceFilterRepository.CommitTx(tx)
@@ -268,11 +270,15 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		impl.logger.Errorw("error in DeleteAllQualifierMappingsByResourceTypeAndId", "resourceType", resourceQualifiers.Filter, "resourceId", resourceFilter.Id, "err", err)
 		return filterRequest, err
 	}
-	err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, filterRequest.QualifierSelector)
-	if err != nil {
-		impl.logger.Errorw("error in saveQualifierMappings for resourceFilter", "resourceFilterId", resourceFilter.Id, "qualifierMappings", filterRequest.QualifierSelector, "err", err)
-		return filterRequest, err
+
+	if len(filterRequest.QualifierSelector.EnvironmentSelectors) > 0 && len(filterRequest.QualifierSelector.ApplicationSelectors) > 0 {
+		err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, filterRequest.QualifierSelector)
+		if err != nil {
+			impl.logger.Errorw("error in saveQualifierMappings for resourceFilter", "resourceFilterId", resourceFilter.Id, "qualifierMappings", filterRequest.QualifierSelector, "err", err)
+			return filterRequest, err
+		}
 	}
+
 	err = impl.resourceFilterRepository.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction", "err", err, "resourceFilterId", filterRequest.Id)
