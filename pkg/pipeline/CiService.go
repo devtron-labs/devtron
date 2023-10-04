@@ -30,9 +30,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/models"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"path/filepath"
@@ -131,7 +131,11 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
+	if trigger.PipelineType == bean2.CI_JOB && len(ciMaterials) != 0 {
+		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
+		ciMaterials[0].GitMaterial = nil
+		ciMaterials[0].GitMaterialId = 0
+	}
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return 0, err
@@ -149,7 +153,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	scope := models.Scope{
+	scope := resourceQualifiers.Scope{
 		AppId: pipeline.App.Id,
 	}
 	env, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
@@ -571,6 +575,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		//use root build context i.e '.'
 		buildContextCheckoutPath = "."
 	}
+
+	ciBuildConfigBean.PipelineType = trigger.PipelineType
+
 	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
 		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
@@ -628,6 +635,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageRetryInterval:         impl.config.ImageRetryInterval,
 		WorkflowExecutor:           impl.config.GetWorkflowExecutorType(),
 		Type:                       bean2.CI_WORKFLOW_PIPELINE_TYPE,
+		CiArtifactLastFetch:        trigger.CiArtifactLastFetch,
 	}
 	if dockerRegistry != nil {
 
