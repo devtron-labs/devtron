@@ -9,6 +9,7 @@ const (
 	NoResourceFiltersFound           = "no active resource filters found"
 	AppAndEnvSelectorRequiredMessage = "both application and environment selectors are required"
 	InvalidExpressions               = "one or more expressions are invalid"
+	FilterNotFound                   = "filter not found"
 )
 
 // util methods

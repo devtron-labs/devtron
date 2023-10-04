@@ -98,7 +98,7 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 	if err != nil {
 		impl.logger.Errorw("error in fetching filter by id", "err", err, "filterId", id)
 		if err == pg.ErrNoRows {
-			err = errors.New("filter not found for given id")
+			err = errors.New(FilterNotFound)
 		}
 		return nil, err
 	}

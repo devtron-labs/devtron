@@ -96,8 +96,12 @@ func (handler *ResourceFilterRestHandlerImpl) GetFilterById(w http.ResponseWrite
 	}
 	res, err := handler.resourceFilterService.GetFilterById(filterId)
 	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if err.Error() == resourceFilter.FilterNotFound {
+			statusCode = http.StatusNotFound
+		}
 		handler.logger.Errorw("error in getting  resource filter", "err", err, "filterId", filterId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
