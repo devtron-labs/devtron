@@ -87,6 +87,7 @@ type ClusterBean struct {
 	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
 	isClusterNameEmpty      bool                       `json:"-"`
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
+	IsAnonymous             bool                       `json:"isAnonymous"`
 }
 
 func GetClusterBean(model repository.Cluster) ClusterBean {
@@ -461,10 +462,10 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	model.PrometheusEndpoint = bean.PrometheusUrl
 
 	if bean.PrometheusAuth != nil {
-		if bean.PrometheusAuth.UserName != "" {
+		if bean.PrometheusAuth.UserName != "" || bean.IsAnonymous {
 			model.PUserName = bean.PrometheusAuth.UserName
 		}
-		if bean.PrometheusAuth.Password != "" {
+		if bean.PrometheusAuth.Password != "" || bean.IsAnonymous {
 			model.PPassword = bean.PrometheusAuth.Password
 		}
 		if bean.PrometheusAuth.TlsClientCert != "" {
