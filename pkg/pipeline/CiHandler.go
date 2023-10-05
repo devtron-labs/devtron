@@ -63,7 +63,7 @@ type CiHandler interface {
 	FetchMaterialsByPipelineId(pipelineId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId int, gitMaterialId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (WorkflowResponse, error)
-
+	FetchArtifactsForCiJob(buildId int) (*ArtifactsForCiJob, error)
 	//FetchBuildById(appId int, pipelineId int) (WorkflowResponse, error)
 	CancelBuild(workflowId int) (int, error)
 
@@ -166,6 +166,10 @@ type WorkflowResponse struct {
 	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
 	PipelineType         string                                      `json:"pipelineType"`
 	ParentCiWorkflowId   int                                         `json:"parent_ci_workflow_id"`
+}
+
+type ArtifactsForCiJob struct {
+	Artifacts []string `json:"artifacts"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -659,6 +663,17 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 	return workflowResponse, nil
 }
 
+func (impl *CiHandlerImpl) FetchArtifactsForCiJob(buildId int) (*ArtifactsForCiJob, error) {
+	artifacts, err := impl.ciArtifactRepository.GetArtifactsByParentCiWorkflowId(buildId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching artifacts by parent ci workflow id", "err", err, "buildId", buildId)
+		return nil, err
+	}
+	artifactsResponse := &ArtifactsForCiJob{
+		Artifacts: artifacts,
+	}
+	return artifactsResponse, nil
+}
 func (impl *CiHandlerImpl) GetRunningWorkflowLogs(pipelineId int, workflowId int) (*bufio.Reader, func() error, error) {
 	ciWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {

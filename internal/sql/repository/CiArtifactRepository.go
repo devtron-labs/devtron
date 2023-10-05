@@ -71,6 +71,7 @@ type CiArtifactRepository interface {
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
 	GetByIds(ids []int) ([]*CiArtifact, error)
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
+	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -254,7 +255,7 @@ func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipe
 	return artifacts, nil
 }
 
-//GetLatestArtifactTimeByCiPipelineId will fetch latest ci artifact time(created) against that ci pipeline
+// GetLatestArtifactTimeByCiPipelineId will fetch latest ci artifact time(created) against that ci pipeline
 func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error) {
 	artifacts := &CiArtifact{}
 	query := "select cws.pipeline_id, cws.created_on from " +
@@ -568,4 +569,15 @@ func (impl CiArtifactRepositoryImpl) GetArtifactByCdWorkflowId(cdWorkflowId int)
 		Where("cdwf.id = ? ", cdWorkflowId).
 		Select()
 	return artifact, err
+}
+
+// GetArtifactsByParentCiWorkflowId will get all artifacts of child workflow and parent ci artifact as well.
+func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error) {
+	var artifacts []string
+	query := "SELECT cia.image FROM ci_artifact cia where cia.ci_workflow_id in (SELECT wf.id from ci_workflow wf where wf.parent_ci_workflow_id = ? ) UNION SELECT cia.image FROM ci_artifact cia where cia.ci_workflow_id = ? ;"
+	_, err := impl.dbConnection.Query(&artifacts, query, parentCiWorkflowId, parentCiWorkflowId) //, pg.In(ciPipelineIds))
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching artifacts for parent ci workflow id", "err", err)
+	}
+	return artifacts, err
 }
