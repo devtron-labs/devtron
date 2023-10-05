@@ -392,7 +392,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 		return nil, err
 	}
 	resolvedTemplate := history.Template
-	if len(variableSnapshotMap) != 0 {
+	if len(variableSnapshotMap) > 0 {
 		scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap)
 		request := parsers.VariableParserRequest{Template: history.Template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData, IgnoreUnknownVariables: true}
 		parserResponse := impl.variableTemplateParser.ParseTemplate(request)

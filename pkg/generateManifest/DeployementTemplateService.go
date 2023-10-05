@@ -27,7 +27,7 @@ type DeploymentTemplateRequest struct {
 	AppId                       int                               `json:"appId"`
 	EnvId                       int                               `json:"envId,omitempty"`
 	ChartRefId                  int                               `json:"chartRefId"`
-	ValuesAndManifestFlag       ValuesAndManifestFlag             `json:"valuesAndManifestFlag"`
+	RequestDataMode             RequestDataMode                   `json:"valuesAndManifestFlag"`
 	Values                      string                            `json:"values"`
 	Type                        repository.DeploymentTemplateType `json:"type"`
 	DeploymentTemplateHistoryId int                               `json:"deploymentTemplateHistoryId,omitempty"`
@@ -35,11 +35,11 @@ type DeploymentTemplateRequest struct {
 	PipelineId                  int                               `json:"pipelineId"`
 }
 
-type ValuesAndManifestFlag int
+type RequestDataMode int
 
 const (
-	Values   ValuesAndManifestFlag = 1
-	Manifest ValuesAndManifestFlag = 2
+	Values   RequestDataMode = 1
+	Manifest RequestDataMode = 2
 )
 
 var ChartRepository = &client.ChartRepository{
@@ -61,7 +61,7 @@ type DeploymentTemplateResponse struct {
 type DeploymentTemplateService interface {
 	FetchDeploymentsWithChartRefs(appId int, envId int) ([]*repository.DeploymentTemplateComparisonMetadata, error)
 	GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
-	GetManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error)
+	GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error)
 }
 type DeploymentTemplateServiceImpl struct {
 	Logger                           *zap.SugaredLogger
@@ -178,62 +178,33 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 
 	if request.Values != "" {
 		values = request.Values
-		if request.ValuesAndManifestFlag != Values {
-			resolvedTemplate, err := impl.resolveValuesAtRuntime(request.Values, request)
+		if request.RequestDataMode == Manifest {
+			values, err = impl.resolveTemplateVariables(request.Values, request)
 			if err != nil {
 				return result, err
 			}
-			values = resolvedTemplate
 		}
 	} else {
 		switch request.Type {
 		case repository.DefaultVersions:
-			// not resolving because the default versions will not contain scoped variables
 			_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 		case repository.PublishedOnEnvironments:
-			// call resolver here
-			override, err := impl.propertiesConfigService.GetEnvironmentProperties(request.AppId, request.EnvId, request.ChartRefId)
-			if err == nil && override.GlobalConfig != nil {
-				if override.EnvironmentConfig.EnvOverrideValues != nil {
-					values = string(override.EnvironmentConfig.EnvOverrideValues)
-				} else {
-					values = string(override.GlobalConfig)
-				}
-			} else {
-				impl.Logger.Errorw("error in getting overridden values", "err", err)
-				return result, err
-			}
-			if request.ValuesAndManifestFlag != Values {
-				resolvedTemplate, err := impl.resolveValuesAtRuntime(values, request)
-				if err != nil {
-					return result, err
-				}
-				values = resolvedTemplate
-			}
+			values, err = impl.fetchResolvedTemplateForPublishedEnvs(request)
 		case repository.DeployedOnSelfEnvironment, repository.DeployedOnOtherEnvironment:
-			// handled inside by taking snapshot
-			history, err := impl.deploymentTemplateHistoryService.GetHistoryForDeployedTemplateById(request.DeploymentTemplateHistoryId, request.PipelineId)
-			if err != nil {
-				impl.Logger.Errorw("error in getting deployment template history", "err", err, "id", request.DeploymentTemplateHistoryId, "pipelineId", request.PipelineId)
-				return result, err
-			}
-			if request.ValuesAndManifestFlag == Values {
-				values = history.CodeEditorValue.Value
-			} else {
-				values = history.ResolvedTemplate
-			}
+			values, err = impl.fetchTemplateForDeployedEnv(request)
+		}
+		if err != nil {
+			impl.Logger.Errorw("error in getting values", "err", err)
+			return result, err
 		}
 	}
-	if err != nil {
-		impl.Logger.Errorw("error in getting values", "err", err)
-		return result, err
-	}
 
-	if request.ValuesAndManifestFlag == Values {
+	if request.RequestDataMode == Values {
 		result.Data = values
 		return result, nil
 	}
-	manifest, err := impl.GetManifest(ctx, request.ChartRefId, values)
+
+	manifest, err := impl.GenerateManifest(ctx, request.ChartRefId, values)
 	if err != nil {
 		return result, err
 	}
@@ -241,7 +212,43 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 	return result, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) resolveValuesAtRuntime(values string, request DeploymentTemplateRequest) (string, error) {
+func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(request DeploymentTemplateRequest) (string, error) {
+	var values string
+	override, err := impl.propertiesConfigService.GetEnvironmentProperties(request.AppId, request.EnvId, request.ChartRefId)
+	if err == nil && override.GlobalConfig != nil {
+		if override.EnvironmentConfig.EnvOverrideValues != nil {
+			values = string(override.EnvironmentConfig.EnvOverrideValues)
+		} else {
+			values = string(override.GlobalConfig)
+		}
+	} else {
+		impl.Logger.Errorw("error in getting overridden values", "err", err)
+		return "", err
+	}
+	if request.RequestDataMode == Manifest {
+		resolvedTemplate, err := impl.resolveTemplateVariables(values, request)
+		if err != nil {
+			return values, err
+		}
+		values = resolvedTemplate
+	}
+	return values, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(request DeploymentTemplateRequest) (string, error) {
+	history, err := impl.deploymentTemplateHistoryService.GetHistoryForDeployedTemplateById(request.DeploymentTemplateHistoryId, request.PipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting deployment template history", "err", err, "id", request.DeploymentTemplateHistoryId, "pipelineId", request.PipelineId)
+		return "", err
+	}
+
+	if request.RequestDataMode == Values {
+		return history.CodeEditorValue.Value, nil
+	}
+	return history.ResolvedTemplate, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(values string, request DeploymentTemplateRequest) (string, error) {
 	scope := resourceQualifiers.Scope{
 		AppId: request.AppId,
 	}
@@ -261,7 +268,7 @@ func (impl DeploymentTemplateServiceImpl) resolveValuesAtRuntime(values string, 
 	return resolvedTemplate, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) GetManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
+func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
 	refChart, template, err, version, _ := impl.chartService.GetRefChart(chart.TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
