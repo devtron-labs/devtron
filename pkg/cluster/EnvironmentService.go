@@ -70,7 +70,7 @@ type ClusterEnvDto struct {
 	IsVirtualCluster bool      `json:"isVirtualCluster"`
 }
 
-type AppGroupingResponse struct {
+type ResourceGroupingResponse struct {
 	EnvList  []EnvironmentBean `json:"envList"`
 	EnvCount int               `json:"envCount"`
 }
@@ -419,6 +419,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				Description:            model.Description,
 				IsVirtualEnvironment:   model.IsVirtualEnvironment,
 				AllowedDeploymentTypes: allowedDeploymentConfigString,
+				ClusterId:              model.ClusterId,
 			})
 		}
 	} else {
@@ -432,6 +433,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				ClusterName:           model.Cluster.ClusterName,
 				Description:           model.Description,
 				IsVirtualEnvironment:  model.IsVirtualEnvironment,
+				ClusterId:             model.ClusterId,
 			})
 		}
 	}
