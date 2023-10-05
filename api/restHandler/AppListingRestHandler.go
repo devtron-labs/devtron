@@ -1590,9 +1590,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		if detail != nil {
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
-			releaseStatus := util2.InterfaceToMapAdapter(detail.ReleaseStatus)
 			applicationStatus := detail.ApplicationStatus
-			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
 			if applicationStatus == application.Healthy {
 				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
