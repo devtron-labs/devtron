@@ -11,7 +11,7 @@ type CustomTag struct {
 	EntityKey            int      `sql:"entity_key"`
 	EntityValue          string   `sql:"entity_value"`
 	TagPattern           string   `sql:"tag_pattern"`
-	AutoIncreasingNumber int      `sql:"auto_increasing_number"`
+	AutoIncreasingNumber int      `sql:"auto_increasing_number, notnull"`
 	Active               bool     `sql:"active"`
 	Metadata             string   `sql:"metadata"`
 }
