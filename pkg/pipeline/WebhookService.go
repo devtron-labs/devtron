@@ -418,7 +418,7 @@ func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []typ
 		workflow := &pipelineConfig.CiWorkflow{
 			Name:               ciWorkflow.Name + fmt.Sprintf("-child-%d", i),
 			Status:             ciWorkflow.Status,
-			PodStatus:          ciWorkflow.PodStatus,
+			PodStatus:          string(v1alpha1.NodeSucceeded),
 			StartedOn:          time.Now(),
 			Namespace:          ciWorkflow.Namespace,
 			LogLocation:        ciWorkflow.LogLocation,
