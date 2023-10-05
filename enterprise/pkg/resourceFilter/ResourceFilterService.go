@@ -352,6 +352,24 @@ func (impl *ResourceFilterServiceImpl) GetFiltersByAppIdEnvId(scope resourceQual
 	return impl.getFiltersByScope(scope)
 }
 
+func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error) {
+	// fetch filters for given scope, use FilterEvaluator.Evaluate to check for access
+	filters, err := impl.getFiltersByScope(scope)
+	if err != nil {
+		return ERROR, err
+	}
+	for _, filter := range filters {
+		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, metadata)
+		if err != nil {
+			return ERROR, nil
+		}
+		if !allowed {
+			return BLOCK, nil
+		}
+	}
+	return ALLOW, nil
+}
+
 func (impl *ResourceFilterServiceImpl) getFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error) {
 	// fetch all the qualifier mappings, club them by filterIds, check for each filter whether it is eligible or not, then fetch filter details
 	var filters []*FilterMetaDataBean
@@ -371,6 +389,7 @@ func (impl *ResourceFilterServiceImpl) getFiltersByScope(scope resourceQualifier
 	return filters, err
 }
 
+// private methods
 func (impl *ResourceFilterServiceImpl) validateOwnershipAndGetIdMaps(qualifierSelector QualifierSelector) (map[string]int, map[string]int, map[string]int, map[string]int, error) {
 	teams := make([]string, 0)
 	apps := make([]string, 0)
@@ -475,24 +494,6 @@ func (impl *ResourceFilterServiceImpl) validateOwnershipAndGetIdMaps(qualifierSe
 	}
 
 	return teamsMap, appsMap, clustersMap, envsMap, nil
-}
-
-func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error) {
-	// fetch filters for given scope, use FilterEvaluator.Evaluate to check for access
-	filters, err := impl.getFiltersByScope(scope)
-	if err != nil {
-		return ERROR, err
-	}
-	for _, filter := range filters {
-		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, metadata)
-		if err != nil {
-			return ERROR, nil
-		}
-		if !allowed {
-			return BLOCK, nil
-		}
-	}
-	return ALLOW, nil
 }
 
 func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId int32, resourceFilterId int, qualifierSelector QualifierSelector) error {
