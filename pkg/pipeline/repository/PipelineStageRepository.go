@@ -157,6 +157,7 @@ type PipelineStageRepository interface {
 	GetStepById(stepId int) (*PipelineStageStep, error)
 	MarkStepsDeletedByStageId(stageId int) error
 	MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq []int, stageId int) error
+	GetActiveStepsByRefPluginId(refPluginId int) ([]*PipelineStageStep, error)
 
 	CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error)
 	UpdatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
@@ -415,6 +416,18 @@ func (impl *PipelineStageRepositoryImpl) MarkStepsDeletedExcludingActiveStepsInU
 		return err
 	}
 	return nil
+}
+
+func (impl *PipelineStageRepositoryImpl) GetActiveStepsByRefPluginId(refPluginId int) ([]*PipelineStageStep, error) {
+	var steps []*PipelineStageStep
+	err := impl.dbConnection.Model(&steps).
+		Where("ref_plugin_id = ?", refPluginId).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all steps by refPluginId", "err", err, "refPluginId", refPluginId)
+		return nil, err
+	}
+	return steps, nil
 }
 
 func (impl *PipelineStageRepositoryImpl) CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error) {

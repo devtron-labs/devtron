@@ -62,7 +62,7 @@ func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.logger.Infow("request payload received for patching plugins")
+	handler.logger.Infow("request payload received for patching plugins", pluginDataDto, "userId", userId)
 	// RBAC enforcer applying
 	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if !isSuperAdmin || err != nil {
@@ -75,7 +75,7 @@ func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r
 	//RBAC enforcer Ends
 	pluginData, err := handler.globalPluginService.PatchPlugin(&pluginDataDto, userId)
 	if err != nil {
-		handler.logger.Errorw("error in patching plugin data", "action", pluginData.Action, "err", err)
+		handler.logger.Errorw("error in patching plugin data", "action", pluginDataDto.Action, "pluginMetadataPayloadDto", pluginDataDto, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -91,6 +91,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetDetailedPluginInfoByPluginId(w ht
 	vars := mux.Vars(r)
 	pluginId, err := strconv.Atoi(vars["pluginId"])
 	if err != nil {
+		handler.logger.Errorw("error in converting from string to integer", "userId", userId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -106,7 +107,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetDetailedPluginInfoByPluginId(w ht
 	//RBAC enforcer Ends
 	pluginMetaData, err := handler.globalPluginService.GetDetailedPluginInfoByPluginId(pluginId)
 	if err != nil {
-		handler.logger.Errorw("error in getting plugin metadata", "err", err)
+		handler.logger.Errorw("error in getting plugin metadata", "pluginId", pluginId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

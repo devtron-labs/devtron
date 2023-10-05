@@ -4,6 +4,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 )
 
+const (
+	CREATEPLUGIN      = 0
+	UPDATEPLUGIN      = 1
+	DELETEPLUGIN      = 2
+	CI_TYPE_PLUGIN    = "CI"
+	CD_TYPE_PLUGIN    = "CD"
+	CI_CD_TYPE_PLUGIN = "CI_CD"
+)
+
 type PluginDetailDto struct {
 	Metadata        *PluginMetadataDto   `json:"metadata"`
 	InputVariables  []*PluginVariableDto `json:"inputVariables"`
@@ -29,16 +38,16 @@ type PluginMetadataDto struct {
 }
 
 type PluginStepsDto struct {
-	Id                   int                              `json:"id,pk"`
-	Name                 string                           `json:"name"`
-	Description          string                           `json:"description"`
-	Index                int                              `json:"index"`
-	StepType             repository.PluginStepType        `json:"stepType"`
-	RefPluginId          int                              `json:"refPluginId"` //id of plugin used as reference
-	OutputDirectoryPath  []string                         `json:"outputDirectoryPath"`
-	DependentOnStep      string                           `json:"dependentOnStep"`
-	PluginStepVariable   []*PluginVariableDto             `json:"pluginStepVariable,omitempty"`
-	PluginPipelineScript *repository.PluginPipelineScript `json:"pluginPipelineScript,omitempty"`
+	Id                   int                       `json:"id,pk"`
+	Name                 string                    `json:"name"`
+	Description          string                    `json:"description"`
+	Index                int                       `json:"index"`
+	StepType             repository.PluginStepType `json:"stepType"`
+	RefPluginId          int                       `json:"refPluginId"` //id of plugin used as reference
+	OutputDirectoryPath  []string                  `json:"outputDirectoryPath"`
+	DependentOnStep      string                    `json:"dependentOnStep"`
+	PluginStepVariable   []*PluginVariableDto      `json:"pluginStepVariable,omitempty"`
+	PluginPipelineScript *PluginPipelineScript     `json:"pluginPipelineScript,omitempty"`
 }
 
 type PluginVariableDto struct {
@@ -50,11 +59,37 @@ type PluginVariableDto struct {
 	AllowEmptyValue           bool                                    `json:"allowEmptyValue"`
 	DefaultValue              string                                  `json:"defaultValue"`
 	Value                     string                                  `json:"value,omitempty"`
-	VariableType              string                                  `json:"variableType"`
+	VariableType              repository.PluginStepVariableType       `json:"variableType"`
 	ValueType                 repository.PluginStepVariableValueType  `json:"valueType,omitempty"`
 	PreviousStepIndex         int                                     `json:"previousStepIndex,omitempty"`
 	VariableStepIndex         int                                     `json:"variableStepIndex"`
 	VariableStepIndexInPlugin int                                     `json:"variableStepIndexInPlugin"`
 	ReferenceVariableName     string                                  `json:"referenceVariableName,omitempty"`
-	PluginStepCondition       []*repository.PluginStepCondition       `json:"pluginStepCondition,omitempty"`
+	PluginStepCondition       []*PluginStepCondition                  `json:"pluginStepCondition,omitempty"`
+}
+
+type PluginPipelineScript struct {
+	Id                       int                                  `json:"id"`
+	Script                   string                               `json:"script"`
+	StoreScriptAt            string                               `json:"storeScriptAt"`
+	Type                     repository.ScriptType                `json:"type"`
+	DockerfileExists         bool                                 `json:"dockerfileExists"`
+	MountPath                string                               `json:"mountPath"`
+	MountCodeToContainer     bool                                 `json:"mountCodeToContainer"`
+	MountCodeToContainerPath string                               `json:"mountCodeToContainerPath"`
+	MountDirectoryFromHost   bool                                 `json:"mountDirectoryFromHost"`
+	ContainerImagePath       string                               `json:"containerImagePath"`
+	ImagePullSecretType      repository.ScriptImagePullSecretType `json:"imagePullSecretType"`
+	ImagePullSecret          string                               `json:"imagePullSecret"`
+	Deleted                  bool                                 `json:"deleted"`
+}
+
+type PluginStepCondition struct {
+	Id                  int                                `json:"id"`
+	PluginStepId        int                                `json:"pluginStepId"`
+	ConditionVariableId int                                `json:"conditionVariableId"` //id of variable on which condition is written
+	ConditionType       repository.PluginStepConditionType `json:"conditionType"`
+	ConditionalOperator string                             `json:"conditionalOperator"`
+	ConditionalValue    string                             `json:"conditionalValue"`
+	Deleted             bool                               `json:"deleted"`
 }

@@ -2,7 +2,9 @@ package plugin
 
 import (
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -28,16 +30,19 @@ type GlobalPluginService interface {
 	GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error)
 }
 
-func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository) *GlobalPluginServiceImpl {
+func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository,
+	pipelineStageRepository repository2.PipelineStageRepository) *GlobalPluginServiceImpl {
 	return &GlobalPluginServiceImpl{
-		logger:                 logger,
-		globalPluginRepository: globalPluginRepository,
+		logger:                  logger,
+		globalPluginRepository:  globalPluginRepository,
+		pipelineStageRepository: pipelineStageRepository,
 	}
 }
 
 type GlobalPluginServiceImpl struct {
-	logger                 *zap.SugaredLogger
-	globalPluginRepository repository.GlobalPluginRepository
+	logger                  *zap.SugaredLogger
+	globalPluginRepository  repository.GlobalPluginRepository
+	pipelineStageRepository repository2.PipelineStageRepository
 }
 
 func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable, error) {
@@ -305,7 +310,7 @@ func getVariableDto(pluginVariable *repository.PluginStepVariable) *PluginVariab
 func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
 
 	switch pluginDto.Action {
-	case 0:
+	case CREATEPLUGIN:
 		//create action
 		pluginData, err := impl.createPlugin(pluginDto, userId)
 		if err != nil {
@@ -313,20 +318,23 @@ func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, u
 			return nil, err
 		}
 		return pluginData, nil
-	case 1:
+	case UPDATEPLUGIN:
 		pluginData, err := impl.updatePlugin(pluginDto, userId)
 		if err != nil {
 			impl.logger.Errorw("error in updating plugin", "err", err, "pluginDto", pluginDto)
 			return nil, err
 		}
 		return pluginData, nil
-	case 2:
+	case DELETEPLUGIN:
 		pluginData, err := impl.deletePlugin(pluginDto, userId)
 		if err != nil {
 			impl.logger.Errorw("error in deleting plugin", "err", err, "pluginDto", pluginDto)
 			return nil, err
 		}
 		return pluginData, nil
+	default:
+		impl.logger.Errorw("unsupported operation ", "op", pluginDto.Action)
+		return nil, fmt.Errorf("unsupported operation %d", pluginDto.Action)
 	}
 
 	return nil, nil
@@ -360,11 +368,11 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 		return nil, err
 	}
 	pluginReq.Id = pluginMetadata.Id
-	pluginStage := 2
-	if pluginReq.PluginStage == "CI" {
-		pluginStage = 0
-	} else if pluginReq.PluginStage == "CD" {
-		pluginStage = 1
+	pluginStage := repository.CI_CD
+	if pluginReq.PluginStage == CI_TYPE_PLUGIN {
+		pluginStage = repository.CI
+	} else if pluginReq.PluginStage == CD_TYPE_PLUGIN {
+		pluginStage = repository.CD
 	}
 	pluginStageMapping := &repository.PluginStageMapping{
 		PluginId:  pluginMetadata.Id,
@@ -443,40 +451,12 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 
 func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int, pluginStepsReq []*PluginStepsDto, userId int32, tx *pg.Tx) error {
 	for _, pluginStep := range pluginStepsReq {
-		//get the script saved for this plugin step
-		pluginPipelineScript := &repository.PluginPipelineScript{
-			Script:                   pluginStep.PluginPipelineScript.Script,
-			StoreScriptAt:            pluginStep.PluginPipelineScript.StoreScriptAt,
-			Type:                     pluginStep.PluginPipelineScript.Type,
-			DockerfileExists:         pluginStep.PluginPipelineScript.DockerfileExists,
-			MountPath:                pluginStep.PluginPipelineScript.MountPath,
-			MountCodeToContainer:     pluginStep.PluginPipelineScript.MountCodeToContainer,
-			MountCodeToContainerPath: pluginStep.PluginPipelineScript.MountCodeToContainerPath,
-			MountDirectoryFromHost:   pluginStep.PluginPipelineScript.MountDirectoryFromHost,
-			ContainerImagePath:       pluginStep.PluginPipelineScript.ContainerImagePath,
-			ImagePullSecretType:      pluginStep.PluginPipelineScript.ImagePullSecretType,
-			ImagePullSecret:          pluginStep.PluginPipelineScript.ImagePullSecret,
-			AuditLog: sql.AuditLog{
-				CreatedOn: time.Now(),
-				CreatedBy: userId,
-				UpdatedOn: time.Now(),
-				UpdatedBy: userId,
-			},
-		}
-		pluginPipelineScript, err := impl.globalPluginRepository.SavePluginPipelineScript(pluginPipelineScript, tx)
-		if err != nil {
-			impl.logger.Errorw("error in saving plugin pipeline script", "pluginPipelineScript", pluginPipelineScript, "err", err)
-			return err
-		}
-		pluginStep.PluginPipelineScript.Id = pluginPipelineScript.Id
-
 		pluginStepData := &repository.PluginStep{
 			PluginId:            pluginMetadataId,
 			Name:                pluginStep.Name,
 			Description:         pluginStep.Description,
 			Index:               pluginStep.Index,
 			StepType:            pluginStep.StepType,
-			ScriptId:            pluginPipelineScript.Id,
 			RefPluginId:         pluginStep.RefPluginId,
 			OutputDirectoryPath: pluginStep.OutputDirectoryPath,
 			DependentOnStep:     pluginStep.DependentOnStep,
@@ -487,7 +467,37 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 				UpdatedBy: userId,
 			},
 		}
-		pluginStepData, err = impl.globalPluginRepository.SavePluginSteps(pluginStepData, tx)
+		//get the script saved for this plugin step
+		if pluginStep.PluginPipelineScript != nil {
+			pluginPipelineScript := &repository.PluginPipelineScript{
+				Script:                   pluginStep.PluginPipelineScript.Script,
+				StoreScriptAt:            pluginStep.PluginPipelineScript.StoreScriptAt,
+				Type:                     pluginStep.PluginPipelineScript.Type,
+				DockerfileExists:         pluginStep.PluginPipelineScript.DockerfileExists,
+				MountPath:                pluginStep.PluginPipelineScript.MountPath,
+				MountCodeToContainer:     pluginStep.PluginPipelineScript.MountCodeToContainer,
+				MountCodeToContainerPath: pluginStep.PluginPipelineScript.MountCodeToContainerPath,
+				MountDirectoryFromHost:   pluginStep.PluginPipelineScript.MountDirectoryFromHost,
+				ContainerImagePath:       pluginStep.PluginPipelineScript.ContainerImagePath,
+				ImagePullSecretType:      pluginStep.PluginPipelineScript.ImagePullSecretType,
+				ImagePullSecret:          pluginStep.PluginPipelineScript.ImagePullSecret,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
+			}
+			pluginPipelineScript, err := impl.globalPluginRepository.SavePluginPipelineScript(pluginPipelineScript, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving plugin pipeline script", "pluginPipelineScript", pluginPipelineScript, "err", err)
+				return err
+			}
+			pluginStep.PluginPipelineScript.Id = pluginPipelineScript.Id
+			pluginStepData.ScriptId = pluginPipelineScript.Id
+		}
+
+		pluginStepData, err := impl.globalPluginRepository.SavePluginSteps(pluginStepData, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin step", "pluginStepData", pluginStepData, "err", err)
 			return err
@@ -504,7 +514,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 				AllowEmptyValue:           pluginStepVariable.AllowEmptyValue,
 				DefaultValue:              pluginStepVariable.DefaultValue,
 				Value:                     pluginStepVariable.Value,
-				VariableType:              repository.PluginStepVariableType(pluginStepVariable.VariableType),
+				VariableType:              pluginStepVariable.VariableType,
 				ValueType:                 pluginStepVariable.ValueType,
 				PreviousStepIndex:         pluginStepVariable.PreviousStepIndex,
 				VariableStepIndex:         pluginStepVariable.VariableStepIndex,
@@ -581,11 +591,11 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 		impl.logger.Errorw("updatePlugin, error in getting pluginStageMapping", "pluginId", pluginUpdateReq.Id, "err", err)
 		return nil, err
 	}
-	pluginStage := 2
-	if pluginUpdateReq.PluginStage == "CI" {
-		pluginStage = 0
-	} else if pluginUpdateReq.PluginStage == "CD" {
-		pluginStage = 1
+	pluginStage := repository.CI_CD
+	if pluginUpdateReq.PluginStage == CI_TYPE_PLUGIN {
+		pluginStage = repository.CI
+	} else if pluginUpdateReq.PluginStage == CD_TYPE_PLUGIN {
+		pluginStage = repository.CD
 	}
 	pluginStageMapping.StageType = pluginStage
 	pluginStageMapping.UpdatedBy = userId
@@ -598,21 +608,29 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 	}
 
 	pluginSteps, err := impl.globalPluginRepository.GetPluginStepsByPluginId(pluginUpdateReq.Id)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("updatePlugin, error in getting pluginSteps", "pluginId", pluginUpdateReq.Id, "err", err)
 		return nil, err
 	}
+	if err == pg.ErrNoRows {
+		impl.logger.Infow("updatePlugin,no plugin steps found for this plugin", "pluginId", pluginUpdateReq.Id, "err", err)
+	}
 	pluginStepVariables, err := impl.globalPluginRepository.GetExposedVariablesByPluginId(pluginUpdateReq.Id)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("updatePlugin, error in getting pluginStepVariables", "pluginId", pluginUpdateReq.Id, "err", err)
 		return nil, err
 	}
+	if err == pg.ErrNoRows {
+		impl.logger.Infow("updatePlugin,no plugin step variables found for this plugin step", "pluginId", pluginUpdateReq.Id, "err", err)
+	}
 	pluginStepConditions, err := impl.globalPluginRepository.GetConditionsByPluginId(pluginUpdateReq.Id)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("updatePlugin, error in getting pluginStepConditions", "pluginId", pluginUpdateReq.Id, "err", err)
 		return nil, err
 	}
-
+	if err == pg.ErrNoRows {
+		impl.logger.Infow("updatePlugin,no plugin step variable conditions found for this plugin", "pluginId", pluginUpdateReq.Id, "err", err)
+	}
 	newPluginStepsToCreate, pluginStepsToRemove, pluginStepsToUpdate := filterPluginStepData(pluginSteps, pluginUpdateReq.PluginSteps)
 
 	if len(newPluginStepsToCreate) > 0 {
@@ -790,7 +808,7 @@ func (impl *GlobalPluginServiceImpl) updateDeepPluginStepVariableData(pluginStep
 			dbStepVariable.AllowEmptyValue = stepVariableIdsToStepVariableMapping[dbStepVariable.Id].AllowEmptyValue
 			dbStepVariable.DefaultValue = stepVariableIdsToStepVariableMapping[dbStepVariable.Id].DefaultValue
 			dbStepVariable.Value = stepVariableIdsToStepVariableMapping[dbStepVariable.Id].Value
-			dbStepVariable.VariableType = repository.PluginStepVariableType(stepVariableIdsToStepVariableMapping[dbStepVariable.Id].VariableType)
+			dbStepVariable.VariableType = stepVariableIdsToStepVariableMapping[dbStepVariable.Id].VariableType
 			dbStepVariable.ValueType = stepVariableIdsToStepVariableMapping[dbStepVariable.Id].ValueType
 			dbStepVariable.PreviousStepIndex = stepVariableIdsToStepVariableMapping[dbStepVariable.Id].PreviousStepIndex
 			dbStepVariable.VariableStepIndex = stepVariableIdsToStepVariableMapping[dbStepVariable.Id].VariableStepIndex
@@ -910,7 +928,7 @@ func (impl *GlobalPluginServiceImpl) updateDeepStepVariableConditionsData(stepVa
 	return nil
 }
 
-func filterPluginStepVariableConditions(stepVariableId int, pluginStepConditionsInDb []*repository.PluginStepCondition, pluginStepConditionReq []*repository.PluginStepCondition, userId int32) ([]*repository.PluginStepCondition, []*repository.PluginStepCondition, []*repository.PluginStepCondition) {
+func filterPluginStepVariableConditions(stepVariableId int, pluginStepConditionsInDb []*repository.PluginStepCondition, pluginStepConditionReq []*PluginStepCondition, userId int32) ([]*repository.PluginStepCondition, []*repository.PluginStepCondition, []*repository.PluginStepCondition) {
 	newStepVariableConditionsToCreate := make([]*repository.PluginStepCondition, 0)
 	stepVariableConditionsToRemove := make([]*repository.PluginStepCondition, 0)
 	stepVariableConditionsToUpdate := make([]*repository.PluginStepCondition, 0)
@@ -929,17 +947,20 @@ func filterPluginStepVariableConditions(stepVariableId int, pluginStepConditions
 		}
 
 		for _, stepVariableConditionReq := range pluginStepConditionReq {
+			stepVariableCondition := getStepVariableConditionDbObject(stepVariableConditionReq)
+
 			if _, ok := stepVariableConditionMapping[stepVariableConditionReq.Id]; !ok {
-				newStepVariableConditionsToCreate = append(newStepVariableConditionsToCreate, stepVariableConditionReq)
+				newStepVariableConditionsToCreate = append(newStepVariableConditionsToCreate, stepVariableCondition)
 			} else {
-				stepVariableConditionsToUpdate = append(stepVariableConditionsToUpdate, stepVariableConditionReq)
+				stepVariableConditionsToUpdate = append(stepVariableConditionsToUpdate, stepVariableCondition)
 			}
 		}
 	} else if len(pluginStepConditionReq) < len(stepIdToDbStepVariableConditionsMapping[stepVariableId]) {
 		//it means there are deleted variable conditions in update request for a particular variable, filter out plugin variable conditions to delete
 		stepVariableConditionMapping := make(map[int]*repository.PluginStepCondition)
 		for _, variableConditionReq := range pluginStepConditionReq {
-			stepVariableConditionMapping[variableConditionReq.Id] = variableConditionReq
+			stepVariableCondition := getStepVariableConditionDbObject(variableConditionReq)
+			stepVariableConditionMapping[variableConditionReq.Id] = stepVariableCondition
 		}
 
 		for _, existingStepVariableCondition := range pluginStepConditionsInDb {
@@ -950,12 +971,28 @@ func filterPluginStepVariableConditions(stepVariableId int, pluginStepConditions
 			}
 		}
 	} else {
-		return nil, nil, pluginStepConditionReq
+		pluginStepConditionDbObject := make([]*repository.PluginStepCondition, 0)
+		for _, variableCondition := range pluginStepConditionReq {
+			stepVariableCondition := getStepVariableConditionDbObject(variableCondition)
+			pluginStepConditionDbObject = append(pluginStepConditionDbObject, stepVariableCondition)
+		}
+		return nil, nil, pluginStepConditionDbObject
 	}
 
 	return newStepVariableConditionsToCreate, stepVariableConditionsToRemove, stepVariableConditionsToUpdate
 }
-
+func getStepVariableConditionDbObject(stepVariableConditionReq *PluginStepCondition) *repository.PluginStepCondition {
+	stepVariableCondition := &repository.PluginStepCondition{
+		Id:                  stepVariableConditionReq.Id,
+		PluginStepId:        stepVariableConditionReq.PluginStepId,
+		ConditionVariableId: stepVariableConditionReq.ConditionVariableId,
+		ConditionType:       stepVariableConditionReq.ConditionType,
+		ConditionalOperator: stepVariableConditionReq.ConditionalOperator,
+		ConditionalValue:    stepVariableConditionReq.ConditionalValue,
+		Deleted:             stepVariableConditionReq.Deleted,
+	}
+	return stepVariableCondition
+}
 func filterPluginStepVariable(pluginStepId int, existingPluginStepVariables []*repository.PluginStepVariable,
 	pluginStepVariableUpdateReq []*PluginVariableDto, userId int32) ([]*PluginVariableDto, []*PluginVariableDto, []*PluginVariableDto) {
 
@@ -1199,7 +1236,7 @@ func (impl *GlobalPluginServiceImpl) GetAllDetailedPluginInfo() ([]*PluginMetada
 		impl.logger.Errorw("GetAllDetailedPluginInfo, error in getting all pluginsMetadata", "err", err)
 		return nil, err
 	}
-	allPluginMetadata := make([]*PluginMetadataDto, 0)
+	allPluginMetadata := make([]*PluginMetadataDto, 0, len(allPlugins))
 	for _, plugin := range allPlugins {
 		pluginDetailedInfo, err := impl.GetDetailedPluginInfoByPluginId(plugin.Id)
 		if err != nil {
@@ -1241,11 +1278,11 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginStepConditions", "pluginId", pluginId, "err", err)
 		return nil, err
 	}
-	pluginStage := "CI_CD"
-	if pluginStageMapping.StageType == 0 {
-		pluginStage = "CI"
-	} else if pluginStageMapping.StageType == 1 {
-		pluginStage = "CD"
+	pluginStage := CI_CD_TYPE_PLUGIN
+	if pluginStageMapping.StageType == repository.CI {
+		pluginStage = CI_TYPE_PLUGIN
+	} else if pluginStageMapping.StageType == repository.CD {
+		pluginStage = CD_TYPE_PLUGIN
 	}
 	pluginIdTagsMap, err := impl.getPluginIdTagsMap()
 	if err != nil {
@@ -1269,6 +1306,21 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 			impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginScript", "pluginScriptId", pluginStep.ScriptId, "pluginId", pluginId, "err", err)
 			return nil, err
 		}
+		pluginScriptDto := &PluginPipelineScript{
+			Id:                       pluginScript.Id,
+			Script:                   pluginScript.Script,
+			StoreScriptAt:            pluginScript.StoreScriptAt,
+			Type:                     pluginScript.Type,
+			DockerfileExists:         pluginScript.DockerfileExists,
+			MountPath:                pluginScript.MountPath,
+			MountCodeToContainer:     pluginScript.MountCodeToContainer,
+			MountCodeToContainerPath: pluginScript.MountCodeToContainerPath,
+			MountDirectoryFromHost:   pluginScript.MountDirectoryFromHost,
+			ContainerImagePath:       pluginScript.ContainerImagePath,
+			ImagePullSecretType:      pluginScript.ImagePullSecretType,
+			ImagePullSecret:          pluginScript.ImagePullSecret,
+			Deleted:                  pluginScript.Deleted,
+		}
 		pluginStepDto := &PluginStepsDto{
 			Id:                   pluginStep.Id,
 			Name:                 pluginStep.Name,
@@ -1278,15 +1330,15 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 			RefPluginId:          pluginStep.RefPluginId,
 			OutputDirectoryPath:  pluginStep.OutputDirectoryPath,
 			DependentOnStep:      pluginStep.DependentOnStep,
-			PluginPipelineScript: pluginScript,
+			PluginPipelineScript: pluginScriptDto,
 		}
-		pluginStepVariableResp := make([]*PluginVariableDto, 0)
+		pluginStepVariableResp := make([]*PluginVariableDto, 0, len(pluginStepVariables))
 		for _, pluginStepVariable := range pluginStepVariables {
 			if pluginStepVariable.PluginStepId == pluginStep.Id {
-				pluginStepConditionDto := make([]*repository.PluginStepCondition, 0)
+				pluginStepConditionDto := make([]*PluginStepCondition, 0, len(pluginStepConditions))
 				for _, pluginStepCondition := range pluginStepConditions {
 					if pluginStepCondition.ConditionVariableId == pluginStepVariable.Id {
-						pluginStepConditionDto = append(pluginStepConditionDto, &repository.PluginStepCondition{
+						pluginStepConditionDto = append(pluginStepConditionDto, &PluginStepCondition{
 							Id:                  pluginStepCondition.Id,
 							PluginStepId:        pluginStepCondition.PluginStepId,
 							ConditionVariableId: pluginStepCondition.ConditionVariableId,
@@ -1306,7 +1358,7 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 					AllowEmptyValue:           pluginStepVariable.AllowEmptyValue,
 					DefaultValue:              pluginStepVariable.DefaultValue,
 					Value:                     pluginStepVariable.Value,
-					VariableType:              string(pluginStepVariable.VariableType),
+					VariableType:              pluginStepVariable.VariableType,
 					ValueType:                 pluginStepVariable.ValueType,
 					PreviousStepIndex:         pluginStepVariable.PreviousStepIndex,
 					VariableStepIndex:         pluginStepVariable.VariableStepIndex,
@@ -1332,6 +1384,15 @@ func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadat
 	}
 	// Rollback tx on error
 	defer tx.Rollback()
+	//check if this plugin is being used in some ci or cd pipeline, if yes then  return with error
+	pipelineStageStep, err := impl.pipelineStageRepository.GetActiveStepsByRefPluginId(pluginDeleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("deletePlugin, error in getting all pluginStageSteps where this plugin is being used", "pluginId", pluginDeleteReq.Id, "err", err)
+		return nil, err
+	}
+	if len(pipelineStageStep) > 0 {
+		return nil, errors.New("this plugin is being used in multiple pre or post ci or cd pipelines, please remove them before deleting this plugin")
+	}
 	pluginMetaData, err := impl.globalPluginRepository.GetMetaDataByPluginId(pluginDeleteReq.Id)
 	if err != nil {
 		impl.logger.Errorw("deletePlugin, error in getting pluginMetadata, pluginId does not exist", "pluginId", pluginDeleteReq.Id, "err", err)
