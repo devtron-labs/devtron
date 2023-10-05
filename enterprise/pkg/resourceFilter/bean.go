@@ -52,7 +52,7 @@ type EnvironmentSelector struct {
 
 type QualifierSelector struct {
 	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors" validate:"dive"`
-	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors" validate:"required,min=1,dive"`
+	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors" validate:"dive"`
 }
 
 func (o QualifierSelector) BuildQualifierMappings(resourceFilterId int, projectNameToIdMap, appNameToIdMap, clusterNameToIdMap, envNameToIdMap map[string]int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, userId int32) ([]*resourceQualifiers.QualifierMapping, error) {
