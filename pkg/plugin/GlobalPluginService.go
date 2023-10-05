@@ -311,7 +311,6 @@ func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, u
 
 	switch pluginDto.Action {
 	case CREATEPLUGIN:
-		//create action
 		pluginData, err := impl.createPlugin(pluginDto, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating plugin", "err", err, "pluginDto", pluginDto)
@@ -364,7 +363,7 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 	}
 	pluginMetadata, err = impl.globalPluginRepository.SavePluginMetadata(pluginMetadata, tx)
 	if err != nil {
-		impl.logger.Errorw("error in saving plugin", "pluginDto", pluginReq, "err", err)
+		impl.logger.Errorw("createPlugin, error in saving plugin", "pluginDto", pluginReq, "err", err)
 		return nil, err
 	}
 	pluginReq.Id = pluginMetadata.Id
@@ -386,7 +385,7 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 	}
 	_, err = impl.globalPluginRepository.SavePluginStageMapping(pluginStageMapping, tx)
 	if err != nil {
-		impl.logger.Errorw("error in saving plugin stage mapping", "pluginDto", pluginReq, "err", err)
+		impl.logger.Errorw("createPlugin, error in saving plugin stage mapping", "pluginDto", pluginReq, "err", err)
 		return nil, err
 	}
 
@@ -396,12 +395,30 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 		return nil, err
 	}
 
+	err = impl.CreateNewPluginTagsAndRelationsIfRequired(pluginReq, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("createPlugin, error in CreateNewPluginTagsAndRelationsIfRequired", "err", err)
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("createPlugin, error in committing db transaction", "err", err)
+		return nil, err
+	}
+	return pluginReq, nil
+}
+
+func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(pluginReq *PluginMetadataDto, userId int32, tx *pg.Tx) error {
 	allPluginTags, err := impl.globalPluginRepository.GetAllPluginTags()
 	if err != nil {
 		impl.logger.Errorw("error in getting all plugin tags", "err", err)
-		return nil, err
+		return err
 	}
 	//check for new tags, then create new plugin_tag and plugin_tag_relation entry in db when new tags are present in request
+	newPluginTagsToCreate := make([]*repository.PluginTag, 0)
+	newPluginTagRelationsToCreate := make([]*repository.PluginTagRelation, 0)
+
 	for _, pluginTagReq := range pluginReq.Tags {
 		tagAlreadyExists := false
 		for _, presentPluginTags := range allPluginTags {
@@ -419,11 +436,8 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 					UpdatedBy: userId,
 				},
 			}
-			newPluginTag, err = impl.globalPluginRepository.SavePluginTag(newPluginTag, tx)
-			if err != nil {
-				impl.logger.Errorw("error in saving plugin tag", "newPluginTag", newPluginTag, "err", err)
-				return nil, err
-			}
+			newPluginTagsToCreate = append(newPluginTagsToCreate, newPluginTag)
+
 			newPluginTagRelation := &repository.PluginTagRelation{
 				TagId:    newPluginTag.Id,
 				PluginId: pluginReq.Id,
@@ -434,19 +448,20 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 					UpdatedBy: userId,
 				},
 			}
-			newPluginTagRelation, err = impl.globalPluginRepository.SavePluginTagRelation(newPluginTagRelation, tx)
-			if err != nil {
-				impl.logger.Errorw("error in saving plugin tag relation", "newPluginTagRelation", newPluginTagRelation, "err", err)
-				return nil, err
-			}
+			newPluginTagRelationsToCreate = append(newPluginTagRelationsToCreate, newPluginTagRelation)
 		}
 	}
-	err = tx.Commit()
+	err = impl.globalPluginRepository.SavePluginTagInBulk(newPluginTagsToCreate, tx)
 	if err != nil {
-		impl.logger.Errorw("createPlugin, error in committing db transaction", "err", err)
-		return nil, err
+		impl.logger.Errorw("error in saving plugin tag in bulk", "newPluginTagsToCreate", newPluginTagsToCreate, "err", err)
+		return err
 	}
-	return pluginReq, nil
+	err = impl.globalPluginRepository.SavePluginTagRelationInBulk(newPluginTagRelationsToCreate, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving plugin tag relation in bulk", "newPluginTagRelationsToCreate", newPluginTagRelationsToCreate, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int, pluginStepsReq []*PluginStepsDto, userId int32, tx *pg.Tx) error {
@@ -657,49 +672,10 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 		}
 	}
 
-	allPluginTags, err := impl.globalPluginRepository.GetAllPluginTags()
+	err = impl.CreateNewPluginTagsAndRelationsIfRequired(pluginUpdateReq, userId, tx)
 	if err != nil {
-		impl.logger.Errorw("error in getting all plugin tags", "err", err)
+		impl.logger.Errorw("updatePlugin, error in CreateNewPluginTagsAndRelationsIfRequired", "err", err)
 		return nil, err
-	}
-	for _, pluginTagReq := range pluginUpdateReq.Tags {
-		tagAlreadyExists := false
-		for _, presentPluginTags := range allPluginTags {
-			if strings.ToLower(pluginTagReq) == strings.ToLower(presentPluginTags.Name) {
-				tagAlreadyExists = true
-			}
-		}
-		if !tagAlreadyExists {
-			newPluginTag := &repository.PluginTag{
-				Name: pluginTagReq,
-				AuditLog: sql.AuditLog{
-					CreatedOn: time.Now(),
-					CreatedBy: userId,
-					UpdatedOn: time.Now(),
-					UpdatedBy: userId,
-				},
-			}
-			newPluginTag, err = impl.globalPluginRepository.SavePluginTag(newPluginTag, tx)
-			if err != nil {
-				impl.logger.Errorw("error in saving plugin tag", "newPluginTag", newPluginTag, "err", err)
-				return nil, err
-			}
-			newPluginTagRelation := &repository.PluginTagRelation{
-				TagId:    newPluginTag.Id,
-				PluginId: pluginUpdateReq.Id,
-				AuditLog: sql.AuditLog{
-					CreatedOn: time.Now(),
-					CreatedBy: userId,
-					UpdatedOn: time.Now(),
-					UpdatedBy: userId,
-				},
-			}
-			newPluginTagRelation, err = impl.globalPluginRepository.SavePluginTagRelation(newPluginTagRelation, tx)
-			if err != nil {
-				impl.logger.Errorw("error in saving plugin tag relation", "newPluginTagRelation", newPluginTagRelation, "err", err)
-				return nil, err
-			}
-		}
 	}
 
 	err = tx.Commit()

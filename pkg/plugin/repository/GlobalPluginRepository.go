@@ -199,6 +199,8 @@ type GlobalPluginRepository interface {
 	SavePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) (*PluginStepCondition, error)
 	SavePluginTag(pluginTag *PluginTag, tx *pg.Tx) (*PluginTag, error)
 	SavePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) (*PluginTagRelation, error)
+	SavePluginTagInBulk(pluginTag []*PluginTag, tx *pg.Tx) error
+	SavePluginTagRelationInBulk(pluginTagRelation []*PluginTagRelation, tx *pg.Tx) error
 
 	UpdatePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) error
 	UpdatePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) error
@@ -533,6 +535,16 @@ func (impl *GlobalPluginRepositoryImpl) SavePluginTagRelation(pluginTagRelation 
 		return pluginTagRelation, err
 	}
 	return pluginTagRelation, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginTagInBulk(pluginTag []*PluginTag, tx *pg.Tx) error {
+	err := tx.Insert(&pluginTag)
+	return err
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginTagRelationInBulk(pluginTagRelation []*PluginTagRelation, tx *pg.Tx) error {
+	err := tx.Insert(&pluginTagRelation)
+	return err
 }
 
 func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) error {
