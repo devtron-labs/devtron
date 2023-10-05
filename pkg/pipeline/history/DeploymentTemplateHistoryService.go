@@ -327,18 +327,6 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 		return nil, err
 	}
 
-	resolvedTemplate := history.Template
-	if len(variableSnapshotMap) != 0 {
-		scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap)
-		request := parsers.VariableParserRequest{Template: history.Template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData, IgnoreUnknownVariables: true}
-		parserResponse := impl.variableTemplateParser.ParseTemplate(request)
-		err = parserResponse.Error
-		if err != nil {
-			return nil, err
-		}
-		resolvedTemplate = parserResponse.ResolvedTemplate
-	}
-
 	historyDto := &HistoryDetailDto{
 		TemplateName:        history.TemplateName,
 		TemplateVersion:     history.TemplateVersion,
@@ -348,7 +336,6 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 			Value:       history.Template,
 		},
 		VariableSnapshot: variableSnapshotMap,
-		ResolvedTemplate: resolvedTemplate,
 	}
 	return historyDto, nil
 }
@@ -404,6 +391,18 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 	if err != nil {
 		return nil, err
 	}
+	resolvedTemplate := history.Template
+	if len(variableSnapshotMap) != 0 {
+		scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap)
+		request := parsers.VariableParserRequest{Template: history.Template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData, IgnoreUnknownVariables: true}
+		parserResponse := impl.variableTemplateParser.ParseTemplate(request)
+		err = parserResponse.Error
+		if err != nil {
+			return nil, err
+		}
+		resolvedTemplate = parserResponse.ResolvedTemplate
+	}
+
 	historyDto := &HistoryDetailDto{
 		TemplateName:        history.TemplateName,
 		TemplateVersion:     history.TemplateVersion,
@@ -413,6 +412,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 			Value:       history.Template,
 		},
 		VariableSnapshot: variableSnapshotMap,
+		ResolvedTemplate: resolvedTemplate,
 	}
 	return historyDto, nil
 }
