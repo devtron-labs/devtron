@@ -170,6 +170,10 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 		return err
 	}
 	hist, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipeline.Id, wrfId, repository.CONFIGMAP_TYPE)
+	if err != nil {
+		impl.logger.Errorw("err in fetching config map data from db", "err", err)
+		return err
+	}
 	historyModel := &repository.ConfigmapAndSecretHistory{
 		AppId:      pipeline.AppId,
 		PipelineId: pipeline.Id,
