@@ -226,7 +226,7 @@ func (impl *CiHandlerImpl) reTriggerCi(status, message string, retryCount int, c
 	if !(status == string(v1alpha1.NodeError) && message == POD_DELETED_MESSAGE) || (retryCount >= impl.config.MaxCiWorkflowRetries) {
 		return errors.New("ci-workflow retrigger condition not met, not re-triggering")
 	}
-	impl.Logger.Debugw("HandleReTriggerCI for ciWorkflow ", "ReferenceCiWorkflowId", ciWorkFlow.Id)
+	impl.Logger.Infow("HandleReTriggerCI for ciWorkflow ", "ReferenceCiWorkflowId", ciWorkFlow.Id)
 	ciPipelineMaterialIds := make([]int, 0, len(ciWorkFlow.GitTriggers))
 	for id, _ := range ciWorkFlow.GitTriggers {
 		ciPipelineMaterialIds = append(ciPipelineMaterialIds, id)
@@ -1619,6 +1619,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						impl.Logger.Errorw("error in getRefWorkflowAndCiRetryCount", "ciWorkflowId", ciWorkflow.Id, "err", err)
 						continue
 					}
+					impl.Logger.Infow("re-triggering ci by UpdateCiWorkflowStatusFailedCron", "refCiWorkflowId", refCiWorkflow.Id, "ciWorkflow.Status", ciWorkflow.Status, "ciWorkflow.Message", ciWorkflow.Message, "retryCount", retryCount)
 					err = impl.reTriggerCi(ciWorkflow.Status, ciWorkflow.Message, retryCount, refCiWorkflow)
 					if err != nil {
 						impl.Logger.Errorw("error in reTriggerCi", "ciWorkflowId", refCiWorkflow.Id, "workflowStatus", ciWorkflow.Status, "ciWorkflowMessage", "ciWorkflow.Message", "retryCount", retryCount, "err", err)
