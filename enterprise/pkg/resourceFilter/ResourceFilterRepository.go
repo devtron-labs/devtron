@@ -6,11 +6,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// FilterTargetObject represents the targeted areas where filters are evaluated
 type FilterTargetObject int
 
 const (
-	Artifact FilterTargetObject = 0
-	Commits  FilterTargetObject = 1
+	DeploymentPipeline FilterTargetObject = 0
+	BuildPipeline      FilterTargetObject = 1
 )
 
 type ResourceConditionType int
