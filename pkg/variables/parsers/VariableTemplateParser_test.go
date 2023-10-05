@@ -35,14 +35,14 @@ func TestVariableTemplateParserImpl_ParseTemplate(t *testing.T) {
 	assert.Nil(t, err)
 	templateParser := NewVariableTemplateParserImpl(logger)
 	t.Run("parse template", func(t *testing.T) {
-		scopedVariables := []*models.ScopedVariableData{{VariableName: "container-port-number-new", VariableValue: models.VariableValue{Value: "1800"}}}
+		scopedVariables := []*models.ScopedVariableData{{VariableName: "container-port-number-new", VariableValue: &models.VariableValue{Value: "1800"}}}
 		parserResponse := templateParser.ParseTemplate(VariableParserRequest{TemplateType: JsonVariableTemplate, Template: JsonWithIntParam, Variables: scopedVariables})
 		parsedTemplate := parserResponse.ResolvedTemplate
 		assert.Equal(t, JsonWithIntParamResolvedTemplate, parsedTemplate)
 	})
 
 	t.Run("parse stringify template", func(t *testing.T) {
-		scopedVariables := []*models.ScopedVariableData{{VariableName: "Variable1", VariableValue: models.VariableValue{Value: "123"}}}
+		scopedVariables := []*models.ScopedVariableData{{VariableName: "Variable1", VariableValue: &models.VariableValue{Value: "123"}}}
 		parserResponse := templateParser.ParseTemplate(VariableParserRequest{TemplateType: StringVariableTemplate, Template: StringTemplate, Variables: scopedVariables})
 		err = parserResponse.Error
 		assert.Nil(t, err)
@@ -50,7 +50,7 @@ func TestVariableTemplateParserImpl_ParseTemplate(t *testing.T) {
 	})
 
 	t.Run("parse stringify template with int value", func(t *testing.T) {
-		scopedVariables := []*models.ScopedVariableData{{VariableName: "container-port-number-new", VariableValue: models.VariableValue{Value: "1800"}}}
+		scopedVariables := []*models.ScopedVariableData{{VariableName: "container-port-number-new", VariableValue: &models.VariableValue{Value: "1800"}}}
 		parserResponse := templateParser.ParseTemplate(VariableParserRequest{TemplateType: StringVariableTemplate, Template: StringTemplateWithIntParam, Variables: scopedVariables})
 		err = parserResponse.Error
 		assert.Nil(t, err)
