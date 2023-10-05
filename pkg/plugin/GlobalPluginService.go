@@ -416,6 +416,7 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 		return err
 	}
 	//check for new tags, then create new plugin_tag and plugin_tag_relation entry in db when new tags are present in request
+	newPluginTagsToCreate := make([]*repository.PluginTag, 0)
 	newPluginTagRelationsToCreate := make([]*repository.PluginTagRelation, 0)
 
 	for _, pluginTagReq := range pluginReq.Tags {
@@ -435,24 +436,30 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 					UpdatedBy: userId,
 				},
 			}
-			newPluginTag, err = impl.globalPluginRepository.SavePluginTag(newPluginTag, tx)
-			if err != nil {
-				impl.logger.Errorw("error in saving plugin tag", "newPluginTag", newPluginTag, "err", err)
-				return err
-			}
-			newPluginTagRelation := &repository.PluginTagRelation{
-				TagId:    newPluginTag.Id,
-				PluginId: pluginReq.Id,
-				AuditLog: sql.AuditLog{
-					CreatedOn: time.Now(),
-					CreatedBy: userId,
-					UpdatedOn: time.Now(),
-					UpdatedBy: userId,
-				},
-			}
-			newPluginTagRelationsToCreate = append(newPluginTagRelationsToCreate, newPluginTagRelation)
+			newPluginTagsToCreate = append(newPluginTagsToCreate, newPluginTag)
 		}
 	}
+	if len(newPluginTagsToCreate) > 0 {
+		err = impl.globalPluginRepository.SavePluginTagInBulk(newPluginTagsToCreate, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving plugin tag", "newPluginTags", newPluginTagsToCreate, "err", err)
+			return err
+		}
+	}
+	for _, newPluginTag := range newPluginTagsToCreate {
+		newPluginTagRelation := &repository.PluginTagRelation{
+			TagId:    newPluginTag.Id,
+			PluginId: pluginReq.Id,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		newPluginTagRelationsToCreate = append(newPluginTagRelationsToCreate, newPluginTagRelation)
+	}
+
 	if len(newPluginTagRelationsToCreate) > 0 {
 		err = impl.globalPluginRepository.SavePluginTagRelationInBulk(newPluginTagRelationsToCreate, tx)
 		if err != nil {
