@@ -1174,7 +1174,18 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		searchString = search
 	}
 
+	countString := r.URL.Query().Get("count")
+	if len(countString) != 0 {
+		countString = "10"
+	}
+	count, err := strconv.Atoi(countString)
 	isApprovalNode := false
+
+	if err != nil {
+		handler.Logger.Errorw("request err, GetArtifactsByCDPipeline", "err", err, "count", countString)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	if stage == pipeline.WorkflowApprovalNode {
 		isApprovalNode = true
@@ -1211,7 +1222,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	//rbac block ends here
 
-	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, isApprovalNode)
+	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, count, isApprovalNode)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

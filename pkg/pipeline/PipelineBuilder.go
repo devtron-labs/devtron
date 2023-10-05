@@ -139,7 +139,7 @@ type PipelineBuilder interface {
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
-	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, isApprovalNode bool) (*bean.CiArtifactResponse, error)
+	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean.CiArtifactResponse, error)
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error)
 	FindAppsByTeamId(teamId int) ([]*AppBean, error)
@@ -2716,7 +2716,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY", SearchString, false)
+		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY", SearchString, 10, false)
 
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
@@ -2892,7 +2892,7 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY", "", false)
+		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY", "", 10, false)
 
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
@@ -4023,7 +4023,7 @@ func (impl PipelineBuilderImpl) RetrieveParentDetails(pipelineId int) (parentId 
 }
 
 // RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
-func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, isApprovalNode bool) (*bean.CiArtifactResponse, error) {
+func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean.CiArtifactResponse, error) {
 
 	// retrieve parent details
 	parentId, parentType, err := impl.RetrieveParentDetails(pipeline.Id)
@@ -4057,7 +4057,7 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 	ciArtifactsResponse := &bean.CiArtifactResponse{}
 
 	artifactMap := make(map[int]int)
-	limit := 10
+	limit := count
 
 	ciArtifacts, artifactMap, latestWfArtifactId, latestWfArtifactStatus, err := impl.
 		BuildArtifactsForCdStage(pipeline.Id, stage, ciArtifacts, artifactMap, false, searchString, limit, parentCdId)
