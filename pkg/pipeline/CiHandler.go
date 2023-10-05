@@ -165,7 +165,6 @@ type WorkflowResponse struct {
 	ImageReleaseTags     []*repository2.ImageTag                     `json:"imageReleaseTags"`
 	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
 	PipelineType         string                                      `json:"pipelineType"`
-	ParentCiWorkflowId   int                                         `json:"parent_ci_workflow_id"`
 }
 
 type ArtifactsForCiJob struct {
@@ -529,7 +528,6 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			IsArtifactUploaded: w.IsArtifactUploaded,
 			EnvironmentId:      w.EnvironmentId,
 			EnvironmentName:    w.EnvironmentName,
-			ParentCiWorkflowId: w.ParentCiWorkflowId,
 		}
 		if imageTagsDataMap[w.CiArtifactId] != nil {
 			wfResponse.ImageReleaseTags = imageTagsDataMap[w.CiArtifactId] //if artifact is not yet created,empty list will be sent
@@ -658,7 +656,6 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		EnvironmentId:      workflow.EnvironmentId,
 		EnvironmentName:    environmentName,
 		PipelineType:       workflow.CiPipeline.PipelineType,
-		ParentCiWorkflowId: workflow.ParentCiWorkFlowId,
 	}
 	return workflowResponse, nil
 }
