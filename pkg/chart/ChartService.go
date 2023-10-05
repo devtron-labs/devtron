@@ -478,7 +478,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 }
 
 func (impl ChartServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
 	if err != nil {
 		return err
 	}
@@ -1334,7 +1334,7 @@ const memory = "memory"
 
 func (impl ChartServiceImpl) ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType) (string, error) {
 
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, templateType)
 	if err != nil {
 		return "", err
 	}
