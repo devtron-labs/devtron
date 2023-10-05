@@ -217,7 +217,11 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 				impl.Logger.Errorw("error in getting deployment template history", "err", err, "id", request.DeploymentTemplateHistoryId, "pipelineId", request.PipelineId)
 				return result, err
 			}
-			values = history.ResolvedTemplate
+			if request.ValuesAndManifestFlag == Values {
+				values = history.CodeEditorValue.Value
+			} else {
+				values = history.ResolvedTemplate
+			}
 		}
 	}
 	if err != nil {
