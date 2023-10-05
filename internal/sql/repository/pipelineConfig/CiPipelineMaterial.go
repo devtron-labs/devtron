@@ -87,7 +87,7 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByIdsIncludeDeleted(ids []int) (
 		return ciPipelineMaterials, nil
 	}
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
-		Column("ci_pipeline_material.*", "CiPipeline", "GitMaterial").
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.id in (?)", pg.In(ids)).
 		Select()
 	return ciPipelineMaterials, err
