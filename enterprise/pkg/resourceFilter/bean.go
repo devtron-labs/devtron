@@ -27,7 +27,7 @@ type FilterMetaDataBean struct {
 type FilterRequestResponseBean struct {
 	*FilterMetaDataBean
 	Conditions        []ResourceCondition `json:"conditions" validate:"required,dive"`
-	QualifierSelector QualifierSelector   `json:"qualifierSelector" validate:"dive"`
+	QualifierSelector *QualifierSelector  `json:"qualifierSelector" validate:"dive"`
 }
 
 type ResourceCondition struct {

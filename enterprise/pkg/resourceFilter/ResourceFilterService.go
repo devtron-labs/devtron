@@ -118,7 +118,7 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 		impl.logger.Errorw("error in makeQualifierSelector", "error", err, "filterId", id)
 		return nil, err
 	}
-	resp.QualifierSelector = qualifierSelector
+	resp.QualifierSelector = &qualifierSelector
 
 	return resp, nil
 }
@@ -183,8 +183,8 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return nil, err
 	}
 
-	if len(filterRequest.QualifierSelector.EnvironmentSelectors) > 0 && len(filterRequest.QualifierSelector.ApplicationSelectors) > 0 {
-		err = impl.saveQualifierMappings(tx, userId, createdFilterDataBean.Id, filterRequest.QualifierSelector)
+	if filterRequest.QualifierSelector != nil {
+		err = impl.saveQualifierMappings(tx, userId, createdFilterDataBean.Id, *filterRequest.QualifierSelector)
 		if err != nil {
 			impl.logger.Errorw("error in saveQualifierMappings", "err", err, "QualifierSelector", filterRequest.QualifierSelector)
 			return nil, err
@@ -272,7 +272,7 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 	}
 
 	if len(filterRequest.QualifierSelector.EnvironmentSelectors) > 0 && len(filterRequest.QualifierSelector.ApplicationSelectors) > 0 {
-		err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, filterRequest.QualifierSelector)
+		err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, *filterRequest.QualifierSelector)
 		if err != nil {
 			impl.logger.Errorw("error in saveQualifierMappings for resourceFilter", "resourceFilterId", resourceFilter.Id, "qualifierMappings", filterRequest.QualifierSelector, "err", err)
 			return filterRequest, err
