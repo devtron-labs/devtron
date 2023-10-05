@@ -267,6 +267,7 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (error, bool) {
 	isTimelineUpdated := false
 	isSucceeded := false
+	var pipelineOverride *chartConfig.PipelineOverride
 	if pipeline != nil {
 		isAppStore := false
 		cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
@@ -324,7 +325,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 				impl.Logger.Errorw("found empty argo application object", "appName", pipeline.DeploymentAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
 			if err != nil {
 				impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 				return err, isTimelineUpdated
@@ -338,13 +339,9 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		}
 		if isSucceeded {
 			//handling deployment success event
-			gitHash := ""
-			if app != nil {
-				gitHash = app.Status.Sync.Revision
-			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride)
 			if err != nil {
-				impl.Logger.Errorw("error in handling deployment success event", "err", err)
+				impl.Logger.Errorw("error in handling deployment success event", "pipelineOverride", pipelineOverride, "err", err)
 				return err, isTimelineUpdated
 			}
 		}
@@ -425,7 +422,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 				impl.Logger.Errorw("found empty argo application object", "appName", acdAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
 			if err != nil {
 				impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 				return err, isTimelineUpdated
@@ -519,7 +516,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 				return err
 			}
 			go impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, wfr, pipelineOverride)
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride)
 			if err != nil {
 				impl.Logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
