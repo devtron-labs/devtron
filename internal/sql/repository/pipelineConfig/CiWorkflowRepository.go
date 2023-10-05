@@ -69,6 +69,7 @@ type CiWorkflow struct {
 	PodName            string            `sql:"pod_name"`
 	CiBuildType        string            `sql:"ci_build_type"`
 	EnvironmentId      int               `sql:"environment_id"`
+	ParentCiWorkFlowId int               `sql:"parent_ci_workflow_id"`
 	CiPipeline         *CiPipeline
 }
 
@@ -95,6 +96,7 @@ type WorkflowWithArtifact struct {
 	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
 	EnvironmentId      int               `json:"environmentId"`
 	EnvironmentName    string            `json:"environmentName"`
+	ParentCiWorkFlowId int               `json:"parent_ci_workflow_id"`
 }
 
 type GitCommit struct {

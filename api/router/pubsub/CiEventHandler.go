@@ -118,19 +118,26 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			}
 		} else if ciCompleteEvent.ImageDetailsFromCR != nil {
 			if len(ciCompleteEvent.ImageDetailsFromCR.ImageDetails) > 0 {
-				detail := util.GetLatestImageAccToImagePushedAt(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
-				request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent)
+				imageDetails := util.GetReverseSortedImageDetails(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
+				digestWorkflowMap, err := impl.webhookService.HandleMultipleImagesFromEvent(imageDetails, *ciCompleteEvent.WorkflowId)
 				if err != nil {
-					impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
+					impl.logger.Errorw("error in getting digest workflow map", "err", err, "workflowId", ciCompleteEvent.WorkflowId)
 					return
 				}
-				resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
-				if err != nil {
-					impl.logger.Error("Error while sending event for CI success for pipelineID", "pipelineId",
-						ciCompleteEvent.PipelineId, "request", request, "err", err)
-					return
+				for _, detail := range imageDetails {
+					request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent, digestWorkflowMap[*detail.ImageDigest].Id)
+					if err != nil {
+						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
+						return
+					}
+					resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
+					if err != nil {
+						impl.logger.Error("Error while sending event for CI success for pipelineID", "pipelineId",
+							ciCompleteEvent.PipelineId, "request", request, "err", err)
+						return
+					}
+					impl.logger.Debug(resp)
 				}
-				impl.logger.Debug(resp)
 			}
 
 		} else {
@@ -219,7 +226,7 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 	return request, nil
 }
 
-func (impl *CiEventHandlerImpl) BuildCIArtifactRequestForImageFromCR(imageDetails types.ImageDetail, region string, event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error) {
+func (impl *CiEventHandlerImpl) BuildCIArtifactRequestForImageFromCR(imageDetails types.ImageDetail, region string, event CiCompleteEvent, workflowId int) (*pipeline.CiArtifactWebhookRequest, error) {
 	if event.TriggeredBy == 0 {
 		event.TriggeredBy = 1 // system triggered event
 	}
@@ -229,7 +236,7 @@ func (impl *CiEventHandlerImpl) BuildCIArtifactRequestForImageFromCR(imageDetail
 		DataSource:         event.DataSource,
 		PipelineName:       event.PipelineName,
 		UserId:             event.TriggeredBy,
-		WorkflowId:         event.WorkflowId,
+		WorkflowId:         &workflowId,
 		IsArtifactUploaded: event.IsArtifactUploaded,
 	}
 	return request, nil
