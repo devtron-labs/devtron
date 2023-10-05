@@ -22,12 +22,12 @@ type FilterMetaDataBean struct {
 	TargetObject *FilterTargetObject `json:"targetObject" validate:"required,min=0,max=1"`
 	Description  string              `json:"description" `
 	Name         string              `json:"name" validate:"required,max=300"`
+	Conditions   []ResourceCondition `json:"conditions" validate:"required,dive"`
 }
 
 type FilterRequestResponseBean struct {
 	*FilterMetaDataBean
-	Conditions        []ResourceCondition `json:"conditions" validate:"required,dive"`
-	QualifierSelector QualifierSelector   `json:"qualifierSelector" validate:"dive"`
+	QualifierSelector QualifierSelector `json:"qualifierSelector" validate:"dive"`
 }
 
 type ResourceCondition struct {

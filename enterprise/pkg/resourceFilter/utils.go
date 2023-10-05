@@ -25,14 +25,14 @@ func extractResourceConditions(resourceConditionJson string) ([]ResourceConditio
 	return resourceConditions, err
 }
 
-func convertToResponseBeans(resourceFilters []*ResourceFilter) ([]*FilterRequestResponseBean, error) {
-	var filterResponseBeans []*FilterRequestResponseBean
+func convertToResponseBeans(resourceFilters []*ResourceFilter) ([]*FilterMetaDataBean, error) {
+	var filterResponseBeans []*FilterMetaDataBean
 	for _, resourceFilter := range resourceFilters {
 		filterResponseBean, err := convertToFilterBean(resourceFilter)
 		if err != nil {
 			return filterResponseBeans, err
 		}
-		filterResponseBeans = append(filterResponseBeans, filterResponseBean)
+		filterResponseBeans = append(filterResponseBeans, filterResponseBean.FilterMetaDataBean)
 	}
 	return filterResponseBeans, nil
 }
@@ -49,8 +49,8 @@ func convertToFilterBean(resourceFilter *ResourceFilter) (*FilterRequestResponse
 			TargetObject: resourceFilter.TargetObject,
 			Description:  resourceFilter.Description,
 			Name:         resourceFilter.Name,
+			Conditions:   resourceConditions,
 		},
-		Conditions: resourceConditions,
 	}
 	return filterResponseBean, nil
 }

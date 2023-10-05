@@ -25,9 +25,7 @@ type ResourceFilterService interface {
 	CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error)
 	DeleteFilter(userId int32, id int) error
 
-	//GetFiltersByScope
-	GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterRequestResponseBean, error)
-
+	GetFiltersByAppIdEnvId(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error)
 	CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error)
 }
 
@@ -336,9 +334,27 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 	return nil
 }
 
-func (impl *ResourceFilterServiceImpl) GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterRequestResponseBean, error) {
+func (impl *ResourceFilterServiceImpl) GetFiltersByAppIdEnvId(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error) {
+	app, err := impl.appRepository.FindById(scope.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	env, err := impl.environmentRepository.FindById(scope.EnvId)
+	if err != nil {
+		return nil, err
+	}
+
+	scope.ProjectId = app.TeamId
+	scope.ClusterId = env.ClusterId
+	scope.IsProdEnv = env.Default
+
+	return impl.getFiltersByScope(scope)
+}
+
+func (impl *ResourceFilterServiceImpl) getFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error) {
 	// fetch all the qualifier mappings, club them by filterIds, check for each filter whether it is eligible or not, then fetch filter details
-	var filters []*FilterRequestResponseBean
+	var filters []*FilterMetaDataBean
 	qualifierMappings, err := impl.qualifyingMappingService.GetQualifierMappingsForFilter(scope)
 	if err != nil {
 		return filters, err
@@ -463,7 +479,7 @@ func (impl *ResourceFilterServiceImpl) validateOwnershipAndGetIdMaps(qualifierSe
 
 func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error) {
 	// fetch filters for given scope, use FilterEvaluator.Evaluate to check for access
-	filters, err := impl.GetFiltersByScope(scope)
+	filters, err := impl.getFiltersByScope(scope)
 	if err != nil {
 		return ERROR, err
 	}

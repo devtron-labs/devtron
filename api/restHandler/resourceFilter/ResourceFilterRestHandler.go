@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -25,6 +26,7 @@ type ResourceFilterRestHandler interface {
 	CreateFilter(w http.ResponseWriter, r *http.Request)
 	DeleteFilter(w http.ResponseWriter, r *http.Request)
 	ValidateExpression(w http.ResponseWriter, r *http.Request)
+	GetFiltersByAppIdEnvId(w http.ResponseWriter, r *http.Request)
 }
 
 type ResourceFilterRestHandlerImpl struct {
@@ -261,4 +263,48 @@ func (handler *ResourceFilterRestHandlerImpl) applyAuth(userId int32) bool {
 		handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
 	}
 	return isSuperAdmin
+}
+
+func (handler *ResourceFilterRestHandlerImpl) GetFiltersByAppIdEnvId(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userInfo, err := handler.userAuthService.GetById(userId)
+	if err != nil {
+		handler.logger.Errorw("error in fidning userInfo by userId", "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param appId '%s'", vars["appId"])), nil, http.StatusBadRequest)
+		return
+	}
+
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param envId '%s'", vars["envId"])), nil, http.StatusBadRequest)
+		return
+	}
+
+	//rbac block starts from here
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(userInfo.EmailId, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	scope := resourceQualifiers.Scope{
+		AppId: appId,
+		EnvId: envId,
+	}
+	res, err := handler.resourceFilterService.GetFiltersByAppIdEnvId(scope)
+	if err != nil {
+		handler.logger.Errorw("error in getting active resource filters", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
