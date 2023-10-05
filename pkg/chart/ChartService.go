@@ -100,6 +100,7 @@ type ChartService interface {
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
+	ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType) (string, error)
 }
 
 type ChartServiceImpl struct {
@@ -1331,7 +1332,7 @@ const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
-func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string) (string, error) {
+func (impl ChartServiceImpl) ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType) (string, error) {
 
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
 	if err != nil {
@@ -1347,7 +1348,7 @@ func (impl ChartServiceImpl) extractVariablesAndResolveTemplate(scope resourceQu
 		return "", err
 	}
 
-	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate, IgnoreUnknownVariables: true}
+	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: templateType, IgnoreUnknownVariables: true}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
 	err = parserResponse.Error
 	if err != nil {
@@ -1374,7 +1375,7 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, tem
 	//}
 
 	templateBytes := template.(json.RawMessage)
-	templatejsonstring, err := impl.extractVariablesAndResolveTemplate(scope, string(templateBytes))
+	templatejsonstring, err := impl.ExtractVariablesAndResolveTemplate(scope, string(templateBytes), parsers.JsonVariableTemplate)
 	if err != nil {
 		return false, err
 	}

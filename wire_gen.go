@@ -324,7 +324,8 @@ func InitializeApp() (*App, error) {
 	chartRefRepositoryImpl := chartRepoRepository.NewChartRefRepositoryImpl(db)
 	variableSnapshotHistoryRepositoryImpl := repository7.NewVariableSnapshotHistoryRepository(sugaredLogger, db)
 	variableSnapshotHistoryServiceImpl := variables.NewVariableSnapshotHistoryServiceImpl(variableSnapshotHistoryRepositoryImpl, sugaredLogger)
-	deploymentTemplateHistoryServiceImpl := history.NewDeploymentTemplateHistoryServiceImpl(sugaredLogger, deploymentTemplateHistoryRepositoryImpl, pipelineRepositoryImpl, chartRepositoryImpl, chartRefRepositoryImpl, envLevelAppMetricsRepositoryImpl, appLevelMetricsRepositoryImpl, userServiceImpl, cdWorkflowRepositoryImpl, variableSnapshotHistoryServiceImpl)
+	variableTemplateParserImpl := parsers.NewVariableTemplateParserImpl(sugaredLogger)
+	deploymentTemplateHistoryServiceImpl := history.NewDeploymentTemplateHistoryServiceImpl(sugaredLogger, deploymentTemplateHistoryRepositoryImpl, pipelineRepositoryImpl, chartRepositoryImpl, chartRefRepositoryImpl, envLevelAppMetricsRepositoryImpl, appLevelMetricsRepositoryImpl, userServiceImpl, cdWorkflowRepositoryImpl, variableSnapshotHistoryServiceImpl, variableTemplateParserImpl)
 	chartWorkingDir := _wireChartWorkingDirValue
 	globalEnvVariables, err := util3.GetGlobalEnvVariables()
 	if err != nil {
@@ -340,7 +341,6 @@ func InitializeApp() (*App, error) {
 	repositoryServiceClientImpl := repository8.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	variableEntityMappingRepositoryImpl := repository7.NewVariableEntityMappingRepository(sugaredLogger, db)
 	variableEntityMappingServiceImpl := variables.NewVariableEntityMappingServiceImpl(variableEntityMappingRepositoryImpl, sugaredLogger)
-	variableTemplateParserImpl := parsers.NewVariableTemplateParserImpl(sugaredLogger)
 	scopedVariableRepositoryImpl := repository7.NewScopedVariableRepository(db, sugaredLogger)
 	qualifiersMappingRepositoryImpl, err := resourceQualifiers.NewQualifiersMappingRepositoryImpl(db, sugaredLogger)
 	if err != nil {
@@ -497,7 +497,7 @@ func InitializeApp() (*App, error) {
 	appWorkflowServiceImpl := appWorkflow2.NewAppWorkflowServiceImpl(sugaredLogger, appWorkflowRepositoryImpl, ciCdPipelineOrchestratorImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, resourceGroupServiceImpl)
 	appCloneServiceImpl := appClone.NewAppCloneServiceImpl(sugaredLogger, pipelineBuilderImpl, materialRepositoryImpl, chartServiceImpl, configMapServiceImpl, appWorkflowServiceImpl, appListingServiceImpl, propertiesConfigServiceImpl, ciTemplateOverrideRepositoryImpl, pipelineStageServiceImpl, ciTemplateServiceImpl, appRepositoryImpl)
 	deploymentTemplateRepositoryImpl := repository.NewDeploymentTemplateRepositoryImpl(db, sugaredLogger)
-	deploymentTemplateServiceImpl := generateManifest.NewDeploymentTemplateServiceImpl(sugaredLogger, chartServiceImpl, appListingServiceImpl, appListingRepositoryImpl, deploymentTemplateRepositoryImpl, helmAppServiceImpl, chartRepositoryImpl, chartTemplateServiceImpl, helmAppClientImpl, k8sUtil, propertiesConfigServiceImpl, deploymentTemplateHistoryRepositoryImpl)
+	deploymentTemplateServiceImpl := generateManifest.NewDeploymentTemplateServiceImpl(sugaredLogger, chartServiceImpl, appListingServiceImpl, appListingRepositoryImpl, deploymentTemplateRepositoryImpl, helmAppServiceImpl, chartRepositoryImpl, chartTemplateServiceImpl, helmAppClientImpl, k8sUtil, propertiesConfigServiceImpl, deploymentTemplateHistoryServiceImpl, environmentRepositoryImpl)
 	imageScanObjectMetaRepositoryImpl := security.NewImageScanObjectMetaRepositoryImpl(db, sugaredLogger)
 	cveStoreRepositoryImpl := security.NewCveStoreRepositoryImpl(db, sugaredLogger)
 	policyServiceImpl := security2.NewPolicyServiceImpl(environmentServiceImpl, sugaredLogger, appRepositoryImpl, pipelineOverrideRepositoryImpl, cvePolicyRepositoryImpl, clusterServiceImplExtended, pipelineRepositoryImpl, imageScanResultRepositoryImpl, imageScanDeployInfoRepositoryImpl, imageScanObjectMetaRepositoryImpl, httpClient, ciArtifactRepositoryImpl, ciCdConfig, imageScanHistoryRepositoryImpl, cveStoreRepositoryImpl, ciTemplateRepositoryImpl)
