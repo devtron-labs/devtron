@@ -416,7 +416,6 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 		return err
 	}
 	//check for new tags, then create new plugin_tag and plugin_tag_relation entry in db when new tags are present in request
-	newPluginTagsToCreate := make([]*repository.PluginTag, 0)
 	newPluginTagRelationsToCreate := make([]*repository.PluginTagRelation, 0)
 
 	for _, pluginTagReq := range pluginReq.Tags {
@@ -436,8 +435,11 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 					UpdatedBy: userId,
 				},
 			}
-			newPluginTagsToCreate = append(newPluginTagsToCreate, newPluginTag)
-
+			newPluginTag, err = impl.globalPluginRepository.SavePluginTag(newPluginTag, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving plugin tag", "newPluginTag", newPluginTag, "err", err)
+				return err
+			}
 			newPluginTagRelation := &repository.PluginTagRelation{
 				TagId:    newPluginTag.Id,
 				PluginId: pluginReq.Id,
@@ -451,15 +453,12 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 			newPluginTagRelationsToCreate = append(newPluginTagRelationsToCreate, newPluginTagRelation)
 		}
 	}
-	err = impl.globalPluginRepository.SavePluginTagInBulk(newPluginTagsToCreate, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving plugin tag in bulk", "newPluginTagsToCreate", newPluginTagsToCreate, "err", err)
-		return err
-	}
-	err = impl.globalPluginRepository.SavePluginTagRelationInBulk(newPluginTagRelationsToCreate, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving plugin tag relation in bulk", "newPluginTagRelationsToCreate", newPluginTagRelationsToCreate, "err", err)
-		return err
+	if len(newPluginTagRelationsToCreate) > 0 {
+		err = impl.globalPluginRepository.SavePluginTagRelationInBulk(newPluginTagRelationsToCreate, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving plugin tag relation in bulk", "newPluginTagRelationsToCreate", newPluginTagRelationsToCreate, "err", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -656,8 +655,7 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 		}
 	}
 	if len(pluginStepsToRemove) > 0 {
-		//basically we need to update here with deleted as true
-		//TODO no need to mark deleted as true, just delete don't create that step
+		//update here with deleted as true
 		err = impl.deleteDeepPluginStepData(pluginStepsToRemove, pluginStepVariables, pluginStepConditions, pluginSteps, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleteDeepPluginStepData", "pluginMetadataId", pluginMetaData.Id, "err", err)
@@ -793,12 +791,12 @@ func (impl *GlobalPluginServiceImpl) updateDeepPluginStepVariableData(pluginStep
 			dbStepVariable.UpdatedBy = userId
 			dbStepVariable.UpdatedOn = time.Now()
 
-			err := impl.globalPluginRepository.UpdatePluginStepVariables(dbStepVariable, tx)
-			if err != nil {
-				impl.logger.Errorw("error in updating plugin step variables", "pluginStepId", dbStepVariable.PluginStepId, "stepVariableId", dbStepVariable.Id, "err", err)
-				return err
-			}
 		}
+	}
+	err := impl.globalPluginRepository.UpdateInBulkPluginStepVariables(pluginStepVariables, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating plugin step variables in bulk", "err", err)
+		return err
 	}
 
 	for _, pluginStepVariableReq := range pluginStepVariablesToUpdate {
@@ -867,13 +865,12 @@ func (impl *GlobalPluginServiceImpl) deleteDeepStepVariableConditionsData(stepVa
 			stepVariableCondition.Deleted = true
 			stepVariableCondition.UpdatedOn = time.Now()
 			stepVariableCondition.UpdatedBy = userId
-
-			err := impl.globalPluginRepository.UpdatePluginStepConditions(stepVariableCondition, tx)
-			if err != nil {
-				impl.logger.Errorw("deleteDeepStepVariableConditionsData, error in deleting plugin step conditions", "stepVariableConditionId", stepVariableCondition.Id, "err", err)
-				return err
-			}
 		}
+	}
+	err := impl.globalPluginRepository.UpdateInBulkPluginStepConditions(pluginStepConditions, tx)
+	if err != nil {
+		impl.logger.Errorw("deleteDeepStepVariableConditionsData, error in updating plugin step conditions in bulk", "err", err)
+		return err
 	}
 
 	return nil
@@ -893,13 +890,12 @@ func (impl *GlobalPluginServiceImpl) updateDeepStepVariableConditionsData(stepVa
 			stepVariableCondition.ConditionalValue = stepVariableConditionsToDeleteIdsMapping[stepVariableCondition.Id].ConditionalValue
 			stepVariableCondition.UpdatedOn = time.Now()
 			stepVariableCondition.UpdatedBy = userId
-
-			err := impl.globalPluginRepository.UpdatePluginStepConditions(stepVariableCondition, tx)
-			if err != nil {
-				impl.logger.Errorw("updateDeepStepVariableConditionsData, error in updating plugin step conditions", "stepVariableConditionId", stepVariableCondition.Id, "err", err)
-				return err
-			}
 		}
+	}
+	err := impl.globalPluginRepository.UpdateInBulkPluginStepConditions(pluginStepConditions, tx)
+	if err != nil {
+		impl.logger.Errorw("updateDeepStepVariableConditionsData, error in updating plugin step conditions in bulk", "err", err)
+		return err
 	}
 	return nil
 }
@@ -939,7 +935,7 @@ func filterPluginStepVariableConditions(stepVariableId int, pluginStepConditions
 			stepVariableConditionMapping[variableConditionReq.Id] = stepVariableCondition
 		}
 
-		for _, existingStepVariableCondition := range pluginStepConditionsInDb {
+		for _, existingStepVariableCondition := range stepIdToDbStepVariableConditionsMapping[stepVariableId] {
 			if _, ok := stepVariableConditionMapping[existingStepVariableCondition.Id]; !ok {
 				stepVariableConditionsToRemove = append(stepVariableConditionsToRemove, existingStepVariableCondition)
 			} else {
@@ -1001,7 +997,7 @@ func filterPluginStepVariable(pluginStepId int, existingPluginStepVariables []*r
 			pluginStepVariableIdToStepVariableMapping[stepVariableUpdateReq.Id] = stepVariableUpdateReq
 		}
 
-		for _, existingStepVariable := range existingPluginStepVariables {
+		for _, existingStepVariable := range stepIdToDbStepVariablesMapping[pluginStepId] {
 			if _, ok := pluginStepVariableIdToStepVariableMapping[existingStepVariable.Id]; !ok {
 				pluginStepVariablesToRemove = append(pluginStepVariablesToRemove, &PluginVariableDto{Id: existingStepVariable.Id})
 			} else {
@@ -1144,28 +1140,30 @@ func (impl *GlobalPluginServiceImpl) deleteDeepPluginStepData(pluginStepsToRemov
 			pluginStepVariable.Deleted = true
 			pluginStepVariable.UpdatedOn = time.Now()
 			pluginStepVariable.UpdatedBy = userId
-
-			err := impl.globalPluginRepository.UpdatePluginStepVariables(pluginStepVariable, tx)
-			if err != nil {
-				impl.logger.Errorw("deleteDeepPluginStepData, error in deleting plugin step variables", "pluginStepVariableId", pluginStepVariable.Id, "err", err)
-				return err
-			}
 		}
 	}
+	if len(pluginStepVariables) > 0 {
+		err := impl.globalPluginRepository.UpdateInBulkPluginStepVariables(pluginStepVariables, tx)
+		if err != nil {
+			impl.logger.Errorw("deleteDeepPluginStepData,error in updating plugin step variables in bulk", "err", err)
+			return err
+		}
+	}
+
 	for _, pluginStepCondition := range pluginStepConditions {
 		if _, ok := pluginStepsToRemoveIdsMapping[pluginStepCondition.PluginStepId]; ok {
 			pluginStepCondition.Deleted = true
 			pluginStepCondition.UpdatedOn = time.Now()
 			pluginStepCondition.UpdatedBy = userId
-
-			err := impl.globalPluginRepository.UpdatePluginStepConditions(pluginStepCondition, tx)
-			if err != nil {
-				impl.logger.Errorw("deleteDeepPluginStepData, error in deleting plugin step conditions", "pluginStepConditionId", pluginStepCondition.Id, "err", err)
-				return err
-			}
 		}
 	}
-
+	if len(pluginStepConditions) > 0 {
+		err := impl.globalPluginRepository.UpdateInBulkPluginStepConditions(pluginStepConditions, tx)
+		if err != nil {
+			impl.logger.Errorw("deleteDeepPluginStepData, error in updating plugin step conditions in bulk", "err", err)
+			return err
+		}
+	}
 	return nil
 }
 

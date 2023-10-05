@@ -141,9 +141,9 @@ type PluginStepVariable struct {
 	Value                     string                       `sql:"value"`
 	VariableType              PluginStepVariableType       `sql:"variable_type"`
 	ValueType                 PluginStepVariableValueType  `sql:"value_type"`
-	PreviousStepIndex         int                          `sql:"previous_step_index"`
-	VariableStepIndex         int                          `sql:"variable_step_index"`
-	VariableStepIndexInPlugin int                          `sql:"variable_step_index_in_plugin"` // will contain stepIndex of variable in case of refPlugin
+	PreviousStepIndex         int                          `sql:"previous_step_index,notnull"`
+	VariableStepIndex         int                          `sql:"variable_step_index,notnull"`
+	VariableStepIndexInPlugin int                          `sql:"variable_step_index_in_plugin,notnull"` // will contain stepIndex of variable in case of refPlugin
 	ReferenceVariableName     string                       `sql:"reference_variable_name"`
 	Deleted                   bool                         `sql:"deleted,notnull"`
 	sql.AuditLog
@@ -153,8 +153,8 @@ type PluginStepVariable struct {
 type PluginStepCondition struct {
 	tableName           struct{}                `sql:"plugin_step_condition" pg:",discard_unknown_columns"`
 	Id                  int                     `sql:"id,pk"`
-	PluginStepId        int                     `sql:"plugin_step_id"`
-	ConditionVariableId int                     `sql:"condition_variable_id"` //id of variable on which condition is written
+	PluginStepId        int                     `sql:"plugin_step_id,notnull"`
+	ConditionVariableId int                     `sql:"condition_variable_id,notnull"` //id of variable on which condition is written
 	ConditionType       PluginStepConditionType `sql:"condition_type"`
 	ConditionalOperator string                  `sql:"conditional_operator"`
 	ConditionalValue    string                  `sql:"conditional_value"`
@@ -210,6 +210,10 @@ type GlobalPluginRepository interface {
 	UpdatePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) error
 	UpdatePluginTag(pluginTag *PluginTag, tx *pg.Tx) error
 	UpdatePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) error
+
+	UpdateInBulkPluginSteps(pluginSteps []*PluginStep, tx *pg.Tx) error
+	UpdateInBulkPluginStepVariables(pluginStepVariables []*PluginStepVariable, tx *pg.Tx) error
+	UpdateInBulkPluginStepConditions(pluginStepConditions []*PluginStepCondition, tx *pg.Tx) error
 }
 
 func NewGlobalPluginRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *GlobalPluginRepositoryImpl {
@@ -577,4 +581,17 @@ func (impl *GlobalPluginRepositoryImpl) UpdatePluginTag(pluginTag *PluginTag, tx
 
 func (impl *GlobalPluginRepositoryImpl) UpdatePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) error {
 	return tx.Update(pluginTagRelation)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginSteps(pluginSteps []*PluginStep, tx *pg.Tx) error {
+	_, err := tx.Model(&pluginSteps).Update()
+	return err
+}
+func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepVariables(pluginStepVariables []*PluginStepVariable, tx *pg.Tx) error {
+	_, err := tx.Model(&pluginStepVariables).Update()
+	return err
+}
+func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepConditions(pluginStepConditions []*PluginStepCondition, tx *pg.Tx) error {
+	_, err := tx.Model(&pluginStepConditions).Update()
+	return err
 }
