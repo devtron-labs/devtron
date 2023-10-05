@@ -423,7 +423,57 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		}
 	}
 
+	systemVariableData, err := impl.getSystemVariablesData(scope)
+	if err != nil {
+		return nil, err
+	}
+	scopedVariableDataObj = append(scopedVariableDataObj, systemVariableData...)
+
 	return scopedVariableDataObj, err
+
+}
+
+func (impl *ScopedVariableServiceImpl) getSystemVariablesData(scope resourceQualifiers.Scope) ([]*models.ScopedVariableData, error) {
+	systemVariables := make([]*models.ScopedVariableData, 0)
+	if scope.AppId > 0 {
+		apps, err := impl.appRepository.FindAppAndProjectByIdsOrderByTeam([]int{scope.AppId})
+		if err != nil {
+			return nil, err
+		}
+		application := apps[0]
+
+		systemVariables = append(systemVariables, &models.ScopedVariableData{
+			VariableName:  "DEVTRON_APP_NAME",
+			VariableValue: &models.VariableValue{Value: application.AppName},
+		})
+
+		systemVariables = append(systemVariables, &models.ScopedVariableData{
+			VariableName:  "DEVTRON_PROJECT_NAME",
+			VariableValue: &models.VariableValue{Value: application.Team.Name},
+		})
+	}
+
+	if scope.EnvId > 0 {
+		environment, err := impl.environmentRepository.FindById(scope.EnvId)
+		if err != nil {
+			return nil, err
+		}
+		systemVariables = append(systemVariables, &models.ScopedVariableData{
+			VariableName:  "DEVTRON_ENV_NAME",
+			VariableValue: &models.VariableValue{Value: environment.Name},
+		})
+
+		systemVariables = append(systemVariables, &models.ScopedVariableData{
+			VariableName:  "DEVTRON_NAMESPACE",
+			VariableValue: &models.VariableValue{Value: environment.Namespace},
+		})
+
+		systemVariables = append(systemVariables, &models.ScopedVariableData{
+			VariableName:  "DEVTRON_CLUSTER_NAME",
+			VariableValue: &models.VariableValue{Value: environment.Cluster.ClusterName},
+		})
+	}
+	return systemVariables, nil
 }
 
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {
