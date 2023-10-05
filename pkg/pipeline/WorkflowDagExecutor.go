@@ -1225,6 +1225,9 @@ func (impl *WorkflowDagExecutorImpl) buildDefaultArtifactLocation(cdWorkflowConf
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(pipelineOverride *chartConfig.PipelineOverride) error {
+	if pipelineOverride == nil {
+		return fmt.Errorf("invalid request, pipeline override not found")
+	}
 	cdWorkflow, err := impl.cdWorkflowRepository.FindById(pipelineOverride.CdWorkflowId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd workflow by id", "pipelineOverride", pipelineOverride)
