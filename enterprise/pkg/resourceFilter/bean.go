@@ -27,12 +27,12 @@ type FilterMetaDataBean struct {
 type FilterRequestResponseBean struct {
 	*FilterMetaDataBean
 	Conditions        []ResourceCondition `json:"conditions" validate:"required,dive"`
-	QualifierSelector *QualifierSelector  `json:"qualifierSelector" validate:"dive"`
+	QualifierSelector QualifierSelector   `json:"qualifierSelector" validate:"dive"`
 }
 
 type ResourceCondition struct {
 	ConditionType ResourceConditionType `json:"conditionType" validate:"min=0,max=1"`
-	Expression    string                `json:"expression" validate:"required,min=1""`
+	Expression    string                `json:"expression" validate:"required,min=1"`
 	ErrorMsg      string                `json:"errorMsg,omitempty"`
 }
 
@@ -51,7 +51,7 @@ type EnvironmentSelector struct {
 }
 
 type QualifierSelector struct {
-	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors" validate:"required,min=1,dive"`
+	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors" validate:"dive"`
 	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors" validate:"required,min=1,dive"`
 }
 

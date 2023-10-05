@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -118,7 +119,7 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 		impl.logger.Errorw("error in makeQualifierSelector", "error", err, "filterId", id)
 		return nil, err
 	}
-	resp.QualifierSelector = &qualifierSelector
+	resp.QualifierSelector = qualifierSelector
 
 	return resp, nil
 }
@@ -126,6 +127,12 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error) {
 	if strings.Contains(filterRequest.Name, " ") {
 		return nil, errors.New("spaces are not allowed in name")
+	}
+	appSelectorsExist := len(filterRequest.QualifierSelector.ApplicationSelectors) > 0
+	envSelectorExist := len(filterRequest.QualifierSelector.EnvironmentSelectors) > 0
+
+	if util.XORBool(appSelectorsExist, envSelectorExist) {
+		return filterRequest, errors.New("invalid qualifier selectors")
 	}
 
 	//validating given condition expressions
@@ -183,8 +190,8 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return nil, err
 	}
 
-	if filterRequest.QualifierSelector != nil {
-		err = impl.saveQualifierMappings(tx, userId, createdFilterDataBean.Id, *filterRequest.QualifierSelector)
+	if appSelectorsExist && envSelectorExist {
+		err = impl.saveQualifierMappings(tx, userId, createdFilterDataBean.Id, filterRequest.QualifierSelector)
 		if err != nil {
 			impl.logger.Errorw("error in saveQualifierMappings", "err", err, "QualifierSelector", filterRequest.QualifierSelector)
 			return nil, err
@@ -201,6 +208,11 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 }
 
 func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error) {
+	appSelectorsExist := len(filterRequest.QualifierSelector.ApplicationSelectors) > 0
+	envSelectorExist := len(filterRequest.QualifierSelector.EnvironmentSelectors) > 0
+	if util.XORBool(appSelectorsExist, envSelectorExist) {
+		return filterRequest, errors.New("invalid qualifier selectors")
+	}
 	//validating given condition expressions
 	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
 	if errored {
@@ -271,8 +283,8 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		return filterRequest, err
 	}
 
-	if len(filterRequest.QualifierSelector.EnvironmentSelectors) > 0 && len(filterRequest.QualifierSelector.ApplicationSelectors) > 0 {
-		err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, *filterRequest.QualifierSelector)
+	if appSelectorsExist && envSelectorExist {
+		err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, filterRequest.QualifierSelector)
 		if err != nil {
 			impl.logger.Errorw("error in saveQualifierMappings for resourceFilter", "resourceFilterId", resourceFilter.Id, "qualifierMappings", filterRequest.QualifierSelector, "err", err)
 			return filterRequest, err
