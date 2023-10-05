@@ -25,7 +25,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: kubelink
-          image: "quay.io/devtron/kubelink:6ae1d25a-318-16393"
+          image: "quay.io/devtron/kubelink:f315d6ee-318-16750"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000
