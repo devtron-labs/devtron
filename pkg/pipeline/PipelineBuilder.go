@@ -3541,9 +3541,6 @@ func (impl *PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int) (cdP
 	return triggerViewCdPipelinesResp, err
 }
 
-// GetCdPipelinesForApp
-// appId
-// cdPipelines *bean.CdPipelines, err error
 func (impl *PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
 	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
 	if err != nil {
