@@ -2,6 +2,7 @@ CREATE TABLE "public"."custom_tag"
 (
     id                     serial PRIMARY KEY,
     custom_tag_format      text,
+    tag_pattern text,
     auto_increasing_number int     DEFAULT 0,
     entity_key             int,
     entity_value           text,

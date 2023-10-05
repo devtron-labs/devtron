@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -16,8 +17,10 @@ const (
 )
 
 const (
-	imagePathPattern           = "%s/%s:%s" // dockerReg/dockerRepo:Tag
-	ImageTagUnavailableMessage = "Desired image tag already exists"
+	imagePathPattern                                              = "%s/%s:%s" // dockerReg/dockerRepo:Tag
+	ImageTagUnavailableMessage                                    = "Desired image tag already exists"
+	REGEX_PATTERN_FOR_ENSURING_ONLY_ONE_VARIABLE_BETWEEN_BRACKETS = `\{.{2,}\}`
+	REGEX_PATTERN_FOR_CHARACTER_OTHER_THEN_X_OR_x                 = `\{[^xX]|{}\}`
 )
 
 var (
@@ -144,25 +147,39 @@ func validateTagPattern(customTagPattern string) error {
 	if len(customTagPattern) == 0 {
 		return fmt.Errorf("tag length can not be zero")
 	}
-	allowedVariables := []string{"{x}", "{X}"}
-	totalX := 0
-	for _, variable := range allowedVariables {
-		totalX += strings.Count(customTagPattern, variable)
-	}
-	if totalX != 1 {
-		return fmt.Errorf("variable {x} is allowed exactly once")
-	}
-	remainingString := strings.ReplaceAll(customTagPattern, "{x}", "")
-	remainingString = strings.ReplaceAll(remainingString, "{X}", "")
 
+	if IsInvalidVariableFormat(customTagPattern) {
+		return fmt.Errorf("only one variable is allowed. Allowed variable format : {x} or {X}")
+	}
+
+	remainingString := strings.ReplaceAll(customTagPattern, ".{x}", "")
+	remainingString = strings.ReplaceAll(remainingString, ".{X}", "")
 	if len(remainingString) == 0 {
 		return nil
 	}
+
 	n := len(remainingString)
-	if remainingString[0] == '.' || remainingString[n-1] == '.' || remainingString[0] == '-' || remainingString[n-1] == '-' {
-		return fmt.Errorf("tag can not start or end with an hyphen or a period")
+	if remainingString[0] == '.' || remainingString[0] == '-' {
+		return fmt.Errorf("tag can not start with an hyphen or a period")
+	}
+	if n != 0 && (remainingString[n-1] == '.' || remainingString[n-1] == '-') {
+		return fmt.Errorf("tag can not end with an hyphen or a period")
 	}
 	return nil
+}
+
+func IsInvalidVariableFormat(customTagPattern string) bool {
+	regex := regexp.MustCompile(REGEX_PATTERN_FOR_ENSURING_ONLY_ONE_VARIABLE_BETWEEN_BRACKETS)
+	matches := regex.FindAllString(customTagPattern, -1)
+	if len(matches) > 0 {
+		return true
+	}
+	regex = regexp.MustCompile(REGEX_PATTERN_FOR_CHARACTER_OTHER_THEN_X_OR_x)
+	matches = regex.FindAllString(customTagPattern, -1)
+	if len(matches) > 0 {
+		return true
+	}
+	return false
 }
 
 func validateTag(imageTag string) error {
