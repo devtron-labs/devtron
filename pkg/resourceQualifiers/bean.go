@@ -6,13 +6,13 @@ type Scope struct {
 	ClusterId int `json:"clusterId"`
 
 	SystemMetadata *SystemMetadata `json:"-"`
-
 }
 
 type SystemMetadata struct {
 	EnvironmentName string
 	ClusterName     string
 	Namespace       string
+	ImageTag        string
 }
 
 type Qualifier int
