@@ -578,6 +578,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWo
 	_, err := impl.dbConnection.Query(&artifacts, query, parentCiWorkflowId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching artifacts for parent ci workflow id", "err", err)
+		return nil, err
 	}
 	return artifacts, err
 }

@@ -1617,7 +1617,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForCiJob(w http.Respons
 	//RBAC
 	resp, err := handler.ciHandler.FetchArtifactsForCiJob(buildId)
 	if err != nil {
-		handler.Logger.Errorw("service err, FetchWorkflowDetails", "err", err, "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
+		handler.Logger.Errorw("service err, FetchArtifactsForCiJob", "err", err, "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
 		if util.IsErrNoRows(err) {
 			err = &util.ApiError{Code: "404", HttpStatusCode: http.StatusNotFound, UserMessage: "no workflow found"}
 			common.WriteJsonResp(w, err, nil, http.StatusOK)
