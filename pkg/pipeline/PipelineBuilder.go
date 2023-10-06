@@ -264,6 +264,7 @@ type PipelineBuilder interface {
 	// It first fetches the workflow details from the appWorkflow repository.
 	//If the workflow is a CD pipeline, it further checks for stage configurations.
 	//If the workflow is a webhook, it returns the webhook workflow type.
+	//In case of error , it returns 0 for parentId and empty string for parentType
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
 	//GetEnvironmentByCdPipelineId : Retrieve environmentId for given cdPipelineId
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
