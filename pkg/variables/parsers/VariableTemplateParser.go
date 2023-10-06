@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcl/hclsyntax"
 	_ "github.com/hashicorp/hcl2/hcl/hclsyntax"
@@ -21,18 +22,102 @@ type VariableTemplateParser interface {
 	ExtractVariables(template string) ([]string, error)
 	//ParseTemplate(template string, values map[string]string) string
 	ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse
+	//ParseTemplateWithPrimitiveHandling(parserRequest VariableParserRequest) VariableParserResponse
 }
 
 type VariableTemplateParserImpl struct {
-	logger *zap.SugaredLogger
+	logger                       *zap.SugaredLogger
+	VariableTemplateParserConfig *VariableTemplateParserConfig
 }
 
-func NewVariableTemplateParserImpl(logger *zap.SugaredLogger) *VariableTemplateParserImpl {
-	return &VariableTemplateParserImpl{logger: logger}
+func NewVariableTemplateParserImpl(logger *zap.SugaredLogger) (*VariableTemplateParserImpl, error) {
+	impl := &VariableTemplateParserImpl{logger: logger}
+	cfg, err := GetVariableTemplateParserConfig()
+	if err != nil {
+		return nil, err
+	}
+	impl.VariableTemplateParserConfig = cfg
+	return impl, nil
+}
+
+type VariableTemplateParserConfig struct {
+	ScopedVariableEnabled          bool `env:"SCOPED_VARIABLE_ENABLED" envDefault:"false"`
+	ScopedVariableHandlePrimitives bool `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false"`
+}
+
+func GetVariableTemplateParserConfig() (*VariableTemplateParserConfig, error) {
+	cfg := &VariableTemplateParserConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+func preProcessPlaceholder(template string) string {
+	pattern := `\"@{{([^}]+)}}\"`
+	//@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}
+
+	re := regexp.MustCompile(pattern)
+	matches := re.FindAllStringSubmatch(template, -1)
+
+	// Replace the surrounding quotes
+	for _, match := range matches {
+		if len(match) == 2 {
+			originalMatch := match[0]
+			innerContent := match[1]
+			replacement := fmt.Sprintf("@{{%s}}", innerContent)
+			template = strings.Replace(template, originalMatch, replacement, 1)
+		}
+	}
+	return template
+}
+
+func postProcessPlaceholder(template string) string {
+	pattern := `@{{([^}]+)}}`
+
+	re := regexp.MustCompile(pattern)
+	matches := re.FindAllStringSubmatch(template, -1)
+
+	// Replace the surrounding quotes
+	for _, match := range matches {
+		if len(match) == 2 {
+			originalMatch := match[0]
+			innerContent := match[1]
+			replacement := "\"" + innerContent + "\""
+			template = strings.Replace(template, originalMatch, replacement, 1)
+		}
+	}
+	return template
+}
+
+func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
+
+	if impl.VariableTemplateParserConfig.ScopedVariableHandlePrimitives && parserRequest.TemplateType == JsonVariableTemplate {
+		template := preProcessPlaceholder(parserRequest.Template)
+		request := VariableParserRequest{
+			TemplateType:           StringVariableTemplate,
+			Template:               template,
+			Variables:              parserRequest.Variables,
+			IgnoreUnknownVariables: parserRequest.IgnoreUnknownVariables,
+			handlePrimitives:       true,
+		}
+		response := impl.parseTemplate(request)
+		// for variables which were not resolved and were ignored
+		if response.Error == nil {
+			response.ResolvedTemplate = postProcessPlaceholder(response.ResolvedTemplate)
+		}
+		return response
+	} else {
+		return impl.parseTemplate(parserRequest)
+	}
 }
 
 func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]string, error) {
+
 	var variables []string
+
+	if !impl.VariableTemplateParserConfig.ScopedVariableEnabled {
+		return variables, nil
+	}
+
 	// preprocess existing template to comment
 	template, err := impl.convertToHclCompatible(JsonVariableTemplate, template)
 	if err != nil {
@@ -58,10 +143,10 @@ func (impl *VariableTemplateParserImpl) extractVarNames(hclVariables []hcl.Trave
 	return variables
 }
 
-func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
+func (impl *VariableTemplateParserImpl) parseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
 	template := parserRequest.Template
 	response := VariableParserResponse{Request: parserRequest, ResolvedTemplate: template}
-	values := parserRequest.GetValuesMap()
+	values := parserRequest.GetValuesMap(parserRequest.handlePrimitives)
 	templateType := parserRequest.TemplateType
 	template, err := impl.convertToHclCompatible(templateType, template)
 	if err != nil {
@@ -102,7 +187,7 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariablePars
 func (impl *VariableTemplateParserImpl) checkForDefaultedVariables(parserRequest VariableParserRequest, variables []hcl.Traversal, template string, response *VariableParserResponse) (hclsyntax.Expression, string, bool) {
 	var hclExpression hclsyntax.Expression
 	var diagnostics hcl.Diagnostics
-	valuesMap := parserRequest.GetValuesMap()
+	valuesMap := parserRequest.GetValuesMap(parserRequest.handlePrimitives)
 	defaultedVars := impl.getDefaultedVariables(variables, valuesMap)
 	ignoreDefaultedVariables := parserRequest.IgnoreUnknownVariables
 	if len(defaultedVars) > 0 {
@@ -213,12 +298,12 @@ func (impl *VariableTemplateParserImpl) convertToHclCompatible(templateType Vari
 		}
 		template = fmt.Sprintf(`{"root":%s}`, template)
 	}
-	template = impl.diluteExistingHclVars(template, "$")
-	template = impl.diluteExistingHclVars(template, "%")
+	template = impl.diluteExistingHclVars(template, "\\$", "$")
+	template = impl.diluteExistingHclVars(template, "%", "%")
 	return impl.convertToHclExpression(template), nil
 }
 
-func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string, templateControlKeyword string) string {
+func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string, templateControlKeyword string, replaceKeyword string) string {
 	hclVarRegex := regexp.MustCompile(templateControlKeyword + `\{`)
 	indexesData := hclVarRegex.FindAllIndex([]byte(template), -1)
 	var strBuilder strings.Builder
@@ -227,7 +312,7 @@ func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string, t
 	for _, datum := range indexesData {
 		startIndex := datum[0]
 		endIndex := datum[1]
-		strBuilder.WriteString(template[currentIndex:startIndex] + templateControlKeyword + template[startIndex:endIndex])
+		strBuilder.WriteString(template[currentIndex:startIndex] + replaceKeyword + template[startIndex:endIndex])
 		currentIndex = endIndex
 	}
 	if currentIndex <= len(template) {

@@ -2130,7 +2130,7 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 
 	variableSnapshot := make(map[string]string)
 	for _, variable := range scopedVariables {
-		variableSnapshot[variable.VariableName] = variable.VariableValue.StringValue()
+		variableSnapshot[variable.VariableName] = variable.VariableValue.StringValue(false)
 	}
 
 	responseJson, err := json.Marshal(unresolvedResponse)

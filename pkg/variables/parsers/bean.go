@@ -22,6 +22,7 @@ type VariableParserRequest struct {
 	Template               string
 	Variables              []*models.ScopedVariableData
 	IgnoreUnknownVariables bool
+	handlePrimitives       bool
 }
 
 type VariableParserResponse struct {
@@ -31,11 +32,11 @@ type VariableParserResponse struct {
 	DetailedError    string
 }
 
-func (request VariableParserRequest) GetValuesMap() map[string]string {
+func (request VariableParserRequest) GetValuesMap(handlePrimitive bool) map[string]string {
 	variablesMap := make(map[string]string)
 	variables := request.Variables
 	for _, variable := range variables {
-		variablesMap[variable.VariableName] = variable.VariableValue.StringValue()
+		variablesMap[variable.VariableName] = variable.VariableValue.StringValue(handlePrimitive)
 	}
 	return variablesMap
 }

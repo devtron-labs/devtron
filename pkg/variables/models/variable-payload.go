@@ -63,7 +63,7 @@ type VariableValue struct {
 	Value interface{} `json:"value" validate:"required"`
 }
 
-func (value VariableValue) StringValue() string {
+func (value VariableValue) StringValue(escapeString bool) string {
 	switch reflect.TypeOf(value.Value).Kind() {
 	case reflect.Int:
 		return strconv.Itoa(value.Value.(int))
@@ -72,5 +72,20 @@ func (value VariableValue) StringValue() string {
 	case reflect.Bool:
 		return strconv.FormatBool(value.Value.(bool))
 	}
+	if escapeString {
+		return "\"" + value.Value.(string) + "\""
+	}
 	return value.Value.(string)
 }
+
+//func (value VariableValue) StringValueWithStringsEscaped() string {
+//	switch reflect.TypeOf(value.Value).Kind() {
+//	case reflect.Int:
+//		return strconv.Itoa(value.Value.(int))
+//	case reflect.Float64:
+//		return strconv.FormatFloat(value.Value.(float64), 'f', -1, 64)
+//	case reflect.Bool:
+//		return strconv.FormatBool(value.Value.(bool))
+//	}
+//	return "\"" + value.Value.(string) + "\""
+//}
