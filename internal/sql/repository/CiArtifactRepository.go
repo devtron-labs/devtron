@@ -571,7 +571,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactByCdWorkflowId(cdWorkflowId int)
 	return artifact, err
 }
 
-// GetArtifactsByParentCiWorkflowId will get all artifacts of child workflow sorted by descing order to fetch latest at top
+// GetArtifactsByParentCiWorkflowId will get all artifacts of child workflow sorted by descending order to fetch latest at top
 func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error) {
 	var artifacts []string
 	query := "SELECT cia.image FROM ci_artifact cia where cia.ci_workflow_id in (SELECT wf.id from ci_workflow wf where wf.parent_ci_workflow_id = ? ) ORDER BY cia.created_on DESC ;"
