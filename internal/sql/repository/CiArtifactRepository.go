@@ -571,10 +571,10 @@ func (impl CiArtifactRepositoryImpl) GetArtifactByCdWorkflowId(cdWorkflowId int)
 	return artifact, err
 }
 
-// GetArtifactsByParentCiWorkflowId will get all artifacts of child workflow and parent ci artifact as well.
+// GetArtifactsByParentCiWorkflowId will get all artifacts of child workflow
 func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error) {
 	var artifacts []string
-	query := "SELECT cia.image FROM ci_artifact cia where cia.ci_workflow_id in (SELECT wf.id from ci_workflow wf where wf.parent_ci_workflow_id = ? ) UNION SELECT cia.image FROM ci_artifact cia where cia.ci_workflow_id = ? ;"
+	query := "SELECT cia.image FROM ci_artifact cia where cia.ci_workflow_id in (SELECT wf.id from ci_workflow wf where wf.parent_ci_workflow_id = ? );"
 	_, err := impl.dbConnection.Query(&artifacts, query, parentCiWorkflowId, parentCiWorkflowId) //, pg.In(ciPipelineIds))
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching artifacts for parent ci workflow id", "err", err)
