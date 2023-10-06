@@ -18,7 +18,7 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 		}
 
 		if strings.HasPrefix(variable.Definition.VarName, impl.VariableNameConfig.SystemVariablePrefix) {
-			return models.ValidationError{Err: fmt.Errorf("%s is not allowed. Prefix %s is reserved for system variables)", variable.Definition.VarName, impl.VariableNameConfig.SystemVariablePrefix)}, false
+			return models.ValidationError{Err: fmt.Errorf("%s is not allowed (Prefix %s is reserved for system variables)", variable.Definition.VarName, impl.VariableNameConfig.SystemVariablePrefix)}, false
 		}
 
 		regex := impl.VariableNameConfig.VariableNameRegex

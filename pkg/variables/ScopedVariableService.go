@@ -319,12 +319,21 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
+	//populating system variables from system metadata
+	if scope.SystemMetadata != nil {
+		systemVariableData, err := impl.getSystemVariablesData(scope.SystemMetadata, varNames)
+		if err != nil {
+			return nil, err
+		}
+		scopedVariableDataObj = append(scopedVariableDataObj, systemVariableData...)
+	}
+
 	// getting all variables from cache
 	allVariableDefinitions := impl.VariableCache.GetData()
 
 	// cache is loaded and no active variables exist. Returns empty
 	if allVariableDefinitions != nil && len(allVariableDefinitions) == 0 {
-		return nil, nil
+		return scopedVariableDataObj, nil
 	}
 
 	// Need to get from repo for isSensitive even if cache is loaded since cache only contains metadata
@@ -333,7 +342,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 
 		//Cache was not loaded and no active variables found
 		if len(allVariableDefinitions) == 0 {
-			return nil, nil
+			return scopedVariableDataObj, nil
 		}
 	}
 
@@ -355,7 +364,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 
 	// This to prevent corner case where no variables were found for the provided names
 	if len(varNames) > 0 && len(variableIds) == 0 {
-		return make([]*models.ScopedVariableData, 0), nil
+		return scopedVariableDataObj, nil
 	}
 
 	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, &scope, variableIds)
@@ -424,36 +433,27 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		}
 	}
 
-	//populating system variables from system metadata
-	if scope.SystemMetadata != nil {
-		systemVariableData, err := impl.getSystemVariablesData(scope.SystemMetadata)
-		if err != nil {
-			return nil, err
-		}
-		scopedVariableDataObj = append(scopedVariableDataObj, systemVariableData...)
-	}
-
 	return scopedVariableDataObj, err
 
 }
 
-func (impl *ScopedVariableServiceImpl) getSystemVariablesData(metadata *resourceQualifiers.SystemMetadata) ([]*models.ScopedVariableData, error) {
+func (impl *ScopedVariableServiceImpl) getSystemVariablesData(metadata *resourceQualifiers.SystemMetadata, varNames []string) ([]*models.ScopedVariableData, error) {
 	systemVariables := make([]*models.ScopedVariableData, 0)
-	if len(metadata.Namespace) > 0 {
+	if len(metadata.Namespace) > 0 && slices.Contains(varNames, models.DevtronNamespace) {
 		systemVariables = append(systemVariables, &models.ScopedVariableData{
 			VariableName:  models.DevtronNamespace,
 			VariableValue: &models.VariableValue{Value: metadata.Namespace},
 		})
 	}
 
-	if len(metadata.ClusterName) > 0 {
+	if len(metadata.ClusterName) > 0 && slices.Contains(varNames, models.DevtronClusterName) {
 		systemVariables = append(systemVariables, &models.ScopedVariableData{
 			VariableName:  models.DevtronClusterName,
 			VariableValue: &models.VariableValue{Value: metadata.ClusterName},
 		})
 	}
 
-	if len(metadata.EnvironmentName) > 0 {
+	if len(metadata.EnvironmentName) > 0 && slices.Contains(varNames, models.DevtronEnvName) {
 		systemVariables = append(systemVariables, &models.ScopedVariableData{
 			VariableName:  models.DevtronEnvName,
 			VariableValue: &models.VariableValue{Value: metadata.EnvironmentName},
