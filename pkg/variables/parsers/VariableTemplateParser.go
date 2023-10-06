@@ -213,12 +213,12 @@ func (impl *VariableTemplateParserImpl) convertToHclCompatible(templateType Vari
 		}
 		template = fmt.Sprintf(`{"root":%s}`, template)
 	}
-	template = impl.diluteExistingHclVars(template, "$")
-	template = impl.diluteExistingHclVars(template, "%")
+	template = impl.diluteExistingHclVars(template, "\\$", "$")
+	template = impl.diluteExistingHclVars(template, "%", "%")
 	return impl.convertToHclExpression(template), nil
 }
 
-func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string, templateControlKeyword string) string {
+func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string, templateControlKeyword string, replaceKeyword string) string {
 	hclVarRegex := regexp.MustCompile(templateControlKeyword + `\{`)
 	indexesData := hclVarRegex.FindAllIndex([]byte(template), -1)
 	var strBuilder strings.Builder
@@ -227,7 +227,7 @@ func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string, t
 	for _, datum := range indexesData {
 		startIndex := datum[0]
 		endIndex := datum[1]
-		strBuilder.WriteString(template[currentIndex:startIndex] + templateControlKeyword + template[startIndex:endIndex])
+		strBuilder.WriteString(template[currentIndex:startIndex] + replaceKeyword + template[startIndex:endIndex])
 		currentIndex = endIndex
 	}
 	if currentIndex <= len(template) {
