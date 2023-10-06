@@ -436,31 +436,13 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 
 func (impl *ScopedVariableServiceImpl) getSystemVariablesData(metadata *resourceQualifiers.SystemMetadata, varNames []string) []*models.ScopedVariableData {
 	systemVariables := make([]*models.ScopedVariableData, 0)
-	if len(metadata.Namespace) > 0 && slices.Contains(varNames, models.DevtronNamespace) {
-		systemVariables = append(systemVariables, &models.ScopedVariableData{
-			VariableName:  models.DevtronNamespace,
-			VariableValue: &models.VariableValue{Value: metadata.Namespace},
-		})
-	}
-
-	if len(metadata.ClusterName) > 0 && slices.Contains(varNames, models.DevtronClusterName) {
-		systemVariables = append(systemVariables, &models.ScopedVariableData{
-			VariableName:  models.DevtronClusterName,
-			VariableValue: &models.VariableValue{Value: metadata.ClusterName},
-		})
-	}
-
-	if len(metadata.EnvironmentName) > 0 && slices.Contains(varNames, models.DevtronEnvName) {
-		systemVariables = append(systemVariables, &models.ScopedVariableData{
-			VariableName:  models.DevtronEnvName,
-			VariableValue: &models.VariableValue{Value: metadata.EnvironmentName},
-		})
-	}
-	if len(metadata.ImageTag) > 0 && slices.Contains(varNames, models.DevtronImageTag) {
-		systemVariables = append(systemVariables, &models.ScopedVariableData{
-			VariableName:  models.DevtronImageTag,
-			VariableValue: &models.VariableValue{Value: metadata.ImageTag},
-		})
+	for _, variable := range resourceQualifiers.SystemVariables {
+		if len(metadata.GetDataFromSystemVariable(variable)) > 0 && slices.Contains(varNames, string(variable)) {
+			systemVariables = append(systemVariables, &models.ScopedVariableData{
+				VariableName:  string(variable),
+				VariableValue: &models.VariableValue{Value: metadata.GetDataFromSystemVariable(variable)},
+			})
+		}
 	}
 	return systemVariables
 }

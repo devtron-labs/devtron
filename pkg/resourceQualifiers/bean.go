@@ -15,6 +15,20 @@ type SystemMetadata struct {
 	ImageTag        string
 }
 
+func (metadata *SystemMetadata) GetDataFromSystemVariable(variable SystemVariableName) string {
+	switch variable {
+	case DevtronNamespace:
+		return metadata.Namespace
+	case DevtronClusterName:
+		return metadata.ClusterName
+	case DevtronEnvName:
+		return metadata.EnvironmentName
+	case DevtronImageTag:
+		return metadata.ImageTag
+	}
+	return ""
+}
+
 type Qualifier int
 
 const (
