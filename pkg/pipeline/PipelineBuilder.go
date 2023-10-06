@@ -259,7 +259,11 @@ type PipelineBuilder interface {
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	//FindAppAndEnvDetailsByPipelineId : Retrieve app and env details for given cdPipelineId
 	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
-	// RetrieveParentDetails : Retrieve the parent id and type of the parent
+	// RetrieveParentDetails : Retrieve the parent id and type of the parent.
+	//Here ParentId refers to Parent like parent of CD can be CI , PRE-CD .
+	// It first fetches the workflow details from the appWorkflow repository.
+	//If the workflow is a CD pipeline, it further checks for stage configurations.
+	//If the workflow is a webhook, it returns the webhook workflow type.
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
 	//GetEnvironmentByCdPipelineId : Retrieve environmentId for given cdPipelineId
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
