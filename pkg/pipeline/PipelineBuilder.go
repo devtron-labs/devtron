@@ -4108,6 +4108,18 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 			ciArtifacts[i].ImageComment = imageCommentResp
 		}
 
+		environment := pipeline.Environment
+		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
+		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
+		metadata := resourceFilter.ExpressionMetadata{
+			Params: params,
+		}
+		filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+		if err != nil {
+			return ciArtifactsResponse, err
+		}
+		ciArtifacts[i].FilterState = filterState
+
 		if artifact.ExternalCiPipelineId != 0 {
 			// if external webhook continue
 			continue
@@ -4131,18 +4143,6 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		ciArtifacts[i].TriggeredBy = ciWorkflow.TriggeredBy
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
-		// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR First check whether this env has filter enabled
-		environment := pipeline.Environment
-		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
-		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
-		metadata := resourceFilter.ExpressionMetadata{
-			Params: params,
-		}
-		filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
-		if err != nil {
-			return ciArtifactsResponse, err
-		}
-		ciArtifacts[i].FilterState = filterState
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
