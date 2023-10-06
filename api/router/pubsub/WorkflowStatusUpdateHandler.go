@@ -113,7 +113,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 
 		impl.logger.Debugw("received cd wf update request body", "body", wfStatus)
 		wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
-		impl.logger.Debug(wfrId)
+		impl.logger.Debugw("UpdateWorkflow", "wfrId", wfrId, "wfrStatus", wfrStatus)
 		if err != nil {
 			impl.logger.Error("err", err)
 			return
@@ -124,8 +124,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
-		if wfrStatus == string(v1alpha1.NodeSucceeded) ||
-			wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+		if wfrStatus == string(v1alpha1.NodeSucceeded) || wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
 			eventType := util.EventType(0)
 			if wfrStatus == string(v1alpha1.NodeSucceeded) {
 				eventType = util.Success
