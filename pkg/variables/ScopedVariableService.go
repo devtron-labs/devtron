@@ -321,10 +321,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 
 	//populating system variables from system metadata
 	if scope.SystemMetadata != nil {
-		systemVariableData, err := impl.getSystemVariablesData(scope.SystemMetadata, varNames)
-		if err != nil {
-			return nil, err
-		}
+		systemVariableData := impl.getSystemVariablesData(scope.SystemMetadata, varNames)
 		scopedVariableDataObj = append(scopedVariableDataObj, systemVariableData...)
 	}
 
@@ -437,7 +434,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 
 }
 
-func (impl *ScopedVariableServiceImpl) getSystemVariablesData(metadata *resourceQualifiers.SystemMetadata, varNames []string) ([]*models.ScopedVariableData, error) {
+func (impl *ScopedVariableServiceImpl) getSystemVariablesData(metadata *resourceQualifiers.SystemMetadata, varNames []string) []*models.ScopedVariableData {
 	systemVariables := make([]*models.ScopedVariableData, 0)
 	if len(metadata.Namespace) > 0 && slices.Contains(varNames, models.DevtronNamespace) {
 		systemVariables = append(systemVariables, &models.ScopedVariableData{
@@ -459,7 +456,7 @@ func (impl *ScopedVariableServiceImpl) getSystemVariablesData(metadata *resource
 			VariableValue: &models.VariableValue{Value: metadata.EnvironmentName},
 		})
 	}
-	return systemVariables, nil
+	return systemVariables
 }
 
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {
