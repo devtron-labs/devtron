@@ -1619,7 +1619,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForCiJob(w http.Respons
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchArtifactsForCiJob", "err", err, "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
 		if util.IsErrNoRows(err) {
-			err = &util.ApiError{Code: "404", HttpStatusCode: http.StatusNotFound, UserMessage: "no workflow found"}
+			err = &util.ApiError{Code: "404", HttpStatusCode: http.StatusNotFound, UserMessage: "no artifact found"}
 			common.WriteJsonResp(w, err, nil, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
