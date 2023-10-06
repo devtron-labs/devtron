@@ -3088,7 +3088,10 @@ func (impl *PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 			}
 			_, err = impl.application.Get(ctx, req)
 		}
-		if strings.Contains(err.Error(), "not found") {
+		if err != nil {
+			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
+		}
+		if err != nil && strings.Contains(err.Error(), "not found") {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
 				pipeline,
