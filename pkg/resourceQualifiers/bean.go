@@ -4,6 +4,15 @@ type Scope struct {
 	AppId     int `json:"appId"`
 	EnvId     int `json:"envId"`
 	ClusterId int `json:"clusterId"`
+
+	SystemMetadata *SystemMetadata `json:"-"`
+
+}
+
+type SystemMetadata struct {
+	EnvironmentName string
+	ClusterName     string
+	Namespace       string
 }
 
 type Qualifier int

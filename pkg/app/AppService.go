@@ -1256,14 +1256,28 @@ func (impl *AppServiceImpl) GetDeploymentStrategyByTriggerType(overrideRequest *
 
 func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
 
+	envOverride := &chartConfig.EnvConfigOverride{}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("unable to find env", "err", err)
+		return nil, err
+	}
+	envOverride.Environment = env
+
 	//VARIABLE different cases for variable resolution
 	scope := resourceQualifiers.Scope{
 		AppId:     overrideRequest.AppId,
 		EnvId:     overrideRequest.EnvId,
 		ClusterId: overrideRequest.ClusterId,
+		SystemMetadata: &resourceQualifiers.SystemMetadata{
+			EnvironmentName: env.Name,
+			ClusterName:     env.Cluster.ClusterName,
+			Namespace:       env.Namespace,
+		},
 	}
-	envOverride := &chartConfig.EnvConfigOverride{}
-	var err error
+	//var err error
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
 		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
@@ -1376,6 +1390,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 		}
 
 		if envOverride.IsOverride {
+
 			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, envOverride.EnvOverrideValues, repository6.Entity{
 				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
 				EntityId:   envOverride.Id,
@@ -1397,15 +1412,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			envOverride.VariableSnapshot = variableMap
 		}
 	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("unable to find env", "err", err)
-		return nil, err
-	}
-	envOverride.Environment = env
-	//VARIABLE_RESOLVE
+
 	return envOverride, nil
 }
 
