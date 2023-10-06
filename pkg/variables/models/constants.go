@@ -4,4 +4,5 @@ const (
 	DevtronNamespace   = "DEVTRON_NAMESPACE"
 	DevtronClusterName = "DEVTRON_CLUSTER_NAME"
 	DevtronEnvName     = "DEVTRON_ENV_NAME"
+	DevtronImageTag    = "DEVTRON_IMAGE_TAG"
 )

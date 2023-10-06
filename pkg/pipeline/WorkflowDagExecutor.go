@@ -906,6 +906,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				EnvironmentName: env.Name,
 				ClusterName:     env.Cluster.ClusterName,
 				Namespace:       env.Namespace,
+				ImageTag:        artifact.Image,
 			},
 		}
 		var variableSnapshot map[string]string

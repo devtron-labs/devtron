@@ -456,6 +456,12 @@ func (impl *ScopedVariableServiceImpl) getSystemVariablesData(metadata *resource
 			VariableValue: &models.VariableValue{Value: metadata.EnvironmentName},
 		})
 	}
+	if len(metadata.ImageTag) > 0 && slices.Contains(varNames, models.DevtronImageTag) {
+		systemVariables = append(systemVariables, &models.ScopedVariableData{
+			VariableName:  models.DevtronImageTag,
+			VariableValue: &models.VariableValue{Value: metadata.ImageTag},
+		})
+	}
 	return systemVariables
 }
 
