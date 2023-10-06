@@ -55,7 +55,7 @@ components:
         ENABLE_BUILD_CONTEXT: "true"
         ENABLE_RESTART_WORKLOAD: "true"
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
-    image: "quay.io/devtron/dashboard:e7f301f1-325-16798"
+    image: "quay.io/devtron/dashboard:4b2611ae-325-16826"
     imagePullPolicy: IfNotPresent
 
   devtron:
