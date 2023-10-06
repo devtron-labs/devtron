@@ -132,12 +132,13 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				eventType = util.Fail
 			}
 
-			if (wfrStatus == string(v1alpha1.NodeError) || wfrStatus == string(v1alpha1.NodeFailed)) && wfStatus.Message == pipeline.POD_DELETED_MESSAGE {
+			if (wfrStatus == string(v1alpha1.NodeError) || wfrStatus == string(v1alpha1.NodeFailed)) && (wfStatus.Message == pipeline.POD_DELETED_MESSAGE) {
 				err = impl.cdHandler.HandleCdStageReTrigger(wfr)
 				if err != nil {
 					impl.logger.Errorw("error in HandleCdStageReTrigger", "error", err)
 				}
 			}
+
 			if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
 				impl.logger.Debugw("event pre stage", "event", event)
