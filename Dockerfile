@@ -11,7 +11,7 @@ RUN echo $GOPATH && \
 # Copy the project files into the image and
 # build the Devtron Go binary.
 WORKDIR /go/src/github.com/devtron-labs/devtron
-COPY . /go/src/github.com/devtron-labs/devtron/
+ADD . /go/src/github.com/devtron-labs/devtron/
 RUN GOOS=linux make build-all
 
 # Final stage consisting of the devtron binary and
@@ -24,21 +24,20 @@ RUN apt update && \
     apt clean autoclean && \
     apt autoremove -y && rm -rf /var/lib/apt/lists/*
 
-# Copy the Devtron binary from the build stage alongwith auth_model.conf in the current working directory.
-COPY --from=build-env \
-    /go/src/github.com/devtron-labs/devtron/devtron \
-    /go/src/github.com/devtron-labs/devtron/auth_model.conf ./
+# Copy the Devtron binary from the build stage.
+COPY --from=build-env /go/src/github.com/devtron-labs/devtron/devtron .
 
 # Copy ArgoCD assets into the docker image.
-COPY --from=build-env /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets
+COPY ./vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets
 
 # Copy other required scripts into the docker image in the "scripts" directory.
-COPY --from=build-env /go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts \
-    /go/src/github.com/devtron-labs/devtron/scripts/sql \
-    /go/src/github.com/devtron-labs/devtron/scripts/casbin \
-    /go/src/github.com/devtron-labs/devtron/scripts/argo-assets scripts/
+COPY ./scripts/devtron-reference-helm-charts \
+    ./scripts/sql \
+    ./scripts/casbin \
+    ./scripts/argo-assets scripts/
 
-# Copy git-ask-pass.sh to the image and make it executable.
+# Copy other required files/scripts needed for the application to run.
+COPY ./auth_model.conf .
 COPY ./git-ask-pass.sh /git-ask-pass.sh
 RUN chmod +x /git-ask-pass.sh
 
