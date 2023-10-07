@@ -1,39 +1,51 @@
-FROM golang:1.20  AS build-env
+# Devtron binary build stage.
+FROM golang:1.20-bullseye as build-env
 
-RUN echo $GOPATH
-RUN apt update
-RUN apt install git gcc musl-dev make -y
-RUN go install github.com/google/wire/cmd/wire@latest
+# Install the required dependencies and wire go binary
+# for compile time dependency injection.
+RUN echo $GOPATH && \
+    apt update && \
+    apt install git gcc musl-dev make -y && \
+    go install github.com/google/wire/cmd/wire@latest
+
+# Copy the project files into the image and
+# build the Devtron Go binary.
 WORKDIR /go/src/github.com/devtron-labs/devtron
 ADD . /go/src/github.com/devtron-labs/devtron/
 RUN GOOS=linux make build-all
 
-# uncomment this post build arg
-FROM ubuntu as  devtron-all
+# Final stage consisting of the devtron binary and
+# other required artifacts
+FROM ubuntu as devtron-all
 
-RUN apt update
-RUN apt install ca-certificates git curl -y
-RUN apt clean autoclean
-RUN apt autoremove -y && rm -rf /var/lib/apt/lists/*
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/devtron .
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/auth_model.conf .
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts scripts/devtron-reference-helm-charts
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/sql scripts/sql
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/casbin scripts/casbin
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/argo-assets/APPLICATION_TEMPLATE.JSON scripts/argo-assets/APPLICATION_TEMPLATE.JSON
+# Install the required dependencies for the final stage.
+RUN apt update && \
+    apt install ca-certificates git curl -y && \
+    apt clean autoclean && \
+    apt autoremove -y && rm -rf /var/lib/apt/lists/*
 
+# Copy the Devtron binary from the build stage alongwith auth_model.conf in the current working directory.
+COPY --from=build-env \
+	/go/src/github.com/devtron-labs/devtron/devtron \
+	/go/src/github.com/devtron-labs/devtron/auth_model.conf ./
+
+# Copy ArgoCD assets into the image.
+COPY --from=build-env /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets
+
+# Copy other required scripts into the image at "scripts/".
+COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts \
+	/go/src/github.com/devtron-labs/devtron/scripts/sql \
+    /go/src/github.com/devtron-labs/devtron/scripts/casbin \
+    /go/src/github.com/devtron-labs/devtron/scripts/argo-assets scripts/
+
+# Copy git-ask-pass.sh to the image and configure executable permissions.
 COPY ./git-ask-pass.sh /git-ask-pass.sh
 RUN chmod +x /git-ask-pass.sh
 
+# Configuring the user and assigning it to the required files.
 RUN useradd -ms /bin/bash devtron
-RUN chown -R devtron:devtron ./devtron
-RUN chown -R devtron:devtron ./git-ask-pass.sh
-RUN chown -R devtron:devtron ./auth_model.conf 
-RUN chown -R devtron:devtron ./scripts
-
+RUN chown -R devtron:devtron /devtron ./git-ask-pass.sh ./auth_model.conf ./scripts
 USER devtron
-
 CMD ["./devtron"]
 
 
