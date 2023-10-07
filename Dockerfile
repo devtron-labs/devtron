@@ -12,7 +12,7 @@ RUN echo $GOPATH && \
 # build the Devtron Go binary.
 WORKDIR /go/src/github.com/devtron-labs/devtron
 COPY . /go/src/github.com/devtron-labs/devtron/
-# RUN GOOS=linux make build-all
+RUN GOOS=linux make build-all
 
 # Final stage consisting of the devtron binary and
 # other required artifacts
@@ -26,7 +26,7 @@ RUN apt update && \
 
 # Copy the Devtron binary from the build stage alongwith auth_model.conf in the current working directory.
 COPY --from=build-env \
-	# /go/src/github.com/devtron-labs/devtron/devtron \
+    /go/src/github.com/devtron-labs/devtron/devtron \
 	/go/src/github.com/devtron-labs/devtron/auth_model.conf ./
 
 # Copy ArgoCD assets into the docker image.
@@ -44,7 +44,7 @@ RUN chmod +x /git-ask-pass.sh
 
 # Configuring the user and configure its access to the required files.
 RUN useradd -ms /bin/bash devtron && \
-    chown -R devtron:devtron /devtron ./git-ask-pass.sh ./auth_model.conf ./scripts
+    chown -R devtron:devtron ./devtron ./git-ask-pass.sh ./auth_model.conf ./scripts
 
 # Configure the user.
 USER devtron
