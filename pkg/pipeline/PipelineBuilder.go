@@ -108,19 +108,15 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 type PipelineBuilder interface {
 	//function related to application and project
 
-	//CreateApp : Delegating the request to ciCdPipelineOrchestrator for application creation.
-	//Internally function also creates an application group, stores its description, and associates labels and tags if specified.
-	//If the application is of type 'Job', it sets the application name to the display name.
-	//Finally,returning the created application details.
-	//If any error occur it logs error message properly.
+	//CreateApp : This function creates applications of type Job as well as Devtronapps
+	// In case of error response object is nil
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
-	//DeleteApp : Delegating the request to ciCdPipelineOrchestrator for application deletion.
+	//DeleteApp : This function deletes applications of type Job as well as DevtronApps
 	DeleteApp(appId int, userId int32) error
 	//GetApp : Gets Application along with Git materials for given appId.
-	//It fetches the application from the repository and constructs a CreateAppDTO.
-	//If the application type is a 'Chart Store App', it directly returns the application details.
-	//For other application types like jobs, it retrieves Git materials associated with the application.
-	//In case of error , CreateAppDTO is returned as nil.
+	//If the application type is a 'Chart Store App', it doesnt provide any detail.
+	//For application types like Jobs and DevtronApps, it retrieves Git materials associated with the application.
+	//In case of error response object is nil
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	//FindByIds : Find applications by given IDs, delegating the request to the appRepository.
 	// It queries the repository for applications corresponding to the given IDs and constructs
