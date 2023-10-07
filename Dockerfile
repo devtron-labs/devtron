@@ -33,8 +33,8 @@ COPY --from=build-env \
 COPY --from=build-env /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets
 
 # Copy other required scripts into the docker image in the "scripts" directory.
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts \
-	/go/src/github.com/devtron-labs/devtron/scripts/sql \
+COPY --from=build-env /go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts \
+    /go/src/github.com/devtron-labs/devtron/scripts/sql \
     /go/src/github.com/devtron-labs/devtron/scripts/casbin \
     /go/src/github.com/devtron-labs/devtron/scripts/argo-assets scripts/
 
