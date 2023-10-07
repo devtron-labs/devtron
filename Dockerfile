@@ -30,16 +30,10 @@ COPY --from=build-env /go/src/github.com/devtron-labs/devtron/devtron .
 # Copy ArgoCD assets into the docker image.
 COPY ./vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets
 
-# Copy other required scripts into the docker image in the "scripts" directory.
-COPY ./scripts/devtron-reference-helm-charts \
-    ./scripts/sql \
-    ./scripts/casbin \
-    ./scripts/argo-assets scripts/
-
 # Copy other required files/scripts needed for the application to run.
-COPY ./auth_model.conf .
-COPY ./git-ask-pass.sh /git-ask-pass.sh
-RUN chmod +x /git-ask-pass.sh
+COPY ./scripts /scripts
+COPY ./auth_model.conf ./git-ask-pass.sh ./
+RUN chmod +x ./git-ask-pass.sh
 
 # Configuring the user and configure its access to the required files.
 RUN useradd -ms /bin/bash devtron && \
