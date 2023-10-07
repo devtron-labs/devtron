@@ -27,7 +27,7 @@ RUN apt update && \
 # Copy the Devtron binary from the build stage alongwith auth_model.conf in the current working directory.
 COPY --from=build-env \
     /go/src/github.com/devtron-labs/devtron/devtron \
-	/go/src/github.com/devtron-labs/devtron/auth_model.conf ./
+    /go/src/github.com/devtron-labs/devtron/auth_model.conf ./
 
 # Copy ArgoCD assets into the docker image.
 COPY --from=build-env /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets
