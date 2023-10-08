@@ -20,6 +20,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
@@ -35,6 +36,8 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	util5 "github.com/devtron-labs/devtron/util/k8s"
 	"go.opentelemetry.io/otel"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strconv"
 	"strings"
 	"time"
@@ -144,6 +147,7 @@ const (
 	APP_NAME                     = "APP_NAME"
 	DEVTRON_CD_TRIGGERED_BY      = "DEVTRON_CD_TRIGGERED_BY"
 	DEVTRON_CD_TRIGGER_TIME      = "DEVTRON_CD_TRIGGER_TIME"
+	hibernateReplicaAnnotation   = "hibernator.devtron.ai/replicas"
 )
 
 type CiArtifactDTO struct {
@@ -1639,7 +1643,6 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 		impl.logger.Errorw("error in fetching latest release", "err", err)
 		return 0, err
 	}
-	stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false} }`
 	overrideRequest := &bean.ValuesOverrideRequest{
 		PipelineId:     pipeline.Id,
 		AppId:          stopRequest.AppId,
@@ -1647,10 +1650,56 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 		UserId:         stopRequest.UserId,
 		CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 	}
+	resourceIdentifier := &k8s.ResourceRequestBean{
+		K8sRequest: &util5.K8sRequestBean{
+			ResourceIdentifier: util5.ResourceIdentifier{
+				Name:      pipeline.DeploymentAppName,
+				Namespace: pipeline.Environment.Namespace,
+				GroupVersionKind: schema.GroupVersionKind{
+					Group:   "apps",
+					Version: "v1",
+					Kind:    "Deployment",
+				},
+			},
+		},
+		ClusterId: pipeline.Environment.ClusterId,
+	}
+	liveManifest, err := impl.k8sCommonService.GetResource(ctx, resourceIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting live manifest", "err", err, "resourceIdentifierRequest", resourceIdentifier)
+		return 0, err
+	}
+	if liveManifest == nil {
+		return 0, errors.New("manifest not found")
+	}
 	if stopRequest.RequestType == STOP {
+		replicas, found, err := unstructured.NestedInt64(liveManifest.Manifest.UnstructuredContent(), "spec", "replicas")
+		if err != nil {
+			return 0, err
+		}
+		if !found {
+			return 0, errors.New("replicas not found in manifest")
+		}
+		if replicas == 0 {
+			return 0, errors.New("object is already scaled down")
+		}
+		stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false},"deploymentAnnotations":{%s:%s}}`
+		stopTemplate = fmt.Sprintf(stopTemplate, hibernateReplicaAnnotation, string(replicas))
+
 		overrideRequest.AdditionalOverride = json.RawMessage([]byte(stopTemplate))
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_STOP
 	} else if stopRequest.RequestType == START {
+		originalReplicaCount, err := strconv.Atoi(liveManifest.Manifest.GetAnnotations()[hibernateReplicaAnnotation])
+		if err != nil {
+			return 0, err
+		}
+		if originalReplicaCount == 0 {
+			return 0, errors.New("object is already scaled up")
+		}
+		startTemplate := `{"replicaCount":%s,"deploymentAnnotations":{%s:0}}`
+		startTemplate = fmt.Sprintf(startTemplate, string(originalReplicaCount), hibernateReplicaAnnotation)
+
+		overrideRequest.AdditionalOverride = json.RawMessage([]byte(startTemplate))
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_START
 	} else {
 		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
