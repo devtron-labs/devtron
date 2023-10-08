@@ -6,6 +6,29 @@ type Scope struct {
 	ClusterId int  `json:"clusterId"`
 	ProjectId int  `json:"projectId"`
 	IsProdEnv bool `json:"isProdEnv"`
+
+	SystemMetadata *SystemMetadata `json:"-"`
+}
+
+type SystemMetadata struct {
+	EnvironmentName string
+	ClusterName     string
+	Namespace       string
+	ImageTag        string
+}
+
+func (metadata *SystemMetadata) GetDataFromSystemVariable(variable SystemVariableName) string {
+	switch variable {
+	case DevtronNamespace:
+		return metadata.Namespace
+	case DevtronClusterName:
+		return metadata.ClusterName
+	case DevtronEnvName:
+		return metadata.EnvironmentName
+	case DevtronImageTag:
+		return metadata.ImageTag
+	}
+	return ""
 }
 
 type Qualifier int
