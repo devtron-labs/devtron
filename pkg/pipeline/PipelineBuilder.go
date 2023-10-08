@@ -108,46 +108,99 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 type PipelineBuilder interface {
 	//function related to application and project
 
-	//CreateApp : Delegating the request to ciCdPipelineOrchestrator for application creation.
+	//CreateApp : This function creates applications of type Job as well as Devtronapps
+	// In case of error response object is nil
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
-	//DeleteApp : Delegating the request to ciCdPipelineOrchestrator for application deletion.
+	//DeleteApp : This function deletes applications of type Job as well as DevtronApps
 	DeleteApp(appId int, userId int32) error
 	//GetApp : Gets Application along with Git materials for given appId.
+	//If the application type is a 'Chart Store App', it doesnt provide any detail.
+	//For application types like Jobs and DevtronApps, it retrieves Git materials associated with the application.
+	//In case of error response object is nil
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	//FindByIds : Find applications by given IDs, delegating the request to the appRepository.
+	// It queries the repository for applications corresponding to the given IDs and constructs
+	//a list of AppBean objects containing ID, name, and team ID.
+	//It returns the list of AppBean instances.
+	//In case of error,AppBean is returned as nil.
 	FindByIds(ids []*int) ([]*AppBean, error)
-	//GetAppList : Retrieve and return a list of applications.
+	//GetAppList : Retrieve and return a list of applications after converting in proper bean object.
+	//In case of any error , []AppBean is returned as nil.
 	GetAppList() ([]AppBean, error)
 	//FindAllMatchesByAppName : Find and return applications matching the given name and type.
+	//Internally,It performs a case-insensitive search based on the applicationName("%"+appName+"%") and type.
+	//In case of error,[]*AppBean is returned as nil.
 	FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*AppBean, error)
-	//GetAppListForEnvironment : Retrieve and return authorized applications based on the provided request.
+	//GetAppListForEnvironment : Retrieves a list of applications (AppBean) based on the provided ResourceGroupingRequest.
+	// It first determines the relevant application and environment objects based on the active pipelines fetched from the repository.
+	//The function then performs authorization checks on these objects for the given user.
+	//Finally , the corresponding AppBean objects are added to the applicationList and then returned.
+	//In case of error,[]*AppBean is returned as nil.
 	GetAppListForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*AppBean, error)
-	//FindAppsByTeamId : Retrieve applications associated with the specified team ID , delegating the request to appRepository.
+	//FindAppsByTeamId : Retrieves applications (AppBean) associated with the provided teamId
+	//It queries the repository for applications belonging to the specified team(project) and
+	//constructs a list of AppBean instances containing ID and name.
+	//The function returns the list of applications in valid case.
+	//In case of error,[]*AppBean is returned as nil.
 	FindAppsByTeamId(teamId int) ([]*AppBean, error)
-	//FindAppsByTeamName : Retrieve applications associated with the specified team Name , delegating the request to appRepository.
+	//FindAppsByTeamName : Retrieves applications (AppBean) associated with the provided teamName
+	// It queries the repository for applications belonging to the specified team(project) and
+	// constructs a list of AppBean instances containing ID and name.
+	// The function returns the list of applications in valid case.
+	// In case of error,[]*AppBean is returned as nil.
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 
 	//function related to ciPipeline
-	//GetCiPipeline : Retrieve ciPipeline or jobPipeline for given appId
+
+	//GetCiPipeline : retrieves CI pipeline configuration (CiConfigRequest) for a specific application (appId).
+	// It fetches CI pipeline data, including pipeline materials, scripts, and associated configurations.
+	// It returns a detailed CiConfigRequest.
+	//If any errors occur during the retrieval process  CI pipeline configuration remains nil.
+	//If you want less detail of ciPipeline ,Please refer GetCiPipelineMin
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
-	//GetTriggerViewCiPipeline :
-	GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error)
-	//GetExternalCi : Retrieve externalCi for given appId
-	GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error)
-	//GetExternalCiById : Retrieve externalCi for given appId and externalCiId
-	GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error)
-	//UpdateCiTemplate : Update the CI template configuration, ensuring consistency with the requested changes,
-	//and return the updated configuration
-	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
-	//PatchCiPipeline : Handle CI pipeline patch requests, making necessary changes to the configuration and returning the updated version.
-	//Performs Create ,Update and Delete operation.
-	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
-	//CreateCiPipeline : Create a CI pipeline based on the provided configuration request.
-	CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error)
-	//GetCiPipelineMin : lists minimum detail of ciPipelines for given appId and envIds
-	GetCiPipelineMin(appId int, envIds []int) ([]*bean.CiPipelineMin, error)
 	//GetCiPipelineById : Retrieve ciPipeline for given ciPipelineId
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
+	//GetTriggerViewCiPipeline : retrieves a detailed view of the CI pipelines configured for a specific application (appId).
+	// It includes information on CI pipeline materials, scripts, configurations, and linked pipelines.
+	//If any errors occur ,It returns an error along with a nil result(bean.TriggerViewCiConfig).
+	GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error)
+	//GetExternalCi : Lists externalCi for given appId
+	//"external CI" refers to CI pipelines and configurations that are managed externally,
+	//like by third-party services or tools.
+	//It fetches information about external CI pipelines, their webhooks, payload configurations, and related roles.
+	//The function constructs an array of ExternalCiConfig objects and returns it.
+	// If any errors occur, the function returns an error along with a nil result([]*bean.ExternalCiConfig).
+	GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error)
+	//GetExternalCiById : Retrieve externalCi for given appId and externalCiId.
+	//It begins by validating the provided ID and fetching the corresponding CI pipeline from the repository.
+	//If the CI pipeline is found, the function constructs an ExternalCiConfig object, encapsulating essential details and returns it.
+	// If any errors occur, the function returns an error along with a nil result(*bean.ExternalCiConfig).
+	GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error)
+	//UpdateCiTemplate : handles updates to the CiTemplate based on the provided CiConfigRequest.
+	//It fetches relevant Docker registry information, and updates the CI configuration.
+	//The function then creates or modifies associated resources such as Docker repositories.
+	//After updating the configuration, it ensures to update history .
+	//Finally, the function returns the modified CiConfigRequest.
+	//If an error occurs, the CiConfigRequest is nil.
+	//If you want to Update CiPipeline please refer PatchCiPipeline
+	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
+	//PatchCiPipeline :  function manages CI pipeline operations based on the provided CiPatchRequest.
+	//It fetches template variables, sets specific attributes, and
+	//handles following actions
+	// 1. create
+	//2. update source
+	//3. delete pipelines
+	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
+	//CreateCiPipeline : manages the creation of a CI pipeline based on the provided CiConfigRequest.
+	// It first fetches  application data and configures Docker registry settings
+	//then constructs a CI template with specified build configurations, auditing details, and related Git materials.
+
+	CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error)
+	//GetCiPipelineMin : lists minimum detail of ciPipelines for given appId and envIds.
+	//It filters and fetches CI pipelines based on the provided environment identifiers.
+	//If no specific environments are provided, it retrieves all CI pipelines associated with the application.
+	//If you want more details like buildConfig ,gitMaterials etc, please refer GetCiPipeline
+	GetCiPipelineMin(appId int, envIds []int) ([]*bean.CiPipelineMin, error)
 	//PatchRegexCiPipeline : Update CI pipeline materials based on the provided regex patch request
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 	//GetCiPipelineByEnvironment : lists ciPipeline for given environmentId and appIds
@@ -174,7 +227,10 @@ type PipelineBuilder interface {
 
 	//function related to cdPipeline
 
-	//GetCdPipelineById : Retrieve cdPipeline for given cdPipelineId
+	//GetCdPipelineById : Retrieve cdPipeline for given cdPipelineId.
+	//getting cdPipeline,environment and strategies ,preDeployStage, postDeployStage,appWorkflowMapping from respective repository and service layer
+	//converting above data in proper bean object and then assigning to CDPipelineConfigObject
+	//if any error occur , will get empty object or nil
 	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	//PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
@@ -199,7 +255,12 @@ type PipelineBuilder interface {
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	//FindAppAndEnvDetailsByPipelineId : Retrieve app and env details for given cdPipelineId
 	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
-	// RetrieveParentDetails : Retrieve the parent id and type of the parent
+	// RetrieveParentDetails : Retrieve the parent id and type of the parent.
+	//Here ParentId refers to Parent like parent of CD can be CI , PRE-CD .
+	// It first fetches the workflow details from the appWorkflow repository.
+	//If the workflow is a CD pipeline, it further checks for stage configurations.
+	//If the workflow is a webhook, it returns the webhook workflow type.
+	//In case of error , it returns 0 for parentId and empty string for parentType
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
 	//GetEnvironmentByCdPipelineId : Retrieve environmentId for given cdPipelineId
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
@@ -245,6 +306,7 @@ type PipelineBuilder interface {
 	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
 
 	//function related to artifact
+
 	//RetrieveArtifactsByCDPipeline :
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
 	//FetchArtifactForRollback :
