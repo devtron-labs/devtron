@@ -1478,7 +1478,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQua
 	}
 
 	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue(false)
+		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
 	}
 
 	resolvedTemplate := parserResponse.ResolvedTemplate
