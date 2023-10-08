@@ -23,7 +23,6 @@ type VariableTemplateParser interface {
 	ExtractVariables(template string) ([]string, error)
 	//ParseTemplate(template string, values map[string]string) string
 	ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse
-	//ParseTemplateWithPrimitiveHandling(parserRequest VariableParserRequest) VariableParserResponse
 }
 
 type VariableTemplateParserImpl struct {
@@ -56,8 +55,6 @@ func getVariableTemplateParserConfig() (*VariableTemplateParserConfig, error) {
 }
 
 func preProcessPlaceholder(template string, variableValueMap map[string]interface{}) string {
-	//pattern := `\"@{{([^}]+)}}\"`
-	//@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}
 
 	re := regexp.MustCompile(VariableSubRegexWithQuotes)
 	matches := re.FindAllStringSubmatch(template, -1)
