@@ -76,6 +76,13 @@ func preProcessPlaceholder(template string, variableValueMap map[string]interfac
 
 func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
 
+	if !impl.variableTemplateParserConfig.ScopedVariableEnabled {
+		return VariableParserResponse{
+			Request:          parserRequest,
+			ResolvedTemplate: parserRequest.Template,
+		}
+	}
+
 	if impl.variableTemplateParserConfig.ScopedVariableHandlePrimitives && parserRequest.TemplateType == JsonVariableTemplate {
 
 		var variableToValue = make(map[string]interface{}, 0)
