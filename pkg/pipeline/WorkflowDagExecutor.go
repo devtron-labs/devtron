@@ -1689,7 +1689,7 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 		if replicas == 0 {
 			return 0, errors.New("object is already scaled down")
 		}
-		stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false},"deploymentAnnotations":{"%s":"%d"}}`
+		stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false},"deploymentAnnotations":{"%s": "%d"}}`
 		stopTemplate = fmt.Sprintf(stopTemplate, hibernateReplicaAnnotation, replicas)
 
 		overrideRequest.AdditionalOverride = json.RawMessage([]byte(stopTemplate))
@@ -1702,7 +1702,7 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 		if originalReplicaCount == 0 {
 			return 0, errors.New("object is already scaled up")
 		}
-		startTemplate := `{"replicaCount":%d,"deploymentAnnotations":{"%s":"0"}}`
+		startTemplate := `{"replicaCount":%d,"deploymentAnnotations":{"%s": "0"}}`
 		startTemplate = fmt.Sprintf(startTemplate, originalReplicaCount, hibernateReplicaAnnotation)
 
 		overrideRequest.AdditionalOverride = json.RawMessage([]byte(startTemplate))
