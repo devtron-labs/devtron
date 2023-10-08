@@ -13,6 +13,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function/stdlib"
 	ctyJson "github.com/zclconf/go-cty/cty/json"
 	"go.uber.org/zap"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -51,7 +52,18 @@ func GetVariableTemplateParserConfig() (*VariableTemplateParserConfig, error) {
 	return cfg, err
 }
 
-func preProcessPlaceholder(template string) string {
+func isPrimitiveType(value interface{}) bool {
+	val := reflect.ValueOf(value)
+	kind := val.Kind()
+
+	return kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 ||
+		kind == reflect.Int32 || kind == reflect.Int64 || kind == reflect.Uint ||
+		kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 ||
+		kind == reflect.Uint64 || kind == reflect.Float32 || kind == reflect.Float64 ||
+		kind == reflect.Bool
+}
+
+func preProcessPlaceholder(template string, variableValueMap map[string]interface{}) string {
 	pattern := `\"@{{([^}]+)}}\"`
 	//@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}
 
@@ -63,8 +75,10 @@ func preProcessPlaceholder(template string) string {
 		if len(match) == 2 {
 			originalMatch := match[0]
 			innerContent := match[1]
-			replacement := fmt.Sprintf("@{{%s}}", innerContent)
-			template = strings.Replace(template, originalMatch, replacement, 1)
+			if val, ok := variableValueMap[innerContent]; ok && isPrimitiveType(val) {
+				replacement := fmt.Sprintf("@{{%s}}", innerContent)
+				template = strings.Replace(template, originalMatch, replacement, 1)
+			}
 		}
 	}
 	return template
@@ -91,7 +105,12 @@ func postProcessPlaceholder(template string) string {
 func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
 
 	if impl.VariableTemplateParserConfig.ScopedVariableHandlePrimitives && parserRequest.TemplateType == JsonVariableTemplate {
-		template := preProcessPlaceholder(parserRequest.Template)
+
+		var variableToValue = make(map[string]interface{}, 0)
+		for _, variable := range parserRequest.Variables {
+			variableToValue[variable.VariableName] = variable.VariableValue.Value
+		}
+		template := preProcessPlaceholder(parserRequest.Template, variableToValue)
 		request := VariableParserRequest{
 			TemplateType:           StringVariableTemplate,
 			Template:               template,
@@ -100,10 +119,11 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariablePars
 			handlePrimitives:       true,
 		}
 		response := impl.parseTemplate(request)
-		// for variables which were not resolved and were ignored
-		if response.Error == nil {
-			response.ResolvedTemplate = postProcessPlaceholder(response.ResolvedTemplate)
-		}
+		//// for variables which were not resolved and were ignored
+		//if response.Error == nil {
+		//	finalTemplate := postProcessPlaceholder(response.ResolvedTemplate)
+		//	response.ResolvedTemplate = finalTemplate
+		//}
 		return response
 	} else {
 		return impl.parseTemplate(parserRequest)

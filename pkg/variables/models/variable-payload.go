@@ -72,9 +72,9 @@ func (value VariableValue) StringValue(escapeString bool) string {
 	case reflect.Bool:
 		return strconv.FormatBool(value.Value.(bool))
 	}
-	if escapeString {
-		return "\"" + value.Value.(string) + "\""
-	}
+	//if escapeString {
+	//	return "\"" + value.Value.(string) + "\""
+	//}
 	return value.Value.(string)
 }
 
