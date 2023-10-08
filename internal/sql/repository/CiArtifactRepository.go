@@ -130,7 +130,6 @@ func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIds(
 }
 
 func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
-	//TODO: fix if multiple workflow
 	artifact := &CiArtifact{}
 	err := impl.dbConnection.Model(artifact).
 		Column("ci_artifact.*").
@@ -255,7 +254,7 @@ func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipe
 	return artifacts, nil
 }
 
-//GetLatestArtifactTimeByCiPipelineId will fetch latest ci artifact time(created) against that ci pipeline
+// GetLatestArtifactTimeByCiPipelineId will fetch latest ci artifact time(created) against that ci pipeline
 func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error) {
 	artifacts := &CiArtifact{}
 	query := "select cws.pipeline_id, cws.created_on from " +
