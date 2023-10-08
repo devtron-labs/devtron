@@ -2139,7 +2139,7 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 		return nil, err
 	}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parsers.VariableParserRequest{
-		TemplateType:           parsers.JsonVariableTemplate,
+		TemplateType:           parsers.StringVariableTemplate,
 		Template:               string(responseJson),
 		Variables:              scopedVariables,
 		IgnoreUnknownVariables: true,
