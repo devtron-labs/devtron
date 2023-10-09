@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"golang.org/x/exp/slices"
 	"regexp"
+	"strings"
 )
 
 func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (error, bool) {
@@ -15,6 +16,11 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 		if slices.Contains(variableNamesList, variable.Definition.VarName) {
 			return models.ValidationError{Err: fmt.Errorf("duplicate variable name %s", variable.Definition.VarName)}, false
 		}
+
+		if strings.HasPrefix(variable.Definition.VarName, impl.VariableNameConfig.SystemVariablePrefix) {
+			return models.ValidationError{Err: fmt.Errorf("%s is not allowed (Prefix %s is reserved for system variables)", variable.Definition.VarName, impl.VariableNameConfig.SystemVariablePrefix)}, false
+		}
+
 		regex := impl.VariableNameConfig.VariableNameRegex
 
 		regexExpression := regexp.MustCompile(regex)
