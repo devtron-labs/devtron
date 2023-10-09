@@ -107,7 +107,7 @@ type DevtronAppStrategyService interface {
 	//FetchDefaultCDPipelineStrategy :
 	FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
 }
-type AppDeploymentTypeChangeService interface {
+type AppDeploymentTypeChangeManager interface {
 	//ChangeDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
 	// deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment and updates the db with desired deployment app type

@@ -114,7 +114,7 @@ type CiMaterialConfigService interface {
 	//GetMaterialsForAppId : Retrieve material for given appId
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
 }
-type DevtronAppArtifactService interface {
+type AppArtifactManager interface {
 	//RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
 
