@@ -16,7 +16,7 @@ RUN GOOS=linux make build-all
 
 # Final stage consisting of the devtron binary and
 # other required artifacts
-FROM ubuntu as devtron-all
+FROM ubuntu:22.04 as devtron-all
 
 # Install the required dependencies for the final stage.
 RUN apt update && \
