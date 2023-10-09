@@ -1559,7 +1559,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.Respo
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	isSuccess, err := handler.propertiesConfigService.ResetEnvironmentProperties(id)
+	isSuccess, err := handler.propertiesConfigService.ResetEnvironmentProperties(id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideReset", "err", err, "appId", appId, "environmentId", environmentId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
