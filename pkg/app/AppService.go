@@ -1406,6 +1406,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 				ClusterName:     env.Cluster.ClusterName,
 				Namespace:       env.Namespace,
 				ImageTag:        overrideRequest.ImageTag,
+				AppName:         overrideRequest.AppName,
 			},
 		}
 

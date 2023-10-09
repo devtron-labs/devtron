@@ -7,6 +7,7 @@ const (
 	DevtronClusterName SystemVariableName = "DEVTRON_CLUSTER_NAME"
 	DevtronEnvName     SystemVariableName = "DEVTRON_ENV_NAME"
 	DevtronImageTag    SystemVariableName = "DEVTRON_IMAGE_TAG"
+	DevtronAppName     SystemVariableName = "DEVTRON_APP_NAME"
 )
 
-var SystemVariables = []SystemVariableName{DevtronNamespace, DevtronClusterName, DevtronEnvName, DevtronImageTag}
+var SystemVariables = []SystemVariableName{DevtronNamespace, DevtronClusterName, DevtronEnvName, DevtronImageTag, DevtronAppName}
