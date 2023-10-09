@@ -1175,7 +1175,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 
 	countString := r.URL.Query().Get("count")
-	if len(countString) != 0 {
+	if len(countString) == 0 {
 		countString = "10"
 	}
 	count, err := strconv.Atoi(countString)
