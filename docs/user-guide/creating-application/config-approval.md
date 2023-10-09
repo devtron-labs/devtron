@@ -1,12 +1,12 @@
-# Configuration Approval Process in Devtron
+# Protect Configuration
 
 ## Introduction
 
-Since resources are created according to the configurations you enter, it's essential to protect such configurations against unauthorized changes. For critical environments like production, it becomes necessary to introduce an approval flow for any edits made to the configuration files.
+Since resources are created according to the configurations you enter, it's essential to restrict such configurations from direct modifications. For critical environments like production, it becomes necessary to introduce an approval flow for any edits made to the configuration files.
 
 In Devtron, these configurations are present in the **App Configuration** tab of your application.
 
-Any changes made to the following configurations will require approval:
+Any changes made to the following configurations will require approval if enabled:
 
 - Deployment Template
 - ConfigMaps
@@ -26,60 +26,45 @@ Let's say you wish to edit the deployment template of your environment (as an ov
 
 1. Go to the `App Configuration` tab.
 
-2. Click `Choose Protect Configuration`.
-
-3. Enable the protection for the configuration of your choice (base/environment level). A protection badge would appear next to the chosen configuration.
-
-4. In Environment Overrides → (choose your environment) → Deployment Template 
+2. In Environment Overrides → (choose your environment) → Deployment Template 
 
     ![Figure 2: Selecting Values to Change](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/edit-deployment-template.jpg)
 
-5. You can change the value of a key to a desired value as shown below. Once done, click the **Save Changes…** button **.**
+3. You can change the value of a key to a desired value as shown below. Once done, click the **Save Changes…** button **.**
 
     ![Figure 3: Changed Values](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/changed-values.jpg)
 
-6. Next, you can either do one of the following:
+4. If the configuration is protected, your changes won't be published right away. You can do either of the following:
 
-    * **Save as draft** : Selecting this option will save your file as a draft. Other users can view and edit the saved draft and propose it further for approval.
-    * **Save & Propose Changes** : Selecting this option will propose your changes for approval from an authorized user.
+    * **Save as draft** : Selecting this option will save your file as a draft. You and other users can view and edit the saved draft and propose it further for approval.
+    * **Save & Propose Changes** : Selecting this option will propose your changes to a configuration approver for a review.
 
     Since we are proposing the changes immediately, click **Propose Changes**.
 
     ![Figure 4: Proposing Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/propose-changes.jpg)
 
-7. You can also view the approver(s) if you wish.
+5. You can also view the approver(s) if you wish.
 
-    ![Figure 5: Viewing the Approver(s)](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/approver-list.jpg)
+    ![Figure 5: Viewing the Approver(s)](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/approver-list-1.jpeg)
 
 {% hint style="info" %}
-If you are already a super-admin who performed the edits, still you won't be able to approve your own changes. A different user has to approve your changes.
+The one who performs the edits cannot approve their own changes. A different user has to review and approve.
 {% endhint %}
 
-In the top-right corner, you have the option to discard the draft if you don't wish to proceed with the edits you made. Alternatively, unprotecting the configuration in the **App Configuration** page will also lead to the discarding of your proposed changes.
-
-![Figure 6a: Disabling Protection](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/toggle-protection.jpg)
-
-![Figure 6b: Confirming Action](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/unprotect.jpg)
+Only one draft can exist at time and you cannot create multiple drafts. In the top-right corner, you have the option to discard the draft if you don't wish to proceed with the edits you made. 
 
 ---
 
 ## Approving the Configuration
 
-Only a super-admin user or someone with `Configuration approver` access can approve the changes made to the configuration files. To check this, follow the below steps.
+Only a different super-admin user or someone (who is not amongst the editors of the draft), having `Configuration approver` access, can approve the changes made to the configuration files as shown below.
 
-1. Go to **Global Configurations** from the left menu.
+![Figure 6: Authorized User Approving the Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/approval-screen.jpg)
 
-2. Click the **Authorization** dropdown.
+If required, you can check whether a user has approval rights by going to **Global Configurations** → **Authorization** (dropdown) → **User Permissions**.
 
-3. Select **User Permissions**.
+![Figure 7: Checking Permissions](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/config-approver-1.jpg)
 
-4. Check the permissions granted to the user.
-
-    ![Figure 7a: Checking Permissions](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/config-approver.jpg)
-
-    If the user has the requisite permissions, he/she can approve the configuration changes as shown below.
-
-    ![Figure 7b: Authorized User Approving the Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/approval-screen.jpg)
 
 ---
 
@@ -98,7 +83,7 @@ Once the approver validates and approves your configuration changes, you can pro
     ![Figure 9: Checking Config Diff](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/review-config-diff.jpg)
 
 {% hint style="info" %}
-If the new configuration is not yet approved, the changes made to the config would not be visible during deployment, it would show `No Config Diff from Last Deployed` at the bottom.
+If the new configuration is not yet approved, the changes made to the config would not be visible during deployment, it would show `No Config Diff from Last Deployed` at the bottom. In that case, check whether your changes are present in the live config or not. If your changes are absent, chances are your draft is either pending for approval or rejected (discarded).
 {% endhint %}
 
 4. Once you have verified the changes, you can click **Deploy**.
@@ -108,3 +93,18 @@ If the new configuration is not yet approved, the changes made to the config wou
 {% hint style="info" %}
 If you don't wish to deploy with the new changes, you can choose `Last deployed config` from the available drop-down.
 {% endhint %}
+
+## Enabling/Disabling Config Protection
+
+1. Go to the `App Configuration` tab.
+
+2. Click `Protect Configuration`.
+
+3. Use the toggle button to enable the protection for the configuration of your choice (base/environment level). A protection badge would appear next to the chosen configuration.
+
+Alternatively, unprotecting the configuration will lead to the discarding of unapproved drafts (if any).
+
+![Figure 11a: Disabling Protection](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/toggle-protection.jpg)
+
+![Figure 11b: Confirming Action](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/unprotect.jpg)
+
