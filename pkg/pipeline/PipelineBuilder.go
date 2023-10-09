@@ -143,33 +143,13 @@ type DevtronAppService interface {
 }
 
 type PipelineBuilder interface {
-	//function related to application and project
-
 	DevtronAppService
-	//function related to ciPipeline
-
 	DevtronAppBuildService
-	//function related to gitMaterial
-
 	DevtronAppMaterialBuilderService
-
-	//function related to cdPipeline
-
 	DevtronAppDeploymentService
-
-	//function related to CM/CS
-
 	DevtronAppCMCSService
-
-	//function related to strategy
-
 	DevtronAppStrategyService
-
-	//function related to DeploymentAppTypeChangeResponse
-
 	DevtronAppDeploymentTypeChangeService
-	//function related to artifact
-
 	DevtronAppArtifactService
 }
 type PipelineBuilderImpl struct {
