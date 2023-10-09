@@ -3317,8 +3317,6 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			}
 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
-
-			// For cases where helm release was not found but db flag for deployment app created was true
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				return false, err
