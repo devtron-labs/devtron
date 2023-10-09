@@ -492,7 +492,7 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWork
 
 func (impl *CdWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error) {
 	retryCount := 0
-	query := fmt.Sprintf("select count(*) "+
+	query := fmt.Sprintf("select count(id) "+
 		"from cd_workflow_runner where ref_cd_workflow_runner_id = %v", wfrId)
 
 	_, err := impl.dbConnection.Query(&retryCount, query)
