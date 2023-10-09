@@ -339,7 +339,10 @@ func InitializeApp() (*App, error) {
 	repositoryServiceClientImpl := repository8.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	variableEntityMappingRepositoryImpl := repository7.NewVariableEntityMappingRepository(sugaredLogger, db)
 	variableEntityMappingServiceImpl := variables.NewVariableEntityMappingServiceImpl(variableEntityMappingRepositoryImpl, sugaredLogger)
-	variableTemplateParserImpl := parsers.NewVariableTemplateParserImpl(sugaredLogger)
+	variableTemplateParserImpl, err := parsers.NewVariableTemplateParserImpl(sugaredLogger)
+	if err != nil {
+		return nil, err
+	}
 	scopedVariableRepositoryImpl := repository7.NewScopedVariableRepository(db, sugaredLogger)
 	qualifiersMappingRepositoryImpl, err := resourceQualifiers.NewQualifiersMappingRepositoryImpl(db, sugaredLogger)
 	if err != nil {

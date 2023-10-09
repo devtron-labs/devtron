@@ -69,7 +69,7 @@ type WorkflowDagExecutor interface {
 	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
 	HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool) (bool, error)
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
-	HandleDeploymentSuccessEvent(gitHash string, pipelineOverrideId int) error
+	HandleDeploymentSuccessEvent(pipelineOverride *chartConfig.PipelineOverride) error
 	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32, refCdWorkflowRunnerId int) error
@@ -904,6 +904,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			AppId:     cdPipeline.App.Id,
 			EnvId:     env.Id,
 			ClusterId: env.ClusterId,
+			SystemMetadata: &resourceQualifiers.SystemMetadata{
+				EnvironmentName: env.Name,
+				ClusterName:     env.Cluster.ClusterName,
+				Namespace:       env.Namespace,
+				ImageTag:        artifact.Image,
+			},
 		}
 		var variableSnapshot map[string]string
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
@@ -1226,23 +1232,9 @@ func (impl *WorkflowDagExecutorImpl) buildDefaultArtifactLocation(cdWorkflowConf
 	return ArtifactLocation
 }
 
-func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string, pipelineOverrideId int) error {
-	var pipelineOverride *chartConfig.PipelineOverride
-	var err error
-	if len(gitHash) > 0 && pipelineOverrideId == 0 {
-		pipelineOverride, err = impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
-		if err != nil {
-			impl.logger.Errorw("error in fetching pipeline trigger by hash", "gitHash", gitHash)
-			return err
-		}
-	} else if len(gitHash) == 0 && pipelineOverrideId > 0 {
-		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(pipelineOverrideId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching pipeline trigger by override id", "pipelineOverrideId", pipelineOverrideId)
-			return err
-		}
-	} else {
-		return fmt.Errorf("no release found")
+func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(pipelineOverride *chartConfig.PipelineOverride) error {
+	if pipelineOverride == nil {
+		return fmt.Errorf("invalid request, pipeline override not found")
 	}
 	cdWorkflow, err := impl.cdWorkflowRepository.FindById(pipelineOverride.CdWorkflowId)
 	if err != nil {
