@@ -1627,6 +1627,7 @@ func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRe
 }
 
 func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error) {
+	//stop means hibernate and start means un-hibernate
 	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(stopRequest.AppId, stopRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "app", stopRequest.AppId, "env", stopRequest.EnvironmentId, "err", err)
@@ -1656,67 +1657,44 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 		UserId:         stopRequest.UserId,
 		CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 	}
-
+	err = overrideRequest.SetDeploymentAppTypeForRequestType(stopRequest.RequestType)
+	if err != nil {
+		return 0, err
+	}
+	var template string
 	//in case of un-hibernate request, argo-cd and helm devtron apps have different behaviour, for helm, restore
 	//replicaCount to the previous state from where hibernation was initiated, but in case of argo-cd restore the
 	//replicaCount as present in git-ops folder, as it's single source of truth for git-ops, hence restore original.
-	stopTemplate, startTemplate, err := impl.FetchAdditionalOverrideStopAndStartTemplate(ctx, pipeline, stopRequest)
-	if err != nil {
-		impl.logger.Errorw("error in fetching stopTemplate/startTemplate for additional override", "err", err)
-		return 0, err
-	}
-
-	if stopRequest.RequestType == STOP {
-		overrideRequest.AdditionalOverride = json.RawMessage([]byte(stopTemplate))
-		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_STOP
-	} else if stopRequest.RequestType == START {
-		if pipeline.DeploymentAppType == bean2.Helm {
-			overrideRequest.AdditionalOverride = json.RawMessage([]byte(startTemplate))
+	if util.IsHelmApp(pipeline.DeploymentAppType) {
+		//for devtron apps deployed via helm, fetch live manifest and return stop or start template after fetching
+		liveManifest, err := impl.FetchLiveManifest(ctx, pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in getting live manifest", "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId, "err", err)
+			return 0, err
 		}
-		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_START
-	} else {
-		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
+		if stopRequest.RequestType == STOP {
+			template, err = impl.FetchAdditionalOverrideStopTemplate(liveManifest)
+			if err != nil {
+				impl.logger.Errorw("error in fetching stop template for additional override", "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId, "err", err)
+				return 0, err
+			}
+		} else {
+			template, err = impl.FetchAdditionalOverrideStartTemplate(liveManifest)
+			if err != nil {
+				impl.logger.Errorw("error in fetching start template for additional override", "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId, "err", err)
+				return 0, err
+			}
+		}
+	} else if util.IsAcdApp(pipeline.DeploymentAppType) && stopRequest.RequestType == STOP {
+		template = `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false} }`
 	}
+	overrideRequest.AdditionalOverride = []byte(template)
 	id, err := impl.ManualCdTrigger(overrideRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
 		return 0, err
 	}
 	return id, err
-}
-
-// FetchAdditionalOverrideStopAndStartTemplate fetches the stop template when request is for hibernate else fetch start
-// template when request is for un-hibernate.
-func (impl *WorkflowDagExecutorImpl) FetchAdditionalOverrideStopAndStartTemplate(ctx context.Context, pipeline *pipelineConfig.Pipeline, stopRequest *StopAppRequest) (string, string, error) {
-	stopTemplate := ""
-	startTemplate := ""
-	switch pipeline.DeploymentAppType {
-	case bean2.ArgoCd:
-		stopTemplate = `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false} }`
-	case bean2.Helm:
-		//for devtron apps deployed via helm, fetch live manifest and return stop or start template after fetching
-		liveManifest, err := impl.FetchLiveManifest(ctx, pipeline)
-		if err != nil {
-			impl.logger.Errorw("error in getting live manifest", "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId, "err", err)
-			return "", "", err
-		}
-		if stopRequest.RequestType == STOP {
-			stopTemplate, err = impl.FetchAdditionalOverrideStopTemplate(liveManifest)
-			if err != nil {
-				impl.logger.Errorw("error in fetching stop template for additional override", "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId, "err", err)
-				return "", "", err
-			}
-		} else if stopRequest.RequestType == START {
-			startTemplate, err = impl.FetchAdditionalOverrideStartTemplate(liveManifest)
-			if err != nil {
-				impl.logger.Errorw("error in fetching start template for additional override", "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId, "err", err)
-				return "", "", err
-			}
-		}
-	default:
-		return "", "", errors.New("invalid deployment type")
-	}
-	return stopTemplate, startTemplate, nil
 }
 
 // FetchLiveManifest fetches live manifest based on clusterId, GVK, deploymentAppName and namespace.

@@ -19,7 +19,9 @@ package bean
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
 )
@@ -73,6 +75,18 @@ type ValuesOverrideRequest struct {
 	PipelineName                          string                      `json:"-"`
 	DeploymentAppType                     string                      `json:"-"`
 	ImageTag                              string                      `json:"-"`
+}
+
+func (v *ValuesOverrideRequest) SetDeploymentAppTypeForRequestType(rType pipeline.RequestType) error {
+	switch rType {
+	case pipeline.START:
+		v.DeploymentType = models.DEPLOYMENTTYPE_START
+	case pipeline.STOP:
+		v.DeploymentType = models.DEPLOYMENTTYPE_STOP
+	default:
+		return fmt.Errorf("unsupported operation %s", rType)
+	}
+	return nil
 }
 
 type BulkCdDeployEvent struct {
