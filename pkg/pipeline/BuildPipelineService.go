@@ -41,7 +41,7 @@ import (
 	"time"
 )
 
-type DevtronAppBuildService interface {
+type CiPipelineConfigService interface {
 	//GetCiPipeline : retrieves CI pipeline configuration (CiConfigRequest) for a specific application (appId).
 	// It fetches CI pipeline data, including pipeline materials, scripts, and associated configurations.
 	// It returns a detailed CiConfigRequest.
@@ -101,7 +101,7 @@ type DevtronAppBuildService interface {
 	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 }
-type DevtronAppMaterialBuilderService interface {
+type CiMaterialConfigService interface {
 	//CreateMaterialsForApp : Delegating the request to ciCdPipelineOrchestrator for Material creation
 	CreateMaterialsForApp(request *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
 	//UpdateMaterialsForApp : Delegating the request to ciCdPipelineOrchestrator for updating Material

@@ -47,7 +47,7 @@ import (
 	"time"
 )
 
-type DevtronAppDeploymentService interface {
+type CdPipelineConfigService interface {
 	//GetCdPipelineById : Retrieve cdPipeline for given cdPipelineId.
 	//getting cdPipeline,environment and strategies ,preDeployStage, postDeployStage,appWorkflowMapping from respective repository and service layer
 	//converting above data in proper bean object and then assigning to CDPipelineConfigObject
@@ -107,7 +107,7 @@ type DevtronAppStrategyService interface {
 	//FetchDefaultCDPipelineStrategy :
 	FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
 }
-type DevtronAppDeploymentTypeChangeService interface {
+type AppDeploymentTypeChangeService interface {
 	//ChangeDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
 	// deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment and updates the db with desired deployment app type

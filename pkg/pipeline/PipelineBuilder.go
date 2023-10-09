@@ -98,7 +98,7 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 	return cfg, err
 }
 
-type DevtronAppService interface {
+type DevtronAppConfigService interface {
 	//CreateApp : This function creates applications of type Job as well as Devtronapps
 	// In case of error response object is nil
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
@@ -143,14 +143,14 @@ type DevtronAppService interface {
 }
 
 type PipelineBuilder interface {
-	DevtronAppService
-	DevtronAppBuildService
-	DevtronAppMaterialBuilderService
+	DevtronAppConfigService
+	CiPipelineConfigService
+	CiMaterialConfigService
 	DevtronAppArtifactService
-	DevtronAppDeploymentService
+	CdPipelineConfigService
 	DevtronAppCMCSService
 	DevtronAppStrategyService
-	DevtronAppDeploymentTypeChangeService
+	AppDeploymentTypeChangeService
 }
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
