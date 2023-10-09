@@ -104,7 +104,7 @@ type AppServiceConfig struct {
 	GetPipelineDeployedWithinHours      int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12"` //in hours
 	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"`             //in seconds
 	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
-	EnableAsyncInstallDevtronChart      bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
+	EnableAsyncInstallDevtronChart      bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"true"`
 	DevtronChartInstallTimeout          int    `env:"DEVTRON_CHART_INSTALL_TIMEOUT" envDefault:"6"` //in minutes
 }
 
@@ -187,6 +187,7 @@ type AppServiceImpl struct {
 }
 
 type AppService interface {
+	HandleCDTriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
 	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, *chartConfig.PipelineOverride, error)
@@ -1087,7 +1088,7 @@ func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, a
 		return err
 	}
 	//setting deployedBy as 1(system user) since case of auto trigger
-	id, _, err := impl.TriggerRelease(request, ctx, triggeredAt, 1)
+	id, _, err := impl.HandleCDTriggerRelease(request, ctx, triggeredAt, 1)
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {
@@ -1888,13 +1889,8 @@ func (impl *AppServiceImpl) GetTriggerEvent(deploymentAppType string, triggeredA
 	return triggerEvent
 }
 
-func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
-	// Handling for auto trigger
-	if overrideRequest.UserId == 0 {
-		overrideRequest.UserId = deployedBy
-	}
-	if impl.appStatusConfig.EnableAsyncInstallDevtronChart &&
-		overrideRequest.DeploymentAppType == bean2.Helm {
+func (impl *AppServiceImpl) HandleCDTriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
+	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType) {
 		event := &bean.AsyncCdDeployEvent{
 			ValuesOverrideRequest: overrideRequest,
 			TriggeredAt:           triggeredAt,
@@ -1920,70 +1916,21 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 		return 0, manifest, nil
 	}
 	// synchronous mode of installation
-	triggerEvent := impl.GetTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, deployedBy)
+	return impl.TriggerRelease(overrideRequest, ctx, triggeredAt, deployedBy)
+}
+
+// TriggerRelease used to trigger Install/Upgrade Devtron App releases synchronously
+func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
+	// Handling for auto trigger
+	if overrideRequest.UserId == 0 {
+		overrideRequest.UserId = triggeredBy
+	}
+	triggerEvent := impl.GetTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, triggeredBy)
 	releaseNo, manifest, err = impl.TriggerPipeline(overrideRequest, triggerEvent, ctx)
 	if err != nil {
 		return 0, manifest, err
 	}
 	return releaseNo, manifest, nil
-}
-
-// TriggerReleaseAsync used for only helm async Install/Upgrade Devtron App
-func (impl *AppServiceImpl) TriggerReleaseAsync(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
-	if overrideRequest.DeploymentAppType != bean2.Helm {
-		impl.logger.Errorw("invalid deployment type for CD async install event, TriggerReleaseAsync", "overrideRequest", overrideRequest)
-		return 0, manifest, fmt.Errorf("async install request is invalid for deployment type %s", overrideRequest.DeploymentAppType)
-	}
-	if overrideRequest.WfrId < 1 {
-		impl.logger.Errorw("invalid overrideRequest WfrId for CD async install event, TriggerReleaseAsync", "overrideRequest", overrideRequest)
-		return 0, manifest, fmt.Errorf("invalid WfrId for the overrideRequest")
-	}
-	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(overrideRequest.WfrId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("err on fetching cd workflow, TriggerReleaseAsync", "err", err)
-		return 0, manifest, err
-	}
-
-	// skip if the cdWfr.Status is already in a terminal state
-	if cdWfr != nil && slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
-		return 0, manifest, err
-	}
-
-	triggerEvent := impl.GetTriggerEvent(bean2.Helm, triggeredAt, triggeredBy)
-	releaseNo, manifest, err = impl.TriggerPipeline(overrideRequest, triggerEvent, ctx)
-	if err != nil {
-		return 0, manifest, err
-	}
-	return releaseNo, manifest, nil
-}
-
-func (impl *AppServiceImpl) SubscribeDevtronAsyncInstallRequest() error {
-	callback := func(msg *pubsub.PubSubMsg) {
-		impl.logger.Debug("received Devtron App helm async install request event", "data", msg.Data)
-		CDAsyncInstallNatsMessage := &bean.AsyncCdDeployEvent{}
-		err := json.Unmarshal([]byte(msg.Data), CDAsyncInstallNatsMessage)
-		if err != nil {
-			impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
-			return
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(impl.appStatusConfig.DevtronChartInstallTimeout)*time.Minute)
-		defer cancel()
-		_, span := otel.Tracer("orchestrator").Start(ctx, "appService.TriggerReleaseAsync")
-		releaseId, _, err := impl.TriggerReleaseAsync(CDAsyncInstallNatsMessage.ValuesOverrideRequest, ctx, CDAsyncInstallNatsMessage.TriggeredAt, CDAsyncInstallNatsMessage.TriggeredBy)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.PipelineId, "artifactId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.CiArtifactId, "err", err)
-		} else {
-			impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.PipelineId, "artifactId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.CiArtifactId, "releaseId", releaseId)
-		}
-	}
-
-	err := impl.pubsubClient.Subscribe(pubsub.DEVTRON_CHART_INSTALL_TOPIC, callback)
-	if err != nil {
-		impl.logger.Error(err)
-		return err
-	}
-	return nil
 }
 
 func (impl *AppServiceImpl) GetManifestPushService(triggerEvent bean.TriggerEvent) ManifestPushService {
@@ -3205,17 +3152,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 
 			// For cases where helm release was not found but db flag for deployment app created was true
-			if err != nil && strings.Contains(err.Error(), "release: not found") {
-
-				// retry install
-				_, err = impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
-
-				// if retry failed, return
-				if err != nil {
-					impl.logger.Errorw("release not found, failed to re-install helm application", "err", err)
-					return false, err
-				}
-			} else if err != nil {
+			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				return false, err
 			} else {
@@ -3353,4 +3290,9 @@ func (impl *AppServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Contex
 
 func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
 	return impl.globalEnvVariables.GitOpsRepoPrefix
+}
+
+func (impl *AppServiceImpl) isDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
+	return impl.appStatusConfig.EnableAsyncInstallDevtronChart &&
+		deploymentAppType == bean2.Helm
 }
