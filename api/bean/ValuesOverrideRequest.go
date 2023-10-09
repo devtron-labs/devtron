@@ -80,6 +80,12 @@ type BulkCdDeployEvent struct {
 	UserId                int32                  `json:"userId"`
 }
 
+type AsyncCdDeployEvent struct {
+	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
+	TriggeredAt           time.Time              `json:"triggeredAt"`
+	TriggeredBy           int32                  `json:"triggeredBy"`
+}
+
 type ReleaseStatusUpdateRequest struct {
 	RequestId string             `json:"requestId"`
 	NewStatus models.ChartStatus `json:"newStatus"`
