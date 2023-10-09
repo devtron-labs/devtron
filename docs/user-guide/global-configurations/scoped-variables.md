@@ -125,6 +125,10 @@ Only a super-admin can edit existing scoped variables.
 
 ![Figure 7: Reuploading New File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/scoped-variables/reupload.jpg)
 
+{% hint style="warning" %}
+Reuploading the YAML file will replace the previous file, so any variable that existed in the previous file but not in the latest one will be lost
+{% endhint %}
+
 ---
 
 ## How to Use a Scoped Variable
@@ -147,9 +151,9 @@ It would appear in the following format upon pasting it within an input field: `
 
 ![Figure 11: Pasting a Variable](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/scoped-variables/paste-value.jpg)
 
+---
 
-{% hint style="info" %}
-### Order of Precedence
+## Order of Precedence
 
 When multiple values are associated with a scoped variable, the precedence order is as follows, with the highest priority at the top:
 
@@ -159,7 +163,16 @@ When multiple values are associated with a scoped variable, the precedence order
 4. Cluster
 5. Global
 
-{% endhint %}
+### Example
+
+![Figure 12: Variable key in Red, Variable value in Green](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/scoped-variables/key-values.jpg)
+
+
+1. **Environment + App:** This is the most specific scope, and it will take precedence over all other scopes. For example, the value of `DB name` variable for the `app1` application in the `prod` environment would be `app1-p`, even though there is a global `DB name` variable set to `Devtron`. If a variable value for this scope is not defined, the **App** scope will be checked.
+2. **App:** This is the next most specific scope, and it will take precedence over the `Environment`, `Cluster`, and `Global` scopes. For example, the value of `DB name` variable for the `app1` application would be `project-tahiti`, even though the value of `DB name` exists in lower scopes. If a variable value for this scope is not defined, the **Environment** scope will be checked.
+3. **Environment:** This is the next most specific scope, and it will take precedence over the `Cluster` and `Global` scopes. For example, the value of `DB name` variable in the `prod` environment would be `devtron-prod`, even though the value of `DB name` exists in lower scopes. If a variable value for this scope is not defined, the **Cluster** scope will be checked. 
+4. **Cluster:** This is the next most specific scope, and it will take precedence over the `Global` scope. For example, the value of `DB name` variable in the `gcp-gke` cluster would be `Devtron-gcp`, even though there is a global `DB name` variable set to `Devtron-gcp`. If a variable value for this scope is not defined, the **Global** scope will be checked. 
+5. **Global:** This is the least specific scope, and it will only be used if no variable values are found in other higher scopes. The value of `DB name` variable would be `Devtron`.
 
 
 
