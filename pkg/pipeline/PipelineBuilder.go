@@ -146,11 +146,11 @@ type PipelineBuilder interface {
 	DevtronAppService
 	DevtronAppBuildService
 	DevtronAppMaterialBuilderService
+	DevtronAppArtifactService
 	DevtronAppDeploymentService
 	DevtronAppCMCSService
 	DevtronAppStrategyService
 	DevtronAppDeploymentTypeChangeService
-	DevtronAppArtifactService
 }
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
