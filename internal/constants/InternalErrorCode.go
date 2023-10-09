@@ -47,6 +47,9 @@ const (
 	ClusterUpdateACDFailed     string = "1005"
 	ClusterCreateBadRequestACD string = "1006"
 	ClusterUpdateBadRequestACD string = "1007"
+
+	ClusterPinnipedUserTokenNotFoundOrExpired string = "1111"
+
 	//Environment Errors
 	EnvironmentCreateDBFailed          string = "2001"
 	EnvironmentUpdateDBFailed          string = "2002"
