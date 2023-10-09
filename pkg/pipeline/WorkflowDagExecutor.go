@@ -1656,6 +1656,71 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 		UserId:         stopRequest.UserId,
 		CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 	}
+
+	//in case of un-hibernate request, argo-cd and helm devtron apps have different behaviour, for helm, restore
+	//replicaCount to the previous state from where hibernation was initiated, but in case of argo-cd restore the
+	//replicaCount as present in git-ops folder, as it's single source of truth for git-ops, hence restore original.
+	stopTemplate, startTemplate, err := impl.FetchAdditionalOverrideStopAndStartTemplate(ctx, pipeline, stopRequest)
+	if err != nil {
+		impl.logger.Errorw("error in fetching stopTemplate/startTemplate for additional override", "err", err)
+		return 0, err
+	}
+
+	if stopRequest.RequestType == STOP {
+		overrideRequest.AdditionalOverride = json.RawMessage([]byte(stopTemplate))
+		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_STOP
+	} else if stopRequest.RequestType == START {
+		if pipeline.DeploymentAppType == bean2.Helm {
+			overrideRequest.AdditionalOverride = json.RawMessage([]byte(startTemplate))
+		}
+		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_START
+	} else {
+		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
+	}
+	id, err := impl.ManualCdTrigger(overrideRequest, ctx)
+	if err != nil {
+		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
+		return 0, err
+	}
+	return id, err
+}
+
+// FetchAdditionalOverrideStopAndStartTemplate fetches the stop template when request is for hibernate else fetch start
+// template when request is for un-hibernate.
+func (impl *WorkflowDagExecutorImpl) FetchAdditionalOverrideStopAndStartTemplate(ctx context.Context, pipeline *pipelineConfig.Pipeline, stopRequest *StopAppRequest) (string, string, error) {
+	stopTemplate := ""
+	startTemplate := ""
+	switch pipeline.DeploymentAppType {
+	case bean2.ArgoCd:
+		stopTemplate = `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false} }`
+	case bean2.Helm:
+		//for devtron apps deployed via helm, fetch live manifest and return stop or start template after fetching
+		liveManifest, err := impl.FetchLiveManifest(ctx, pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in getting live manifest", "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId, "err", err)
+			return "", "", err
+		}
+		if stopRequest.RequestType == STOP {
+			stopTemplate, err = impl.FetchAdditionalOverrideStopTemplate(liveManifest)
+			if err != nil {
+				impl.logger.Errorw("error in fetching stop template for additional override", "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId, "err", err)
+				return "", "", err
+			}
+		} else if stopRequest.RequestType == START {
+			startTemplate, err = impl.FetchAdditionalOverrideStartTemplate(liveManifest)
+			if err != nil {
+				impl.logger.Errorw("error in fetching start template for additional override", "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId, "err", err)
+				return "", "", err
+			}
+		}
+	default:
+		return "", "", errors.New("invalid deployment type")
+	}
+	return stopTemplate, startTemplate, nil
+}
+
+// FetchLiveManifest fetches live manifest based on clusterId, GVK, deploymentAppName and namespace.
+func (impl *WorkflowDagExecutorImpl) FetchLiveManifest(ctx context.Context, pipeline *pipelineConfig.Pipeline) (*util5.ManifestResponse, error) {
 	resourceIdentifier := &k8s.ResourceRequestBean{
 		K8sRequest: &util5.K8sRequestBean{
 			ResourceIdentifier: util5.ResourceIdentifier{
@@ -1673,49 +1738,48 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 	liveManifest, err := impl.k8sCommonService.GetResource(ctx, resourceIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting live manifest", "err", err, "resourceIdentifierRequest", resourceIdentifier)
-		return 0, err
+		return nil, err
 	}
 	if liveManifest == nil {
-		return 0, errors.New("manifest not found")
+		return nil, errors.New("manifest not found")
 	}
-	if stopRequest.RequestType == STOP {
-		replicas, found, err := unstructured.NestedInt64(liveManifest.Manifest.UnstructuredContent(), "spec", "replicas")
-		if err != nil {
-			return 0, err
-		}
-		if !found {
-			return 0, errors.New("replicas not found in manifest")
-		}
-		if replicas == 0 {
-			return 0, errors.New("object is already scaled down")
-		}
-		stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false},"deploymentAnnotations":{"%s": "%d"}}`
-		stopTemplate = fmt.Sprintf(stopTemplate, hibernateReplicaAnnotation, replicas)
+	return liveManifest, nil
+}
 
-		overrideRequest.AdditionalOverride = json.RawMessage([]byte(stopTemplate))
-		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_STOP
-	} else if stopRequest.RequestType == START {
-		originalReplicaCount, err := strconv.Atoi(liveManifest.Manifest.GetAnnotations()[hibernateReplicaAnnotation])
-		if err != nil {
-			return 0, err
-		}
-		if originalReplicaCount == 0 {
-			return 0, errors.New("object is already scaled up")
-		}
-		startTemplate := `{"replicaCount":%d,"deploymentAnnotations":{"%s": "0"}}`
-		startTemplate = fmt.Sprintf(startTemplate, originalReplicaCount, hibernateReplicaAnnotation)
+// FetchAdditionalOverrideStopTemplate fetches replicas from "replicas" under "spec" label in live manifest and then creates
+// a new annotation "hibernator.devtron.ai/replicas" which stores the current replicaCount, also set replicaCount as 0 for
+// hibernation request.
+func (impl *WorkflowDagExecutorImpl) FetchAdditionalOverrideStopTemplate(liveManifest *util5.ManifestResponse) (string, error) {
+	stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false},"deploymentAnnotations":{"%s": "%d"}}`
 
-		overrideRequest.AdditionalOverride = json.RawMessage([]byte(startTemplate))
-		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_START
-	} else {
-		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
-	}
-	id, err := impl.ManualCdTrigger(overrideRequest, ctx)
+	replicas, found, err := unstructured.NestedInt64(liveManifest.Manifest.UnstructuredContent(), "spec", "replicas")
 	if err != nil {
-		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
-		return 0, err
+		return "", err
 	}
-	return id, err
+	if !found {
+		return "", errors.New("replicas not found in manifest")
+	}
+	if replicas == 0 {
+		return "", errors.New("object is already scaled down")
+	}
+
+	stopTemplate = fmt.Sprintf(stopTemplate, hibernateReplicaAnnotation, replicas)
+	return stopTemplate, nil
+}
+
+// FetchAdditionalOverrideStartTemplate looks for "hibernator.devtron.ai/replicas" annotation in live manifest and fetch
+// the previous state of replicaCount then prepare startTemplate and return.
+func (impl *WorkflowDagExecutorImpl) FetchAdditionalOverrideStartTemplate(liveManifest *util5.ManifestResponse) (string, error) {
+	originalReplicaCount, err := strconv.Atoi(liveManifest.Manifest.GetAnnotations()[hibernateReplicaAnnotation])
+	if err != nil {
+		return "", err
+	}
+	if originalReplicaCount == 0 {
+		return "", errors.New("object is already scaled up")
+	}
+	startTemplate := `{"replicaCount": %d,"deploymentAnnotations":{"%s": "0"}}`
+	startTemplate = fmt.Sprintf(startTemplate, originalReplicaCount, hibernateReplicaAnnotation)
+	return startTemplate, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) GetArtifactVulnerabilityStatus(artifact *repository.CiArtifact, cdPipeline *pipelineConfig.Pipeline, ctx context.Context) (bool, error) {
