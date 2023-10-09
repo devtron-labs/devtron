@@ -19,6 +19,12 @@ func getJsonStringFromResourceCondition(resourceConditions []ResourceCondition) 
 	return string(jsonBytes), err
 }
 
+func getResourceConditionFromJsonString(conditionExpression string) ([]ResourceCondition, error) {
+	res := make([]ResourceCondition, 0)
+	err := json.Unmarshal([]byte(conditionExpression), &res)
+	return res, err
+}
+
 func extractResourceConditions(resourceConditionJson string) ([]ResourceCondition, error) {
 	var resourceConditions []ResourceCondition
 	err := json.Unmarshal([]byte(resourceConditionJson), &resourceConditions)

@@ -79,11 +79,17 @@ func (impl *ResourceFilterServiceImpl) ListFilters() ([]*FilterMetaDataBean, err
 	}
 	filtersResp := make([]*FilterMetaDataBean, len(filtersList))
 	for i, filter := range filtersList {
+		resourceConditions, err := getResourceConditionFromJsonString(filter.ConditionExpression)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling ConditionExpression to Conditions", "err", err, "conditionExpression", filter.ConditionExpression, "filterId", filter.Id)
+			return nil, err
+		}
 		filtersResp[i] = &FilterMetaDataBean{
 			Id:           filter.Id,
 			Description:  filter.Description,
 			Name:         filter.Name,
 			TargetObject: filter.TargetObject,
+			Conditions:   resourceConditions,
 		}
 	}
 	return filtersResp, err
