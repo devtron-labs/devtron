@@ -254,34 +254,41 @@ func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(request De
 
 func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(values string, request DeploymentTemplateRequest) (string, error) {
 
-	app, err := impl.appRepository.FindById(request.AppId)
+	scope, err := impl.extractScopeData(request)
 	if err != nil {
 		return "", err
-	}
-	scope := resourceQualifiers.Scope{
-		AppId: request.AppId,
-		SystemMetadata: &resourceQualifiers.SystemMetadata{
-			AppName: app.AppName,
-		},
-	}
-
-	if request.EnvId != 0 {
-		environment, err := impl.environmentRepository.FindById(request.EnvId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error in getting system metadata", "err", err)
-			return "", err
-		}
-		scope.EnvId = request.EnvId
-		scope.ClusterId = environment.ClusterId
-		scope.SystemMetadata.EnvironmentName = environment.Name
-		scope.SystemMetadata.ClusterName = environment.Cluster.ClusterName
-		scope.SystemMetadata.Namespace = environment.Namespace
 	}
 	resolvedTemplate, err := impl.chartService.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate)
 	if err != nil {
 		return "", err
 	}
 	return resolvedTemplate, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) extractScopeData(request DeploymentTemplateRequest) (resourceQualifiers.Scope, error) {
+	app, err := impl.appRepository.FindById(request.AppId)
+	scope := resourceQualifiers.Scope{}
+	if err != nil {
+		return scope, err
+	}
+	scope.AppId = request.AppId
+	scope.EnvId = request.EnvId
+	scope.SystemMetadata = &resourceQualifiers.SystemMetadata{AppName: app.AppName}
+
+	if request.EnvId != 0 {
+		environment, err := impl.environmentRepository.FindById(request.EnvId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error in getting system metadata", "err", err)
+			return scope, err
+		}
+		if environment != nil {
+			scope.ClusterId = environment.ClusterId
+			scope.SystemMetadata.EnvironmentName = environment.Name
+			scope.SystemMetadata.ClusterName = environment.Cluster.ClusterName
+			scope.SystemMetadata.Namespace = environment.Namespace
+		}
+	}
+	return scope, nil
 }
 
 func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
