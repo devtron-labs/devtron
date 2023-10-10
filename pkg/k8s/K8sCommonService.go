@@ -351,7 +351,10 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 			continue
 		}
 		serviceName, ok := portHolder.ManifestResponse.Manifest.Object["metadata"].(map[string]interface{})
-
+		if !ok {
+			impl.logger.Warnw("serviceName not found in resource tree, unable to extract port no")
+			return resourceTree
+		}
 		serviceNameValue := serviceName["name"].(string)
 
 		specField, ok := portHolder.ManifestResponse.Manifest.Object[Spec]
