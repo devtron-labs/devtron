@@ -174,6 +174,24 @@ When multiple values are associated with a scoped variable, the precedence order
 4. **Cluster:** This is the next most specific scope, and it will take precedence over the `Global` scope. For example, the value of `DB name` variable in the `gcp-gke` cluster would be `Devtron-gcp`, even though there is a global `DB name` variable set to `Devtron-gcp`. If a variable value for this scope is not defined, the **Global** scope will be checked. 
 5. **Global:** This is the least specific scope, and it will only be used if no variable values are found in other higher scopes. The value of `DB name` variable would be `Devtron`.
 
+---
+
+## List of Predefined Variables
+
+There are some variables that exist by default in Devtron that you can readily use if needed:
+
+* DEVTRON_NAMESPACE
+* DEVTRON_CLUSTER_NAME
+* DEVTRON_ENV_NAME
+* DEVTRON_IMAGE_TAG
+* DEVTRON_IMAGE
+* DEVTRON_APP_NAME
+
+{% hint style="info" %}
+Currently, these variables do not appear in the scoped variable widget, but you may use them. 
+{% endhint %}
+
+
 
 
 
