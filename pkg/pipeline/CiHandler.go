@@ -60,8 +60,7 @@ import (
 type CiHandler interface {
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
-	HandleReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error
-
+	CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error
 	FetchMaterialsByPipelineId(pipelineId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId int, gitMaterialId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (WorkflowResponse, error)
@@ -198,54 +197,84 @@ type Trigger struct {
 	ReferenceCiWorkflowId     int
 }
 
+func (obj Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
+	ciMaterials []*pipelineConfig.CiPipelineMaterial, triggeredBy int32,
+	invalidateCache bool, extraEnvironmentVariables map[string]string,
+	pipelineType string) {
+
+	obj.PipelineId = refCiWorkflow.CiPipelineId
+	obj.CommitHashes = refCiWorkflow.GitTriggers
+	obj.CiMaterials = ciMaterials
+	obj.TriggeredBy = triggeredBy
+	obj.InvalidateCache = invalidateCache
+	obj.EnvironmentId = refCiWorkflow.EnvironmentId
+	obj.ReferenceCiWorkflowId = refCiWorkflow.Id
+	obj.InvalidateCache = invalidateCache
+	obj.ExtraEnvironmentVariables = extraEnvironmentVariables
+	obj.PipelineType = pipelineType
+
+}
+
 const WorkflowCancel = "CANCELLED"
 const DefaultCiWorkflowNamespace = "devtron-ci"
 const Running = "Running"
 const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 
-func (impl *CiHandlerImpl) HandleReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
+func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
-	if impl.config.MaxCiWorkflowRetries == 0 {
-		return errors.New("ci-workflow retires not allowed ")
+	//return if re-trigger feature is disabled
+	if !impl.config.WorkflowRetriesEnabled() {
+		impl.Logger.Debug("CI re-trigger is disabled")
+		return nil
 	}
-	status, message, retryCount, ciWorkFlow, err := impl.extractPodStatusAndWorkflow(workflowStatus)
+
+	status, message, ciWorkFlow, err := impl.extractPodStatusAndWorkflow(workflowStatus)
 	if err != nil {
 		impl.Logger.Errorw("error in extractPodStatusAndWorkflow", "err", err)
 		return err
 	}
 
-	err = impl.reTriggerCi(status, message, retryCount, ciWorkFlow)
+	if !CheckIfReTriggerRequired(status, message, ciWorkFlow.Status) {
+		impl.Logger.Debugw("not re-triggering ci", "status", status, "message", message, "ciWorkflowStatus", ciWorkFlow.Status)
+		return nil
+	}
+
+	retryCount, refCiWorkflow, err := impl.getRefWorkflowAndCiRetryCount(ciWorkFlow)
+	if err != nil {
+		impl.Logger.Errorw("error while getting retry count value for a ciWorkflow", "ciWorkFlowId", ciWorkFlow.Id)
+		return err
+	}
+
+	err = impl.reTriggerCi(retryCount, refCiWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("error in reTriggerCi", "err", err, "status", status, "message", message, "retryCount", retryCount, "ciWorkFlowId", ciWorkFlow.Id)
 	}
 	return err
 }
 
-func (impl *CiHandlerImpl) reTriggerCi(status, message string, retryCount int, ciWorkFlow *pipelineConfig.CiWorkflow) error {
-	if !((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) && message == POD_DELETED_MESSAGE) || (retryCount >= impl.config.MaxCiWorkflowRetries) {
-		return errors.New("ci-workflow retrigger condition not met, not re-triggering")
+func (impl *CiHandlerImpl) reTriggerCi(retryCount int, refCiWorkflow *pipelineConfig.CiWorkflow) error {
+	if retryCount >= impl.config.MaxCiWorkflowRetries {
+		impl.Logger.Infow("maximum retries exhausted for this ciWorkflow", "ciWorkflowId", refCiWorkflow.Id, "retries", retryCount, "configuredRetries", impl.config.MaxCiWorkflowRetries)
+		return nil
 	}
-	impl.Logger.Infow("HandleReTriggerCI for ciWorkflow ", "ReferenceCiWorkflowId", ciWorkFlow.Id)
-	ciPipelineMaterialIds := make([]int, 0, len(ciWorkFlow.GitTriggers))
-	for id, _ := range ciWorkFlow.GitTriggers {
+	impl.Logger.Infow("re-triggering ci for a ci workflow", "ReferenceCiWorkflowId", refCiWorkflow.Id)
+	ciPipelineMaterialIds := make([]int, 0, len(refCiWorkflow.GitTriggers))
+	for id, _ := range refCiWorkflow.GitTriggers {
 		ciPipelineMaterialIds = append(ciPipelineMaterialIds, id)
 	}
 	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByIdsIncludeDeleted(ciPipelineMaterialIds)
-	trigger := Trigger{
-		PipelineId:      ciWorkFlow.CiPipelineId,
-		CommitHashes:    ciWorkFlow.GitTriggers,
-		CiMaterials:     ciMaterials,
-		TriggeredBy:     1,
-		InvalidateCache: true, //TODO: ciTriggerRequest.InvalidateCache,
-		//TODO: ExtraEnvironmentVariables: extraEnvironmentVariables,
-		EnvironmentId:         ciWorkFlow.EnvironmentId,
-		ReferenceCiWorkflowId: ciWorkFlow.Id,
+	if err != nil {
+		impl.Logger.Errorw("error in getting ci Pipeline Materials using ciPipeline Material Ids", "ciPipelineMaterialIds", ciPipelineMaterialIds, "err", err)
+		return err
 	}
+
+	trigger := Trigger{}
+	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, 1, true, nil, "")
 	_, err = impl.ciService.TriggerCiPipeline(trigger)
 
 	if err != nil {
-		impl.Logger.Errorw("error occured in retriggering ciWorkflow", "triggerDetails", trigger, "err", err)
+		impl.Logger.Errorw("error occurred in re-triggering ciWorkflow", "triggerDetails", trigger, "err", err)
 		return err
 	}
 	return nil
@@ -984,29 +1013,26 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 
 const CiStageFailErrorCode = 2
 
-func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.WorkflowStatus) (string, string, int, *pipelineConfig.CiWorkflow, error) {
+func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.WorkflowStatus) (string, string, *pipelineConfig.CiWorkflow, error) {
 	workflowName, status, _, message, _, _ := impl.extractWorkfowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "message", message)
-		return status, message, 0, nil, errors.New("invalid wf name")
+		return status, message, nil, errors.New("invalid wf name")
 	}
 	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
 	if err != nil {
-		impl.Logger.Errorw("invalid wf status update req", "err", err)
-		return status, message, 0, nil, err
+		impl.Logger.Errorw("extract workflowId, invalid wf name", "workflowName", workflowName, "err", err)
+		return status, message, nil, err
 	}
 
 	savedWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
-		impl.Logger.Errorw("cannot get saved wf", "err", err)
-		return status, message, 0, savedWorkflow, err
-	}
-	if savedWorkflow.Status == WorkflowCancel {
-		return status, message, 0, nil, errors.New("not re-triggering as previous trigger is aborted/cancelled")
+		impl.Logger.Errorw("cannot get saved wf", "workflowId", workflowId, "err", err)
+		return status, message, nil, err
 	}
 
-	retryCount, savedWorkflow, err := impl.getRefWorkflowAndCiRetryCount(savedWorkflow)
-	return status, message, retryCount, savedWorkflow, err
+	return status, message, savedWorkflow, err
+
 }
 
 func (impl *CiHandlerImpl) getRefWorkflowAndCiRetryCount(savedWorkflow *pipelineConfig.CiWorkflow) (int, *pipelineConfig.CiWorkflow, error) {
@@ -1610,25 +1636,13 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			}
 		}
 		if isEligibleToMarkFailed {
+			ciWorkflow.Status = "Failed"
+			ciWorkflow.PodStatus = "Failed"
 			if isPodDeleted {
-				ciWorkflow.Status = "Failed"
 				ciWorkflow.Message = POD_DELETED_MESSAGE
-				if ciWorkflow.Status != WorkflowCancel {
-					retryCount, refCiWorkflow, err := impl.getRefWorkflowAndCiRetryCount(ciWorkflow)
-					if err != nil {
-						impl.Logger.Errorw("error in getRefWorkflowAndCiRetryCount", "ciWorkflowId", ciWorkflow.Id, "err", err)
-						continue
-					}
-					impl.Logger.Infow("re-triggering ci by UpdateCiWorkflowStatusFailedCron", "refCiWorkflowId", refCiWorkflow.Id, "ciWorkflow.Status", ciWorkflow.Status, "ciWorkflow.Message", ciWorkflow.Message, "retryCount", retryCount)
-					err = impl.reTriggerCi(ciWorkflow.Status, ciWorkflow.Message, retryCount, refCiWorkflow)
-					if err != nil {
-						impl.Logger.Errorw("error in reTriggerCi", "ciWorkflowId", refCiWorkflow.Id, "workflowStatus", ciWorkflow.Status, "ciWorkflowMessage", "ciWorkflow.Message", "retryCount", retryCount, "err", err)
-						continue
-					}
-				}
+				//error logging handled inside handlePodDeleted
+				impl.handlePodDeleted(ciWorkflow)
 			} else {
-				ciWorkflow.Status = "Failed"
-				ciWorkflow.PodStatus = "Failed"
 				ciWorkflow.Message = "marked failed by job"
 			}
 			err := impl.ciWorkflowRepository.UpdateWorkFlow(ciWorkflow)
@@ -1642,6 +1656,21 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	return nil
 }
 
+func (impl *CiHandlerImpl) handlePodDeleted(ciWorkflow *pipelineConfig.CiWorkflow) {
+	if !impl.config.WorkflowRetriesEnabled() {
+		impl.Logger.Debug("ci workflow retry feature disabled")
+		return
+	}
+	retryCount, refCiWorkflow, err := impl.getRefWorkflowAndCiRetryCount(ciWorkflow)
+	if err != nil {
+		impl.Logger.Errorw("error in getRefWorkflowAndCiRetryCount", "ciWorkflowId", ciWorkflow.Id, "err", err)
+	}
+	impl.Logger.Infow("re-triggering ci by UpdateCiWorkflowStatusFailedCron", "refCiWorkflowId", refCiWorkflow.Id, "ciWorkflow.Status", ciWorkflow.Status, "ciWorkflow.Message", ciWorkflow.Message, "retryCount", retryCount)
+	err = impl.reTriggerCi(retryCount, refCiWorkflow)
+	if err != nil {
+		impl.Logger.Errorw("error in reTriggerCi", "ciWorkflowId", refCiWorkflow.Id, "workflowStatus", ciWorkflow.Status, "ciWorkflowMessage", "ciWorkflow.Message", "retryCount", retryCount, "err", err)
+	}
+}
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	ciWorkflowStatuses := make([]*pipelineConfig.CiWorkflowStatus, 0)
 	var cdPipelines []*pipelineConfig.Pipeline

@@ -176,12 +176,15 @@ const WorklowTypePre = "PRE"
 const WorklowTypePost = "POST"
 
 func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error {
-	impl.Logger.Infow("HandleCdStageReTrigger", "runnerId", runner.Id)
-	var err error
-	// do not re-trigger if retries = 0 or last workflow is aborted
-	if runner == nil || impl.config.MaxCdWorkflowRunnerRetries == 0 || runner.Status == WorkflowCancel {
-		return errors.New("cdStage workflow retry condition not met,not re-triggering")
+	// do not re-trigger if retries = 0
+	if !impl.config.WorkflowRetriesEnabled() {
+		impl.Logger.Debugw("cd stage workflow re-triggering is not enabled")
+		return nil
 	}
+
+	impl.Logger.Infow("re triggering cd stage ", "runnerId", runner.Id)
+	var err error
+	//add comment for this logic
 	if runner.RefCdWorkflowRunnerId != 0 {
 		runner, err = impl.cdWorkflowRepository.FindWorkflowRunnerById(runner.RefCdWorkflowRunnerId)
 		if err != nil {
@@ -197,11 +200,11 @@ func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkf
 
 	if retryCnt >= impl.config.MaxCdWorkflowRunnerRetries {
 		impl.Logger.Infow("maximum retries for this workflow are exhausted, not re-triggering again", "retries", retryCnt, "wfrId", runner.Id)
-		return errors.New("maximum retries for this workflow are exhausted")
+		return nil
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		err = impl.workflowDagExecutor.TriggerPreStage(context.Background(), nil, runner.CdWorkflow.CiArtifact, runner.CdWorkflow.Pipeline, 1, false, runner.Id)
+		err = impl.workflowDagExecutor.TriggerPreStage(context.Background(), runner.CdWorkflow, runner.CdWorkflow.CiArtifact, runner.CdWorkflow.Pipeline, 1, false, runner.Id)
 		if err != nil {
 			impl.Logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
@@ -213,6 +216,8 @@ func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkf
 			return err
 		}
 	}
+
+	impl.Logger.Infow("cd stage re triggered for runner", "runnerId", runner.Id)
 	return nil
 }
 

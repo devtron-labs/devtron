@@ -409,3 +409,14 @@ func (impl *CiCdConfig) GetWorkflowExecutorType() pipelineConfig.WorkflowExecuto
 		return ""
 	}
 }
+
+func (impl *CiCdConfig) WorkflowRetriesEnabled() bool {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.MaxCiWorkflowRetries > 0
+	case CdConfigType:
+		return impl.MaxCdWorkflowRunnerRetries > 0
+	default:
+		return false
+	}
+}

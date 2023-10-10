@@ -78,9 +78,9 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			return
 		}
 
-		err = impl.ciHandler.HandleReTriggerCI(wfStatus)
+		err = impl.ciHandler.CheckAndReTriggerCI(wfStatus)
 		if err != nil {
-			impl.logger.Errorw("error in HandleReTriggerCI", "err", err)
+			impl.logger.Errorw("error in checking and re triggering ci", "err", err)
 			//don't return as we have to update the workflow status
 		}
 
@@ -132,9 +132,10 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				eventType = util.Fail
 			}
 
-			if (wfrStatus == string(v1alpha1.NodeError) || wfrStatus == string(v1alpha1.NodeFailed)) && (wfStatus.Message == pipeline.POD_DELETED_MESSAGE) {
+			if wfr != nil && pipeline.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
 				err = impl.cdHandler.HandleCdStageReTrigger(wfr)
 				if err != nil {
+					//check if this log required or not
 					impl.logger.Errorw("error in HandleCdStageReTrigger", "error", err)
 				}
 			}
