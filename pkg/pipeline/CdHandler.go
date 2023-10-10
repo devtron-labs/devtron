@@ -479,7 +479,12 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			impl.Logger.Warnw("release mismatched, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 			continue
 		} else if helmInstalledDevtronApp.GetReleaseStatus() == serverBean.HelmReleaseStatusPendingInstall {
-			if time.Now().After(helmInstalledDevtronApp.GetLastDeployed().AsTime().Add(5 * time.Minute)) {
+			appServiceConfig, err := app.GetAppServiceConfig()
+			if err != nil {
+				impl.Logger.Errorw("error in parsing app status config variables", "err", err)
+				continue
+			}
+			if time.Now().After(helmInstalledDevtronApp.GetLastDeployed().AsTime().Add(time.Duration(appServiceConfig.HelmInstallationTimeout) * time.Minute)) {
 				// If release status is in pending-install for more than 5 mins, then mark the deployment as failure
 				wfr.Status = pipelineConfig.WorkflowFailed
 				wfr.FinishedOn = time.Now()

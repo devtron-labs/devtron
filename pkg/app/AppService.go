@@ -105,7 +105,8 @@ type AppServiceConfig struct {
 	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"`             //in seconds
 	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 	EnableAsyncInstallDevtronChart      bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"true"`
-	DevtronChartInstallTimeout          int    `env:"DEVTRON_CHART_INSTALL_TIMEOUT" envDefault:"6"` //in minutes
+	DevtronChartInstallRequestTimeout   int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"` //in minutes
+	HelmInstallationTimeout             int    `env:"HELM_INSTALLATION_TIMEOUT" envDefault:"5"`             //in minutes
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
@@ -1892,35 +1893,41 @@ func (impl *AppServiceImpl) GetTriggerEvent(deploymentAppType string, triggeredA
 
 func (impl *AppServiceImpl) HandleCDTriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
 	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType) {
-		event := &bean.AsyncCdDeployEvent{
-			ValuesOverrideRequest: overrideRequest,
-			TriggeredAt:           triggeredAt,
-			TriggeredBy:           deployedBy,
-		}
-		payload, err := json.Marshal(event)
-		if err != nil {
-			impl.logger.Errorw("failed to marshal helm async CD deploy event request", "request", event, "err", err)
-			return 0, manifest, err
-		}
-
-		// publish nats event for async installation
-		err = impl.pubsubClient.Publish(pubsub.DEVTRON_CHART_INSTALL_TOPIC, string(payload))
-		if err != nil {
-			impl.logger.Errorw("failed to publish trigger request event", "topic", pubsub.DEVTRON_CHART_INSTALL_TOPIC, "payload", payload, "err", err)
-		}
-
-		//update workflow runner status, used in app workflow view
-		err = impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInQueue)
-		if err != nil {
-			return 0, manifest, err
-		}
-		return 0, manifest, nil
+		// asynchronous mode of installation
+		return impl.TriggerHelmAsyncRelease(overrideRequest, ctx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation
 	return impl.TriggerRelease(overrideRequest, ctx, triggeredAt, deployedBy)
 }
 
-// TriggerRelease used to trigger Install/Upgrade Devtron App releases synchronously
+// TriggerHelmAsyncRelease will publish async helm Install/Upgrade request event for Devtron App releases
+func (impl *AppServiceImpl) TriggerHelmAsyncRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
+	event := &bean.AsyncCdDeployEvent{
+		ValuesOverrideRequest: overrideRequest,
+		TriggeredAt:           triggeredAt,
+		TriggeredBy:           triggeredBy,
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		impl.logger.Errorw("failed to marshal helm async CD deploy event request", "request", event, "err", err)
+		return 0, manifest, err
+	}
+
+	// publish nats event for async installation
+	err = impl.pubsubClient.Publish(pubsub.DEVTRON_CHART_INSTALL_TOPIC, string(payload))
+	if err != nil {
+		impl.logger.Errorw("failed to publish trigger request event", "topic", pubsub.DEVTRON_CHART_INSTALL_TOPIC, "payload", payload, "err", err)
+	}
+
+	//update workflow runner status, used in app workflow view
+	err = impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInQueue)
+	if err != nil {
+		return 0, manifest, err
+	}
+	return 0, manifest, nil
+}
+
+// TriggerRelease will trigger Install/Upgrade request for Devtron App releases synchronously
 func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
 	// Handling for auto trigger
 	if overrideRequest.UserId == 0 {
@@ -3149,7 +3156,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.SOURCE_DEVTRON_APP),
 				ChartContent:      &client2.ChartContent{Content: referenceChartByte},
 			}
-
+			// For cases where helm release was not found, kubelink will install the same configuration
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
@@ -3244,7 +3251,7 @@ func (impl *AppServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, ov
 		// if the current cdWfr status is already a terminal status and then don't update the status
 		// e.g: Status : Failed --> Progressing (not allowed)
 		if slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
-			impl.logger.Errorw("deployment has already been terminated for workflow runner", "workflowRunnerId", cdWfr.Id, "err", err)
+			impl.logger.Warnw("deployment has already been terminated for workflow runner", "workflowRunnerId", cdWfr.Id, "err", err)
 			return nil
 		}
 		cdWfr.Status = status
