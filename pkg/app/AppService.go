@@ -2719,7 +2719,7 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 		}
 		impl.logger.Infow("trying to normal refresh application through get ")
 		refresh := "normal"
-		testingApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName, Refresh: &refresh, AppNamespace: &application.Spec.Destination.Namespace})
+		testingApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName, Refresh: &refresh})
 		if err != nil {
 			impl.logger.Errorw("cannot get application with refresh", "app", argoAppName, "pipeline", pipelineName)
 			return false, err
