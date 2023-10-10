@@ -1436,6 +1436,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	originalCiConf.CiBuildConfig = ciBuildConfig
 
 	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean, "update")
+
 	if err != nil {
 		impl.logger.Errorw("error in saving update history for ci template", "error", err)
 	}
