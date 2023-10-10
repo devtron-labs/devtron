@@ -41,7 +41,7 @@ import (
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
-	GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error)
+	GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error)
 	GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
@@ -274,8 +274,8 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 	return impl.getApplicationDetail(ctx, app, nil)
 }
 
-func (impl *HelmAppServiceImpl) GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
-	return impl.getApplicationStatus(ctx, app)
+func (impl *HelmAppServiceImpl) GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error) {
+	return impl.getApplicationAndReleaseStatus(ctx, app)
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
@@ -318,12 +318,11 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 	return appdetail, err
 }
 
-func (impl *HelmAppServiceImpl) getApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
-	applicationStatus := ""
+func (impl *HelmAppServiceImpl) getApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
-		return applicationStatus, err
+		return nil, err
 	}
 	req := &AppDetailRequest{
 		ClusterConfig: config,
@@ -333,10 +332,9 @@ func (impl *HelmAppServiceImpl) getApplicationStatus(ctx context.Context, app *A
 	appStatus, err := impl.helmAppClient.GetAppStatus(ctx, req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app status", "err", err)
-		return applicationStatus, err
+		return nil, err
 	}
-	applicationStatus = appStatus.ApplicationStatus
-	return applicationStatus, err
+	return appStatus, err
 }
 
 func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {

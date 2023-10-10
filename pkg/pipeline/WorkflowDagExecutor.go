@@ -2205,7 +2205,7 @@ func (impl *WorkflowDagExecutorImpl) MarkCurrentDeploymentFailed(runner *pipelin
 	//update current WF with error status
 	impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", runner.Id, "err", releaseErr)
 	runner.Status = pipelineConfig.WorkflowFailed
-	runner.Message = releaseErr.Error()
+	runner.Message = util.GetGRPCErrorDetailedMessage(releaseErr)
 	runner.FinishedOn = time.Now()
 	runner.UpdatedOn = time.Now()
 	runner.UpdatedBy = triggeredBy

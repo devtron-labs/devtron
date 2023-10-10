@@ -53,5 +53,5 @@ func GetGRPCErrorDetailedMessage(err error) string {
 	if errStatus, ok := status.FromError(err); ok {
 		return errStatus.Message()
 	}
-	return ""
+	return err.Error()
 }

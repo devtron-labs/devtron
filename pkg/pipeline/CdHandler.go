@@ -43,6 +43,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -460,26 +461,36 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			Namespace:   wfr.CdWorkflow.Pipeline.Environment.Namespace,
 			ReleaseName: wfr.CdWorkflow.Pipeline.DeploymentAppName,
 		}
-		helmAppStatus, err := impl.helmAppService.GetApplicationStatus(context.Background(), appIdentifier)
+		helmInstalledDevtronApp, err := impl.helmAppService.GetApplicationAndReleaseStatus(context.Background(), appIdentifier)
 		if err != nil {
 			impl.Logger.Errorw("error in getting helm app release status ", "appIdentifier", appIdentifier, "err", err)
-			//return err
-			//skip this error and continue for next workflow status
-			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
-
 			// Handle release not found errors
-			if !strings.Contains(err.Error(), "release: not found") {
+			if util.GetGRPCErrorDetailedMessage(err) != client.ErrReleaseNotFound {
+				//skip this error and continue for next workflow status
+				impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 				continue
+			} else {
+				// If release not found, mark the deployment as failure
+				wfr.Status = pipelineConfig.WorkflowFailed
+				wfr.FinishedOn = time.Now()
 			}
-		}
-		if helmAppStatus == application.Healthy {
+		} else if helmInstalledDevtronApp.GetLastDeployed().AsTime().Before(wfr.StartedOn) {
+			//skip if there is no deployment after wfr.StartedOn and continue for next workflow status
+			impl.Logger.Warnw("release mismatched, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
+			continue
+		} else if helmInstalledDevtronApp.GetReleaseStatus() == serverBean.HelmReleaseStatusPendingInstall {
+			if time.Now().After(helmInstalledDevtronApp.GetLastDeployed().AsTime().Add(5 * time.Minute)) {
+				// If release status is in pending-install for more than 5 mins, then mark the deployment as failure
+				wfr.Status = pipelineConfig.WorkflowFailed
+				wfr.FinishedOn = time.Now()
+			} else {
+				wfr.Status = pipelineConfig.WorkflowInProgress
+			}
+		} else if helmInstalledDevtronApp.GetReleaseStatus() == serverBean.HelmReleaseStatusDeployed &&
+			helmInstalledDevtronApp.GetApplicationStatus() == application.Healthy {
+			// mark the deployment as succeed
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()
-
-		} else if err != nil && strings.Contains(err.Error(), "release: not found") {
-			// If release not found, mark the deployment as failure
-			wfr.Status = pipelineConfig.WorkflowFailed
-
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
@@ -499,7 +510,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 		}
 		util3.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
-		if helmAppStatus == application.Healthy {
+		if wfr.Status == pipelineConfig.WorkflowSucceeded {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
 			if err != nil {
 				impl.Logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
