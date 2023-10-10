@@ -20,7 +20,6 @@ package restHandler
 import (
 	"encoding/json"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	bean2 "github.com/devtron-labs/devtron/api/restHandler/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -330,7 +329,7 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 				accessedApps = append(accessedApps, app)
 				continue
 			}
-			object := bean2.GetAppRBACName(project.ProjectName, app.Name)
+			object := handler.enforcerUtil.GetAppRBACNameByAppAndProjectName(project.ProjectName, app.Name)
 			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 				accessedApps = append(accessedApps, app)
 			}
