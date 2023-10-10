@@ -1688,7 +1688,9 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 	} else if util.IsAcdApp(pipeline.DeploymentAppType) && stopRequest.RequestType == STOP {
 		template = `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false} }`
 	}
-	overrideRequest.AdditionalOverride = []byte(template)
+	if len(template) > 0 {
+		overrideRequest.AdditionalOverride = []byte(template)
+	}
 	id, err := impl.ManualCdTrigger(overrideRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
