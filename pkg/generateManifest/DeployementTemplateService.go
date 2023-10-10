@@ -6,6 +6,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -77,6 +78,7 @@ type DeploymentTemplateServiceImpl struct {
 	propertiesConfigService          pipeline.PropertiesConfigService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	environmentRepository            repository3.EnvironmentRepository
+	appRepository                    appRepository.AppRepository
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
@@ -91,6 +93,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	propertiesConfigService pipeline.PropertiesConfigService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	environmentRepository repository3.EnvironmentRepository,
+	appRepository appRepository.AppRepository,
 ) *DeploymentTemplateServiceImpl {
 	return &DeploymentTemplateServiceImpl{
 		Logger:                           Logger,
@@ -106,6 +109,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		propertiesConfigService:          propertiesConfigService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		environmentRepository:            environmentRepository,
+		appRepository:                    appRepository,
 	}
 }
 
@@ -249,17 +253,29 @@ func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(request De
 }
 
 func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(values string, request DeploymentTemplateRequest) (string, error) {
+
+	app, err := impl.appRepository.FindById(request.AppId)
+	if err != nil {
+		return "", err
+	}
 	scope := resourceQualifiers.Scope{
 		AppId: request.AppId,
+		SystemMetadata: &resourceQualifiers.SystemMetadata{
+			AppName: app.AppName,
+		},
 	}
+
 	if request.EnvId != 0 {
-		clusterId, err := impl.environmentRepository.FindClusterIdByEnvId(request.EnvId)
+		environment, err := impl.environmentRepository.FindById(request.EnvId)
 		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error in getting cluster id", "err", err)
+			impl.Logger.Errorw("error in getting system metadata", "err", err)
 			return "", err
 		}
 		scope.EnvId = request.EnvId
-		scope.ClusterId = clusterId
+		scope.ClusterId = environment.ClusterId
+		scope.SystemMetadata.EnvironmentName = environment.Name
+		scope.SystemMetadata.ClusterName = environment.Cluster.ClusterName
+		scope.SystemMetadata.Namespace = environment.Namespace
 	}
 	resolvedTemplate, err := impl.chartService.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate)
 	if err != nil {
