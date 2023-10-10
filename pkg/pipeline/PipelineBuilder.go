@@ -1179,14 +1179,13 @@ func (impl *PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		var err error
-		var appDetail *client.AppDetail
 		if pipeline.DeploymentAppType == string(bean.ArgoCd) {
 			appIdentifier := &client.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: pipeline.DeploymentAppName,
 				Namespace:   pipeline.Environment.Namespace,
 			}
-			appDetail, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
+			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 		} else {
 			req := &application2.ApplicationQuery{
 				Name: &deploymentAppName,
@@ -1196,7 +1195,8 @@ func (impl *PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 		if err != nil {
 			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
 		}
-		if (err != nil && strings.Contains(err.Error(), "not found")) || (appDetail != nil && !appDetail.ReleaseExist) {
+
+		if err != nil && checkAppReleaseNotExist(err) {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
 				pipeline,
@@ -2123,4 +2123,9 @@ func (impl *PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 	responseSchemaObjects = append(responseSchemaObjects, response400)
 	responseSchemaObjects = append(responseSchemaObjects, response401)
 	return responseSchemaObjects
+}
+
+func checkAppReleaseNotExist(err error) bool {
+	// release not exist check for helm App and Not found check for argo app
+	return strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "release not exist")
 }
