@@ -27,3 +27,10 @@ func CompareUnOrdered(a, b []int) bool {
 	sort.Ints(b)
 	return cmp.Equal(a, b)
 }
+
+func GetMaxInteger(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}

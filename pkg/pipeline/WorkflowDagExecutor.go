@@ -286,7 +286,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	if err != nil {
 		return nil
 	}
-	err = wde.SubscribeDevtronAsyncInstallRequest()
+	err = wde.SubscribeDevtronAsyncHelmInstallRequest()
 	if err != nil {
 		return nil
 	}
@@ -333,55 +333,52 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncInstallRequest() error {
+func (impl *WorkflowDagExecutorImpl) extractOverrideRequestFromCDAsyncInstallEvent(msg *pubsub.PubSubMsg) *bean.AsyncCdDeployEvent {
+	CDAsyncInstallNatsMessage := &bean.AsyncCdDeployEvent{}
+	err := json.Unmarshal([]byte(msg.Data), CDAsyncInstallNatsMessage)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
+		return nil
+	}
+	overrideRequest := CDAsyncInstallNatsMessage.ValuesOverrideRequest
+	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
+		return nil
+	}
+	impl.appService.SetPipelineFieldsInOverrideRequest(overrideRequest, pipeline)
+	return CDAsyncInstallNatsMessage
+}
+
+func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() error {
 	callback := func(msg *pubsub.PubSubMsg) {
-		impl.logger.Debug("received Devtron App helm async install request event, SubscribeDevtronAsyncInstallRequest", "data", msg.Data)
-		CDAsyncInstallNatsMessage := &bean.AsyncCdDeployEvent{}
-		err := json.Unmarshal([]byte(msg.Data), CDAsyncInstallNatsMessage)
-		if err != nil {
-			impl.logger.Errorw("error in unmarshalling CD async install request nats message, SubscribeDevtronAsyncInstallRequest", "err", err)
-			return
-		}
+		impl.logger.Debug("received Devtron App helm async install request event, SubscribeDevtronAsyncHelmInstallRequest", "data", msg.Data)
+		CDAsyncInstallNatsMessage := impl.extractOverrideRequestFromCDAsyncInstallEvent(msg)
 		overrideRequest := CDAsyncInstallNatsMessage.ValuesOverrideRequest
-		appServiceConfig, err := app.GetAppServiceConfig()
-		if err != nil {
-			impl.logger.Errorw("error in parsing app status config variables, SubscribeDevtronAsyncInstallRequest", "err", err)
-			return
-		}
-		pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching pipeline by pipelineId, SubscribeDevtronAsyncInstallRequest", "err", err)
-			return
-		}
-		impl.appService.SetPipelineFieldsInOverrideRequest(overrideRequest, pipeline)
-		if overrideRequest.DeploymentAppType != bean2.Helm {
-			impl.logger.Errorw("invalid deployment type for CD async install event, SubscribeDevtronAsyncInstallRequest", "overrideRequest", overrideRequest)
-			return
-		}
-		if overrideRequest.WfrId < 1 {
-			impl.logger.Errorw("invalid overrideRequest WfrId for CD async install event, SubscribeDevtronAsyncInstallRequest", "overrideRequest", overrideRequest)
-			return
-		}
 		cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(overrideRequest.WfrId)
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("err on fetching cd workflow, SubscribeDevtronAsyncInstallRequest", "err", err)
+			impl.logger.Errorw("err on fetching cd workflow, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
 			return
 		}
-
 		// skip if the cdWfr.Status is already in a terminal state
 		if cdWfr != nil && slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
-			impl.logger.Errorw("err on fetching cd workflow, SubscribeDevtronAsyncInstallRequest", "err", err)
+			impl.logger.Warnw("skipped deployment as the runner status is already in terminal state", "cdWfrId", cdWfr, "status", cdWfr.Status)
 			return
 		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(appServiceConfig.DevtronChartInstallTimeout)*time.Minute)
+		appServiceConfig, err := app.GetAppServiceConfig()
+		if err != nil {
+			impl.logger.Errorw("error in parsing app status config variables, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
+			return
+		}
+		timeout := util.GetMaxInteger(appServiceConfig.HelmInstallationTimeout, appServiceConfig.DevtronChartInstallRequestTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Minute)
 		defer cancel()
 		_, span := otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
 		releaseId, _, releaseErr := impl.appService.TriggerRelease(overrideRequest, ctx, CDAsyncInstallNatsMessage.TriggeredAt, CDAsyncInstallNatsMessage.TriggeredBy)
 		span.End()
 		if releaseErr != nil {
 			if err = impl.MarkCurrentDeploymentFailed(cdWfr, releaseErr, overrideRequest.UserId); err != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, SubscribeDevtronAsyncInstallRequest", "cdWfr", cdWfr.Id, "err", err)
+				impl.logger.Errorw("error while updating current runner status to failed, SubscribeDevtronAsyncHelmInstallRequest", "cdWfr", cdWfr.Id, "err", err)
 			}
 			return
 		} else {
@@ -2338,7 +2335,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 	default:
 		impl.logger.Errorw("invalid CdWorkflowType, ManualCdTrigger", "CdWorkflowType", overrideRequest.CdWorkflowType, "err", err)
-		return 0, fmt.Errorf("invalid CdWorkflowType %s for the trigger request", string(overrideRequest.CdWorkflowType))
+		return 0, "", fmt.Errorf("invalid CdWorkflowType %s for the trigger request", string(overrideRequest.CdWorkflowType))
 	}
 	return releaseId, helmPackageName, err
 }
@@ -2604,7 +2601,7 @@ func (impl *WorkflowDagExecutorImpl) MarkCurrentDeploymentFailed(runner *pipelin
 	//update current WF with error status
 	impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", runner.Id, "err", releaseErr)
 	runner.Status = pipelineConfig.WorkflowFailed
-	runner.Message = releaseErr.Error()
+	runner.Message = util.GetGRPCErrorDetailedMessage(releaseErr)
 	runner.FinishedOn = time.Now()
 	runner.UpdatedOn = time.Now()
 	runner.UpdatedBy = triggeredBy
