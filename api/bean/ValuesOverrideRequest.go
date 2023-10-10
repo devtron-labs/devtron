@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
 )
@@ -40,6 +39,8 @@ const (
 	//last deployed wfr which is also a specific trigger
 	DEPLOYMENT_CONFIG_TYPE_LATEST_TRIGGER   DeploymentConfigurationType = "LATEST_TRIGGER_CONFIG"
 	DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER DeploymentConfigurationType = "SPECIFIC_TRIGGER_CONFIG"
+	START                                                               = "START"
+	STOP                                                                = "STOP"
 )
 
 func (workflowType WorkflowType) WorkflowTypeToStageType() repository.PipelineStageType {
@@ -77,11 +78,11 @@ type ValuesOverrideRequest struct {
 	ImageTag                              string                      `json:"-"`
 }
 
-func (v *ValuesOverrideRequest) SetDeploymentAppTypeForRequestType(rType pipeline.RequestType) error {
+func (v *ValuesOverrideRequest) SetDeploymentAppTypeForRequestType(rType string) error {
 	switch rType {
-	case pipeline.START:
+	case START:
 		v.DeploymentType = models.DEPLOYMENTTYPE_START
-	case pipeline.STOP:
+	case STOP:
 		v.DeploymentType = models.DEPLOYMENTTYPE_STOP
 	default:
 		return fmt.Errorf("unsupported operation %s", rType)

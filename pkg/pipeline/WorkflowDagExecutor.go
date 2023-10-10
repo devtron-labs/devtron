@@ -1657,7 +1657,7 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 		UserId:         stopRequest.UserId,
 		CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 	}
-	err = overrideRequest.SetDeploymentAppTypeForRequestType(stopRequest.RequestType)
+	err = overrideRequest.SetDeploymentAppTypeForRequestType(string(stopRequest.RequestType))
 	if err != nil {
 		return 0, err
 	}
