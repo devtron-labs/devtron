@@ -1256,13 +1256,8 @@ func (impl *AppServiceImpl) GetDeploymentStrategyByTriggerType(overrideRequest *
 
 func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
 
-	//VARIABLE different cases for variable resolution
-	scope := resourceQualifiers.Scope{
-		AppId:     overrideRequest.AppId,
-		EnvId:     overrideRequest.EnvId,
-		ClusterId: overrideRequest.ClusterId,
-	}
 	envOverride := &chartConfig.EnvConfigOverride{}
+
 	var err error
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
@@ -1375,7 +1370,31 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			envOverride.Chart = chart
 		}
 
+		_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+		env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("unable to find env", "err", err)
+			return nil, err
+		}
+		envOverride.Environment = env
+
+		//VARIABLE different cases for variable resolution
+		scope := resourceQualifiers.Scope{
+			AppId:     overrideRequest.AppId,
+			EnvId:     overrideRequest.EnvId,
+			ClusterId: overrideRequest.ClusterId,
+			SystemMetadata: &resourceQualifiers.SystemMetadata{
+				EnvironmentName: env.Name,
+				ClusterName:     env.Cluster.ClusterName,
+				Namespace:       env.Namespace,
+				ImageTag:        overrideRequest.ImageTag,
+				AppName:         overrideRequest.AppName,
+			},
+		}
+
 		if envOverride.IsOverride {
+
 			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, envOverride.EnvOverrideValues, repository6.Entity{
 				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
 				EntityId:   envOverride.Id,
@@ -1397,15 +1416,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			envOverride.VariableSnapshot = variableMap
 		}
 	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("unable to find env", "err", err)
-		return nil, err
-	}
-	envOverride.Environment = env
-	//VARIABLE_RESOLVE
+
 	return envOverride, nil
 }
 
@@ -1490,6 +1501,14 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		return valuesOverrideResponse, err
 	}
 
+	_, span := otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
+	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
+	span.End()
+	if err != nil {
+		return valuesOverrideResponse, err
+	}
+	overrideRequest.ImageTag = artifact.Image
+
 	envOverride, err := impl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
@@ -1503,12 +1522,6 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	strategy, err := impl.GetDeploymentStrategyByTriggerType(overrideRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
-		return valuesOverrideResponse, err
-	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
-	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
-	span.End()
-	if err != nil {
 		return valuesOverrideResponse, err
 	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "getDbMigrationOverride")
