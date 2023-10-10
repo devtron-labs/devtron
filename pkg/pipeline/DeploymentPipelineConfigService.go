@@ -43,6 +43,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -1696,4 +1697,235 @@ func (impl *PipelineBuilderImpl) DeleteDeploymentAppsForEnvironment(ctx context.
 
 	// Currently deleting apps only in argocd is supported
 	return impl.DeleteDeploymentApps(ctx, pipelines, userId), nil
+}
+
+func (impl *PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject, deploymentConfig map[string]bool) error {
+
+	// Config value doesn't exist in attribute table
+	if deploymentConfig == nil {
+		return nil
+	}
+	//Config value found to be true for ArgoCD and Helm both
+	if allDeploymentConfigTrue(deploymentConfig) {
+		return nil
+	}
+	//Case : {ArgoCD : false, Helm: true, HGF : true}
+	if validDeploymentConfigReceived(deploymentConfig, pipeline.DeploymentAppType) {
+		return nil
+	}
+
+	err := &util.ApiError{
+		HttpStatusCode:  http.StatusBadRequest,
+		InternalMessage: "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
+		UserMessage:     "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
+	}
+	return err
+}
+
+func allDeploymentConfigTrue(deploymentConfig map[string]bool) bool {
+	for _, value := range deploymentConfig {
+		if !value {
+			return false
+		}
+	}
+	return true
+}
+
+func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentTypeSent string) bool {
+	for key, value := range deploymentConfig {
+		if value && key == deploymentTypeSent {
+			return true
+		}
+	}
+	return false
+}
+
+func (impl *PipelineBuilderImpl) isPipelineInfoValid(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, bool) {
+
+	if len(pipeline.App.AppName) == 0 || len(pipeline.Environment.Name) == 0 {
+		impl.logger.Errorw("app name or environment name is not present",
+			"pipeline id", pipeline.Id)
+
+		failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+			"could not fetch app name or environment name")
+
+		return failedPipelines, false
+	}
+	return failedPipelines, true
+}
+
+func (impl *PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus, err string) []*bean.DeploymentChangeStatus {
+
+	return impl.appendToDeploymentChangeStatusList(
+		failedPipelines,
+		pipeline,
+		err,
+		bean.Failed)
+}
+
+func (impl *PipelineBuilderImpl) handleNotDeployedAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
+
+	if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+		// check if app status is Healthy
+		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
+
+		// case: missing status row in db
+		if len(status.Status) == 0 {
+			return failedPipelines, nil
+		}
+
+		// cannot delete the app from argocd if app status is Progressing
+		if err != nil {
+
+			healthCheckErr := errors2.New("unable to fetch app status")
+
+			impl.logger.Errorw(healthCheckErr.Error(),
+				"appId", pipeline.AppId,
+				"environmentId", pipeline.EnvironmentId,
+				"err", err)
+
+			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
+
+			return failedPipelines, healthCheckErr
+		}
+		return failedPipelines, nil
+	}
+	return failedPipelines, nil
+}
+
+// deleteArgoCdApp takes context and deployment app name used in argo cd and deletes
+// the application in argo cd.
+func (impl *PipelineBuilderImpl) deleteArgoCdApp(ctx context.Context, pipeline *pipelineConfig.Pipeline, deploymentAppName string,
+	cascadeDelete bool) error {
+
+	if !pipeline.DeploymentAppCreated {
+		return nil
+	}
+
+	// building the argocd application delete request
+	req := &application2.ApplicationDeleteRequest{
+		Name:    &deploymentAppName,
+		Cascade: &cascadeDelete,
+	}
+
+	_, err := impl.application.Delete(ctx, req)
+
+	if err != nil {
+		impl.logger.Errorw("error in deleting argocd application", "err", err)
+		// Possible that argocd app got deleted but db updation failed
+		if strings.Contains(err.Error(), "code = NotFound") {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// deleteHelmApp takes in context and pipeline object and deletes the release in helm
+func (impl *PipelineBuilderImpl) deleteHelmApp(ctx context.Context, pipeline *pipelineConfig.Pipeline) error {
+
+	if !pipeline.DeploymentAppCreated {
+		return nil
+	}
+
+	// validation
+	if !util.IsHelmApp(pipeline.DeploymentAppType) {
+		return errors2.New("unable to delete pipeline with id: " + strconv.Itoa(pipeline.Id) + ", not a helm app")
+	}
+
+	// create app identifier
+	appIdentifier := &client.AppIdentifier{
+		ClusterId:   pipeline.Environment.ClusterId,
+		ReleaseName: pipeline.DeploymentAppName,
+		Namespace:   pipeline.Environment.Namespace,
+	}
+
+	// call for delete resource
+	deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+
+	if err != nil {
+		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+		return err
+	}
+
+	if deleteResponse == nil || !deleteResponse.GetSuccess() {
+		return errors2.New("helm delete application response unsuccessful")
+	}
+	return nil
+}
+
+func (impl *PipelineBuilderImpl) appendToDeploymentChangeStatusList(pipelines []*bean.DeploymentChangeStatus,
+	pipeline *pipelineConfig.Pipeline, error string, status bean.Status) []*bean.DeploymentChangeStatus {
+
+	return append(pipelines, &bean.DeploymentChangeStatus{
+		Id:      pipeline.Id,
+		AppId:   pipeline.AppId,
+		AppName: pipeline.App.AppName,
+		EnvId:   pipeline.EnvironmentId,
+		EnvName: pipeline.Environment.Name,
+		Error:   error,
+		Status:  status,
+	})
+}
+
+func (impl *PipelineBuilderImpl) filterDeploymentTemplate(strategyKey string, pipelineStrategiesJson string) (string, error) {
+	var pipelineStrategies DeploymentType
+	err := json.Unmarshal([]byte(pipelineStrategiesJson), &pipelineStrategies)
+	if err != nil {
+		impl.logger.Errorw("error while unmarshal strategies", "err", err)
+		return "", err
+	}
+	if pipelineStrategies.Deployment.Strategy[strategyKey] == nil {
+		return "", fmt.Errorf("no deployment strategy found for %s", strategyKey)
+	}
+	strategy := make(map[string]interface{})
+	strategy[strategyKey] = pipelineStrategies.Deployment.Strategy[strategyKey].(map[string]interface{})
+	pipelineStrategy := DeploymentType{
+		Deployment: Deployment{
+			Strategy: strategy,
+		},
+	}
+	pipelineOverrideBytes, err := json.Marshal(pipelineStrategy)
+	if err != nil {
+		impl.logger.Errorw("error while marshal strategies", "err", err)
+		return "", err
+	}
+	pipelineStrategyJson := string(pipelineOverrideBytes)
+	return pipelineStrategyJson, nil
+}
+
+func (impl *PipelineBuilderImpl) getStrategiesMapping(dbPipelineIds []int) (map[int][]*chartConfig.PipelineStrategy, error) {
+	strategiesMapping := make(map[int][]*chartConfig.PipelineStrategy)
+	strategiesByPipelineIds, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineIds(dbPipelineIds)
+	if err != nil && !errors2.IsNotFound(err) {
+		impl.logger.Errorw("error in fetching strategies by pipelineIds", "PipelineIds", dbPipelineIds, "err", err)
+		return strategiesMapping, err
+	}
+	for _, strategy := range strategiesByPipelineIds {
+		strategiesMapping[strategy.PipelineId] = append(strategiesMapping[strategy.PipelineId], strategy)
+	}
+	return strategiesMapping, nil
+}
+
+func (impl *PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error {
+	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	if err != nil && pg.ErrNoRows != err {
+		return err
+	}
+	for _, ch := range charts {
+		if len(ch.GitRepoUrl) == 0 {
+			ch.GitRepoUrl = chartGitAttribute.RepoUrl
+			ch.ChartLocation = chartGitAttribute.ChartLocation
+			ch.UpdatedOn = time.Now()
+			ch.UpdatedBy = userId
+			err = impl.chartRepository.Update(ch)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
