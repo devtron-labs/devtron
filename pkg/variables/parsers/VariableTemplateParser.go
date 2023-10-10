@@ -48,6 +48,10 @@ type VariableTemplateParserConfig struct {
 	ScopedVariableHandlePrimitives bool `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false"`
 }
 
+func (cfg VariableTemplateParserConfig) isScopedVariablesDisabled() bool {
+	return !cfg.ScopedVariableEnabled
+}
+
 func getVariableTemplateParserConfig() (*VariableTemplateParserConfig, error) {
 	cfg := &VariableTemplateParserConfig{}
 	err := env.Parse(cfg)
@@ -76,30 +80,23 @@ func preProcessPlaceholder(template string, variableValueMap map[string]interfac
 
 func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
 
-	if !impl.variableTemplateParserConfig.ScopedVariableEnabled {
-		return VariableParserResponse{
-			Request:          parserRequest,
-			ResolvedTemplate: parserRequest.Template,
-		}
+	if impl.variableTemplateParserConfig.isScopedVariablesDisabled() {
+		return parserRequest.GetEmptyResponse()
 	}
-
-	if impl.variableTemplateParserConfig.ScopedVariableHandlePrimitives && parserRequest.TemplateType == JsonVariableTemplate {
-
-		var variableToValue = make(map[string]interface{}, 0)
-		for _, variable := range parserRequest.Variables {
-			variableToValue[variable.VariableName] = variable.VariableValue.Value
-		}
+	request := parserRequest
+	if impl.handlePrimitivesForJson(parserRequest) {
+		variableToValue := parserRequest.GetOriginalValuesMap()
 		template := preProcessPlaceholder(parserRequest.Template, variableToValue)
-		request := VariableParserRequest{
-			TemplateType:           StringVariableTemplate,
-			Template:               template,
-			Variables:              parserRequest.Variables,
-			IgnoreUnknownVariables: parserRequest.IgnoreUnknownVariables,
-		}
-		return impl.parseTemplate(request)
-	} else {
-		return impl.parseTemplate(parserRequest)
+
+		//overriding request to handle primitives in json request
+		request.TemplateType = StringVariableTemplate
+		request.Template = template
 	}
+	return impl.parseTemplate(request)
+}
+
+func (impl *VariableTemplateParserImpl) handlePrimitivesForJson(parserRequest VariableParserRequest) bool {
+	return impl.variableTemplateParserConfig.ScopedVariableHandlePrimitives && parserRequest.TemplateType == JsonVariableTemplate
 }
 
 func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]string, error) {

@@ -24,6 +24,13 @@ type VariableParserRequest struct {
 	IgnoreUnknownVariables bool
 }
 
+func (request VariableParserRequest) GetEmptyResponse() VariableParserResponse {
+	return VariableParserResponse{
+		Request:          request,
+		ResolvedTemplate: request.Template,
+	}
+}
+
 type VariableParserResponse struct {
 	Request          VariableParserRequest
 	ResolvedTemplate string
@@ -38,6 +45,14 @@ func (request VariableParserRequest) GetValuesMap() map[string]string {
 		variablesMap[variable.VariableName] = variable.VariableValue.StringValue()
 	}
 	return variablesMap
+}
+
+func (request VariableParserRequest) GetOriginalValuesMap() map[string]interface{} {
+	var variableToValue = make(map[string]interface{}, 0)
+	for _, variable := range request.Variables {
+		variableToValue[variable.VariableName] = variable.VariableValue.Value
+	}
+	return variableToValue
 }
 
 func GetScopedVarData(varData map[string]string) []*models.ScopedVariableData {
