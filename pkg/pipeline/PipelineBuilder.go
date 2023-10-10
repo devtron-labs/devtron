@@ -738,6 +738,7 @@ func (impl *PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *be
 	}
 
 	var regHost string
+	var templateDockerRegistryId string
 	dockerRegistry := template.DockerRegistry
 	if dockerRegistry != nil {
 		regHost, err = dockerRegistry.GetRegistryLocation()
@@ -745,6 +746,7 @@ func (impl *PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *be
 			impl.logger.Errorw("invalid reg url", "err", err)
 			return nil, err
 		}
+		templateDockerRegistryId = dockerRegistry.Id
 	}
 	ciConfig = &bean.CiConfigRequest{
 		Id:                template.Id,
@@ -761,7 +763,7 @@ func (impl *PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *be
 		CreatedBy:         template.CreatedBy,
 		CreatedOn:         template.CreatedOn,
 		CiGitMaterialId:   template.GitMaterialId,
-		DockerRegistry:    template.DockerRegistry.Id,
+		DockerRegistry:    templateDockerRegistryId,
 	}
 	if dockerRegistry != nil {
 		ciConfig.DockerRegistry = dockerRegistry.Id
