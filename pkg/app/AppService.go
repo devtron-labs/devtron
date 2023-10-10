@@ -2713,18 +2713,18 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 				impl.logger.Errorw("error in creating argo pipeline ", "name", pipelineName, "patch", string(reqbyte), "err", err)
 				return false, err
 			}
-			impl.logger.Infow("trying to normal refresh application through get ")
-			refresh := "normal"
-			testingApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName, Refresh: &refresh, AppNamespace: &application.Spec.Destination.Namespace})
-			if err != nil {
-				impl.logger.Errorw("cannot get application with refresh", "app", argoAppName, "pipeline", pipelineName)
-				return false, err
-			}
-			impl.logger.Infow("done getting the application with refresh with no error", "application", testingApplication)
 			impl.logger.Debugw("pipeline update req ", "res", patchReq)
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}
+		impl.logger.Infow("trying to normal refresh application through get ")
+		refresh := "normal"
+		testingApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName, Refresh: &refresh, AppNamespace: &application.Spec.Destination.Namespace})
+		if err != nil {
+			impl.logger.Errorw("cannot get application with refresh", "app", argoAppName, "pipeline", pipelineName)
+			return false, err
+		}
+		impl.logger.Infow("done getting the application with refresh with no error", "application", testingApplication)
 		return true, nil
 	} else if appStatus.Code() == codes.NotFound {
 		impl.logger.Errorw("argo app not found", "app", argoAppName, "pipeline", pipelineName)
