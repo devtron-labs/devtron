@@ -87,15 +87,23 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 	return cfg, err
 }
 
-type PipelineBuilder interface {
-	DevtronAppConfigService
+type CiConfigService interface {
 	CiPipelineConfigService
 	CiMaterialConfigService
 	AppArtifactManager
+}
+
+type CdConfigService interface {
 	CdPipelineConfigService
 	DevtronAppCMCSService
 	DevtronAppStrategyService
 	AppDeploymentTypeChangeManager
+}
+
+type PipelineBuilder interface {
+	DevtronAppConfigService
+	CiConfigService
+	CdConfigService
 }
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
