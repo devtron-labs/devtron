@@ -322,7 +322,7 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 				accessedApps = append(accessedApps, app)
 				continue
 			}
-			object := fmt.Sprintf("%s/%s", project.ProjectName, app.Name)
+			object := fmt.Sprintf("%s/%s", strings.ToLower(project.ProjectName), strings.ToLower(app.Name))
 			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 				accessedApps = append(accessedApps, app)
 			}
