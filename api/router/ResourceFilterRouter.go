@@ -21,7 +21,10 @@ func NewResourceFilterRouterImpl(resourceFilterRestHandler resourceFilter.Resour
 }
 
 func (impl *ResourceFilterRouterImpl) InitResourceFilterRouter(router *mux.Router) {
-	router.Path("").
+	//if no param passed, it will list all the active filters
+	//if pipelineId is passed, will fetch all the filters that will be applied on this pipeline(app,env)
+	//if other params are added in the future, please follow a weightage for the params
+	router.Path("").Queries("pipelineId", "{pipelineId}").
 		HandlerFunc(impl.resourceFilterRestHandler.ListFilters).
 		Methods("GET")
 
@@ -45,7 +48,4 @@ func (impl *ResourceFilterRouterImpl) InitResourceFilterRouter(router *mux.Route
 		HandlerFunc(impl.resourceFilterRestHandler.ValidateExpression).
 		Methods("POST")
 
-	router.Path("/pipeline/{pipelineId}").
-		HandlerFunc(impl.resourceFilterRestHandler.GetFiltersByPipelineId).
-		Methods("GET")
 }
