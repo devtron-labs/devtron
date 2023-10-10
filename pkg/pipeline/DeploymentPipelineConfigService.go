@@ -2155,7 +2155,7 @@ func (impl *PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 		if err != nil {
 			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
 		}
-		if err != nil && strings.Contains(err.Error(), "not found") {
+		if err != nil && checkAppReleaseNotExist(err) {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
 				pipeline,
@@ -2476,4 +2476,9 @@ func (impl *PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipe
 	}
 	return respDtos
 
+}
+
+func checkAppReleaseNotExist(err error) bool {
+	// RELEASE_NOT_EXIST check for helm App and NOT_FOUND check for argo app
+	return strings.Contains(err.Error(), bean.NOT_FOUND) || strings.Contains(err.Error(), bean.RELEASE_NOT_EXIST)
 }
