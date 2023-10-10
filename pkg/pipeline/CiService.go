@@ -166,6 +166,12 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		//This will be populated for jobs running in selected environment
 		scope.EnvId = env.Id
 		scope.ClusterId = env.ClusterId
+
+		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
+			EnvironmentName: env.Name,
+			ClusterName:     env.Cluster.ClusterName,
+			Namespace:       env.Namespace,
+		}
 	}
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.config.GetDefaultNamespace()

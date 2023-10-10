@@ -106,72 +106,211 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 }
 
 type PipelineBuilder interface {
-	CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error)
+	//function related to application and project
+
+	//CreateApp : This function creates applications of type Job as well as Devtronapps
+	// In case of error response object is nil
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
+	//DeleteApp : This function deletes applications of type Job as well as DevtronApps
+	DeleteApp(appId int, userId int32) error
+	//GetApp : Gets Application along with Git materials for given appId.
+	//If the application type is a 'Chart Store App', it doesnt provide any detail.
+	//For application types like Jobs and DevtronApps, it retrieves Git materials associated with the application.
+	//In case of error response object is nil
+	GetApp(appId int) (application *bean.CreateAppDTO, err error)
+	//FindByIds : Find applications by given IDs, delegating the request to the appRepository.
+	// It queries the repository for applications corresponding to the given IDs and constructs
+	//a list of AppBean objects containing ID, name, and team ID.
+	//It returns the list of AppBean instances.
+	//In case of error,AppBean is returned as nil.
+	FindByIds(ids []*int) ([]*AppBean, error)
+	//GetAppList : Retrieve and return a list of applications after converting in proper bean object.
+	//In case of any error , []AppBean is returned as nil.
+	GetAppList() ([]AppBean, error)
+	//FindAllMatchesByAppName : Find and return applications matching the given name and type.
+	//Internally,It performs a case-insensitive search based on the applicationName("%"+appName+"%") and type.
+	//In case of error,[]*AppBean is returned as nil.
+	FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*AppBean, error)
+	//GetAppListForEnvironment : Retrieves a list of applications (AppBean) based on the provided ResourceGroupingRequest.
+	// It first determines the relevant application and environment objects based on the active pipelines fetched from the repository.
+	//The function then performs authorization checks on these objects for the given user.
+	//Finally , the corresponding AppBean objects are added to the applicationList and then returned.
+	//In case of error,[]*AppBean is returned as nil.
+	GetAppListForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*AppBean, error)
+	//FindAppsByTeamId : Retrieves applications (AppBean) associated with the provided teamId
+	//It queries the repository for applications belonging to the specified team(project) and
+	//constructs a list of AppBean instances containing ID and name.
+	//The function returns the list of applications in valid case.
+	//In case of error,[]*AppBean is returned as nil.
+	FindAppsByTeamId(teamId int) ([]*AppBean, error)
+	//FindAppsByTeamName : Retrieves applications (AppBean) associated with the provided teamName
+	// It queries the repository for applications belonging to the specified team(project) and
+	// constructs a list of AppBean instances containing ID and name.
+	// The function returns the list of applications in valid case.
+	// In case of error,[]*AppBean is returned as nil.
+	FindAppsByTeamName(teamName string) ([]AppBean, error)
+
+	//function related to ciPipeline
+
+	//GetCiPipeline : retrieves CI pipeline configuration (CiConfigRequest) for a specific application (appId).
+	// It fetches CI pipeline data, including pipeline materials, scripts, and associated configurations.
+	// It returns a detailed CiConfigRequest.
+	//If any errors occur during the retrieval process  CI pipeline configuration remains nil.
+	//If you want less detail of ciPipeline ,Please refer GetCiPipelineMin
+	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
+	//GetCiPipelineById : Retrieve ciPipeline for given ciPipelineId
+	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
+	//GetTriggerViewCiPipeline : retrieves a detailed view of the CI pipelines configured for a specific application (appId).
+	// It includes information on CI pipeline materials, scripts, configurations, and linked pipelines.
+	//If any errors occur ,It returns an error along with a nil result(bean.TriggerViewCiConfig).
+	GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error)
+	//GetExternalCi : Lists externalCi for given appId
+	//"external CI" refers to CI pipelines and configurations that are managed externally,
+	//like by third-party services or tools.
+	//It fetches information about external CI pipelines, their webhooks, payload configurations, and related roles.
+	//The function constructs an array of ExternalCiConfig objects and returns it.
+	// If any errors occur, the function returns an error along with a nil result([]*bean.ExternalCiConfig).
+	GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error)
+	//GetExternalCiById : Retrieve externalCi for given appId and externalCiId.
+	//It begins by validating the provided ID and fetching the corresponding CI pipeline from the repository.
+	//If the CI pipeline is found, the function constructs an ExternalCiConfig object, encapsulating essential details and returns it.
+	// If any errors occur, the function returns an error along with a nil result(*bean.ExternalCiConfig).
+	GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error)
+	//UpdateCiTemplate : handles updates to the CiTemplate based on the provided CiConfigRequest.
+	//It fetches relevant Docker registry information, and updates the CI configuration.
+	//The function then creates or modifies associated resources such as Docker repositories.
+	//After updating the configuration, it ensures to update history .
+	//Finally, the function returns the modified CiConfigRequest.
+	//If an error occurs, the CiConfigRequest is nil.
+	//If you want to Update CiPipeline please refer PatchCiPipeline
+	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
+	//PatchCiPipeline :  function manages CI pipeline operations based on the provided CiPatchRequest.
+	//It fetches template variables, sets specific attributes, and
+	//handles following actions
+	// 1. create
+	//2. update source
+	//3. delete pipelines
+	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
+	//CreateCiPipeline : manages the creation of a CI pipeline based on the provided CiConfigRequest.
+	// It first fetches  application data and configures Docker registry settings
+	//then constructs a CI template with specified build configurations, auditing details, and related Git materials.
+
+	CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error)
+	//GetCiPipelineMin : lists minimum detail of ciPipelines for given appId and envIds.
+	//It filters and fetches CI pipelines based on the provided environment identifiers.
+	//If no specific environments are provided, it retrieves all CI pipelines associated with the application.
+	//If you want more details like buildConfig ,gitMaterials etc, please refer GetCiPipeline
+	GetCiPipelineMin(appId int, envIds []int) ([]*bean.CiPipelineMin, error)
+	//PatchRegexCiPipeline : Update CI pipeline materials based on the provided regex patch request
+	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
+	//GetCiPipelineByEnvironment : lists ciPipeline for given environmentId and appIds
+	GetCiPipelineByEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiConfigRequest, error)
+	//GetCiPipelineByEnvironmentMin : lists minimum detail of ciPipelines for given environmentId and appIds
+	GetCiPipelineByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiPipelineMinResponse, error)
+	//GetExternalCiByEnvironment : lists externalCi for given environmentId and appIds
+	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
+	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
+
+	//function related to gitMaterial
+
+	//CreateMaterialsForApp : Delegating the request to ciCdPipelineOrchestrator for Material creation
 	CreateMaterialsForApp(request *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
+	//UpdateMaterialsForApp : Delegating the request to ciCdPipelineOrchestrator for updating Material
 	UpdateMaterialsForApp(request *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
 	DeleteMaterial(request *bean.UpdateMaterialDTO) error
-	DeleteApp(appId int, userId int32) error
-	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
-	GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error)
-	GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error)
-	GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error)
-	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
-	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
+	//PatchCiMaterialSource : Delegating the request to ciCdPipelineOrchestrator for updating source
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
+	//BulkPatchCiMaterialSource : Delegating the request to ciCdPipelineOrchestrator for bulk updating source
 	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error)
+	//GetMaterialsForAppId : Retrieve material for given appId
+	GetMaterialsForAppId(appId int) []*bean.GitMaterial
+
+	//function related to cdPipeline
+
+	//GetCdPipelineById : Retrieve cdPipeline for given cdPipelineId.
+	//getting cdPipeline,environment and strategies ,preDeployStage, postDeployStage,appWorkflowMapping from respective repository and service layer
+	//converting above data in proper bean object and then assigning to CDPipelineConfigObject
+	//if any error occur , will get empty object or nil
+	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
-	GetApp(appId int) (application *bean.CreateAppDTO, err error)
+	//PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
+	//Performs Create ,Update and Delete operation.
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, acdDelete bool, userId int32) (*bean.AppDeleteResponseDTO, error)
 	DeleteACDAppCdPipelineWithNonCascade(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
-	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	ChangePipelineDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
-	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
+	//GetTriggerViewCdPipelinesForApp :
 	GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
+	//GetCdPipelinesForApp : Retrieve cdPipeline for given appId
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
+	//GetCdPipelinesForAppAndEnv : Retrieve cdPipeline for given appId and envId
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
-	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
-	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
-	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error)
-	FindAppsByTeamId(teamId int) ([]*AppBean, error)
-	FindAppsByTeamName(teamName string) ([]AppBean, error)
-	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
-	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
-	GetAppList() ([]AppBean, error)
-	GetCiPipelineMin(appId int, envIds []int) ([]*bean.CiPipelineMin, error)
-
-	FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error)
-	FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
-	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
-
-	FetchConfigmapSecretsForCdStages(appId, envId, cdPipelineId int) (ConfigMapSecretsResponse, error)
-	FindByIds(ids []*int) ([]*AppBean, error)
-	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
-
-	GetMaterialsForAppId(appId int) []*bean.GitMaterial
-	FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*AppBean, error)
-	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
-	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
-
-	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error)
+	//GetCdPipelinesByEnvironment : lists cdPipeline for given environmentId and appIds
+	GetCdPipelinesByEnvironment(request resourceGroup2.ResourceGroupingRequest) (cdPipelines *bean.CdPipelines, err error)
+	//GetCdPipelinesByEnvironmentMin : lists minimum detail of cdPipelines for given environmentId and appIds
+	GetCdPipelinesByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) (cdPipelines []*bean.CDPipelineConfigObject, err error)
+	//PerformBulkActionOnCdPipelines :
 	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
-	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
+	//FindPipelineById : Retrieve Pipeline object from pipelineRepository for given cdPipelineId
+	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
+	//FindAppAndEnvDetailsByPipelineId : Retrieve app and env details for given cdPipelineId
+	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
+	// RetrieveParentDetails : Retrieve the parent id and type of the parent.
+	//Here ParentId refers to Parent like parent of CD can be CI , PRE-CD .
+	// It first fetches the workflow details from the appWorkflow repository.
+	//If the workflow is a CD pipeline, it further checks for stage configurations.
+	//If the workflow is a webhook, it returns the webhook workflow type.
+	//In case of error , it returns 0 for parentId and empty string for parentType
+	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
+	//GetEnvironmentByCdPipelineId : Retrieve environmentId for given cdPipelineId
+	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
+	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) //no usage
+	//IsGitOpsRequiredForCD : Determine if GitOps is required for CD based on the provided pipeline creation request
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
+	//SetPipelineDeploymentAppType : Set pipeline deployment application(helm/argo) types based on the provided configuration
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, deploymentTypeValidationConfig map[string]bool)
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
-	GetCiPipelineByEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiConfigRequest, error)
-	GetCiPipelineByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiPipelineMinResponse, error)
-	GetCdPipelinesByEnvironment(request resourceGroup2.ResourceGroupingRequest) (cdPipelines *bean.CdPipelines, err error)
-	GetCdPipelinesByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) (cdPipelines []*bean.CDPipelineConfigObject, err error)
-	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
+	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
-	GetAppListForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*AppBean, error)
-	GetDeploymentConfigMap(environmentId int) (map[string]bool, error)
 	IsGitopsConfigured() (bool, error)
+
+	//function related to CM/CS
+
+	//FetchConfigmapSecretsForCdStages : Delegating the request to appService for fetching cm/cs
+	FetchConfigmapSecretsForCdStages(appId, envId, cdPipelineId int) (ConfigMapSecretsResponse, error)
+	//GetDeploymentConfigMap : Retrieve deployment config values from the attributes table
+	GetDeploymentConfigMap(environmentId int) (map[string]bool, error)
+
+	//function related to strategy
+
+	//FetchCDPipelineStrategy : Retrieve CDPipelineStrategy for given appId
+	FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error)
+	//FetchDefaultCDPipelineStrategy :
+	FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
+
+	//function related to DeploymentAppTypeChangeResponse
+
+	//ChangeDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
+	// deletes all the cd pipelines for that deployment type in all apps that belongs to
+	// that environment and updates the db with desired deployment app type
+	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
+	//ChangePipelineDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
+	// deletes all the cd pipelines for that deployment type in all apps that belongs to
+	// that environment and updates the db with desired deployment app type
+	ChangePipelineDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
+	//TriggerDeploymentAfterTypeChange :
+	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
+	//DeleteDeploymentApps :
+	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
+	//DeleteDeploymentAppsForEnvironment :
+	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
+
+	//function related to artifact
+
+	//RetrieveArtifactsByCDPipeline :
+	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
+	//FetchArtifactForRollback :
+	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error)
 }
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
@@ -2452,9 +2591,6 @@ func (impl *PipelineBuilderImpl) DeleteACDAppCdPipelineWithNonCascade(pipeline *
 	return nil
 }
 
-// ChangeDeploymentType takes in DeploymentAppTypeChangeRequest struct and
-// deletes all the cd pipelines for that deployment type in all apps that belongs to
-// that environment and updates the db with desired deployment app type
 func (impl *PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 	request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error) {
 
@@ -3014,7 +3150,10 @@ func (impl *PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 			}
 			_, err = impl.application.Get(ctx, req)
 		}
-		if strings.Contains(err.Error(), "not found") {
+		if err != nil {
+			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
+		}
+		if err != nil && strings.Contains(err.Error(), "not found") {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
 				pipeline,
@@ -3589,7 +3728,6 @@ func (impl *PipelineBuilderImpl) FetchConfigmapSecretsForCdStages(appId, envId, 
 	return existingConfigMapSecrets, nil
 }
 
-// RetrieveParentDetails returns the parent id and type of the parent
 func (impl *PipelineBuilderImpl) RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error) {
 
 	workflow, err := impl.appWorkflowRepository.GetParentDetailsByPipelineId(pipelineId)
