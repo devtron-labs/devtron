@@ -65,19 +65,6 @@ func (handler *ResourceFilterRestHandlerImpl) ListFilters(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	//vars := mux.Vars(r)
-	////if pipelineId found get filters for this pipeline only
-	//if pipelineIdStr, ok := vars["pipelineId"]; ok {
-	//	pipelineId, err := strconv.Atoi(pipelineIdStr)
-	//	if err != nil {
-	//		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param pipelineId '%s'", vars["pipelineId"])), nil, http.StatusBadRequest)
-	//		return
-	//	}
-	//	handler.getFiltersByPipelineId(w, userId, pipelineId)
-	//	return
-	//}
-
 	authorised := handler.applyAuth(userId)
 	if !authorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -279,41 +266,3 @@ func (handler *ResourceFilterRestHandlerImpl) applyAuth(userId int32) bool {
 	}
 	return isSuperAdmin
 }
-
-//func (handler *ResourceFilterRestHandlerImpl) getFiltersByPipelineId(w http.ResponseWriter, userId int32, pipelineId int) {
-//
-//	userInfo, err := handler.userAuthService.GetById(userId)
-//	if err != nil {
-//		handler.logger.Errorw("error in fidning userInfo by userId", "userId", userId)
-//		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-//		return
-//	}
-//
-//	pipeline, err := handler.pipelineRepository.FindById(pipelineId)
-//	if err != nil {
-//		if err == pg.ErrNoRows {
-//			common.WriteJsonResp(w, err, nil, http.StatusNotFound)
-//			return
-//		}
-//		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-//		return
-//	}
-//
-//	//rbac block starts from here
-//	object := handler.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-//	if ok := handler.enforcer.Enforce(userInfo.EmailId, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-//		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-//		return
-//	}
-//	scope := resourceQualifiers.Scope{
-//		AppId: pipeline.AppId,
-//		EnvId: pipeline.EnvironmentId,
-//	}
-//	res, err := handler.resourceFilterService.GetFiltersByAppIdEnvId(scope)
-//	if err != nil {
-//		handler.logger.Errorw("error in getting active resource filters", "err", err)
-//		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-//		return
-//	}
-//	common.WriteJsonResp(w, nil, res, http.StatusOK)
-//}
