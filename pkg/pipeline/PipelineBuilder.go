@@ -1945,6 +1945,6 @@ func (impl *PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 }
 
 func checkAppReleaseNotExist(err error) bool {
-	// release not exist check for helm App and Not found check for argo app
-	return strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "release not exist")
+	// RELEASE_NOT_EXIST check for helm App and NOT_FOUND check for argo app
+	return strings.Contains(err.Error(), bean.NOT_FOUND) || strings.Contains(err.Error(), bean.RELEASE_NOT_EXIST)
 }
