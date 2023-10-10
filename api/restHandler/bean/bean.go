@@ -52,3 +52,7 @@ func isExternalEphemeralContainer(cmds []string, name string) bool {
 	}
 	return isExternal
 }
+
+func GetAppRBACName(projectName, appName string) string {
+	return fmt.Sprintf("%s/%s", strings.ToLower(projectName), strings.ToLower(appName))
+}
