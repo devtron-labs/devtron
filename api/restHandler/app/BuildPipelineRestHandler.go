@@ -420,22 +420,6 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	if app.AppType == helper.Job {
 		patchRequest.IsJob = true
 	}
-	if patchRequest.CiPipeline.PipelineType == bean.CI_JOB {
-		patchRequest.CiPipeline.IsDockerConfigOverridden = true
-		patchRequest.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
-			DockerRegistry:   ciConf.DockerRegistry,
-			DockerRepository: ciConf.DockerRepository,
-			CiBuildConfig: &bean1.CiBuildConfigBean{
-				Id:                        0,
-				GitMaterialId:             patchRequest.CiPipeline.CiMaterial[0].GitMaterialId,
-				BuildContextGitMaterialId: patchRequest.CiPipeline.CiMaterial[0].GitMaterialId,
-				UseRootBuildContext:       false,
-				CiBuildType:               bean1.SKIP_BUILD_TYPE,
-				DockerBuildConfig:         nil,
-				BuildPackConfig:           nil,
-			},
-		}
-	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)

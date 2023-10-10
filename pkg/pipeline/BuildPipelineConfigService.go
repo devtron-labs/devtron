@@ -818,6 +818,22 @@ func (impl *PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (
 		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
 		return nil, err
 	}
+	if request.CiPipeline.PipelineType == bean.CI_JOB {
+		request.CiPipeline.IsDockerConfigOverridden = true
+		request.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+			DockerRegistry:   ciConfig.DockerRegistry,
+			DockerRepository: ciConfig.DockerRepository,
+			CiBuildConfig: &bean3.CiBuildConfigBean{
+				Id:                        0,
+				GitMaterialId:             request.CiPipeline.CiMaterial[0].GitMaterialId,
+				BuildContextGitMaterialId: request.CiPipeline.CiMaterial[0].GitMaterialId,
+				UseRootBuildContext:       false,
+				CiBuildType:               bean3.SKIP_BUILD_TYPE,
+				DockerBuildConfig:         nil,
+				BuildPackConfig:           nil,
+			},
+		}
+	}
 	ciConfig.AppWorkflowId = request.AppWorkflowId
 	ciConfig.UserId = request.UserId
 	if request.CiPipeline != nil {
