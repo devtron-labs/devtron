@@ -815,9 +815,12 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		ciPipelineIds = append(ciPipelineIds, p.Id)
 		ciPipelineIdsMap[p.Id] = p
 	}
-	ciTemplateOverrides, err := impl.ciTemplateOverrideRepository.FindByCiPipelineIds(ciPipelineIds)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching ci tempalate by pipeline ids")
+	var ciTemplateOverrides []*pipelineConfig.CiTemplateOverride
+	if len(ciPipelineIds) > 0 {
+		ciTemplateOverrides, err = impl.ciTemplateOverrideRepository.FindByCiPipelineIds(ciPipelineIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching ci tempalate by pipeline ids")
+		}
 	}
 	for _, ciTemplateOverride := range ciTemplateOverrides {
 		if _, ok := ciPipelineIdsMap[ciTemplateOverride.CiPipelineId]; ok {
