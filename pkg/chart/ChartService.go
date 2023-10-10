@@ -1760,7 +1760,7 @@ func (impl ChartServiceImpl) GetCustomChartInBytes(chartRefId int) ([]byte, erro
 	}
 	// For Devtron reference charts the chart will be load from the directory location
 	refChartPath := filepath.Join(string(impl.refChartDir), chartRef.Location)
-	manifestByteArr, _, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, false, "", "")
+	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return nil, err

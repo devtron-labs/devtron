@@ -1638,7 +1638,7 @@ func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId
 		return manifestByteArray, nil
 	}
 
-	manifestByteArray, _, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true, "", "")
+	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArray, err
