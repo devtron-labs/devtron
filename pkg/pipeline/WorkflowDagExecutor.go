@@ -574,18 +574,22 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 
-	// Todo - optimize
 	app, err := impl.appRepository.FindById(pipeline.AppId)
 	if err != nil {
 		return err
 	}
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return err
+	}
 	params := impl.celService.GetParamsFromArtifact(artifact.Image)
 	metadata := resourceFilter.ExpressionMetadata{
 		Params: params,
 	}
-	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+	filterState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
 	if err != nil || filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
 
@@ -777,6 +781,11 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return err
+	}
 	if cdWf.CiArtifact == nil || cdWf.CiArtifact.Id == 0 {
 		cdWf.CiArtifact, err = impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 		if err != nil {
@@ -788,7 +797,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	metadata := resourceFilter.ExpressionMetadata{
 		Params: params,
 	}
-	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+	filterState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
 	if err != nil || filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
 	}
@@ -1557,11 +1566,16 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return err
+	}
 	params := impl.celService.GetParamsFromArtifact(artifact.Image)
 	metadata := resourceFilter.ExpressionMetadata{
 		Params: params,
 	}
-	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+	filterState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
 	if err != nil || filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
 
@@ -2058,13 +2072,18 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		imageTag = strings.Split(artifact.Image, ":")[1]
 	}
 	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
-	// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR - First check whether this env has filter enabled
+
 	scope := resourceQualifiers.Scope{AppId: overrideRequest.AppId, EnvId: overrideRequest.EnvId, ClusterId: overrideRequest.ClusterId, ProjectId: overrideRequest.ProjectId, IsProdEnv: overrideRequest.IsProdEnv}
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", overrideRequest.PipelineId, "err", err)
+		return 0, "", err
+	}
 	params := impl.celService.GetParamsFromArtifact(artifact.Image)
 	metadata := resourceFilter.ExpressionMetadata{
 		Params: params,
 	}
-	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+	filterState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
 	if err != nil || filterState != resourceFilter.ALLOW {
 		return 0, "", fmt.Errorf("the artifact does not pass filtering condition")
 	}

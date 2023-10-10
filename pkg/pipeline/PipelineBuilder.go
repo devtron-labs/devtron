@@ -4099,7 +4099,13 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", pipeline.AppId, "artifactIds", artifactIds)
 		return ciArtifactsResponse, err
 	}
-
+	environment := pipeline.Environment
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return ciArtifactsResponse, err
+	}
 	for i, artifact := range artifacts {
 		if imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]; imageTaggingResp != nil {
 			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
@@ -4131,20 +4137,18 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		ciArtifacts[i].TriggeredBy = ciWorkflow.TriggeredBy
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
-		// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR First check whether this env has filter enabled
-		environment := pipeline.Environment
-		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
 		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
 		metadata := resourceFilter.ExpressionMetadata{
 			Params: params,
 		}
-		filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+		filterState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
 		if err != nil {
 			return ciArtifactsResponse, err
 		}
 		ciArtifacts[i].FilterState = filterState
 	}
 
+	ciArtifactsResponse.ResourceFilters = filters
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
 	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
 	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
