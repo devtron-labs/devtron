@@ -27,6 +27,8 @@ import (
 	"strings"
 )
 
+const DefaultMinArtifactCount = 10
+
 type DeploymentHistoryResp struct {
 	CdWorkflows                []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
 	TagsEdiatable              bool                                    `json:"tagsEditable"`
@@ -1174,18 +1176,19 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		searchString = search
 	}
 
+	//min is 10, TODO: set max limit (gireesh)
+	count := DefaultMinArtifactCount
 	countString := r.URL.Query().Get("count")
-	if len(countString) == 0 {
-		countString = "10"
+	if len(countString) != 0 {
+		count, err = strconv.Atoi(countString)
 	}
-	count, err := strconv.Atoi(countString)
-	isApprovalNode := false
-
 	if err != nil {
 		handler.Logger.Errorw("request err, GetArtifactsByCDPipeline", "err", err, "count", countString)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	isApprovalNode := false
 
 	if stage == pipeline.WorkflowApprovalNode {
 		isApprovalNode = true
