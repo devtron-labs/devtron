@@ -413,13 +413,11 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 					impl.logger.Warnw("value not found in resourceTreeVal, unable to extract port no")
 					continue
 				}
+				_value := make(map[string]interface{})
 				for key, _type := range _portList {
-					kv := struct {
-						Key   string
-						Value []int64
-					}{Key: key, Value: _type}
-					value[Port] = kv
+					_value[key] = _type
 				}
+				value[Port] = _value
 			}
 		}
 	}
