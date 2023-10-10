@@ -8,7 +8,7 @@ import (
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 )
 
-type DevtronAppConfigService interface {
+type AppConfigService interface {
 	//CreateApp : This function creates applications of type Job as well as Devtronapps
 	// In case of error response object is nil
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
