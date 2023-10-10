@@ -169,7 +169,7 @@ kubectl create -n <namespace> secret docker-registry regcred --docker-server=<yo
 
 where,
 
-* **namespace** is your virtual cluster, e.g., devtron-demo
+* **namespace** is your sub-cluster, e.g., devtron-demo
 * **your-registry-server** is your Private Docker Registry FQDN. Use https://index.docker.io/v1/ for Docker Hub.
 * **your-name** is your Docker username
 * **your-pword** is your Docker password
