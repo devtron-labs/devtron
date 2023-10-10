@@ -715,6 +715,9 @@ const (
 	NOT_YET_DELETED Status = "Not yet deleted"
 )
 
+const RELEASE_NOT_EXIST = "release not exist"
+const NOT_FOUND = "not found"
+
 func (a CdPatchAction) String() string {
 	return [...]string{"CREATE", "DELETE", "CD_UPDATE"}[a]
 }
