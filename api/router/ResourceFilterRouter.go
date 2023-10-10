@@ -45,7 +45,7 @@ func (impl *ResourceFilterRouterImpl) InitResourceFilterRouter(router *mux.Route
 		HandlerFunc(impl.resourceFilterRestHandler.ValidateExpression).
 		Methods("POST")
 
-	router.Path("/{appId}/{envId}").
-		HandlerFunc(impl.resourceFilterRestHandler.GetFiltersByAppIdEnvId).
+	router.Path("/pipeline/{pipelineId}").
+		HandlerFunc(impl.resourceFilterRestHandler.GetFiltersByPipelineId).
 		Methods("GET")
 }

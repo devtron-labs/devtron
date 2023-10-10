@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -26,7 +28,7 @@ type ResourceFilterRestHandler interface {
 	CreateFilter(w http.ResponseWriter, r *http.Request)
 	DeleteFilter(w http.ResponseWriter, r *http.Request)
 	ValidateExpression(w http.ResponseWriter, r *http.Request)
-	GetFiltersByAppIdEnvId(w http.ResponseWriter, r *http.Request)
+	GetFiltersByPipelineId(w http.ResponseWriter, r *http.Request)
 }
 
 type ResourceFilterRestHandlerImpl struct {
@@ -37,6 +39,7 @@ type ResourceFilterRestHandlerImpl struct {
 	resourceFilterService resourceFilter.ResourceFilterService
 	celService            resourceFilter.CELEvaluatorService
 	validator             *validator.Validate
+	pipelineRepository    pipelineConfig.PipelineRepository
 }
 
 func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
@@ -45,7 +48,8 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 	enforcer casbin.Enforcer,
 	celService resourceFilter.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService,
-	validator *validator.Validate) *ResourceFilterRestHandlerImpl {
+	validator *validator.Validate,
+	pipelineRepository pipelineConfig.PipelineRepository) *ResourceFilterRestHandlerImpl {
 	return &ResourceFilterRestHandlerImpl{
 		logger:                logger,
 		userAuthService:       userAuthService,
@@ -54,6 +58,7 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 		resourceFilterService: resourceFilterService,
 		celService:            celService,
 		validator:             validator,
+		pipelineRepository:    pipelineRepository,
 	}
 }
 
@@ -265,7 +270,7 @@ func (handler *ResourceFilterRestHandlerImpl) applyAuth(userId int32) bool {
 	return isSuperAdmin
 }
 
-func (handler *ResourceFilterRestHandlerImpl) GetFiltersByAppIdEnvId(w http.ResponseWriter, r *http.Request) {
+func (handler *ResourceFilterRestHandlerImpl) GetFiltersByPipelineId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -278,27 +283,29 @@ func (handler *ResourceFilterRestHandlerImpl) GetFiltersByAppIdEnvId(w http.Resp
 		return
 	}
 	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param appId '%s'", vars["appId"])), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param pipelineId '%s'", vars["pipelineId"])), nil, http.StatusBadRequest)
 		return
 	}
-
-	envId, err := strconv.Atoi(vars["envId"])
+	pipeline, err := handler.pipelineRepository.FindById(pipelineId)
 	if err != nil {
-		common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid param envId '%s'", vars["envId"])), nil, http.StatusBadRequest)
+		if err == pg.ErrNoRows {
+			common.WriteJsonResp(w, err, nil, http.StatusNotFound)
+			return
+		}
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	//rbac block starts from here
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 	if ok := handler.enforcer.Enforce(userInfo.EmailId, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	scope := resourceQualifiers.Scope{
-		AppId: appId,
-		EnvId: envId,
+		AppId: pipeline.AppId,
+		EnvId: pipeline.EnvironmentId,
 	}
 	res, err := handler.resourceFilterService.GetFiltersByAppIdEnvId(scope)
 	if err != nil {
