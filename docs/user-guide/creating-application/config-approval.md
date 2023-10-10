@@ -61,7 +61,7 @@ Only a different super-admin user or someone (who is not amongst the editors of 
 
 ![Figure 6: Authorized User Approving the Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/approval-screen.jpg)
 
-If required, you can check whether a user has approval rights by going to **Global Configurations** → **Authorization** (dropdown) → **User Permissions**.
+A super-admin can check whether a user has approval rights by going to **Global Configurations** → **Authorization** (dropdown) → **User Permissions**.
 
 ![Figure 7: Checking Permissions](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/config-approver-1.jpg)
 
