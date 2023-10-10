@@ -297,7 +297,7 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app detail", "err", err)
-		return nil, err
+		return appdetail, err
 	}
 
 	// if application is devtron app helm release,
