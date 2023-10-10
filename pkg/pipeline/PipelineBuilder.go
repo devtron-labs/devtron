@@ -1179,13 +1179,14 @@ func (impl *PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		var err error
+		var appDetail *client.AppDetail
 		if pipeline.DeploymentAppType == string(bean.ArgoCd) {
 			appIdentifier := &client.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: pipeline.DeploymentAppName,
 				Namespace:   pipeline.Environment.Namespace,
 			}
-			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
+			appDetail, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 		} else {
 			req := &application2.ApplicationQuery{
 				Name: &deploymentAppName,
@@ -1195,7 +1196,7 @@ func (impl *PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 		if err != nil {
 			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
 		}
-		if err != nil && strings.Contains(err.Error(), "not found") {
+		if (err != nil && strings.Contains(err.Error(), "not found")) || (appDetail != nil && !appDetail.ReleaseExist) {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
 				pipeline,
