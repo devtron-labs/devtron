@@ -1953,3 +1953,14 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, o
 
 	return deployedCiArtifactsResponse, nil
 }
+
+func (impl *PipelineBuilderImpl) getDefaultArtifactStore(id string) (store *dockerRegistryRepository.DockerArtifactStore, err error) {
+	if id == "" {
+		impl.logger.Debugw("docker repo is empty adding default repo")
+		store, err = impl.dockerArtifactStoreRepository.FindActiveDefaultStore()
+
+	} else {
+		store, err = impl.dockerArtifactStoreRepository.FindOne(id)
+	}
+	return
+}

@@ -531,17 +531,6 @@ func (impl *PipelineBuilderImpl) FindAppsByTeamName(teamName string) ([]AppBean,
 	return appsRes, err
 }
 
-func (impl *PipelineBuilderImpl) getDefaultArtifactStore(id string) (store *dockerRegistryRepository.DockerArtifactStore, err error) {
-	if id == "" {
-		impl.logger.Debugw("docker repo is empty adding default repo")
-		store, err = impl.dockerArtifactStoreRepository.FindActiveDefaultStore()
-
-	} else {
-		store, err = impl.dockerArtifactStoreRepository.FindOne(id)
-	}
-	return
-}
-
 func (impl *PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bean.CiConfigRequest, err error) {
 	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
 	if err != nil && !errors.IsNotFound(err) {
