@@ -22,7 +22,11 @@ This stands true for both: base configuration and respective environment-level c
 
 ## Changing the Configuration Values
 
-Let's say you wish to edit the deployment template of your environment (as an override)
+{% hint style="info" %}
+Only a super-admin, manager, and admin can edit the configuration values. 
+{% endhint %}
+
+Let's assume you are the application admin and you wish to edit the deployment template of your environment (as an override).
 
 1. Go to the `App Configuration` tab.
 
@@ -57,9 +61,13 @@ Only one draft can exist at time and you cannot create multiple drafts. In the t
 
 ## Approving the Configuration
 
-Only a different super-admin user or someone (who is not amongst the editors of the draft), having `Configuration approver` access, can approve the changes made to the configuration files as shown below.
+{% hint style="info" %}
+Only a different super-admin user or someone (who is not amongst the editors of the draft), having `Configuration approver` access, can approve the changes made to the configuration files.
+{% endhint %}
 
-![Figure 6: Authorized User Approving the Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/approval-screen.jpg)
+Go to the edited configuration file to review and approve the changes as shown below.
+
+![Figure 6: Approving the Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/approval-screen.jpg)
 
 A super-admin can check whether a user has approval rights by going to **Global Configurations** → **Authorization** (dropdown) → **User Permissions**.
 
@@ -94,7 +102,13 @@ If the new configuration is not yet approved, the changes made to the config wou
 If you don't wish to deploy with the new changes, you can choose `Last deployed config` from the available drop-down.
 {% endhint %}
 
+---
+
 ## Enabling/Disabling Config Protection
+
+{% hint style="info" %}
+Only a super-admin can enable or disable the config protection.
+{% endhint %}
 
 1. Go to the `App Configuration` tab.
 
