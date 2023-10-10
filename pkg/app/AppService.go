@@ -3375,18 +3375,6 @@ func (impl *AppServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, ov
 	}
 	cdWorkflowId := cdWfr.CdWorkflowId
 
-	// configure internally used fields (if not already)
-	if overrideRequest.PipelineName == "" {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
-		cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("manual trigger request with invalid pipelineId, UpdateCDWorkflowRunnerStatus", "pipelineId", overrideRequest.PipelineId, "err", err)
-			return err
-		}
-		impl.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
-	}
-
 	if cdWorkflowId == 0 {
 		cdWf := &pipelineConfig.CdWorkflow{
 			CiArtifactId: overrideRequest.CiArtifactId,
