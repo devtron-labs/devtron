@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"encoding/json"
+	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -18,7 +19,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
-	util2 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
