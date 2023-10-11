@@ -47,6 +47,7 @@ func (repo *FilterAuditRepositoryImpl) CreateResourceFilterAudit(tx *pg.Tx, filt
 	return filter, err
 }
 
+// GetLatestResourceFilterAuditByFilterIds will only fetch latest filter_audit id and filter_id for given filter id's
 func (repo *FilterAuditRepositoryImpl) GetLatestResourceFilterAuditByFilterIds(filterIds []int) ([]*ResourceFilterAudit, error) {
 	if len(filterIds) == 0 {
 		return nil, nil
