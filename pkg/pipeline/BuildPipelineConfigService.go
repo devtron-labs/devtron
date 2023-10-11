@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -1792,10 +1793,17 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 		parentCdId = parentId
 	}
 
-	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY && len(pipeline.PreStageConfig) > 0 {
-		// Parent type will be PRE for DEPLOY stage
-		parentId = pipeline.Id
-		parentType = bean2.CD_WORKFLOW_TYPE_PRE
+	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY {
+		pipelineStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository3.PIPELINE_STAGE_TYPE_PRE_CD)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
+			return nil, err
+		}
+		if pipelineStage != nil {
+			// Parent type will be PRE for DEPLOY stage
+			parentId = pipeline.Id
+			parentType = bean2.CD_WORKFLOW_TYPE_PRE
+		}
 	}
 	if stage == bean2.CD_WORKFLOW_TYPE_POST {
 		// Parent type will be DEPLOY for POST stage

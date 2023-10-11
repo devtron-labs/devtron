@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -217,6 +218,7 @@ type PipelineBuilderImpl struct {
 	imageTaggingService                             ImageTaggingService
 	variableEntityMappingService                    variables.VariableEntityMappingService
 	variableTemplateParser                          parsers.VariableTemplateParser
+	pipelineStageRepository                         repository3.PipelineStageRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -273,7 +275,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	attributesRepository repository.AttributesRepository,
 	imageTaggingService ImageTaggingService,
 	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser) *PipelineBuilderImpl {
+	variableTemplateParser parsers.VariableTemplateParser,
+	pipelineStageRepository repository3.PipelineStageRepository) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -345,6 +348,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		imageTaggingService:                             imageTaggingService,
 		variableEntityMappingService:                    variableEntityMappingService,
 		variableTemplateParser:                          variableTemplateParser,
+		pipelineStageRepository:                         pipelineStageRepository,
 	}
 }
 
