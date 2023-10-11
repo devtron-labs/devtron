@@ -897,7 +897,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		impl.logger.Errorw("error in getting environment by id", "err", err)
 		return nil, err
 	}
-	_, after, _ := strings.Cut(artifact.Image, ":")
 
 	if pipelineStage != nil {
 		//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
@@ -911,7 +910,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				ClusterName:     env.Cluster.ClusterName,
 				Namespace:       env.Namespace,
 				Image:           artifact.Image,
-				ImageTag:        after,
+				ImageTag:        util3.GetImageTagFromImage(artifact.Image),
 			},
 		}
 		var variableSnapshot map[string]string

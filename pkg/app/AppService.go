@@ -1388,8 +1388,9 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 				EnvironmentName: env.Name,
 				ClusterName:     env.Cluster.ClusterName,
 				Namespace:       env.Namespace,
-				ImageTag:        overrideRequest.ImageTag,
 				AppName:         overrideRequest.AppName,
+				Image:           overrideRequest.Image,
+				ImageTag:        util3.GetImageTagFromImage(overrideRequest.Image),
 			},
 		}
 
@@ -1507,8 +1508,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	if err != nil {
 		return valuesOverrideResponse, err
 	}
-
-	overrideRequest.ImageTag = getImageTagFromImage(artifact.Image)
+	overrideRequest.Image = artifact.Image
 
 	envOverride, err := impl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
 	if err != nil {
@@ -1586,13 +1586,6 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	valuesOverrideResponse.Artifact = artifact
 	valuesOverrideResponse.Pipeline = pipeline
 	return valuesOverrideResponse, err
-}
-
-func getImageTagFromImage(image string) string {
-	parts := strings.Split(image, ":")
-
-	// Get the last part
-	return parts[len(parts)-1]
 }
 
 func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, err error) {

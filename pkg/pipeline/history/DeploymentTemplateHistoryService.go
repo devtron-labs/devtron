@@ -336,8 +336,8 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 			DisplayName: "values.yaml",
 			Value:       history.Template,
 		},
-		VariableSnapshot: variableSnapshotMap,
-		ResolvedTemplate: resolvedTemplate,
+		VariableSnapshot:     variableSnapshotMap,
+		ResolvedTemplateData: resolvedTemplate,
 	}
 	return historyDto, nil
 }
@@ -415,8 +415,8 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 			DisplayName: "values.yaml",
 			Value:       history.Template,
 		},
-		VariableSnapshot: variableSnapshotMap,
-		ResolvedTemplate: resolvedTemplate,
+		VariableSnapshot:     variableSnapshotMap,
+		ResolvedTemplateData: resolvedTemplate,
 	}
 	return historyDto, nil
 }

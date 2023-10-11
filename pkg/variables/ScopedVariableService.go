@@ -1,10 +1,10 @@
 package variables
 
 import (
+	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/cache"
 	"github.com/devtron-labs/devtron/pkg/variables/helper"
@@ -14,6 +14,9 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
+	"reflect"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -320,8 +323,9 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	//populating system variables from system metadata
+	var systemVariableData, allSystemVariables []*models.ScopedVariableData
 	if scope.SystemMetadata != nil {
-		systemVariableData := impl.getSystemVariablesData(scope.SystemMetadata, varNames)
+		systemVariableData, allSystemVariables = impl.getSystemVariablesData(scope.SystemMetadata, varNames)
 		scopedVariableDataObj = append(scopedVariableDataObj, systemVariableData...)
 	}
 
@@ -429,22 +433,78 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 			}
 		}
 	}
-
+	impl.deduceVariables(scopedVariableDataObj, allSystemVariables)
 	return scopedVariableDataObj, err
-
 }
 
-func (impl *ScopedVariableServiceImpl) getSystemVariablesData(metadata *resourceQualifiers.SystemMetadata, varNames []string) []*models.ScopedVariableData {
-	systemVariables := make([]*models.ScopedVariableData, 0)
-	for _, variable := range resourceQualifiers.SystemVariables {
-		if len(metadata.GetDataFromSystemVariable(variable)) > 0 && slices.Contains(varNames, string(variable)) {
-			systemVariables = append(systemVariables, &models.ScopedVariableData{
-				VariableName:  string(variable),
-				VariableValue: &models.VariableValue{Value: metadata.GetDataFromSystemVariable(variable)},
-			})
+func isStringType(val interface{}) bool {
+	return reflect.TypeOf(val).Kind() == reflect.String
+}
+
+func resolveExpressionWithVariableValues(expr string, varNameToData map[string]*models.ScopedVariableData) (string, error) {
+	// regex to find  variable placeholder and extracts a variable name which is alphanumeric
+	// and can contain hyphen, underscore and whitespaces. white spaces will be trimmed on lookup
+	variableRegex := `@{{([a-zA-Z0-9-_\s]+)}}`
+
+	//variableSubRegexWithQuotes := "\"" + impl.variableTemplateParserConfig.VariableExpressionRegex + "\""
+	re := regexp.MustCompile(variableRegex)
+	matches := re.FindAllStringSubmatch(expr, -1)
+
+	// Replace the surrounding quotes for variables whose value is known
+	// and type is primitive
+	for _, match := range matches {
+		if len(match) == 2 {
+			originalMatch := match[0]
+			innerContent := match[1]
+
+			variableName := strings.TrimSpace(innerContent)
+
+			if data, ok := varNameToData[variableName]; ok {
+				value := data.VariableValue.StringValue()
+				expr = strings.Replace(expr, originalMatch, value, 1)
+			} else {
+				return expr, fmt.Errorf("variable not found %s", variableName)
+			}
 		}
 	}
-	return systemVariables
+	return expr, nil
+}
+
+func (impl *ScopedVariableServiceImpl) deduceVariables(scopedVariableDataList []*models.ScopedVariableData, systemVariables []*models.ScopedVariableData) {
+	varNameToData := make(map[string]*models.ScopedVariableData)
+	for _, variable := range systemVariables {
+		varNameToData[variable.VariableName] = variable
+	}
+
+	for _, data := range scopedVariableDataList {
+		value := data.VariableValue.Value
+		if isStringType(value) {
+			resolvedValue, err := resolveExpressionWithVariableValues(value.(string), varNameToData)
+			if err != nil {
+				impl.logger.Warnw("variables not resolved", "err", err, "value", value)
+				continue
+			}
+			data.VariableValue.Value = resolvedValue
+		}
+	}
+}
+
+func (impl *ScopedVariableServiceImpl) getSystemVariablesData(metadata *resourceQualifiers.SystemMetadata, varNames []string) ([]*models.ScopedVariableData, []*models.ScopedVariableData) {
+	systemVariables := make([]*models.ScopedVariableData, 0)
+	allSystemVariables := make([]*models.ScopedVariableData, 0)
+	for _, variable := range resourceQualifiers.SystemVariables {
+		if len(metadata.GetDataFromSystemVariable(variable)) > 0 {
+			systemVariable := &models.ScopedVariableData{
+				VariableName:  string(variable),
+				VariableValue: &models.VariableValue{Value: metadata.GetDataFromSystemVariable(variable)},
+			}
+			allSystemVariables = append(allSystemVariables, systemVariable)
+			if slices.Contains(varNames, string(variable)) {
+				systemVariables = append(systemVariables, systemVariable)
+			}
+		}
+	}
+	return systemVariables, allSystemVariables
 }
 
 func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, error) {

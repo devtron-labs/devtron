@@ -186,8 +186,8 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 					DisplayName: "values.yaml",
 					Value:       envOverride.EnvOverrideValues,
 				},
-				VariableSnapshot: scopedVariablesMap,
-				ResolvedTemplate: resolvedTemplate,
+				VariableSnapshot:     scopedVariablesMap,
+				ResolvedTemplateData: resolvedTemplate,
 			}
 		}
 	} else {
@@ -223,8 +223,8 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 				DisplayName: "values.yaml",
 				Value:       chart.GlobalOverride,
 			},
-			VariableSnapshot: scopedVariablesMap,
-			ResolvedTemplate: resolvedTemplate,
+			VariableSnapshot:     scopedVariablesMap,
+			ResolvedTemplateData: resolvedTemplate,
 		}
 	}
 	return deploymentTemplateConfig, nil
