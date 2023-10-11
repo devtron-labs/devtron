@@ -2115,6 +2115,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", overrideRequest.PipelineId, "err", err)
 			return 0, "", err
 		}
+		//TODO: create entry in resource_filter_evaluation table
 		params := impl.celService.GetParamsFromArtifact(artifact.Image)
 		metadata := resourceFilter.ExpressionMetadata{
 			Params: params,
@@ -2159,7 +2160,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			impl.logger.Errorw("err", "err", err)
 			return 0, "", err
 		}
-		//TODO: create entry in resource_filter_evaluation table
+		//TODO: update entry in resource_filter_evaluation table
 		if approvalRequestId > 0 {
 			err = impl.deploymentApprovalRepository.ConsumeApprovalRequest(approvalRequestId)
 			if err != nil {

@@ -1910,6 +1910,14 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 		return ciArtifactsResponse, err
 	}
 
+	environment := pipeline.Environment
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return ciArtifactsResponse, err
+	}
+
 	for i, artifact := range artifacts {
 		if imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]; imageTaggingResp != nil {
 			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
@@ -1918,13 +1926,6 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 			ciArtifacts[i].ImageComment = imageCommentResp
 		}
 
-		environment := pipeline.Environment
-		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
-		filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
-		if err != nil {
-			impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
-			return ciArtifactsResponse, err
-		}
 		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
 		metadata := resourceFilter.ExpressionMetadata{
 			Params: params,
@@ -1959,7 +1960,7 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
 	}
-
+	ciArtifactsResponse.ResourceFilters = filters
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
 	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
 	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
