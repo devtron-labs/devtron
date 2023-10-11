@@ -68,6 +68,7 @@ const (
 )
 
 type CdHandler interface {
+	HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
 	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
@@ -184,6 +185,52 @@ const WorklowTypePre = "PRE"
 const WorklowTypePost = "POST"
 const WorkflowApprovalNode = "APPROVAL"
 
+func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error {
+	// do not re-trigger if retries = 0
+	if !impl.config.WorkflowRetriesEnabled() {
+		impl.Logger.Debugw("cd stage workflow re-triggering is not enabled")
+		return nil
+	}
+
+	impl.Logger.Infow("re triggering cd stage ", "runnerId", runner.Id)
+	var err error
+	//add comment for this logic
+	if runner.RefCdWorkflowRunnerId != 0 {
+		runner, err = impl.cdWorkflowRepository.FindWorkflowRunnerById(runner.RefCdWorkflowRunnerId)
+		if err != nil {
+			impl.Logger.Errorw("error in FindWorkflowRunnerById by id ", "err", err, "wfrId", runner.RefCdWorkflowRunnerId)
+			return err
+		}
+	}
+	retryCnt, err := impl.cdWorkflowRepository.FindRetriedWorkflowCountByReferenceId(runner.Id)
+	if err != nil {
+		impl.Logger.Errorw("error in FindRetriedWorkflowCountByReferenceId ", "err", err, "cdWorkflowRunnerId", runner.Id)
+		return err
+	}
+
+	if retryCnt >= impl.config.MaxCdWorkflowRunnerRetries {
+		impl.Logger.Infow("maximum retries for this workflow are exhausted, not re-triggering again", "retries", retryCnt, "wfrId", runner.Id)
+		return nil
+	}
+
+	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+		err = impl.workflowDagExecutor.TriggerPreStage(context.Background(), runner.CdWorkflow, runner.CdWorkflow.CiArtifact, runner.CdWorkflow.Pipeline, 1, false, runner.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
+			return err
+		}
+	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		err = impl.workflowDagExecutor.TriggerPostStage(runner.CdWorkflow, runner.CdWorkflow.Pipeline, 1, runner.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in TriggerPostStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
+			return err
+		}
+	}
+
+	impl.Logger.Infow("cd stage re triggered for runner", "runnerId", runner.Id)
+	return nil
+}
+
 func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error {
 	pipelines, err := impl.pipelineRepository.GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours)
 	if err != nil {
@@ -267,6 +314,7 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (error, bool) {
 	isTimelineUpdated := false
 	isSucceeded := false
+	var pipelineOverride *chartConfig.PipelineOverride
 	if pipeline != nil {
 		isAppStore := false
 		cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
@@ -324,7 +372,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 				impl.Logger.Errorw("found empty argo application object", "appName", pipeline.DeploymentAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
 			if err != nil {
 				impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 				return err, isTimelineUpdated
@@ -338,13 +386,9 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		}
 		if isSucceeded {
 			//handling deployment success event
-			gitHash := ""
-			if app != nil {
-				gitHash = app.Status.Sync.Revision
-			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride)
 			if err != nil {
-				impl.Logger.Errorw("error in handling deployment success event", "err", err)
+				impl.Logger.Errorw("error in handling deployment success event", "pipelineOverride", pipelineOverride, "err", err)
 				return err, isTimelineUpdated
 			}
 		}
@@ -425,7 +469,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 				impl.Logger.Errorw("found empty argo application object", "appName", acdAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
 			if err != nil {
 				impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 				return err, isTimelineUpdated
@@ -519,7 +563,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 				return err
 			}
 			go impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, wfr, pipelineOverride)
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride)
 			if err != nil {
 				impl.Logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
@@ -1158,6 +1202,7 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		if wfr.DeploymentApprovalRequest != nil {
 			workflow.UserApprovalMetadata = wfr.DeploymentApprovalRequest.ConvertToApprovalMetadata()
 		}
+		workflow.RefCdWorkflowRunnerId = wfr.RefCdWorkflowRunnerId
 	}
 	return workflow
 }

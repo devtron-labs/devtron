@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ghodss/yaml"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -52,4 +53,15 @@ func IsValidJSON(input string) bool {
 		return false
 	}
 	return true
+}
+
+func IsPrimitiveType(value interface{}) bool {
+	val := reflect.ValueOf(value)
+	kind := val.Kind()
+
+	return kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 ||
+		kind == reflect.Int32 || kind == reflect.Int64 || kind == reflect.Uint ||
+		kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 ||
+		kind == reflect.Uint64 || kind == reflect.Float32 || kind == reflect.Float64 ||
+		kind == reflect.Bool
 }

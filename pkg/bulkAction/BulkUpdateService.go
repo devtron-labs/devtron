@@ -1541,7 +1541,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 			var ciMaterials []bean2.CiPipelineMaterial
 			ciMaterials = append(ciMaterials, bean2.CiPipelineMaterial{
 				Id:        materialId,
-				GitCommit: bean2.GitCommit{Commit: commitHash},
+				GitCommit: pipelineConfig.GitCommit{Commit: commitHash},
 			})
 			ciTriggerRequest := bean2.CiTriggerRequest{
 				PipelineId:         ciPipelineId,
