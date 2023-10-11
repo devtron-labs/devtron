@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type FilterHistoryAudit struct {
+type ResourceFilterAudit struct {
 	tableName    struct{}            `sql:"resource_filter_audit" pg:",discard_unknown_columns"`
 	Id           int                 `sql:"id"`
 	FilterId     int                 `sql:"filter_id"`
@@ -19,8 +19,8 @@ type FilterAuditRepository interface {
 	//transaction util funcs
 	sql.TransactionWrapper
 	GetConnection() *pg.DB
-	CreateResourceFilterEvaluation(tx *pg.Tx, filter *ResourceFilterEvaluation) (*ResourceFilterEvaluation, error)
-	GetResourceFilterEvaluation(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectId int)
+	CreateResourceFilterAudit(tx *pg.Tx, filter *ResourceFilterAudit) (*ResourceFilterAudit, error)
+	GetLatestResourceFilterAuditByFilterIds(ids []int) ([]*ResourceFilterAudit, error)
 }
 
 type FilterAuditRepositoryImpl struct {
