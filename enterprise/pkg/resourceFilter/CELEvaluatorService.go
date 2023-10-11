@@ -12,7 +12,7 @@ import (
 type CELEvaluatorService interface {
 	EvaluateCELRequest(request CELRequest) (bool, error)
 	ValidateCELRequest(request ValidateRequestResponse) (ValidateRequestResponse, bool)
-	GetParamsFromArtifact(artifact string) []ExpressionParam
+	GetParamsFromArtifact(artifact string, releaseTags []string) []ExpressionParam
 }
 
 type CELServiceImpl struct {
@@ -119,6 +119,10 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 			ParamName: "containerImageTag",
 			Type:      ParamTypeString,
 		},
+		{
+			ParamName: "releaseTags",
+			Type:      ParamTypeList,
+		},
 	}
 
 	for i, e := range request.Conditions {
@@ -145,12 +149,14 @@ func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {
 		return decls.Dyn, nil
 	case ParamTypeInteger:
 		return decls.Int, nil
+	case ParamTypeList: //TODO: test this gireesh
+		return decls.NewListType(decls.String), nil
 	default:
 		return nil, fmt.Errorf("unsupported parameter type: %s", paramType)
 	}
 }
 
-func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string) []ExpressionParam {
+func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string, releaseTags []string) []ExpressionParam {
 
 	lastColonIndex := strings.LastIndex(artifact, ":")
 
@@ -172,6 +178,11 @@ func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string) []ExpressionP
 			ParamName: "containerImageTag",
 			Value:     containerImageTag,
 			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "releaseTags",
+			Value:     releaseTags,
+			Type:      ParamTypeList,
 		},
 	}
 

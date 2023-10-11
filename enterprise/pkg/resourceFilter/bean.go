@@ -244,6 +244,7 @@ const (
 	ParamTypeString  ParamValuesType = "string"
 	ParamTypeObject  ParamValuesType = "object"
 	ParamTypeInteger ParamValuesType = "integer"
+	ParamTypeList    ParamValuesType = "list"
 )
 
 type ExpressionParam struct {

@@ -128,6 +128,7 @@ type WorkflowDagExecutorImpl struct {
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 	celService                     resourceFilter.CELEvaluatorService
 	resourceFilterService          resourceFilter.ResourceFilterService
+	imageTaggingService            ImageTaggingService
 }
 
 const (
@@ -226,7 +227,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineStageRepository repository4.PipelineStageRepository,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
-	celService resourceFilter.CELEvaluatorService, resourceFilterService resourceFilter.ResourceFilterService) *WorkflowDagExecutorImpl {
+	celService resourceFilter.CELEvaluatorService,
+	resourceFilterService resourceFilter.ResourceFilterService,
+	imageTaggingService ImageTaggingService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:             pipelineRepository,
 		cdWorkflowRepository:           cdWorkflowRepository,
@@ -267,6 +270,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		variableSnapshotHistoryService: variableSnapshotHistoryService,
 		celService:                     celService,
 		resourceFilterService:          resourceFilterService,
+		imageTaggingService:            imageTaggingService,
 	}
 	config, err := GetCdConfig()
 	if err != nil {
@@ -590,7 +594,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
 		return err
 	}
-	params := impl.celService.GetParamsFromArtifact(artifact.Image)
+	//get releaseTags from imageTaggingService
+	imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(artifact.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
+		return err
+	}
+	releaseTags := make([]string, 0, len(imageTags))
+	for _, imageTag := range imageTags {
+		releaseTags = append(releaseTags, imageTag.TagName)
+	}
+	params := impl.celService.GetParamsFromArtifact(artifact.Image, releaseTags)
 	metadata := resourceFilter.ExpressionMetadata{
 		Params: params,
 	}
@@ -821,7 +835,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			return err
 		}
 	}
-	params := impl.celService.GetParamsFromArtifact(cdWf.CiArtifact.Image)
+	//get releaseTags from imageTaggingService
+	imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(cdWf.CiArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", cdWf.CiArtifactId, "err", err)
+		return err
+	}
+	releaseTags := make([]string, 0, len(imageTags))
+	for _, imageTag := range imageTags {
+		releaseTags = append(releaseTags, imageTag.TagName)
+	}
+	params := impl.celService.GetParamsFromArtifact(cdWf.CiArtifact.Image, releaseTags)
 	metadata := resourceFilter.ExpressionMetadata{
 		Params: params,
 	}
@@ -1611,7 +1635,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
 		return err
 	}
-	params := impl.celService.GetParamsFromArtifact(artifact.Image)
+	//get releaseTags from imageTaggingService
+	imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(artifact.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
+		return err
+	}
+	releaseTags := make([]string, 0, len(imageTags))
+	for _, imageTag := range imageTags {
+		releaseTags = append(releaseTags, imageTag.TagName)
+	}
+	params := impl.celService.GetParamsFromArtifact(artifact.Image, releaseTags)
 	metadata := resourceFilter.ExpressionMetadata{
 		Params: params,
 	}
@@ -2170,7 +2204,18 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, "", err
 		}
 
-		params := impl.celService.GetParamsFromArtifact(artifact.Image)
+		//get releaseTags from imageTaggingService
+		imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(artifact.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
+			return 0, "", err
+		}
+		releaseTags := make([]string, 0, len(imageTags))
+		for _, imageTag := range imageTags {
+			releaseTags = append(releaseTags, imageTag.TagName)
+		}
+
+		params := impl.celService.GetParamsFromArtifact(artifact.Image, releaseTags)
 		metadata := resourceFilter.ExpressionMetadata{
 			Params: params,
 		}
