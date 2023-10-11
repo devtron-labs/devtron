@@ -444,6 +444,54 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 	return nil, isTimelineUpdated
 }
 
+// updateWorkflowRunnerStatusForDeployment will update CD workflow runner based on release status and app status
+func (impl *CdHandlerImpl) updateWorkflowRunnerStatusForDeployment(appIdentifier *client.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner) bool {
+	helmInstalledDevtronApp, err := impl.helmAppService.GetApplicationAndReleaseStatus(context.Background(), appIdentifier)
+	if err != nil {
+		impl.Logger.Errorw("error in getting helm app release status ", "appIdentifier", appIdentifier, "err", err)
+		// Handle release not found errors
+		if util.GetGRPCErrorDetailedMessage(err) != client.ErrReleaseNotFound {
+			//skip this error and continue for next workflow status
+			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
+			return false
+		}
+		// If release not found, mark the deployment as failure
+		wfr.Status = pipelineConfig.WorkflowFailed
+		wfr.FinishedOn = time.Now()
+		return true
+	}
+
+	//skip if there is no deployment after wfr.StartedOn and continue for next workflow status
+	if helmInstalledDevtronApp.GetLastDeployed().AsTime().Before(wfr.StartedOn) {
+		impl.Logger.Warnw("release mismatched, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
+		return false
+	}
+
+	switch helmInstalledDevtronApp.GetReleaseStatus() {
+	case serverBean.HelmReleaseStatusPendingInstall:
+		appServiceConfig, err := app.GetAppServiceConfig()
+		if err != nil {
+			impl.Logger.Errorw("error in parsing app status config variables", "err", err)
+			return false
+		}
+		if time.Now().After(helmInstalledDevtronApp.GetLastDeployed().AsTime().Add(time.Duration(appServiceConfig.HelmInstallationTimeout) * time.Minute)) {
+			// If release status is in pending-install for more than 5 mins, then mark the deployment as failure
+			wfr.Status = pipelineConfig.WorkflowFailed
+			wfr.FinishedOn = time.Now()
+			return true
+		}
+	case serverBean.HelmReleaseStatusDeployed:
+		if helmInstalledDevtronApp.GetApplicationStatus() == application.Healthy {
+			// mark the deployment as succeed
+			wfr.Status = pipelineConfig.WorkflowSucceeded
+			wfr.FinishedOn = time.Now()
+			return true
+		}
+	}
+	wfr.Status = pipelineConfig.WorkflowInProgress
+	return true
+}
+
 func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int) error {
 	wfrList, err := impl.cdWorkflowRepository.GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours)
 	if err != nil {
@@ -461,43 +509,8 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			Namespace:   wfr.CdWorkflow.Pipeline.Environment.Namespace,
 			ReleaseName: wfr.CdWorkflow.Pipeline.DeploymentAppName,
 		}
-		helmInstalledDevtronApp, err := impl.helmAppService.GetApplicationAndReleaseStatus(context.Background(), appIdentifier)
-		if err != nil {
-			impl.Logger.Errorw("error in getting helm app release status ", "appIdentifier", appIdentifier, "err", err)
-			// Handle release not found errors
-			if util.GetGRPCErrorDetailedMessage(err) != client.ErrReleaseNotFound {
-				//skip this error and continue for next workflow status
-				impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
-				continue
-			} else {
-				// If release not found, mark the deployment as failure
-				wfr.Status = pipelineConfig.WorkflowFailed
-				wfr.FinishedOn = time.Now()
-			}
-		} else if helmInstalledDevtronApp.GetLastDeployed().AsTime().Before(wfr.StartedOn) {
-			//skip if there is no deployment after wfr.StartedOn and continue for next workflow status
-			impl.Logger.Warnw("release mismatched, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
+		if isWfrUpdated := impl.updateWorkflowRunnerStatusForDeployment(appIdentifier, wfr); !isWfrUpdated {
 			continue
-		} else if helmInstalledDevtronApp.GetReleaseStatus() == serverBean.HelmReleaseStatusPendingInstall {
-			appServiceConfig, err := app.GetAppServiceConfig()
-			if err != nil {
-				impl.Logger.Errorw("error in parsing app status config variables", "err", err)
-				continue
-			}
-			if time.Now().After(helmInstalledDevtronApp.GetLastDeployed().AsTime().Add(time.Duration(appServiceConfig.HelmInstallationTimeout) * time.Minute)) {
-				// If release status is in pending-install for more than 5 mins, then mark the deployment as failure
-				wfr.Status = pipelineConfig.WorkflowFailed
-				wfr.FinishedOn = time.Now()
-			} else {
-				wfr.Status = pipelineConfig.WorkflowInProgress
-			}
-		} else if helmInstalledDevtronApp.GetReleaseStatus() == serverBean.HelmReleaseStatusDeployed &&
-			helmInstalledDevtronApp.GetApplicationStatus() == application.Healthy {
-			// mark the deployment as succeed
-			wfr.Status = pipelineConfig.WorkflowSucceeded
-			wfr.FinishedOn = time.Now()
-		} else {
-			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
 		wfr.UpdatedBy = 1
 		wfr.UpdatedOn = time.Now()

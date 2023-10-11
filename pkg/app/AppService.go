@@ -207,6 +207,7 @@ type AppService interface {
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
+	UpdateCDWorkflowRunnerStatus(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, status string) error
 }
 
 func NewAppService(
@@ -1922,6 +1923,7 @@ func (impl *AppServiceImpl) TriggerHelmAsyncRelease(overrideRequest *bean.Values
 	//update workflow runner status, used in app workflow view
 	err = impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInQueue)
 	if err != nil {
+		impl.logger.Errorw("error in updating the workflow runner status, TriggerHelmAsyncRelease", "err", err)
 		return 0, manifest, err
 	}
 	return 0, manifest, nil
@@ -3200,6 +3202,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 		//update workflow runner status, used in app workflow view
 		err := impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress)
 		if err != nil {
+			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
 			return false, err
 		}
 	}
@@ -3211,7 +3214,7 @@ func (impl *AppServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, ov
 	isTerminalStatus := slices.Contains(pipelineConfig.WfrTerminalStatusList, status)
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(overrideRequest.WfrId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("err on fetching cd workflow", "err", err)
+		impl.logger.Errorw("err on fetching cd workflow, UpdateCDWorkflowRunnerStatus", "err", err)
 		return err
 	}
 	cdWorkflowId := cdWfr.CdWorkflowId
@@ -3224,7 +3227,7 @@ func (impl *AppServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, ov
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 		if err != nil {
-			impl.logger.Errorw("err on updating cd workflow for status update", "err", err)
+			impl.logger.Errorw("err on updating cd workflow for status update, UpdateCDWorkflowRunnerStatus", "err", err)
 			return err
 		}
 		cdWorkflowId = cdWf.Id
@@ -3244,14 +3247,14 @@ func (impl *AppServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, ov
 		}
 		_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 		if err != nil {
-			impl.logger.Errorw("err on updating cd workflow runner for status update", "err", err)
+			impl.logger.Errorw("err on updating cd workflow runner for status update, UpdateCDWorkflowRunnerStatus", "err", err)
 			return err
 		}
 	} else {
 		// if the current cdWfr status is already a terminal status and then don't update the status
 		// e.g: Status : Failed --> Progressing (not allowed)
 		if slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
-			impl.logger.Warnw("deployment has already been terminated for workflow runner", "workflowRunnerId", cdWfr.Id, "err", err)
+			impl.logger.Warnw("deployment has already been terminated for workflow runner, UpdateCDWorkflowRunnerStatus", "workflowRunnerId", cdWfr.Id, "err", err)
 			return nil
 		}
 		cdWfr.Status = status
@@ -3262,7 +3265,7 @@ func (impl *AppServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, ov
 		cdWfr.UpdatedOn = time.Now()
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
 		if err != nil {
-			impl.logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
+			impl.logger.Errorw("error on update cd workflow runner, UpdateCDWorkflowRunnerStatus", "cdWfr", cdWfr, "err", err)
 			return err
 		}
 	}

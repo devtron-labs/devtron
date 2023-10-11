@@ -319,13 +319,15 @@ func (impl *WorkflowDagExecutorImpl) extractOverrideRequestFromCDAsyncInstallEve
 		impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
 		return nil
 	}
-	overrideRequest := CDAsyncInstallNatsMessage.ValuesOverrideRequest
-	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	pipeline, err := impl.pipelineRepository.FindById(CDAsyncInstallNatsMessage.ValuesOverrideRequest.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
 		return nil
 	}
-	impl.appService.SetPipelineFieldsInOverrideRequest(overrideRequest, pipeline)
+	impl.appService.SetPipelineFieldsInOverrideRequest(CDAsyncInstallNatsMessage.ValuesOverrideRequest, pipeline)
+	if CDAsyncInstallNatsMessage.ValuesOverrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
+		CDAsyncInstallNatsMessage.ValuesOverrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
+	}
 	return CDAsyncInstallNatsMessage
 }
 
@@ -341,7 +343,7 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 		}
 		// skip if the cdWfr.Status is already in a terminal state
 		if cdWfr != nil && slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
-			impl.logger.Warnw("skipped deployment as the runner status is already in terminal state", "cdWfrId", cdWfr, "status", cdWfr.Status)
+			impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state", "cdWfrId", cdWfr, "status", cdWfr.Status)
 			return
 		}
 		appServiceConfig, err := app.GetAppServiceConfig()
@@ -352,6 +354,12 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 		timeout := util.GetMaxInteger(appServiceConfig.HelmInstallationTimeout, appServiceConfig.DevtronChartInstallRequestTimeout)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Minute)
 		defer cancel()
+		//update workflow runner status, used in app workflow view
+		err = impl.appService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, pipelineConfig.WorkflowInProcess)
+		if err != nil {
+			impl.logger.Errorw("error in updating the workflow runner status, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
+			return
+		}
 		_, span := otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
 		releaseId, _, releaseErr := impl.appService.TriggerRelease(overrideRequest, ctx, CDAsyncInstallNatsMessage.TriggeredAt, CDAsyncInstallNatsMessage.TriggeredBy)
 		span.End()
