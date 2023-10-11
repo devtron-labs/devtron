@@ -26,7 +26,7 @@ type FilterEvaluationAuditServiceImpl struct {
 	filterAuditRepo           FilterAuditRepository
 }
 
-func NewFilterServiceImpl(logger *zap.SugaredLogger,
+func NewFilterEvaluationAuditServiceImpl(logger *zap.SugaredLogger,
 	filterEvaluationAuditRepo FilterEvaluationAuditRepository,
 	filterAuditRepo FilterAuditRepository) *FilterEvaluationAuditServiceImpl {
 	return &FilterEvaluationAuditServiceImpl{

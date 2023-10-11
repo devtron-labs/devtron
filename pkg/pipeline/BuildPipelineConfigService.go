@@ -1930,7 +1930,7 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 		metadata := resourceFilter.ExpressionMetadata{
 			Params: params,
 		}
-		filterState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
+		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, metadata)
 		if err != nil {
 			return ciArtifactsResponse, err
 		}

@@ -44,7 +44,7 @@ type FilterEvaluationAuditRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 }
 
-func NewFilterEvaluationRepositoryImpl(logger *zap.SugaredLogger,
+func NewFilterEvaluationAuditRepositoryImpl(logger *zap.SugaredLogger,
 	dbConnection *pg.DB) *FilterEvaluationAuditRepositoryImpl {
 	return &FilterEvaluationAuditRepositoryImpl{
 		logger:              logger,

@@ -20,7 +20,6 @@ type FilterAuditRepository interface {
 	sql.TransactionWrapper
 	GetConnection() *pg.DB
 	CreateResourceFilterAudit(tx *pg.Tx, filter *ResourceFilterAudit) (*ResourceFilterAudit, error)
-	UpdateResourceFilterAudit(id int, refType ReferenceType, refId int) (*ResourceFilterAudit, error)
 	GetLatestResourceFilterAuditByFilterIds(ids []int) ([]*ResourceFilterAudit, error)
 }
 
@@ -28,6 +27,15 @@ type FilterAuditRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 	dbConnection *pg.DB
 	*sql.TransactionUtilImpl
+}
+
+func NewFilterAuditRepositoryImpl(logger *zap.SugaredLogger,
+	dbConnection *pg.DB) *FilterAuditRepositoryImpl {
+	return &FilterAuditRepositoryImpl{
+		logger:              logger,
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+	}
 }
 
 func (repo *FilterAuditRepositoryImpl) GetConnection() *pg.DB {
@@ -38,6 +46,7 @@ func (repo *FilterAuditRepositoryImpl) CreateResourceFilterAudit(tx *pg.Tx, filt
 	err := tx.Insert(filter)
 	return filter, err
 }
+
 func (repo *FilterAuditRepositoryImpl) GetLatestResourceFilterAuditByFilterIds(filterIds []int) ([]*ResourceFilterAudit, error) {
 	if len(filterIds) == 0 {
 		return nil, nil
