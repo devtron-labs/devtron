@@ -17,4 +17,5 @@ var SystemVariables = []SystemVariableName{
 	DevtronEnvName,
 	DevtronImageTag,
 	DevtronAppName,
+	DevtronImage,
 }
