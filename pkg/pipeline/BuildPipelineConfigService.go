@@ -1799,7 +1799,7 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
 			return nil, err
 		}
-		if pipelinePreStage != nil || len(pipeline.PreStageConfig) > 0 {
+		if (pipelinePreStage != nil && pipelinePreStage.Id != 0) || len(pipeline.PreStageConfig) > 0 {
 			// Parent type will be PRE for DEPLOY stage
 			parentId = pipeline.Id
 			parentType = bean2.CD_WORKFLOW_TYPE_PRE

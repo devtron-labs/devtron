@@ -938,7 +938,7 @@ func (impl *PipelineBuilderImpl) RetrieveParentDetails(pipelineId int) (parentId
 			return 0, "", err
 		}
 
-		if len(parentPipeline.PostStageConfig) > 0 || parentPostStage != nil {
+		if len(parentPipeline.PostStageConfig) > 0 || (parentPostStage != nil && parentPostStage.Id > 0) {
 			return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_POST, nil
 		}
 		return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
