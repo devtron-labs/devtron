@@ -11,7 +11,7 @@ import (
 	bean "github.com/devtron-labs/devtron/api/bean"
 	helper "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	appGroup "github.com/devtron-labs/devtron/pkg/appGroup"
+	appGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	bean0 "github.com/devtron-labs/devtron/pkg/bean"
 	cluster "github.com/devtron-labs/devtron/pkg/cluster"
 	pipeline "github.com/devtron-labs/devtron/pkg/pipeline"
@@ -623,10 +623,10 @@ func (mr *MockPipelineBuilderMockRecorder) GetEnvironmentByCdPipelineId(pipeline
 }
 
 // GetEnvironmentListForAutocompleteFilter mocks base method.
-func (m *MockPipelineBuilder) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset, size int, emailId string, checkAuthBatch func(string, []string, []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.AppGroupingResponse, error) {
+func (m *MockPipelineBuilder) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset, size int, emailId string, checkAuthBatch func(string, []string, []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEnvironmentListForAutocompleteFilter", envName, clusterIds, offset, size, emailId, checkAuthBatch, ctx)
-	ret0, _ := ret[0].(*cluster.AppGroupingResponse)
+	ret0, _ := ret[0].(*cluster.ResourceGroupingResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

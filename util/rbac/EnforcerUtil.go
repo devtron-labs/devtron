@@ -19,6 +19,7 @@ package rbac
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -61,6 +62,8 @@ type EnforcerUtil interface {
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
 	GetAllActiveTeamNames() ([]string, error)
+	GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string)
+	GetAppRBACNameByAppAndProjectName(projectName, appName string) string
 }
 
 type EnforcerUtilImpl struct {
@@ -91,6 +94,32 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 			clusterRepository: clusterRepository,
 		},
 	}
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string) {
+
+	objects := make(map[int]string)
+	envObjectToName := make(map[string]string)
+	application, err := impl.appRepo.FindById(appId)
+	if err != nil {
+		impl.logger.Errorw("error occurred in fetching appa", "appId", appId)
+		return objects, envObjectToName
+	}
+
+	var appName = application.AppName
+	envs, err := impl.environmentRepository.FindByIds(util.GetReferencedArray(envIds))
+	if err != nil {
+		impl.logger.Errorw("error occurred in fetching environments", "envIds", envIds)
+		return objects, envObjectToName
+	}
+
+	for _, env := range envs {
+		if _, ok := objects[env.Id]; !ok {
+			objects[env.Id] = fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
+			envObjectToName[objects[env.Id]] = env.Name
+		}
+	}
+	return objects, envObjectToName
 }
 
 func (impl EnforcerUtilImpl) GetRbacObjectsByAppIds(appIds []int) map[int]string {
@@ -575,4 +604,8 @@ func (impl EnforcerUtilImpl) GetAllActiveTeamNames() ([]string, error) {
 		teamNames[i] = strings.ToLower(teamName)
 	}
 	return teamNames, nil
+}
+
+func (impl EnforcerUtilImpl) GetAppRBACNameByAppAndProjectName(projectName, appName string) string {
+	return fmt.Sprintf("%s/%s", strings.ToLower(projectName), strings.ToLower(appName))
 }
