@@ -24,7 +24,7 @@ type ResourceFilterEvaluation struct {
 	ReferenceId          int           `sql:"reference_id"`
 	FilterHistoryObjects string        `sql:"filter_history_objects"` //json of array of
 	subjectType          SubjectType   `sql:"subject_type"`
-	subjectId            int           `sql:"subject_id"`
+	subjectIds           string        `sql:"subject_ids"` //comma seperated subject ids
 }
 
 type FilterEvaluationRepository interface {
@@ -32,7 +32,8 @@ type FilterEvaluationRepository interface {
 	sql.TransactionWrapper
 	GetConnection() *pg.DB
 	CreateResourceFilterEvaluation(tx *pg.Tx, filter *ResourceFilterEvaluation) (*ResourceFilterEvaluation, error)
-	GetResourceFilterEvaluation(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectId int)
+	GetResourceFilterEvaluation(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectId int) (*ResourceFilterEvaluation, error)
+	UpdateResourceFilterEvaluation(tx *pg.Tx, filter *ResourceFilterEvaluation) (*ResourceFilterEvaluation, error)
 }
 
 type FilterEvaluationRepositoryImpl struct {
@@ -68,4 +69,9 @@ func (repo *FilterEvaluationRepositoryImpl) GetResourceFilterEvaluation(referenc
 		Where("subject_id = ?", subjectId).
 		Select()
 	return res, err
+}
+
+func (repo *FilterEvaluationRepositoryImpl) UpdateResourceFilterEvaluation(tx *pg.Tx, filter *ResourceFilterEvaluation) (*ResourceFilterEvaluation, error) {
+	err := tx.Update(filter)
+	return filter, err
 }
