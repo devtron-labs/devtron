@@ -48,7 +48,6 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"net/url"
 	"strings"
@@ -103,7 +102,10 @@ type PipelineBuilder interface {
 	CiManagerService
 	CdManagerService
 }
+
 type PipelineBuilderImpl struct {
+	//*BuildPipelineConfigServiceImpl
+	//*DeploymentPipelineConfigServiceImpl
 	logger                        *zap.SugaredLogger
 	ciCdPipelineOrchestrator      CiCdPipelineOrchestrator
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
@@ -170,7 +172,10 @@ type PipelineBuilderImpl struct {
 	variableTemplateParser                          parsers.VariableTemplateParser
 }
 
-func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
+func NewPipelineBuilderImpl(
+	//b *BuildPipelineConfigServiceImpl,
+	//d *DeploymentPipelineConfigServiceImpl,
+	logger *zap.SugaredLogger,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	materialRepo pipelineConfig.MaterialRepository,
@@ -232,6 +237,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		logger.Errorw("error in parsing securityConfig,setting  ForceSecurityScanning to default value", "defaultValue", securityConfig.ForceSecurityScanning, "err", err)
 	}
 	return &PipelineBuilderImpl{
+		//BuildPipelineConfigServiceImpl: b,
+		//DeploymentPipelineConfigServiceImpl: d,
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
@@ -365,36 +372,36 @@ func (impl *PipelineBuilderImpl) isGitRepoUrlPresent(appId int) bool {
 	return true
 } //no usage
 
-func (impl *PipelineBuilderImpl) handleNotHealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
-	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
-
-	if pipeline.DeploymentAppType == bean.ArgoCd {
-		// check if app status is Healthy
-		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
-
-		// case: missing status row in db
-		if len(status.Status) == 0 {
-			return failedPipelines, nil
-		}
-
-		// cannot delete the app from argocd if app status is Progressing
-		if err != nil || status.Status == "Progressing" {
-
-			healthCheckErr := errors.New("unable to fetch app status or app status is progressing")
-
-			impl.logger.Errorw(healthCheckErr.Error(),
-				"appId", pipeline.AppId,
-				"environmentId", pipeline.EnvironmentId,
-				"err", err)
-
-			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
-
-			return failedPipelines, healthCheckErr
-		}
-		return failedPipelines, nil
-	}
-	return failedPipelines, nil
-} //no usage
+//func (impl *PipelineBuilderImpl) handleNotHealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
+//	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
+//
+//	if pipeline.DeploymentAppType == bean.ArgoCd {
+//		// check if app status is Healthy
+//		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
+//
+//		// case: missing status row in db
+//		if len(status.Status) == 0 {
+//			return failedPipelines, nil
+//		}
+//
+//		// cannot delete the app from argocd if app status is Progressing
+//		if err != nil || status.Status == "Progressing" {
+//
+//			healthCheckErr := errors.New("unable to fetch app status or app status is progressing")
+//
+//			impl.logger.Errorw(healthCheckErr.Error(),
+//				"appId", pipeline.AppId,
+//				"environmentId", pipeline.EnvironmentId,
+//				"err", err)
+//
+//			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
+//
+//			return failedPipelines, healthCheckErr
+//		}
+//		return failedPipelines, nil
+//	}
+//	return failedPipelines, nil
+//} //no usage
 
 type DeploymentType struct {
 	Deployment Deployment `json:"deployment"`

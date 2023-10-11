@@ -221,6 +221,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
 		pipeline.GetDeploymentServiceTypeConfig,
+		//pipeline.NewBuildPipelineConfigServiceImpl,
+		//wire.Bind(new(pipeline.CiManagerService), new(*pipeline.BuildPipelineConfigServiceImpl)),
+		//pipeline.NewDeploymentPipelineConfigServiceImpl,
+		//wire.Bind(new(pipeline.CdManagerService), new(*pipeline.DeploymentPipelineConfigServiceImpl)),
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
 		util5.NewLoggingMiddlewareImpl,
