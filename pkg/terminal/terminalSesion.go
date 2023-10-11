@@ -19,9 +19,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/util/k8s"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
@@ -448,11 +448,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	} else {
 		return nil, nil, fmt.Errorf("not able to find cluster-config")
 	}
-	config, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in config", "err", err)
-		return nil, nil, err
-	}
+	config := clusterBean.GetClusterConfig()
 
 	cfg, _, clientSet, err := impl.k8sUtil.GetK8sConfigAndClients(config)
 	if err != nil {
@@ -533,11 +529,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 		impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
 		return err
 	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	v1Client, err := impl.k8sUtil.GetCoreV1Client(clusterConfig)
 	pod, err := impl.k8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
 	if err != nil {

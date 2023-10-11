@@ -5,11 +5,11 @@
 package mock_rbac
 
 import (
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	reflect "reflect"
 
 	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean "github.com/devtron-labs/devtron/pkg/bean"
-	application "github.com/devtron-labs/devtron/util/k8s"
 	gomock "github.com/golang/mock/gomock"
 )
 

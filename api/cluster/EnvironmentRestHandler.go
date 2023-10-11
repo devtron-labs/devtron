@@ -20,8 +20,8 @@ package cluster
 import (
 	"context"
 	"encoding/json"
+	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s"
-	k8s2 "github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"strconv"
 	"strings"

@@ -19,9 +19,9 @@ package pipeline
 
 import (
 	"context"
-	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	blob_storage "github.com/devtron-labs/common-lib-private/blob-storage"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/client-go/kubernetes"
