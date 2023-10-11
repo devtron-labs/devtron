@@ -601,6 +601,12 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		impl.Logger.Errorw("cannot update deleted workflow status, but wf deleted", "err", err)
 		return 0, err
 	}
+	imagePathReservationId := workflow.ImagePathReservationId
+	err = impl.customTagService.DeactivateImagePathReservation(imagePathReservationId)
+	if err != nil {
+		impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
+		return 0, err
+	}
 	return workflow.Id, nil
 }
 
