@@ -364,7 +364,7 @@ func (impl *CiServiceImpl) saveNewWorkflowForCITrigger(pipeline *pipelineConfig.
 	}
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:                pipelineConfig.WorkflowStarting,
+		Status:                pipelineConfig.WorkflowStarting, //starting CIStage
 		Message:               "",
 		StartedOn:             time.Now(),
 		CiPipelineId:          pipeline.Id,

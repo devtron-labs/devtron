@@ -377,7 +377,7 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Minute)
 		defer cancel()
 		//update workflow runner status, used in app workflow view
-		err = impl.appService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, pipelineConfig.WorkflowInProcess)
+		err = impl.appService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, pipelineConfig.WorkflowStarting)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
 			return
@@ -681,7 +681,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		Name:                  pipeline.Name,
 		WorkflowType:          bean.CD_WORKFLOW_TYPE_PRE,
 		ExecutorType:          cdWorkflowExecutorType,
-		Status:                pipelineConfig.WorkflowStarting, //starting
+		Status:                pipelineConfig.WorkflowStarting, //starting PreStage
 		TriggeredBy:           triggeredBy,
 		StartedOn:             triggeredAt,
 		Namespace:             impl.config.GetDefaultNamespace(),
@@ -873,7 +873,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		Name:                  pipeline.Name,
 		WorkflowType:          bean.CD_WORKFLOW_TYPE_POST,
 		ExecutorType:          impl.config.GetWorkflowExecutorType(),
-		Status:                pipelineConfig.WorkflowStarting,
+		Status:                pipelineConfig.WorkflowStarting, //starting PostStage
 		TriggeredBy:           triggeredBy,
 		StartedOn:             triggeredAt,
 		Namespace:             impl.config.GetDefaultNamespace(),
@@ -1660,7 +1660,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		Name:         pipeline.Name,
 		WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
-		Status:       pipelineConfig.WorkflowStarting, //starting
+		Status:       pipelineConfig.WorkflowInitiated, //deployment Initiated for auto trigger
 		TriggeredBy:  1,
 		StartedOn:    triggeredAt,
 		Namespace:    impl.config.GetDefaultNamespace(),
@@ -2148,7 +2148,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			Name:         cdPipeline.Name,
 			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       pipelineConfig.WorkflowStarting, //deployment started
+			Status:       pipelineConfig.WorkflowInitiated, //deployment Initiated for manual trigger
 			TriggeredBy:  overrideRequest.UserId,
 			StartedOn:    triggeredAt,
 			Namespace:    impl.config.GetDefaultNamespace(),

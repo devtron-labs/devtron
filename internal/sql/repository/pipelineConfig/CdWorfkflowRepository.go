@@ -95,8 +95,8 @@ const (
 
 const (
 	WorkflowStarting           = "Starting"
-	WorkflowInQueue            = "InQueue"
-	WorkflowInProcess          = "Processing"
+	WorkflowInQueue            = "Queued"
+	WorkflowInitiated          = "Initiating"
 	WorkflowInProgress         = "Progressing"
 	WorkflowAborted            = "Aborted"
 	WorkflowFailed             = "Failed"
@@ -602,7 +602,7 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId in
 func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error) {
 	var wfrList []*CdWorkflowRunner
 	excludedStatusList := WfrTerminalStatusList
-	excludedStatusList = append(excludedStatusList, WorkflowInQueue, WorkflowInProcess)
+	excludedStatusList = append(excludedStatusList, WorkflowStarting, WorkflowInQueue)
 	err := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow.id", "CdWorkflow.pipeline_id", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_name", "CdWorkflow.Pipeline.deployment_app_type", "CdWorkflow.Pipeline.deleted", "CdWorkflow.Pipeline.Environment").
