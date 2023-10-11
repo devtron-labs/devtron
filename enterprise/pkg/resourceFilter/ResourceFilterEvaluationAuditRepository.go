@@ -71,7 +71,7 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetByRefAndSubject(referenceTyp
 		Where("reference_type = ?", referenceType).
 		Where("reference_id = ?", referenceId).
 		Where("subject_type = ?", subjectType).
-		Where("subject_ids = (?)", helper.GetCommaSepratedString(subjectIds)).
+		Where("subject_ids = ?", helper.GetCommaSepratedString(subjectIds)).
 		Select()
 	return res, err
 }
