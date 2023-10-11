@@ -40,14 +40,15 @@ func NewVariableTemplateParserImpl(logger *zap.SugaredLogger) (*VariableTemplate
 	return impl, nil
 }
 
-// const VariableRegex = `@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}`
+const VariableRegex = `@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}`
 const VariableSubRegexWithQuotes = `\"@{{([a-zA-Z0-9-+/*%_\s]+)}}\"`
-const REGEX = "(" + VariableSubRegexWithQuotes + " | \\\"" + VariableSubRegexWithQuotes + "\\\")"
+
+//const REGEX = "(" + VariableSubRegexWithQuotes + " | \\\"" + VariableSubRegexWithQuotes + "\\\")"
 
 type VariableTemplateParserConfig struct {
-	ScopedVariableEnabled          bool   `env:"SCOPED_VARIABLE_ENABLED" envDefault:"false"`
-	ScopedVariableHandlePrimitives bool   `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false"`
-	VariableExpressionRegex        string `env:"VARIABLE_EXPRESSION_REGEX" envDefault:"@{{([^}]+)}}"`
+	ScopedVariableEnabled          bool `env:"SCOPED_VARIABLE_ENABLED" envDefault:"false"`
+	ScopedVariableHandlePrimitives bool `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false"`
+	//VariableExpressionRegex        string `env:"VARIABLE_EXPRESSION_REGEX" envDefault:"@{{([^}]+)}}"`
 }
 
 func (cfg VariableTemplateParserConfig) isScopedVariablesDisabled() bool {
@@ -62,7 +63,7 @@ func getVariableTemplateParserConfig() (*VariableTemplateParserConfig, error) {
 
 func (impl *VariableTemplateParserImpl) preProcessPlaceholder(template string, variableValueMap map[string]interface{}) string {
 
-	re := regexp.MustCompile(impl.variableTemplateParserConfig.VariableExpressionRegex)
+	re := regexp.MustCompile(VariableSubRegexWithQuotes)
 	matches := re.FindAllStringSubmatch(template, -1)
 
 	// Replace the surrounding quotes for variables whose value is known
@@ -316,7 +317,7 @@ func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string, t
 
 func (impl *VariableTemplateParserImpl) convertToHclExpression(template string) string {
 
-	var devtronRegexCompiledPattern = regexp.MustCompile(impl.variableTemplateParserConfig.VariableExpressionRegex)
+	var devtronRegexCompiledPattern = regexp.MustCompile(VariableRegex)
 	indexesData := devtronRegexCompiledPattern.FindAllIndex([]byte(template), -1)
 	var strBuilder strings.Builder
 	strBuilder.Grow(len(template))
