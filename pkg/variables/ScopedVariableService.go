@@ -446,12 +446,9 @@ func resolveExpressionWithVariableValues(expr string, varNameToData map[string]*
 	// and can contain hyphen, underscore and whitespaces. white spaces will be trimmed on lookup
 	variableRegex := `@{{([a-zA-Z0-9-_\s]+)}}`
 
-	//variableSubRegexWithQuotes := "\"" + impl.variableTemplateParserConfig.VariableExpressionRegex + "\""
 	re := regexp.MustCompile(variableRegex)
 	matches := re.FindAllStringSubmatch(expr, -1)
 
-	// Replace the surrounding quotes for variables whose value is known
-	// and type is primitive
 	for _, match := range matches {
 		if len(match) == 2 {
 			originalMatch := match[0]
