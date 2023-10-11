@@ -6,6 +6,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	"github.com/devtron-labs/devtron/util/rbac"
+	"go.uber.org/zap"
 )
 
 type AppConfigService interface {
@@ -51,8 +53,37 @@ type AppConfigService interface {
 	// In case of error,[]*AppBean is returned as nil.
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 }
+type AppConfigServiceImpl struct {
+	logger                   *zap.SugaredLogger
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator
+	appRepo                  app.AppRepository
+	pipelineRepository       pipelineConfig.PipelineRepository
+	enforcerUtil             rbac.EnforcerUtil
+	resourceGroupService     resourceGroup2.ResourceGroupService
+	ciMaterialConfigService  CiMaterialConfigService
+}
 
-func (impl *PipelineBuilderImpl) CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+func NewAppConfigServiceImpl(
+	logger *zap.SugaredLogger,
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
+	pipelineGroupRepo app.AppRepository,
+	pipelineRepository pipelineConfig.PipelineRepository,
+	enforcerUtil rbac.EnforcerUtil,
+	resourceGroupService resourceGroup2.ResourceGroupService,
+	ciMaterialConfigService CiMaterialConfigService,
+) *AppConfigServiceImpl {
+
+	return &AppConfigServiceImpl{
+		logger:                   logger,
+		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
+		appRepo:                  pipelineGroupRepo,
+		pipelineRepository:       pipelineRepository,
+		enforcerUtil:             enforcerUtil,
+		resourceGroupService:     resourceGroupService,
+		ciMaterialConfigService:  ciMaterialConfigService,
+	}
+}
+func (impl *AppConfigServiceImpl) CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
 	impl.logger.Debugw("app create request received", "req", request)
 
 	res, err := impl.ciCdPipelineOrchestrator.CreateApp(request)
@@ -62,13 +93,13 @@ func (impl *PipelineBuilderImpl) CreateApp(request *bean.CreateAppDTO) (*bean.Cr
 	return res, err
 }
 
-func (impl *PipelineBuilderImpl) DeleteApp(appId int, userId int32) error {
+func (impl *AppConfigServiceImpl) DeleteApp(appId int, userId int32) error {
 	impl.logger.Debugw("app delete request received", "app", appId)
 	err := impl.ciCdPipelineOrchestrator.DeleteApp(appId, userId)
 	return err
 }
 
-func (impl *PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDTO, err error) {
+func (impl *AppConfigServiceImpl) GetApp(appId int) (application *bean.CreateAppDTO, err error) {
 	app, err := impl.appRepo.FindById(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app", "id", appId, "err", err)
@@ -83,7 +114,7 @@ func (impl *PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppD
 	if app.AppType == helper.ChartStoreApp {
 		return application, nil
 	}
-	gitMaterials := impl.GetMaterialsForAppId(appId)
+	gitMaterials := impl.ciMaterialConfigService.GetMaterialsForAppId(appId)
 	application.Material = gitMaterials
 	if app.AppType == helper.Job {
 		app.AppName = app.DisplayName
@@ -92,7 +123,7 @@ func (impl *PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppD
 	return application, nil
 }
 
-func (impl *PipelineBuilderImpl) FindByIds(ids []*int) ([]*AppBean, error) {
+func (impl *AppConfigServiceImpl) FindByIds(ids []*int) ([]*AppBean, error) {
 	var appsRes []*AppBean
 	apps, err := impl.appRepo.FindByIds(ids)
 	if err != nil {
@@ -105,7 +136,7 @@ func (impl *PipelineBuilderImpl) FindByIds(ids []*int) ([]*AppBean, error) {
 	return appsRes, err
 }
 
-func (impl *PipelineBuilderImpl) GetAppList() ([]AppBean, error) {
+func (impl *AppConfigServiceImpl) GetAppList() ([]AppBean, error) {
 	var appsRes []AppBean
 	apps, err := impl.appRepo.FindAll()
 	if err != nil {
@@ -118,7 +149,7 @@ func (impl *PipelineBuilderImpl) GetAppList() ([]AppBean, error) {
 	return appsRes, err
 }
 
-func (impl *PipelineBuilderImpl) FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*AppBean, error) {
+func (impl *AppConfigServiceImpl) FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*AppBean, error) {
 	var appsRes []*AppBean
 	var apps []*app.App
 	var err error
@@ -141,7 +172,7 @@ func (impl *PipelineBuilderImpl) FindAllMatchesByAppName(appName string, appType
 	return appsRes, err
 }
 
-func (impl PipelineBuilderImpl) GetAppListForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*AppBean, error) {
+func (impl AppConfigServiceImpl) GetAppListForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*AppBean, error) {
 	var applicationList []*AppBean
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
@@ -185,7 +216,7 @@ func (impl PipelineBuilderImpl) GetAppListForEnvironment(request resourceGroup2.
 	return applicationList, err
 }
 
-func (impl *PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]*AppBean, error) {
+func (impl *AppConfigServiceImpl) FindAppsByTeamId(teamId int) ([]*AppBean, error) {
 	var appsRes []*AppBean
 	apps, err := impl.appRepo.FindAppsByTeamId(teamId)
 	if err != nil {
@@ -198,7 +229,7 @@ func (impl *PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]*AppBean, error
 	return appsRes, err
 }
 
-func (impl *PipelineBuilderImpl) FindAppsByTeamName(teamName string) ([]AppBean, error) {
+func (impl *AppConfigServiceImpl) FindAppsByTeamName(teamName string) ([]AppBean, error) {
 	var appsRes []AppBean
 	apps, err := impl.appRepo.FindAppsByTeamName(teamName)
 	if err != nil {
