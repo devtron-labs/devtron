@@ -64,8 +64,8 @@ type ValuesOverrideRequest struct {
 	CdWorkflowType                        WorkflowType                `json:"cdWorkflowType,notnull"`
 	WfrId                                 int                         `json:"wfrId,notnull"`
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
+	DeploymentType                        models.DeploymentType       `json:"deploymentType"` //required for async install/upgrade handling; previously if was used internally
 	UserId                                int32                       `json:"-"`
-	DeploymentType                        models.DeploymentType       `json:"-"`
 	EnvId                                 int                         `json:"-"`
 	EnvName                               string                      `json:"-"`
 	ClusterId                             int                         `json:"-"`
