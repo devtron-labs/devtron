@@ -91,6 +91,7 @@ type CiPipelineDetails struct {
 	ParentCiPipeline          int                         `json:"parentCiPipeline,omitempty"`
 	ParentAppId               int                         `json:"parentAppId,omitempty"`
 	LinkedCount               int                         `json:"linkedCount,omitempty"`
+	PipelineType              string                      `json:"pipelineType,omitempty"`
 	DockerConfigOverride      bean2.DockerConfigOverride  `json:"dockerConfigOverride"`
 }
 
