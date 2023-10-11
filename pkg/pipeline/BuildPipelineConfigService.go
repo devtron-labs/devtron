@@ -1794,12 +1794,12 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 	}
 
 	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		pipelineStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository3.PIPELINE_STAGE_TYPE_PRE_CD)
+		pipelinePreStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository3.PIPELINE_STAGE_TYPE_PRE_CD)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
 			return nil, err
 		}
-		if pipelineStage != nil {
+		if pipelinePreStage != nil || len(pipeline.PreStageConfig) > 0 {
 			// Parent type will be PRE for DEPLOY stage
 			parentId = pipeline.Id
 			parentType = bean2.CD_WORKFLOW_TYPE_PRE
