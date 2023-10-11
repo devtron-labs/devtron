@@ -164,7 +164,7 @@ type DeploymentPipelineConfigServiceImpl struct {
 	attributesRepository                            repository3.AttributesRepository
 	variableEntityMappingService                    variables.VariableEntityMappingService
 	variableTemplateParser                          parsers.VariableTemplateParser
-	appArtifactManager                              AppArtifactManager
+	buildPipelineConfigServiceImpl                  *BuildPipelineConfigServiceImpl
 }
 
 func NewDeploymentPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -199,7 +199,7 @@ func NewDeploymentPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	attributesRepository repository3.AttributesRepository,
 	variableEntityMappingService variables.VariableEntityMappingService,
 	variableTemplateParser parsers.VariableTemplateParser,
-	appArtifactManager AppArtifactManager) *DeploymentPipelineConfigServiceImpl {
+	buildPipelineConfigServiceImpl *BuildPipelineConfigServiceImpl) *DeploymentPipelineConfigServiceImpl {
 
 	return &DeploymentPipelineConfigServiceImpl{
 		logger:                   logger,
@@ -235,7 +235,7 @@ func NewDeploymentPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		attributesRepository:                            attributesRepository,
 		variableEntityMappingService:                    variableEntityMappingService,
 		variableTemplateParser:                          variableTemplateParser,
-		appArtifactManager:                              appArtifactManager,
+		buildPipelineConfigServiceImpl:                  buildPipelineConfigServiceImpl,
 	}
 }
 
@@ -1453,7 +1453,7 @@ func (impl *DeploymentPipelineConfigServiceImpl) ChangeDeploymentType(ctx contex
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.appArtifactManager.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
+		artifactDetails, err := impl.buildPipelineConfigServiceImpl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
 
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
@@ -1629,7 +1629,7 @@ func (impl *DeploymentPipelineConfigServiceImpl) TriggerDeploymentAfterTypeChang
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.appArtifactManager.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
+		artifactDetails, err := impl.buildPipelineConfigServiceImpl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
 
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",

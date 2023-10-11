@@ -104,8 +104,9 @@ type PipelineBuilder interface {
 }
 
 type PipelineBuilderImpl struct {
-	//*BuildPipelineConfigServiceImpl
-	//*DeploymentPipelineConfigServiceImpl
+	*AppConfigServiceImpl
+	*BuildPipelineConfigServiceImpl
+	*DeploymentPipelineConfigServiceImpl
 	logger                        *zap.SugaredLogger
 	ciCdPipelineOrchestrator      CiCdPipelineOrchestrator
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
@@ -173,8 +174,9 @@ type PipelineBuilderImpl struct {
 }
 
 func NewPipelineBuilderImpl(
-	//b *BuildPipelineConfigServiceImpl,
-	//d *DeploymentPipelineConfigServiceImpl,
+	pipelineConfigService *BuildPipelineConfigServiceImpl,
+	deploymentConfigService *DeploymentPipelineConfigServiceImpl,
+	appConfigService *AppConfigServiceImpl,
 	logger *zap.SugaredLogger,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
@@ -237,16 +239,17 @@ func NewPipelineBuilderImpl(
 		logger.Errorw("error in parsing securityConfig,setting  ForceSecurityScanning to default value", "defaultValue", securityConfig.ForceSecurityScanning, "err", err)
 	}
 	return &PipelineBuilderImpl{
-		//BuildPipelineConfigServiceImpl: b,
-		//DeploymentPipelineConfigServiceImpl: d,
-		logger:                        logger,
-		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
-		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
-		materialRepo:                  materialRepo,
-		appService:                    appService,
-		appRepo:                       pipelineGroupRepo,
-		pipelineRepository:            pipelineRepository,
-		propertiesConfigService:       propertiesConfigService,
+		BuildPipelineConfigServiceImpl:      pipelineConfigService,
+		DeploymentPipelineConfigServiceImpl: deploymentConfigService,
+		AppConfigServiceImpl:                appConfigService,
+		logger:                              logger,
+		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
+		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		materialRepo:                        materialRepo,
+		appService:                          appService,
+		appRepo:                             pipelineGroupRepo,
+		pipelineRepository:                  pipelineRepository,
+		propertiesConfigService:             propertiesConfigService,
 		//ciTemplateRepository:             ciTemplateRepository,
 		ciPipelineRepository:             ciPipelineRepository,
 		application:                      application,
