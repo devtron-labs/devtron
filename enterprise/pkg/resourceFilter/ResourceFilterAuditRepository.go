@@ -20,6 +20,7 @@ type FilterAuditRepository interface {
 	sql.TransactionWrapper
 	GetConnection() *pg.DB
 	CreateResourceFilterAudit(tx *pg.Tx, filter *ResourceFilterAudit) (*ResourceFilterAudit, error)
+	UpdateResourceFilterAudit(id int, refType ReferenceType, refId int) (*ResourceFilterAudit, error)
 	GetLatestResourceFilterAuditByFilterIds(ids []int) ([]*ResourceFilterAudit, error)
 }
 
@@ -37,26 +38,16 @@ func (repo *FilterAuditRepositoryImpl) CreateResourceFilterAudit(tx *pg.Tx, filt
 	err := tx.Insert(filter)
 	return filter, err
 }
-func (repo *FilterAuditRepositoryImpl) GetLatestResourceFilterAuditIdsByFilterIds(filterIds []int) ([]int, error) {
+func (repo *FilterAuditRepositoryImpl) GetLatestResourceFilterAuditByFilterIds(filterIds []int) ([]*ResourceFilterAudit, error) {
 	if len(filterIds) == 0 {
 		return nil, nil
 	}
-	type filterAuditResp struct {
-		Id int `sql:"Id"`
-	}
-	res := make([]filterAuditResp, 0)
-	filterAuditIds := make([]int, 0)
+	res := make([]*ResourceFilterAudit, 0)
 	query := "SELECT max(id) " +
-		"AS id FROM " +
+		"AS id,filter_id FROM " +
 		"resource_filter_audit " +
 		"WHERE filter_id in (%s) " +
 		"GROUP BY filter_id"
 	_, err := repo.dbConnection.Query(&res, query)
-	if err != nil {
-		return filterAuditIds, err
-	}
-	for _, fResp := range res {
-		filterAuditIds = append(filterAuditIds, fResp.Id)
-	}
-	return filterAuditIds, nil
+	return res, err
 }

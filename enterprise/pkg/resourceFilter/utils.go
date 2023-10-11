@@ -76,3 +76,8 @@ func GetIdentifierKey(identifierType IdentifierType, searchableKeyNameIdMap map[
 		return -1
 	}
 }
+
+func getJsonStringFromFilterHistoryObjects(filterHistoryObjects []*FilterHistoryObject) (string, error) {
+	jsonBytes, err := json.Marshal(filterHistoryObjects)
+	return string(jsonBytes), err
+}
