@@ -11,6 +11,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -75,6 +76,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	userService                          user.UserService
 	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
+	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
@@ -85,7 +87,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	pipelineStatusTimelineService status.PipelineStatusTimelineService, userService user.UserService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-) *AppStoreDeploymentArgoCdServiceImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                               logger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -104,6 +106,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		userService:                          userService,
 		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
+		argoClientWrapperService:             argoClientWrapperService,
 	}
 }
 
@@ -112,6 +115,11 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateChartInfo(installAppVersio
 	installAppVersionRequest, err := impl.patchAcdApp(ctx, installAppVersionRequest, ChartGitAttribute)
 	if err != nil {
 		return err
+	}
+	// Doing this to refresh normally by getting app to avoid sync delay argo cd(3min)
+	err2 := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
+	if err2 != nil {
+		impl.Logger.Errorw("error in getting argocd application with normal refresh", "err", err, "argoAppName", installAppVersionRequest.ACDAppName)
 	}
 	return nil
 }
