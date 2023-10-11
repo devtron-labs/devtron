@@ -2721,7 +2721,7 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}
-		// Doing normal refresh to avoid the sync delay in argo-cd (3 min poll)
+		// Doing normal refresh to avoid the sync delay in argo-cd.
 		err2 := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, argoAppName)
 		if err2 != nil {
 			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipelineName)

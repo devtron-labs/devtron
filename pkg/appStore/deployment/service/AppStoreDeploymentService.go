@@ -1470,13 +1470,11 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 
 	if installAppVersionRequest.PerformACDDeployment {
-		if monoRepoMigrationRequired {
-			// update repo details on ArgoCD as repo is changed
-			err = impl.appStoreDeploymentArgoCdService.UpdateChartInfo(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, 0, ctx)
-			if err != nil {
-				impl.logger.Errorw("error in acd patch request", "err", err)
-				return nil, err
-			}
+		// refresh update repo details on ArgoCD if repo is changed
+		err = impl.appStoreDeploymentArgoCdService.RefreshAndUpdateACDApp(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, monoRepoMigrationRequired, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in acd patch request", "err", err)
+			return nil, err
 		}
 	} else if installAppVersionRequest.PerformHelmDeployment {
 		err = impl.appStoreDeploymentHelmService.UpdateChartInfo(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, installAppVersionRequest.InstalledAppVersionHistoryId, ctx)
