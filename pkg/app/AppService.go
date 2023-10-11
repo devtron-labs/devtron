@@ -1507,6 +1507,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	if err != nil {
 		return valuesOverrideResponse, err
 	}
+
 	overrideRequest.ImageTag = getImageTagFromImage(artifact.Image)
 
 	envOverride, err := impl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
