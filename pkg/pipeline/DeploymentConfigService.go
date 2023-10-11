@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
@@ -34,6 +35,7 @@ type DeploymentConfigServiceImpl struct {
 	chartRefRepository           chartRepoRepository.ChartRefRepository
 	variableEntityMappingService variables.VariableEntityMappingService
 	scopedVariableService        variables.ScopedVariableService
+	variableTemplateParser       parsers.VariableTemplateParser
 }
 
 func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -47,7 +49,9 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	configMapHistoryService history.ConfigMapHistoryService,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	variableEntityMappingService variables.VariableEntityMappingService,
-	scopedVariableService variables.ScopedVariableService) *DeploymentConfigServiceImpl {
+	scopedVariableService variables.ScopedVariableService,
+	variableTemplateParser parsers.VariableTemplateParser,
+) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
 		logger:                       logger,
 		envConfigOverrideRepository:  envConfigOverrideRepository,
@@ -61,6 +65,7 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		chartRefRepository:           chartRefRepository,
 		variableEntityMappingService: variableEntityMappingService,
 		scopedVariableService:        scopedVariableService,
+		variableTemplateParser:       variableTemplateParser,
 	}
 }
 
@@ -96,18 +101,18 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	return configResp, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(scope resourceQualifiers.Scope, entity repository6.Entity) (map[string]string, error) {
+func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(template string, scope resourceQualifiers.Scope, entity repository6.Entity) (string, map[string]string, error) {
 
 	variableMap := make(map[string]string)
 	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
 	if err != nil {
-		return variableMap, err
+		return template, variableMap, err
 	}
 	scopedVariables := make([]*models.ScopedVariableData, 0)
 	if _, ok := entityToVariables[entity]; ok && len(entityToVariables[entity]) > 0 {
 		scopedVariables, err = impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
 		if err != nil {
-			return variableMap, err
+			return template, variableMap, err
 		}
 	}
 
@@ -115,7 +120,19 @@ func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(s
 		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
 	}
 
-	return variableMap, nil
+	if len(variableMap) == 0 {
+		return template, variableMap, nil
+	}
+
+	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
+	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
+	err = parserResponse.Error
+	if err != nil {
+		return template, variableMap, err
+	}
+	resolvedTemplate := parserResponse.ResolvedTemplate
+
+	return resolvedTemplate, variableMap, nil
 }
 
 func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
@@ -156,9 +173,9 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
 				EntityId:   envOverride.Id,
 			}
-			scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(scope, entity)
+			resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(envOverride.EnvOverrideValues, scope, entity)
 			if err != nil {
-				return nil, err
+				impl.logger.Errorw("could not resolve template", "err", err, "envOverrideId", envOverride.Id, "scope", scope, "pipelineId", pipeline.Id)
 			}
 
 			deploymentTemplateConfig = &history.HistoryDetailDto{
@@ -170,6 +187,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 					Value:       envOverride.EnvOverrideValues,
 				},
 				VariableSnapshot: scopedVariablesMap,
+				ResolvedTemplate: resolvedTemplate,
 			}
 		}
 	} else {
@@ -193,9 +211,9 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			EntityType: repository6.EntityTypeDeploymentTemplateAppLevel,
 			EntityId:   chart.Id,
 		}
-		scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(scope, entity)
+		resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(chart.GlobalOverride, scope, entity)
 		if err != nil {
-			return nil, err
+			impl.logger.Errorw("could not resolve template", "err", err, "chartId", chart.Id, "scope", scope, "pipelineId", pipeline.Id)
 		}
 		deploymentTemplateConfig = &history.HistoryDetailDto{
 			TemplateName:        chart.ChartName,
@@ -206,6 +224,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 				Value:       chart.GlobalOverride,
 			},
 			VariableSnapshot: scopedVariablesMap,
+			ResolvedTemplate: resolvedTemplate,
 		}
 	}
 	return deploymentTemplateConfig, nil
