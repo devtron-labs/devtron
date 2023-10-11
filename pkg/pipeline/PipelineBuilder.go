@@ -19,12 +19,6 @@ package pipeline
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
-	"net/url"
-	"strings"
-	"time"
-
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -49,11 +43,15 @@ import (
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	"github.com/devtron-labs/devtron/util/argo"
 	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
+	"net/url"
+	"strings"
 )
 
 const DashboardConfigMap = "dashboard-cm"
@@ -311,19 +309,6 @@ const (
 	environmentNameKey       string = "environmentName"
 	environmentIdentifierKey string = "environmentIdentifier"
 )
-
-func formatDate(t time.Time, layout string) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format(layout)
-}
-
-/*
-   1. create pipelineGroup
-   2. save material (add credential provider support)
-
-*/
 
 func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMaterial, error) {
 	materials, err := impl.materialRepo.FindByAppId(appId)

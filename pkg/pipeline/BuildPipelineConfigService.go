@@ -2486,3 +2486,10 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 	mInfo, err := json.Marshal(scmMapList)
 	return mInfo, err
 }
+
+func formatDate(t time.Time, layout string) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format(layout)
+}
