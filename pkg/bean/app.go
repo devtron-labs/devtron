@@ -281,35 +281,16 @@ type GitCiTriggerRequest struct {
 	ExtraEnvironmentVariables map[string]string  `json:"extraEnvironmentVariables"` // extra env variables which will be used for CI
 }
 
-type GitCommit struct {
-	Commit                 string //git hash
-	Author                 string
-	Date                   time.Time
-	Message                string
-	Changes                []string
-	WebhookData            *WebhookData
-	GitRepoUrl             string
-	GitRepoName            string
-	CiConfigureSourceType  pipelineConfig.SourceType
-	CiConfigureSourceValue string
-}
-
-type WebhookData struct {
-	Id              int               `json:"id"`
-	EventActionType string            `json:"eventActionType"`
-	Data            map[string]string `json:"data"`
-}
-
 type SourceType string
 
 type CiPipelineMaterial struct {
-	Id            int       `json:"Id"`
-	GitMaterialId int       `json:"GitMaterialId"`
-	Type          string    `json:"Type"`
-	Value         string    `json:"Value"`
-	Active        bool      `json:"Active"`
-	GitCommit     GitCommit `json:"GitCommit"`
-	GitTag        string    `json:"GitTag"`
+	Id            int                      `json:"Id"`
+	GitMaterialId int                      `json:"GitMaterialId"`
+	Type          string                   `json:"Type"`
+	Value         string                   `json:"Value"`
+	Active        bool                     `json:"Active"`
+	GitCommit     pipelineConfig.GitCommit `json:"GitCommit"`
+	GitTag        string                   `json:"GitTag"`
 }
 
 type CiTriggerRequest struct {
