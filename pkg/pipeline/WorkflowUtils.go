@@ -753,3 +753,9 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 	UpdateContainerEnvsFromCmCs(&workflowMainContainer, workflowConfigMaps, workflowSecrets)
 	return workflowMainContainer
 }
+
+func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
+	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
+		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
+
+}
