@@ -28,8 +28,8 @@ func NewCELServiceImpl(logger *zap.SugaredLogger) *CELServiceImpl {
 type FilterState int
 
 const (
-	BLOCK FilterState = 0
-	ALLOW FilterState = 1
+	ALLOW FilterState = 0
+	BLOCK FilterState = 1
 	ERROR FilterState = 2
 )
 
