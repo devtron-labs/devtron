@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"context"
+	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -49,6 +50,7 @@ type CdWorkflowRepository interface {
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
+	FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error)
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
 	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
 
@@ -143,23 +145,24 @@ const WORKFLOW_EXECUTOR_TYPE_AWF = "AWF"
 const WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 
 type CdWorkflowRunner struct {
-	tableName          struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
-	Id                 int                  `sql:"id,pk"`
-	Name               string               `sql:"name"`
-	WorkflowType       bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
-	ExecutorType       WorkflowExecutorType `sql:"executor_type"` //awf, system
-	Status             string               `sql:"status"`
-	PodStatus          string               `sql:"pod_status"`
-	Message            string               `sql:"message"`
-	StartedOn          time.Time            `sql:"started_on"`
-	FinishedOn         time.Time            `sql:"finished_on"`
-	Namespace          string               `sql:"namespace"`
-	LogLocation        string               `sql:"log_file_path"`
-	TriggeredBy        int32                `sql:"triggered_by"`
-	CdWorkflowId       int                  `sql:"cd_workflow_id"`
-	PodName            string               `sql:"pod_name"`
-	BlobStorageEnabled bool                 `sql:"blob_storage_enabled,notnull"`
-	CdWorkflow         *CdWorkflow
+	tableName             struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
+	Id                    int                  `sql:"id,pk"`
+	Name                  string               `sql:"name"`
+	WorkflowType          bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
+	ExecutorType          WorkflowExecutorType `sql:"executor_type"` //awf, system
+	Status                string               `sql:"status"`
+	PodStatus             string               `sql:"pod_status"`
+	Message               string               `sql:"message"`
+	StartedOn             time.Time            `sql:"started_on"`
+	FinishedOn            time.Time            `sql:"finished_on"`
+	Namespace             string               `sql:"namespace"`
+	LogLocation           string               `sql:"log_file_path"`
+	TriggeredBy           int32                `sql:"triggered_by"`
+	CdWorkflowId          int                  `sql:"cd_workflow_id"`
+	PodName               string               `sql:"pod_name"`
+	BlobStorageEnabled    bool                 `sql:"blob_storage_enabled,notnull"`
+	RefCdWorkflowRunnerId int                  `sql:"ref_cd_workflow_runner_id"`
+	CdWorkflow            *CdWorkflow
 	sql.AuditLog
 }
 
@@ -182,30 +185,31 @@ type CiPipelineMaterialResponse struct {
 }
 
 type CdWorkflowWithArtifact struct {
-	Id                 int                          `json:"id"`
-	CdWorkflowId       int                          `json:"cd_workflow_id"`
-	Name               string                       `json:"name"`
-	Status             string                       `json:"status"`
-	PodStatus          string                       `json:"pod_status"`
-	Message            string                       `json:"message"`
-	StartedOn          time.Time                    `json:"started_on"`
-	FinishedOn         time.Time                    `json:"finished_on"`
-	PipelineId         int                          `json:"pipeline_id"`
-	Namespace          string                       `json:"namespace"`
-	LogFilePath        string                       `json:"log_file_path"`
-	TriggeredBy        int32                        `json:"triggered_by"`
-	EmailId            string                       `json:"email_id"`
-	Image              string                       `json:"image"`
-	MaterialInfo       string                       `json:"material_info,omitempty"`
-	DataSource         string                       `json:"data_source,omitempty"`
-	CiArtifactId       int                          `json:"ci_artifact_id,omitempty"`
-	WorkflowType       string                       `json:"workflow_type,omitempty"`
-	ExecutorType       string                       `json:"executor_type,omitempty"`
-	BlobStorageEnabled bool                         `json:"blobStorageEnabled"`
-	GitTriggers        map[int]GitCommit            `json:"gitTriggers"`
-	CiMaterials        []CiPipelineMaterialResponse `json:"ciMaterials"`
-	ImageReleaseTags   []*repository2.ImageTag      `json:"imageReleaseTags"`
-	ImageComment       *repository2.ImageComment    `json:"imageComment"`
+	Id                    int                          `json:"id"`
+	CdWorkflowId          int                          `json:"cd_workflow_id"`
+	Name                  string                       `json:"name"`
+	Status                string                       `json:"status"`
+	PodStatus             string                       `json:"pod_status"`
+	Message               string                       `json:"message"`
+	StartedOn             time.Time                    `json:"started_on"`
+	FinishedOn            time.Time                    `json:"finished_on"`
+	PipelineId            int                          `json:"pipeline_id"`
+	Namespace             string                       `json:"namespace"`
+	LogFilePath           string                       `json:"log_file_path"`
+	TriggeredBy           int32                        `json:"triggered_by"`
+	EmailId               string                       `json:"email_id"`
+	Image                 string                       `json:"image"`
+	MaterialInfo          string                       `json:"material_info,omitempty"`
+	DataSource            string                       `json:"data_source,omitempty"`
+	CiArtifactId          int                          `json:"ci_artifact_id,omitempty"`
+	WorkflowType          string                       `json:"workflow_type,omitempty"`
+	ExecutorType          string                       `json:"executor_type,omitempty"`
+	BlobStorageEnabled    bool                         `json:"blobStorageEnabled"`
+	GitTriggers           map[int]GitCommit            `json:"gitTriggers"`
+	CiMaterials           []CiPipelineMaterialResponse `json:"ciMaterials"`
+	ImageReleaseTags      []*repository2.ImageTag      `json:"imageReleaseTags"`
+	ImageComment          *repository2.ImageComment    `json:"imageComment"`
+	RefCdWorkflowRunnerId int                          `json:"referenceCdWorkflowRunnerId"`
 }
 
 type TriggerWorkflowStatus struct {
@@ -485,6 +489,15 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWork
 	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment").
 		Where("cd_workflow_runner.id = ?", wfrId).Select()
 	return wfr, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error) {
+	retryCount := 0
+	query := fmt.Sprintf("select count(id) "+
+		"from cd_workflow_runner where ref_cd_workflow_runner_id = %v", wfrId)
+
+	_, err := impl.dbConnection.Query(&retryCount, query)
+	return retryCount, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindByWorkflowIdAndRunnerType(ctx context.Context, wfId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {

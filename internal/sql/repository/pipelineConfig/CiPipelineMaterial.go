@@ -50,6 +50,7 @@ type CiPipelineMaterialRepository interface {
 	UpdateNotNull(tx *pg.Tx, material ...*CiPipelineMaterial) error
 	FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error)
 	GetById(id int) (*CiPipelineMaterial, error)
+	GetByIdsIncludeDeleted(ids []int) ([]*CiPipelineMaterial, error)
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	CheckRegexExistsForMaterial(id int) bool
@@ -78,6 +79,18 @@ func (impl CiPipelineMaterialRepositoryImpl) GetById(id int) (*CiPipelineMateria
 		Where("ci_pipeline_material.active = ?", true).
 		Select()
 	return ciPipelineMaterial, err
+}
+
+func (impl CiPipelineMaterialRepositoryImpl) GetByIdsIncludeDeleted(ids []int) ([]*CiPipelineMaterial, error) {
+	var ciPipelineMaterials []*CiPipelineMaterial
+	if len(ids) == 0 {
+		return ciPipelineMaterials, nil
+	}
+	err := impl.dbConnection.Model(&ciPipelineMaterials).
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
+		Where("ci_pipeline_material.id in (?)", pg.In(ids)).
+		Select()
+	return ciPipelineMaterials, err
 }
 
 func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipelineMaterial, error) {
