@@ -12,7 +12,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("valid release tags list", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		releaseTags := []string{"tag1", "latest"}
-		params := celService.GetParamsFromArtifact(artifact, releaseTags)
+		params := getParamsFromArtifact(artifact, releaseTags)
 
 		evalReq := CELRequest{
 			Expression: "'latest' in releaseTags",
@@ -28,7 +28,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("empty release tags list", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		releaseTags := []string{}
-		params := celService.GetParamsFromArtifact(artifact, releaseTags)
+		params := getParamsFromArtifact(artifact, releaseTags)
 
 		evalReq := CELRequest{
 			Expression: "'latest' in releaseTags",
@@ -44,7 +44,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("nil release tags list", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		var releaseTags []string
-		params := celService.GetParamsFromArtifact(artifact, releaseTags)
+		params := getParamsFromArtifact(artifact, releaseTags)
 
 		evalReq := CELRequest{
 			Expression: "'latest' in releaseTags",

@@ -95,18 +95,14 @@ func (repo *ResourceFilterRepositoryImpl) UpdateFilter(tx *pg.Tx, filter *Resour
 		repo.logger.Errorw("error in updating resource filter", "filter", filter, "err", err)
 		return err
 	}
+
 	action := Update
-	filterAudit := &ResourceFilterAudit{
-		FilterId:     filter.Id,
-		Conditions:   filter.ConditionExpression,
-		TargetObject: filter.TargetObject,
-		AuditLog: sql.AuditLog{
-			CreatedOn: filter.CreatedOn,
-			CreatedBy: filter.CreatedBy,
-		},
-		Action: &action,
+	if *filter.Deleted {
+		action = Delete
 	}
-	_, err = repo.filterAuditRepo.CreateResourceFilterAudit(tx, filterAudit)
+
+	filterAudit := NewResourceFilterAudit(filter.Id, filter.ConditionExpression, filter.TargetObject, &action, filter.CreatedBy)
+	_, err = repo.filterAuditRepo.CreateResourceFilterAudit(tx, &filterAudit)
 	if err != nil {
 		repo.logger.Errorw("error in creating resource filter audit", "filter", filter, "err", err)
 		return err

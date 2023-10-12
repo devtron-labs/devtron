@@ -595,26 +595,19 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	//get releaseTags from imageTaggingService
-	imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(artifact.Id)
+	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
 		return err
 	}
-	releaseTags := make([]string, 0, len(imageTags))
-	for _, imageTag := range imageTags {
-		releaseTags = append(releaseTags, imageTag.TagName)
-	}
-	params := impl.celService.GetParamsFromArtifact(artifact.Image, releaseTags)
-	metadata := resourceFilter.ExpressionMetadata{
-		Params: params,
-	}
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
+
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
 	if err != nil {
 		return err
 	}
 
 	//store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, []int{artifact.Id}, resourceFilter.PipelineStage, preStage.Id, filters, filterIdVsState)
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, resourceFilter.PipelineStage, preStage.Id, filters, filterIdVsState)
 	if err != nil {
 		impl.logger.Errorw("error in creating filter evaluation audit data cd pre stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "preStageId", preStage.Id)
 		return err
@@ -836,27 +829,19 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		}
 	}
 	//get releaseTags from imageTaggingService
-	imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(cdWf.CiArtifactId)
+	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(cdWf.CiArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", cdWf.CiArtifactId, "err", err)
 		return err
 	}
-	releaseTags := make([]string, 0, len(imageTags))
-	for _, imageTag := range imageTags {
-		releaseTags = append(releaseTags, imageTag.TagName)
-	}
-	params := impl.celService.GetParamsFromArtifact(cdWf.CiArtifact.Image, releaseTags)
-	metadata := resourceFilter.ExpressionMetadata{
-		Params: params,
-	}
 
 	//evaluate filters
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, cdWf.CiArtifact.Image, imageTagNames)
 	if err != nil {
 		return err
 	}
 	//store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, []int{cdWf.CiArtifact.Id}, resourceFilter.PipelineStage, postStage.Id, filters, filterIdVsState)
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, cdWf.CiArtifact.Id, resourceFilter.PipelineStage, postStage.Id, filters, filterIdVsState)
 	if err != nil {
 		impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", cdWf.CiArtifact.Id)
 		return err
@@ -1623,7 +1608,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		impl.logger.Errorw("error while fetching env", "err", err)
 		return err
 	}
-	// Todo - optimize
+
 	app, err := impl.appRepository.FindById(pipeline.AppId)
 	if err != nil {
 		return err
@@ -1636,26 +1621,19 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		return err
 	}
 	//get releaseTags from imageTaggingService
-	imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(artifact.Id)
+	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
 		return err
 	}
-	releaseTags := make([]string, 0, len(imageTags))
-	for _, imageTag := range imageTags {
-		releaseTags = append(releaseTags, imageTag.TagName)
-	}
-	params := impl.celService.GetParamsFromArtifact(artifact.Image, releaseTags)
-	metadata := resourceFilter.ExpressionMetadata{
-		Params: params,
-	}
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
+
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
 	if err != nil {
 		return err
 	}
 
 	//store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, []int{artifact.Id}, resourceFilter.Pipeline, pipeline.Id, filters, filterIdVsState)
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, resourceFilter.Pipeline, pipeline.Id, filters, filterIdVsState)
 	if err != nil {
 		impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
 		return err
@@ -2205,27 +2183,19 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 
 		//get releaseTags from imageTaggingService
-		imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(artifact.Id)
+		imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
 		if err != nil {
 			impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
 			return 0, "", err
 		}
-		releaseTags := make([]string, 0, len(imageTags))
-		for _, imageTag := range imageTags {
-			releaseTags = append(releaseTags, imageTag.TagName)
-		}
 
-		params := impl.celService.GetParamsFromArtifact(artifact.Image, releaseTags)
-		metadata := resourceFilter.ExpressionMetadata{
-			Params: params,
-		}
-		filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, metadata)
+		filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
 		if err != nil {
 			return 0, "", err
 		}
 
 		//store evaluated result
-		filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, []int{ciArtifactId}, resourceFilter.Pipeline, cdPipeline.Id, filters, filterIdVsState)
+		filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, ciArtifactId, resourceFilter.Pipeline, cdPipeline.Id, filters, filterIdVsState)
 		if err != nil {
 			impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", cdPipeline.Id, "artifactId", ciArtifactId)
 			return 0, "", err

@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "public"."resource_filter_evaluation_audit"
     "reference_id"             integer   NOT NULL,
     "filter_history_objects"   text      NOT NULL,
     "subject_type"             int       NOT NULL,
-    "subject_ids"              text      NOT NULL,
+    "subject_id"               int       NOT NULL,
     "created_on"               timestamptz,
     "created_by"               integer,
     "updated_on"               timestamptz,

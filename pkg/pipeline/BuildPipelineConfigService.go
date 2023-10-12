@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -1932,11 +1931,7 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 			releaseTags = append(releaseTags, imageTag.TagName)
 		}
 
-		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image, releaseTags)
-		metadata := resourceFilter.ExpressionMetadata{
-			Params: params,
-		}
-		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, metadata)
+		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags)
 		if err != nil {
 			return ciArtifactsResponse, err
 		}
@@ -2070,11 +2065,7 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, o
 			releaseTags = append(releaseTags, imageTag.TagName)
 		}
 
-		params := impl.celService.GetParamsFromArtifact(deployedCiArtifacts[i].Image, releaseTags)
-		metadata := resourceFilter.ExpressionMetadata{
-			Params: params,
-		}
-		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, metadata)
+		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, deployedCiArtifacts[i].Image, releaseTags)
 		if err != nil {
 			return deployedCiArtifactsResponse, err
 		}

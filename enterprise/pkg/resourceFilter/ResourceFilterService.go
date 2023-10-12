@@ -26,10 +26,10 @@ type ResourceFilterService interface {
 	DeleteFilter(userId int32, id int) error
 
 	GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error)
-	CheckForResource(filters []*FilterMetaDataBean, metadata ExpressionMetadata) (FilterState, map[int]FilterState, error)
+	CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string) (FilterState, map[int]FilterState, error)
 
 	//filter evaluation audit
-	CreateFilterEvaluationAudit(subjectType SubjectType, subjectIds []int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
+	CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
 }
 
@@ -347,11 +347,12 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 	return nil
 }
 
-func (impl *ResourceFilterServiceImpl) CheckForResource(filters []*FilterMetaDataBean, metadata ExpressionMetadata) (FilterState, map[int]FilterState, error) {
+func (impl *ResourceFilterServiceImpl) CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string) (FilterState, map[int]FilterState, error) {
+	params := getParamsFromArtifact(artifactImage, imageLabels)
 	filterIdVsState := make(map[int]FilterState)
 	finalState := ALLOW
 	for _, filter := range filters {
-		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, metadata)
+		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, ExpressionMetadata{Params: params})
 		if err != nil {
 			finalState = ERROR
 			filterIdVsState[filter.Id] = ERROR
@@ -717,8 +718,8 @@ func (impl *ResourceFilterServiceImpl) fetchAppsAndEnvs(appIds []int, envIds []i
 	return apps, envs, nil
 }
 
-func (impl *ResourceFilterServiceImpl) CreateFilterEvaluationAudit(subjectType SubjectType, subjectIds []int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
-	return impl.resourceFilterEvaluationAuditService.CreateFilterEvaluation(subjectType, subjectIds, refType, refId, filters, filterIdVsState)
+func (impl *ResourceFilterServiceImpl) CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
+	return impl.resourceFilterEvaluationAuditService.CreateFilterEvaluation(subjectType, subjectId, refType, refId, filters, filterIdVsState)
 }
 
 func (impl *ResourceFilterServiceImpl) UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error {

@@ -2,7 +2,6 @@ package resourceFilter
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
 	"time"
@@ -15,7 +14,7 @@ type FilterHistoryObject struct {
 }
 
 type FilterEvaluationAuditService interface {
-	CreateFilterEvaluation(subjectType SubjectType, subjectIds []int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
+	CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
 	GetFilterEvaluationAudits()
 }
@@ -36,31 +35,26 @@ func NewFilterEvaluationAuditServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType SubjectType, subjectIds []int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
+func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
 	filterHistoryObjectsStr, err := impl.extractFilterHistoryObjects(filters, filterIdVsState)
 	if err != nil {
 		impl.logger.Errorw("error in extracting filter history objects", "err", err, "filters", filters, "filterIdVsState", filterIdVsState)
 		return nil, err
 	}
+
 	currentTime := time.Now()
-	filterEvaluationAudit := &ResourceFilterEvaluationAudit{
-		SubjectType:   &subjectType,
-		SubjectIds:    helper.GetCommaSepratedString(subjectIds),
-		ReferenceType: &refType,
-		ReferenceId:   refId,
-		AuditLog: sql.AuditLog{
-			CreatedOn: currentTime,
-			UpdatedOn: currentTime,
-			//TODO: created or updated by
-		},
-		FilterHistoryObjects: filterHistoryObjectsStr,
+	auditLog := sql.AuditLog{
+		CreatedOn: currentTime,
+		UpdatedOn: currentTime,
 	}
-	filterEvaluationAudit, err = impl.filterEvaluationAuditRepo.Create(filterEvaluationAudit)
+
+	filterEvaluationAudit := NewResourceFilterEvaluationAudit(&refType, refId, filterHistoryObjectsStr, &subjectType, subjectId, auditLog)
+	savedFilterEvaluationAudit, err := impl.filterEvaluationAuditRepo.Create(&filterEvaluationAudit)
 	if err != nil {
 		impl.logger.Errorw("error in saving resource filter evaluation result in resource_filter_evaluation_audit table", "err", err, "filterEvaluationAudit", filterEvaluationAudit)
-		return filterEvaluationAudit, err
+		return savedFilterEvaluationAudit, err
 	}
-	return filterEvaluationAudit, nil
+	return savedFilterEvaluationAudit, nil
 }
 
 func (impl *FilterEvaluationAuditServiceImpl) UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error {
@@ -91,10 +85,9 @@ func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filter
 		impl.logger.Errorw("error in getting latest resource filter audits for given filter id's", "filterIds", filterIds, "err", err)
 		return "", err
 	}
-
+	//if history doesn't exist for some filters , create history and proceed
 	for _, resourceFilterEvaluationAudit := range resourceFilterEvaluationAudits {
-		filterHistoryObject := filterHistoryObjectMap[resourceFilterEvaluationAudit.FilterId]
-		if filterHistoryObject != nil {
+		if filterHistoryObject, ok := filterHistoryObjectMap[resourceFilterEvaluationAudit.FilterId]; ok {
 			filterHistoryObject.FilterHistoryId = resourceFilterEvaluationAudit.Id
 		}
 	}

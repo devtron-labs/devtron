@@ -4,12 +4,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type ActionType int
 
 const Create ActionType = 0
 const Update ActionType = 1
+const Delete ActionType = 2
 
 type ResourceFilterAudit struct {
 	tableName    struct{}            `sql:"resource_filter_audit" pg:",discard_unknown_columns"`
@@ -19,6 +21,22 @@ type ResourceFilterAudit struct {
 	TargetObject *FilterTargetObject `sql:"target_object"`
 	Action       *ActionType         `sql:"action"`
 	sql.AuditLog
+}
+
+func NewResourceFilterAudit(filterId int,
+	conditions string,
+	targetObject *FilterTargetObject,
+	action *ActionType, userId int32) ResourceFilterAudit {
+	return ResourceFilterAudit{
+		FilterId:     filterId,
+		Conditions:   conditions,
+		TargetObject: targetObject,
+		AuditLog: sql.AuditLog{
+			CreatedOn: time.Now(),
+			CreatedBy: userId,
+		},
+		Action: action,
+	}
 }
 
 type FilterAuditRepository interface {
