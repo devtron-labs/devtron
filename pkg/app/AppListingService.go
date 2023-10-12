@@ -1736,10 +1736,8 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		return envs, err
 	}
 	for _, env := range envs {
-		if len(overrideChartRefIds) != 0 {
-			if overrideChartRefIds[env.EnvironmentId] != 0 {
-				env.ChartRefId = overrideChartRefIds[env.EnvironmentId]
-			}
+		if len(overrideChartRefIds) != 0 && overrideChartRefIds[env.EnvironmentId] != 0 {
+			env.ChartRefId = overrideChartRefIds[env.EnvironmentId]
 		} else {
 			env.ChartRefId = chartRefId
 		}
