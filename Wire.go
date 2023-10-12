@@ -222,11 +222,10 @@ func InitializeApp() (*App, error) {
 
 		pipeline.GetDeploymentServiceTypeConfig,
 		pipeline.NewBuildPipelineConfigServiceImpl,
-		//wire.Bind(new(pipeline.CiManagerService), new(*pipeline.BuildPipelineConfigServiceImpl)),
+		wire.Bind(new(pipeline.AppArtifactManager), new(*pipeline.BuildPipelineConfigServiceImpl)),
 		pipeline.NewDeploymentPipelineConfigServiceImpl,
-		//wire.Bind(new(pipeline.CdManagerService), new(*pipeline.DeploymentPipelineConfigServiceImpl)),
 		pipeline.NewAppConfigServiceImpl,
-		//wire.Bind(new(pipeline.AppConfigService), new(*pipeline.AppConfigServiceImpl)),
+		wire.Bind(new(pipeline.CiMaterialConfigService), new(*pipeline.BuildPipelineConfigServiceImpl)),
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
 		util5.NewLoggingMiddlewareImpl,
@@ -855,8 +854,6 @@ func InitializeApp() (*App, error) {
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 
-		chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
-		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
 		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
 

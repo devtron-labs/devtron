@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -176,7 +177,15 @@ func NewBuildPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	resourceGroupService resourceGroup2.ResourceGroupService,
 	imageTaggingService ImageTaggingService,
+	attributesService attributes.AttributesService,
+	pipelineStageService PipelineStageService,
+	enforcerUtil rbac.EnforcerUtil,
 ) *BuildPipelineConfigServiceImpl {
+	securityConfig := &SecurityConfig{}
+	err := env.Parse(securityConfig)
+	if err != nil {
+		logger.Errorw("error in parsing securityConfig,setting  ForceSecurityScanning to default value", "defaultValue", securityConfig.ForceSecurityScanning, "err", err)
+	}
 
 	return &BuildPipelineConfigServiceImpl{
 		logger:                        logger,
@@ -199,6 +208,10 @@ func NewBuildPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		ciWorkflowRepository:          ciWorkflowRepository,
 		resourceGroupService:          resourceGroupService,
 		imageTaggingService:           imageTaggingService,
+		attributesService:             attributesService,
+		pipelineStageService:          pipelineStageService,
+		enforcerUtil:                  enforcerUtil,
+		securityConfig:                securityConfig,
 	}
 }
 
@@ -2603,5 +2616,3 @@ func (impl *BuildPipelineConfigServiceImpl) RetrieveParentDetails(pipelineId int
 
 	return workflow.ParentId, bean2.CI_WORKFLOW_TYPE, nil
 }
-
-//need to discuss with someOne this

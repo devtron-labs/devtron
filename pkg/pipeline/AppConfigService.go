@@ -60,8 +60,7 @@ type AppConfigServiceImpl struct {
 	pipelineRepository       pipelineConfig.PipelineRepository
 	enforcerUtil             rbac.EnforcerUtil
 	resourceGroupService     resourceGroup2.ResourceGroupService
-	//ciMaterialConfigService  CiMaterialConfigService
-	buildPipelineConfigServiceImpl *BuildPipelineConfigServiceImpl
+	ciMaterialConfigService  CiMaterialConfigService
 }
 
 func NewAppConfigServiceImpl(
@@ -71,8 +70,7 @@ func NewAppConfigServiceImpl(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil,
 	resourceGroupService resourceGroup2.ResourceGroupService,
-	//ciMaterialConfigService CiMaterialConfigService,
-	buildPipelineConfigServiceImpl *BuildPipelineConfigServiceImpl,
+	ciMaterialConfigService CiMaterialConfigService,
 ) *AppConfigServiceImpl {
 
 	return &AppConfigServiceImpl{
@@ -82,8 +80,7 @@ func NewAppConfigServiceImpl(
 		pipelineRepository:       pipelineRepository,
 		enforcerUtil:             enforcerUtil,
 		resourceGroupService:     resourceGroupService,
-		//ciMaterialConfigService:  ciMaterialConfigService,
-		buildPipelineConfigServiceImpl: buildPipelineConfigServiceImpl,
+		ciMaterialConfigService:  ciMaterialConfigService,
 	}
 }
 func (impl *AppConfigServiceImpl) CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
@@ -117,7 +114,7 @@ func (impl *AppConfigServiceImpl) GetApp(appId int) (application *bean.CreateApp
 	if app.AppType == helper.ChartStoreApp {
 		return application, nil
 	}
-	gitMaterials := impl.buildPipelineConfigServiceImpl.GetMaterialsForAppId(appId)
+	gitMaterials := impl.ciMaterialConfigService.GetMaterialsForAppId(appId)
 	application.Material = gitMaterials
 	if app.AppType == helper.Job {
 		app.AppName = app.DisplayName

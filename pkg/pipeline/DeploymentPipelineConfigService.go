@@ -164,7 +164,7 @@ type DeploymentPipelineConfigServiceImpl struct {
 	attributesRepository                            repository3.AttributesRepository
 	variableEntityMappingService                    variables.VariableEntityMappingService
 	variableTemplateParser                          parsers.VariableTemplateParser
-	buildPipelineConfigServiceImpl                  *BuildPipelineConfigServiceImpl
+	appArtifactManager                              AppArtifactManager
 }
 
 func NewDeploymentPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -173,7 +173,6 @@ func NewDeploymentPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	pipelineGroupRepo app.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	propertiesConfigService PropertiesConfigService,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	application application.ServiceClient,
 	chartRepository chartRepoRepository.ChartRepository,
@@ -199,43 +198,42 @@ func NewDeploymentPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	attributesRepository repository3.AttributesRepository,
 	variableEntityMappingService variables.VariableEntityMappingService,
 	variableTemplateParser parsers.VariableTemplateParser,
-	buildPipelineConfigServiceImpl *BuildPipelineConfigServiceImpl) *DeploymentPipelineConfigServiceImpl {
+	appArtifactManager AppArtifactManager) *DeploymentPipelineConfigServiceImpl {
 
 	return &DeploymentPipelineConfigServiceImpl{
-		logger:                   logger,
-		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
-		appService:               appService,
-		appRepo:                  pipelineGroupRepo,
-		pipelineRepository:       pipelineRepository,
-		propertiesConfigService:  propertiesConfigService,
-		//ciTemplateRepository:             ciTemplateRepository,
-		ciPipelineRepository:                            ciPipelineRepository,
-		application:                                     application,
-		chartRepository:                                 chartRepository,
-		environmentRepository:                           environmentRepository,
-		clusterRepository:                               clusterRepository,
-		pipelineConfigRepository:                        pipelineConfigRepository,
-		appWorkflowRepository:                           appWorkflowRepository,
-		gitOpsRepository:                                gitOpsRepository,
-		pipelineStrategyHistoryService:                  pipelineStrategyHistoryService,
-		prePostCdScriptHistoryService:                   prePostCdScriptHistoryService,
-		deploymentTemplateHistoryService:                deploymentTemplateHistoryService,
-		appLevelMetricsRepository:                       appLevelMetricsRepository,
-		pipelineStageService:                            pipelineStageService,
-		chartTemplateService:                            chartTemplateService,
-		helmAppService:                                  helmAppService,
-		deploymentGroupRepository:                       deploymentGroupRepository,
+		logger:                           logger,
+		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
+		appService:                       appService,
+		appRepo:                          pipelineGroupRepo,
+		pipelineRepository:               pipelineRepository,
+		propertiesConfigService:          propertiesConfigService,
+		ciPipelineRepository:             ciPipelineRepository,
+		application:                      application,
+		chartRepository:                  chartRepository,
+		environmentRepository:            environmentRepository,
+		clusterRepository:                clusterRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		appWorkflowRepository:            appWorkflowRepository,
+		gitOpsRepository:                 gitOpsRepository,
+		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
+		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
+		pipelineStageService:             pipelineStageService,
+		chartTemplateService:             chartTemplateService,
+		helmAppService:                   helmAppService,
+		deploymentGroupRepository:        deploymentGroupRepository,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
-		deploymentConfig:                                deploymentConfig,
-		appStatusRepository:                             appStatusRepository,
-		workflowDagExecutor:                             workflowDagExecutor,
-		enforcerUtil:                                    enforcerUtil,
-		resourceGroupService:                            resourceGroupService,
-		chartDeploymentService:                          chartDeploymentService,
-		attributesRepository:                            attributesRepository,
-		variableEntityMappingService:                    variableEntityMappingService,
-		variableTemplateParser:                          variableTemplateParser,
-		buildPipelineConfigServiceImpl:                  buildPipelineConfigServiceImpl,
+		deploymentConfig:             deploymentConfig,
+		appStatusRepository:          appStatusRepository,
+		workflowDagExecutor:          workflowDagExecutor,
+		enforcerUtil:                 enforcerUtil,
+		resourceGroupService:         resourceGroupService,
+		chartDeploymentService:       chartDeploymentService,
+		attributesRepository:         attributesRepository,
+		variableEntityMappingService: variableEntityMappingService,
+		variableTemplateParser:       variableTemplateParser,
+		appArtifactManager:           appArtifactManager,
 	}
 }
 
@@ -1025,39 +1023,6 @@ func (impl *DeploymentPipelineConfigServiceImpl) FindAppAndEnvDetailsByPipelineI
 	return impl.pipelineRepository.FindAppAndEnvDetailsByPipelineId(cdPipelineId)
 }
 
-//func (impl *DeploymentPipelineConfigServiceImpl) RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error) {
-//
-//	workflow, err := impl.appWorkflowRepository.GetParentDetailsByPipelineId(pipelineId)
-//	if err != nil {
-//		impl.logger.Errorw("failed to get parent component details",
-//			"componentId", pipelineId,
-//			"err", err)
-//		return 0, "", err
-//	}
-//
-//	if workflow.ParentType == appWorkflow.CDPIPELINE {
-//		// workflow is of type CD, check for stage
-//		parentPipeline, err := impl.pipelineRepository.GetPostStageConfigById(workflow.ParentId)
-//		if err != nil {
-//			impl.logger.Errorw("failed to get the post_stage_config_yaml",
-//				"cdPipelineId", workflow.ParentId,
-//				"err", err)
-//			return 0, "", err
-//		}
-//
-//		if len(parentPipeline.PostStageConfig) == 0 {
-//			return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
-//		}
-//		return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_POST, nil
-//
-//	} else if workflow.ParentType == appWorkflow.WEBHOOK {
-//		// For webhook type
-//		return workflow.ParentId, bean2.WEBHOOK_WORKFLOW_TYPE, nil
-//	}
-//
-//	return workflow.ParentId, bean2.CI_WORKFLOW_TYPE, nil
-//}
-
 func (impl *DeploymentPipelineConfigServiceImpl) GetEnvironmentByCdPipelineId(pipelineId int) (int, error) {
 	dbPipeline, err := impl.pipelineRepository.FindById(pipelineId)
 	if err != nil || dbPipeline == nil {
@@ -1453,7 +1418,7 @@ func (impl *DeploymentPipelineConfigServiceImpl) ChangeDeploymentType(ctx contex
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.buildPipelineConfigServiceImpl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
+		artifactDetails, err := impl.appArtifactManager.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
 
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
@@ -1629,7 +1594,7 @@ func (impl *DeploymentPipelineConfigServiceImpl) TriggerDeploymentAfterTypeChang
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.buildPipelineConfigServiceImpl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
+		artifactDetails, err := impl.appArtifactManager.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
 
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
