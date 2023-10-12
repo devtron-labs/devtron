@@ -1,7 +1,6 @@
 package resourceFilter
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -71,7 +70,7 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetByRefAndSubject(referenceTyp
 		Where("reference_type = ?", referenceType).
 		Where("reference_id = ?", referenceId).
 		Where("subject_type = ?", subjectType).
-		Where("subject_ids = ?", helper.GetCommaSepratedString(subjectIds)).
+		Where("subject_ids = ?", pg.In(subjectIds)).
 		Select()
 	return res, err
 }
