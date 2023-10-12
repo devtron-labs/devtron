@@ -1291,6 +1291,15 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			return nil, err
 		}
 
+		_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+		env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("unable to find env", "err", err)
+			return nil, err
+		}
+		envOverride.Environment = env
+
 		//updating historical data in envConfigOverride and appMetrics flag
 		envOverride.IsOverride = true
 		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
