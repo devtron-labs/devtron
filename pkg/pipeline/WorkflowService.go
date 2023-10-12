@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -32,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"go.uber.org/zap"
 	"io/ioutil"
 	v12 "k8s.io/api/core/v1"
@@ -111,8 +111,8 @@ const (
 	CI_NODE_PVC_PIPELINE_PREFIX    = "devtron.ai/ci-pvc"
 	PRE                            = "PRE"
 	POST                           = "POST"
- preCdStage = "preCD"
- postCdStage = "postCD"
+	preCdStage                     = "preCD"
+	postCdStage                    = "postCD"
 )
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, string, error) {
