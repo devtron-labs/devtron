@@ -147,8 +147,9 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *Workflo
 
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate)
-
-	impl.getAppLabelNodeSelector(&workflowTemplate, workflowRequest)
+	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
+		impl.getAppLabelNodeSelector(&workflowTemplate, workflowRequest)
+	}
 	if workflowRequest.Type == bean3.CD_WORKFLOW_PIPELINE_TYPE {
 		workflowTemplate.WfControllerInstanceID = impl.ciCdConfig.WfControllerInstanceID
 		workflowTemplate.TerminationGracePeriod = impl.ciCdConfig.TerminationGracePeriod

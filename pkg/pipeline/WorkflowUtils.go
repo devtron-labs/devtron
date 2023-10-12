@@ -710,32 +710,31 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 			Name:          "app-data",
 			ContainerPort: 9102,
 		}}
-	}
+		volumeMountsForCiJson := config.VolumeMountsForCiJson
+		if len(volumeMountsForCiJson) > 0 {
+			var volumeMountsForCi []CiVolumeMount
+			// Unmarshal or Decode the JSON to the interface.
+			err := json.Unmarshal([]byte(volumeMountsForCiJson), &volumeMountsForCi)
+			if err != nil {
+				return workflowMainContainer, err
+			}
 
-	volumeMountsForCiJson := config.VolumeMountsForCiJson
-	if len(volumeMountsForCiJson) > 0 {
-		var volumeMountsForCi []CiVolumeMount
-		// Unmarshal or Decode the JSON to the interface.
-		err := json.Unmarshal([]byte(volumeMountsForCiJson), &volumeMountsForCi)
-		if err != nil {
-			return workflowMainContainer, err
-		}
-
-		for _, volumeMountsForCi := range volumeMountsForCi {
-			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
-			workflowTemplate.Volumes = append(workflowTemplate.Volumes, v12.Volume{
-				Name: volumeMountsForCi.Name,
-				VolumeSource: v12.VolumeSource{
-					HostPath: &v12.HostPathVolumeSource{
-						Path: volumeMountsForCi.HostMountPath,
-						Type: &hostPathDirectoryOrCreate,
+			for _, volumeMountsForCi := range volumeMountsForCi {
+				hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+				workflowTemplate.Volumes = append(workflowTemplate.Volumes, v12.Volume{
+					Name: volumeMountsForCi.Name,
+					VolumeSource: v12.VolumeSource{
+						HostPath: &v12.HostPathVolumeSource{
+							Path: volumeMountsForCi.HostMountPath,
+							Type: &hostPathDirectoryOrCreate,
+						},
 					},
-				},
-			})
-			workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
-				Name:      volumeMountsForCi.Name,
-				MountPath: volumeMountsForCi.ContainerMountPath,
-			})
+				})
+				workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
+					Name:      volumeMountsForCi.Name,
+					MountPath: volumeMountsForCi.ContainerMountPath,
+				})
+			}
 		}
 	}
 
