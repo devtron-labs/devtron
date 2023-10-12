@@ -1,6 +1,7 @@
 package resourceFilter
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -64,6 +65,6 @@ func (repo *FilterAuditRepositoryImpl) GetLatestResourceFilterAuditByFilterIds(f
 		"resource_filter_audit " +
 		"WHERE filter_id in (?) " +
 		"GROUP BY filter_id"
-	_, err := repo.dbConnection.Query(&res, query, filterIds)
+	_, err := repo.dbConnection.Query(&res, query, helper.GetCommaSepratedString(filterIds))
 	return res, err
 }
