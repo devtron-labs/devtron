@@ -337,7 +337,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		return scopedVariableDataObj, nil
 	}
 
-	// Need to get from repo for isSensitive even if cache is loaded since cache only contains metadata
+	// Cache is not loaded
 	if allVariableDefinitions == nil {
 		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
 
@@ -357,18 +357,24 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 	}
 
 	variableIds := make([]int, 0)
-	variableIdToDefinition := make(map[int]*repository2.VariableDefinition)
+	//variableIdToDefinition := make(map[int]*repository2.VariableDefinition)
 	for _, definition := range variableDefinitions {
 		variableIds = append(variableIds, definition.Id)
-		variableIdToDefinition[definition.Id] = definition
+		//variableIdToDefinition[definition.Id] = definition
 	}
-
 	// This to prevent corner case where no variables were found for the provided names
 	if len(varNames) > 0 && len(variableIds) == 0 {
 		return scopedVariableDataObj, nil
 	}
 
-	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, &scope, variableIds)
+	allVariableIds := make([]int, 0)
+	variableIdToDefinition := make(map[int]*repository2.VariableDefinition)
+	for _, definition := range allVariableDefinitions {
+		allVariableIds = append(allVariableIds, definition.Id)
+		variableIdToDefinition[definition.Id] = definition
+	}
+
+	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, &scope, allVariableIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting varScope", "err", err)
 		return nil, err
@@ -421,20 +427,30 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
 	}
 
+	allScopedVariableDataObj := scopedVariableDataObj
+	usedScopedVariableDataObj := make([]*models.ScopedVariableData, 0)
+	for _, data := range scopedVariableDataObj {
+		if slices.Contains(varNames, data.VariableName) {
+			usedScopedVariableDataObj = append(usedScopedVariableDataObj, data)
+		}
+	}
+
 	//adding variable def for variables which don't have any scoped data defined
 	// This only happens when passed var names is null (called from UI to get all variables with or without data)
 	if varNames == nil {
 		for _, definition := range allVariableDefinitions {
 			if !slices.Contains(foundVarIds, definition.Id) {
-				scopedVariableDataObj = append(scopedVariableDataObj, &models.ScopedVariableData{
+				usedScopedVariableDataObj = append(usedScopedVariableDataObj, &models.ScopedVariableData{
 					VariableName:     definition.Name,
 					ShortDescription: definition.ShortDescription,
 				})
 			}
 		}
 	}
-	impl.deduceVariables(scopedVariableDataObj, allSystemVariables)
-	return scopedVariableDataObj, err
+
+	allScopedVariableDataObj = append(allScopedVariableDataObj, allSystemVariables...)
+	impl.deduceVariables(usedScopedVariableDataObj, allScopedVariableDataObj)
+	return usedScopedVariableDataObj, err
 }
 
 func isStringType(val interface{}) bool {
