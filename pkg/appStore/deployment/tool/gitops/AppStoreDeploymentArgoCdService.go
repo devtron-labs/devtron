@@ -59,6 +59,12 @@ type AppStoreDeploymentArgoCdService interface {
 	RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error
 }
 
+//// Need to refactor, done because in ea mode AppStoreDeploymentArgoCdService is bind to AppStoreDeploymentHelmServiceImpl
+//type AppStoreDeploymentACD interface {
+//	AppStoreDeploymentArgoCdService
+//	RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error
+//}
+
 type AppStoreDeploymentArgoCdServiceImpl struct {
 	Logger                               *zap.SugaredLogger
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService

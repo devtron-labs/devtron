@@ -473,3 +473,9 @@ func (impl *AppStoreDeploymentHelmServiceImpl) SaveTimelineForACDHelmApps(instal
 func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
 	return nil
 }
+
+// This is being done as in ea mode wire argocd service is being binded to helmServiceImpl due to which we are restricted to implement this here.
+// RefreshAndUpdateACDApp this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
+func (impl *AppStoreDeploymentHelmServiceImpl) RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error {
+	return nil
+}
