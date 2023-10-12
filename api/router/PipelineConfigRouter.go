@@ -110,6 +110,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/refresh-material/{gitMaterialId}").HandlerFunc(router.restHandler.RefreshMaterials).Methods("GET")
 
 	configRouter.Path("/{appId}/ci-pipeline/{pipelineId}/workflow/{workflowId}").HandlerFunc(router.restHandler.FetchWorkflowDetails).Methods("GET")
+	configRouter.Path("/ci-pipeline/{pipelineId}/workflow/{workflowId}/ci-job/artifacts").HandlerFunc(router.restHandler.GetArtifactsForCiJob).Methods("GET")
 	configRouter.Path("/ci-pipeline/{pipelineId}/artifacts/{workflowId}").HandlerFunc(router.restHandler.DownloadCiWorkflowArtifacts).Methods("GET")
 
 	configRouter.Path("/ci-pipeline/{pipelineId}/git-changes/{ciMaterialId}").HandlerFunc(router.restHandler.FetchChanges).Methods("GET")

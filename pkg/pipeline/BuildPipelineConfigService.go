@@ -848,6 +848,39 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	}
 
 	originalCiConf.CiBuildConfig = ciBuildConfig
+	//TODO: below update code is a hack for ci_job and should be reviewed
+
+	// updating ci_template_override for ci_pipeline type = CI_JOB because for this pipeling ci_template and ci_template_override are kept same as
+	pipelines, err := impl.ciPipelineRepository.FindByAppId(originalCiConf.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in finding pipeline for app")
+	}
+	ciPipelineIds := make([]int, 0)
+	ciPipelineIdsMap := make(map[int]*pipelineConfig.CiPipeline)
+	for ind, p := range pipelines {
+		ciPipelineIds[ind] = p.Id
+		ciPipelineIdsMap[p.Id] = p
+	}
+	var ciTemplateOverrides []*pipelineConfig.CiTemplateOverride
+	if len(ciPipelineIds) > 0 {
+		ciTemplateOverrides, err = impl.ciTemplateOverrideRepository.FindByCiPipelineIds(ciPipelineIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching ci tempalate by pipeline ids", "err", err, "ciPipelineIds", ciPipelineIds)
+		}
+	}
+	for _, ciTemplateOverride := range ciTemplateOverrides {
+		if _, ok := ciPipelineIdsMap[ciTemplateOverride.CiPipelineId]; ok {
+			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(bean.CI_JOB) {
+				ciTemplateOverride.DockerRepository = updateRequest.DockerRepository
+				ciTemplateOverride.DockerRegistryId = updateRequest.DockerRegistry
+				_, err = impl.ciTemplateOverrideRepository.Update(ciTemplateOverride)
+				if err != nil {
+					impl.logger.Errorw("error in updating ci template for ci_job", "err", err)
+				}
+			}
+		}
+	}
+	// update completed for ci_pipeline_type = ci_job
 
 	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean, "update")
 
