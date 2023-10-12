@@ -11,7 +11,7 @@ INSERT INTO "plugin_stage_mapping" ("plugin_id","stage_type","created_on", "crea
 VALUES ((SELECT id FROM plugin_metadata WHERE name='Jenkins'),0,'now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_pipeline_script" ("id","type","mount_directory_from_host","container_image_path","deleted","created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_pipeline_script'),'CONTAINER_IMAGE','t','quay.io/devtron/jenkins-plugin:87fd8ec9-549-16856','f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_pipeline_script'),'CONTAINER_IMAGE','t','quay.io/devtron/jenkins-plugin:1fc6bfda-549-18503','f','now()',1,'now()',1);
 
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Jenkins'),'Step 1','Step 1 - Triggering Jenkins Job','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
