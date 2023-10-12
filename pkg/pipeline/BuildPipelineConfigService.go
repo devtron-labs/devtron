@@ -819,7 +819,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	if len(ciPipelineIds) > 0 {
 		ciTemplateOverrides, err = impl.ciTemplateOverrideRepository.FindByCiPipelineIds(ciPipelineIds)
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching ci tempalate by pipeline ids")
+			impl.logger.Errorw("error in fetching ci tempalate by pipeline ids", "err", err, "ciPipelineIds", ciPipelineIds)
 		}
 	}
 	for _, ciTemplateOverride := range ciTemplateOverrides {
@@ -829,7 +829,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 				ciTemplateOverride.DockerRegistryId = updateRequest.DockerRegistry
 				_, err = impl.ciTemplateOverrideRepository.Update(ciTemplateOverride)
 				if err != nil {
-					impl.logger.Errorw("error in updating ci template for ci_job")
+					impl.logger.Errorw("error in updating ci template for ci_job", "err", err)
 				}
 			}
 		}
