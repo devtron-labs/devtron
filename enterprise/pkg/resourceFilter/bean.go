@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"strings"
 	"time"
 )
 
@@ -251,6 +252,39 @@ type ExpressionParam struct {
 	ParamName string          `json:"paramName"`
 	Value     interface{}     `json:"value"`
 	Type      ParamValuesType `json:"type"`
+}
+
+func getParamsFromArtifact(artifact string, imageLabels []string) []ExpressionParam {
+
+	lastColonIndex := strings.LastIndex(artifact, ":")
+
+	containerRepository := artifact[:lastColonIndex]
+	containerImageTag := artifact[lastColonIndex+1:]
+	containerImage := artifact
+	params := []ExpressionParam{
+		{
+			ParamName: "containerRepository",
+			Value:     containerRepository,
+			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "containerImage",
+			Value:     containerImage,
+			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "containerImageTag",
+			Value:     containerImageTag,
+			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "imageLabels",
+			Value:     imageLabels,
+			Type:      ParamTypeList,
+		},
+	}
+
+	return params
 }
 
 type ExpressionMetadata struct {

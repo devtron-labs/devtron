@@ -6,13 +6,11 @@ import (
 	"github.com/google/cel-go/checker/decls"
 	"go.uber.org/zap"
 	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
-	"strings"
 )
 
 type CELEvaluatorService interface {
 	EvaluateCELRequest(request CELRequest) (bool, error)
 	ValidateCELRequest(request ValidateRequestResponse) (ValidateRequestResponse, bool)
-	GetParamsFromArtifact(artifact string, releaseTags []string) []ExpressionParam
 }
 
 type CELServiceImpl struct {
@@ -149,42 +147,9 @@ func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {
 		return decls.Dyn, nil
 	case ParamTypeInteger:
 		return decls.Int, nil
-	case ParamTypeList: //TODO: test this gireesh
+	case ParamTypeList:
 		return decls.NewListType(decls.String), nil
 	default:
 		return nil, fmt.Errorf("unsupported parameter type: %s", paramType)
 	}
-}
-
-func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string, imageLabels []string) []ExpressionParam {
-
-	lastColonIndex := strings.LastIndex(artifact, ":")
-
-	containerRepository := artifact[:lastColonIndex]
-	containerImageTag := artifact[lastColonIndex+1:]
-	containerImage := artifact
-	params := []ExpressionParam{
-		{
-			ParamName: "containerRepository",
-			Value:     containerRepository,
-			Type:      ParamTypeString,
-		},
-		{
-			ParamName: "containerImage",
-			Value:     containerImage,
-			Type:      ParamTypeString,
-		},
-		{
-			ParamName: "containerImageTag",
-			Value:     containerImageTag,
-			Type:      ParamTypeString,
-		},
-		{
-			ParamName: "imageLabels",
-			Value:     imageLabels,
-			Type:      ParamTypeList,
-		},
-	}
-
-	return params
 }
