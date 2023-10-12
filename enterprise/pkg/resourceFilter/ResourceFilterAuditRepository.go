@@ -62,8 +62,8 @@ func (repo *FilterAuditRepositoryImpl) GetLatestResourceFilterAuditByFilterIds(f
 	query := "SELECT max(id) " +
 		"AS id,filter_id FROM " +
 		"resource_filter_audit " +
-		"WHERE filter_id in (%s) " +
+		"WHERE filter_id in (?) " +
 		"GROUP BY filter_id"
-	_, err := repo.dbConnection.Query(&res, query)
+	_, err := repo.dbConnection.Query(&res, query, filterIds)
 	return res, err
 }

@@ -39,7 +39,7 @@ func NewFilterEvaluationAuditServiceImpl(logger *zap.SugaredLogger,
 func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType SubjectType, subjectIds []int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
 	filterHistoryObjectsStr, err := impl.extractFilterHistoryObjects(filters, filterIdVsState)
 	if err != nil {
-		//log error
+		impl.logger.Errorw("error in extracting filter history objects", "err", err, "filters", filters, "filterIdVsState", filterIdVsState)
 		return nil, err
 	}
 	currentTime := time.Now()
@@ -88,7 +88,7 @@ func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filter
 
 	resourceFilterEvaluationAudits, err := impl.filterAuditRepo.GetLatestResourceFilterAuditByFilterIds(filterIds)
 	if err != nil {
-		//log error
+		impl.logger.Errorw("error in getting latest resource filter audits for given filter id's", "filterIds", filterIds, "err", err)
 		return "", err
 	}
 
@@ -105,7 +105,7 @@ func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filter
 	}
 	jsonStr, err := getJsonStringFromFilterHistoryObjects(filterHistoryObjects)
 	if err != nil {
-		//log error
+		impl.logger.Errorw("error in getting json string for filter history objects", "filterHistoryObjects", filterHistoryObjects, "err", err)
 		return "", err
 	}
 	return jsonStr, err
