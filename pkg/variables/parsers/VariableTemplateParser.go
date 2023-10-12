@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcl/hclsyntax"
 	_ "github.com/hashicorp/hcl2/hcl/hclsyntax"
@@ -18,23 +20,97 @@ import (
 )
 
 type VariableTemplateParser interface {
-	ExtractVariables(template string) ([]string, error)
+	ExtractVariables(template string, templateType VariableTemplateType) ([]string, error)
 	//ParseTemplate(template string, values map[string]string) string
 	ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse
 }
 
 type VariableTemplateParserImpl struct {
-	logger *zap.SugaredLogger
+	logger                       *zap.SugaredLogger
+	variableTemplateParserConfig *VariableTemplateParserConfig
 }
 
-func NewVariableTemplateParserImpl(logger *zap.SugaredLogger) *VariableTemplateParserImpl {
-	return &VariableTemplateParserImpl{logger: logger}
+func NewVariableTemplateParserImpl(logger *zap.SugaredLogger) (*VariableTemplateParserImpl, error) {
+	impl := &VariableTemplateParserImpl{logger: logger}
+	cfg, err := getVariableTemplateParserConfig()
+	if err != nil {
+		return nil, err
+	}
+	impl.variableTemplateParserConfig = cfg
+	return impl, nil
 }
 
-func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]string, error) {
+const VariableRegex = `@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}`
+const VariableSubRegexWithQuotes = `\"@{{([a-zA-Z0-9-+/*%_\s]+)}}\"`
+
+type VariableTemplateParserConfig struct {
+	ScopedVariableEnabled          bool `env:"SCOPED_VARIABLE_ENABLED" envDefault:"false"`
+	ScopedVariableHandlePrimitives bool `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false"`
+}
+
+func getVariableTemplateParserConfig() (*VariableTemplateParserConfig, error) {
+	cfg := &VariableTemplateParserConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+func preProcessPlaceholder(template string, variableValueMap map[string]interface{}) string {
+
+	re := regexp.MustCompile(VariableSubRegexWithQuotes)
+	matches := re.FindAllStringSubmatch(template, -1)
+
+	// Replace the surrounding quotes for variables whose value is known
+	// and type is primitive
+	for _, match := range matches {
+		if len(match) == 2 {
+			originalMatch := match[0]
+			innerContent := match[1]
+			if val, ok := variableValueMap[innerContent]; ok && utils.IsPrimitiveType(val) {
+				replacement := fmt.Sprintf("@{{%s}}", innerContent)
+				template = strings.Replace(template, originalMatch, replacement, 1)
+			}
+		}
+	}
+	return template
+}
+
+func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
+
+	if !impl.variableTemplateParserConfig.ScopedVariableEnabled {
+		return VariableParserResponse{
+			Request:          parserRequest,
+			ResolvedTemplate: parserRequest.Template,
+		}
+	}
+
+	if impl.variableTemplateParserConfig.ScopedVariableHandlePrimitives && parserRequest.TemplateType == JsonVariableTemplate {
+
+		var variableToValue = make(map[string]interface{}, 0)
+		for _, variable := range parserRequest.Variables {
+			variableToValue[variable.VariableName] = variable.VariableValue.Value
+		}
+		template := preProcessPlaceholder(parserRequest.Template, variableToValue)
+		request := VariableParserRequest{
+			TemplateType:           StringVariableTemplate,
+			Template:               template,
+			Variables:              parserRequest.Variables,
+			IgnoreUnknownVariables: parserRequest.IgnoreUnknownVariables,
+		}
+		return impl.parseTemplate(request)
+	} else {
+		return impl.parseTemplate(parserRequest)
+	}
+}
+
+func (impl *VariableTemplateParserImpl) ExtractVariables(template string, templateType VariableTemplateType) ([]string, error) {
 	var variables []string
+
+	if !impl.variableTemplateParserConfig.ScopedVariableEnabled {
+		return variables, nil
+	}
+
 	// preprocess existing template to comment
-	template, err := impl.convertToHclCompatible(JsonVariableTemplate, template)
+	template, err := impl.convertToHclCompatible(templateType, template)
 	if err != nil {
 		return variables, err
 	}
@@ -58,7 +134,7 @@ func (impl *VariableTemplateParserImpl) extractVarNames(hclVariables []hcl.Trave
 	return variables
 }
 
-func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
+func (impl *VariableTemplateParserImpl) parseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
 	template := parserRequest.Template
 	response := VariableParserResponse{Request: parserRequest, ResolvedTemplate: template}
 	values := parserRequest.GetValuesMap()
@@ -213,12 +289,13 @@ func (impl *VariableTemplateParserImpl) convertToHclCompatible(templateType Vari
 		}
 		template = fmt.Sprintf(`{"root":%s}`, template)
 	}
-	template = impl.diluteExistingHclVars(template)
+	template = impl.diluteExistingHclVars(template, "\\$", "$")
+	template = impl.diluteExistingHclVars(template, "%", "%")
 	return impl.convertToHclExpression(template), nil
 }
 
-func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string) string {
-	hclVarRegex := regexp.MustCompile(`\$\{`)
+func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string, templateControlKeyword string, replaceKeyword string) string {
+	hclVarRegex := regexp.MustCompile(templateControlKeyword + `\{`)
 	indexesData := hclVarRegex.FindAllIndex([]byte(template), -1)
 	var strBuilder strings.Builder
 	strBuilder.Grow(len(template))
@@ -226,7 +303,7 @@ func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string) s
 	for _, datum := range indexesData {
 		startIndex := datum[0]
 		endIndex := datum[1]
-		strBuilder.WriteString(template[currentIndex:startIndex] + "$" + template[startIndex:endIndex])
+		strBuilder.WriteString(template[currentIndex:startIndex] + replaceKeyword + template[startIndex:endIndex])
 		currentIndex = endIndex
 	}
 	if currentIndex <= len(template) {
@@ -237,7 +314,8 @@ func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string) s
 }
 
 func (impl *VariableTemplateParserImpl) convertToHclExpression(template string) string {
-	var devtronRegexCompiledPattern = regexp.MustCompile(`@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}`) //TODO KB: add support of Braces () also
+
+	var devtronRegexCompiledPattern = regexp.MustCompile(VariableRegex) //TODO KB: add support of Braces () also
 	indexesData := devtronRegexCompiledPattern.FindAllIndex([]byte(template), -1)
 	var strBuilder strings.Builder
 	strBuilder.Grow(len(template))

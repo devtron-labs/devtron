@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -1736,10 +1736,8 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		return envs, err
 	}
 	for _, env := range envs {
-		if len(overrideChartRefIds) != 0 {
-			if overrideChartRefIds[env.EnvironmentId] != 0 {
-				env.ChartRefId = overrideChartRefIds[env.EnvironmentId]
-			}
+		if len(overrideChartRefIds) != 0 && overrideChartRefIds[env.EnvironmentId] != 0 {
+			env.ChartRefId = overrideChartRefIds[env.EnvironmentId]
 		} else {
 			env.ChartRefId = chartRefId
 		}

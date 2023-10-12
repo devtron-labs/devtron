@@ -133,7 +133,7 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 				return
 			}
 		}
-		isSucceeded, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
+		isSucceeded, pipelineOverride, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 			//TODO - check update for charts - fix this call
@@ -152,13 +152,9 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
 		if isSucceeded {
 			impl.logger.Debugw("git hash history", "list", app.Status.History)
-			gitHash := ""
-			if app != nil {
-				gitHash = app.Status.Sync.Revision
-			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride)
 			if err != nil {
-				impl.logger.Errorw("deployment success event error", "gitHash", gitHash, "err", err)
+				impl.logger.Errorw("deployment success event error", "pipelineOverride", pipelineOverride, "err", err)
 				return
 			}
 		}

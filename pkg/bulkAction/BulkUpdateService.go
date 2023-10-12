@@ -555,7 +555,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 }
 
 func (impl BulkUpdateServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
 	if err != nil {
 		return err
 	}
@@ -1448,7 +1448,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 			var ciMaterials []bean2.CiPipelineMaterial
 			ciMaterials = append(ciMaterials, bean2.CiPipelineMaterial{
 				Id:        materialId,
-				GitCommit: bean2.GitCommit{Commit: commitHash},
+				GitCommit: pipelineConfig.GitCommit{Commit: commitHash},
 			})
 			ciTriggerRequest := bean2.CiTriggerRequest{
 				PipelineId:         ciPipelineId,

@@ -86,7 +86,7 @@ func TestAppServiceImpl_UpdateDeploymentStatusAndCheckIsSucceeded(t *testing.T) 
 			wantErr:     wantErr,
 		}
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := appService.UpdateDeploymentStatusAndCheckIsSucceeded(tt.args.app, tt.args.statusTime, false)
+			got, _, err := appService.UpdateDeploymentStatusAndCheckIsSucceeded(tt.args.app, tt.args.statusTime, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateDeploymentStatusAndCheckIsSucceeded() error = %v, wantErr %v", err, tt.wantErr)
 				return

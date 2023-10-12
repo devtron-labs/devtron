@@ -722,6 +722,7 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 		ParentCiPipeline:         ciPipeline.ParentCiPipeline,
 		ParentAppId:              ciPipeline.ParentAppId,
 		LinkedCount:              ciPipeline.LinkedCount,
+		PipelineType:             string(ciPipeline.PipelineType),
 	}
 
 	//build ciPipelineMaterial resp
@@ -1681,6 +1682,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			ParentCiPipeline:         ciPipelineData.ParentCiPipeline,
 			ParentAppId:              ciPipelineData.ParentAppId,
 			LinkedCount:              ciPipelineData.LinkedCount,
+			PipelineType:             bean.PipelineType(ciPipelineData.PipelineType),
 		},
 	}
 
