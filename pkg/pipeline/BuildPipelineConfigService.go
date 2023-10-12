@@ -2080,7 +2080,7 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, o
 		}
 		deployedCiArtifacts[i].FilterState = filterState
 	}
-
+	deployedCiArtifactsResponse.ResourceFilters = filters
 	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
 	if deployedCiArtifacts == nil {
 		deployedCiArtifacts = []bean.CiArtifactBean{}

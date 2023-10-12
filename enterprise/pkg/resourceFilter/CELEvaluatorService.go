@@ -120,7 +120,7 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "releaseTags",
+			ParamName: "imageLabels",
 			Type:      ParamTypeList,
 		},
 	}
@@ -156,7 +156,7 @@ func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {
 	}
 }
 
-func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string, releaseTags []string) []ExpressionParam {
+func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string, imageLabels []string) []ExpressionParam {
 
 	lastColonIndex := strings.LastIndex(artifact, ":")
 
@@ -180,8 +180,8 @@ func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string, releaseTags [
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "releaseTags",
-			Value:     releaseTags,
+			ParamName: "imageLabels",
+			Value:     imageLabels,
 			Type:      ParamTypeList,
 		},
 	}
