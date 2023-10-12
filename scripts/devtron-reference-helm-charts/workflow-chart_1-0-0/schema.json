@@ -11,7 +11,11 @@
           "type": "object",
           "properties": {
             "envoyPort": {
-              "type": "integer",
+              "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
               "description": "envoy port for the container",
               "title": "Envoy Port"
             },
@@ -26,12 +30,20 @@
               "title": "Name"
             },
             "port": {
-              "type": "integer",
+              "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
               "description": "Port",
               "title": "port for the container"
             },
             "servicePort": {
-              "type": "integer",
+              "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
               "description": "port of the corresponding kubernetes service",
               "title": "Service Port"
             },
@@ -55,7 +67,11 @@
         "title": "Environment Variables"
       },
       "GracePeriod": {
-        "type": "integer",
+        "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
         "description": "time for which Kubernetes waits before terminating the pods",
         "title": "Grace Period"
       },
@@ -76,7 +92,11 @@
             "title": "Command"
           },
           "failureThreshold": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the maximum number of failures that are acceptable before a given container is not considered as live",
             "title": "Failure Threshold"
           },
@@ -87,17 +107,29 @@
             "title": "HTTP headers"
           },
           "initialDelaySeconds": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the time to wait before a given container is checked for liveness",
             "title": "Initial Delay Seconds"
           },
           "periodSeconds": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the time to check a given container for liveness",
             "title": "Period Seconds"
           },
           "port": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "port to access on the container",
             "title": "Port"
           },
@@ -107,7 +139,11 @@
             "title": "Scheme"
           },
           "successThreshold": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the number of successes required before a given container is said to fulfil the liveness probe",
             "title": "Success Threshold"
           },
@@ -117,24 +153,40 @@
             "title": "TCP"
           },
           "timeoutSeconds": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the time for checking timeout",
             "title": "Timeout Seconds"
           }
         }
       },
       "MaxSurge": {
-        "type": "integer",
+        "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
         "description": "maximum number of pods that can be created over the desired number of pods",
         "title": "Maximum Surge"
       },
       "MaxUnavailable": {
-        "type": "integer",
+        "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
         "description": "maximum number of pods that can be unavailable during the update process",
         "title": "Maximum Unavailable"
       },
       "MinReadySeconds": {
-        "type": "integer",
+        "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
         "description": "minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available",
         "title": "Minimum Ready Seconds"
       },
@@ -155,7 +207,11 @@
             "title": "Command"
           },
           "failureThreshold": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the maximum number of failures that are acceptable before a given container is not considered as ready",
             "title": "Failure Threshold"
           },
@@ -166,17 +222,29 @@
             "title": "HTTP headers"
           },
           "initialDelaySeconds": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the time to wait before a given container is checked for readiness",
             "title": "Initial Delay Seconds"
           },
           "periodSeconds": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the time to check a given container for readiness",
             "title": "Period Seconds"
           },
           "port": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "port to access on the container",
             "title": "Port"
           },
@@ -186,7 +254,11 @@
             "title": "Scheme"
           },
           "successThreshold": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the number of successes required before a given container is said to fulfil the readiness probe",
             "title": "Success Threshold"
           },
@@ -196,7 +268,11 @@
             "title": "TCP"
           },
           "timeoutSeconds": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "defines the time for checking timeout",
             "title": "Timeout Seconds"
           }
@@ -270,22 +346,38 @@
         "title": "Autoscaling",
         "properties": {
           "MaxReplicas": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "Maximum number of replicas allowed for scaling",
             "title": "Maximum Replicas"
           },
           "MinReplicas": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "Minimum number of replicas allowed for scaling",
             "title": "Minimum Replicas"
           },
           "TargetCPUUtilizationPercentage": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "The target CPU utilization that is expected for a container",
             "title": "TargetCPUUtilizationPercentage"
           },
           "TargetMemoryUtilizationPercentage": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "The target memory utilization that is expected for a container",
             "title": "TargetMemoryUtilizationPercentage"
           },
@@ -597,7 +689,11 @@
         }
       },
       "pauseForSecondsBeforeSwitchActive": {
-        "type": "integer",
+        "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
         "description": "tell how much to wait for given period of time before switch active the container",
         "title": "Pause For Seconds Before SwitchActive"
       },
@@ -634,7 +730,11 @@
         "title": "Raw YAML"
       },
       "replicaCount": {
-        "type": "integer",
+        "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
         "description": "count of Replicas of pod",
         "title": "REplica Count"
       },
@@ -776,7 +876,11 @@
         "title": "Volumes"
       },
       "waitForSecondsBeforeScalingDown": {
-        "type": "integer",
+        "type": [
+              "integer",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
         "description": "Wait for given period of time before scaling down the container",
         "title": "Wait For Seconds Before Scaling Down"
       }
