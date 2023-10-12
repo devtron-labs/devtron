@@ -1513,6 +1513,13 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	}
 	overrideRequest.Image = artifact.Image
 
+	strategy, err := impl.GetDeploymentStrategyByTriggerType(overrideRequest, ctx)
+	valuesOverrideResponse.PipelineStrategy = strategy
+	if err != nil {
+		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
+		return valuesOverrideResponse, err
+	}
+
 	envOverride, err := impl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
 	valuesOverrideResponse.EnvOverride = envOverride
 	if err != nil {
@@ -1525,12 +1532,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
 		return valuesOverrideResponse, err
 	}
-	strategy, err := impl.GetDeploymentStrategyByTriggerType(overrideRequest, ctx)
-	valuesOverrideResponse.PipelineStrategy = strategy
-	if err != nil {
-		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
-		return valuesOverrideResponse, err
-	}
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "getDbMigrationOverride")
 	//FIXME: how to determine rollback
 	//we can't depend on ciArtifact ID because CI pipeline can be manually triggered in any order regardless of sourcecode status
