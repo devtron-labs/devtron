@@ -1,7 +1,7 @@
 package informer
 
 import (
-	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"sync"
 	"time"
 
@@ -65,14 +65,20 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
 	for _, info := range clusterInfo {
 		clusterConfig := &k8s.ClusterConfig{
-			ClusterName:           info.ClusterName,
-			BearerToken:           info.BearerToken,
-			Host:                  info.ServerUrl,
-			ProxyUrl:              info.ProxyUrl,
-			InsecureSkipTLSVerify: info.InsecureSkipTLSVerify,
-			KeyData:               info.KeyData,
-			CertData:              info.CertData,
-			CAData:                info.CAData,
+			ClusterId:              info.ClusterId,
+			ClusterName:            info.ClusterName,
+			BearerToken:            info.BearerToken,
+			Host:                   info.ServerUrl,
+			ProxyUrl:               info.ProxyUrl,
+			InsecureSkipTLSVerify:  info.InsecureSkipTLSVerify,
+			KeyData:                info.KeyData,
+			CertData:               info.CertData,
+			CAData:                 info.CAData,
+			ToConnectWithSSHTunnel: info.ToConnectWithSSHTunnel,
+			SSHTunnelServerAddress: info.SSHTunnelServerAddress,
+			SSHTunnelUser:          info.SSHTunnelUser,
+			SSHTunnelPassword:      info.SSHTunnelPassword,
+			SSHTunnelAuthKey:       info.SSHTunnelAuthKey,
 		}
 		impl.buildInformerAndNamespaceList(info.ClusterName, clusterConfig, &impl.mutex)
 	}

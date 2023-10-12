@@ -31,7 +31,7 @@ import (
 
 	"github.com/casbin/casbin"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/internal/middleware"

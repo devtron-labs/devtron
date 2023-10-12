@@ -1,7 +1,7 @@
 package bean
 
 import (
-	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	blob_storage "github.com/devtron-labs/common-lib-private/blob-storage"
 	"github.com/devtron-labs/devtron/api/bean"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"

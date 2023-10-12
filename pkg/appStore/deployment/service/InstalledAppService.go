@@ -21,6 +21,8 @@ import (
 	"bytes"
 	"context"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	bean3 "github.com/devtron-labs/devtron/api/restHandler/bean"
@@ -47,7 +49,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
 	"net/http"
 	"regexp"
@@ -66,7 +67,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -1005,10 +1006,8 @@ func (impl *InstalledAppServiceImpl) FindNotesForNonHelmApplication(installedApp
 			impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 			return notes, appName, err
 		}
-		clusterId := int32(installedAppVerison.InstalledApp.Environment.ClusterId)
 		namespace := installedAppVerison.InstalledApp.Environment.Namespace
 		if installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment {
-			clusterId = int32(DEFAULT_CLUSTER_ID)
 			namespace = DEFAULT_CLUSTER_NAMESPACE
 		}
 		installReleaseRequest := &client.InstallReleaseRequest{
@@ -1025,9 +1024,6 @@ func (impl *InstalledAppServiceImpl) FindNotesForNonHelmApplication(installedApp
 			ReleaseIdentifier: &client.ReleaseIdentifier{
 				ReleaseNamespace: namespace,
 				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
-				ClusterConfig: &client.ClusterConfig{
-					ClusterId: clusterId,
-				},
 			},
 		}
 
@@ -1530,7 +1526,7 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 		},
 	}
 	clusterIdString := strconv.Itoa(clusterId)
-	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
+	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.EndpointsKind, k8sCommonBean.IngressKind})
 	response, err := impl.k8sCommonService.GetManifestsByBatch(rctx, validRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)

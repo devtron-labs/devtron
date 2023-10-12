@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"

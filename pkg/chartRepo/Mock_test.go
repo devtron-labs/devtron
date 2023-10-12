@@ -2,10 +2,10 @@ package chartRepo
 
 import (
 	"context"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/mock"
 )

@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/caarlos0/env/v6"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"

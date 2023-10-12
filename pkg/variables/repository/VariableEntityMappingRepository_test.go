@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/common-lib-private/utils"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
