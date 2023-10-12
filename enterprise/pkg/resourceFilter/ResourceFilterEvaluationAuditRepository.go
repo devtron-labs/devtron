@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type SubjectType int
@@ -80,6 +81,7 @@ func (repo *FilterEvaluationAuditRepositoryImpl) UpdateRefTypeAndRefId(id int, r
 	_, err := repo.dbConnection.Model(&model).
 		Set("reference_id = ?", refId).
 		Set("reference_type = ?", refType).
+		Set("updated_on = ?", time.Now()).
 		Where("id = ?", id).
 		Update()
 	return err
