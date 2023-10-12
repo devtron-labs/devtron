@@ -71,6 +71,7 @@ type CiArtifactRepository interface {
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
 	GetByIds(ids []int) ([]*CiArtifact, error)
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
+	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -568,4 +569,16 @@ func (impl CiArtifactRepositoryImpl) GetArtifactByCdWorkflowId(cdWorkflowId int)
 		Where("cdwf.id = ? ", cdWorkflowId).
 		Select()
 	return artifact, err
+}
+
+// GetArtifactsByParentCiWorkflowId will get all artifacts of child workflow sorted by descending order to fetch latest at top, child workflow required for handling container image polling plugin as there can be multiple images from a single parent workflow, which are accommodated in child workflows
+func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error) {
+	var artifacts []string
+	query := "SELECT cia.image FROM ci_artifact cia where cia.ci_workflow_id in (SELECT wf.id from ci_workflow wf where wf.parent_ci_workflow_id = ? ) ORDER BY cia.created_on DESC ;"
+	_, err := impl.dbConnection.Query(&artifacts, query, parentCiWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching artifacts for parent ci workflow id", "err", err)
+		return nil, err
+	}
+	return artifacts, err
 }

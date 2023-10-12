@@ -14,7 +14,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
-	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -453,10 +452,6 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 	return usedScopedVariableDataObj, err
 }
 
-func isStringType(val interface{}) bool {
-	return reflect.TypeOf(val).Kind() == reflect.String
-}
-
 func resolveExpressionWithVariableValues(expr string, varNameToData map[string]*models.ScopedVariableData) (string, error) {
 	// regex to find  variable placeholder and extracts a variable name which is alphanumeric
 	// and can contain hyphen, underscore and whitespaces. white spaces will be trimmed on lookup
@@ -491,7 +486,7 @@ func (impl *ScopedVariableServiceImpl) deduceVariables(scopedVariableDataList []
 
 	for _, data := range scopedVariableDataList {
 		value := data.VariableValue.Value
-		if isStringType(value) {
+		if utils.IsStringType(value) {
 			resolvedValue, err := resolveExpressionWithVariableValues(value.(string), varNameToData)
 			if err != nil {
 				impl.logger.Warnw("variables not resolved", "err", err, "value", value)

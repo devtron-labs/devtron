@@ -20,7 +20,7 @@ package pipelineConfig
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"

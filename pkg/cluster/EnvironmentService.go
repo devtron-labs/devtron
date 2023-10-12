@@ -20,11 +20,11 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
+	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
-	util2 "github.com/devtron-labs/devtron/util/k8s"
 	"strconv"
 	"strings"
 	"time"
