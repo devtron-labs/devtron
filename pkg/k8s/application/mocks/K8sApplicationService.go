@@ -7,7 +7,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
-	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 
 	cluster "github.com/devtron-labs/devtron/pkg/cluster"
 

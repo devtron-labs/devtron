@@ -19,8 +19,8 @@ package rbac
 
 import (
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/k8s"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -63,6 +63,7 @@ type EnforcerUtil interface {
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
 	GetAllActiveTeamNames() ([]string, error)
 	GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string)
+	GetAppRBACNameByAppAndProjectName(projectName, appName string) string
 }
 
 type EnforcerUtilImpl struct {
@@ -603,4 +604,8 @@ func (impl EnforcerUtilImpl) GetAllActiveTeamNames() ([]string, error) {
 		teamNames[i] = strings.ToLower(teamName)
 	}
 	return teamNames, nil
+}
+
+func (impl EnforcerUtilImpl) GetAppRBACNameByAppAndProjectName(projectName, appName string) string {
+	return fmt.Sprintf("%s/%s", strings.ToLower(projectName), strings.ToLower(appName))
 }

@@ -2,12 +2,12 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/devtron-labs/authenticator/client"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/batch/v1"
 	v12 "k8s.io/api/core/v1"
@@ -179,7 +179,7 @@ func getJobTemplate(templatesList *unstructured.UnstructuredList) (v1.Job, error
 	var jobTemplate v1.Job
 	var err error
 	for _, templateItem := range templatesList.Items {
-		if templateItem.GetKind() == kube.JobKind {
+		if templateItem.GetKind() == k8sCommonBean.JobKind {
 			err = runtime.DefaultUnstructuredConverter.FromUnstructured(templateItem.Object, &jobTemplate)
 			break
 		}

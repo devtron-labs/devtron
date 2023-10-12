@@ -11,6 +11,7 @@ import (
 	client2 "github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	apiToken2 "github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	chartProvider2 "github.com/devtron-labs/devtron/api/appStore/chartProvider"
@@ -143,7 +144,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/webhook/helm"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 )
 
@@ -339,7 +339,10 @@ func InitializeApp() (*App, error) {
 	repositoryServiceClientImpl := repository8.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	variableEntityMappingRepositoryImpl := repository7.NewVariableEntityMappingRepository(sugaredLogger, db)
 	variableEntityMappingServiceImpl := variables.NewVariableEntityMappingServiceImpl(variableEntityMappingRepositoryImpl, sugaredLogger)
-	variableTemplateParserImpl := parsers.NewVariableTemplateParserImpl(sugaredLogger)
+	variableTemplateParserImpl, err := parsers.NewVariableTemplateParserImpl(sugaredLogger)
+	if err != nil {
+		return nil, err
+	}
 	scopedVariableRepositoryImpl := repository7.NewScopedVariableRepository(db, sugaredLogger)
 	qualifiersMappingRepositoryImpl, err := resourceQualifiers.NewQualifiersMappingRepositoryImpl(db, sugaredLogger)
 	if err != nil {
@@ -485,7 +488,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	ciHandlerImpl := pipeline.NewCiHandlerImpl(sugaredLogger, ciServiceImpl, ciPipelineMaterialRepositoryImpl, clientImpl, ciWorkflowRepositoryImpl, workflowServiceImpl, ciLogServiceImpl, ciArtifactRepositoryImpl, userServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl, ciPipelineRepositoryImpl, appListingRepositoryImpl, k8sUtil, pipelineRepositoryImpl, enforcerUtilImpl, resourceGroupServiceImpl, environmentRepositoryImpl, imageTaggingServiceImpl)
+	ciHandlerImpl := pipeline.NewCiHandlerImpl(sugaredLogger, ciServiceImpl, ciPipelineMaterialRepositoryImpl, clientImpl, ciWorkflowRepositoryImpl, workflowServiceImpl, ciLogServiceImpl, ciArtifactRepositoryImpl, userServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl, ciPipelineRepositoryImpl, appListingRepositoryImpl, k8sUtil, pipelineRepositoryImpl, enforcerUtilImpl, resourceGroupServiceImpl, environmentRepositoryImpl, imageTaggingServiceImpl, k8sCommonServiceImpl)
 	gitRegistryConfigImpl := pipeline.NewGitRegistryConfigImpl(sugaredLogger, gitProviderRepositoryImpl, clientImpl)
 	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl)
 	appListingViewBuilderImpl := app2.NewAppListingViewBuilderImpl(sugaredLogger)
