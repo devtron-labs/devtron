@@ -710,31 +710,9 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 			Name:          "app-data",
 			ContainerPort: 9102,
 		}}
-		volumeMountsForCiJson := config.VolumeMountsForCiJson
-		if len(volumeMountsForCiJson) > 0 {
-			var volumeMountsForCi []CiVolumeMount
-			// Unmarshal or Decode the JSON to the interface.
-			err := json.Unmarshal([]byte(volumeMountsForCiJson), &volumeMountsForCi)
-			if err != nil {
-				return workflowMainContainer, err
-			}
-
-			for _, volumeMountsForCi := range volumeMountsForCi {
-				hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
-				workflowTemplate.Volumes = append(workflowTemplate.Volumes, v12.Volume{
-					Name: volumeMountsForCi.Name,
-					VolumeSource: v12.VolumeSource{
-						HostPath: &v12.HostPathVolumeSource{
-							Path: volumeMountsForCi.HostMountPath,
-							Type: &hostPathDirectoryOrCreate,
-						},
-					},
-				})
-				workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
-					Name:      volumeMountsForCi.Name,
-					MountPath: volumeMountsForCi.ContainerMountPath,
-				})
-			}
+		err := appendVolumeMountsForCi(config, &workflowTemplate, &workflowMainContainer)
+		if err != nil {
+			return workflowMainContainer, err
 		}
 	}
 
@@ -774,4 +752,34 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
 		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
 
+}
+
+func appendVolumeMountsForCi(config *CiCdConfig, workflowTemplate *bean.WorkflowTemplate, workflowMainContainer *v12.Container) error {
+	volumeMountsForCiJson := config.VolumeMountsForCiJson
+	if len(volumeMountsForCiJson) > 0 {
+		var volumeMountsForCi []CiVolumeMount
+		// Unmarshal or Decode the JSON to the interface.
+		err := json.Unmarshal([]byte(volumeMountsForCiJson), &volumeMountsForCi)
+		if err != nil {
+			return err
+		}
+
+		for _, volumeMountsForCi := range volumeMountsForCi {
+			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+			workflowTemplate.Volumes = append(workflowTemplate.Volumes, v12.Volume{
+				Name: volumeMountsForCi.Name,
+				VolumeSource: v12.VolumeSource{
+					HostPath: &v12.HostPathVolumeSource{
+						Path: volumeMountsForCi.HostMountPath,
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			})
+			workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
+				Name:      volumeMountsForCi.Name,
+				MountPath: volumeMountsForCi.ContainerMountPath,
+			})
+		}
+	}
+	return nil
 }

@@ -148,7 +148,10 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *Workflo
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate)
 	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
-		impl.getAppLabelNodeSelector(&workflowTemplate, workflowRequest)
+		nodeSelector := impl.getAppLabelNodeSelector(workflowRequest)
+		if nodeSelector != nil {
+			workflowTemplate.NodeSelector = nodeSelector
+		}
 	}
 	if workflowRequest.Type == bean3.CD_WORKFLOW_PIPELINE_TYPE {
 		workflowTemplate.WfControllerInstanceID = impl.ciCdConfig.WfControllerInstanceID
@@ -251,7 +254,7 @@ func (impl *WorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *Workfl
 	workflowTemplate.CloudStorageKey = workflowRequest.BlobStorageLogsKey
 }
 
-func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowTemplate *bean3.WorkflowTemplate, workflowRequest *WorkflowRequest) {
+func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *WorkflowRequest) map[string]string {
 	// node selector
 	if val, ok := workflowRequest.AppLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok && !(workflowRequest.CheckForJob() && workflowRequest.IsExtRun) {
 		var nodeSelectors map[string]string
@@ -259,10 +262,11 @@ func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowTemplate *bean3
 		err := json.Unmarshal([]byte(val), &nodeSelectors)
 		if err != nil {
 			impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
-			return
+			return nil
 		}
-		workflowTemplate.NodeSelector = nodeSelectors
+		return nodeSelectors
 	}
+	return nil
 }
 
 func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
