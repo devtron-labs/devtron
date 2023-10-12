@@ -68,6 +68,7 @@
         * [AWS Secrets Manager](user-guide/creating-application/eso/aws-eso.md)
         * [Google Secrets Manager](user-guide/creating-application/eso/gcp-eso.md)
         * [HashiCorp Vault](user-guide/creating-application/eso/hashicorp-eso.md)
+    * [Protect Configuration](user-guide/creating-application/config-approval.md)
     * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
     * [Deleting Application](user-guide/deleting-application.md)
   * [Build and Deploy](user-guide/deploying-application/README.md)
