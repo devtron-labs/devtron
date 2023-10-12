@@ -6,12 +6,18 @@ import (
 	"go.uber.org/zap"
 )
 
+type ActionType int
+
+const Create ActionType = 0
+const Update ActionType = 1
+
 type ResourceFilterAudit struct {
 	tableName    struct{}            `sql:"resource_filter_audit" pg:",discard_unknown_columns"`
 	Id           int                 `sql:"id"`
 	FilterId     int                 `sql:"filter_id"`
 	Conditions   string              `sql:"conditions"` //json string
 	TargetObject *FilterTargetObject `sql:"target_object"`
+	Action       *ActionType         `sql:"action"`
 	sql.AuditLog
 }
 
