@@ -336,3 +336,10 @@ func GetLatestImageAccToImagePushedAt(imageDetails []types.ImageDetail) types.Im
 	})
 	return imageDetails[0]
 }
+
+func GetReverseSortedImageDetails(imageDetails []types.ImageDetail) []types.ImageDetail {
+	sort.Slice(imageDetails, func(i, j int) bool {
+		return imageDetails[i].ImagePushedAt.Before(*imageDetails[j].ImagePushedAt)
+	})
+	return imageDetails
+}
