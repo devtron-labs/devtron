@@ -2512,7 +2512,7 @@ func (impl *DeploymentPipelineConfigServiceImpl) updateCdPipeline(ctx context.Co
 }
 
 func (impl DeploymentPipelineConfigServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository.EntityType, userId int32, tx *pg.Tx) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
 	if err != nil {
 		return err
 	}

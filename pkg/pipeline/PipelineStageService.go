@@ -2166,7 +2166,7 @@ func (impl *PipelineStageServiceImpl) extractAndMapScopedVariables(stageReq *bea
 		impl.logger.Errorw("Error in marshalling stage request", "error", err)
 		return err
 	}
-	scopedVariables, err := impl.variableTemplateParser.ExtractVariables(string(requestJson))
+	scopedVariables, err := impl.variableTemplateParser.ExtractVariables(string(requestJson), parsers.JsonVariableTemplate)
 	if err != nil {
 		impl.logger.Errorw("Error in parsing variable in stage request", "error", err)
 		return err

@@ -19,8 +19,8 @@ package rbac
 
 import (
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/k8s"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
