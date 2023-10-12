@@ -1499,7 +1499,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 }
 
 func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32, tx *pg.Tx) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
 	if err != nil {
 		return err
 	}
