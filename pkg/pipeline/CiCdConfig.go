@@ -58,6 +58,7 @@ type CiCdConfig struct {
 	BuildxK8sDriverOptions           string                              `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
 	CIAutoTriggerBatchSize           int                                 `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"1"`
 	SkipCreatingEcrRepo              bool                                `env:"SKIP_CREATING_ECR_REPO" envDefault:"false"`
+	MaxCiWorkflowRetries             int                                 `env:"MAX_CI_WORKFLOW_RETRIES" envDefault:"0"`
 
 	//from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
@@ -87,6 +88,7 @@ type CiCdConfig struct {
 	UseBlobStorageConfigInCdWorkflow bool                                `env:"USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW" envDefault:"true"`
 	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	TerminationGracePeriod           int                                 `env:"TERMINATION_GRACE_PERIOD_SECS" envDefault:"180"`
+	MaxCdWorkflowRunnerRetries       int                                 `env:"MAX_CD_WORKFLOW_RUNNER_RETRIES" envDefault:"0"`
 
 	//common in both ciconfig and cd config
 	Type                           string
@@ -405,5 +407,16 @@ func (impl *CiCdConfig) GetWorkflowExecutorType() pipelineConfig.WorkflowExecuto
 		return impl.CdWorkflowExecutorType
 	default:
 		return ""
+	}
+}
+
+func (impl *CiCdConfig) WorkflowRetriesEnabled() bool {
+	switch impl.Type {
+	case CiConfigType:
+		return impl.MaxCiWorkflowRetries > 0
+	case CdConfigType:
+		return impl.MaxCdWorkflowRunnerRetries > 0
+	default:
+		return false
 	}
 }
