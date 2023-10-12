@@ -33,6 +33,7 @@ import (
 
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/caarlos0/env"
+	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -60,7 +61,6 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -576,6 +576,7 @@ func (impl *PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *be
 	}
 
 	var regHost string
+	var templateDockerRegistryId string
 	dockerRegistry := template.DockerRegistry
 	if dockerRegistry != nil {
 		regHost, err = dockerRegistry.GetRegistryLocation()
@@ -583,6 +584,7 @@ func (impl *PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *be
 			impl.logger.Errorw("invalid reg url", "err", err)
 			return nil, err
 		}
+		templateDockerRegistryId = dockerRegistry.Id
 	}
 	ciConfig = &bean.CiConfigRequest{
 		Id:                template.Id,
@@ -599,6 +601,7 @@ func (impl *PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *be
 		CreatedBy:         template.CreatedBy,
 		CreatedOn:         template.CreatedOn,
 		CiGitMaterialId:   template.GitMaterialId,
+		DockerRegistry:    templateDockerRegistryId,
 	}
 	if dockerRegistry != nil {
 		ciConfig.DockerRegistry = dockerRegistry.Id
@@ -1434,7 +1437,7 @@ func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2
 }
 
 func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32, tx *pg.Tx) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
 	if err != nil {
 		return err
 	}

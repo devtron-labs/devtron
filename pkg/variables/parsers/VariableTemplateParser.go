@@ -20,7 +20,7 @@ import (
 )
 
 type VariableTemplateParser interface {
-	ExtractVariables(template string) ([]string, error)
+	ExtractVariables(template string, templateType VariableTemplateType) ([]string, error)
 	//ParseTemplate(template string, values map[string]string) string
 	ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse
 }
@@ -102,8 +102,7 @@ func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariablePars
 	}
 }
 
-func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]string, error) {
-
+func (impl *VariableTemplateParserImpl) ExtractVariables(template string, templateType VariableTemplateType) ([]string, error) {
 	var variables []string
 
 	if !impl.variableTemplateParserConfig.ScopedVariableEnabled {
@@ -111,7 +110,7 @@ func (impl *VariableTemplateParserImpl) ExtractVariables(template string) ([]str
 	}
 
 	// preprocess existing template to comment
-	template, err := impl.convertToHclCompatible(JsonVariableTemplate, template)
+	template, err := impl.convertToHclCompatible(templateType, template)
 	if err != nil {
 		return variables, err
 	}
