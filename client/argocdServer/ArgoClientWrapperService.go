@@ -28,12 +28,12 @@ func NewArgoClientWrapperServiceImpl(logger *zap.SugaredLogger,
 
 func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context context.Context, argoAppName string) error {
 	refreshType := bean.RefreshTypeNormal
-	impl.logger.Debugw("trying to normal refresh application through get ")
+	impl.logger.Debugw("trying to normal refresh application through get ", "argoAppName", argoAppName)
 	_, err := impl.acdClient.Get(context, &application2.ApplicationQuery{Name: &argoAppName, Refresh: &refreshType})
 	if err != nil {
 		impl.logger.Errorw("cannot get application with refresh", "app", argoAppName)
 		return err
 	}
-	impl.logger.Debugw("done getting the application with refresh with no error")
+	impl.logger.Debugw("done getting the application with refresh with no error", "argoAppName", argoAppName)
 	return nil
 }
