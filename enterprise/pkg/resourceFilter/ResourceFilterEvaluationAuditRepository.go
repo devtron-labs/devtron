@@ -18,13 +18,13 @@ const PipelineStage ReferenceType = 1
 const CdWorkflowRunner ReferenceType = 2
 
 type ResourceFilterEvaluationAudit struct {
-	tableName            struct{}      `sql:"resource_filter_evaluation_audit" pg:",discard_unknown_columns"`
-	Id                   int           `sql:"id"`
-	ReferenceType        ReferenceType `sql:"reference_type"`
-	ReferenceId          int           `sql:"reference_id"`
-	FilterHistoryObjects string        `sql:"filter_history_objects"` //json of array of
-	SubjectType          SubjectType   `sql:"subject_type"`
-	SubjectIds           string        `sql:"subject_ids"` //comma seperated subject ids
+	tableName            struct{}       `sql:"resource_filter_evaluation_audit" pg:",discard_unknown_columns"`
+	Id                   int            `sql:"id"`
+	ReferenceType        *ReferenceType `sql:"reference_type"`
+	ReferenceId          int            `sql:"reference_id"`
+	FilterHistoryObjects string         `sql:"filter_history_objects"` //json of array of
+	SubjectType          *SubjectType   `sql:"subject_type"`
+	SubjectIds           string         `sql:"subject_ids"` //comma seperated subject ids
 	sql.AuditLog
 }
 
@@ -76,7 +76,7 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetByRefAndSubject(referenceTyp
 }
 
 func (repo *FilterEvaluationAuditRepositoryImpl) UpdateRefTypeAndRefId(id int, refType ReferenceType, refId int) error {
-	var model ResourceFilterAudit
+	var model ResourceFilterEvaluationAudit
 	_, err := repo.dbConnection.Model(&model).
 		Set("reference_id = ?", refId).
 		Set("reference_type = ?", refType).
