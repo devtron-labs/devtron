@@ -26,7 +26,7 @@ You can configure a container registry using any registry provider of your choic
     | Fields | Description |
     | --- | --- |
     | **Name** | Provide a name to your registry, this name will appear in the **Container Registry** drop-down list available within the [Build Configuration](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration) section of your application|
-    | **Registry URL** | Provide the URL of your registry in case it doesn't come prefilled (http/https not required) |
+    | **Registry URL** | Provide the URL of your registry in case it doesn't come prefilled (do not include `oci://`, `http://`, or `/https://` in the URL) |
     | **Authentication Type** | The credential input fields may differ depending on the registry provider, check [Registry Providers](#supported-registry-providers) |
     | **Push container images** | Tick this checkbox if you wish to use the repository to push container images. This comes selected by default and you may untick it if you don't intend to push container images after a CI build. If you wish to to use the same repository to pull container images too, read [Registry Credential Access](#registry-credential-access). |
     | **Push helm packages** | Tick this checkbox if you wish to push helm charts to your registry |
@@ -49,7 +49,7 @@ Provide the following additional information apart from the common fields:
 
 | Fields | Description |
 | --- | --- |
-| **Registry URL** | Example of URL format: `https://xxxxxxxxxxxx.dkr.ecr.<region>.amazonaws.com` where `xxxxxxxxxxxx` is your 12-digit AWS account ID |
+| **Registry URL** | Example of URL format: `xxxxxxxxxxxx.dkr.ecr.<region>.amazonaws.com` where `xxxxxxxxxxxx` is your 12-digit AWS account ID |
 | **Authentication Type** | Select one of the authentication types:<ul><li>**EC2 IAM Role**: Authenticate with workernode IAM role and attach the ECR policy (AmazonEC2ContainerRegistryFullAccess) to the cluster worker nodes IAM role of your Kubernetes cluster.</li></ul><ul><li>**User Auth**: It is a key-based authentication, attach the ECR policy (AmazonEC2ContainerRegistryFullAccess) to the [IAM user](https://docs.aws.amazon.com/AmazonECR/latest/userguide/get-set-up-for-amazon-ecr.html).<ul><li>`Access key ID`: Your AWS access key</li></ul><ul><li>`Secret access key`: Your AWS secret access key ID</li></ul> |
 
 
