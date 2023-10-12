@@ -136,7 +136,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 							ciCompleteEvent.PipelineId, "request", request, "err", err)
 						return
 					}
-					impl.logger.Debug(resp)
+					impl.logger.Debug("response of handle ci success event for multiple images from plugin", "resp", resp)
 				}
 			}
 

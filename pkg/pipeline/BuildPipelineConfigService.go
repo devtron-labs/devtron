@@ -811,8 +811,8 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	}
 	ciPipelineIds := make([]int, 0)
 	ciPipelineIdsMap := make(map[int]*pipelineConfig.CiPipeline)
-	for _, p := range pipelines {
-		ciPipelineIds = append(ciPipelineIds, p.Id)
+	for ind, p := range pipelines {
+		ciPipelineIds[ind] = p.Id
 		ciPipelineIdsMap[p.Id] = p
 	}
 	var ciTemplateOverrides []*pipelineConfig.CiTemplateOverride
