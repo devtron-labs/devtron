@@ -30,14 +30,14 @@ VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metada
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jenkins' and ps."index"=1 and ps.deleted=false), 'JOB_TRIGGER_PARAMS','STRING',
-'Jenkins job parameters (optional).
-Provide in format:-
-{"key1":"val1/variable"}.
-Available variables:-
-GIT_MATERIAL_REPO,
-GIT_MATERIAL_CHECKOUT_PATH,
-GIT_MATERIAL_BRANCH,
-GIT_MATERIAL_COMMIT_HASH',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
+        'Jenkins job parameters (optional).
+        Provide in format:-
+        {"key1":"val1/variable"}.
+        Available variables:-
+        GIT_MATERIAL_REPO,
+        GIT_MATERIAL_CHECKOUT_PATH,
+        GIT_MATERIAL_BRANCH,
+        GIT_MATERIAL_COMMIT_HASH',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","variable_type", "value_type", "variable_step_index",reference_variable_name, "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jenkins' and ps."index"=1 and ps.deleted=false), 'GIT_MATERIAL_REQUEST','STRING','',false,true,'INPUT','GLOBAL',1 ,'GIT_MATERIAL_REQUEST','f','now()', 1, 'now()', 1);
