@@ -85,6 +85,9 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetByRefAndSubject(referenceTyp
 		Where("subject_type = ?", subjectType).
 		Where("subject_ids = ?", pg.In(subjectIds)).
 		Select()
+	if err == pg.ErrNoRows {
+		return res, nil
+	}
 	return res, err
 }
 

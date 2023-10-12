@@ -67,9 +67,12 @@ func (impl *FilterEvaluationAuditServiceImpl) GetFilterEvaluationAudits() {
 
 func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (string, error) {
 	filterIds := make([]int, 0)
+	//store filtersMap here, later will help to identify filters that doesn't have filterAudit
+	filtersMap := make(map[int]*FilterMetaDataBean)
 	filterHistoryObjectMap := make(map[int]*FilterHistoryObject)
 	for _, filter := range filters {
 		filterIds = append(filterIds, filter.Id)
+		filtersMap[filter.Id] = filter
 		message := ""
 		for _, condition := range filter.Conditions {
 			message = fmt.Sprintf("\n%s conditionType : %v , errorMsg : %v", message, condition.ConditionType, condition.ErrorMsg)
@@ -85,10 +88,22 @@ func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filter
 		impl.logger.Errorw("error in getting latest resource filter audits for given filter id's", "filterIds", filterIds, "err", err)
 		return "", err
 	}
-	//if history doesn't exist for some filters , create history and proceed
+
 	for _, resourceFilterEvaluationAudit := range resourceFilterEvaluationAudits {
 		if filterHistoryObject, ok := filterHistoryObjectMap[resourceFilterEvaluationAudit.FilterId]; ok {
 			filterHistoryObject.FilterHistoryId = resourceFilterEvaluationAudit.Id
+
+			//delete filter from filtersMap for which we found filter audit
+			delete(filtersMap, resourceFilterEvaluationAudit.FilterId)
+		}
+	}
+
+	//if filtersMap is not empty ,there are some filters for which we never stored audit entry, so create filter audit for those
+	if len(filtersMap) > 0 {
+		filterHistoryObjectMap, err = impl.createFilterAuditForMissingFilters(filtersMap, filterHistoryObjectMap)
+		if err != nil {
+			impl.logger.Errorw("error in creating filter audit data for missing filters", "missingFiltersMap", filtersMap, "err", err)
+			return "", err
 		}
 	}
 
@@ -103,4 +118,44 @@ func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filter
 	}
 	return jsonStr, err
 
+}
+
+// createFilterAuditForMissingFilters will create snapshot of filter data in filter audit table and gets updated filterHistoryObjectMap.
+// this function exists because filter auditing is added later, so there is possibility that filters exist without any auditing data
+func (impl *FilterEvaluationAuditServiceImpl) createFilterAuditForMissingFilters(filtersMap map[int]*FilterMetaDataBean, filterHistoryObjectMap map[int]*FilterHistoryObject) (map[int]*FilterHistoryObject, error) {
+	tx, err := impl.filterAuditRepo.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting db transaction", "err", err)
+		return filterHistoryObjectMap, err
+	}
+
+	defer impl.filterAuditRepo.RollbackTx(tx)
+
+	for _, filter := range filtersMap {
+		conditionsStr, err := getJsonStringFromResourceCondition(filter.Conditions)
+		if err != nil {
+			impl.logger.Errorw("error in getting json string from filter conditions", "err", err, "filterConditions", filter.Conditions)
+			return filterHistoryObjectMap, err
+		}
+		action := Create
+		userId := int32(1) //system user
+		filterAudit := NewResourceFilterAudit(filter.Id, conditionsStr, filter.TargetObject, &action, userId)
+		savedFilterAudit, err := impl.filterAuditRepo.CreateResourceFilterAudit(tx, &filterAudit)
+		if err != nil {
+			impl.logger.Errorw("error in creating filter audit for missing filters", "err", err, "filterAudit", filterAudit)
+			return filterHistoryObjectMap, err
+		}
+
+		if filterHistoryObject, ok := filterHistoryObjectMap[savedFilterAudit.FilterId]; ok {
+			filterHistoryObject.FilterHistoryId = savedFilterAudit.Id
+		}
+
+	}
+	err = impl.filterAuditRepo.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing db transaction", "err", err)
+		return filterHistoryObjectMap, err
+	}
+
+	return filterHistoryObjectMap, err
 }
