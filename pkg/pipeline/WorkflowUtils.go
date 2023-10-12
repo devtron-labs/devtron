@@ -690,7 +690,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 		return ""
 	}
 }
-func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, workflowJson []byte, workflowTemplate bean.WorkflowTemplate, workflowConfigMaps []bean2.ConfigSecretMap, workflowSecrets []bean2.ConfigSecretMap) v12.Container {
+func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, workflowJson []byte, workflowTemplate bean.WorkflowTemplate, workflowConfigMaps []bean2.ConfigSecretMap, workflowSecrets []bean2.ConfigSecretMap) (v12.Container, error) {
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
@@ -711,6 +711,34 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 			ContainerPort: 9102,
 		}}
 	}
+
+	volumeMountsForCiJson := config.VolumeMountsForCiJson
+	if len(volumeMountsForCiJson) > 0 {
+		var volumeMountsForCi []CiVolumeMount
+		// Unmarshal or Decode the JSON to the interface.
+		err := json.Unmarshal([]byte(volumeMountsForCiJson), &volumeMountsForCi)
+		if err != nil {
+			return workflowMainContainer, err
+		}
+
+		for _, volumeMountsForCi := range volumeMountsForCi {
+			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+			workflowTemplate.Volumes = append(workflowTemplate.Volumes, v12.Volume{
+				Name: volumeMountsForCi.Name,
+				VolumeSource: v12.VolumeSource{
+					HostPath: &v12.HostPathVolumeSource{
+						Path: volumeMountsForCi.HostMountPath,
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			})
+			workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
+				Name:      volumeMountsForCi.Name,
+				MountPath: volumeMountsForCi.ContainerMountPath,
+			})
+		}
+	}
+
 	if len(pvc) != 0 {
 		buildPvcCachePath := config.BuildPvcCachePath
 		buildxPvcCachePath := config.BuildxPvcCachePath
@@ -740,7 +768,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 			})
 	}
 	UpdateContainerEnvsFromCmCs(&workflowMainContainer, workflowConfigMaps, workflowSecrets)
-	return workflowMainContainer
+	return workflowMainContainer, nil
 }
 
 func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
