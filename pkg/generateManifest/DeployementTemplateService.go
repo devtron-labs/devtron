@@ -3,6 +3,7 @@ package generateManifest
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -16,7 +17,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"os"
