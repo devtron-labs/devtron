@@ -408,12 +408,13 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 }
 
 func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(releaseErr error, cdWfr *pipelineConfig.CdWorkflowRunner, overrideRequest *bean.ValuesOverrideRequest, appIdentifier *client2.AppIdentifier) {
-	if releaseErr != context.DeadlineExceeded {
+	if util.GetGRPCErrorDetailedMessage(releaseErr) != context.DeadlineExceeded.Error() {
 		if err := impl.MarkCurrentDeploymentFailed(cdWfr, releaseErr, overrideRequest.UserId); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 		}
 		return
 	}
+	impl.logger.Debugw("updating current runner status based on release status, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id)
 	// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
 	if isWfrUpdated := impl.UpdateWorkflowRunnerStatusForDeployment(appIdentifier, cdWfr); !isWfrUpdated {
 		// will update cdWfr failed with error message context deadline exceeded
