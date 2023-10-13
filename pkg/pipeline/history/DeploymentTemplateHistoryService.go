@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -41,6 +42,7 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	userService                         user.UserService
 	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
 	variableSnapshotHistoryService      variables.VariableSnapshotHistoryService
+	variableTemplateParser              parsers.VariableTemplateParser
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
@@ -51,7 +53,8 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 	appLevelMetricsRepository repository2.AppLevelMetricsRepository,
 	userService user.UserService,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService) *DeploymentTemplateHistoryServiceImpl {
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	variableTemplateParser parsers.VariableTemplateParser) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
 		logger:                              logger,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
@@ -63,6 +66,7 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 		userService:                         userService,
 		cdWorkflowRepository:                cdWorkflowRepository,
 		variableSnapshotHistoryService:      variableSnapshotHistoryService,
+		variableTemplateParser:              variableTemplateParser,
 	}
 }
 
@@ -387,6 +391,18 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 	if err != nil {
 		return nil, err
 	}
+	resolvedTemplate := history.Template
+	if len(variableSnapshotMap) > 0 {
+		scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap)
+		request := parsers.VariableParserRequest{Template: history.Template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData, IgnoreUnknownVariables: true}
+		parserResponse := impl.variableTemplateParser.ParseTemplate(request)
+		err = parserResponse.Error
+		if err != nil {
+			return nil, err
+		}
+		resolvedTemplate = parserResponse.ResolvedTemplate
+	}
+
 	historyDto := &HistoryDetailDto{
 		TemplateName:        history.TemplateName,
 		TemplateVersion:     history.TemplateVersion,
@@ -396,6 +412,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 			Value:       history.Template,
 		},
 		VariableSnapshot: variableSnapshotMap,
+		ResolvedTemplate: resolvedTemplate,
 	}
 	return historyDto, nil
 }

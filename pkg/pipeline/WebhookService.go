@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -55,6 +56,7 @@ type WebhookService interface {
 	HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error)
 	HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error)
 	HandleCiStepFailedEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (err error)
+	HandleMultipleImagesFromEvent(imageDetails []types.ImageDetail, ciWorkflowId int) (map[string]*pipelineConfig.CiWorkflow, error)
 }
 
 type WebhookServiceImpl struct {
@@ -398,4 +400,45 @@ func (impl *WebhookServiceImpl) BuildPayload(request *CiArtifactWebhookRequest, 
 	}
 	payload.DockerImageUrl = request.Image
 	return payload
+}
+
+// HandleMultipleImagesFromEvent handles multiple images from plugin and creates ci workflow for n-1 images for mapping in ci_artifact
+func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []types.ImageDetail, ciWorkflowId int) (map[string]*pipelineConfig.CiWorkflow, error) {
+	ciWorkflow, err := impl.ciWorkflowRepository.FindById(ciWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error in finding ci workflow by id ", "err", err, "ciWorkFlowId", ciWorkflowId)
+		return nil, err
+	}
+
+	//creating n-1 workflows for rest images, oldest will be mapped to original workflow id.
+	digestWorkflowMap := make(map[string]*pipelineConfig.CiWorkflow)
+	// mapping oldest to original ciworkflowId
+	digestWorkflowMap[*imageDetails[0].ImageDigest] = ciWorkflow
+	for i := 1; i < len(imageDetails); i++ {
+		workflow := &pipelineConfig.CiWorkflow{
+			Name:               ciWorkflow.Name + fmt.Sprintf("-child-%d", i),
+			Status:             ciWorkflow.Status,
+			PodStatus:          string(v1alpha1.NodeSucceeded),
+			StartedOn:          time.Now(),
+			Namespace:          ciWorkflow.Namespace,
+			LogLocation:        ciWorkflow.LogLocation,
+			TriggeredBy:        ciWorkflow.TriggeredBy,
+			CiPipelineId:       ciWorkflow.CiPipelineId,
+			CiArtifactLocation: ciWorkflow.CiArtifactLocation,
+			BlobStorageEnabled: ciWorkflow.BlobStorageEnabled,
+			PodName:            ciWorkflow.PodName,
+			CiBuildType:        ciWorkflow.CiBuildType,
+			ParentCiWorkFlowId: ciWorkflow.Id,
+			GitTriggers:        ciWorkflow.GitTriggers,
+			Message:            ciWorkflow.Message,
+		}
+		err = impl.ciWorkflowRepository.SaveWorkFlow(workflow)
+		if err != nil {
+			impl.logger.Errorw("error in saving workflow for child workflow", "err", err, "parentCiWorkflowId", ciWorkflowId)
+			return nil, err
+		}
+		digestWorkflowMap[*imageDetails[i].ImageDigest] = workflow
+
+	}
+	return digestWorkflowMap, nil
 }
