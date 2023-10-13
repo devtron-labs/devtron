@@ -65,6 +65,8 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/template/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDeploymentTemplate).Methods("GET")
 	configRouter.Path("/template/default/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDefaultDeploymentTemplate).Methods("GET")
 	configRouter.Path("/template/update").HandlerFunc(router.restHandler.UpdateAppOverride).Methods("POST")
+	configRouter.Path("/template/list").Queries("appId", "{appId}").Queries("envId", "{envId}").HandlerFunc(router.restHandler.GetTemplateComparisonMetadata).Methods("GET")
+	configRouter.Path("/template/data").HandlerFunc(router.restHandler.GetDeploymentTemplateData).Methods("POST")
 
 	configRouter.Path("/cd-pipeline").HandlerFunc(router.restHandler.CreateCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")
@@ -107,6 +109,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/refresh-material/{gitMaterialId}").HandlerFunc(router.restHandler.RefreshMaterials).Methods("GET")
 
 	configRouter.Path("/{appId}/ci-pipeline/{pipelineId}/workflow/{workflowId}").HandlerFunc(router.restHandler.FetchWorkflowDetails).Methods("GET")
+	configRouter.Path("/ci-pipeline/{pipelineId}/workflow/{workflowId}/ci-job/artifacts").HandlerFunc(router.restHandler.GetArtifactsForCiJob).Methods("GET")
 	configRouter.Path("/ci-pipeline/{pipelineId}/artifacts/{workflowId}").HandlerFunc(router.restHandler.DownloadCiWorkflowArtifacts).Methods("GET")
 
 	configRouter.Path("/ci-pipeline/{pipelineId}/git-changes/{ciMaterialId}").HandlerFunc(router.restHandler.FetchChanges).Methods("GET")
