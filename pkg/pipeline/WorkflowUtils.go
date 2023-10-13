@@ -710,7 +710,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 			Name:          "app-data",
 			ContainerPort: 9102,
 		}}
-		err := appendVolumeMountsForCi(config, &workflowTemplate, &workflowMainContainer)
+		err := updateVolumeMountsForCi(config, &workflowTemplate, &workflowMainContainer)
 		if err != nil {
 			return workflowMainContainer, err
 		}
@@ -754,7 +754,7 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 
 }
 
-func appendVolumeMountsForCi(config *CiCdConfig, workflowTemplate *bean.WorkflowTemplate, workflowMainContainer *v12.Container) error {
+func updateVolumeMountsForCi(config *CiCdConfig, workflowTemplate *bean.WorkflowTemplate, workflowMainContainer *v12.Container) error {
 	volumeMountsForCiJson := config.VolumeMountsForCiJson
 	if len(volumeMountsForCiJson) > 0 {
 		var volumeMountsForCi []CiVolumeMount
@@ -764,22 +764,32 @@ func appendVolumeMountsForCi(config *CiCdConfig, workflowTemplate *bean.Workflow
 			return err
 		}
 
-		for _, volumeMountsForCi := range volumeMountsForCi {
-			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
-			workflowTemplate.Volumes = append(workflowTemplate.Volumes, v12.Volume{
-				Name: volumeMountsForCi.Name,
-				VolumeSource: v12.VolumeSource{
-					HostPath: &v12.HostPathVolumeSource{
-						Path: volumeMountsForCi.HostMountPath,
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			})
-			workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
-				Name:      volumeMountsForCi.Name,
-				MountPath: volumeMountsForCi.ContainerMountPath,
-			})
+		for _, volumeMountForCi := range volumeMountsForCi {
+			workflowTemplate.Volumes = append(workflowTemplate.Volumes, getWorkflowVolume(volumeMountForCi))
+			workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, getWorkflowVolumeMounts(volumeMountForCi))
 		}
 	}
 	return nil
+}
+
+func getWorkflowVolume(volumeMountForCi CiVolumeMount) v12.Volume {
+	hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+
+	return v12.Volume{
+		Name: volumeMountForCi.Name,
+		VolumeSource: v12.VolumeSource{
+			HostPath: &v12.HostPathVolumeSource{
+				Path: volumeMountForCi.HostMountPath,
+				Type: &hostPathDirectoryOrCreate,
+			},
+		},
+	}
+
+}
+
+func getWorkflowVolumeMounts(volumeMountForCi CiVolumeMount) v12.VolumeMount {
+	return v12.VolumeMount{
+		Name:      volumeMountForCi.Name,
+		MountPath: volumeMountForCi.ContainerMountPath,
+	}
 }
