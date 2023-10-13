@@ -145,8 +145,11 @@ type CdWorkflowConfig struct {
 
 type WorkflowExecutorType string
 
-const WORKFLOW_EXECUTOR_TYPE_AWF = "AWF"
-const WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
+const (
+	WORKFLOW_EXECUTOR_TYPE_AWF    = "AWF"
+	WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
+	NEW_DEPLOYMENT_INITIATED      = "A new deployment was initiated before this deployment completed"
+)
 
 type CdWorkflowRunner struct {
 	tableName             struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
@@ -595,7 +598,7 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId in
 func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error) {
 	var wfrList []*CdWorkflowRunner
 	excludedStatusList := WfrTerminalStatusList
-	excludedStatusList = append(excludedStatusList, WorkflowStarting, WorkflowInQueue)
+	excludedStatusList = append(excludedStatusList, WorkflowInitiated, WorkflowInQueue)
 	err := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow.id", "CdWorkflow.pipeline_id", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_name", "CdWorkflow.Pipeline.deployment_app_type", "CdWorkflow.Pipeline.deleted", "CdWorkflow.Pipeline.Environment").

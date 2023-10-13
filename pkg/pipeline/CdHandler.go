@@ -516,6 +516,20 @@ func (impl *CdHandlerImpl) updateWorkflowRunnerStatusForDeployment(appIdentifier
 	}
 
 	switch helmInstalledDevtronApp.GetReleaseStatus() {
+	case serverBean.HelmReleaseStatusSuperseded:
+		// If release status is superseded, mark the deployment as failure
+		wfr.Status = pipelineConfig.WorkflowFailed
+		wfr.Message = pipelineConfig.NEW_DEPLOYMENT_INITIATED
+		wfr.FinishedOn = time.Now()
+		return true
+	case serverBean.HelmReleaseStatusFailed:
+		// If release status is failed, mark the deployment as failure
+		wfr.Status = pipelineConfig.WorkflowFailed
+		wfr.Message = helmInstalledDevtronApp.GetDescription()
+		wfr.FinishedOn = time.Now()
+		return true
+	case serverBean.HelmReleaseStatusPendingUpgrade:
+	case serverBean.HelmReleaseStatusPendingRollback:
 	case serverBean.HelmReleaseStatusPendingInstall:
 		appServiceConfig, err := app.GetAppServiceConfig()
 		if err != nil {
