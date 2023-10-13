@@ -341,17 +341,17 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) extractOverrideRequestFromCDAsyncInstallEvent(msg *pubsub.PubSubMsg) (*bean.AsyncCdDeployEvent, *client2.AppIdentifier) {
+func (impl *WorkflowDagExecutorImpl) extractOverrideRequestFromCDAsyncInstallEvent(msg *pubsub.PubSubMsg) (*bean.AsyncCdDeployEvent, *client2.AppIdentifier, error) {
 	CDAsyncInstallNatsMessage := &bean.AsyncCdDeployEvent{}
 	err := json.Unmarshal([]byte(msg.Data), CDAsyncInstallNatsMessage)
 	if err != nil {
 		impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
-		return nil, nil
+		return nil, nil, err
 	}
 	pipeline, err := impl.pipelineRepository.FindById(CDAsyncInstallNatsMessage.ValuesOverrideRequest.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
-		return nil, nil
+		return nil, nil, err
 	}
 	impl.appService.SetPipelineFieldsInOverrideRequest(CDAsyncInstallNatsMessage.ValuesOverrideRequest, pipeline)
 	if CDAsyncInstallNatsMessage.ValuesOverrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
@@ -362,7 +362,7 @@ func (impl *WorkflowDagExecutorImpl) extractOverrideRequestFromCDAsyncInstallEve
 		Namespace:   pipeline.Environment.Namespace,
 		ReleaseName: pipeline.DeploymentAppName,
 	}
-	return CDAsyncInstallNatsMessage, appIdentifier
+	return CDAsyncInstallNatsMessage, appIdentifier, nil
 }
 
 // UpdateWorkflowRunnerStatusForDeployment will update CD workflow runner based on release status and app status
@@ -430,12 +430,13 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 }
 
 func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(releaseErr error, cdWfr *pipelineConfig.CdWorkflowRunner, overrideRequest *bean.ValuesOverrideRequest, appIdentifier *client2.AppIdentifier) {
-	if releaseErr != context.DeadlineExceeded {
+	if util.GetGRPCErrorDetailedMessage(releaseErr) != context.DeadlineExceeded.Error() {
 		if err := impl.MarkCurrentDeploymentFailed(cdWfr, releaseErr, overrideRequest.UserId); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 		}
 		return
 	}
+	impl.logger.Debugw("updating current runner status based on release status, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id)
 	// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
 	if isWfrUpdated := impl.UpdateWorkflowRunnerStatusForDeployment(appIdentifier, cdWfr); !isWfrUpdated {
 		// will update cdWfr failed with error message context deadline exceeded
@@ -466,7 +467,11 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(releaseErr e
 func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() error {
 	callback := func(msg *pubsub.PubSubMsg) {
 		impl.logger.Debug("received Devtron App helm async install request event, SubscribeDevtronAsyncHelmInstallRequest", "data", msg.Data)
-		CDAsyncInstallNatsMessage, appIdentifier := impl.extractOverrideRequestFromCDAsyncInstallEvent(msg)
+		CDAsyncInstallNatsMessage, appIdentifier, err := impl.extractOverrideRequestFromCDAsyncInstallEvent(msg)
+		if err != nil {
+			impl.logger.Errorw("err on extracting override request, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
+			return
+		}
 		overrideRequest := CDAsyncInstallNatsMessage.ValuesOverrideRequest
 		cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(overrideRequest.WfrId)
 		if err != nil && err != pg.ErrNoRows {
