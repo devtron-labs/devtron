@@ -755,41 +755,11 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 }
 
 func updateVolumeMountsForCi(config *CiCdConfig, workflowTemplate *bean.WorkflowTemplate, workflowMainContainer *v12.Container) error {
-	volumeMountsForCiJson := config.VolumeMountsForCiJson
-	if len(volumeMountsForCiJson) > 0 {
-		var volumeMountsForCi []CiVolumeMount
-		// Unmarshal or Decode the JSON to the interface.
-		err := json.Unmarshal([]byte(volumeMountsForCiJson), &volumeMountsForCi)
-		if err != nil {
-			return err
-		}
-
-		for _, volumeMountForCi := range volumeMountsForCi {
-			workflowTemplate.Volumes = append(workflowTemplate.Volumes, getWorkflowVolume(volumeMountForCi))
-			workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, getWorkflowVolumeMounts(volumeMountForCi))
-		}
+	volume, volumeMounts, err := config.GetWorkflowVolumeAndVolumeMounts()
+	if err != nil {
+		return err
 	}
+	workflowTemplate.Volumes = volume
+	workflowMainContainer.VolumeMounts = volumeMounts
 	return nil
-}
-
-func getWorkflowVolume(volumeMountForCi CiVolumeMount) v12.Volume {
-	hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
-
-	return v12.Volume{
-		Name: volumeMountForCi.Name,
-		VolumeSource: v12.VolumeSource{
-			HostPath: &v12.HostPathVolumeSource{
-				Path: volumeMountForCi.HostMountPath,
-				Type: &hostPathDirectoryOrCreate,
-			},
-		},
-	}
-
-}
-
-func getWorkflowVolumeMounts(volumeMountForCi CiVolumeMount) v12.VolumeMount {
-	return v12.VolumeMount{
-		Name:      volumeMountForCi.Name,
-		MountPath: volumeMountForCi.ContainerMountPath,
-	}
 }
