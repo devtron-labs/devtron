@@ -429,7 +429,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 	allScopedVariableDataObj := scopedVariableDataObj
 	usedScopedVariableDataObj := make([]*models.ScopedVariableData, 0)
 	for _, data := range scopedVariableDataObj {
-		if slices.Contains(varNames, data.VariableName) {
+		if varNames == nil || slices.Contains(varNames, data.VariableName) {
 			usedScopedVariableDataObj = append(usedScopedVariableDataObj, data)
 		}
 	}
