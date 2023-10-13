@@ -40,11 +40,6 @@ func NewVariableTemplateParserImpl(logger *zap.SugaredLogger) (*VariableTemplate
 	return impl, nil
 }
 
-//const VariableRegex = `@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}`
-//const VariableSubRegexWithQuotes = `\"@{{([a-zA-Z0-9-+/*%_\s]+)}}\"`
-
-//const REGEX = "(" + VariableSubRegexWithQuotes + " | \\\"" + VariableSubRegexWithQuotes + "\\\")"
-
 type VariableTemplateParserConfig struct {
 	ScopedVariableEnabled          bool   `env:"SCOPED_VARIABLE_ENABLED" envDefault:"false"`
 	ScopedVariableHandlePrimitives bool   `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false"`

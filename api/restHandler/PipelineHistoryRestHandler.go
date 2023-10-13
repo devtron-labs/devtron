@@ -209,13 +209,6 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 	//RBAC END
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
-
-	//userId, err := handler.userAuthService.GetLoggedInUser(r)
-	//if userId == 0 || err != nil {
-	//	handler.logger.Errorw("request err, userId", "err", err, "payload", userId)
-	//	common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-	//	return
-	//}
 	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
 
 	res, err := handler.deployedConfigurationHistoryService.GetDeployedHistoryComponentDetail(pipelineId, id, historyComponent, historyComponentName, userHasAdminAccess, isSuperAdmin)

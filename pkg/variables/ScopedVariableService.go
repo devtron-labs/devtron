@@ -391,10 +391,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 	}
 
 	variableIds := make([]int, 0)
-	//variableIdToDefinition := make(map[int]*repository2.VariableDefinition)
 	for _, definition := range variableDefinitions {
 		variableIds = append(variableIds, definition.Id)
-		//variableIdToDefinition[definition.Id] = definition
 	}
 	// This to prevent corner case where no variables were found for the provided names
 	if len(varNames) > 0 && len(variableIds) == 0 {

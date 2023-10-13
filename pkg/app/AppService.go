@@ -1603,15 +1603,6 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	if err != nil {
 		return valuesOverrideResponse, err
 	}
-	//valuesOverrideResponse.
-	//valuesOverrideResponse.MergedValues = string(mergedValues)
-	//valuesOverrideResponse.EnvOverride = envOverride
-	//valuesOverrideResponse.PipelineOverride = pipelineOverride
-	//valuesOverrideResponse.AppMetrics = appMetrics
-	//valuesOverrideResponse.PipelineStrategy = strategy
-	//valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson
-	//valuesOverrideResponse.Artifact = artifact
-	//valuesOverrideResponse.Pipeline = pipeline
 	return valuesOverrideResponse, err
 }
 
