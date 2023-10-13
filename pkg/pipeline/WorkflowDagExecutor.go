@@ -364,7 +364,9 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 			return
 		}
 		// skip if the cdWfr.Status is already in a terminal state
-		if cdWfr != nil && slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
+		skipCDWfrStatusList := pipelineConfig.WfrTerminalStatusList
+		skipCDWfrStatusList = append(skipCDWfrStatusList, pipelineConfig.WorkflowInProgress)
+		if cdWfr != nil && slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
 			impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state", "cdWfrId", cdWfr, "status", cdWfr.Status)
 			return
 		}
