@@ -318,6 +318,7 @@ func (repo EnvironmentRepositoryImpl) FindIdsByNames(envNames []string) ([]int, 
 	_, err := repo.dbConnection.Query(&ids, query, pg.In(envNames), true)
 	return ids, err
 }
+
 func (repo EnvironmentRepositoryImpl) FindByNames(envNames []string) ([]*Environment, error) {
 	var environment []*Environment
 	err := repo.dbConnection.
