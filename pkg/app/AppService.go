@@ -1722,7 +1722,7 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 	return gitOpsRepoName, chartGitAttr, nil
 }
 
-func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, ctx context.Context) error {
+func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
 
 	impl.logger.Debugw("new pipeline found", "pipeline", valuesOverrideResponse.Pipeline)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
@@ -1746,6 +1746,12 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 	} else {
 		impl.logger.Debug("argo-cd failed to update, ignoring it")
 	}
+	//update workflow runner status, used in app workflow view
+	err = impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress)
+	if err != nil {
+		impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
+		return err
+	}
 	return nil
 }
 
@@ -1753,7 +1759,7 @@ func (impl *AppServiceImpl) DeployApp(overrideRequest *bean.ValuesOverrideReques
 
 	if IsAcdApp(overrideRequest.DeploymentAppType) {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "DeployArgocdApp")
-		err := impl.DeployArgocdApp(overrideRequest, valuesOverrideResponse, ctx)
+		err := impl.DeployArgocdApp(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in deploying app on argocd", "err", err)
