@@ -504,6 +504,7 @@ func (impl *CdHandlerImpl) updateWorkflowRunnerStatusForDeployment(appIdentifier
 		}
 		// If release not found, mark the deployment as failure
 		wfr.Status = pipelineConfig.WorkflowFailed
+		wfr.Message = util.GetGRPCErrorDetailedMessage(err)
 		wfr.FinishedOn = time.Now()
 		return true
 	}
@@ -524,6 +525,7 @@ func (impl *CdHandlerImpl) updateWorkflowRunnerStatusForDeployment(appIdentifier
 		if time.Now().After(helmInstalledDevtronApp.GetLastDeployed().AsTime().Add(time.Duration(appServiceConfig.HelmInstallationTimeout) * time.Minute)) {
 			// If release status is in pending-install for more than 5 mins, then mark the deployment as failure
 			wfr.Status = pipelineConfig.WorkflowFailed
+			wfr.Message = fmt.Sprintf("Deployment Timeout: release is in %s status for more than %d mins", serverBean.HelmReleaseStatusPendingInstall, appServiceConfig.HelmInstallationTimeout)
 			wfr.FinishedOn = time.Now()
 			return true
 		}
