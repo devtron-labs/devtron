@@ -280,6 +280,7 @@ message InstallReleaseRequest {
   RegistryCredential RegistryCredential = 8;
   bool IsOCIRepo = 9;
   int32 installAppVersionHistoryId = 10;
+  ChartContent chartContent = 11;
 }
 
 message InstallReleaseResponse {
