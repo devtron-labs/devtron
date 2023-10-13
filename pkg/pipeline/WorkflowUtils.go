@@ -690,7 +690,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 		return ""
 	}
 }
-func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, workflowJson []byte, workflowTemplate bean.WorkflowTemplate, workflowConfigMaps []bean2.ConfigSecretMap, workflowSecrets []bean2.ConfigSecretMap) (v12.Container, error) {
+func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean2.ConfigSecretMap, workflowSecrets []bean2.ConfigSecretMap) (v12.Container, error) {
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
@@ -710,7 +710,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 			Name:          "app-data",
 			ContainerPort: 9102,
 		}}
-		err := updateVolumeMountsForCi(config, &workflowTemplate, &workflowMainContainer)
+		err := updateVolumeMountsForCi(config, workflowTemplate, &workflowMainContainer)
 		if err != nil {
 			return workflowMainContainer, err
 		}

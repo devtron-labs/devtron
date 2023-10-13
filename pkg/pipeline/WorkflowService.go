@@ -138,7 +138,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *Workflo
 	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
-	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, workflowJson, workflowTemplate, workflowConfigMaps, workflowSecrets)
+	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
 
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting workflow main container", "err", err)
