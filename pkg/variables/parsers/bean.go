@@ -55,10 +55,15 @@ func (request VariableParserRequest) GetOriginalValuesMap() map[string]interface
 	return variableToValue
 }
 
-func GetScopedVarData(varData map[string]string) []*models.ScopedVariableData {
+func GetScopedVarData(varData map[string]string, nameToIsSensitive map[string]bool, isSuperAdmin bool) []*models.ScopedVariableData {
 	scopedVarData := make([]*models.ScopedVariableData, 0)
 	for key, value := range varData {
-		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: &models.VariableValue{Value: models.GetInterfacedValue(value)}})
+
+		finalValue := value
+		if !isSuperAdmin && nameToIsSensitive[key] {
+			finalValue = "*******"
+		}
+		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: &models.VariableValue{Value: models.GetInterfacedValue(finalValue)}})
 	}
 	return scopedVarData
 }

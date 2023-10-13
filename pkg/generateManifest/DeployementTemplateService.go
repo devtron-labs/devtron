@@ -34,6 +34,7 @@ type DeploymentTemplateRequest struct {
 	DeploymentTemplateHistoryId int                               `json:"deploymentTemplateHistoryId,omitempty"`
 	ResourceName                string                            `json:"resourceName"`
 	PipelineId                  int                               `json:"pipelineId"`
+	IsSuperAdmin                bool                              `json:"-"`
 }
 
 type RequestDataMode int
@@ -240,7 +241,7 @@ func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(
 }
 
 func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(request DeploymentTemplateRequest) (string, error) {
-	history, err := impl.deploymentTemplateHistoryService.GetHistoryForDeployedTemplateById(request.DeploymentTemplateHistoryId, request.PipelineId)
+	history, err := impl.deploymentTemplateHistoryService.GetHistoryForDeployedTemplateById(request.DeploymentTemplateHistoryId, request.PipelineId, request.IsSuperAdmin)
 	if err != nil {
 		impl.Logger.Errorw("error in getting deployment template history", "err", err, "id", request.DeploymentTemplateHistoryId, "pipelineId", request.PipelineId)
 		return "", err
@@ -258,7 +259,7 @@ func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(values string
 	if err != nil {
 		return "", err
 	}
-	resolvedTemplate, err := impl.chartService.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate)
+	resolvedTemplate, err := impl.chartService.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate, request.IsSuperAdmin)
 	if err != nil {
 		return "", err
 	}

@@ -2,6 +2,7 @@ package variables
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-workflows/v3/errors"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -22,8 +23,9 @@ import (
 
 type ScopedVariableService interface {
 	CreateVariables(payload models.Payload) error
-	GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
+	GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
 	GetJsonForVariables() (*models.Payload, error)
+	CheckForSensitiveVariables(variableNames []string) (map[string]bool, error)
 }
 
 type ScopedVariableServiceImpl struct {
@@ -84,6 +86,39 @@ func (impl *ScopedVariableServiceImpl) loadVarCache() {
 	}
 	variableCache.SetData(variableMetadata)
 	impl.logger.Info("variable cache loaded successfully")
+}
+
+func (impl *ScopedVariableServiceImpl) CheckForSensitiveVariables(variableNames []string) (map[string]bool, error) {
+
+	// getting all variables from cache
+	allVariableDefinitions := impl.VariableCache.GetData()
+
+	var err error
+	// cache is not loaded get from repo
+	if allVariableDefinitions == nil {
+		allVariableDefinitions, err = impl.scopedVariableRepository.GetVariableTypeForVariableNames(variableNames)
+		if err != nil {
+			return nil, errors.Wrap(err, "400", "error in fetching variable type")
+		}
+	}
+
+	variableNameToType := make(map[string]models.VariableType)
+	for _, definition := range allVariableDefinitions {
+		variableNameToType[definition.Name] = definition.VarType
+	}
+
+	varNameToIsSensitive := make(map[string]bool)
+	for _, name := range variableNames {
+
+		// by default all variables are marked sensitive to handle deleted variables
+		// only super admin will be able to see the values once variable is deleted from system
+		if varType, ok := variableNameToType[name]; ok {
+			varNameToIsSensitive[name] = varType.IsTypeSensitive()
+		} else {
+			varNameToIsSensitive[name] = true
+		}
+	}
+	return varNameToIsSensitive, nil
 }
 
 func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) error {
@@ -319,7 +354,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 	return selectedParentScope
 }
 
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	//populating system variables from system metadata
 	var systemVariableData, allSystemVariables []*models.ScopedVariableData
@@ -411,8 +446,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 
 		var varValue *models.VariableValue
 		var isRedacted bool
-		if !maskSensitiveData && variableIdToDefinition[varId].VarType == models.PRIVATE {
-			varValue = &models.VariableValue{Value: ""}
+		if !unmaskSensitiveData && variableIdToDefinition[varId].VarType == models.PRIVATE {
+			varValue = &models.VariableValue{Value: "*******"}
 			isRedacted = true
 		} else {
 			varValue = &models.VariableValue{Value: value}

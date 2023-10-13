@@ -19,7 +19,7 @@ import (
 )
 
 type DeploymentConfigService interface {
-	GetLatestDeploymentConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error)
+	GetLatestDeploymentConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool, isSuperAdmin bool) (*history.AllDeploymentConfigurationDetail, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -69,7 +69,7 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error) {
+func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool, isSuperAdmin bool) (*history.AllDeploymentConfigurationDetail, error) {
 	configResp := &history.AllDeploymentConfigurationDetail{}
 	pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 	if err != nil {
@@ -77,7 +77,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 		return nil, err
 	}
 
-	deploymentTemplateConfig, err := impl.GetLatestDeploymentTemplateConfig(pipeline)
+	deploymentTemplateConfig, err := impl.GetLatestDeploymentTemplateConfig(pipeline, isSuperAdmin)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest deploymentTemplate", "err", err)
 		return nil, err
@@ -101,7 +101,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	return configResp, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(template string, scope resourceQualifiers.Scope, entity repository6.Entity) (string, map[string]string, error) {
+func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(template string, scope resourceQualifiers.Scope, entity repository6.Entity, isSuperAdmin bool) (string, map[string]string, error) {
 
 	variableMap := make(map[string]string)
 	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
@@ -110,7 +110,7 @@ func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(t
 	}
 	scopedVariables := make([]*models.ScopedVariableData, 0)
 	if _, ok := entityToVariables[entity]; ok && len(entityToVariables[entity]) > 0 {
-		scopedVariables, err = impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
+		scopedVariables, err = impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], isSuperAdmin)
 		if err != nil {
 			return template, variableMap, err
 		}
@@ -135,7 +135,7 @@ func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(t
 	return resolvedTemplate, variableMap, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
+func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipeline *pipelineConfig.Pipeline, isSuperAdmin bool) (*history.HistoryDetailDto, error) {
 	isAppMetricsEnabled := false
 	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil && err != pg.ErrNoRows {
@@ -173,7 +173,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
 				EntityId:   envOverride.Id,
 			}
-			resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(envOverride.EnvOverrideValues, scope, entity)
+			resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(envOverride.EnvOverrideValues, scope, entity, isSuperAdmin)
 			if err != nil {
 				impl.logger.Errorw("could not resolve template", "err", err, "envOverrideId", envOverride.Id, "scope", scope, "pipelineId", pipeline.Id)
 			}
@@ -211,7 +211,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			EntityType: repository6.EntityTypeDeploymentTemplateAppLevel,
 			EntityId:   chart.Id,
 		}
-		resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(chart.GlobalOverride, scope, entity)
+		resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(chart.GlobalOverride, scope, entity, isSuperAdmin)
 		if err != nil {
 			impl.logger.Errorw("could not resolve template", "err", err, "chartId", chart.Id, "scope", scope, "pipelineId", pipeline.Id)
 		}

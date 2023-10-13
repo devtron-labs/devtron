@@ -23,12 +23,12 @@ type DeploymentTemplateHistoryService interface {
 	CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) (*repository.DeploymentTemplateHistory, error)
 	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error)
 
-	GetHistoryForDeployedTemplateById(id, pipelineId int) (*HistoryDetailDto, error)
+	GetHistoryForDeployedTemplateById(id int, pipelineId int, isSuperAdmin bool) (*HistoryDetailDto, error)
 	CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error)
 
 	// used for rollback
-	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*HistoryDetailDto, error)
+	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, isSuperAdmin bool) (*HistoryDetailDto, error)
 }
 
 type DeploymentTemplateHistoryServiceImpl struct {
@@ -43,6 +43,7 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
 	variableSnapshotHistoryService      variables.VariableSnapshotHistoryService
 	variableTemplateParser              parsers.VariableTemplateParser
+	scopedVariableService               variables.ScopedVariableService
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
@@ -55,6 +56,7 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
 	variableTemplateParser parsers.VariableTemplateParser,
+	scopedVariableService variables.ScopedVariableService,
 ) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
 		logger:                              logger,
@@ -68,6 +70,7 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 		cdWorkflowRepository:                cdWorkflowRepository,
 		variableSnapshotHistoryService:      variableSnapshotHistoryService,
 		variableTemplateParser:              variableTemplateParser,
+		scopedVariableService:               scopedVariableService,
 	}
 }
 
@@ -313,7 +316,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CheckIfHistoryExistsForPipeline
 	return history.Id, true, nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*HistoryDetailDto, error) {
+func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, isSuperAdmin bool) (*HistoryDetailDto, error) {
 	impl.logger.Debugw("received request, GetDeployedHistoryByPipelineIdAndWfrId", "pipelineId", pipelineId, "wfrId", wfrId)
 
 	//checking if history exists for pipelineId and wfrId
@@ -323,7 +326,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 		return nil, err
 	}
 
-	variableSnapshotMap, resolvedTemplate, err := impl.getVariableSnapshotAndResolveTemplate(history.Template, history.Id)
+	variableSnapshotMap, resolvedTemplate, err := impl.getVariableSnapshotAndResolveTemplate(history.Template, history.Id, isSuperAdmin)
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 	}
@@ -342,7 +345,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 	return historyDto, nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) getVariableSnapshotAndResolveTemplate(template string, historyId int) (map[string]string, string, error) {
+func (impl DeploymentTemplateHistoryServiceImpl) getVariableSnapshotAndResolveTemplate(template string, historyId int, isSuperAdmin bool) (map[string]string, string, error) {
 	reference := repository6.HistoryReference{
 		HistoryReferenceId:   historyId,
 		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
@@ -352,7 +355,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) getVariableSnapshotAndResolveTe
 	if err != nil {
 		return variableSnapshotMap, template, err
 	}
-	//variableSnapshotMap := make(map[string]string)
+
 	if _, ok := references[reference]; ok {
 		err = json.Unmarshal(references[reference].VariableSnapshot, &variableSnapshotMap)
 		if err != nil {
@@ -363,7 +366,17 @@ func (impl DeploymentTemplateHistoryServiceImpl) getVariableSnapshotAndResolveTe
 	if len(variableSnapshotMap) == 0 {
 		return variableSnapshotMap, template, err
 	}
-	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap)
+
+	varNames := make([]string, 0)
+	for varName, _ := range variableSnapshotMap {
+		varNames = append(varNames, varName)
+	}
+	varNameToIsSensitive, err := impl.scopedVariableService.CheckForSensitiveVariables(varNames)
+	if err != nil {
+		return variableSnapshotMap, template, err
+	}
+
+	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, varNameToIsSensitive, isSuperAdmin)
 	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
 	err = parserResponse.Error
@@ -396,14 +409,14 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryList(pipeline
 	return historyList, nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateById(id, pipelineId int) (*HistoryDetailDto, error) {
+func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateById(id int, pipelineId int, isSuperAdmin bool) (*HistoryDetailDto, error) {
 	history, err := impl.deploymentTemplateHistoryRepository.GetHistoryForDeployedTemplateById(id, pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment template history", "err", err, "id", id, "pipelineId", pipelineId)
 		return nil, err
 	}
 
-	variableSnapshotMap, resolvedTemplate, err := impl.getVariableSnapshotAndResolveTemplate(history.Template, history.Id)
+	variableSnapshotMap, resolvedTemplate, err := impl.getVariableSnapshotAndResolveTemplate(history.Template, history.Id, isSuperAdmin)
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "err", err, "id", id, "pipelineID", pipelineId)
 	}

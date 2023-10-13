@@ -1455,7 +1455,7 @@ func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHi
 	if len(variableSnapshotMap) == 0 {
 		return template, variableSnapshotMap, nil
 	}
-	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap)
+	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, make(map[string]bool), true)
 	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
 	err = parserResponse.Error
