@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	client2 "github.com/devtron-labs/authenticator/client"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	mocks4 "github.com/devtron-labs/devtron/api/helm-app/mocks"
