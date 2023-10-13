@@ -45,7 +45,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -501,70 +500,6 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 	return nil, isTimelineUpdated
 }
 
-// updateWorkflowRunnerStatusForDeployment will update CD workflow runner based on release status and app status
-func (impl *CdHandlerImpl) updateWorkflowRunnerStatusForDeployment(appIdentifier *client.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner) bool {
-	helmInstalledDevtronApp, err := impl.helmAppService.GetApplicationAndReleaseStatus(context.Background(), appIdentifier)
-	if err != nil {
-		impl.Logger.Errorw("error in getting helm app release status ", "appIdentifier", appIdentifier, "err", err)
-		// Handle release not found errors
-		if util.GetGRPCErrorDetailedMessage(err) != client.ErrReleaseNotFound {
-			//skip this error and continue for next workflow status
-			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
-			return false
-		}
-		// If release not found, mark the deployment as failure
-		wfr.Status = pipelineConfig.WorkflowFailed
-		wfr.Message = util.GetGRPCErrorDetailedMessage(err)
-		wfr.FinishedOn = time.Now()
-		return true
-	}
-
-	//skip if there is no deployment after wfr.StartedOn and continue for next workflow status
-	if helmInstalledDevtronApp.GetLastDeployed().AsTime().Before(wfr.StartedOn) {
-		impl.Logger.Warnw("release mismatched, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
-		return false
-	}
-
-	switch helmInstalledDevtronApp.GetReleaseStatus() {
-	case serverBean.HelmReleaseStatusSuperseded:
-		// If release status is superseded, mark the deployment as failure
-		wfr.Status = pipelineConfig.WorkflowFailed
-		wfr.Message = pipelineConfig.NEW_DEPLOYMENT_INITIATED
-		wfr.FinishedOn = time.Now()
-		return true
-	case serverBean.HelmReleaseStatusFailed:
-		// If release status is failed, mark the deployment as failure
-		wfr.Status = pipelineConfig.WorkflowFailed
-		wfr.Message = helmInstalledDevtronApp.GetDescription()
-		wfr.FinishedOn = time.Now()
-		return true
-	case serverBean.HelmReleaseStatusPendingUpgrade:
-	case serverBean.HelmReleaseStatusPendingRollback:
-	case serverBean.HelmReleaseStatusPendingInstall:
-		appServiceConfig, err := app.GetAppServiceConfig()
-		if err != nil {
-			impl.Logger.Errorw("error in parsing app status config variables", "err", err)
-			return false
-		}
-		if time.Now().After(helmInstalledDevtronApp.GetLastDeployed().AsTime().Add(time.Duration(appServiceConfig.HelmInstallationTimeout) * time.Minute)) {
-			// If release status is in pending-install for more than 5 mins, then mark the deployment as failure
-			wfr.Status = pipelineConfig.WorkflowFailed
-			wfr.Message = fmt.Sprintf("Deployment Timeout: release is in %s status for more than %d mins", serverBean.HelmReleaseStatusPendingInstall, appServiceConfig.HelmInstallationTimeout)
-			wfr.FinishedOn = time.Now()
-			return true
-		}
-	case serverBean.HelmReleaseStatusDeployed:
-		if helmInstalledDevtronApp.GetApplicationStatus() == application.Healthy {
-			// mark the deployment as succeed
-			wfr.Status = pipelineConfig.WorkflowSucceeded
-			wfr.FinishedOn = time.Now()
-			return true
-		}
-	}
-	wfr.Status = pipelineConfig.WorkflowInProgress
-	return true
-}
-
 func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int) error {
 	wfrList, err := impl.cdWorkflowRepository.GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours)
 	if err != nil {
@@ -582,7 +517,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			Namespace:   wfr.CdWorkflow.Pipeline.Environment.Namespace,
 			ReleaseName: wfr.CdWorkflow.Pipeline.DeploymentAppName,
 		}
-		if isWfrUpdated := impl.updateWorkflowRunnerStatusForDeployment(appIdentifier, wfr); !isWfrUpdated {
+		if isWfrUpdated := impl.workflowDagExecutor.UpdateWorkflowRunnerStatusForDeployment(appIdentifier, wfr); !isWfrUpdated {
 			continue
 		}
 		wfr.UpdatedBy = 1
