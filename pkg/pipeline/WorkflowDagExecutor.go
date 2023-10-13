@@ -1579,7 +1579,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(tx *pg.Tx, c
 		}
 		impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 		previousRunner.FinishedOn = triggeredAt
-		previousRunner.Message = "A new deployment was initiated before this deployment completed"
+		previousRunner.Message = pipelineConfig.NEW_DEPLOYMENT_INITIATED
 		previousRunner.Status = pipelineConfig.WorkflowFailed
 		previousRunner.UpdatedOn = time.Now()
 		previousRunner.UpdatedBy = triggeredBy
