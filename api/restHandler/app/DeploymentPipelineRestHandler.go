@@ -22,6 +22,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"io"
+	"k8s.io/utils/pointer"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1175,16 +1176,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	if len(search) != 0 {
 		searchString = search
 	}
-
-	//min is 10, TODO: set max limit (gireesh)
-	count := DefaultMinArtifactCount
-	countString := r.URL.Query().Get("count")
-	if len(countString) != 0 {
-		count, err = strconv.Atoi(countString)
-	}
+	count, err := common.ExtractIntQueryParam(w, r, "count", pointer.Int(DefaultMinArtifactCount))
 	if err != nil {
-		handler.Logger.Errorw("request err, GetArtifactsByCDPipeline", "err", err, "count", countString)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 

@@ -84,7 +84,7 @@ func (handler *ResourceProtectionRestHandlerImpl) GetResourceProtectMetadata(w h
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	appId, err := common.ExtractIntQueryParam(w, r, "appId")
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", nil)
 	if err != nil {
 		return
 	}
@@ -111,7 +111,7 @@ func (handler *ResourceProtectionRestHandlerImpl) GetResourceProtectMetadataForE
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	envId, err := common.ExtractIntQueryParam(w, r, "envId")
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
 	if err != nil {
 		return
 	}
