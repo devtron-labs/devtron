@@ -20,6 +20,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -128,8 +129,52 @@ type CiPipelineConfigServiceImpl struct {
 	enforcerUtil                  rbac.EnforcerUtil
 }
 
-func NewCiPipelineConfigServiceImpl() *CiPipelineConfigServiceImpl {
-	return &CiPipelineConfigServiceImpl{}
+func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	materialRepo pipelineConfig.MaterialRepository,
+	pipelineGroupRepo app2.AppRepository,
+	pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	ecrConfig *EcrConfig,
+	appWorkflowRepository appWorkflow.AppWorkflowRepository,
+	ciConfig *CiCdConfig,
+	attributesService attributes.AttributesService,
+	pipelineStageService PipelineStageService,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	ciTemplateService CiTemplateService,
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
+	CiTemplateHistoryService history.CiTemplateHistoryService,
+	enforcerUtil rbac.EnforcerUtil,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	resourceGroupService resourceGroup2.ResourceGroupService) *CiPipelineConfigServiceImpl {
+	securityConfig := &SecurityConfig{}
+	err := env.Parse(securityConfig)
+	if err != nil {
+		logger.Errorw("error in parsing securityConfig,setting  ForceSecurityScanning to default value", "defaultValue", securityConfig.ForceSecurityScanning, "err", err)
+	}
+	return &CiPipelineConfigServiceImpl{
+		logger:                        logger,
+		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
+		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
+		materialRepo:                  materialRepo,
+		appRepo:                       pipelineGroupRepo,
+		pipelineRepository:            pipelineRepository,
+		ciPipelineRepository:          ciPipelineRepository,
+		ecrConfig:                     ecrConfig,
+		appWorkflowRepository:         appWorkflowRepository,
+		ciConfig:                      ciConfig,
+		attributesService:             attributesService,
+		pipelineStageService:          pipelineStageService,
+		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
+		ciTemplateService:             ciTemplateService,
+		ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
+		CiTemplateHistoryService:      CiTemplateHistoryService,
+		enforcerUtil:                  enforcerUtil,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		resourceGroupService:          resourceGroupService,
+		securityConfig:                securityConfig,
+	}
 }
 
 type CiMaterialConfigService interface {
