@@ -347,7 +347,7 @@ func (impl *WorkflowDagExecutorImpl) extractOverrideRequestFromCDAsyncInstallEve
 func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(appIdentifier *client2.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner) bool {
 	helmInstalledDevtronApp, err := impl.helmAppService.GetApplicationAndReleaseStatus(context.Background(), appIdentifier)
 	if err != nil {
-		impl.logger.Errorw("error in getting helm app release status ", "appIdentifier", appIdentifier, "err", err)
+		impl.logger.Errorw("error in getting helm app release status", "appIdentifier", appIdentifier, "err", err)
 		// Handle release not found errors
 		if util.GetGRPCErrorDetailedMessage(err) != client2.ErrReleaseNotFound {
 			//skip this error and continue for next workflow status
@@ -359,12 +359,6 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 		wfr.Message = util.GetGRPCErrorDetailedMessage(err)
 		wfr.FinishedOn = time.Now()
 		return true
-	}
-
-	//skip if there is no deployment after wfr.StartedOn and continue for next workflow status
-	if helmInstalledDevtronApp.GetLastDeployed().AsTime().Before(wfr.StartedOn) {
-		impl.logger.Warnw("release mismatched, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
-		return false
 	}
 
 	switch helmInstalledDevtronApp.GetReleaseStatus() {
@@ -396,6 +390,12 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 			return true
 		}
 	case serverBean.HelmReleaseStatusDeployed:
+		//skip if there is no deployment after wfr.StartedOn and continue for next workflow status
+		if helmInstalledDevtronApp.GetLastDeployed().AsTime().Before(wfr.StartedOn) {
+			impl.logger.Warnw("release mismatched, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
+			return false
+		}
+
 		if helmInstalledDevtronApp.GetApplicationStatus() == application.Healthy {
 			// mark the deployment as succeed
 			wfr.Status = pipelineConfig.WorkflowSucceeded
