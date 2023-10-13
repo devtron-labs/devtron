@@ -3,7 +3,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/common-lib-private/utils"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"

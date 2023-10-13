@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -37,15 +37,6 @@ import (
 	"go.uber.org/zap"
 	"sigs.k8s.io/yaml"
 )
-
-const (
-	API_CALLER_DEVTRON_APP       ApiCallerAppType = "devtron-app"
-	API_CALLER_HELM_APP          ApiCallerAppType = "helm-app"
-	API_CALLER_EXTERNAL_HELM_APP ApiCallerAppType = "external-helm-app"
-	API_CALLER_UNKNOWN           ApiCallerAppType = "unknown"
-)
-
-type ApiCallerAppType string
 
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
@@ -146,11 +137,24 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	req := &AppListRequest{}
 	for _, clusterDetail := range clusters {
 		config := &ClusterConfig{
-			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config[k8s.BearerToken],
-			ClusterId:    int32(clusterDetail.Id),
-			ClusterName:  clusterDetail.ClusterName,
-			ProxyUrl:     clusterDetail.ProxyUrl,
+			ApiServerUrl:           clusterDetail.ServerUrl,
+			Token:                  clusterDetail.Config[k8s.BearerToken],
+			ClusterId:              int32(clusterDetail.Id),
+			ClusterName:            clusterDetail.ClusterName,
+			InsecureSkipTLSVerify:  clusterDetail.InsecureSkipTLSVerify,
+			ProxyUrl:               clusterDetail.ProxyUrl,
+			ToConnectWithSSHTunnel: clusterDetail.ToConnectWithSSHTunnel,
+		}
+		if clusterDetail.SSHTunnelConfig != nil {
+			config.SshTunnelAuthKey = clusterDetail.SSHTunnelConfig.AuthKey
+			config.SshTunnelUser = clusterDetail.SSHTunnelConfig.User
+			config.SshTunnelPassword = clusterDetail.SSHTunnelConfig.Password
+			config.SshTunnelServerAddress = clusterDetail.SSHTunnelConfig.SSHServerAddress
+		}
+		if clusterDetail.InsecureSkipTLSVerify == false {
+			config.KeyData = clusterDetail.Config[k8s.TlsKey]
+			config.CertData = clusterDetail.Config[k8s.CertData]
+			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
@@ -281,11 +285,24 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 		}
 	} else {
 		config = ClusterConfig{
-			ApiServerUrl: clusterObj.ServerUrl,
-			Token:        clusterObj.Config[k8s.BearerToken],
-			ClusterId:    int32(clusterObj.Id),
-			ClusterName:  clusterObj.ClusterName,
-			ProxyUrl:     clusterObj.ProxyUrl,
+			ApiServerUrl:           clusterObj.ServerUrl,
+			Token:                  clusterObj.Config[k8s.BearerToken],
+			ClusterId:              int32(clusterObj.Id),
+			ClusterName:            clusterObj.ClusterName,
+			ProxyUrl:               clusterObj.ProxyUrl,
+			ToConnectWithSSHTunnel: clusterObj.ToConnectWithSSHTunnel,
+			InsecureSkipTLSVerify:  clusterObj.InsecureSkipTLSVerify,
+		}
+		if clusterObj.SSHTunnelConfig != nil {
+			config.SshTunnelAuthKey = clusterObj.SSHTunnelConfig.AuthKey
+			config.SshTunnelUser = clusterObj.SSHTunnelConfig.User
+			config.SshTunnelPassword = clusterObj.SSHTunnelConfig.Password
+			config.SshTunnelServerAddress = clusterObj.SSHTunnelConfig.SSHServerAddress
+		}
+		if clusterObj.InsecureSkipTLSVerify == false {
+			config.KeyData = clusterObj.Config[k8s.TlsKey]
+			config.CertData = clusterObj.Config[k8s.CertData]
+			config.CaData = clusterObj.Config[k8s.CertificateAuthorityData]
 		}
 	}
 

@@ -18,7 +18,7 @@
 package restHandler
 
 import (
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"io/ioutil"
 	"net/http"
 	"strconv"

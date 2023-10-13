@@ -3,9 +3,9 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -106,7 +106,7 @@ func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.Wor
 	workflowTemplate.PodSpec.TerminationGracePeriodSeconds = pointer.Int64(int64(workflowTemplate.TerminationGracePeriod))
 	workflowJob := v1.Job{
 		TypeMeta: v12.TypeMeta{
-			Kind:       kube.JobKind,
+			Kind:       k8sCommonBean.JobKind,
 			APIVersion: "batch/v1",
 		},
 		ObjectMeta: v12.ObjectMeta{
@@ -166,7 +166,7 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 }
 
 func (impl *SystemWorkflowExecutorImpl) createJobOwnerRefVal(createdJob *v1.Job) v12.OwnerReference {
-	return v12.OwnerReference{UID: createdJob.UID, Name: createdJob.Name, Kind: kube.JobKind, APIVersion: "batch/v1", BlockOwnerDeletion: pointer.BoolPtr(true), Controller: pointer.BoolPtr(true)}
+	return v12.OwnerReference{UID: createdJob.UID, Name: createdJob.Name, Kind: k8sCommonBean.JobKind, APIVersion: "batch/v1", BlockOwnerDeletion: pointer.BoolPtr(true), Controller: pointer.BoolPtr(true)}
 }
 
 func (impl *SystemWorkflowExecutorImpl) createCmAndSecrets(template bean.WorkflowTemplate, createdJob *v1.Job, templateList *unstructured.UnstructuredList) error {

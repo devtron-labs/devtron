@@ -32,7 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"go.uber.org/zap"
 	"io/ioutil"
 	v12 "k8s.io/api/core/v1"
@@ -44,6 +44,8 @@ import (
 	"sigs.k8s.io/yaml"
 	"strings"
 )
+
+// TODO: move isCi/isJob to workflowRequest
 
 type WorkflowService interface {
 	SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, string, error)

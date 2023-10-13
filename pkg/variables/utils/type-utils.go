@@ -65,3 +65,7 @@ func IsPrimitiveType(value interface{}) bool {
 		kind == reflect.Uint64 || kind == reflect.Float32 || kind == reflect.Float64 ||
 		kind == reflect.Bool
 }
+
+func IsStringType(val interface{}) bool {
+	return reflect.TypeOf(val).Kind() == reflect.String
+}
