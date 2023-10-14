@@ -21,9 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -36,7 +33,6 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -44,7 +40,6 @@ import (
 	"github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"sort"
 	"strings"
 	"time"
 )
@@ -182,27 +177,6 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		securityConfig:                securityConfig,
 		globalPolicyService:           globalPolicyService,
 	}
-}
-
-type CiMaterialConfigService interface {
-	//CreateMaterialsForApp : Delegating the request to ciCdPipelineOrchestrator for Material creation
-	CreateMaterialsForApp(request *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
-	//UpdateMaterialsForApp : Delegating the request to ciCdPipelineOrchestrator for updating Material
-	UpdateMaterialsForApp(request *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
-	DeleteMaterial(request *bean.UpdateMaterialDTO) error
-	//PatchCiMaterialSource : Delegating the request to ciCdPipelineOrchestrator for updating source
-	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
-	//BulkPatchCiMaterialSource : Delegating the request to ciCdPipelineOrchestrator for bulk updating source
-	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error)
-	//GetMaterialsForAppId : Retrieve material for given appId
-	GetMaterialsForAppId(appId int) []*bean.GitMaterial
-}
-type AppArtifactManager interface {
-	//RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
-	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, isApprovalNode bool) (*bean.CiArtifactResponse, error)
-
-	//FetchArtifactForRollback :
-	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error)
 }
 
 func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariables(appId int) (ciConfig *bean.CiConfigRequest, err error) {
@@ -542,6 +516,84 @@ func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariablesByAppIds(appIds [
 		ciConfigMap[template.AppId] = ciConfig
 	}
 	return ciConfigMap, err
+}
+
+func (impl *CiPipelineConfigServiceImpl) setCiPipelineBlockageState(ciPipeline *bean.CiPipeline, branchesForCheckingBlockageState []string, toOnlyGetBlockedStatePolicies bool) error {
+	isOffendingMandatoryPlugin, isCiTriggerBlocked, blockageState, err :=
+		impl.globalPolicyService.GetBlockageStateForACIPipelineTrigger(ciPipeline.Id, ciPipeline.ParentCiPipeline, branchesForCheckingBlockageState, toOnlyGetBlockedStatePolicies)
+	if err != nil {
+		impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
+		return err
+	}
+	if toOnlyGetBlockedStatePolicies {
+		ciPipeline.IsCITriggerBlocked = &isCiTriggerBlocked
+	} else {
+		ciPipeline.IsOffendingMandatoryPlugin = &isOffendingMandatoryPlugin
+	}
+	ciPipeline.CiBlockState = blockageState
+	return nil
+}
+
+func (impl *CiPipelineConfigServiceImpl) updateCiPipelineSourceValue(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
+	pipeline, err := impl.ciPipelineRepository.FindById(modifiedCiPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
+		return nil, err
+	}
+	cannotUpdate := false
+	for _, material := range pipeline.CiPipelineMaterials {
+		if material.ScmId != "" {
+			cannotUpdate = true
+		}
+	}
+	if cannotUpdate {
+		return nil, fmt.Errorf("update of plugin scm material not supported")
+	} else {
+		dbConnection := impl.pipelineRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return nil, err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		var materialsUpdate []*pipelineConfig.CiPipelineMaterial
+		for _, material := range modifiedCiPipeline.CiMaterial {
+			pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+				Id:       material.Id,
+				Value:    material.Source.Value,
+				Active:   true,
+				AuditLog: sql.AuditLog{UpdatedBy: baseCiConfig.UserId, UpdatedOn: time.Now()},
+			}
+			if material.Id == 0 {
+				continue
+			} else {
+				materialsUpdate = append(materialsUpdate, pipelineMaterial)
+			}
+		}
+		if len(materialsUpdate) > 0 {
+			//using update not null
+			err = impl.ciPipelineMaterialRepository.UpdateNotNull(tx, materialsUpdate...)
+			if err != nil {
+				return nil, err
+			}
+		}
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction", "err", err)
+			return nil, err
+		}
+		if !modifiedCiPipeline.IsExternal {
+			err = impl.ciCdPipelineOrchestrator.AddPipelineMaterialInGitSensor(materialsUpdate)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipelineMaterials in git sensor", "materials", materialsUpdate, "err", err)
+				return nil, err
+			}
+		}
+		modifiedCiPipeline.ScanEnabled = baseCiConfig.ScanEnabled
+		baseCiConfig.CiPipelines = append(baseCiConfig.CiPipelines, modifiedCiPipeline)
+		return baseCiConfig, nil
+	}
+
 }
 
 func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error) {
@@ -2129,509 +2181,4 @@ func (impl *CiPipelineConfigServiceImpl) DeleteCiPipeline(request *bean.CiPatchR
 	//delete pipeline
 	//delete scm
 
-}
-
-func (impl *PipelineBuilderImpl) CreateMaterialsForApp(request *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error) {
-	res, err := impl.ciCdPipelineOrchestrator.CreateMaterials(request)
-	if err != nil {
-		impl.logger.Errorw("error in saving create materials req", "req", request, "err", err)
-	}
-	return res, err
-}
-
-func (impl *PipelineBuilderImpl) UpdateMaterialsForApp(request *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error) {
-	res, err := impl.ciCdPipelineOrchestrator.UpdateMaterial(request)
-	if err != nil {
-		impl.logger.Errorw("error in updating materials req", "req", request, "err", err)
-	}
-	return res, err
-}
-
-func (impl *PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) error {
-	//finding ci pipelines for this app; if found any, will not delete git material
-	pipelines, err := impl.ciPipelineRepository.FindByAppId(request.AppId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("err in deleting git material", "gitMaterial", request.Material, "err", err)
-		return err
-	}
-	if len(pipelines) > 0 {
-		//pipelines are present, in this case we will check if this material is used in docker config
-		//if it is used, then we won't delete
-		ciTemplateBean, err := impl.ciTemplateService.FindByAppId(request.AppId)
-		if err != nil && err == errors.NotFoundf(err.Error()) {
-			impl.logger.Errorw("err in getting docker registry", "appId", request.AppId, "err", err)
-			return err
-		}
-		if ciTemplateBean != nil {
-			ciTemplate := ciTemplateBean.CiTemplate
-			if ciTemplate != nil && ciTemplate.GitMaterialId == request.Material.Id {
-				return fmt.Errorf("cannot delete git material, is being used in docker config")
-			}
-		}
-	}
-	existingMaterial, err := impl.materialRepo.FindById(request.Material.Id)
-	if err != nil {
-		impl.logger.Errorw("No matching entry found for delete", "gitMaterial", request.Material)
-		return err
-	}
-	existingMaterial.UpdatedOn = time.Now()
-	existingMaterial.UpdatedBy = request.UserId
-
-	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
-	if err != nil {
-		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
-		return err
-	}
-
-	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial)
-
-	dbConnection := impl.pipelineRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	var materials []*pipelineConfig.CiPipelineMaterial
-	for _, pipeline := range pipelines {
-		materialDbObject, err := impl.ciPipelineMaterialRepository.GetByPipelineIdAndGitMaterialId(pipeline.Id, request.Material.Id)
-		if err != nil {
-			return err
-		}
-		if len(materialDbObject) == 0 {
-			continue
-		}
-		materialDbObject[0].Active = false
-		materials = append(materials, materialDbObject[0])
-	}
-
-	if len(materials) == 0 {
-		return nil
-	}
-
-	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (impl *PipelineBuilderImpl) PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error) {
-	return impl.ciCdPipelineOrchestrator.PatchCiMaterialSource(ciPipeline, userId)
-}
-
-func (impl *PipelineBuilderImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error) {
-	response := &bean.CiMaterialBulkPatchResponse{}
-	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
-	for _, appId := range ciPipelines.AppIds {
-		ciPipeline := &bean.CiMaterialValuePatchRequest{
-			AppId:         appId,
-			EnvironmentId: ciPipelines.EnvironmentId,
-		}
-		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value, token, checkAppSpecificAccess)
-
-		if err == nil {
-			ciPipelineMaterial.Type = pipelineConfig.SOURCE_TYPE_BRANCH_FIXED
-			ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
-		}
-		response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
-			AppId:   appId,
-			Status:  getPatchStatus(err),
-			Message: getPatchMessage(err),
-		})
-	}
-	if len(ciPipelineMaterials) == 0 {
-		return response, nil
-	}
-	if err := impl.ciCdPipelineOrchestrator.UpdateCiPipelineMaterials(ciPipelineMaterials); err != nil {
-		return nil, err
-	}
-	return response, nil
-}
-
-func (impl *PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMaterial {
-	materials, err := impl.materialRepo.FindByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching materials", "appId", appId, "err", err)
-	}
-
-	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
-	if err != nil && err != errors.NotFoundf(err.Error()) {
-		impl.logger.Errorw("err in getting ci-template", "appId", appId, "err", err)
-	}
-
-	var gitMaterials []*bean.GitMaterial
-	for _, material := range materials {
-		gitMaterial := &bean.GitMaterial{
-			Url:             material.Url,
-			Name:            material.Name[strings.Index(material.Name, "-")+1:],
-			Id:              material.Id,
-			GitProviderId:   material.GitProviderId,
-			CheckoutPath:    material.CheckoutPath,
-			FetchSubmodules: material.FetchSubmodules,
-			FilterPattern:   material.FilterPattern,
-		}
-		//check if git material is deletable or not
-		if ciTemplateBean != nil {
-			ciTemplate := ciTemplateBean.CiTemplate
-			if ciTemplate != nil && (ciTemplate.GitMaterialId == material.Id || ciTemplate.BuildContextGitMaterialId == material.Id) {
-				gitMaterial.IsUsedInCiConfig = true
-			}
-		}
-		gitMaterials = append(gitMaterials, gitMaterial)
-	}
-	return gitMaterials
-}
-
-func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, isApprovalNode bool) (*bean.CiArtifactResponse, error) {
-
-	// retrieve parent details
-	parentId, parentType, err := impl.RetrieveParentDetails(pipeline.Id)
-	if err != nil {
-		impl.logger.Errorw("failed to retrieve parent details",
-			"cdPipelineId", pipeline.Id,
-			"err", err)
-		return nil, err
-	}
-
-	parentCdId := 0
-	if parentType == bean2.CD_WORKFLOW_TYPE_POST || (parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY && stage != bean2.CD_WORKFLOW_TYPE_POST) {
-		// parentCdId is being set to store the artifact currently deployed on parent cd (if applicable).
-		// Parent component is CD only if parent type is POST/DEPLOY
-		parentCdId = parentId
-	}
-
-	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY && len(pipeline.PreStageConfig) > 0 {
-		// Parent type will be PRE for DEPLOY stage
-		parentId = pipeline.Id
-		parentType = bean2.CD_WORKFLOW_TYPE_PRE
-	}
-	if stage == bean2.CD_WORKFLOW_TYPE_POST {
-		// Parent type will be DEPLOY for POST stage
-		parentId = pipeline.Id
-		parentType = bean2.CD_WORKFLOW_TYPE_DEPLOY
-	}
-
-	// Build artifacts for cd stages
-	var ciArtifacts []bean.CiArtifactBean
-	ciArtifactsResponse := &bean.CiArtifactResponse{}
-
-	artifactMap := make(map[int]int)
-	limit := 10
-
-	ciArtifacts, artifactMap, latestWfArtifactId, latestWfArtifactStatus, err := impl.
-		BuildArtifactsForCdStage(pipeline.Id, stage, ciArtifacts, artifactMap, false, searchString, limit, parentCdId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
-		return nil, err
-	}
-
-	ciArtifacts, err = impl.BuildArtifactsForParentStage(pipeline.Id, parentId, parentType, ciArtifacts, artifactMap, searchString, limit, parentCdId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "stage", stage)
-		return nil, err
-	}
-
-	//sorting ci artifacts on the basis of creation time
-	if ciArtifacts != nil {
-		sort.SliceStable(ciArtifacts, func(i, j int) bool {
-			return ciArtifacts[i].Id > ciArtifacts[j].Id
-		})
-	}
-
-	artifactIds := make([]int, 0, len(ciArtifacts))
-	for _, artifact := range ciArtifacts {
-		artifactIds = append(artifactIds, artifact.Id)
-	}
-
-	artifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(artifactIds)
-	if err != nil {
-		return ciArtifactsResponse, err
-	}
-	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(pipeline.AppId)
-	if err != nil {
-		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", pipeline.AppId)
-		return ciArtifactsResponse, err
-	}
-
-	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
-	if err != nil {
-		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", pipeline.AppId, "artifactIds", artifactIds)
-		return ciArtifactsResponse, err
-	}
-
-	for i, artifact := range artifacts {
-		if imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]; imageTaggingResp != nil {
-			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
-		}
-		if imageCommentResp := imageCommentsDataMap[ciArtifacts[i].Id]; imageCommentResp != nil {
-			ciArtifacts[i].ImageComment = imageCommentResp
-		}
-
-		environment := pipeline.Environment
-		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
-		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
-		metadata := resourceFilter.ExpressionMetadata{
-			Params: params,
-		}
-		filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
-		if err != nil {
-			return ciArtifactsResponse, err
-		}
-		ciArtifacts[i].FilterState = filterState
-
-		if artifact.ExternalCiPipelineId != 0 {
-			// if external webhook continue
-			continue
-		}
-
-		var ciWorkflow *pipelineConfig.CiWorkflow
-		if artifact.ParentCiArtifact != 0 {
-			ciWorkflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowGitTriggersByArtifactId(artifact.ParentCiArtifact)
-			if err != nil {
-				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
-				return ciArtifactsResponse, err
-			}
-
-		} else {
-			ciWorkflow, err = impl.ciWorkflowRepository.FindCiWorkflowGitTriggersById(*artifact.WorkflowId)
-			if err != nil {
-				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
-				return ciArtifactsResponse, err
-			}
-		}
-		ciArtifacts[i].TriggeredBy = ciWorkflow.TriggeredBy
-		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
-		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
-	}
-
-	ciArtifactsResponse.CdPipelineId = pipeline.Id
-	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
-	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
-	if ciArtifacts == nil {
-		ciArtifacts = []bean.CiArtifactBean{}
-	}
-	ciArtifactsResponse.CiArtifacts = ciArtifacts
-
-	if pipeline.ApprovalNodeConfigured() && stage == bean2.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
-		ciArtifactsFinal, approvalConfig, err := impl.overrideArtifactsWithUserApprovalData(pipeline, ciArtifactsResponse.CiArtifacts, isApprovalNode, latestWfArtifactId)
-		if err != nil {
-			return ciArtifactsResponse, err
-		}
-		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
-		ciArtifactsResponse.CiArtifacts = ciArtifactsFinal
-	}
-	return ciArtifactsResponse, nil
-}
-
-func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean.CiArtifactResponse, error) {
-	var deployedCiArtifacts []bean.CiArtifactBean
-	var deployedCiArtifactsResponse bean.CiArtifactResponse
-	var pipeline *pipelineConfig.Pipeline
-
-	cdWfrs, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineId(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, offset, limit)
-	if err != nil {
-		impl.logger.Errorw("error in getting artifacts for rollback by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
-		return deployedCiArtifactsResponse, err
-	}
-	var ids []int32
-	for _, item := range cdWfrs {
-		ids = append(ids, item.TriggeredBy)
-		if pipeline == nil && item.CdWorkflow != nil {
-			pipeline = item.CdWorkflow.Pipeline
-		}
-	}
-	userEmails := make(map[int32]string)
-	users, err := impl.userService.GetByIds(ids)
-	if err != nil {
-		impl.logger.Errorw("unable to fetch users by ids", "err", err, "ids", ids)
-	}
-	for _, item := range users {
-		userEmails[item.Id] = item.EmailId
-	}
-
-	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", appId)
-		return deployedCiArtifactsResponse, err
-	}
-	artifactIds := make([]int, 0)
-
-	for _, cdWfr := range cdWfrs {
-		ciArtifact := &repository.CiArtifact{}
-		if cdWfr.CdWorkflow != nil && cdWfr.CdWorkflow.CiArtifact != nil {
-			ciArtifact = cdWfr.CdWorkflow.CiArtifact
-		}
-		if ciArtifact == nil {
-			continue
-		}
-		mInfo, err := parseMaterialInfo([]byte(ciArtifact.MaterialInfo), ciArtifact.DataSource)
-		if err != nil {
-			mInfo = []byte("[]")
-			impl.logger.Errorw("error in parsing ciArtifact material info", "err", err, "ciArtifact", ciArtifact)
-		}
-		userEmail := userEmails[cdWfr.TriggeredBy]
-		deployedCiArtifacts = append(deployedCiArtifacts, bean.CiArtifactBean{
-			Id:           ciArtifact.Id,
-			Image:        ciArtifact.Image,
-			MaterialInfo: mInfo,
-			DeployedTime: formatDate(cdWfr.StartedOn, bean.LayoutRFC3339),
-			WfrId:        cdWfr.Id,
-			DeployedBy:   userEmail,
-		})
-		artifactIds = append(artifactIds, ciArtifact.Id)
-	}
-	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
-	if err != nil {
-		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", appId, "artifactIds", artifactIds)
-		return deployedCiArtifactsResponse, err
-	}
-
-	for i, _ := range deployedCiArtifacts {
-		if imageTaggingResp := imageTagsDataMap[deployedCiArtifacts[i].Id]; imageTaggingResp != nil {
-			deployedCiArtifacts[i].ImageReleaseTags = imageTaggingResp
-		}
-		if imageCommentResp := imageCommentsDataMap[deployedCiArtifacts[i].Id]; imageCommentResp != nil {
-			deployedCiArtifacts[i].ImageComment = imageCommentResp
-		}
-	}
-
-	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
-	if deployedCiArtifacts == nil {
-		deployedCiArtifacts = []bean.CiArtifactBean{}
-	}
-	if pipeline != nil && pipeline.ApprovalNodeConfigured() {
-		deployedCiArtifacts, _, err = impl.overrideArtifactsWithUserApprovalData(pipeline, deployedCiArtifacts, false, 0)
-		if err != nil {
-			return deployedCiArtifactsResponse, err
-		}
-	}
-	deployedCiArtifactsResponse.CiArtifacts = deployedCiArtifacts
-
-	return deployedCiArtifactsResponse, nil
-}
-
-func (impl *CiPipelineConfigServiceImpl) setCiPipelineBlockageState(ciPipeline *bean.CiPipeline, branchesForCheckingBlockageState []string, toOnlyGetBlockedStatePolicies bool) error {
-	isOffendingMandatoryPlugin, isCiTriggerBlocked, blockageState, err :=
-		impl.globalPolicyService.GetBlockageStateForACIPipelineTrigger(ciPipeline.Id, ciPipeline.ParentCiPipeline, branchesForCheckingBlockageState, toOnlyGetBlockedStatePolicies)
-	if err != nil {
-		impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
-		return err
-	}
-	if toOnlyGetBlockedStatePolicies {
-		ciPipeline.IsCITriggerBlocked = &isCiTriggerBlocked
-	} else {
-		ciPipeline.IsOffendingMandatoryPlugin = &isOffendingMandatoryPlugin
-	}
-	ciPipeline.CiBlockState = blockageState
-	return nil
-}
-
-func (impl *CiPipelineConfigServiceImpl) updateCiPipelineSourceValue(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
-	pipeline, err := impl.ciPipelineRepository.FindById(modifiedCiPipeline.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
-		return nil, err
-	}
-	cannotUpdate := false
-	for _, material := range pipeline.CiPipelineMaterials {
-		if material.ScmId != "" {
-			cannotUpdate = true
-		}
-	}
-	if cannotUpdate {
-		return nil, fmt.Errorf("update of plugin scm material not supported")
-	} else {
-		dbConnection := impl.pipelineRepository.GetConnection()
-		tx, err := dbConnection.Begin()
-		if err != nil {
-			return nil, err
-		}
-		// Rollback tx on error.
-		defer tx.Rollback()
-		var materialsUpdate []*pipelineConfig.CiPipelineMaterial
-		for _, material := range modifiedCiPipeline.CiMaterial {
-			pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-				Id:       material.Id,
-				Value:    material.Source.Value,
-				Active:   true,
-				AuditLog: sql.AuditLog{UpdatedBy: baseCiConfig.UserId, UpdatedOn: time.Now()},
-			}
-			if material.Id == 0 {
-				continue
-			} else {
-				materialsUpdate = append(materialsUpdate, pipelineMaterial)
-			}
-		}
-		if len(materialsUpdate) > 0 {
-			//using update not null
-			err = impl.ciPipelineMaterialRepository.UpdateNotNull(tx, materialsUpdate...)
-			if err != nil {
-				return nil, err
-			}
-		}
-		err = tx.Commit()
-		if err != nil {
-			impl.logger.Errorw("error in committing transaction", "err", err)
-			return nil, err
-		}
-		if !modifiedCiPipeline.IsExternal {
-			err = impl.ciCdPipelineOrchestrator.AddPipelineMaterialInGitSensor(materialsUpdate)
-			if err != nil {
-				impl.logger.Errorw("error in saving pipelineMaterials in git sensor", "materials", materialsUpdate, "err", err)
-				return nil, err
-			}
-		}
-		modifiedCiPipeline.ScanEnabled = baseCiConfig.ScanEnabled
-		baseCiConfig.CiPipelines = append(baseCiConfig.CiPipelines, modifiedCiPipeline)
-		return baseCiConfig, nil
-	}
-
-}
-
-func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean.CiArtifactBean, isApprovalNode bool, latestArtifactId int) ([]bean.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
-	impl.logger.Infow("approval node configured", "pipelineId", pipeline.Id, "isApproval", isApprovalNode)
-	ciArtifactsFinal := make([]bean.CiArtifactBean, 0, len(inputArtifacts))
-	artifactIds := make([]int, 0, len(inputArtifacts))
-	cdPipelineId := pipeline.Id
-	approvalConfig, err := pipeline.GetApprovalConfig()
-	if err != nil {
-		impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", cdPipelineId, "approvalConfig", approvalConfig)
-		return ciArtifactsFinal, approvalConfig, err
-	}
-
-	for _, item := range inputArtifacts {
-		artifactIds = append(artifactIds, item.Id)
-	}
-
-	var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
-	requiredApprovals := approvalConfig.RequiredCount
-	userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, cdPipelineId, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
-	if err != nil {
-		impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", cdPipelineId, "artifactIds", artifactIds, "err", err)
-		return ciArtifactsFinal, approvalConfig, err
-	}
-	for _, artifact := range inputArtifacts {
-		approvalRuntimeState := pipelineConfig.InitApprovalState
-		approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]
-		if ok { // either approved or requested
-			approvalRuntimeState = approvalMetadataForArtifact.ApprovalRuntimeState
-			artifact.UserApprovalMetadata = approvalMetadataForArtifact
-		} else if artifact.Deployed {
-			approvalRuntimeState = pipelineConfig.ConsumedApprovalState
-		}
-
-		allowed := false
-		if isApprovalNode { // return all the artifacts with state in init, requested or consumed
-			allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
-		} else { // return only approved state artifacts
-			allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState || artifact.Latest || artifact.Id == latestArtifactId
-		}
-		if allowed {
-			ciArtifactsFinal = append(ciArtifactsFinal, artifact)
-		}
-	}
-	return ciArtifactsFinal, approvalConfig, nil
 }
