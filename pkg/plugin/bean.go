@@ -82,6 +82,7 @@ type PluginPipelineScript struct {
 	ImagePullSecretType      repository.ScriptImagePullSecretType `json:"imagePullSecretType"`
 	ImagePullSecret          string                               `json:"imagePullSecret"`
 	Deleted                  bool                                 `json:"deleted"`
+	PathArgPortMapping       []*ScriptPathArgPortMapping          `json:"pathArgPortMapping"`
 }
 
 type PluginStepCondition struct {
@@ -92,4 +93,16 @@ type PluginStepCondition struct {
 	ConditionalOperator string                             `json:"conditionalOperator"`
 	ConditionalValue    string                             `json:"conditionalValue"`
 	Deleted             bool                               `json:"deleted"`
+}
+
+type ScriptPathArgPortMapping struct {
+	Id                  int                          `json:"id"`
+	TypeOfMapping       repository.ScriptMappingType `json:"typeOfMapping"`
+	FilePathOnDisk      string                       `json:"filePathOnDisk"`
+	FilePathOnContainer string                       `json:"filePathOnContainer"`
+	Command             string                       `json:"command"`
+	Args                []string                     `json:"args"`
+	PortOnLocal         int                          `json:"portOnLocal"`
+	PortOnContainer     int                          `json:"portOnContainer"`
+	ScriptId            int                          `json:"scriptId"`
 }

@@ -168,6 +168,7 @@ type PipelineStageRepository interface {
 
 	MarkScriptMappingDeletedByScriptId(scriptId int) error
 	CreateScriptMapping(mappings []ScriptPathArgPortMapping, tx *pg.Tx) error
+	UpdateScriptMapping(mappings []*ScriptPathArgPortMapping, tx *pg.Tx) error
 	GetScriptMappingIdsByStageId(stageId int) ([]int, error)
 	MarkPipelineScriptMappingsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error)
@@ -524,6 +525,20 @@ func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPa
 	}
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline script mappings", "err", err, "mappings", mappings)
+		return err
+	}
+	return nil
+}
+
+func (impl *PipelineStageRepositoryImpl) UpdateScriptMapping(mappings []*ScriptPathArgPortMapping, tx *pg.Tx) error {
+	var err error
+	if tx != nil {
+		err = tx.Update(&mappings)
+	} else {
+		err = impl.dbConnection.Update(&mappings)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in updating pipeline script mappings", "err", err, "mappings", mappings)
 		return err
 	}
 	return nil

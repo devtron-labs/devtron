@@ -470,6 +470,109 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 	return nil
 }
 
+func (impl *GlobalPluginServiceImpl) CreateScriptPathArgPortMappingForPluginInlineStep(scriptPathArgPortMappings []*ScriptPathArgPortMapping, pluginPipelineScriptId int, userId int32, tx *pg.Tx) error {
+	//fetch previous ScriptPathArgPortMapping by pluginPipelineScriptId and mark previous as deleted before creating new mappings
+	dbScriptPathArgPortMappings, err := impl.pipelineStageRepository.GetScriptMappingDetailByScriptId(pluginPipelineScriptId)
+	if err != nil {
+		impl.logger.Errorw("error in getting plugin step script", "err", err)
+		return err
+	}
+	for _, scriptPathArgPortMapping := range dbScriptPathArgPortMappings {
+		scriptPathArgPortMapping.Deleted = true
+		scriptPathArgPortMapping.UpdatedBy = userId
+		scriptPathArgPortMapping.UpdatedOn = time.Now()
+	}
+	err = impl.pipelineStageRepository.UpdateScriptMapping(dbScriptPathArgPortMappings, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating previous plugin script path arg port mapping by script id", "scriptId", pluginPipelineScriptId, "err", err)
+		return err
+	}
+	var scriptMap []repository2.ScriptPathArgPortMapping
+	for _, scriptPathArgPortMapping := range scriptPathArgPortMappings {
+		if len(scriptPathArgPortMapping.FilePathOnDisk) > 0 && len(scriptPathArgPortMapping.FilePathOnContainer) > 0 {
+			repositoryEntry := repository2.ScriptPathArgPortMapping{
+				TypeOfMapping:       repository.SCRIPT_MAPPING_TYPE_FILE_PATH,
+				FilePathOnDisk:      scriptPathArgPortMapping.FilePathOnDisk,
+				FilePathOnContainer: scriptPathArgPortMapping.FilePathOnContainer,
+				ScriptId:            pluginPipelineScriptId,
+				Deleted:             false,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
+			}
+			scriptMap = append(scriptMap, repositoryEntry)
+		}
+		if len(scriptPathArgPortMapping.Command) > 0 || len(scriptPathArgPortMapping.Args) > 0 {
+			repositoryEntry := repository2.ScriptPathArgPortMapping{
+				TypeOfMapping: repository.SCRIPT_MAPPING_TYPE_DOCKER_ARG,
+				Command:       scriptPathArgPortMapping.Command,
+				Args:          scriptPathArgPortMapping.Args,
+				ScriptId:      pluginPipelineScriptId,
+				Deleted:       false,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
+			}
+			scriptMap = append(scriptMap, repositoryEntry)
+		}
+		if scriptPathArgPortMapping.PortOnContainer > 0 && scriptPathArgPortMapping.PortOnLocal > 0 {
+			repositoryEntry := repository2.ScriptPathArgPortMapping{
+				TypeOfMapping:   repository.SCRIPT_MAPPING_TYPE_PORT,
+				PortOnLocal:     scriptPathArgPortMapping.PortOnLocal,
+				PortOnContainer: scriptPathArgPortMapping.PortOnContainer,
+				ScriptId:        pluginPipelineScriptId,
+				Deleted:         false,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
+			}
+			scriptMap = append(scriptMap, repositoryEntry)
+		}
+	}
+
+	if len(scriptMap) > 0 {
+		err := impl.pipelineStageRepository.CreateScriptMapping(scriptMap, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", scriptMap)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *GlobalPluginServiceImpl) UpdatePluginPipelineScript(dbPluginPipelineScript *repository.PluginPipelineScript, pluginPipelineScriptReq *PluginPipelineScript, userId int32, tx *pg.Tx) error {
+	dbPluginPipelineScript.Script = pluginPipelineScriptReq.Script
+	dbPluginPipelineScript.StoreScriptAt = pluginPipelineScriptReq.StoreScriptAt
+	dbPluginPipelineScript.Type = pluginPipelineScriptReq.Type
+	dbPluginPipelineScript.DockerfileExists = pluginPipelineScriptReq.DockerfileExists
+	dbPluginPipelineScript.MountPath = pluginPipelineScriptReq.MountPath
+	dbPluginPipelineScript.MountCodeToContainer = pluginPipelineScriptReq.MountCodeToContainer
+	dbPluginPipelineScript.MountCodeToContainerPath = pluginPipelineScriptReq.MountCodeToContainerPath
+	dbPluginPipelineScript.MountDirectoryFromHost = pluginPipelineScriptReq.MountDirectoryFromHost
+	dbPluginPipelineScript.ContainerImagePath = pluginPipelineScriptReq.ContainerImagePath
+	dbPluginPipelineScript.ImagePullSecretType = pluginPipelineScriptReq.ImagePullSecretType
+	dbPluginPipelineScript.ImagePullSecret = pluginPipelineScriptReq.ImagePullSecret
+	dbPluginPipelineScript.UpdatedBy = userId
+	dbPluginPipelineScript.UpdatedOn = time.Now()
+
+	err := impl.globalPluginRepository.UpdatePluginPipelineScript(dbPluginPipelineScript, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating plugin step script", "err", err)
+		return err
+	}
+
+	return nil
+}
+
 func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int, pluginStepsReq []*PluginStepsDto, userId int32, tx *pg.Tx) error {
 	for _, pluginStep := range pluginStepsReq {
 		pluginStepData := &repository.PluginStep{
@@ -512,6 +615,11 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 			pluginPipelineScript, err := impl.globalPluginRepository.SavePluginPipelineScript(pluginPipelineScript, tx)
 			if err != nil {
 				impl.logger.Errorw("error in saving plugin pipeline script", "pluginPipelineScript", pluginPipelineScript, "err", err)
+				return err
+			}
+			err = impl.CreateScriptPathArgPortMappingForPluginInlineStep(pluginStep.PluginPipelineScript.PathArgPortMapping, pluginPipelineScript.Id, userId, tx)
+			if err != nil {
+				impl.logger.Errorw("error in CreateScriptPathArgPortMappingForPluginInlineStep", "pluginMetadataId", pluginMetadataId, "err", err)
 				return err
 			}
 			pluginStep.PluginPipelineScript.Id = pluginPipelineScript.Id
@@ -721,23 +829,9 @@ func (impl *GlobalPluginServiceImpl) updateDeepPluginStepData(pluginStepsToUpdat
 				impl.logger.Errorw("error in getting plugin step script", "scriptId", pluginStep.ScriptId, "pluginStepId", pluginStep.Id, "err", err)
 				return err
 			}
-			pluginStepScript.Script = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.Script
-			pluginStepScript.StoreScriptAt = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.StoreScriptAt
-			pluginStepScript.Type = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.Type
-			pluginStepScript.DockerfileExists = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.DockerfileExists
-			pluginStepScript.MountPath = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.MountPath
-			pluginStepScript.MountCodeToContainer = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.MountCodeToContainer
-			pluginStepScript.MountCodeToContainerPath = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.MountCodeToContainerPath
-			pluginStepScript.MountDirectoryFromHost = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.MountDirectoryFromHost
-			pluginStepScript.ContainerImagePath = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.ContainerImagePath
-			pluginStepScript.ImagePullSecretType = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.ImagePullSecretType
-			pluginStepScript.ImagePullSecret = pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript.ImagePullSecret
-			pluginStepScript.UpdatedBy = userId
-			pluginStepScript.UpdatedOn = time.Now()
-
-			err = impl.globalPluginRepository.UpdatePluginPipelineScript(pluginStepScript, tx)
+			err = impl.UpdatePluginPipelineScript(pluginStepScript, pluginStepIdsToStepDtoMapping[pluginStep.Id].PluginPipelineScript, userId, tx)
 			if err != nil {
-				impl.logger.Errorw("error in updating plugin step script", "err", err)
+				impl.logger.Errorw("error in updating plugin step script and script args and port mappings", "scriptId", pluginStep.ScriptId, "pluginStepId", pluginStep.Id, "err", err)
 				return err
 			}
 		}
@@ -766,6 +860,12 @@ func (impl *GlobalPluginServiceImpl) updateDeepPluginStepData(pluginStepsToUpdat
 				impl.logger.Errorw("error in updateDeepPluginStepVariableData", "err", err)
 				return err
 			}
+		}
+		//update ScriptPathArgPortMapping in db
+		err := impl.CreateScriptPathArgPortMappingForPluginInlineStep(pluginStepUpdateReq.PluginPipelineScript.PathArgPortMapping, pluginStepUpdateReq.PluginPipelineScript.Id, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in CreateScriptPathArgPortMappingForPluginInlineStep", "pluginMetadataId", pluginStepUpdateReq.PluginPipelineScript.Id, "err", err)
+			return err
 		}
 	}
 
@@ -1140,6 +1240,21 @@ func (impl *GlobalPluginServiceImpl) deleteDeepPluginStepData(pluginStepsToRemov
 				impl.logger.Errorw("error in updating plugin step script", "err", err)
 				return err
 			}
+			scriptPathArgPortMappings, err := impl.pipelineStageRepository.GetScriptMappingDetailByScriptId(pluginStep.ScriptId)
+			if err != nil {
+				impl.logger.Errorw("error in getting plugin step script", "err", err)
+				return err
+			}
+			for _, scriptPathArgPortMapping := range scriptPathArgPortMappings {
+				scriptPathArgPortMapping.Deleted = true
+				scriptPathArgPortMapping.UpdatedBy = userId
+				scriptPathArgPortMapping.UpdatedOn = time.Now()
+			}
+			err = impl.pipelineStageRepository.UpdateScriptMapping(scriptPathArgPortMappings, tx)
+			if err != nil {
+				impl.logger.Errorw("error in updating plugin script path arg port mapping", "err", err)
+				return err
+			}
 		}
 	}
 	for _, pluginStepVariable := range pluginStepVariables {
@@ -1436,6 +1551,25 @@ func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadat
 		err = impl.globalPluginRepository.UpdatePluginStepConditions(pluginStepCondition, tx)
 		if err != nil {
 			impl.logger.Errorw("deletePlugin, error in deleting plugin step variable conditions", "pluginId", pluginMetaData.Id, "err", err)
+			return nil, err
+		}
+	}
+
+	//delete entry for ScriptPathArgPortMappings in db
+	for _, pluginStepDeleteReq := range pluginDeleteReq.PluginSteps {
+		scriptPathArgPortMappings, err := impl.pipelineStageRepository.GetScriptMappingDetailByScriptId(pluginStepDeleteReq.PluginPipelineScript.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting plugin step script", "err", err)
+			return nil, err
+		}
+		for _, scriptPathArgPortMapping := range scriptPathArgPortMappings {
+			scriptPathArgPortMapping.Deleted = true
+			scriptPathArgPortMapping.UpdatedBy = userId
+			scriptPathArgPortMapping.UpdatedOn = time.Now()
+		}
+		err = impl.pipelineStageRepository.UpdateScriptMapping(scriptPathArgPortMappings, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating plugin script path arg port mapping", "err", err)
 			return nil, err
 		}
 	}
