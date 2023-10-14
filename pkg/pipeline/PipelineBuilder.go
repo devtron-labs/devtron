@@ -151,6 +151,8 @@ type PipelineBuilder interface {
 	DevtronAppCMCSService
 	DevtronAppStrategyService
 	AppDeploymentTypeChangeManager
+	//TODO: remove this once this is uncommented in AppArtifactManager
+	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
 }
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
@@ -218,6 +220,8 @@ type PipelineBuilderImpl struct {
 	variableEntityMappingService                    variables.VariableEntityMappingService
 	variableTemplateParser                          parsers.VariableTemplateParser
 	CiPipelineConfigService
+	CiMaterialConfigService
+	AppArtifactManager
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -275,7 +279,9 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	imageTaggingService ImageTaggingService,
 	variableEntityMappingService variables.VariableEntityMappingService,
 	variableTemplateParser parsers.VariableTemplateParser,
-	ciPipelineConfigService CiPipelineConfigService) *PipelineBuilderImpl {
+	ciPipelineConfigService CiPipelineConfigService,
+	ciMaterialConfigService CiMaterialConfigService,
+	appArtifactManager AppArtifactManager) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -348,6 +354,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		variableEntityMappingService:                    variableEntityMappingService,
 		variableTemplateParser:                          variableTemplateParser,
 		CiPipelineConfigService:                         ciPipelineConfigService,
+		CiMaterialConfigService:                         ciMaterialConfigService,
+		AppArtifactManager:                              appArtifactManager,
 	}
 }
 
@@ -1379,117 +1387,6 @@ func (impl *PipelineBuilderImpl) getStrategiesMapping(dbPipelineIds []int) (map[
 type ConfigMapSecretsResponse struct {
 	Maps    []bean2.ConfigSecretMap `json:"maps"`
 	Secrets []bean2.ConfigSecretMap `json:"secrets"`
-}
-
-func (impl *PipelineBuilderImpl) BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, limit int, parentCdId int) ([]bean.CiArtifactBean, error) {
-	var ciArtifactsFinal []bean.CiArtifactBean
-	var err error
-	if parentType == bean2.CI_WORKFLOW_TYPE {
-		ciArtifactsFinal, err = impl.BuildArtifactsForCIParent(cdPipelineId, parentId, parentType, ciArtifacts, artifactMap, limit)
-	} else if parentType == bean2.WEBHOOK_WORKFLOW_TYPE {
-		ciArtifactsFinal, err = impl.BuildArtifactsForCIParent(cdPipelineId, parentId, parentType, ciArtifacts, artifactMap, limit)
-	} else {
-		//parent type is PRE, POST or DEPLOY type
-		ciArtifactsFinal, _, _, _, err = impl.BuildArtifactsForCdStage(parentId, parentType, ciArtifacts, artifactMap, true, limit, parentCdId)
-	}
-	return ciArtifactsFinal, err
-}
-
-func (impl *PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, parent bool, limit int, parentCdId int) ([]bean.CiArtifactBean, map[int]int, int, string, error) {
-	//getting running artifact id for parent cd
-	parentCdRunningArtifactId := 0
-	if parentCdId > 0 && parent {
-		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentCdId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 1)
-		if err != nil || len(parentCdWfrList) == 0 {
-			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", parentCdId)
-			return ciArtifacts, artifactMap, 0, "", err
-		}
-		parentCdRunningArtifactId = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
-	}
-	//getting wfr for parent and updating artifacts
-	parentWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(pipelineId, stageType, limit)
-	if err != nil {
-		impl.logger.Errorw("error in getting artifact for deployed items", "cdPipelineId", pipelineId)
-		return ciArtifacts, artifactMap, 0, "", err
-	}
-	deploymentArtifactId := 0
-	deploymentArtifactStatus := ""
-	for index, wfr := range parentWfrList {
-		if !parent && index == 0 {
-			deploymentArtifactId = wfr.CdWorkflow.CiArtifact.Id
-			deploymentArtifactStatus = wfr.Status
-		}
-		if wfr.Status == application.Healthy || wfr.Status == application.SUCCEEDED {
-			lastSuccessfulTriggerOnParent := parent && index == 0
-			latest := !parent && index == 0
-			runningOnParentCd := parentCdRunningArtifactId == wfr.CdWorkflow.CiArtifact.Id
-			if ciArtifactIndex, ok := artifactMap[wfr.CdWorkflow.CiArtifact.Id]; !ok {
-				//entry not present, creating new entry
-				mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
-				if err != nil {
-					mInfo = []byte("[]")
-					impl.logger.Errorw("Error in parsing artifact material info", "err", err)
-				}
-				ciArtifact := bean.CiArtifactBean{
-					Id:                            wfr.CdWorkflow.CiArtifact.Id,
-					Image:                         wfr.CdWorkflow.CiArtifact.Image,
-					ImageDigest:                   wfr.CdWorkflow.CiArtifact.ImageDigest,
-					MaterialInfo:                  mInfo,
-					LastSuccessfulTriggerOnParent: lastSuccessfulTriggerOnParent,
-					Latest:                        latest,
-					Scanned:                       wfr.CdWorkflow.CiArtifact.Scanned,
-					ScanEnabled:                   wfr.CdWorkflow.CiArtifact.ScanEnabled,
-				}
-				if !parent {
-					ciArtifact.Deployed = true
-					ciArtifact.DeployedTime = formatDate(wfr.StartedOn, bean.LayoutRFC3339)
-				}
-				if runningOnParentCd {
-					ciArtifact.RunningOnParentCd = runningOnParentCd
-				}
-				ciArtifacts = append(ciArtifacts, ciArtifact)
-				//storing index of ci artifact for using when updating old entry
-				artifactMap[wfr.CdWorkflow.CiArtifact.Id] = len(ciArtifacts) - 1
-			} else {
-				//entry already present, updating running on parent
-				if parent {
-					ciArtifacts[ciArtifactIndex].LastSuccessfulTriggerOnParent = lastSuccessfulTriggerOnParent
-				}
-				if runningOnParentCd {
-					ciArtifacts[ciArtifactIndex].RunningOnParentCd = runningOnParentCd
-				}
-			}
-		}
-	}
-	return ciArtifacts, artifactMap, deploymentArtifactId, deploymentArtifactStatus, nil
-}
-
-// method for building artifacts for parent CI
-
-func (impl *PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, parentId int, parentType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, limit int) ([]bean.CiArtifactBean, error) {
-	artifacts, err := impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId, limit, parentId, parentType)
-	if err != nil {
-		impl.logger.Errorw("error in getting artifacts for ci", "err", err)
-		return ciArtifacts, err
-	}
-	for _, artifact := range artifacts {
-		if _, ok := artifactMap[artifact.Id]; !ok {
-			mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
-			if err != nil {
-				mInfo = []byte("[]")
-				impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
-			}
-			ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-				Id:           artifact.Id,
-				Image:        artifact.Image,
-				ImageDigest:  artifact.ImageDigest,
-				MaterialInfo: mInfo,
-				ScanEnabled:  artifact.ScanEnabled,
-				Scanned:      artifact.Scanned,
-			})
-		}
-	}
-	return ciArtifacts, nil
 }
 
 func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMessage, error) {
