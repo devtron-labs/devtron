@@ -32,9 +32,8 @@ import (
 )
 
 type AppArtifactManager interface {
-	//TODO: uncomment this once this function is moved to this interface, it cannot be moved till DeploymentPipelineConfigService uses PipelineBuilderImpl as receiver
 	//RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
-	//RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, isApprovalNode bool) (*bean.CiArtifactResponse, error)
+	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
 	//FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean2.CiArtifactResponse, error)
@@ -42,19 +41,20 @@ type AppArtifactManager interface {
 	BuildArtifactsForCdStage(pipelineId int, stageType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, parent bool, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, map[int]int, int, string, error)
 
 	BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, error)
-
-	//TODO: make it internal after changing receiver of RetrieveArtifactsByCDPipeline to AppArtifactManagerImpl
-	OverrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean2.CiArtifactBean, isApprovalNode bool, latestArtifactId int) ([]bean2.CiArtifactBean, pipelineConfig.UserApprovalConfig, error)
 }
 
 type AppArtifactManagerImpl struct {
-	logger               *zap.SugaredLogger
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
-	userService          user.UserService
-	imageTaggingService  ImageTaggingService
-	ciArtifactRepository repository.CiArtifactRepository
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository
-	workflowDagExecutor  WorkflowDagExecutor
+	logger                *zap.SugaredLogger
+	cdWorkflowRepository  pipelineConfig.CdWorkflowRepository
+	userService           user.UserService
+	imageTaggingService   ImageTaggingService
+	ciArtifactRepository  repository.CiArtifactRepository
+	ciWorkflowRepository  pipelineConfig.CiWorkflowRepository
+	workflowDagExecutor   WorkflowDagExecutor
+	celService            resourceFilter.CELEvaluatorService
+	resourceFilterService resourceFilter.ResourceFilterService
+
+	cdPipelineConfigService CdPipelineConfigService
 }
 
 func NewAppArtifactManagerImpl(
@@ -64,16 +64,22 @@ func NewAppArtifactManagerImpl(
 	imageTaggingService ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	workflowDagExecutor WorkflowDagExecutor) *AppArtifactManagerImpl {
+	workflowDagExecutor WorkflowDagExecutor,
+	celService resourceFilter.CELEvaluatorService,
+	resourceFilterService resourceFilter.ResourceFilterService,
+	cdPipelineConfigService CdPipelineConfigService) *AppArtifactManagerImpl {
 
 	return &AppArtifactManagerImpl{
-		logger:               logger,
-		cdWorkflowRepository: cdWorkflowRepository,
-		userService:          userService,
-		imageTaggingService:  imageTaggingService,
-		ciArtifactRepository: ciArtifactRepository,
-		ciWorkflowRepository: ciWorkflowRepository,
-		workflowDagExecutor:  workflowDagExecutor,
+		logger:                  logger,
+		cdWorkflowRepository:    cdWorkflowRepository,
+		userService:             userService,
+		imageTaggingService:     imageTaggingService,
+		ciArtifactRepository:    ciArtifactRepository,
+		ciWorkflowRepository:    ciWorkflowRepository,
+		workflowDagExecutor:     workflowDagExecutor,
+		celService:              celService,
+		resourceFilterService:   resourceFilterService,
+		cdPipelineConfigService: cdPipelineConfigService,
 	}
 }
 
@@ -266,7 +272,7 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId
 		deployedCiArtifacts = []bean2.CiArtifactBean{}
 	}
 	if pipeline != nil && pipeline.ApprovalNodeConfigured() {
-		deployedCiArtifacts, _, err = impl.OverrideArtifactsWithUserApprovalData(pipeline, deployedCiArtifacts, false, 0)
+		deployedCiArtifacts, _, err = impl.overrideArtifactsWithUserApprovalData(pipeline, deployedCiArtifacts, false, 0)
 		if err != nil {
 			return deployedCiArtifactsResponse, err
 		}
@@ -276,11 +282,10 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId
 	return deployedCiArtifactsResponse, nil
 }
 
-// TODO: change receiver to AppArtifactManager
-func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
 
 	// retrieve parent details
-	parentId, parentType, err := impl.RetrieveParentDetails(pipeline.Id)
+	parentId, parentType, err := impl.cdPipelineConfigService.RetrieveParentDetails(pipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("failed to retrieve parent details",
 			"cdPipelineId", pipeline.Id,
@@ -408,7 +413,7 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 	ciArtifactsResponse.CiArtifacts = ciArtifacts
 
 	if pipeline.ApprovalNodeConfigured() && stage == bean.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
-		ciArtifactsFinal, approvalConfig, err := impl.OverrideArtifactsWithUserApprovalData(pipeline, ciArtifactsResponse.CiArtifacts, isApprovalNode, latestWfArtifactId)
+		ciArtifactsFinal, approvalConfig, err := impl.overrideArtifactsWithUserApprovalData(pipeline, ciArtifactsResponse.CiArtifacts, isApprovalNode, latestWfArtifactId)
 		if err != nil {
 			return ciArtifactsResponse, err
 		}
@@ -418,7 +423,7 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 	return ciArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) OverrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean2.CiArtifactBean, isApprovalNode bool, latestArtifactId int) ([]bean2.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
+func (impl *AppArtifactManagerImpl) overrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean2.CiArtifactBean, isApprovalNode bool, latestArtifactId int) ([]bean2.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
 	impl.logger.Infow("approval node configured", "pipelineId", pipeline.Id, "isApproval", isApprovalNode)
 	ciArtifactsFinal := make([]bean2.CiArtifactBean, 0, len(inputArtifacts))
 	artifactIds := make([]int, 0, len(inputArtifacts))

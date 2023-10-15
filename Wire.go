@@ -243,12 +243,17 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiPipelineConfigService), new(*pipeline.CiPipelineConfigServiceImpl)),
 		pipeline.NewCiMaterialConfigServiceImpl,
 		wire.Bind(new(pipeline.CiMaterialConfigService), new(*pipeline.CiMaterialConfigServiceImpl)),
+
 		pipeline.NewAppArtifactManagerImpl,
 		wire.Bind(new(pipeline.AppArtifactManager), new(*pipeline.AppArtifactManagerImpl)),
 		pipeline.NewDevtronAppCMCSServiceImpl,
 		wire.Bind(new(pipeline.DevtronAppCMCSService), new(*pipeline.DevtronAppCMCSServiceImpl)),
 		pipeline.NewDevtronAppStrategyServiceImpl,
 		wire.Bind(new(pipeline.DevtronAppStrategyService), new(*pipeline.DevtronAppStrategyServiceImpl)),
+		pipeline.NewAppDeploymentTypeChangeManagerImpl,
+		wire.Bind(new(pipeline.AppDeploymentTypeChangeManager), new(*pipeline.AppDeploymentTypeChangeManagerImpl)),
+		pipeline.NewCdPipelineConfigServiceImpl,
+		wire.Bind(new(pipeline.CdPipelineConfigService), new(*pipeline.CdPipelineConfigServiceImpl)),
 
 		util5.NewLoggingMiddlewareImpl,
 		wire.Bind(new(util5.LoggingMiddleware), new(*util5.LoggingMiddlewareImpl)),

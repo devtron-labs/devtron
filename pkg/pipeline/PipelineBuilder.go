@@ -18,31 +18,24 @@
 package pipeline
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
-	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/caarlos0/env"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -60,14 +53,10 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/go-pg/pg"
-	"github.com/juju/errors"
 	"go.uber.org/zap"
 )
 
@@ -155,8 +144,6 @@ type PipelineBuilder interface {
 	DevtronAppCMCSService
 	DevtronAppStrategyService
 	AppDeploymentTypeChangeManager
-	//TODO: remove this once this is uncommented in AppArtifactManager
-	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, isApprovalNode bool) (*bean.CiArtifactResponse, error)
 }
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
@@ -232,6 +219,8 @@ type PipelineBuilderImpl struct {
 	AppArtifactManager
 	DevtronAppCMCSService
 	DevtronAppStrategyService
+	AppDeploymentTypeChangeManager
+	CdPipelineConfigService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -295,7 +284,9 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciMaterialConfigService CiMaterialConfigService,
 	appArtifactManager AppArtifactManager,
 	devtronAppCMCSService DevtronAppCMCSService,
-	devtronAppStrategyService DevtronAppStrategyService) *PipelineBuilderImpl {
+	devtronAppStrategyService DevtronAppStrategyService,
+	appDeploymentTypeChangeManager AppDeploymentTypeChangeManager,
+	cdPipelineConfigService CdPipelineConfigService) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -376,6 +367,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		AppArtifactManager:                              appArtifactManager,
 		DevtronAppCMCSService:                           devtronAppCMCSService,
 		DevtronAppStrategyService:                       devtronAppStrategyService,
+		AppDeploymentTypeChangeManager:                  appDeploymentTypeChangeManager,
+		CdPipelineConfigService:                         cdPipelineConfigService,
 	}
 }
 
@@ -625,116 +618,6 @@ func getPatchMessage(err error) bean.CiPatchMessage {
 	return ""
 }
 
-func (impl *PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured, haveAtleastOneGitOps bool, virtualEnvironmentMap map[int]bool) (bool, error) {
-
-	if isGitOpsConfigured == false && haveAtleastOneGitOps {
-		impl.logger.Errorw("Gitops not configured but selected in creating cd pipeline")
-		err := &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			InternalMessage: "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
-			UserMessage:     "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
-		}
-		return false, err
-	}
-
-	envPipelineMap := make(map[int]string)
-	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if envPipelineMap[pipeline.EnvironmentId] != "" {
-			err := &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				InternalMessage: "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
-				UserMessage:     "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
-			}
-			return false, err
-		}
-		envPipelineMap[pipeline.EnvironmentId] = pipeline.Name
-
-		existingCdPipelinesForEnv, pErr := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(pipelineCreateRequest.AppId, pipeline.EnvironmentId)
-		if pErr != nil && !util.IsErrNoRows(pErr) {
-			impl.logger.Errorw("error in fetching cd pipelines ", "err", pErr, "appId", pipelineCreateRequest.AppId)
-			return false, pErr
-		}
-		if len(existingCdPipelinesForEnv) > 0 {
-			err := &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				InternalMessage: "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
-				UserMessage:     "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
-			}
-			return false, err
-		}
-		if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
-			err := &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				InternalMessage: "invalid yaml config, must include - beforeStages",
-				UserMessage:     "invalid yaml config, must include - beforeStages",
-			}
-			return false, err
-		}
-		if len(pipeline.PostStage.Config) > 0 && !strings.Contains(pipeline.PostStage.Config, "afterStages") {
-			err := &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				InternalMessage: "invalid yaml config, must include - afterStages",
-				UserMessage:     "invalid yaml config, must include - afterStages",
-			}
-			return false, err
-		}
-
-	}
-
-	return true, nil
-
-}
-
-func (impl *PipelineBuilderImpl) RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error {
-
-	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx)
-	if err != nil {
-		impl.logger.Errorw("error while register git repo in argo", "err", err)
-		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
-		if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
-			// - found empty repository, create some file in repository
-			err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
-			if err != nil {
-				impl.logger.Errorw("error in creating file in git repo", "err", err)
-				return err
-			}
-			// - retry register in argo
-			err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx)
-			if err != nil {
-				impl.logger.Errorw("error in re-try register in argo", "err", err)
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (impl *PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject, deploymentConfig map[string]bool) error {
-
-	// Config value doesn't exist in attribute table
-	if deploymentConfig == nil {
-		return nil
-	}
-	//Config value found to be true for ArgoCD and Helm both
-	if allDeploymentConfigTrue(deploymentConfig) {
-		return nil
-	}
-	//Case : {ArgoCD : false, Helm: true, HGF : true}
-	if validDeploymentConfigReceived(deploymentConfig, pipeline.DeploymentAppType) {
-		return nil
-	}
-
-	err := &util.ApiError{
-		HttpStatusCode:  http.StatusBadRequest,
-		InternalMessage: "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
-		UserMessage:     "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
-	}
-	return err
-}
-
 func allDeploymentConfigTrue(deploymentConfig map[string]bool) bool {
 	for _, value := range deploymentConfig {
 		if !value {
@@ -753,114 +636,6 @@ func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentT
 	return false
 }
 
-func (impl *PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, userId int32) (*bean.AppDeleteResponseDTO, error) {
-	cascadeDelete := true
-	forceDelete := false
-	deleteResponse := &bean.AppDeleteResponseDTO{
-		DeleteInitiated:  false,
-		ClusterReachable: true,
-	}
-	if deleteAction == bean.FORCE_DELETE {
-		forceDelete = true
-		cascadeDelete = false
-	} else if deleteAction == bean.NON_CASCADE_DELETE {
-		cascadeDelete = false
-	}
-	//Updating clusterReachable flag
-	clusterBean, err := impl.clusterRepository.FindById(pipeline.Environment.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
-	}
-	deleteResponse.ClusterName = clusterBean.ClusterName
-	if len(clusterBean.ErrorInConnecting) > 0 {
-		deleteResponse.ClusterReachable = false
-	}
-	//getting children CD pipeline details
-	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting children cd details", "err", err)
-		return deleteResponse, err
-	} else if len(childNodes) > 0 {
-		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
-		return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
-	}
-	//getting deployment group for this pipeline
-	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting deployment group names by appId and envId", "err", err)
-		return deleteResponse, err
-	} else if len(deploymentGroupNames) > 0 {
-		groupNamesByte, err := json.Marshal(deploymentGroupNames)
-		if err != nil {
-			impl.logger.Errorw("error in marshaling deployment group names", "err", err, "deploymentGroupNames", deploymentGroupNames)
-		}
-		impl.logger.Debugw("cannot delete cd pipeline, is being used in deployment group")
-		return deleteResponse, fmt.Errorf("Please remove this CD pipeline from deployment groups : %s", string(groupNamesByte))
-	}
-	dbConnection := impl.pipelineRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return deleteResponse, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
-	//delete app from argo cd, if created
-	if pipeline.DeploymentAppCreated && !pipeline.DeploymentAppDeleteRequest {
-		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-		if util.IsAcdApp(pipeline.DeploymentAppType) {
-			if !deleteResponse.ClusterReachable {
-				impl.logger.Errorw("cluster connection error", "err", clusterBean.ErrorInConnecting)
-				if cascadeDelete {
-					return deleteResponse, nil
-				}
-			}
-			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-			req := &application2.ApplicationDeleteRequest{
-				Name:    &deploymentAppName,
-				Cascade: &cascadeDelete,
-			}
-			if _, err := impl.application.Delete(ctx, req); err != nil {
-				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
-
-				if forceDelete {
-					impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
-				} else {
-					//statusError, _ := err.(*errors2.StatusError)
-					if cascadeDelete && strings.Contains(err.Error(), "code = NotFound") {
-						err = &util.ApiError{
-							UserMessage:     "Could not delete as application not found in argocd",
-							InternalMessage: err.Error(),
-						}
-					} else {
-						err = &util.ApiError{
-							UserMessage:     "Could not delete application",
-							InternalMessage: err.Error(),
-						}
-					}
-					return deleteResponse, err
-				}
-			}
-			impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
-			pipeline.DeploymentAppDeleteRequest = true
-			pipeline.UpdatedOn = time.Now()
-			pipeline.UpdatedBy = userId
-			err = impl.pipelineRepository.Update(pipeline, tx)
-			if err != nil {
-				impl.logger.Errorw("error in partially delete cd pipeline", "err", err)
-				return deleteResponse, err
-			}
-		}
-		deleteResponse.DeleteInitiated = true
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error in committing db transaction", "err", err)
-		return deleteResponse, err
-	}
-	return deleteResponse, nil
-}
-
 func (impl *PipelineBuilderImpl) isGitRepoUrlPresent(appId int) bool {
 	fetchedChart, err := impl.chartRepository.FindLatestByAppId(appId)
 
@@ -871,675 +646,12 @@ func (impl *PipelineBuilderImpl) isGitRepoUrlPresent(appId int) bool {
 	return true
 }
 
-func (impl *PipelineBuilderImpl) isPipelineInfoValid(pipeline *pipelineConfig.Pipeline,
-	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, bool) {
-
-	if len(pipeline.App.AppName) == 0 || len(pipeline.Environment.Name) == 0 {
-		impl.logger.Errorw("app name or environment name is not present",
-			"pipeline id", pipeline.Id)
-
-		failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
-			"could not fetch app name or environment name")
-
-		return failedPipelines, false
-	}
-	return failedPipelines, true
-}
-
-func (impl *PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipelineConfig.Pipeline,
-	failedPipelines []*bean.DeploymentChangeStatus, err string) []*bean.DeploymentChangeStatus {
-
-	return impl.appendToDeploymentChangeStatusList(
-		failedPipelines,
-		pipeline,
-		err,
-		bean.Failed)
-}
-
-func (impl *PipelineBuilderImpl) handleNotHealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
-	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
-
-	if pipeline.DeploymentAppType == bean.ArgoCd {
-		// check if app status is Healthy
-		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
-
-		// case: missing status row in db
-		if len(status.Status) == 0 {
-			return failedPipelines, nil
-		}
-
-		// cannot delete the app from argocd if app status is Progressing
-		if err != nil || status.Status == "Progressing" {
-
-			healthCheckErr := errors.New("unable to fetch app status or app status is progressing")
-
-			impl.logger.Errorw(healthCheckErr.Error(),
-				"appId", pipeline.AppId,
-				"environmentId", pipeline.EnvironmentId,
-				"err", err)
-
-			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
-
-			return failedPipelines, healthCheckErr
-		}
-		return failedPipelines, nil
-	}
-	return failedPipelines, nil
-}
-
-func (impl *PipelineBuilderImpl) handleNotDeployedAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
-	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
-
-	if pipeline.DeploymentAppType == string(bean.ArgoCd) {
-		// check if app status is Healthy
-		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
-
-		// case: missing status row in db
-		if len(status.Status) == 0 {
-			return failedPipelines, nil
-		}
-
-		// cannot delete the app from argocd if app status is Progressing
-		if err != nil {
-
-			healthCheckErr := errors.New("unable to fetch app status")
-
-			impl.logger.Errorw(healthCheckErr.Error(),
-				"appId", pipeline.AppId,
-				"environmentId", pipeline.EnvironmentId,
-				"err", err)
-
-			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
-
-			return failedPipelines, healthCheckErr
-		}
-		return failedPipelines, nil
-	}
-	return failedPipelines, nil
-}
-
-func (impl *PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
-	pipelines []*pipelineConfig.Pipeline) *bean.DeploymentAppTypeChangeResponse {
-
-	successfulPipelines := make([]*bean.DeploymentChangeStatus, 0)
-	failedPipelines := make([]*bean.DeploymentChangeStatus, 0)
-	// Iterate over all the pipelines in the environment for given deployment app type
-	for _, pipeline := range pipelines {
-
-		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-		var err error
-		if pipeline.DeploymentAppType == string(bean.ArgoCd) {
-			appIdentifier := &client.AppIdentifier{
-				ClusterId:   pipeline.Environment.ClusterId,
-				ReleaseName: pipeline.DeploymentAppName,
-				Namespace:   pipeline.Environment.Namespace,
-			}
-			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
-		} else {
-			req := &application2.ApplicationQuery{
-				Name: &deploymentAppName,
-			}
-			_, err = impl.application.Get(ctx, req)
-		}
-		if err != nil {
-			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
-		}
-
-		if err != nil && checkAppReleaseNotExist(err) {
-			successfulPipelines = impl.appendToDeploymentChangeStatusList(
-				successfulPipelines,
-				pipeline,
-				"",
-				bean.Success)
-		} else {
-			failedPipelines = impl.appendToDeploymentChangeStatusList(
-				failedPipelines,
-				pipeline,
-				"App Not Yet Deleted.",
-				bean.NOT_YET_DELETED)
-		}
-	}
-
-	return &bean.DeploymentAppTypeChangeResponse{
-		SuccessfulPipelines: successfulPipelines,
-		FailedPipelines:     failedPipelines,
-	}
-}
-
-// deleteArgoCdApp takes context and deployment app name used in argo cd and deletes
-// the application in argo cd.
-func (impl *PipelineBuilderImpl) deleteArgoCdApp(ctx context.Context, pipeline *pipelineConfig.Pipeline, deploymentAppName string,
-	cascadeDelete bool) error {
-
-	if !pipeline.DeploymentAppCreated {
-		return nil
-	}
-
-	// building the argocd application delete request
-	req := &application2.ApplicationDeleteRequest{
-		Name:    &deploymentAppName,
-		Cascade: &cascadeDelete,
-	}
-
-	_, err := impl.application.Delete(ctx, req)
-
-	if err != nil {
-		impl.logger.Errorw("error in deleting argocd application", "err", err)
-		// Possible that argocd app got deleted but db updation failed
-		if strings.Contains(err.Error(), "code = NotFound") {
-			return nil
-		}
-		return err
-	}
-	return nil
-}
-
-// deleteHelmApp takes in context and pipeline object and deletes the release in helm
-func (impl *PipelineBuilderImpl) deleteHelmApp(ctx context.Context, pipeline *pipelineConfig.Pipeline) error {
-
-	if !pipeline.DeploymentAppCreated {
-		return nil
-	}
-
-	// validation
-	if !util.IsHelmApp(pipeline.DeploymentAppType) {
-		return errors.New("unable to delete pipeline with id: " + strconv.Itoa(pipeline.Id) + ", not a helm app")
-	}
-
-	// create app identifier
-	appIdentifier := &client.AppIdentifier{
-		ClusterId:   pipeline.Environment.ClusterId,
-		ReleaseName: pipeline.DeploymentAppName,
-		Namespace:   pipeline.Environment.Namespace,
-	}
-
-	// call for delete resource
-	deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
-
-	if err != nil {
-		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
-		return err
-	}
-
-	if deleteResponse == nil || !deleteResponse.GetSuccess() {
-		return errors.New("helm delete application response unsuccessful")
-	}
-	return nil
-}
-
-func (impl *PipelineBuilderImpl) appendToDeploymentChangeStatusList(pipelines []*bean.DeploymentChangeStatus,
-	pipeline *pipelineConfig.Pipeline, error string, status bean.Status) []*bean.DeploymentChangeStatus {
-
-	return append(pipelines, &bean.DeploymentChangeStatus{
-		Id:      pipeline.Id,
-		AppId:   pipeline.AppId,
-		AppName: pipeline.App.AppName,
-		EnvId:   pipeline.EnvironmentId,
-		EnvName: pipeline.Environment.Name,
-		Error:   error,
-		Status:  status,
-	})
-}
-
 type DeploymentType struct {
 	Deployment Deployment `json:"deployment"`
 }
 
 type Deployment struct {
 	Strategy map[string]interface{} `json:"strategy"`
-}
-
-func (impl *PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, userId int32) (pipelineRes int, err error) {
-	dbConnection := impl.pipelineRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return 0, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
-	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-			AppId:       app.Id,
-			AccessToken: "",
-			Active:      true,
-			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
-		wf := &appWorkflow.AppWorkflow{
-			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
-			AppId:    app.Id,
-			Active:   true,
-			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
-		if err != nil {
-			impl.logger.Errorw("err", err)
-			return 0, err
-		}
-		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			AppWorkflowId: savedAppWf.Id,
-			ComponentId:   externalCiPipeline.Id,
-			Type:          "WEBHOOK",
-			Active:        true,
-			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
-		if err != nil {
-			return 0, err
-		}
-		pipeline.ParentPipelineId = externalCiPipeline.Id
-		pipeline.AppWorkflowId = savedAppWf.Id
-	}
-
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-	if err != nil {
-		return 0, err
-	}
-	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, false, pipeline.Namespace, chart.IsBasicViewLocked, chart.CurrentViewEditor, tx)
-	if err != nil {
-		return 0, err
-	}
-
-	// Get pipeline override based on Deployment strategy
-	//TODO: mark as created in our db
-	pipelineId, err := impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
-	if err != nil {
-		impl.logger.Errorw("error in ")
-		return 0, err
-	}
-
-	//adding pipeline to workflow
-	_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
-	if err != nil && err != pg.ErrNoRows {
-		return 0, err
-	}
-	if pipeline.AppWorkflowId > 0 {
-		var parentPipelineId int
-		var parentPipelineType string
-		if pipeline.ParentPipelineId == 0 {
-			parentPipelineId = pipeline.CiPipelineId
-			parentPipelineType = "CI_PIPELINE"
-		} else {
-			parentPipelineId = pipeline.ParentPipelineId
-			parentPipelineType = pipeline.ParentPipelineType
-		}
-		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			AppWorkflowId: pipeline.AppWorkflowId,
-			ParentId:      parentPipelineId,
-			ParentType:    parentPipelineType,
-			ComponentId:   pipelineId,
-			Type:          "CD_PIPELINE",
-			Active:        true,
-			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
-		if err != nil {
-			return 0, err
-		}
-	}
-	//getting global app metrics for cd pipeline create because env level metrics is not created yet
-	appLevelAppMetricsEnabled := false
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
-	} else if err == nil {
-		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
-	}
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
-		return 0, err
-	}
-	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
-	if err != nil {
-		return 0, err
-	}
-	// strategies for pipeline ids, there is only one is default
-	defaultCount := 0
-	for _, item := range pipeline.Strategies {
-		if item.Default {
-			defaultCount = defaultCount + 1
-			if defaultCount > 1 {
-				impl.logger.Warnw("already have one strategy is default in this pipeline", "strategy", item.DeploymentTemplate)
-				item.Default = false
-			}
-		}
-		strategy := &chartConfig.PipelineStrategy{
-			PipelineId: pipelineId,
-			Strategy:   item.DeploymentTemplate,
-			Config:     string(item.Config),
-			Default:    item.Default,
-			Deleted:    false,
-			AuditLog:   sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
-		}
-		err = impl.pipelineConfigRepository.Save(strategy, tx)
-		if err != nil {
-			impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
-			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
-		}
-		//creating history entry for strategy
-		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
-		if err != nil {
-			impl.logger.Errorw("error in creating strategy history entry", "err", err)
-			return 0, err
-		}
-
-	}
-	if util.IsManifestPush(pipeline.DeploymentAppType) {
-		if len(pipeline.ContainerRegistryName) == 0 || len(pipeline.RepoName) == 0 {
-			return 0, errors.New("container registry name and repo name cannot be empty for manifest push deployment")
-		}
-		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
-			//implement
-		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
-
-			helmRepositoryConfig := bean4.HelmRepositoryConfig{
-				RepositoryName:        strings.TrimSpace(pipeline.RepoName),
-				ContainerRegistryName: pipeline.ContainerRegistryName,
-			}
-			helmRepositoryConfigBytes, err := json.Marshal(helmRepositoryConfig)
-			if err != nil {
-				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
-				return 0, err
-			}
-			manifestPushConfig := &repository3.ManifestPushConfig{
-				AppId:             app.Id,
-				EnvId:             pipeline.EnvironmentId,
-				CredentialsConfig: string(helmRepositoryConfigBytes),
-				ChartName:         pipeline.ChartName,
-				ChartBaseVersion:  pipeline.ChartBaseVersion,
-				StorageType:       bean.ManifestStorageOCIHelmRepo,
-				Deleted:           false,
-				AuditLog: sql.AuditLog{
-					CreatedOn: time.Now(),
-					CreatedBy: userId,
-					UpdatedOn: time.Now(),
-					UpdatedBy: userId,
-				},
-			}
-			existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetOneManifestPushConfig(string(helmRepositoryConfigBytes))
-			if err != nil {
-				impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
-				return 0, err
-			}
-
-			if existingManifestPushConfig.Id != 0 {
-				err = fmt.Errorf("repository name \"%s\" is already in use for this container registry", helmRepositoryConfig.RepositoryName)
-				impl.logger.Errorw("error in saving manifest push config in db", "err", err)
-				return 0, err
-			}
-			manifestPushConfig, err = impl.manifestPushConfigRepository.SaveConfig(manifestPushConfig)
-			if err != nil {
-				impl.logger.Errorw("error in saving config for oci helm repo", "err", err)
-				return 0, err
-			}
-		}
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return 0, err
-	}
-
-	impl.logger.Debugw("pipeline created with GitMaterialId ", "id", pipelineId, "pipeline", pipeline)
-	return pipelineId, nil
-}
-
-func (impl PipelineBuilderImpl) extractAndMapVariables(template string, entityId int, entityType repository6.EntityType, userId int32, tx *pg.Tx) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-	if err != nil {
-		return err
-	}
-	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository6.Entity{
-		EntityType: entityType,
-		EntityId:   entityId,
-	}, userId, tx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (impl *PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
-
-	if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
-		err = &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			InternalMessage: "invalid yaml config, must include - beforeStages",
-			UserMessage:     "invalid yaml config, must include - beforeStages",
-		}
-		return err
-	}
-	if len(pipeline.PostStage.Config) > 0 && !strings.Contains(pipeline.PostStage.Config, "afterStages") {
-		err = &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			InternalMessage: "invalid yaml config, must include - afterStages",
-			UserMessage:     "invalid yaml config, must include - afterStages",
-		}
-		return err
-	}
-	dbConnection := impl.pipelineRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
-	pipelineDbObj, err := impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating pipeline")
-		return err
-	}
-
-	// strategies for pipeline ids, there is only one is default
-	existingStrategies, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineId(pipeline.Id)
-	if err != nil && !errors.IsNotFound(err) {
-		impl.logger.Errorw("error in getting pipeline strategies", "err", err)
-		return err
-	}
-	for _, oldItem := range existingStrategies {
-		notFound := true
-		for _, newItem := range pipeline.Strategies {
-			if newItem.DeploymentTemplate == oldItem.Strategy {
-				notFound = false
-			}
-		}
-
-		if notFound {
-			//delete from db
-			err := impl.pipelineConfigRepository.Delete(oldItem, tx)
-			if err != nil {
-				impl.logger.Errorw("error in delete pipeline strategies", "err", err)
-				return fmt.Errorf("error in delete pipeline strategies")
-			}
-		}
-	}
-
-	defaultCount := 0
-	for _, item := range pipeline.Strategies {
-		if item.Default {
-			defaultCount = defaultCount + 1
-			if defaultCount > 1 {
-				impl.logger.Warnw("already have one strategy is default in this pipeline, skip this", "strategy", item.DeploymentTemplate)
-				continue
-			}
-		}
-		strategy, err := impl.pipelineConfigRepository.FindByStrategyAndPipelineId(item.DeploymentTemplate, pipeline.Id)
-		if err != nil && pg.ErrNoRows != err {
-			impl.logger.Errorw("error in getting strategy", "err", err)
-			return err
-		}
-		if strategy.Id > 0 {
-			strategy.Config = string(item.Config)
-			strategy.Default = item.Default
-			strategy.UpdatedBy = userID
-			strategy.UpdatedOn = time.Now()
-			err = impl.pipelineConfigRepository.Update(strategy, tx)
-			if err != nil {
-				impl.logger.Errorw("error in updating strategy", "strategy", item.DeploymentTemplate)
-				return fmt.Errorf("pipeline updated but failed to update one strategy")
-			}
-			//creating history entry for strategy
-			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
-			if err != nil {
-				impl.logger.Errorw("error in creating strategy history entry", "err", err)
-				return err
-			}
-		} else {
-			strategy := &chartConfig.PipelineStrategy{
-				PipelineId: pipeline.Id,
-				Strategy:   item.DeploymentTemplate,
-				Config:     string(item.Config),
-				Default:    item.Default,
-				Deleted:    false,
-				AuditLog:   sql.AuditLog{UpdatedBy: userID, CreatedBy: userID, UpdatedOn: time.Now(), CreatedOn: time.Now()},
-			}
-			err = impl.pipelineConfigRepository.Save(strategy, tx)
-			if err != nil {
-				impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
-				return fmt.Errorf("pipeline created but failed to add strategy")
-			}
-			//creating history entry for strategy
-			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
-			if err != nil {
-				impl.logger.Errorw("error in creating strategy history entry", "err", err)
-				return err
-			}
-		}
-	}
-
-	if util.IsManifestPush(pipeline.DeploymentAppType) {
-		if len(pipeline.ContainerRegistryName) == 0 || len(pipeline.RepoName) == 0 {
-			return errors.New("container registry name and repo name cannot be empty in case of manifest push deployment")
-		}
-	}
-	pipeline.AppId = pipelineDbObj.AppId
-
-	if util.IsManifestDownload(pipeline.DeploymentAppType) {
-		if util.IsManifestPush(pipelineDbObj.DeploymentAppType) {
-			manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-			if err != nil {
-				impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-				return err
-			}
-			if manifestPushConfig.Id != 0 {
-				manifestPushConfig.Deleted = true
-				err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
-				if err != nil {
-					impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
-					return err
-				}
-			}
-		}
-	}
-	if util.IsManifestPush(pipeline.DeploymentAppType) {
-		manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-			return err
-		}
-		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
-			//implement
-		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
-			existingHelmRepositoryConfig := bean4.HelmRepositoryConfig{
-				RepositoryName:        strings.TrimSpace(pipeline.RepoName),
-				ContainerRegistryName: pipeline.ContainerRegistryName,
-			}
-			existingHelmRepositoryConfigBytes, err := json.Marshal(existingHelmRepositoryConfig)
-			if err != nil {
-				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
-				return err
-			}
-			existingCredentialsConfig := string(existingHelmRepositoryConfigBytes)
-			if manifestPushConfig.CredentialsConfig != existingCredentialsConfig {
-				existingManifestPushConfig, err := impl.manifestPushConfigRepository.GetOneManifestPushConfig(existingCredentialsConfig)
-				if err != nil {
-					impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
-					return err
-				}
-
-				if existingManifestPushConfig.Id != 0 {
-					err = fmt.Errorf("repository name \"%s\" is already in use for this container registry", existingHelmRepositoryConfig.RepositoryName)
-					impl.logger.Errorw("error in saving manifest push config in db", "err", err)
-					return err
-				}
-			}
-			if manifestPushConfig.Id == 0 {
-				manifestPushConfig = &repository3.ManifestPushConfig{
-					AppId:            appId,
-					EnvId:            pipeline.EnvironmentId,
-					ChartName:        pipeline.ChartName,
-					ChartBaseVersion: pipeline.ChartBaseVersion,
-					StorageType:      bean.ManifestStorageOCIHelmRepo,
-					Deleted:          false,
-					AuditLog: sql.AuditLog{
-						CreatedOn: time.Now(),
-						CreatedBy: userID,
-						UpdatedOn: time.Now(),
-						UpdatedBy: userID,
-					},
-				}
-			}
-			helmRepositoryConfig := bean4.HelmRepositoryConfig{
-				RepositoryName:        strings.TrimSpace(pipeline.RepoName),
-				ContainerRegistryName: pipeline.ContainerRegistryName,
-			}
-			helmRepositoryConfigBytes, err := json.Marshal(helmRepositoryConfig)
-			if err != nil {
-				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
-				return err
-			}
-			manifestPushConfig.CredentialsConfig = string(helmRepositoryConfigBytes)
-		}
-		pipelineDbObj.DeploymentAppType = pipeline.DeploymentAppType
-		err = impl.pipelineRepository.Update(pipelineDbObj, tx)
-		if err != nil {
-			impl.logger.Errorw("error in updating pipeline deployment app type", "err", err)
-			return err
-		}
-		if manifestPushConfig.Id == 0 {
-			manifestPushConfig, err = impl.manifestPushConfigRepository.SaveConfig(manifestPushConfig)
-			if err != nil {
-				impl.logger.Errorw("error in saving config for oci helm repo", "err", err)
-				return err
-			}
-		} else {
-			err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
-			if err != nil {
-				impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
-				return err
-			}
-		}
-	}
-	if util.IsManifestDownload(pipeline.DeploymentAppType) || util.IsManifestPush(pipeline.DeploymentAppType) {
-		pipelineDbObj.DeploymentAppType = pipeline.DeploymentAppType
-		err = impl.pipelineRepository.Update(pipelineDbObj, tx)
-		if err != nil {
-			impl.logger.Errorw("error in updating pipeline deployment app type", "err", err)
-			return err
-		}
-	}
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (impl *PipelineBuilderImpl) getStrategiesMapping(dbPipelineIds []int) (map[int][]*chartConfig.PipelineStrategy, error) {
-	strategiesMapping := make(map[int][]*chartConfig.PipelineStrategy)
-	strategiesByPipelineIds, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineIds(dbPipelineIds)
-	if err != nil && !errors.IsNotFound(err) {
-		impl.logger.Errorw("error in fetching strategies by pipelineIds", "PipelineIds", dbPipelineIds, "err", err)
-		return strategiesMapping, err
-	}
-	for _, strategy := range strategiesByPipelineIds {
-		strategiesMapping[strategy.PipelineId] = append(strategiesMapping[strategy.PipelineId], strategy)
-	}
-	return strategiesMapping, nil
 }
 
 type ConfigMapSecretsResponse struct {
@@ -1615,51 +727,6 @@ type PipelineStrategy struct {
 	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
 	Config             json.RawMessage                        `json:"config"`
 	Default            bool                                   `json:"default"`
-}
-
-func (impl *PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error {
-	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
-	if err != nil && pg.ErrNoRows != err {
-		return err
-	}
-	for _, ch := range charts {
-		if len(ch.GitRepoUrl) == 0 {
-			ch.GitRepoUrl = chartGitAttribute.RepoUrl
-			ch.ChartLocation = chartGitAttribute.ChartLocation
-			ch.UpdatedOn = time.Now()
-			ch.UpdatedBy = userId
-			err = impl.chartRepository.Update(ch)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (impl *PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, deleteAction int, userId int32) []*bean.CdBulkActionResponseDto {
-	var respDtos []*bean.CdBulkActionResponseDto
-	for _, pipeline := range impactedPipelines {
-		respDto := &bean.CdBulkActionResponseDto{
-			PipelineName:    pipeline.Name,
-			AppName:         pipeline.App.AppName,
-			EnvironmentName: pipeline.Environment.Name,
-		}
-		if !dryRun {
-			deleteResponse, err := impl.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
-			if err != nil {
-				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
-				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
-			} else if !(deleteResponse.DeleteInitiated || deleteResponse.ClusterReachable) {
-				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, cluster connection error")
-			} else {
-				respDto.DeletionResult = "Pipeline deleted successfully."
-			}
-		}
-		respDtos = append(respDtos, respDto)
-	}
-	return respDtos
-
 }
 
 func checkAppReleaseNotExist(err error) bool {
