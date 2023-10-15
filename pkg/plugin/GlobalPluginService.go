@@ -1396,6 +1396,7 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 	}
 
 	pluginStepsResp := make([]*PluginStepsDto, 0)
+	scriptPathArgPortMapping := make([]*ScriptPathArgPortMapping, 0)
 	for _, pluginStep := range pluginSteps {
 		pluginScript, err := impl.globalPluginRepository.GetScriptDetailById(pluginStep.ScriptId)
 		if err != nil {
@@ -1417,6 +1418,28 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 			ImagePullSecret:          pluginScript.ImagePullSecret,
 			Deleted:                  pluginScript.Deleted,
 		}
+		//fetch ScriptPathArgPortMapping for each plugin step
+		scriptPathArgPortMappings, err := impl.pipelineStageRepository.GetScriptMappingDetailByScriptId(pluginStep.ScriptId)
+		if err != nil {
+			impl.logger.Errorw("error in getting scriptPathArgPortMappings", "err", err)
+			return nil, err
+		}
+		for _, scriptMapping := range scriptPathArgPortMappings {
+			mapping := &ScriptPathArgPortMapping{
+				Id:                  scriptMapping.Id,
+				TypeOfMapping:       scriptMapping.TypeOfMapping,
+				FilePathOnDisk:      scriptMapping.FilePathOnDisk,
+				FilePathOnContainer: scriptMapping.FilePathOnContainer,
+				Command:             scriptMapping.Command,
+				Args:                scriptMapping.Args,
+				PortOnLocal:         scriptMapping.PortOnLocal,
+				PortOnContainer:     scriptMapping.PortOnContainer,
+				ScriptId:            scriptMapping.ScriptId,
+			}
+			scriptPathArgPortMapping = append(scriptPathArgPortMapping, mapping)
+		}
+		pluginScriptDto.PathArgPortMapping = scriptPathArgPortMapping
+
 		pluginStepDto := &PluginStepsDto{
 			Id:                   pluginStep.Id,
 			Name:                 pluginStep.Name,
@@ -1559,7 +1582,7 @@ func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadat
 	for _, pluginStepDeleteReq := range pluginDeleteReq.PluginSteps {
 		scriptPathArgPortMappings, err := impl.pipelineStageRepository.GetScriptMappingDetailByScriptId(pluginStepDeleteReq.PluginPipelineScript.Id)
 		if err != nil {
-			impl.logger.Errorw("error in getting plugin step script", "err", err)
+			impl.logger.Errorw("error in getting script path arg port mappings", "err", err)
 			return nil, err
 		}
 		for _, scriptPathArgPortMapping := range scriptPathArgPortMappings {
