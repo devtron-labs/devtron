@@ -30,7 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
-	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -43,7 +42,6 @@ import (
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"net/http"
 	"strings"
 	"time"
 )
@@ -95,12 +93,6 @@ type CdPipelineConfigService interface {
 	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	IsGitopsConfigured() (bool, error)
-}
-type DevtronAppCMCSService interface {
-	//FetchConfigmapSecretsForCdStages : Delegating the request to appService for fetching cm/cs
-	FetchConfigmapSecretsForCdStages(appId, envId, cdPipelineId int) (ConfigMapSecretsResponse, error)
-	//GetDeploymentConfigMap : Retrieve deployment config values from the attributes table
-	GetDeploymentConfigMap(environmentId int) (map[string]bool, error)
 }
 type DevtronAppStrategyService interface {
 	//FetchCDPipelineStrategy : Retrieve CDPipelineStrategy for given appId
@@ -1252,43 +1244,6 @@ func (impl *PipelineBuilderImpl) IsGitopsConfigured() (bool, error) {
 
 	return isGitOpsConfigured, nil
 
-}
-
-func (impl *PipelineBuilderImpl) FetchConfigmapSecretsForCdStages(appId, envId, cdPipelineId int) (ConfigMapSecretsResponse, error) {
-	configMapSecrets, err := impl.appService.GetConfigMapAndSecretJson(appId, envId, cdPipelineId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching config secrets ", "err", err)
-		return ConfigMapSecretsResponse{}, err
-	}
-	existingConfigMapSecrets := ConfigMapSecretsResponse{}
-	err = json.Unmarshal([]byte(configMapSecrets), &existingConfigMapSecrets)
-	if err != nil {
-		impl.logger.Error(err)
-		return ConfigMapSecretsResponse{}, err
-	}
-	return existingConfigMapSecrets, nil
-}
-
-func (impl *PipelineBuilderImpl) GetDeploymentConfigMap(environmentId int) (map[string]bool, error) {
-	var deploymentConfig map[string]map[string]bool
-	var deploymentConfigEnv map[string]bool
-	deploymentConfigValues, err := impl.attributesRepository.FindByKey(attributes.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
-	if err == pg.ErrNoRows {
-		return deploymentConfigEnv, nil
-	}
-	//if empty config received(doesn't exist in table) which can't be parsed
-	if deploymentConfigValues.Value != "" {
-		if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
-			rerr := &util.ApiError{
-				HttpStatusCode:  http.StatusInternalServerError,
-				InternalMessage: err.Error(),
-				UserMessage:     "Failed to fetch deployment config values from the attributes table",
-			}
-			return deploymentConfigEnv, rerr
-		}
-		deploymentConfigEnv, _ = deploymentConfig[fmt.Sprintf("%d", environmentId)]
-	}
-	return deploymentConfigEnv, nil
 }
 
 func (impl *PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error) {

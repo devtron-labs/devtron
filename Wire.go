@@ -236,7 +236,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
 		pipeline.GetDeploymentServiceTypeConfig,
-		
+
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
 		pipeline.NewCiPipelineConfigServiceImpl,
@@ -245,6 +245,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiMaterialConfigService), new(*pipeline.CiMaterialConfigServiceImpl)),
 		pipeline.NewAppArtifactManagerImpl,
 		wire.Bind(new(pipeline.AppArtifactManager), new(*pipeline.AppArtifactManagerImpl)),
+		pipeline.NewDevtronAppCMCSServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppCMCSService), new(*pipeline.DevtronAppCMCSServiceImpl)),
 
 		util5.NewLoggingMiddlewareImpl,
 		wire.Bind(new(util5.LoggingMiddleware), new(*util5.LoggingMiddlewareImpl)),
