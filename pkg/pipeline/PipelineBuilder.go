@@ -222,6 +222,7 @@ type PipelineBuilderImpl struct {
 	CiPipelineConfigService
 	CiMaterialConfigService
 	AppArtifactManager
+	DevtronAppCMCSService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -281,7 +282,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	variableTemplateParser parsers.VariableTemplateParser,
 	ciPipelineConfigService CiPipelineConfigService,
 	ciMaterialConfigService CiMaterialConfigService,
-	appArtifactManager AppArtifactManager) *PipelineBuilderImpl {
+	appArtifactManager AppArtifactManager,
+	devtronAppCMCSService DevtronAppCMCSService) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -356,6 +358,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		CiPipelineConfigService:                         ciPipelineConfigService,
 		CiMaterialConfigService:                         ciMaterialConfigService,
 		AppArtifactManager:                              appArtifactManager,
+		DevtronAppCMCSService:                           devtronAppCMCSService,
 	}
 }
 
