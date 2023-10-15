@@ -32,7 +32,7 @@ import (
 type AppArtifactManager interface {
 	//TODO: uncomment this once this function is moved to this interface, it cannot be moved till DeploymentPipelineConfigService uses PipelineBuilderImpl as receiver
 	//RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
-	//RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType) (*bean2.CiArtifactResponse, error)
+	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType) (*bean2.CiArtifactResponse, error)
 
 	//FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean2.CiArtifactResponse, error)
@@ -49,6 +49,8 @@ type AppArtifactManagerImpl struct {
 	imageTaggingService  ImageTaggingService
 	ciArtifactRepository repository.CiArtifactRepository
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository
+
+	cdPipelineConfigService CdPipelineConfigService
 }
 
 func NewAppArtifactManagerImpl(
@@ -57,15 +59,17 @@ func NewAppArtifactManagerImpl(
 	userService user.UserService,
 	imageTaggingService ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository) *AppArtifactManagerImpl {
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	cdPipelineConfigService CdPipelineConfigService) *AppArtifactManagerImpl {
 
 	return &AppArtifactManagerImpl{
-		logger:               logger,
-		cdWorkflowRepository: cdWorkflowRepository,
-		userService:          userService,
-		imageTaggingService:  imageTaggingService,
-		ciArtifactRepository: ciArtifactRepository,
-		ciWorkflowRepository: ciWorkflowRepository,
+		logger:                  logger,
+		cdWorkflowRepository:    cdWorkflowRepository,
+		userService:             userService,
+		imageTaggingService:     imageTaggingService,
+		ciArtifactRepository:    ciArtifactRepository,
+		ciWorkflowRepository:    ciWorkflowRepository,
+		cdPipelineConfigService: cdPipelineConfigService,
 	}
 }
 
@@ -255,11 +259,10 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId
 	return deployedCiArtifactsResponse, nil
 }
 
-// TODO: change receiver to AppArtifactManager
-func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType) (*bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType) (*bean2.CiArtifactResponse, error) {
 
 	// retrieve parent details
-	parentId, parentType, err := impl.RetrieveParentDetails(pipeline.Id)
+	parentId, parentType, err := impl.cdPipelineConfigService.RetrieveParentDetails(pipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("failed to retrieve parent details",
 			"cdPipelineId", pipeline.Id,
@@ -292,7 +295,7 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 	artifactMap := make(map[int]int)
 	limit := 10
 
-	ciArtifacts, artifactMap, latestWfArtifactId, latestWfArtifactStatus, err := impl.AppArtifactManager.
+	ciArtifacts, artifactMap, latestWfArtifactId, latestWfArtifactStatus, err := impl.
 		BuildArtifactsForCdStage(pipeline.Id, stage, ciArtifacts, artifactMap, false, limit, parentCdId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)

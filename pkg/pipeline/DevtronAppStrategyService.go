@@ -14,7 +14,7 @@ type DevtronAppStrategyService interface {
 
 	// FetchDefaultCDPipelineStrategy :
 	// TODO: uncomment this after code has been refactored as this function doesnt contain any logic to fetch strategy
-	//FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
+	FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
 }
 
 type DevtronAppStrategyServiceImpl struct {
@@ -22,18 +22,22 @@ type DevtronAppStrategyServiceImpl struct {
 	chartRepository                                 chartRepoRepository.ChartRepository
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
 	ciCdPipelineOrchestrator                        CiCdPipelineOrchestrator
+
+	cdPipelineConfigService CdPipelineConfigService
 }
 
 func NewDevtronAppStrategyServiceImpl(
 	logger *zap.SugaredLogger,
 	chartRepository chartRepoRepository.ChartRepository,
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
-	ciCdPipelineOrchestrator CiCdPipelineOrchestrator) *DevtronAppStrategyServiceImpl {
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
+	cdPipelineConfigService CdPipelineConfigService) *DevtronAppStrategyServiceImpl {
 	return &DevtronAppStrategyServiceImpl{
 		logger:          logger,
 		chartRepository: chartRepository,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
 		ciCdPipelineOrchestrator:                        ciCdPipelineOrchestrator,
+		cdPipelineConfigService:                         cdPipelineConfigService,
 	}
 }
 
@@ -71,6 +75,23 @@ func (impl *DevtronAppStrategyServiceImpl) FetchCDPipelineStrategy(appId int) (P
 		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, pipelineStrategy)
 	}
 	return pipelineStrategiesResponse, nil
+}
+
+func (impl *DevtronAppStrategyServiceImpl) FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error) {
+	pipelineStrategy := PipelineStrategy{}
+	cdPipelines, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId)
+	if err != nil || (cdPipelines.Pipelines) == nil || len(cdPipelines.Pipelines) == 0 {
+		return pipelineStrategy, err
+	}
+	cdPipelineId := cdPipelines.Pipelines[0].Id
+
+	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelineById(cdPipelineId)
+	if err != nil {
+		return pipelineStrategy, nil
+	}
+	pipelineStrategy.DeploymentTemplate = cdPipeline.DeploymentTemplate
+	pipelineStrategy.Default = true
+	return pipelineStrategy, nil
 }
 
 func (impl *DevtronAppStrategyServiceImpl) filterDeploymentTemplate(strategyKey string, pipelineStrategiesJson string) (string, error) {
