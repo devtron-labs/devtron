@@ -30,7 +30,6 @@ import (
 )
 
 type AppArtifactManager interface {
-	//TODO: uncomment this once this function is moved to this interface, it cannot be moved till DeploymentPipelineConfigService uses PipelineBuilderImpl as receiver
 	//RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType) (*bean2.CiArtifactResponse, error)
 
