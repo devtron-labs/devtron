@@ -482,13 +482,17 @@ func (impl *GlobalPluginServiceImpl) CreateScriptPathArgPortMappingForPluginInli
 		scriptPathArgPortMapping.UpdatedBy = userId
 		scriptPathArgPortMapping.UpdatedOn = time.Now()
 	}
-	err = impl.pipelineStageRepository.UpdateScriptMapping(dbScriptPathArgPortMappings, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating previous plugin script path arg port mapping by script id", "scriptId", pluginPipelineScriptId, "err", err)
-		return err
+	if len(dbScriptPathArgPortMappings) > 0 {
+		err = impl.pipelineStageRepository.UpdateScriptMapping(dbScriptPathArgPortMappings, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating previous plugin script path arg port mapping by script id", "scriptId", pluginPipelineScriptId, "err", err)
+			return err
+		}
 	}
 	var scriptMap []repository2.ScriptPathArgPortMapping
 	for _, scriptPathArgPortMapping := range scriptPathArgPortMappings {
+		scriptPathArgPortMapping.ScriptId = pluginPipelineScriptId
+
 		if len(scriptPathArgPortMapping.FilePathOnDisk) > 0 && len(scriptPathArgPortMapping.FilePathOnContainer) > 0 {
 			repositoryEntry := repository2.ScriptPathArgPortMapping{
 				TypeOfMapping:       repository.SCRIPT_MAPPING_TYPE_FILE_PATH,

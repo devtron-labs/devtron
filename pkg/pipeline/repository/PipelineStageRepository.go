@@ -533,7 +533,14 @@ func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPa
 func (impl *PipelineStageRepositoryImpl) UpdateScriptMapping(mappings []*ScriptPathArgPortMapping, tx *pg.Tx) error {
 	var err error
 	if tx != nil {
-		err = tx.Update(&mappings)
+		for _, entry := range mappings {
+			err = tx.Update(entry)
+			if err != nil {
+				impl.logger.Errorw("error in updating ScriptPathArgPortMapping", "entry", entry, "err", err)
+				return err
+			}
+		}
+
 	} else {
 		err = impl.dbConnection.Update(&mappings)
 	}
