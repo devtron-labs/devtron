@@ -223,6 +223,7 @@ type PipelineBuilderImpl struct {
 	CiMaterialConfigService
 	AppArtifactManager
 	DevtronAppCMCSService
+	DevtronAppStrategyService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -283,7 +284,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciPipelineConfigService CiPipelineConfigService,
 	ciMaterialConfigService CiMaterialConfigService,
 	appArtifactManager AppArtifactManager,
-	devtronAppCMCSService DevtronAppCMCSService) *PipelineBuilderImpl {
+	devtronAppCMCSService DevtronAppCMCSService,
+	devtronAppStrategyService DevtronAppStrategyService) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -359,6 +361,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		CiMaterialConfigService:                         ciMaterialConfigService,
 		AppArtifactManager:                              appArtifactManager,
 		DevtronAppCMCSService:                           devtronAppCMCSService,
+		DevtronAppStrategyService:                       devtronAppStrategyService,
 	}
 }
 
@@ -1346,32 +1349,6 @@ func (impl *PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline 
 		return err
 	}
 	return nil
-}
-
-func (impl *PipelineBuilderImpl) filterDeploymentTemplate(strategyKey string, pipelineStrategiesJson string) (string, error) {
-	var pipelineStrategies DeploymentType
-	err := json.Unmarshal([]byte(pipelineStrategiesJson), &pipelineStrategies)
-	if err != nil {
-		impl.logger.Errorw("error while unmarshal strategies", "err", err)
-		return "", err
-	}
-	if pipelineStrategies.Deployment.Strategy[strategyKey] == nil {
-		return "", fmt.Errorf("no deployment strategy found for %s", strategyKey)
-	}
-	strategy := make(map[string]interface{})
-	strategy[strategyKey] = pipelineStrategies.Deployment.Strategy[strategyKey].(map[string]interface{})
-	pipelineStrategy := DeploymentType{
-		Deployment: Deployment{
-			Strategy: strategy,
-		},
-	}
-	pipelineOverrideBytes, err := json.Marshal(pipelineStrategy)
-	if err != nil {
-		impl.logger.Errorw("error while marshal strategies", "err", err)
-		return "", err
-	}
-	pipelineStrategyJson := string(pipelineOverrideBytes)
-	return pipelineStrategyJson, nil
 }
 
 func (impl *PipelineBuilderImpl) getStrategiesMapping(dbPipelineIds []int) (map[int][]*chartConfig.PipelineStrategy, error) {

@@ -92,11 +92,9 @@ type CdPipelineConfigService interface {
 	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	IsGitopsConfigured() (bool, error)
-}
-type DevtronAppStrategyService interface {
-	//FetchCDPipelineStrategy : Retrieve CDPipelineStrategy for given appId
-	FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error)
-	//FetchDefaultCDPipelineStrategy :
+
+	// FetchDefaultCDPipelineStrategy :
+	// TODO: this code has no logic related to pipeline strategy, need to fix it later
 	FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
 }
 type AppDeploymentTypeChangeManager interface {
@@ -1168,59 +1166,6 @@ func (impl *PipelineBuilderImpl) IsGitopsConfigured() (bool, error) {
 
 }
 
-func (impl *PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error) {
-	pipelineStrategiesResponse := PipelineStrategiesResponse{}
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
-		return pipelineStrategiesResponse, err
-	}
-	if chart.Id == 0 {
-		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
-	}
-
-	//get global strategy for this chart
-	globalStrategies, err := impl.globalStrategyMetadataChartRefMappingRepository.GetByChartRefId(chart.ChartRefId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting global strategies", "err", err)
-		return pipelineStrategiesResponse, err
-	} else if err == pg.ErrNoRows {
-		impl.logger.Infow("no strategies configured for chart", "chartRefId", chart.ChartRefId)
-		return pipelineStrategiesResponse, nil
-	}
-	pipelineOverride := chart.PipelineOverride
-	for _, globalStrategy := range globalStrategies {
-		pipelineStrategyJson, err := impl.filterDeploymentTemplate(globalStrategy.GlobalStrategyMetadata.Key, pipelineOverride)
-		if err != nil {
-			return pipelineStrategiesResponse, err
-		}
-		pipelineStrategy := PipelineStrategy{
-			DeploymentTemplate: globalStrategy.GlobalStrategyMetadata.Name,
-			Config:             []byte(pipelineStrategyJson),
-		}
-		pipelineStrategy.Default = globalStrategy.Default
-		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, pipelineStrategy)
-	}
-	return pipelineStrategiesResponse, nil
-}
-
-func (impl *PipelineBuilderImpl) FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error) {
-	pipelineStrategy := PipelineStrategy{}
-	cdPipelines, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId)
-	if err != nil || (cdPipelines.Pipelines) == nil || len(cdPipelines.Pipelines) == 0 {
-		return pipelineStrategy, err
-	}
-	cdPipelineId := cdPipelines.Pipelines[0].Id
-
-	cdPipeline, err := impl.GetCdPipelineById(cdPipelineId)
-	if err != nil {
-		return pipelineStrategy, nil
-	}
-	pipelineStrategy.DeploymentTemplate = cdPipeline.DeploymentTemplate
-	pipelineStrategy.Default = true
-	return pipelineStrategy, nil
-}
-
 func (impl *PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 	request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error) {
 
@@ -1651,4 +1596,21 @@ func (impl *PipelineBuilderImpl) DeleteDeploymentAppsForEnvironment(ctx context.
 
 	// Currently deleting apps only in argocd is supported
 	return impl.DeleteDeploymentApps(ctx, pipelines, userId), nil
+}
+
+func (impl *PipelineBuilderImpl) FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error) {
+	pipelineStrategy := PipelineStrategy{}
+	cdPipelines, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId)
+	if err != nil || (cdPipelines.Pipelines) == nil || len(cdPipelines.Pipelines) == 0 {
+		return pipelineStrategy, err
+	}
+	cdPipelineId := cdPipelines.Pipelines[0].Id
+
+	cdPipeline, err := impl.GetCdPipelineById(cdPipelineId)
+	if err != nil {
+		return pipelineStrategy, nil
+	}
+	pipelineStrategy.DeploymentTemplate = cdPipeline.DeploymentTemplate
+	pipelineStrategy.Default = true
+	return pipelineStrategy, nil
 }
