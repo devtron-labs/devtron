@@ -217,7 +217,7 @@ You can use Devtron for deployments on Kubernetes while using an external CI too
 
 | Fields | Description |
 | --- | --- |
-| **Deploy to environment** | <ul><li>`Environment`: Provide the name of the [environment](https://docs.devtron.ai/global-configurations/cluster-and-environments#add-environment).</ul></li><ul><li>`Namepsace`: Provide the [namespace](https://docs.devtron.ai/global-configurations/cluster-and-environments#add-environment).</ul></li> |
+| **Deploy to environment** | <ul><li>`Environment`: Provide the name of the [environment](https://docs.devtron.ai/global-configurations/cluster-and-environments#add-environment).</ul></li><ul><li>`Namespace`: Provide the [namespace](https://docs.devtron.ai/global-configurations/cluster-and-environments#add-environment).</ul></li> |
 | **When do you want to deploy** | You can deploy either in one of the following ways: <ul><li>`Automatic`: If you select automatic, your application will be deployed automatically everytime a new image is received.</ul></li> <ul><li>`Manual`: In case of manual, you have to select the image and deploy manually. </ul></li>|
 | **Deployment Strategy** | Configure the deployment preferences for this pipeline. |
 

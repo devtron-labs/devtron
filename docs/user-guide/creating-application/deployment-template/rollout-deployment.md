@@ -102,7 +102,7 @@ EnvVariables:
     value: xyz
 ```
 
-But `ConfigMap` and `Secret` are the prefered way to inject env variables. You can create this in `App Configuration` Section.
+But `ConfigMap` and `Secret` are the preferred way to inject env variables. You can create this in `App Configuration` Section.
 
 ### ConfigMap
 
@@ -800,7 +800,7 @@ envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
 
 ### KEDA Autoscaling
 
-**Prerequisite:** KEDA contoller should be installed in the cluster. To install KEDA controller using Helm, navigate to chart store and search for `keda` chart and deploy it. You can follow this [documentation](../../deploy-chart/deployment-of-charts.md) for deploying a Helm chart on Devtron.
+**Prerequisite:** KEDA controller should be installed in the cluster. To install KEDA controller using Helm, navigate to chart store and search for `keda` chart and deploy it. You can follow this [documentation](../../deploy-chart/deployment-of-charts.md) for deploying a Helm chart on Devtron.
 
 KEDA Helm repo : https://kedacore.github.io/charts
 
@@ -895,12 +895,12 @@ winterSoldier:
 Here, 
 | Key | values | Description |
 | :--- | :--- | :--- |
-| `enabled` | `fasle`,`true` | decide the enabling factor  |
+| `enabled` | `false`,`true` | decide the enabling factor  |
 | `apiVersion` | `pincher.devtron.ai/v1beta1`, `pincher.devtron.ai/v1alpha1` | specific api version  |
 | `action` | `sleep`,`delete`, `scale` | This specify  the action need to perform.  |
 | `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"US/Pacific"` |  It use to specify the timeZone used. (It uses standard format. please refer [this](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))  |
 | `timeRangesWithZone`:`timeRanges` | array of [ `timeFrom`, `timeTo`, `weekdayFrom`, `weekdayTo`] |  It use to define time period/range on which the user need to perform the specified action. you can have multiple timeRanges. <br /> These settings will take `action` on Sat and Sun from 00:00 to 23:59:59, |
-| `targetReplicas` | `[n]` : n - number of replicas to scale. | These is mandatory field when the `action` is `scale` <br /> Defalut value is `[]`.  |
+| `targetReplicas` | `[n]` : n - number of replicas to scale. | These is mandatory field when the `action` is `scale` <br /> Default value is `[]`.  |
 | `fieldSelector` | `- AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now()) `  | These value will take a list of methods to select the resources on which we perform specified `action` .  |
 
 
@@ -931,7 +931,7 @@ winterSoldier:
   fieldSelector: 
     - AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '10h'), Now())
 ```
-Above settings will take action on `Sat` and `Sun` from 00:00 to 23:59:59, and on `Mon`-`Fri` from 00:00 to 08:00 and 20:00 to 23:59:59. If `action:sleep` then runs hibernate at timeFrom and unhibernate at `timeTo`. If `action: delete` then it will delete workloads at `timeFrom` and `timeTo`. Here the `action:scale` thus it scale the number of resource replicas to  `targetReplicas: [1,1,1]`. Here each element of `targetReplicas` array is mapped with the corresponding elments of array `timeRangesWithZone/timeRanges`. Thus make sure the length of both array is equal, otherwise the cnages cannot be observed.
+Above settings will take action on `Sat` and `Sun` from 00:00 to 23:59:59, and on `Mon`-`Fri` from 00:00 to 08:00 and 20:00 to 23:59:59. If `action:sleep` then runs hibernate at timeFrom and unhibernate at `timeTo`. If `action: delete` then it will delete workloads at `timeFrom` and `timeTo`. Here the `action:scale` thus it scale the number of resource replicas to  `targetReplicas: [1,1,1]`. Here each element of `targetReplicas` array is mapped with the corresponding elements of array `timeRangesWithZone/timeRanges`. Thus make sure the length of both array is equal, otherwise the cnages cannot be observed.
 
 The above example will select the application objects which have been created 10 hours ago across all namespaces excluding application's namespace. Winter soldier exposes following functions to handle time, cpu and memory.
 
