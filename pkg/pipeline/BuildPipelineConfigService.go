@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -197,6 +198,7 @@ type CiMaterialConfigService interface {
 	//GetMaterialsForAppId : Retrieve material for given appId
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
 }
+
 type AppArtifactManager interface {
 	//RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, isApprovalNode bool) (*bean.CiArtifactResponse, error)
@@ -2303,10 +2305,17 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 		parentCdId = parentId
 	}
 
-	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY && len(pipeline.PreStageConfig) > 0 {
-		// Parent type will be PRE for DEPLOY stage
-		parentId = pipeline.Id
-		parentType = bean2.CD_WORKFLOW_TYPE_PRE
+	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY {
+		pipelinePreStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository3.PIPELINE_STAGE_TYPE_PRE_CD)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
+			return nil, err
+		}
+		if (pipelinePreStage != nil && pipelinePreStage.Id != 0) || len(pipeline.PreStageConfig) > 0 {
+			// Parent type will be PRE for DEPLOY stage
+			parentId = pipeline.Id
+			parentType = bean2.CD_WORKFLOW_TYPE_PRE
+		}
 	}
 	if stage == bean2.CD_WORKFLOW_TYPE_POST {
 		// Parent type will be DEPLOY for POST stage
