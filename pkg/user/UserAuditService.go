@@ -144,4 +144,5 @@ func (impl UserAuditServiceImpl) GetAllNonApiTokenUsersDataMap() (map[int32]time
 			userAuditMap[userAudit.UserId] = userAudit.UpdatedOn
 		}
 	}
+	return userAuditMap, nil
 }
