@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
