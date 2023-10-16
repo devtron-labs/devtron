@@ -1022,19 +1022,28 @@ func (impl *UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	var response []bean.UserInfo
+	var responses []bean.UserInfo
+	userAuditMap, err := impl.userAuditService.GetAllNonApiTokenUsersDataMap()
+	if err != nil {
+		impl.logger.Errorw("error in getting userAudit map for non-api token users", "err", err)
+		return nil, err
+	}
 	for _, m := range model {
-		response = append(response, bean.UserInfo{
+		response := bean.UserInfo{
 			Id:          m.Id,
 			EmailId:     m.EmailId,
 			RoleFilters: make([]bean.RoleFilter, 0),
 			Groups:      make([]string, 0),
-		})
+		}
+		if lastLoginTime, ok := userAuditMap[m.Id]; ok {
+			response.LastLoginTime = lastLoginTime
+		}
+		responses = append(responses, response)
 	}
-	if len(response) == 0 {
-		response = make([]bean.UserInfo, 0)
+	if len(responses) == 0 {
+		responses = make([]bean.UserInfo, 0)
 	}
-	return response, nil
+	return responses, nil
 }
 
 func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
