@@ -25,7 +25,7 @@ type ResourceFilterEvaluationAudit struct {
 	ReferenceId          int            `sql:"reference_id"`
 	FilterHistoryObjects string         `sql:"filter_history_objects"` //json of array of
 	SubjectType          *SubjectType   `sql:"subject_type"`
-	SubjectId            int            `sql:"subject_ids"` //comma seperated subject ids
+	SubjectId            int            `sql:"subject_id"` //comma seperated subject ids
 	//add metadata column in future to store multi-git case for SubjectType CiPipelineMaterials
 	sql.AuditLog
 }
