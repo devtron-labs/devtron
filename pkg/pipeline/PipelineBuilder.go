@@ -225,6 +225,7 @@ type PipelineBuilderImpl struct {
 	variableTemplateParser                          parsers.VariableTemplateParser
 	celService                                      resourceFilter.CELEvaluatorService
 	resourceFilterService                           resourceFilter.ResourceFilterService
+	pipelineStageRepository                         repository3.PipelineStageRepository
 	CiPipelineConfigService
 }
 
@@ -285,7 +286,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	imageTaggingService ImageTaggingService,
 	variableEntityMappingService variables.VariableEntityMappingService,
 	variableTemplateParser parsers.VariableTemplateParser, celService resourceFilter.CELEvaluatorService, resourceFilterService resourceFilter.ResourceFilterService,
-	ciPipelineConfigService CiPipelineConfigService) *PipelineBuilderImpl {
+	ciPipelineConfigService CiPipelineConfigService,
+	pipelineStageRepository repository3.PipelineStageRepository) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -362,6 +364,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		celService:                                      celService,
 		resourceFilterService:                           resourceFilterService,
 		CiPipelineConfigService:                         ciPipelineConfigService,
+		pipelineStageRepository:                         pipelineStageRepository,
 	}
 }
 
