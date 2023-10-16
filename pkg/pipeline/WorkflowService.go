@@ -97,8 +97,8 @@ const (
 	CI_NODE_PVC_PIPELINE_PREFIX    = "devtron.ai/ci-pvc"
 	PRE                            = "PRE"
 	POST                           = "POST"
- preCdStage = "preCD"
- postCdStage = "postCD"
+	preCdStage                     = "preCD"
+	postCdStage                    = "postCD"
 )
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, error) {
