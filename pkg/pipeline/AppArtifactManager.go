@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -42,13 +43,13 @@ type AppArtifactManager interface {
 }
 
 type AppArtifactManagerImpl struct {
-	logger               *zap.SugaredLogger
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
-	userService          user.UserService
-	imageTaggingService  ImageTaggingService
-	ciArtifactRepository repository.CiArtifactRepository
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository
-
+	logger                  *zap.SugaredLogger
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	userService             user.UserService
+	imageTaggingService     ImageTaggingService
+	ciArtifactRepository    repository.CiArtifactRepository
+	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
+	pipelineStageService    PipelineStageService
 	cdPipelineConfigService CdPipelineConfigService
 }
 
@@ -59,6 +60,7 @@ func NewAppArtifactManagerImpl(
 	imageTaggingService ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	pipelineStageService PipelineStageService,
 	cdPipelineConfigService CdPipelineConfigService) *AppArtifactManagerImpl {
 
 	return &AppArtifactManagerImpl{
@@ -69,6 +71,7 @@ func NewAppArtifactManagerImpl(
 		ciArtifactRepository:    ciArtifactRepository,
 		ciWorkflowRepository:    ciWorkflowRepository,
 		cdPipelineConfigService: cdPipelineConfigService,
+		pipelineStageService:    pipelineStageService,
 	}
 }
 
@@ -276,10 +279,17 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 		parentCdId = parentId
 	}
 
-	if stage == bean.CD_WORKFLOW_TYPE_DEPLOY && len(pipeline.PreStageConfig) > 0 {
-		// Parent type will be PRE for DEPLOY stage
-		parentId = pipeline.Id
-		parentType = bean.CD_WORKFLOW_TYPE_PRE
+	if stage == bean.CD_WORKFLOW_TYPE_DEPLOY {
+		pipelinePreStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository2.PIPELINE_STAGE_TYPE_PRE_CD)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
+			return nil, err
+		}
+		if (pipelinePreStage != nil && pipelinePreStage.Id != 0) || len(pipeline.PreStageConfig) > 0 {
+			// Parent type will be PRE for DEPLOY stage
+			parentId = pipeline.Id
+			parentType = bean.CD_WORKFLOW_TYPE_PRE
+		}
 	}
 	if stage == bean.CD_WORKFLOW_TYPE_POST {
 		// Parent type will be DEPLOY for POST stage
