@@ -163,7 +163,7 @@ type CdWorkflowRunner struct {
 	PodName                     string               `sql:"pod_name"`
 	BlobStorageEnabled          bool                 `sql:"blob_storage_enabled,notnull"`
 	DeploymentApprovalRequestId int                  `sql:"deployment_approval_request_id"`
-	RefCdWorkflowRunnerId       int                  `sql:"ref_cd_workflow_runner_id"`
+	RefCdWorkflowRunnerId       int                  `sql:"ref_cd_workflow_runner_id,notnull"`
 	HelmReferenceChart          []byte               `sql:""`
 	CdWorkflow                  *CdWorkflow
 	DeploymentApprovalRequest   *DeploymentApprovalRequest
