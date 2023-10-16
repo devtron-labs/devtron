@@ -121,7 +121,7 @@ type AppArtifactManager interface {
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean.CiArtifactResponse, error)
 
 	//FetchArtifactForRollback :
-	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, app *bean.CreateAppDTO, pipeline *pipelineConfig.Pipeline) (bean.CiArtifactResponse, error)
+	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string, app *bean.CreateAppDTO, pipeline *pipelineConfig.Pipeline) (bean.CiArtifactResponse, error)
 }
 
 func (impl *PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error) {
@@ -2014,12 +2014,12 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 	return ciArtifactsResponse, nil
 }
 
-func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, app *bean.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean.CiArtifactResponse, error) {
+func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string, app *bean.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean.CiArtifactResponse, error) {
 	var deployedCiArtifacts []bean.CiArtifactBean
 	var deployedCiArtifactsResponse bean.CiArtifactResponse
 	var pipeline *pipelineConfig.Pipeline
 
-	cdWfrs, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineId(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, offset, limit)
+	cdWfrs, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineId(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, offset, limit, searchString)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifacts for rollback by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
 		return deployedCiArtifactsResponse, err
