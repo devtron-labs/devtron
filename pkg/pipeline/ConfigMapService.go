@@ -128,6 +128,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
+	//todo bypass validation
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
@@ -174,7 +175,12 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		model.ConfigMapData = string(configDataByte)
 		model.UpdatedBy = configMapRequest.UserId
 		model.UpdatedOn = time.Now()
-
+		//todo
+		////VARIABLE_MAPPING_UPDATE
+		//err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
+		//if err != nil {
+		//	return nil, err
+		//}
 		configMap, err := impl.configMapRepository.UpdateAppLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
@@ -205,6 +211,12 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 			impl.logger.Errorw("error while creating app level", "error", err)
 			return nil, err
 		}
+		//todo
+		////VARIABLE_MAPPING_UPDATE
+		//err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
+		//if err != nil {
+		//	return nil, err
+		//}
 		configMapRequest.Id = configMap.Id
 	}
 	err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.CONFIGMAP_TYPE)
@@ -308,6 +320,12 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		model.UpdatedOn = time.Now()
 
 		configMap, err := impl.configMapRepository.UpdateEnvLevel(model)
+		//todo
+		//VARIABLE_MAPPING_UPDATE
+		//err = impl.extractAndMapVariables(, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
+		if err != nil {
+			return nil, err
+		}
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
@@ -336,6 +354,12 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 			impl.logger.Errorw("error while creating app level", "error", err)
 			return nil, err
 		}
+		//todo
+		////VARIABLE_MAPPING_UPDATE
+		//err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
+		//if err != nil {
+		//	return nil, err
+		//}
 		configMapRequest.Id = configMap.Id
 	}
 	err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.CONFIGMAP_TYPE)

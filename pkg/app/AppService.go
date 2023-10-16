@@ -1438,6 +1438,9 @@ func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHi
 		HistoryReferenceId:   deploymentTemplateHistoryId,
 		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
 	}
+	//Todo
+	//make reference as array for cm/cs
+	// cm history id , cs history id
 	variableSnapshot, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
 	if err != nil {
 		return template, variableSnapshotMap, err
@@ -1560,7 +1563,19 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	}
 	chartVersion := envOverride.Chart.ChartVersion
 	_, span = otel.Tracer("orchestrator").Start(ctx, "getConfigMapAndSecretJsonV2")
-	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+	CMCSJsonDTO := CMCSJsonDTO{
+		AppId:                                 overrideRequest.AppId,
+		EnvId:                                 envOverride.TargetEnvironment,
+		PipeLineId:                            overrideRequest.PipelineId,
+		ChartVersion:                          chartVersion,
+		DeploymentWithConfig:                  overrideRequest.DeploymentWithConfig,
+		wfrIdForDeploymentWithSpecificTrigger: overrideRequest.WfrIdForDeploymentWithSpecificTrigger,
+		ImageTag:                              util3.GetImageTagFromImage(overrideRequest.Image),
+		AppName:                               overrideRequest.AppName,
+		Image:                                 overrideRequest.Image,
+	}
+	configMapJson, err := impl.getConfigMapAndSecretJsonV2(CMCSJsonDTO)
+
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in fetching config map n secret ", "err", err)
@@ -2182,7 +2197,20 @@ func (impl *AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipe
 	return merged, nil
 }
 
-func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pipelineId int, chartVersion string, deploymentWithConfig bean.DeploymentConfigurationType, wfrIdForDeploymentWithSpecificTrigger int) ([]byte, error) {
+type CMCSJsonDTO struct {
+	AppId                                 int                              `json:"appId"`
+	EnvId                                 int                              `json:"envId"`
+	PipeLineId                            int                              `json:"pipeLineId"`
+	ChartVersion                          string                           `json:"chartVersion"`
+	DeploymentWithConfig                  bean.DeploymentConfigurationType `json:"deploymentWithConfig"`
+	wfrIdForDeploymentWithSpecificTrigger int
+	ImageTag                              string `json:"imageTag"`
+	AppName                               string `json:"appName"`
+	envOverride                           *chartConfig.EnvConfigOverride
+	Image                                 string `json:"image"`
+}
+
+func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([]byte, error) {
 
 	var configMapJson string
 	var secretDataJson string
@@ -2195,43 +2223,99 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pi
 	//var secretDataJsonPipeline string
 
 	merged := []byte("{}")
-	if deploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
+	if cMCSJson.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+
+		//VARIABLE different cases for variable resolution
+		env, err := impl.envRepository.FindById(cMCSJson.EnvId)
+		if err != nil {
+			impl.logger.Errorw("unable to find env", "err", err)
+			return nil, err
+		}
+		scope := resourceQualifiers.Scope{
+			AppId:     cMCSJson.AppId,
+			EnvId:     cMCSJson.EnvId,
+			ClusterId: env.ClusterId,
+			SystemMetadata: &resourceQualifiers.SystemMetadata{
+				EnvironmentName: env.Name,
+				ClusterName:     env.Cluster.ClusterName,
+				Namespace:       env.Namespace,
+				ImageTag:        cMCSJson.ImageTag,
+				AppName:         cMCSJson.AppName,
+			},
+		}
+		configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(cMCSJson.AppId)
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
 		}
+		//todo add extractVariablesAndResolveTemplate
+		configMapAsString := fmt.Sprintf("%v", configMapA)
+		resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, configMapAsString, repository6.Entity{
+			EntityType: repository6.ConfigMapAndSecretAppLevel,
+			EntityId:   configMapA.Id,
+		})
+		if err != nil {
+			return nil, err
+		}
+		cMCSJson.envOverride.ResolvedEnvOverrideValues = resolvedTemplate
+		cMCSJson.envOverride.VariableSnapshot = variableMap
+
 		if configMapA != nil && configMapA.Id > 0 {
 			configMapJsonApp = configMapA.ConfigMapData
 			secretDataJsonApp = configMapA.SecretData
 		}
-		configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
+		configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(cMCSJson.AppId, cMCSJson.EnvId)
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
+		}
+		configMapEsString := fmt.Sprintf("%v", configMapE)
+		resolvedTemplate, variableMap, err = impl.extractVariablesAndResolveTemplate(scope, configMapEsString, repository6.Entity{
+			EntityType: repository6.ConfigMapAndSecretEnvLevel,
+			EntityId:   configMapE.Id,
+		})
+		if err != nil {
+			return nil, err
 		}
 		if configMapE != nil && configMapE.Id > 0 {
 			configMapJsonEnv = configMapE.ConfigMapData
 			secretDataJsonEnv = configMapE.SecretData
 		}
-	} else if deploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+
+	} else if cMCSJson.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+
 		//fetching history and setting envLevelConfig and not appLevelConfig because history already contains merged appLevel and envLevel configs
-		configMapHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
+		configMapHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(cMCSJson.PipeLineId, cMCSJson.wfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
 		if err != nil {
-			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", pipelineId, "wfrid", wfrIdForDeploymentWithSpecificTrigger)
+			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", cMCSJson.PipeLineId, "wfrid", cMCSJson.wfrIdForDeploymentWithSpecificTrigger)
 			return []byte("{}"), err
 		}
+		//todo call resolver function here
+		//resolvedTemplate, variableMap, err := impl.getResolvedTemplateWithSnapshot(configMapHistory.Id, configMapHistory.Data)
+		if err != nil {
+			return nil, err
+		}
+		//envOverride.ResolvedEnvOverrideValues = resolvedTemplate
+		//envOverride.VariableSnapshot = variableMap
 		configMapJsonEnv = configMapHistory.Data
-		secretHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
+
+		secretHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(cMCSJson.PipeLineId, cMCSJson.wfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
 		if err != nil {
-			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", pipelineId, "wfrid", wfrIdForDeploymentWithSpecificTrigger)
+			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", cMCSJson.PipeLineId, "wfrid", cMCSJson.wfrIdForDeploymentWithSpecificTrigger)
 			return []byte("{}"), err
 		}
+		//todo call resolver function here
+		//resolvedTemplate, variableMap, err := impl.getResolvedTemplateWithSnapshot(deploymentTemplateHistory.Id, envOverride.EnvOverrideValues)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//envOverride.ResolvedEnvOverrideValues = resolvedTemplate
+		//envOverride.VariableSnapshot = variableMap
 		secretDataJsonEnv = secretHistory.Data
 	}
 	configMapJson, err = impl.mergeUtil.ConfigMapMerge(configMapJsonApp, configMapJsonEnv)
 	if err != nil {
 		return []byte("{}"), err
 	}
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(cMCSJson.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return []byte("{}"), err
@@ -2272,6 +2356,7 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pi
 	if err != nil {
 		return []byte("{}"), err
 	}
+
 	return merged, nil
 }
 
@@ -3030,6 +3115,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 			return err
 		}
 	}
+	//todo
 	//VARIABLE_SNAPSHOT_SAVE
 	if envOverride.VariableSnapshot != nil && len(envOverride.VariableSnapshot) > 0 {
 		variableMapBytes, _ := json.Marshal(envOverride.VariableSnapshot)

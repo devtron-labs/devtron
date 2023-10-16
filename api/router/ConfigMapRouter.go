@@ -35,6 +35,7 @@ func NewConfigMapRouterImpl(restHandler restHandler.ConfigMapRestHandler) *Confi
 }
 
 func (router ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) {
+	//todo changes required in below apis.
 	configRouter.Path("/global/cm").
 		HandlerFunc(router.restHandler.CMGlobalAddUpdate).Methods("POST")
 	configRouter.Path("/environment/cm").

@@ -22,4 +22,7 @@ const (
 	EntityTypeDeploymentTemplateAppLevel EntityType = 1
 	EntityTypeDeploymentTemplateEnvLevel EntityType = 2
 	EntityTypePipelineStage              EntityType = 3
+	//todo have to add cm/cs entity type
+	ConfigMapAndSecretAppLevel EntityType = 4
+	ConfigMapAndSecretEnvLevel EntityType = 5
 )

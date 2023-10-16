@@ -25,7 +25,10 @@ type VariableSnapshotHistoryBean struct {
 type HistoryReferenceType int
 
 const (
+	//todo have to add HistoryReference
 	HistoryReferenceTypeDeploymentTemplate HistoryReferenceType = 1
 	HistoryReferenceTypeCIWORKFLOW         HistoryReferenceType = 2
 	HistoryReferenceTypeCDWORKFLOWRUNNER   HistoryReferenceType = 3
+	HistoryReferenceTypeConfigMap          HistoryReferenceType = 1
+	HistoryReferenceTypeSecret             HistoryReferenceType = 1
 )
