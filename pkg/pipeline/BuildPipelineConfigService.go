@@ -149,6 +149,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	globalPolicyService globalPolicy.GlobalPolicyService,
 	resourceGroupService resourceGroup2.ResourceGroupService) *CiPipelineConfigServiceImpl {
+
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {

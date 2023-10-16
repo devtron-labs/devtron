@@ -30,6 +30,7 @@ type DevtronAppStrategyService interface {
 	FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error)
 
 	// FetchDefaultCDPipelineStrategy :
+	// TODO: uncomment this after code has been refactored as this function doesnt contain any logic to fetch strategy
 	FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error)
 }
 
