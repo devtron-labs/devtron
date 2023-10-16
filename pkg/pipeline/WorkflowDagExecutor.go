@@ -1535,6 +1535,44 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		}
 	}
 
+	lastCDWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest cdWfr by cdPipelineId, ManualCdTrigger", "err", err, "pipelineId", pipeline.Id)
+		return err
+	}
+	if lastCDWfr.Id != 0 && lastCDWfr.Status == pipelineConfig.WorkflowStarting {
+		runner := &pipelineConfig.CdWorkflowRunner{
+			Name:         pipeline.Name,
+			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
+			Status:       pipelineConfig.WorkflowFailed, //deployment failed for auto trigger
+			Message:      "another operation (install/upgrade/rollback) is in progress",
+			TriggeredBy:  1,
+			StartedOn:    triggeredAt,
+			FinishedOn:   time.Now(),
+			Namespace:    impl.config.GetDefaultNamespace(),
+			CdWorkflowId: cdWf.Id,
+			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
+		}
+		_, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		if err != nil {
+			impl.logger.Errorw("error while saving the cdWfr, TriggerDeployment", "cdWfId", cdWf.Id, "pipelineId", pipeline.Id)
+			return err
+		}
+		runner.CdWorkflow = &pipelineConfig.CdWorkflow{
+			Pipeline: pipeline,
+		}
+		cdMetrics := util4.CDMetrics{
+			AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          runner.Status,
+			DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
+		}
+		util4.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
+		return nil
+	}
+
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:         pipeline.Name,
 		WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
@@ -1892,6 +1930,15 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 			overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 		}
+		lastCDWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(overrideRequest.PipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.logger.Errorw("error in getting latest cdWfr by cdPipelineId, ManualCdTrigger", "err", err, "pipelineId", overrideRequest.PipelineId)
+			return 0, err
+		}
+		if lastCDWfr.Status == pipelineConfig.WorkflowStarting {
+			return 0, fmt.Errorf("another operation (install/upgrade/rollback) is in progress")
+		}
+
 		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("error in getting cdWorkflow, ManualCdTrigger", "CdWorkflowId", overrideRequest.CdWorkflowId, "err", err)

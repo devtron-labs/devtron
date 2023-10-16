@@ -1086,7 +1086,7 @@ func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, a
 
 	ctx, err := impl.buildACDContext()
 	if err != nil {
-		impl.logger.Errorw("error in creating acd synch context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
+		impl.logger.Errorw("error in creating acd sync context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 		return err
 	}
 	//setting deployedBy as 1(system user) since case of auto trigger
