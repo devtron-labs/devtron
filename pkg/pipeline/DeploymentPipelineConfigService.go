@@ -924,6 +924,12 @@ func (impl *PipelineBuilderImpl) RetrieveParentDetails(pipelineId int) (parentId
 
 	if workflow.ParentType == appWorkflow.CDPIPELINE {
 		// workflow is of type CD, check for stage
+		// for older apps post cd script was stored in post_stage_config_yaml, for newer apps new stage is created in pipeline_stage
+		parentPostStage, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(workflow.ParentId, repository5.PIPELINE_STAGE_TYPE_POST_CD)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching post stage by pipeline id", "err", err, "cd-pipeline-id", parentId)
+			return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, err
+		}
 		parentPipeline, err := impl.pipelineRepository.GetPostStageConfigById(workflow.ParentId)
 		if err != nil {
 			impl.logger.Errorw("failed to get the post_stage_config_yaml",
@@ -932,10 +938,10 @@ func (impl *PipelineBuilderImpl) RetrieveParentDetails(pipelineId int) (parentId
 			return 0, "", err
 		}
 
-		if len(parentPipeline.PostStageConfig) == 0 {
-			return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
+		if len(parentPipeline.PostStageConfig) > 0 || (parentPostStage != nil && parentPostStage.Id > 0) {
+			return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_POST, nil
 		}
-		return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_POST, nil
+		return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
 
 	} else if workflow.ParentType == appWorkflow.WEBHOOK {
 		// For webhook type
