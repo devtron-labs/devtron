@@ -94,6 +94,7 @@ func (repo *FilterEvaluationAuditRepositoryImpl) UpdateRefTypeAndRefId(id int, r
 		Set("reference_id = ?", refId).
 		Set("reference_type = ?", refType).
 		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", 1).
 		Where("id = ?", id).
 		Update()
 	return err

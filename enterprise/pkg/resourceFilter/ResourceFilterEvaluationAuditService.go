@@ -45,7 +45,7 @@ func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType
 	currentTime := time.Now()
 	auditLog := sql.AuditLog{
 		CreatedOn: currentTime,
-		UpdatedOn: currentTime,
+		CreatedBy: 1,
 	}
 
 	filterEvaluationAudit := NewResourceFilterEvaluationAudit(&refType, refId, filterHistoryObjectsStr, &subjectType, subjectId, auditLog)
