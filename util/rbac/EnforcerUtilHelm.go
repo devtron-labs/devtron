@@ -48,7 +48,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterId(clusterId int, namespa
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, strings.ToLower(cluster.ClusterName), strings.ToLower(namespace), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string {
@@ -60,7 +60,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, c
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	return fmt.Sprintf("%s/%s__%s/%s", teamObj.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s__%s/%s", strings.ToLower(teamObj.Name), strings.ToLower(cluster.ClusterName), strings.ToLower(namespace), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clusterId int, namespace string, appName string) (string, string) {
@@ -89,27 +89,27 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 
 		if app.TeamId == 0 {
 			// case if project is not assigned to cli app
-			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName)), ""
+			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, strings.ToLower(cluster.ClusterName), strings.ToLower(namespace), strings.ToLower(appName)), ""
 		} else {
 			// case if project is assigned
-			return fmt.Sprintf("%s/%s__%s/%s", app.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName)), ""
+			return fmt.Sprintf("%s/%s__%s/%s", strings.ToLower(app.Team.Name), strings.ToLower(cluster.ClusterName), strings.ToLower(namespace), strings.ToLower(appName)), ""
 		}
 
 	}
 
 	if installedApp.App.TeamId == 0 {
 		// for EA apps which have no project assigned to them
-		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName)),
-			fmt.Sprintf("%s/%s/%s", team.UNASSIGNED_PROJECT, installedApp.Environment.EnvironmentIdentifier, strings.ToLower(appName))
+		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, strings.ToLower(cluster.ClusterName), strings.ToLower(namespace), strings.ToLower(appName)),
+			fmt.Sprintf("%s/%s/%s", team.UNASSIGNED_PROJECT, strings.ToLower(installedApp.Environment.EnvironmentIdentifier), strings.ToLower(appName))
 
 	} else {
 		if installedApp.EnvironmentId == 0 {
 			// for apps in EA mode, initally env can be 0.
-			return fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName)), ""
+			return fmt.Sprintf("%s/%s__%s/%s", strings.ToLower(installedApp.App.Team.Name), strings.ToLower(cluster.ClusterName), strings.ToLower(namespace), strings.ToLower(appName)), ""
 		}
 		// for apps which are assigned to a project and have env ID
-		rbacOne := fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, installedApp.Environment.EnvironmentIdentifier, strings.ToLower(appName))
-		rbacTwo := fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
+		rbacOne := fmt.Sprintf("%s/%s/%s", strings.ToLower(installedApp.App.Team.Name), strings.ToLower(installedApp.Environment.EnvironmentIdentifier), strings.ToLower(appName))
+		rbacTwo := fmt.Sprintf("%s/%s__%s/%s", strings.ToLower(installedApp.App.Team.Name), strings.ToLower(cluster.ClusterName), strings.ToLower(namespace), strings.ToLower(appName))
 		if installedApp.Environment.IsVirtualEnvironment {
 			return rbacOne, ""
 		}
@@ -125,7 +125,7 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVers
 		impl.logger.Errorw("error in fetching installed app version data", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	rbacOne := fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.EnvironmentIdentifier, strings.ToLower(InstalledApp.App.AppName))
+	rbacOne := fmt.Sprintf("%s/%s/%s", strings.ToLower(InstalledApp.App.Team.Name), strings.ToLower(InstalledApp.Environment.EnvironmentIdentifier), strings.ToLower(InstalledApp.App.AppName))
 
 	if InstalledApp.Environment.IsVirtualEnvironment {
 		return rbacOne, ""
@@ -134,11 +134,10 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVers
 	var rbacTwo string
 	if !InstalledApp.Environment.IsVirtualEnvironment {
 		if InstalledApp.Environment.EnvironmentIdentifier != InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace {
-			rbacTwo = fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace, strings.ToLower(InstalledApp.App.AppName))
+			rbacTwo = fmt.Sprintf("%s/%s/%s", strings.ToLower(InstalledApp.App.Team.Name), strings.ToLower(InstalledApp.Environment.Cluster.ClusterName)+"__"+strings.ToLower(InstalledApp.Environment.Namespace), strings.ToLower(InstalledApp.App.AppName))
 			return rbacOne, rbacTwo
 		}
 	}
 
 	return rbacOne, ""
-
 }
