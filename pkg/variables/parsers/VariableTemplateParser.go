@@ -79,9 +79,9 @@ func (impl *VariableTemplateParserImpl) preProcessPlaceholder(template string, v
 
 func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
 
-	if impl.variableTemplateParserConfig.isScopedVariablesDisabled() {
-		return parserRequest.GetEmptyResponse()
-	}
+	//if impl.variableTemplateParserConfig.isScopedVariablesDisabled() {
+	//	return parserRequest.GetEmptyResponse()
+	//}
 	request := parserRequest
 	if impl.handlePrimitivesForJson(parserRequest) {
 		variableToValue := parserRequest.GetOriginalValuesMap()
@@ -101,9 +101,9 @@ func (impl *VariableTemplateParserImpl) handlePrimitivesForJson(parserRequest Va
 func (impl *VariableTemplateParserImpl) ExtractVariables(template string, templateType VariableTemplateType) ([]string, error) {
 	var variables []string
 
-	if !impl.variableTemplateParserConfig.ScopedVariableEnabled {
-		return variables, nil
-	}
+	//if !impl.variableTemplateParserConfig.ScopedVariableEnabled {
+	//	return variables, nil
+	//}
 
 	// preprocess existing template to comment
 	template, err := impl.convertToHclCompatible(templateType, template)

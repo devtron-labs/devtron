@@ -1518,11 +1518,11 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQua
 func (impl *AppServiceImpl) getResolvedTemplateAndVariableMap(scope resourceQualifiers.Scope, template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string) (string, map[string]string, error) {
 	variableMap := make(map[string]string)
 	//todo what to do here
-	for _, entity := range entities {
-		if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
-			return template, variableMap, nil
-		}
-	}
+	//for _, entity := range entities {
+	//	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
+	//		return template, variableMap, nil
+	//	}
+	//}
 
 	// pre-populating variable map with variable so that the variables which don't have any resolved data
 	// is saved in snapshot
@@ -1628,6 +1628,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		ImageTag:                              util3.GetImageTagFromImage(overrideRequest.Image),
 		AppName:                               overrideRequest.AppName,
 		Image:                                 overrideRequest.Image,
+		envOverride:                           envOverride,
 	}
 	configMapJson, err := impl.getConfigMapAndSecretJsonV2(CMCSJsonDTO)
 
@@ -2282,6 +2283,7 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 
 	merged := []byte("{}")
 	if cMCSJson.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+		//cMCSJson.envOverride = &chartConfig.EnvConfigOverride{}
 
 		//VARIABLE different cases for variable resolution
 		env, err := impl.envRepository.FindById(cMCSJson.EnvId)
@@ -2313,10 +2315,6 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 		configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(cMCSJson.AppId, cMCSJson.EnvId)
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
-		}
-
-		if err != nil {
-			return nil, err
 		}
 		if configMapE != nil && configMapE.Id > 0 {
 			configMapJsonEnv = configMapE.ConfigMapData
@@ -2431,7 +2429,7 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 	if err != nil {
 		return []byte("{}"), err
 	}
-	resolvedTemplate, variableMap, err := impl.getResolvedTemplateAndVariableMap(scope, string(merged), entity, entityToVariables)
+	resolvedTemplate, variableMap, err := impl.getResolvedTemplateAndVariableMap(scope, string(configMapByte), entity, entityToVariables)
 	cMCSJson.envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplate
 	cMCSJson.envOverride.VariableSnapshotForCM = variableMap
 	if err != nil {
@@ -2441,7 +2439,7 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 	if err != nil {
 		return []byte("{}"), err
 	}
-	resolvedTemplate, variableMap, err = impl.getResolvedTemplateAndVariableMap(scope, string(merged), entity, entityToVariables)
+	resolvedTemplate, variableMap, err = impl.getResolvedTemplateAndVariableMap(scope, string(secretDataByte), entity, entityToVariables)
 	cMCSJson.envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplate
 	cMCSJson.envOverride.VariableSnapshotForCS = variableMap
 	if err != nil {
