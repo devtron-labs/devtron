@@ -203,12 +203,6 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 			return nil, err
 		}
 		configMapRequest.Id = configMap.Id
-		//todo
-		//VARIABLE_MAPPING_UPDATE
-		err = impl.extractAndMapVariables(configMap.ConfigMapData, configMap.Id, repository5.ConfigMapAppLevel, configMapRequest.UserId)
-		if err != nil {
-			return nil, err
-		}
 
 	} else {
 		//creating config map record for first time
