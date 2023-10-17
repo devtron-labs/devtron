@@ -31,6 +31,9 @@ import (
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -87,17 +90,19 @@ type ConfigMapService interface {
 }
 
 type ConfigMapServiceImpl struct {
-	chartRepository             chartRepoRepository.ChartRepository
-	logger                      *zap.SugaredLogger
-	repoRepository              chartRepoRepository.ChartRepoRepository
-	mergeUtil                   util.MergeUtil
-	pipelineConfigRepository    chartConfig.PipelineConfigRepository
-	configMapRepository         chartConfig.ConfigMapRepository
-	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
-	commonService               commonService.CommonService
-	appRepository               app.AppRepository
-	configMapHistoryService     history2.ConfigMapHistoryService
-	environmentRepository       repository2.EnvironmentRepository
+	chartRepository              chartRepoRepository.ChartRepository
+	logger                       *zap.SugaredLogger
+	repoRepository               chartRepoRepository.ChartRepoRepository
+	mergeUtil                    util.MergeUtil
+	pipelineConfigRepository     chartConfig.PipelineConfigRepository
+	configMapRepository          chartConfig.ConfigMapRepository
+	environmentConfigRepository  chartConfig.EnvConfigOverrideRepository
+	commonService                commonService.CommonService
+	appRepository                app.AppRepository
+	configMapHistoryService      history2.ConfigMapHistoryService
+	environmentRepository        repository2.EnvironmentRepository
+	variableTemplateParser       parsers.VariableTemplateParser
+	variableEntityMappingService variables.VariableEntityMappingService
 }
 
 func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -107,22 +112,39 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	commonService commonService.CommonService, appRepository app.AppRepository,
-	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository2.EnvironmentRepository) *ConfigMapServiceImpl {
+	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository2.EnvironmentRepository,
+	variableTemplateParser parsers.VariableTemplateParser, variableEntityMappingService variables.VariableEntityMappingService,
+) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
-		chartRepository:             chartRepository,
-		logger:                      logger,
-		repoRepository:              repoRepository,
-		mergeUtil:                   mergeUtil,
-		pipelineConfigRepository:    pipelineConfigRepository,
-		configMapRepository:         configMapRepository,
-		environmentConfigRepository: environmentConfigRepository,
-		commonService:               commonService,
-		appRepository:               appRepository,
-		configMapHistoryService:     configMapHistoryService,
-		environmentRepository:       environmentRepository,
+		chartRepository:              chartRepository,
+		logger:                       logger,
+		repoRepository:               repoRepository,
+		mergeUtil:                    mergeUtil,
+		pipelineConfigRepository:     pipelineConfigRepository,
+		configMapRepository:          configMapRepository,
+		environmentConfigRepository:  environmentConfigRepository,
+		commonService:                commonService,
+		appRepository:                appRepository,
+		configMapHistoryService:      configMapHistoryService,
+		environmentRepository:        environmentRepository,
+		variableTemplateParser:       variableTemplateParser,
+		variableEntityMappingService: variableEntityMappingService,
 	}
 }
-
+func (impl ConfigMapServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
+	if err != nil {
+		return err
+	}
+	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
+		EntityType: entityType,
+		EntityId:   entityId,
+	}, userId, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
@@ -175,18 +197,18 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		model.ConfigMapData = string(configDataByte)
 		model.UpdatedBy = configMapRequest.UserId
 		model.UpdatedOn = time.Now()
-		//todo
-		////VARIABLE_MAPPING_UPDATE
-		//err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
-		//if err != nil {
-		//	return nil, err
-		//}
 		configMap, err := impl.configMapRepository.UpdateAppLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
 		configMapRequest.Id = configMap.Id
+		//todo
+		//VARIABLE_MAPPING_UPDATE
+		err = impl.extractAndMapVariables(configMap.ConfigMapData, configMap.Id, repository5.ConfigMapAppLevel, configMapRequest.UserId)
+		if err != nil {
+			return nil, err
+		}
 
 	} else {
 		//creating config map record for first time
@@ -211,13 +233,13 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 			impl.logger.Errorw("error while creating app level", "error", err)
 			return nil, err
 		}
-		//todo
-		////VARIABLE_MAPPING_UPDATE
-		//err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
-		//if err != nil {
-		//	return nil, err
-		//}
 		configMapRequest.Id = configMap.Id
+	}
+	//todo
+	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapAppLevel, configMapRequest.UserId)
+	if err != nil {
+		return nil, err
 	}
 	err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.CONFIGMAP_TYPE)
 	if err != nil {
@@ -268,6 +290,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
+	//todo have to byPASS validation
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
@@ -320,12 +343,6 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		model.UpdatedOn = time.Now()
 
 		configMap, err := impl.configMapRepository.UpdateEnvLevel(model)
-		//todo
-		//VARIABLE_MAPPING_UPDATE
-		//err = impl.extractAndMapVariables(, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
-		if err != nil {
-			return nil, err
-		}
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
@@ -354,13 +371,13 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 			impl.logger.Errorw("error while creating app level", "error", err)
 			return nil, err
 		}
-		//todo
-		////VARIABLE_MAPPING_UPDATE
-		//err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
-		//if err != nil {
-		//	return nil, err
-		//}
 		configMapRequest.Id = configMap.Id
+	}
+	//todo
+	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapEnvLevel, configMapRequest.UserId)
+	if err != nil {
+		return nil, err
 	}
 	err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.CONFIGMAP_TYPE)
 	if err != nil {
@@ -517,6 +534,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
+	//todo have to bypass validation
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
@@ -604,6 +622,12 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 			return nil, err
 		}
 		configMapRequest.Id = secret.Id
+	}
+	//todo
+	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretAppLevel, configMapRequest.UserId)
+	if err != nil {
+		return nil, err
 	}
 	err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.SECRET_TYPE)
 	if err != nil {
@@ -706,6 +730,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 	}
 
 	configData := configMapRequest.ConfigData[0]
+	//todo have to bypass
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
@@ -796,6 +821,12 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 			return nil, err
 		}
 		configMapRequest.Id = configMap.Id
+	}
+	//todo
+	//VARIABLE_MAPPING_UPDATE
+	err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretEnvLevel, configMapRequest.UserId)
+	if err != nil {
+		return nil, err
 	}
 	err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.SECRET_TYPE)
 	if err != nil {
@@ -1045,6 +1076,12 @@ func (impl ConfigMapServiceImpl) CMGlobalDelete(name string, id int, userId int3
 			impl.logger.Errorw("error while updating at app level", "error", err)
 			return false, err
 		}
+		//todo have to delete mapping also
+		//todo extractandmap function call
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapAppLevel, model.UpdatedBy)
+		if err != nil {
+			return false, err
+		}
 		err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for configmap history", "err", err)
@@ -1092,6 +1129,11 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 
+		//todo have to delete mapping also
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapEnvLevel, model.UpdatedBy)
+		if err != nil {
+			return false, err
+		}
 		_, err = impl.configMapRepository.UpdateEnvLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at env level", "error", err)
@@ -1105,7 +1147,6 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 	} else {
 		impl.logger.Debugw("no config map found for delete with this name", "name", name)
 	}
-
 	return true, nil
 }
 
@@ -1142,7 +1183,11 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 		model.SecretData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-
+		//todo have to delete mapping also
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretAppLevel, model.UpdatedBy)
+		if err != nil {
+			return false, err
+		}
 		_, err = impl.configMapRepository.UpdateAppLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at app level", "error", err)
@@ -1195,6 +1240,11 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 
+		//todo have to delete mapping also
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretEnvLevel, model.UpdatedBy)
+		if err != nil {
+			return false, err
+		}
 		_, err = impl.configMapRepository.UpdateEnvLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at env level ", "error", err)
@@ -1247,7 +1297,10 @@ func (impl ConfigMapServiceImpl) CMGlobalDeleteByAppId(name string, appId int, u
 		model.ConfigMapData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapAppLevel, model.UpdatedBy)
+		if err != nil {
+			return false, err
+		}
 		_, err = impl.configMapRepository.UpdateAppLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at app level", "error", err)
@@ -1294,7 +1347,10 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDeleteByAppIdAndEnvId(name string,
 		model.ConfigMapData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapEnvLevel, model.UpdatedBy)
+		if err != nil {
+			return false, err
+		}
 		_, err = impl.configMapRepository.UpdateEnvLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at env level", "error", err)
@@ -1340,7 +1396,10 @@ func (impl ConfigMapServiceImpl) CSGlobalDeleteByAppId(name string, appId int, u
 		model.SecretData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretAppLevel, model.UpdatedBy)
+		if err != nil {
+			return false, err
+		}
 		_, err = impl.configMapRepository.UpdateAppLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at app level", "error", err)
@@ -1387,7 +1446,10 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 		model.SecretData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretEnvLevel, model.UpdatedBy)
+		if err != nil {
+			return false, err
+		}
 		_, err = impl.configMapRepository.UpdateEnvLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at env level ", "error", err)
@@ -1621,6 +1683,12 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *b
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
+		//todo
+		//VARIABLE_MAPPING_UPDATE
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapEnvLevel, model.UpdatedBy)
+		if err != nil {
+			return nil, err
+		}
 		err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for global CM/CS history in bulk update", "err", err)
@@ -1709,6 +1777,12 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 		_, err = impl.configMapRepository.UpdateEnvLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
+			return nil, err
+		}
+		//todo
+		//VARIABLE_MAPPING_UPDATE
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapEnvLevel, model.UpdatedBy)
+		if err != nil {
 			return nil, err
 		}
 		err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.CONFIGMAP_TYPE)

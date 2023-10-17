@@ -1469,10 +1469,12 @@ func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHi
 	return resolvedTemplate, variableSnapshotMap, nil
 }
 
+// todo  to move  this to other fucntion GetAllMappingsForEntities
 func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
 
 	variableMap := make(map[string]string)
-	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
+	entities := []repository6.Entity{entity}
+	entityToVariables, err := impl.getEntityToVariableMapping(entities)
 	if err != nil {
 		return template, variableMap, err
 	}
@@ -1505,6 +1507,11 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQua
 
 	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, variableMap, nil
+}
+
+func (impl *AppServiceImpl) getEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error) {
+	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities(entity)
+	return entityToVariables, err
 }
 
 func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error) {
@@ -2250,14 +2257,14 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 		//todo add extractVariablesAndResolveTemplate
 		configMapAsString := fmt.Sprintf("%v", configMapA)
 		resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, configMapAsString, repository6.Entity{
-			EntityType: repository6.ConfigMapAndSecretAppLevel,
+			EntityType: repository6.ConfigMapAppLevel,
 			EntityId:   configMapA.Id,
 		})
+		cMCSJson.envOverride.ResolvedEnvOverrideValuesForCMCS = resolvedTemplate
+		cMCSJson.envOverride.VariableSnapshotForCMCS = variableMap
 		if err != nil {
 			return nil, err
 		}
-		cMCSJson.envOverride.ResolvedEnvOverrideValues = resolvedTemplate
-		cMCSJson.envOverride.VariableSnapshot = variableMap
 
 		if configMapA != nil && configMapA.Id > 0 {
 			configMapJsonApp = configMapA.ConfigMapData
@@ -2267,17 +2274,22 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
 		}
-		configMapEsString := fmt.Sprintf("%v", configMapE)
-		resolvedTemplate, variableMap, err = impl.extractVariablesAndResolveTemplate(scope, configMapEsString, repository6.Entity{
-			EntityType: repository6.ConfigMapAndSecretEnvLevel,
-			EntityId:   configMapE.Id,
-		})
+		//configMapEsString := fmt.Sprintf("%v", configMapE)
+		//resolvedTemplate, variableMap, err = impl.extractVariablesAndResolveTemplate(scope, configMapEsString, repository6.Entity{
+		//	EntityType: repository6.ConfigMapEnvLevel,
+		//	EntityId:   configMapE.Id,
+		//})
 		if err != nil {
 			return nil, err
 		}
 		if configMapE != nil && configMapE.Id > 0 {
 			configMapJsonEnv = configMapE.ConfigMapData
 			secretDataJsonEnv = configMapE.SecretData
+		}
+		//var entity []repository6.Entity
+		//entityToVariables, err := impl.getEntityToVariableMapping(entity)
+		if err != nil {
+			return nil, err
 		}
 
 	} else if cMCSJson.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
@@ -3103,6 +3115,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		impl.logger.Errorw("error in creating deployment template history for deployment trigger", "err", err)
 		return err
 	}
+	//todo have to use this ids for cm/cs history
 	err = impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
 	if err != nil {
 		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
