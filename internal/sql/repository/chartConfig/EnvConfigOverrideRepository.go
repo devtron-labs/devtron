@@ -44,10 +44,12 @@ type EnvConfigOverride struct {
 	IsBasicViewLocked bool                        `sql:"is_basic_view_locked,notnull"`
 	CurrentViewEditor models.ChartsViewEditorType `sql:"current_view_editor"`
 	sql.AuditLog
-	ResolvedEnvOverrideValues        string            `sql:"-"`
-	VariableSnapshot                 map[string]string `sql:"-"`
-	ResolvedEnvOverrideValuesForCMCS string            `sql:"-"`
-	VariableSnapshotForCMCS          map[string]string `sql:"-"`
+	ResolvedEnvOverrideValues      string            `sql:"-"`
+	VariableSnapshot               map[string]string `sql:"-"`
+	ResolvedEnvOverrideValuesForCM string            `sql:"-"`
+	VariableSnapshotForCM          map[string]string `sql:"-"`
+	ResolvedEnvOverrideValuesForCS string            `sql:"-"`
+	VariableSnapshotForCS          map[string]string `sql:"-"`
 }
 
 type EnvConfigOverrideRepository interface {

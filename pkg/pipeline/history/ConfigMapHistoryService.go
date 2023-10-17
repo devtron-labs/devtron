@@ -16,7 +16,7 @@ import (
 type ConfigMapHistoryService interface {
 	CreateHistoryFromAppLevelConfig(appLevelConfig *chartConfig.ConfigMapAppModel, configType repository.ConfigType) error
 	CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType) error
-	CreateCMCSHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error
+	CreateCMCSHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) (int, int, error)
 	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error)
 	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType repository.ConfigType) ([]*ConfigMapAndSecretHistoryDto, error)
 
@@ -152,22 +152,22 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromEnvLevelConfig(envLevel
 	return nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error {
+func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) (int, int, error) {
 	//creating history for configmaps, secrets(if any)
 	appLevelConfig, err := impl.configMapRepository.GetByAppIdAppLevel(pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting app level config", "err", err, "appId", pipeline.AppId)
-		return err
+		return 0, 0, err
 	}
 	envLevelConfig, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting env level config", "err", err, "appId", pipeline.AppId)
-		return err
+		return 0, 0, err
 	}
 	configMapData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, repository.CONFIGMAP_TYPE, nil)
 	if err != nil {
 		impl.logger.Errorw("err in merging app and env level configs", "err", err)
-		return err
+		return 0, 0, err
 	}
 	historyModel := &repository.ConfigmapAndSecretHistory{
 		AppId:      pipeline.AppId,
@@ -184,26 +184,27 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 			UpdatedOn: deployedOn,
 		},
 	}
-	_, err = impl.configMapHistoryRepository.CreateHistory(historyModel)
+	cmHistory, err := impl.configMapHistoryRepository.CreateHistory(historyModel)
 	if err != nil {
 		impl.logger.Errorw("error in creating new entry for cm history", "historyModel", historyModel)
-		return err
+		return 0, 0, err
 	}
 	secretData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, repository.SECRET_TYPE, nil)
 	if err != nil {
 		impl.logger.Errorw("err in merging app and env level configs", "err", err)
-		return err
+		return 0, 0, err
 	}
 	//using old model, updating secret data
 	historyModel.DataType = repository.SECRET_TYPE
 	historyModel.Id = 0
 	historyModel.Data = secretData
-	_, err = impl.configMapHistoryRepository.CreateHistory(historyModel)
+	csHistory, err := impl.configMapHistoryRepository.CreateHistory(historyModel)
 	if err != nil {
 		impl.logger.Errorw("error in creating new entry for secret history", "historyModel", historyModel)
-		return err
+		return 0, 0, err
 	}
-	return nil
+
+	return cmHistory.Id, csHistory.Id, nil
 }
 
 func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error) {
