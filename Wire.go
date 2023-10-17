@@ -23,6 +23,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
+	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
@@ -100,6 +101,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
@@ -123,7 +125,6 @@ import (
 	repository10 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
 )
@@ -222,8 +223,27 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
 		pipeline.GetDeploymentServiceTypeConfig,
+
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
+		pipeline.NewCiPipelineConfigServiceImpl,
+		wire.Bind(new(pipeline.CiPipelineConfigService), new(*pipeline.CiPipelineConfigServiceImpl)),
+		pipeline.NewCiMaterialConfigServiceImpl,
+		wire.Bind(new(pipeline.CiMaterialConfigService), new(*pipeline.CiMaterialConfigServiceImpl)),
+
+		pipeline.NewAppArtifactManagerImpl,
+		wire.Bind(new(pipeline.AppArtifactManager), new(*pipeline.AppArtifactManagerImpl)),
+		pipeline.NewDevtronAppCMCSServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppCMCSService), new(*pipeline.DevtronAppCMCSServiceImpl)),
+		pipeline.NewDevtronAppStrategyServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppStrategyService), new(*pipeline.DevtronAppStrategyServiceImpl)),
+		pipeline.NewAppDeploymentTypeChangeManagerImpl,
+		wire.Bind(new(pipeline.AppDeploymentTypeChangeManager), new(*pipeline.AppDeploymentTypeChangeManagerImpl)),
+		pipeline.NewCdPipelineConfigServiceImpl,
+		wire.Bind(new(pipeline.CdPipelineConfigService), new(*pipeline.CdPipelineConfigServiceImpl)),
+		pipeline.NewDevtronAppConfigServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppConfigService), new(*pipeline.DevtronAppConfigServiceImpl)),
+
 		util5.NewLoggingMiddlewareImpl,
 		wire.Bind(new(util5.LoggingMiddleware), new(*util5.LoggingMiddlewareImpl)),
 		pipeline2.NewPipelineRestHandlerImpl,
@@ -285,6 +305,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppListingService), new(*app.AppListingServiceImpl)),
 		repository.NewAppListingRepositoryImpl,
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+
+		repository.NewDeploymentTemplateRepositoryImpl,
+		wire.Bind(new(repository.DeploymentTemplateRepository), new(*repository.DeploymentTemplateRepositoryImpl)),
+		generateManifest.NewDeploymentTemplateServiceImpl,
+		wire.Bind(new(generateManifest.DeploymentTemplateService), new(*generateManifest.DeploymentTemplateServiceImpl)),
 
 		router.NewJobRouterImpl,
 		wire.Bind(new(router.JobRouter), new(*router.JobRouterImpl)),
@@ -856,8 +881,8 @@ func InitializeApp() (*App, error) {
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 
-		chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
-		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
+		//chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
+		//wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
 		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
 

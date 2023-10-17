@@ -20,7 +20,7 @@ package pipelineConfig
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -161,7 +161,7 @@ type CdWorkflowRunner struct {
 	CdWorkflowId          int                  `sql:"cd_workflow_id"`
 	PodName               string               `sql:"pod_name"`
 	BlobStorageEnabled    bool                 `sql:"blob_storage_enabled,notnull"`
-	RefCdWorkflowRunnerId int                  `sql:"ref_cd_workflow_runner_id"`
+	RefCdWorkflowRunnerId int                  `sql:"ref_cd_workflow_runner_id,notnull"`
 	CdWorkflow            *CdWorkflow
 	sql.AuditLog
 }
