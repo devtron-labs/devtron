@@ -145,13 +145,13 @@ func (impl ImageScanDeployInfoRepositoryImpl) FetchListingGroupByObject(size int
 }
 
 func (impl ImageScanDeployInfoRepositoryImpl) FetchByAppIdAndEnvId(appId int, envId int, objectType []string) (*ImageScanDeployInfo, error) {
-	var model ImageScanDeployInfo
-	err := impl.dbConnection.Model(&model).
+	var model *ImageScanDeployInfo
+	err := impl.dbConnection.Model(model).
 		Where("scan_object_meta_id = ?", appId).
 		Where("env_id = ?", envId).Where("object_type in (?)", pg.In(objectType)).
 		Order("created_on desc").Limit(1).
 		Select()
-	return &model, err
+	return model, err
 }
 
 func (impl ImageScanDeployInfoRepositoryImpl) FindByTypeMetaAndTypeId(scanObjectMetaId int, objectType string) (*ImageScanDeployInfo, error) {
@@ -185,7 +185,8 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	}
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster clus on clus.id=env.cluster_id"
-	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true  and info.image_scan_execution_history_id[1] != -1"
+	query = query + " LEFT JOIN app ap on ap.id = info.scan_object_meta_id and info.object_type='app' WHERE ap.active=true"
+	query = query + " AND info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1 "
 	if len(deployInfoIds) > 0 {
 		ids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(deployInfoIds)), ","), "[]")
 		query = query + " AND info.id IN (" + ids + ")"
