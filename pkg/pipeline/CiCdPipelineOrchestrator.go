@@ -1543,7 +1543,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 		}
 	}
 
-	if pipelineRequest.PreDeployStage != nil {
+	if pipelineRequest.PreDeployStage != nil && len(pipelineRequest.PreDeployStage.Steps) > 0 {
 		//updating pre stage
 		err = impl.pipelineStageService.UpdatePipelineStage(pipelineRequest.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, pipelineRequest.Id, userId)
 		if err != nil {
@@ -1551,7 +1551,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 			return err
 		}
 	}
-	if pipelineRequest.PostDeployStage != nil {
+	if pipelineRequest.PostDeployStage != nil && len(pipelineRequest.PostDeployStage.Steps) > 0 {
 		//updating post stage
 		err = impl.pipelineStageService.UpdatePipelineStage(pipelineRequest.PostDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, pipelineRequest.Id, userId)
 		if err != nil {
