@@ -72,6 +72,7 @@ type CiWorkflow struct {
 	CiBuildType           string            `sql:"ci_build_type"`
 	EnvironmentId         int               `sql:"environment_id"`
 	ReferenceCiWorkflowId int               `sql:"ref_ci_workflow_id"`
+	ParentCiWorkFlowId    int               `sql:"parent_ci_workflow_id"`
 	CiPipeline            *CiPipeline
 }
 
@@ -99,6 +100,7 @@ type WorkflowWithArtifact struct {
 	EnvironmentId      int               `json:"environmentId"`
 	EnvironmentName    string            `json:"environmentName"`
 	RefCiWorkflowId    int               `json:"referenceCiWorkflowId"`
+	ParentCiWorkflowId int               `json:"parent_ci_workflow_id"`
 }
 
 type GitCommit struct {
@@ -168,9 +170,10 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 	return ciWorkFlows, err
 }
 
+// FindByPipelineId gets only those workflowWithArtifact whose parent_ci_workflow_id is null, this is done to accommodate multiple ci_artifacts through a single workflow(parent), making child workflows for other ci_artifacts (this has been done due to design understanding and db constraint) single workflow single ci-artifact
 func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
-	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
+	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? and parent_ci_workflow_id is null order by wf.started_on desc offset ? limit ?;"
 	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
 	if err != nil {
 		return nil, err

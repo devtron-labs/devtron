@@ -46,7 +46,7 @@ func (impl *ClusterCronServiceImpl) GetAndUpdateClusterConnectionStatus() {
 	defer impl.logger.Debug("stopped cluster connection status fetch thread")
 
 	//getting all clusters
-	clusters, err := impl.clusterService.FindAll()
+	clusters, err := impl.clusterService.FindAllExceptVirtual()
 	if err != nil {
 		impl.logger.Errorw("error in getting all clusters", "err", err)
 		return

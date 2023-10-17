@@ -1291,6 +1291,15 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			return nil, err
 		}
 
+		_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+		env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("unable to find env", "err", err)
+			return nil, err
+		}
+		envOverride.Environment = env
+
 		//updating historical data in envConfigOverride and appMetrics flag
 		envOverride.IsOverride = true
 		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
@@ -1690,25 +1699,6 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 	return tempReferenceTemplateDir, nil
 }
 
-func (impl *AppServiceImpl) GetHelmManifestInByte(overrideValues string, refChartPath string) ([]byte, error) {
-
-	var manifestByteArr []byte
-
-	valuesFilePath := path.Join(refChartPath, "valuesOverride.yaml")
-	err := ioutil.WriteFile(valuesFilePath, []byte(overrideValues), 0600)
-	if err != nil {
-		return manifestByteArr, nil
-	}
-
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArr, err
-	}
-
-	return manifestByteArr, err
-}
-
 func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error) {
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil && pg.ErrNoRows != err {
@@ -2018,7 +2008,7 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 	var ids []int
 	ids = append(ids, executionHistory.Id)
 
-	ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(appId, security.ScanObjectType_APP) //todo insure this touple unique in db
+	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
 	if err != nil && err != pg.ErrNoRows {
 		return err
 	} else if err == pg.ErrNoRows && isScanEnabled {
