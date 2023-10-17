@@ -345,7 +345,8 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 }
 
 func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{} {
-	_portList := make(map[string][]int64)
+	_portList := make(map[string]*client.PortList)
+	resourcePorts := &client.PortList{}
 	for _, portHolder := range resp {
 		if portHolder.ManifestResponse == nil {
 			continue
@@ -396,7 +397,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 						continue
 					}
 					if portNumber != 0 {
-						_portList[serviceNameValue] = append(_portList[serviceNameValue], portNumber)
+						resourcePorts.ServicePorts = append(resourcePorts.ServicePorts, portNumber)
 					}
 				}
 			}
@@ -404,6 +405,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 			impl.logger.Warnw("spec doest not contain data", "spec", spec)
 			continue
 		}
+		_portList[serviceNameValue] = resourcePorts
 		if val, ok := resourceTree[Nodes]; ok {
 			resourceTreeVal, ok := val.([]interface{})
 			if !ok {
