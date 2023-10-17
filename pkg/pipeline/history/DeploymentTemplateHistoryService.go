@@ -1,6 +1,7 @@
 package history
 
 import (
+	"context"
 	"encoding/json"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -12,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -23,12 +25,12 @@ type DeploymentTemplateHistoryService interface {
 	CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) (*repository.DeploymentTemplateHistory, error)
 	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error)
 
-	GetHistoryForDeployedTemplateById(id int, pipelineId int, isSuperAdmin bool) (*HistoryDetailDto, error)
+	GetHistoryForDeployedTemplateById(ctx context.Context, id int, pipelineId int) (*HistoryDetailDto, error)
 	CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error)
 
 	// used for rollback
-	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, isSuperAdmin bool) (*HistoryDetailDto, error)
+	GetDeployedHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*HistoryDetailDto, error)
 }
 
 type DeploymentTemplateHistoryServiceImpl struct {
@@ -316,7 +318,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CheckIfHistoryExistsForPipeline
 	return history.Id, true, nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, isSuperAdmin bool) (*HistoryDetailDto, error) {
+func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*HistoryDetailDto, error) {
 	impl.logger.Debugw("received request, GetDeployedHistoryByPipelineIdAndWfrId", "pipelineId", pipelineId, "wfrId", wfrId)
 
 	//checking if history exists for pipelineId and wfrId
@@ -326,6 +328,10 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 		return nil, err
 	}
 
+	isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	variableSnapshotMap, resolvedTemplate, err := impl.getVariableSnapshotAndResolveTemplate(history.Template, history.Id, isSuperAdmin)
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
@@ -409,13 +415,17 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryList(pipeline
 	return historyList, nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateById(id int, pipelineId int, isSuperAdmin bool) (*HistoryDetailDto, error) {
+func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateById(ctx context.Context, id int, pipelineId int) (*HistoryDetailDto, error) {
 	history, err := impl.deploymentTemplateHistoryRepository.GetHistoryForDeployedTemplateById(id, pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment template history", "err", err, "id", id, "pipelineId", pipelineId)
 		return nil, err
 	}
 
+	isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	variableSnapshotMap, resolvedTemplate, err := impl.getVariableSnapshotAndResolveTemplate(history.Template, history.Id, isSuperAdmin)
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "err", err, "id", id, "pipelineID", pipelineId)

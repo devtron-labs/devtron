@@ -1,11 +1,13 @@
 package restHandler
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -211,7 +213,9 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
 	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
 
-	res, err := handler.deployedConfigurationHistoryService.GetDeployedHistoryComponentDetail(pipelineId, id, historyComponent, historyComponentName, userHasAdminAccess, isSuperAdmin)
+	ctx := context.Background()
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	res, err := handler.deployedConfigurationHistoryService.GetDeployedHistoryComponentDetail(ctx, pipelineId, id, historyComponent, historyComponentName, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("service err, GetDeployedHistoryComponentDetail", "err", err, "pipelineId", pipelineId, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -252,7 +256,9 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
 	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
-	res, err := handler.deployedConfigurationHistoryService.GetAllDeployedConfigurationByPipelineIdAndLatestWfrId(pipelineId, userHasAdminAccess, isSuperAdmin)
+	ctx := context.Background()
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	res, err := handler.deployedConfigurationHistoryService.GetAllDeployedConfigurationByPipelineIdAndLatestWfrId(ctx, pipelineId, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllDeployedConfigurationByPipelineIdAndLatestWfrId", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -299,9 +305,11 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	//RBAC END
 
 	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
+	ctx := context.Background()
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
-	res, err := handler.deployedConfigurationHistoryService.GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfrId, userHasAdminAccess, isSuperAdmin)
+	res, err := handler.deployedConfigurationHistoryService.GetAllDeployedConfigurationByPipelineIdAndWfrId(ctx, pipelineId, wfrId, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllDeployedConfigurationByPipelineIdAndWfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

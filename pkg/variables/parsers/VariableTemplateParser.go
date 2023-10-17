@@ -56,11 +56,22 @@ func getVariableTemplateParserConfig() (*VariableTemplateParserConfig, error) {
 	return cfg, err
 }
 
+func getRegexSubMatches(regex string, input string) [][]string {
+	re := regexp.MustCompile(regex)
+	matches := re.FindAllStringSubmatch(input, -1)
+	return matches
+}
+
+const quote = "\""
+const escapedQuote = `\\"`
+
 func (impl *VariableTemplateParserImpl) preProcessPlaceholder(template string, variableValueMap map[string]interface{}) string {
 
-	variableSubRegexWithQuotes := "\"" + impl.variableTemplateParserConfig.VariableExpressionRegex + "\""
-	re := regexp.MustCompile(variableSubRegexWithQuotes)
-	matches := re.FindAllStringSubmatch(template, -1)
+	variableSubRegexWithQuotes := quote + impl.variableTemplateParserConfig.VariableExpressionRegex + quote
+	variableSubRegexWithEscapedQuotes := escapedQuote + impl.variableTemplateParserConfig.VariableExpressionRegex + escapedQuote
+
+	matches := getRegexSubMatches(variableSubRegexWithQuotes, template)
+	matches = append(matches, getRegexSubMatches(variableSubRegexWithEscapedQuotes, template)...)
 
 	// Replace the surrounding quotes for variables whose value is known
 	// and type is primitive

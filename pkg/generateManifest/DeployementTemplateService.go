@@ -196,7 +196,7 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		case repository.PublishedOnEnvironments:
 			values, err = impl.fetchResolvedTemplateForPublishedEnvs(request)
 		case repository.DeployedOnSelfEnvironment, repository.DeployedOnOtherEnvironment:
-			values, err = impl.fetchTemplateForDeployedEnv(request)
+			values, err = impl.fetchTemplateForDeployedEnv(ctx, request)
 		}
 		if err != nil {
 			impl.Logger.Errorw("error in getting values", "err", err)
@@ -240,8 +240,8 @@ func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(
 	return values, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(request DeploymentTemplateRequest) (string, error) {
-	history, err := impl.deploymentTemplateHistoryService.GetHistoryForDeployedTemplateById(request.DeploymentTemplateHistoryId, request.PipelineId, request.IsSuperAdmin)
+func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx context.Context, request DeploymentTemplateRequest) (string, error) {
+	history, err := impl.deploymentTemplateHistoryService.GetHistoryForDeployedTemplateById(ctx, request.DeploymentTemplateHistoryId, request.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting deployment template history", "err", err, "id", request.DeploymentTemplateHistoryId, "pipelineId", request.PipelineId)
 		return "", err

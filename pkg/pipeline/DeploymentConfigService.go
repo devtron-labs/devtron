@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -13,13 +14,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 )
 
 type DeploymentConfigService interface {
-	GetLatestDeploymentConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool, isSuperAdmin bool) (*history.AllDeploymentConfigurationDetail, error)
+	GetLatestDeploymentConfigurationByPipelineId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -69,7 +71,7 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool, isSuperAdmin bool) (*history.AllDeploymentConfigurationDetail, error) {
+func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipelineId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error) {
 	configResp := &history.AllDeploymentConfigurationDetail{}
 	pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 	if err != nil {
@@ -77,7 +79,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 		return nil, err
 	}
 
-	deploymentTemplateConfig, err := impl.GetLatestDeploymentTemplateConfig(pipeline, isSuperAdmin)
+	deploymentTemplateConfig, err := impl.GetLatestDeploymentTemplateConfig(ctx, pipeline)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest deploymentTemplate", "err", err)
 		return nil, err
@@ -135,7 +137,7 @@ func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(t
 	return resolvedTemplate, variableMap, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipeline *pipelineConfig.Pipeline, isSuperAdmin bool) (*history.HistoryDetailDto, error) {
+func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
 	isAppMetricsEnabled := false
 	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil && err != pg.ErrNoRows {
@@ -172,6 +174,10 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			entity := repository6.Entity{
 				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
 				EntityId:   envOverride.Id,
+			}
+			isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
+			if err != nil {
+				return nil, err
 			}
 			resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(envOverride.EnvOverrideValues, scope, entity, isSuperAdmin)
 			if err != nil {
@@ -210,6 +216,10 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 		entity := repository6.Entity{
 			EntityType: repository6.EntityTypeDeploymentTemplateAppLevel,
 			EntityId:   chart.Id,
+		}
+		isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
+		if err != nil {
+			return nil, err
 		}
 		resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(chart.GlobalOverride, scope, entity, isSuperAdmin)
 		if err != nil {
