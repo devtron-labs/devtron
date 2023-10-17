@@ -111,11 +111,11 @@ type EnforcerImpl struct {
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
 func (e *EnforcerImpl) Enforce(token string, resource string, action string, resourceItem string) bool {
-	return e.enforce(token, resource, action, resourceItem)
+	return e.enforce(token, resource, action, strings.ToLower(resourceItem))
 }
 
 func (e *EnforcerImpl) EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
-	allowed := e.enforceByEmail(emailId, resource, action, resourceItem)
+	allowed := e.enforceByEmail(emailId, resource, action, strings.ToLower(resourceItem))
 	return allowed
 }
 
@@ -127,9 +127,9 @@ func (e *EnforcerImpl) ReloadPolicy() error {
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
 func (e *EnforcerImpl) EnforceErr(emailId string, resource string, action string, resourceItem string) error {
-	if !e.Enforce(emailId, resource, action, resourceItem) {
+	if !e.Enforce(emailId, resource, action, strings.ToLower(resourceItem)) {
 		errMsg := "permission denied"
-		rvalsStrs := []string{resource, action, resourceItem}
+		rvalsStrs := []string{resource, action, strings.ToLower(resourceItem)}
 		errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		return status.Error(codes.PermissionDenied, errMsg)
 	}
@@ -141,9 +141,9 @@ func (e *EnforcerImpl) enforceByEmailInBatchSync(wg *sync.WaitGroup, mutex *sync
 	start := time.Now()
 	batchResult := make(map[string]bool)
 	for _, resourceItem := range vals {
-		data, err := e.enforcerEnforce(strings.ToLower(emailId), resource, action, resourceItem)
+		data, err := e.enforcerEnforce(strings.ToLower(emailId), resource, action, strings.ToLower(resourceItem))
 		if err == nil {
-			batchResult[resourceItem] = data
+			batchResult[strings.ToLower(resourceItem)] = data
 		}
 	}
 	duration := time.Since(start)
@@ -271,9 +271,9 @@ func (e *EnforcerImpl) batchEnforceFromCache(emailId string, resource string, ac
 	enforceData := e.getCacheData(emailId, resource, action)
 	if enforceData != nil {
 		for _, resourceItem := range resourceItems {
-			data, found := enforceData[resourceItem]
+			data, found := enforceData[strings.ToLower(resourceItem)]
 			if found {
-				result[resourceItem] = data
+				result[strings.ToLower(resourceItem)] = data
 			} else {
 				notFoundDataList = append(notFoundDataList, resourceItem)
 			}
@@ -288,7 +288,7 @@ func (e *EnforcerImpl) enforceFromCache(emailId string, resource string, action 
 	cacheLock.lock.RLock()
 	defer freeCacheReadLock(cacheLock)
 	enforceData := e.getCacheData(emailId, resource, action)
-	data, found := enforceData[resourceItem]
+	data, found := enforceData[strings.ToLower(resourceItem)]
 	return data, found
 }
 
