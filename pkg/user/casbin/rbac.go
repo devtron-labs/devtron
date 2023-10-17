@@ -115,8 +115,7 @@ func (e *EnforcerImpl) Enforce(token string, resource string, action string, res
 }
 
 func (e *EnforcerImpl) EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
-	allowed := e.enforceByEmail(emailId, resource, action, strings.ToLower(resourceItem))
-	return allowed
+	return e.enforceByEmail(emailId, resource, action, strings.ToLower(resourceItem))
 }
 
 func (e *EnforcerImpl) ReloadPolicy() error {
@@ -127,7 +126,7 @@ func (e *EnforcerImpl) ReloadPolicy() error {
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
 func (e *EnforcerImpl) EnforceErr(emailId string, resource string, action string, resourceItem string) error {
-	if !e.Enforce(emailId, resource, action, strings.ToLower(resourceItem)) {
+	if !e.Enforce(emailId, resource, action, resourceItem) {
 		errMsg := "permission denied"
 		rvalsStrs := []string{resource, action, resourceItem}
 		errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
@@ -141,9 +140,9 @@ func (e *EnforcerImpl) enforceByEmailInBatchSync(wg *sync.WaitGroup, mutex *sync
 	start := time.Now()
 	batchResult := make(map[string]bool)
 	for _, resourceItem := range vals {
-		data, err := e.enforcerEnforce(strings.ToLower(emailId), resource, action, strings.ToLower(resourceItem))
+		data, err := e.enforcerEnforce(strings.ToLower(emailId), resource, action, resourceItem)
 		if err == nil {
-			batchResult[strings.ToLower(resourceItem)] = data
+			batchResult[resourceItem] = data
 		}
 	}
 	duration := time.Since(start)
@@ -166,6 +165,10 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	batchRequestLock := e.getBatchRequestLock(emailId)
 	batchRequestLock.Lock()
 	defer batchRequestLock.Unlock()
+
+	for index, val := range vals {
+		vals[index] = strings.ToLower(val)
+	}
 
 	var metrics = make(map[int]int64)
 	result, notFoundItemList := e.batchEnforceFromCache(emailId, resource, action, vals)
@@ -271,9 +274,9 @@ func (e *EnforcerImpl) batchEnforceFromCache(emailId string, resource string, ac
 	enforceData := e.getCacheData(emailId, resource, action)
 	if enforceData != nil {
 		for _, resourceItem := range resourceItems {
-			data, found := enforceData[strings.ToLower(resourceItem)]
+			data, found := enforceData[resourceItem]
 			if found {
-				result[strings.ToLower(resourceItem)] = data
+				result[resourceItem] = data
 			} else {
 				notFoundDataList = append(notFoundDataList, resourceItem)
 			}
