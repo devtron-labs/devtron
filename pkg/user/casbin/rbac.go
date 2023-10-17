@@ -291,7 +291,7 @@ func (e *EnforcerImpl) enforceFromCache(emailId string, resource string, action 
 	cacheLock.lock.RLock()
 	defer freeCacheReadLock(cacheLock)
 	enforceData := e.getCacheData(emailId, resource, action)
-	data, found := enforceData[strings.ToLower(resourceItem)]
+	data, found := enforceData[resourceItem]
 	return data, found
 }
 
