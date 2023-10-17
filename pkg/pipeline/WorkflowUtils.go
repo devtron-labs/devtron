@@ -701,7 +701,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 		return ""
 	}
 }
-func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, workflowJson []byte, workflowTemplate bean.WorkflowTemplate, workflowConfigMaps []bean2.ConfigSecretMap, workflowSecrets []bean2.ConfigSecretMap) v12.Container {
+func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean2.ConfigSecretMap, workflowSecrets []bean2.ConfigSecretMap) (v12.Container, error) {
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
@@ -721,7 +721,12 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 			Name:          "app-data",
 			ContainerPort: 9102,
 		}}
+		err := updateVolumeMountsForCi(config, workflowTemplate, &workflowMainContainer)
+		if err != nil {
+			return workflowMainContainer, err
+		}
 	}
+
 	if len(pvc) != 0 {
 		buildPvcCachePath := config.BuildPvcCachePath
 		buildxPvcCachePath := config.BuildxPvcCachePath
@@ -751,11 +756,21 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 			})
 	}
 	UpdateContainerEnvsFromCmCs(&workflowMainContainer, workflowConfigMaps, workflowSecrets)
-	return workflowMainContainer
+	return workflowMainContainer, nil
 }
 
 func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
 	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
 		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
 
+}
+
+func updateVolumeMountsForCi(config *CiCdConfig, workflowTemplate *bean.WorkflowTemplate, workflowMainContainer *v12.Container) error {
+	volume, volumeMounts, err := config.GetWorkflowVolumeAndVolumeMounts()
+	if err != nil {
+		return err
+	}
+	workflowTemplate.Volumes = volume
+	workflowMainContainer.VolumeMounts = volumeMounts
+	return nil
 }
