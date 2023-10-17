@@ -129,7 +129,7 @@ func (e *EnforcerImpl) ReloadPolicy() error {
 func (e *EnforcerImpl) EnforceErr(emailId string, resource string, action string, resourceItem string) error {
 	if !e.Enforce(emailId, resource, action, strings.ToLower(resourceItem)) {
 		errMsg := "permission denied"
-		rvalsStrs := []string{resource, action, strings.ToLower(resourceItem)}
+		rvalsStrs := []string{resource, action, resourceItem}
 		errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		return status.Error(codes.PermissionDenied, errMsg)
 	}
