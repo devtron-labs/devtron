@@ -72,7 +72,7 @@ type CiWorkflow struct {
 	CiBuildType           string            `sql:"ci_build_type"`
 	EnvironmentId         int               `sql:"environment_id"`
 	ReferenceCiWorkflowId int               `sql:"ref_ci_workflow_id"`
-	ParentCiWorkFlowId int               `sql:"parent_ci_workflow_id"`
+	ParentCiWorkFlowId    int               `sql:"parent_ci_workflow_id"`
 	CiPipeline            *CiPipeline
 }
 
