@@ -9,6 +9,10 @@ message ClusterConfig {
   string token = 2;
   int32 clusterId = 3;
   string clusterName = 4;
+  bool insecureSkipTLSVerify = 5;
+  string keyData = 6;
+  string certData = 7;
+  string caData = 8;
 }
 
 message AppListRequest {
@@ -271,6 +275,7 @@ message InstallReleaseRequest {
   RegistryCredential RegistryCredential = 8;
   bool IsOCIRepo = 9;
   int32 installAppVersionHistoryId = 10;
+  ChartContent chartContent = 11;
 }
 
 message InstallReleaseResponse {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/devtron-labs/authenticator/client"
+	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -12,7 +13,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	util2 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -155,9 +155,9 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	ClusterInstalledAppsRepository := repository3.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
 
 	AppStoreDeploymentServiceImpl := NewAppStoreDeploymentServiceImpl(sugaredLogger, InstalledAppRepository,
-		appStoreDiscoverRepository, environmentRepository,
+		nil, appStoreDiscoverRepository, environmentRepository,
 		ClusterInstalledAppsRepository, AppRepository, nil,
-		nil, environmentService, clusterService, nil, nil, nil, InstalledAppVersionHistoryRepository, gitOpsRepository, nil, &DeploymentServiceTypeConfig{IsInternalUse: internalUse}, nil)
+		nil, environmentService, clusterService, nil, nil, nil, InstalledAppVersionHistoryRepository, gitOpsRepository, nil, &DeploymentServiceTypeConfig{IsInternalUse: internalUse}, nil, nil)
 
 	return AppStoreDeploymentServiceImpl
 }

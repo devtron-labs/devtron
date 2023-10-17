@@ -5,10 +5,10 @@ import (
 	"fmt"
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"strings"
 	"time"
@@ -71,11 +71,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
-	beans, err := impl.ClusterServiceImpl.FindAll()
-	if err != nil {
-		return nil, err
-	}
+func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBean) ([]*ClusterBean, error) {
 	//devtron full mode logic
 	var clusterIds []int
 	for _, cluster := range beans {
@@ -141,6 +137,22 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 		item.DefaultClusterComponent = defaultClusterComponents
 	}
 	return beans, nil
+}
+
+func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
+}
+
+func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {

@@ -22,10 +22,11 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	bean3 "github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
@@ -43,7 +44,6 @@ import (
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
-	. "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
@@ -787,7 +787,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Errorw("error in getting latest timeline", "err", kubectlSyncTimelineFetchErr, "cdWfrId", pipelineId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr
 		}
-		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && app.Status.OperationState.Phase == common.OperationSucceeded {
+		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && string(app.Status.OperationState.Phase) == string(k8sCommonBean.OperationSucceeded) {
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
@@ -804,7 +804,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if reconciledAt.IsZero() || (kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0 && reconciledAt.After(kubectlApplySyncedTimeline.StatusTime)) {
 			haveNewTimeline := false
 			timeline.Id = 0
-			if app.Status.Health.Status == health.HealthStatusHealthy {
+			if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 				impl.logger.Infow("updating pipeline status timeline for healthy app", "app", app, "APP_TO_UPDATE", app.Name)
 				haveNewTimeline = true
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
@@ -890,7 +890,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Errorw("error in getting latest timeline", "err", kubectlSyncTimelineFetchErr, "installedAppVersionHistoryId", pipelineId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr
 		}
-		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && app.Status.OperationState.Phase == common.OperationSucceeded {
+		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && string(app.Status.OperationState.Phase) == string(k8sCommonBean.OperationSucceeded) {
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
@@ -907,7 +907,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if reconciledAt.IsZero() || (kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0) {
 			haveNewTimeline := false
 			timeline.Id = 0
-			if app.Status.Health.Status == health.HealthStatusHealthy {
+			if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 				impl.logger.Infow("updating pipeline status timeline for healthy app", "app", app, "APP_TO_UPDATE", app.Name)
 				haveNewTimeline = true
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
@@ -1290,6 +1290,15 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRef.Id)
 			return nil, err
 		}
+
+		_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+		env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("unable to find env", "err", err)
+			return nil, err
+		}
+		envOverride.Environment = env
 
 		//updating historical data in envConfigOverride and appMetrics flag
 		envOverride.IsOverride = true
@@ -1690,25 +1699,6 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 	return tempReferenceTemplateDir, nil
 }
 
-func (impl *AppServiceImpl) GetHelmManifestInByte(overrideValues string, refChartPath string) ([]byte, error) {
-
-	var manifestByteArr []byte
-
-	valuesFilePath := path.Join(refChartPath, "valuesOverride.yaml")
-	err := ioutil.WriteFile(valuesFilePath, []byte(overrideValues), 0600)
-	if err != nil {
-		return manifestByteArr, nil
-	}
-
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArr, err
-	}
-
-	return manifestByteArr, err
-}
-
 func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error) {
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil && pg.ErrNoRows != err {
@@ -2018,7 +2008,7 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 	var ids []int
 	ids = append(ids, executionHistory.Id)
 
-	ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(appId, security.ScanObjectType_APP) //todo insure this touple unique in db
+	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
 	if err != nil && err != pg.ErrNoRows {
 		return err
 	} else if err == pg.ErrNoRows && isScanEnabled {
@@ -2736,7 +2726,7 @@ func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1a
 	if updateTimedOutStatus {
 		installedAppVersionHistory.Status = pipelineConfig.WorkflowTimedOut
 	} else {
-		if app.Status.Health.Status == health.HealthStatusHealthy {
+		if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
 			installedAppVersionHistory.FinishedOn = time.Now()
 		} else {
@@ -2762,7 +2752,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	if updateTimedOutStatus {
 		wfr.Status = pipelineConfig.WorkflowTimedOut
 	} else {
-		if app.Status.Health.Status == health.HealthStatusHealthy {
+		if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()
 		} else {
@@ -2896,7 +2886,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 		} else {
 			version := "v2beta2"
 			k8sResource, err := impl.K8sCommonService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
-				K8sRequest: &K8sRequestBean{ResourceIdentifier: ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
+				K8sRequest: &k8s2.K8sRequestBean{ResourceIdentifier: k8s2.ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
 					Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: hpaResourceRequest.Group, Kind: hpaResourceRequest.Kind, Version: version}}}})
 			if err != nil {
 				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
@@ -3089,16 +3079,23 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 		}
 
 		releaseName := pipeline.DeploymentAppName
-		bearerToken := envOverride.Environment.Cluster.Config[BearerToken]
-
+		cluster := envOverride.Environment.Cluster
+		bearerToken := cluster.Config[k8s2.BearerToken]
+		clusterConfig := &client2.ClusterConfig{
+			ClusterName:           cluster.ClusterName,
+			Token:                 bearerToken,
+			ApiServerUrl:          cluster.ServerUrl,
+			InsecureSkipTLSVerify: cluster.InsecureSkipTlsVerify,
+		}
+		if cluster.InsecureSkipTlsVerify == false {
+			clusterConfig.KeyData = cluster.Config[k8s2.TlsKey]
+			clusterConfig.CertData = cluster.Config[k8s2.CertData]
+			clusterConfig.CaData = cluster.Config[k8s2.CertificateAuthorityData]
+		}
 		releaseIdentifier := &client2.ReleaseIdentifier{
 			ReleaseName:      releaseName,
 			ReleaseNamespace: envOverride.Namespace,
-			ClusterConfig: &client2.ClusterConfig{
-				ClusterName:  envOverride.Environment.Cluster.ClusterName,
-				Token:        bearerToken,
-				ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
-			},
+			ClusterConfig:    clusterConfig,
 		}
 
 		if pipeline.DeploymentAppCreated {

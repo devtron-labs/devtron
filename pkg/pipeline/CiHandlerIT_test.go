@@ -27,6 +27,6 @@ func initCiHandler() *CiHandlerImpl {
 	config, _ := sql.GetConfig()
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
 	ciArtifactRepositoryImpl := repository.NewCiArtifactRepositoryImpl(db, sugaredLogger)
-	ciHandlerImpl := NewCiHandlerImpl(sugaredLogger, nil, nil, nil, nil, nil, nil, ciArtifactRepositoryImpl, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	ciHandlerImpl := NewCiHandlerImpl(sugaredLogger, nil, nil, nil, nil, nil, nil, ciArtifactRepositoryImpl, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return ciHandlerImpl
 }

@@ -3,15 +3,14 @@ package k8sObjectsUtil
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/yaml"
+	"github.com/devtron-labs/common-lib/utils/bean"
+	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"strings"
 )
-
 
 func HideValuesIfSecretForWholeYamlInput(wholeYamlFileContent string) (string, error) {
 	manifests, err := yamlUtil.SplitYAMLs([]byte(wholeYamlFileContent))
@@ -29,13 +28,12 @@ func HideValuesIfSecretForWholeYamlInput(wholeYamlFileContent string) (string, e
 		if err != nil {
 			return "", err
 		}
-		sb.WriteString(util.YamlSeparator)
+		sb.WriteString(bean.YamlSeparator)
 		sb.WriteString(string(yamlStr))
 	}
 
 	return sb.String(), nil
 }
-
 
 func HideValuesIfSecretForManifestStringInput(manifest string, kind string, group string) (string, error) {
 	if !isSecret(kind, group) {
@@ -60,7 +58,6 @@ func HideValuesIfSecretForManifestStringInput(manifest string, kind string, grou
 	return string(outBytes), nil
 }
 
-
 func HideValuesIfSecret(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if !isSecret(obj.GetKind(), obj.GroupVersionKind().Group) {
 		return obj, nil
@@ -73,7 +70,6 @@ func HideValuesIfSecret(obj *unstructured.Unstructured) (*unstructured.Unstructu
 	}
 	return obj, err
 }
-
 
 // HideSecretData replaces secret data values in specified target, live secrets and in last applied configuration of live secret with stars. Also preserves differences between
 // target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of stars. If all the are different then number of stars
@@ -149,7 +145,6 @@ func hideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	}
 	return target, live, nil
 }
-
 
 func getLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructured.Unstructured {
 	if live == nil {

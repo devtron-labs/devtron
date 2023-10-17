@@ -23,8 +23,10 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
-	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/common-lib/utils"
+	http2 "github.com/devtron-labs/common-lib/utils/http"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"io"
 	v13 "k8s.io/api/policy/v1"
 	v1beta12 "k8s.io/api/policy/v1beta1"
@@ -43,14 +45,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/version"
 
 	"github.com/devtron-labs/authenticator/client"
 	"go.uber.org/zap"
+	v14 "k8s.io/api/apps/v1"
 	batchV1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -60,11 +61,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
-
-	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	restclient "k8s.io/client-go/rest"
 )
 
 type K8sUtil struct {
@@ -617,10 +616,10 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(ctx context.Context, namespac
 	if err != nil {
 		return nil, err
 	} else if len(pods.Items) > 1 {
-		err = &util.ApiError{Code: "406", HttpStatusCode: 200, UserMessage: "found more than one pod for label selector"}
+		err = &utils.ApiError{Code: "406", HttpStatusCode: 200, UserMessage: "found more than one pod for label selector"}
 		return nil, err
 	} else if len(pods.Items) == 0 {
-		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no pod found for label selector"}
+		err = &utils.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no pod found for label selector"}
 		return nil, err
 	} else {
 		return &pods.Items[0], nil
@@ -638,9 +637,8 @@ func (impl K8sUtil) GetK8sInClusterRestConfig() (*rest.Config, error) {
 		return restConfig, nil
 	} else {
 		clusterConfig, err := rest.InClusterConfig()
-		impl.logger.Debugw("fetched cluster config", "clusterConfig", clusterConfig)
 		if err != nil {
-			impl.logger.Errorw("error in fetch default cluster config", "err", err, "clusterConfig", clusterConfig)
+			impl.logger.Errorw("error in fetch default cluster config", "err", err)
 			return nil, err
 		}
 		return clusterConfig, nil
@@ -666,7 +664,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	if kind == "Event" {
 		headers, columnIndexes = impl.getEventKindHeader()
 	} else {
-		columnDefinitionsUncast := manifest.Object[K8sClusterResourceColumnDefinitionKey]
+		columnDefinitionsUncast := manifest.Object[commonBean.K8sClusterResourceColumnDefinitionKey]
 		if columnDefinitionsUncast != nil {
 			columnDefinitions := columnDefinitionsUncast.([]interface{})
 			for index, cd := range columnDefinitions {
@@ -674,11 +672,11 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 					continue
 				}
 				columnMap := cd.(map[string]interface{})
-				columnNameUncast := columnMap[K8sClusterResourceNameKey]
+				columnNameUncast := columnMap[commonBean.K8sClusterResourceNameKey]
 				if columnNameUncast == nil {
 					continue
 				}
-				priorityUncast := columnMap[K8sClusterResourcePriorityKey]
+				priorityUncast := columnMap[commonBean.K8sClusterResourcePriorityKey]
 				if priorityUncast == nil {
 					continue
 				}
@@ -686,7 +684,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				columnName = strings.ToLower(columnName)
 				priority := priorityUncast.(int64)
 				if namespaced && index == 1 {
-					headers = append(headers, K8sClusterResourceNamespaceKey)
+					headers = append(headers, commonBean.K8sClusterResourceNamespaceKey)
 				}
 				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") || (kind == "Pod") {
 					columnIndexes[index] = columnName
@@ -698,7 +696,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 
 	// build rows
 	rowsMapping := make([]map[string]interface{}, 0)
-	rowsDataUncast := manifest.Object[K8sClusterResourceRowsKey]
+	rowsDataUncast := manifest.Object[commonBean.K8sClusterResourceRowsKey]
 	var namespace string
 	var allowed bool
 	if rowsDataUncast != nil {
@@ -708,7 +706,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 			allowed = true
 			rowIndex := make(map[string]interface{})
 			rowMap := row.(map[string]interface{})
-			cellsUncast := rowMap[K8sClusterResourceCellKey]
+			cellsUncast := rowMap[commonBean.K8sClusterResourceCellKey]
 			if cellsUncast == nil {
 				continue
 			}
@@ -724,16 +722,16 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				rowIndex[columnName] = cell
 			}
 
-			cellObjUncast := rowMap[K8sClusterResourceObjectKey]
+			cellObjUncast := rowMap[commonBean.K8sClusterResourceObjectKey]
 			var cellObj map[string]interface{}
 			if cellObjUncast != nil {
 				cellObj = cellObjUncast.(map[string]interface{})
-				if cellObj != nil && cellObj[K8sClusterResourceMetadataKey] != nil {
-					metadata := cellObj[K8sClusterResourceMetadataKey].(map[string]interface{})
-					if metadata[K8sClusterResourceNamespaceKey] != nil {
-						namespace = metadata[K8sClusterResourceNamespaceKey].(string)
+				if cellObj != nil && cellObj[commonBean.K8sClusterResourceMetadataKey] != nil {
+					metadata := cellObj[commonBean.K8sClusterResourceMetadataKey].(map[string]interface{})
+					if metadata[commonBean.K8sClusterResourceNamespaceKey] != nil {
+						namespace = metadata[commonBean.K8sClusterResourceNamespaceKey].(string)
 						if namespaced {
-							rowIndex[K8sClusterResourceNamespaceKey] = namespace
+							rowIndex[commonBean.K8sClusterResourceNamespaceKey] = namespace
 						}
 					}
 				}
@@ -754,21 +752,21 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
 	resKind := gvk.Kind
 	groupName := gvk.Group
-	metadata := resourceObj[K8sClusterResourceMetadataKey]
+	metadata := resourceObj[commonBean.K8sClusterResourceMetadataKey]
 	if metadata == nil {
 		return false
 	}
 	metadataMap := metadata.(map[string]interface{})
 	var namespace, resourceName string
 	var ownerReferences []interface{}
-	if metadataMap[K8sClusterResourceNamespaceKey] != nil {
-		namespace = metadataMap[K8sClusterResourceNamespaceKey].(string)
+	if metadataMap[commonBean.K8sClusterResourceNamespaceKey] != nil {
+		namespace = metadataMap[commonBean.K8sClusterResourceNamespaceKey].(string)
 	}
-	if metadataMap[K8sClusterResourceMetadataNameKey] != nil {
-		resourceName = metadataMap[K8sClusterResourceMetadataNameKey].(string)
+	if metadataMap[commonBean.K8sClusterResourceMetadataNameKey] != nil {
+		resourceName = metadataMap[commonBean.K8sClusterResourceMetadataNameKey].(string)
 	}
-	if metadataMap[K8sClusterResourceOwnerReferenceKey] != nil {
-		ownerReferences = metadataMap[K8sClusterResourceOwnerReferenceKey].([]interface{})
+	if metadataMap[commonBean.K8sClusterResourceOwnerReferenceKey] != nil {
+		ownerReferences = metadataMap[commonBean.K8sClusterResourceOwnerReferenceKey].([]interface{})
 	}
 	if len(ownerReferences) > 0 {
 		for _, ownerRef := range ownerReferences {
@@ -784,8 +782,8 @@ func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk sch
 
 func (impl K8sUtil) validateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
 	resourceReference := resourceRef.(map[string]interface{})
-	resKind := resourceReference[K8sClusterResourceKindKey].(string)
-	apiVersion := resourceReference[K8sClusterResourceApiVersionKey].(string)
+	resKind := resourceReference[commonBean.K8sClusterResourceKindKey].(string)
+	apiVersion := resourceReference[commonBean.K8sClusterResourceApiVersionKey].(string)
 	groupName := ""
 	if strings.Contains(apiVersion, "/") {
 		groupName = apiVersion[:strings.LastIndex(apiVersion, "/")] // extracting group from this apiVersion
@@ -794,15 +792,15 @@ func (impl K8sUtil) validateForResource(namespace string, resourceRef interface{
 	if resourceReference["name"] != "" {
 		resName = resourceReference["name"].(string)
 		switch resKind {
-		case kube.ReplicaSetKind:
+		case commonBean.ReplicaSetKind:
 			// check deployment first, then RO and then RS
 			if strings.Contains(resName, "-") {
 				deploymentName := resName[:strings.LastIndex(resName, "-")]
-				allowed := validateCallback(namespace, groupName, kube.DeploymentKind, deploymentName)
+				allowed := validateCallback(namespace, groupName, commonBean.DeploymentKind, deploymentName)
 				if allowed {
 					return true
 				}
-				allowed = validateCallback(namespace, K8sClusterResourceRolloutGroup, K8sClusterResourceRolloutKind, deploymentName)
+				allowed = validateCallback(namespace, commonBean.K8sClusterResourceRolloutGroup, commonBean.K8sClusterResourceRolloutKind, deploymentName)
 				if allowed {
 					return true
 				}
@@ -811,11 +809,11 @@ func (impl K8sUtil) validateForResource(namespace string, resourceRef interface{
 			if allowed {
 				return true
 			}
-		case kube.JobKind:
+		case commonBean.JobKind:
 			// check CronJob first, then Job
 			if strings.Contains(resName, "-") {
 				cronJobName := resName[:strings.LastIndex(resName, "-")]
-				allowed := validateCallback(namespace, groupName, K8sClusterResourceCronJobKind, cronJobName)
+				allowed := validateCallback(namespace, groupName, commonBean.K8sClusterResourceCronJobKind, cronJobName)
 				if allowed {
 					return true
 				}
@@ -824,7 +822,8 @@ func (impl K8sUtil) validateForResource(namespace string, resourceRef interface{
 			if allowed {
 				return true
 			}
-		case kube.DeploymentKind, K8sClusterResourceCronJobKind, kube.StatefulSetKind, kube.DaemonSetKind, K8sClusterResourceRolloutKind, K8sClusterResourceReplicationControllerKind:
+		case commonBean.DeploymentKind, commonBean.K8sClusterResourceCronJobKind, commonBean.StatefulSetKind,
+			commonBean.DaemonSetKind, commonBean.K8sClusterResourceRolloutKind, commonBean.K8sClusterResourceReplicationControllerKind:
 			allowed := validateCallback(namespace, groupName, resKind, resName)
 			if allowed {
 				return true
@@ -1005,7 +1004,8 @@ func CheckEvictionSupport(clientset kubernetes.Interface) (schema.GroupVersion, 
 		return schema.GroupVersion{}, err
 	}
 	for _, resource := range resourceList.APIResources {
-		if resource.Name == EvictionSubresource && resource.Kind == EvictionKind && len(resource.Group) > 0 && len(resource.Version) > 0 {
+		if resource.Name == commonBean.EvictionSubresource && resource.Kind == commonBean.EvictionKind &&
+			len(resource.Group) > 0 && len(resource.Version) > 0 {
 			return schema.GroupVersion{Group: resource.Group, Version: resource.Version}, nil
 		}
 	}
@@ -1194,7 +1194,7 @@ func (impl K8sUtil) GetResourceIfWithAcceptHeader(restConfig *rest.Config, group
 		if wt != nil {
 			rt = wt(rt)
 		}
-		return &util2.HeaderAdder{
+		return &http2.HeaderAdder{
 			Rt: rt,
 		}
 	}
@@ -1473,4 +1473,116 @@ func (impl K8sUtil) GetPodListByLabel(namespace, label string, clientSet *kubern
 		return nil, err
 	}
 	return podList.Items, nil
+}
+
+func IsService(gvk schema.GroupVersionKind) bool {
+	return gvk.Group == "" && gvk.Kind == commonBean.ServiceKind
+}
+
+func IsPod(gvk schema.GroupVersionKind) bool {
+	return gvk.Group == "" && gvk.Kind == commonBean.PodKind && gvk.Version == "v1"
+}
+
+func IsDevtronApp(labels map[string]string) bool {
+	isDevtronApp := false
+	if val, ok := labels[DEVTRON_APP_LABEL_KEY]; ok {
+		if val == DEVTRON_APP_LABEL_VALUE1 || val == DEVTRON_APP_LABEL_VALUE2 {
+			isDevtronApp = true
+		}
+	}
+	return isDevtronApp
+}
+
+//func GetHealthCheckFunc(gvk schema.GroupVersionKind) func(obj *unstructured.Unstructured) (*health.HealthStatus, error) {
+//	return health.GetHealthCheckFunc(gvk)
+//}
+
+func isServiceAccountTokenSecret(un *unstructured.Unstructured) (bool, metav1.OwnerReference) {
+	ref := metav1.OwnerReference{
+		APIVersion: "v1",
+		Kind:       commonBean.ServiceAccountKind,
+	}
+
+	if typeVal, ok, err := unstructured.NestedString(un.Object, "type"); !ok || err != nil || typeVal != "kubernetes.io/service-account-token" {
+		return false, ref
+	}
+
+	annotations := un.GetAnnotations()
+	if annotations == nil {
+		return false, ref
+	}
+
+	id, okId := annotations["kubernetes.io/service-account.uid"]
+	name, okName := annotations["kubernetes.io/service-account.name"]
+	if okId && okName {
+		ref.Name = name
+		ref.UID = types.UID(id)
+	}
+	return ref.Name != "" && ref.UID != "", ref
+}
+
+func ResolveResourceReferences(un *unstructured.Unstructured) ([]metav1.OwnerReference, func(ResourceKey) bool) {
+	var isInferredParentOf func(_ ResourceKey) bool
+	ownerRefs := un.GetOwnerReferences()
+	gvk := un.GroupVersionKind()
+
+	switch {
+
+	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
+	case gvk.Group == "" && gvk.Kind == commonBean.EndpointsKind && len(un.GetOwnerReferences()) == 0:
+		ownerRefs = append(ownerRefs, metav1.OwnerReference{
+			Name:       un.GetName(),
+			Kind:       commonBean.ServiceKind,
+			APIVersion: "v1",
+		})
+
+	// Special case for Operator Lifecycle Manager ClusterServiceVersion:
+	case un.GroupVersionKind().Group == "operators.coreos.com" && un.GetKind() == "ClusterServiceVersion":
+		if un.GetAnnotations()["olm.operatorGroup"] != "" {
+			ownerRefs = append(ownerRefs, metav1.OwnerReference{
+				Name:       un.GetAnnotations()["olm.operatorGroup"],
+				Kind:       "OperatorGroup",
+				APIVersion: "operators.coreos.com/v1",
+			})
+		}
+
+	// Edge case: consider auto-created service account tokens as a child of service account objects
+	case un.GetKind() == commonBean.SecretKind && un.GroupVersionKind().Group == "":
+		if yes, ref := isServiceAccountTokenSecret(un); yes {
+			ownerRefs = append(ownerRefs, ref)
+		}
+
+	case (un.GroupVersionKind().Group == "apps" || un.GroupVersionKind().Group == "extensions") && un.GetKind() == commonBean.StatefulSetKind:
+		if refs, err := isStatefulSetChild(un); err != nil {
+			fmt.Println("error")
+		} else {
+			isInferredParentOf = refs
+		}
+	}
+
+	return ownerRefs, isInferredParentOf
+}
+
+func isStatefulSetChild(un *unstructured.Unstructured) (func(ResourceKey) bool, error) {
+	sts := v14.StatefulSet{}
+	data, err := json.Marshal(un)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(data, &sts)
+	if err != nil {
+		return nil, err
+	}
+
+	templates := sts.Spec.VolumeClaimTemplates
+	return func(key ResourceKey) bool {
+		if key.Kind == commonBean.PersistentVolumeClaimKind && key.GroupKind().Group == "" {
+			for _, templ := range templates {
+				if strings.HasPrefix(key.Name, fmt.Sprintf("%s-%s-", templ.Name, un.GetName())) {
+					return true
+				}
+			}
+		}
+		return false
+	}, nil
 }
