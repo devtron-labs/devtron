@@ -48,12 +48,20 @@
               "title": "Service Port"
             },
             "supportStreaming": {
-              "type": "boolean",
+              "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
               "description": "field to enable/disable timeout for high performance protocols like grpc",
               "title": "Support Streaming"
             },
             "useHTTP2": {
-              "type": "boolean",
+              "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
               "description": " field for setting if envoy container can accept(or not) HTTP2 requests",
               "title": "Use HTTP2"
             }
@@ -148,7 +156,11 @@
             "title": "Success Threshold"
           },
           "tcp": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "If enabled, the kubelet will attempt to open a socket to container. If connection is established, the container is considered healthy",
             "title": "TCP"
           },
@@ -263,7 +275,11 @@
             "title": "Success Threshold"
           },
           "tcp": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "If enabled, the kubelet will attempt to open a socket to container. If connection is established, the container is considered healthy",
             "title": "TCP"
           },
@@ -318,7 +334,11 @@
         "title": "Arguments",
         "properties": {
           "enabled": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "used for enabling/disabling aruguments",
             "title": "Enabled"
           },
@@ -413,7 +433,11 @@
             "title": "Behavior"
           },
           "enabled": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "used for enabling/disabling autoscaling",
             "title": "Enabled"
           },
@@ -441,7 +465,11 @@
         "title": "Command",
         "properties": {
           "enabled": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "used for enabling/disabling commands"
           },
           "value": {
@@ -474,7 +502,11 @@
         "title": "Db Migration Config",
         "properties": {
           "enabled": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "used for enabling/disabling the config",
             "title": "Enabled"
           }
@@ -583,7 +615,11 @@
             "default": ""
           },           
           "enabled": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "used to enable or disable ingress",
             "title": "Enabled"
           },
@@ -643,7 +679,11 @@
             "default": "nginx-internal"
           },
           "enabled": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "string"
+            ],
+            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
             "description": "used to enable or disable ingress",
             "title": "Enabled"
           },
