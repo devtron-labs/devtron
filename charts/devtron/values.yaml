@@ -114,6 +114,15 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
+    imagePullPolicy: "IfNotPresent"
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_USER: postgres
+      COMMIT_STATS_TIMEOUT_IN_SEC: "2"
+      ENABLE_FILE_STATS: "true"
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
   lens: 
     image: "quay.io/devtron/lens:8803028b-333-16178"
     imagePullPolicy: IfNotPresent
@@ -125,10 +134,9 @@ components:
       PG_PORT: "5432"
       PG_USER: postgres
       PG_DATABASE: lens
-  kubewatch:
-    image: "quay.io/devtron/kubewatch:49f906a5-419-14814"
-    imagePullPolicy: IfNotPresent
-    
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
