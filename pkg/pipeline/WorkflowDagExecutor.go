@@ -83,6 +83,7 @@ type WorkflowDagExecutor interface {
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
+	FetchApprovalArtifactIdsForPipeline(pipelineId, limit, offset int, searchString string) ([]int, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 }
 
@@ -2343,6 +2344,21 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 		}
 	}
 	return nil, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) FetchApprovalArtifactIdsForPipeline(pipelineId, limit, offset int, searchString string) ([]int, error) {
+
+	var ids []int
+	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForPipeline(pipelineId, limit, offset, searchString)
+	if err != nil {
+		return ids, err
+	}
+
+	for _, r := range deploymentApprovalRequests {
+		id := r.ArtifactId
+		ids = append(ids, id)
+	}
+	return ids, err
 }
 
 func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {

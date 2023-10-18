@@ -51,7 +51,7 @@ type AppArtifactManagerImpl struct {
 	imageTaggingService   ImageTaggingService
 	ciArtifactRepository  repository.CiArtifactRepository
 	ciWorkflowRepository  pipelineConfig.CiWorkflowRepository
-	pipelineStageService    PipelineStageService
+	pipelineStageService  PipelineStageService
 	workflowDagExecutor   WorkflowDagExecutor
 	celService            resourceFilter.CELEvaluatorService
 	resourceFilterService resourceFilter.ResourceFilterService
@@ -424,6 +424,10 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	ciArtifactsResponse.CiArtifacts = ciArtifacts
 
 	if pipeline.ApprovalNodeConfigured() && stage == bean.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
+		artifactIds, err := impl.workflowDagExecutor.FetchApprovalArtifactIdsForPipeline(pipeline.Id, limit, 0, "")
+		if err != nil {
+			return ciArtifactsResponse, err
+		}
 		ciArtifactsFinal, approvalConfig, err := impl.overrideArtifactsWithUserApprovalData(pipeline, ciArtifactsResponse.CiArtifacts, isApprovalNode, latestWfArtifactId)
 		if err != nil {
 			return ciArtifactsResponse, err

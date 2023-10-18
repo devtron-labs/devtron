@@ -12,6 +12,7 @@ import (
 
 type DeploymentApprovalRepository interface {
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error)
+	FetchApprovalDataForPipeline(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error)
 	FetchApprovalDataForRequests(requestIds []int) ([]*DeploymentApprovalUserData, error)
 	FetchById(requestId int) (*DeploymentApprovalRequest, error)
 	FetchWithPipelineAndArtifactDetails(requestId int) (*DeploymentApprovalRequest, error)
@@ -68,6 +69,45 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovedDataByApprovalId(appr
 	}
 	return results, nil
 
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForPipeline(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error) {
+	var requests []*DeploymentApprovalRequest
+	err := impl.dbConnection.
+		Model(&requests).
+		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
+		Where("deployment_approval_request.pipeline_id = ?", pipelineId).
+		Where("deployment_approval_request.artifact_deployment_triggered = ?", false).
+		Where("deployment_approval_request.active = ?", true).
+		Where("ci_artifact.image ILIKE ?", "%"+searchString+"%").
+		Limit(limit).
+		Offset(offset).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	requestIdMap := make(map[int]*DeploymentApprovalRequest)
+	var requestIds []int
+	for _, request := range requests {
+		requestId := request.Id
+		requestIdMap[requestId] = request
+		requestIds = append(requestIds, requestId)
+	}
+	if len(requestIds) > 0 {
+		usersData, err := impl.FetchApprovalDataForRequests(requestIds)
+		if err != nil {
+			return requests, err
+		}
+		for _, userData := range usersData {
+			approvalRequestId := userData.ApprovalRequestId
+			deploymentApprovalRequest := requestIdMap[approvalRequestId]
+			approvalUsers := deploymentApprovalRequest.DeploymentApprovalUserData
+			approvalUsers = append(approvalUsers, userData)
+			deploymentApprovalRequest.DeploymentApprovalUserData = approvalUsers
+		}
+	}
+	return requests, nil
 }
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error) {
