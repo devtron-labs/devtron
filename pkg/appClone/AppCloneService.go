@@ -103,7 +103,6 @@ type CreateWorkflowMappingDto struct {
 	userId               int32
 	newWfId              int
 	gitMaterialMapping   map[int]int
-	isSameProject        bool
 	externalCiPipelineId int
 }
 
@@ -139,18 +138,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	if err != nil {
 		return nil, err
 	}
-	refApp, err := impl.pipelineBuilder.GetApp(cloneReq.RefAppId)
-	if err != nil {
-		return nil, err
-	}
-	isSameProject := refApp.TeamId == cloneReq.ProjectId
-	/*	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId))
-		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(1, "MATERIAL", materialExists))
-		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId))
-		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId))
-		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(4, "CHART", stages.ChartId))
-		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(5, "CD_PIPELINE", stages.PipelineId))
-	*/
+
 	refAppStatus := make(map[string]bool)
 	for _, as := range appStatus {
 		refAppStatus[as.StageName] = as.Status
@@ -210,32 +198,31 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		impl.logger.Errorw("error in creating global secret", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 		return nil, err
 	}
-	if isSameProject {
-		if createReq.AppType != helper.Job {
-			_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
-			if err != nil {
-				impl.logger.Errorw("error in creating env cm", "err", err)
-				return nil, err
-			}
-			_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
-			if err != nil {
-				impl.logger.Errorw("error in creating env secret", "err", err)
-				return nil, err
-			}
-			_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
-			if err != nil {
-				impl.logger.Errorw("error in cloning  env override", "err", err)
-				return nil, err
-			}
-		} else {
-			_, err := impl.configMapService.ConfigSecretEnvironmentClone(cloneReq.RefAppId, newAppId, userId)
-			if err != nil {
-				impl.logger.Errorw("error in cloning cm cs env override", "err", err)
-				return nil, err
-			}
+
+	if createReq.AppType != helper.Job {
+		_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating env cm", "err", err)
+			return nil, err
+		}
+		_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating env secret", "err", err)
+			return nil, err
+		}
+		_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
+		if err != nil {
+			impl.logger.Errorw("error in cloning  env override", "err", err)
+			return nil, err
+		}
+	} else {
+		_, err := impl.configMapService.ConfigSecretEnvironmentClone(cloneReq.RefAppId, newAppId, userId)
+		if err != nil {
+			impl.logger.Errorw("error in cloning cm cs env override", "err", err)
+			return nil, err
 		}
 	}
-	_, err = impl.CreateWf(cloneReq.RefAppId, newAppId, userId, gitMaterialMap, context, isSameProject)
+	_, err = impl.CreateWf(cloneReq.RefAppId, newAppId, userId, gitMaterialMap, context)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 		return nil, err
@@ -598,7 +585,7 @@ func (impl *AppCloneServiceImpl) CreateGlobalSecret(oldAppId, newAppId int, user
 	return thisCm, err
 }
 
-func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, gitMaterialMapping map[int]int, ctx context.Context, isSameProject bool) (interface{}, error) {
+func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, gitMaterialMapping map[int]int, ctx context.Context) (interface{}, error) {
 	refAppWFs, err := impl.appWorkflowService.FindAppWorkflows(oldAppId)
 	if err != nil {
 		return nil, err
@@ -641,7 +628,6 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			}
 		}
 		createWorkflowMappingDto.gitMaterialMapping = gitMaterialMapping
-		createWorkflowMappingDto.isSameProject = isSameProject
 		createWorkflowMappingDto.externalCiPipelineId = externalCiPipelineId
 
 		err = impl.createWfInstances(refAppWF.AppWorkflowMappingDto, createWorkflowMappingDto, ctx)
@@ -697,28 +683,24 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 		return err
 	}
 	if len(webhookMappings) > 0 {
-		if createWorkflowMappingDto.isSameProject {
-			for _, refwebhookMappings := range cdMappings {
-				cdCloneReq := &cloneCdPipelineRequest{
-					refCdPipelineId:       refwebhookMappings.ComponentId,
-					refAppId:              createWorkflowMappingDto.oldAppId,
-					appId:                 createWorkflowMappingDto.newAppId,
-					userId:                createWorkflowMappingDto.userId,
-					ciPipelineId:          0,
-					appWfId:               createWorkflowMappingDto.newWfId,
-					refAppName:            refApp.AppName,
-					sourceToNewPipelineId: sourceToNewPipelineIdMapping,
-					externalCiPipelineId:  createWorkflowMappingDto.externalCiPipelineId,
-				}
-				pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
-				impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
-				if err != nil {
-					impl.logger.Errorw("error in getting cd-pipeline", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
-					return err
-				}
+		for _, refwebhookMappings := range cdMappings {
+			cdCloneReq := &cloneCdPipelineRequest{
+				refCdPipelineId:       refwebhookMappings.ComponentId,
+				refAppId:              createWorkflowMappingDto.oldAppId,
+				appId:                 createWorkflowMappingDto.newAppId,
+				userId:                createWorkflowMappingDto.userId,
+				ciPipelineId:          0,
+				appWfId:               createWorkflowMappingDto.newWfId,
+				refAppName:            refApp.AppName,
+				sourceToNewPipelineId: sourceToNewPipelineIdMapping,
+				externalCiPipelineId:  createWorkflowMappingDto.externalCiPipelineId,
 			}
-		} else {
-			impl.logger.Debug("not the same project, skipping cd pipeline creation")
+			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
+			if err != nil {
+				impl.logger.Errorw("error in getting cd-pipeline", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
+				return err
+			}
 		}
 		return nil
 	}
@@ -755,27 +737,23 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 		impl.logger.Debugw("ci created", "ci", ci)
 	}
 
-	if createWorkflowMappingDto.isSameProject {
-		for _, refCdMapping := range cdMappings {
-			cdCloneReq := &cloneCdPipelineRequest{
-				refCdPipelineId:       refCdMapping.ComponentId,
-				refAppId:              createWorkflowMappingDto.oldAppId,
-				appId:                 createWorkflowMappingDto.newAppId,
-				userId:                createWorkflowMappingDto.userId,
-				ciPipelineId:          ci.CiPipelines[0].Id,
-				appWfId:               createWorkflowMappingDto.newWfId,
-				refAppName:            refApp.AppName,
-				sourceToNewPipelineId: sourceToNewPipelineIdMapping,
-			}
-			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
-			if err != nil {
-				impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
-				return err
-			}
-			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
+	for _, refCdMapping := range cdMappings {
+		cdCloneReq := &cloneCdPipelineRequest{
+			refCdPipelineId:       refCdMapping.ComponentId,
+			refAppId:              createWorkflowMappingDto.oldAppId,
+			appId:                 createWorkflowMappingDto.newAppId,
+			userId:                createWorkflowMappingDto.userId,
+			ciPipelineId:          ci.CiPipelines[0].Id,
+			appWfId:               createWorkflowMappingDto.newWfId,
+			refAppName:            refApp.AppName,
+			sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 		}
-	} else {
-		impl.logger.Debug("not the same project, skipping cd pipeline creation")
+		pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
+			return err
+		}
+		impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 	}
 
 	//find ci
