@@ -17,6 +17,7 @@
 - fix: Bugathon DT-19 version-2 fixes (#4105)
 - fix: App Labels node selector not getting attach in ci-workflow (#4084)
 - fix: Update cd pipeline create empty pre post cd steps (#4113)
+- fix: normal Refresh after triggering gitops deployment to avoid sync delay in argo (#4066)
 ## Enhancements
 - feat: Helm async install (#3856)
 - feat: handle CI success event auto trigger in batch (#3951)
