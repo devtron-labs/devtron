@@ -366,8 +366,9 @@ type WorkflowRequest struct {
 	WorkflowExecutor         pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
 	PrePostDeploySteps       []*bean.StepObject                  `json:"prePostDeploySteps"`
 	CiArtifactLastFetch      time.Time                           `json:"ciArtifactLastFetch"`
-	BlobStorageCmName        string                              `json:"blobStorageCmName"`
-	BlobStorageSecretName    string                              `json:"blobStorageSecretName"`
+	ExtBlobStorageCmName     string                              `json:"extBlobStorageCmName"`
+	ExtBlobStorageSecretName string                              `json:"extBlobStorageSecretName"`
+	UseExternalClusterBlob   bool                                `json:"useExternalClusterBlob"`
 	Type                     bean.WorkflowPipelineType
 	Pipeline                 *pipelineConfig.Pipeline
 	Env                      *repository2.Environment

@@ -593,11 +593,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageRetryCount:            impl.config.ImageRetryCount,
 		ImageRetryInterval:         impl.config.ImageRetryInterval,
 		WorkflowExecutor:           impl.config.GetWorkflowExecutorType(),
-		BlobStorageSecretName:      impl.config.BlobStorageSecretName,
-		BlobStorageCmName:          impl.config.BlobStorageCmName,
+		ExtBlobStorageSecretName:   impl.config.ExtBlobStorageSecretName,
+		ExtBlobStorageCmName:       impl.config.ExtBlobStorageCmName,
 		Type:                       bean2.CI_WORKFLOW_PIPELINE_TYPE,
 		CiArtifactLastFetch:        trigger.CiArtifactLastFetch,
 	}
+
 	if dockerRegistry != nil {
 
 		workflowRequest.DockerRegistryId = dockerRegistry.Id

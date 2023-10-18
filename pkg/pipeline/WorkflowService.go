@@ -116,6 +116,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 }
 
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *WorkflowRequest) (bean3.WorkflowTemplate, error) {
+	workflowRequest.UseExternalClusterBlob = !workflowRequest.CheckBlobStorageConfig(impl.ciCdConfig) && workflowRequest.IsExtRun
 	workflowJson, err := workflowRequest.GetWorkflowJson(impl.ciCdConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting workflow json", "err", err)
@@ -244,17 +245,17 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *Work
 		}
 	}
 	//internally inducing BlobStorageCmName and BlobStorageSecretName for getting logs, caches and artifacts from
-	//in-cluster configured blob storage
-	if workflowRequest.IsExtRun {
+	//in-cluster configured blob storage, if USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW = false and isExt = true
+	if workflowRequest.UseExternalClusterBlob {
 		blobDetailsConfigMap := bean.ConfigSecretMap{
-			Name:     impl.ciCdConfig.BlobStorageCmName,
+			Name:     impl.ciCdConfig.ExtBlobStorageCmName,
 			Type:     "environment",
 			External: true,
 		}
 		workflowConfigMaps = append(workflowConfigMaps, blobDetailsConfigMap)
 
 		blobDetailsSecret := bean.ConfigSecretMap{
-			Name:     impl.ciCdConfig.BlobStorageSecretName,
+			Name:     impl.ciCdConfig.ExtBlobStorageSecretName,
 			Type:     "environment",
 			External: true,
 		}

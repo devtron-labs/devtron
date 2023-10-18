@@ -995,13 +995,13 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			DataSource:   artifact.DataSource,
 			WorkflowId:   artifact.WorkflowId,
 		},
-		OrchestratorHost:      impl.config.OrchestratorHost,
-		OrchestratorToken:     impl.config.OrchestratorToken,
-		CloudProvider:         impl.config.CloudProvider,
-		WorkflowExecutor:      workflowExecutor,
-		RefPlugins:            refPluginsData,
-		BlobStorageSecretName: impl.config.BlobStorageSecretName,
-		BlobStorageCmName:     impl.config.BlobStorageCmName,
+		OrchestratorHost:         impl.config.OrchestratorHost,
+		OrchestratorToken:        impl.config.OrchestratorToken,
+		CloudProvider:            impl.config.CloudProvider,
+		WorkflowExecutor:         workflowExecutor,
+		RefPlugins:               refPluginsData,
+		ExtBlobStorageSecretName: impl.config.ExtBlobStorageSecretName,
+		ExtBlobStorageCmName:     impl.config.ExtBlobStorageCmName,
 	}
 
 	extraEnvVariables := make(map[string]string)
