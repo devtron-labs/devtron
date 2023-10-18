@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -38,6 +39,7 @@ type DeploymentConfigServiceImpl struct {
 	variableEntityMappingService variables.VariableEntityMappingService
 	scopedVariableService        variables.ScopedVariableService
 	variableTemplateParser       parsers.VariableTemplateParser
+	appService                   app.AppService
 }
 
 func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -52,7 +54,7 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	variableEntityMappingService variables.VariableEntityMappingService,
 	scopedVariableService variables.ScopedVariableService,
-	variableTemplateParser parsers.VariableTemplateParser,
+	variableTemplateParser parsers.VariableTemplateParser, appService app.AppService,
 ) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
 		logger:                       logger,
@@ -68,6 +70,7 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		variableEntityMappingService: variableEntityMappingService,
 		scopedVariableService:        scopedVariableService,
 		variableTemplateParser:       variableTemplateParser,
+		appService:                   appService,
 	}
 }
 
@@ -282,20 +285,79 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		configMapEnvLevel = configEnvLevel.ConfigMapData
 		secretEnvLevel = configEnvLevel.SecretData
 	}
+
+	scope := resourceQualifiers.Scope{
+		AppId:     pipeline.AppId,
+		EnvId:     pipeline.EnvironmentId,
+		ClusterId: pipeline.Environment.ClusterId,
+	}
+	entitiesForCM := []repository6.Entity{
+		{
+			EntityType: repository6.ConfigMapAppLevel,
+			EntityId:   configAppLevel.Id,
+		},
+		{
+			EntityType: repository6.ConfigMapEnvLevel,
+			EntityId:   configEnvLevel.Id,
+		},
+	}
+	entitiesForCS := []repository6.Entity{
+		{
+			EntityType: repository6.SecretAppLevel,
+			EntityId:   configAppLevel.Id,
+		},
+		{
+			EntityType: repository6.SecretEnvLevel,
+			EntityId:   configEnvLevel.Id,
+		},
+	}
+
+	entityToVariablesCM, err := impl.appService.GetEntityToVariableMapping(entitiesForCM)
+	if err != nil {
+		return nil, nil, err
+	}
+	entityToVariablesCS, err := impl.appService.GetEntityToVariableMapping(entitiesForCM)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	mergedConfigMap, err := impl.GetMergedCMCSConfigMap(configMapAppLevel, configMapEnvLevel, repository2.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
 	}
+
 	mergedSecret, err := impl.GetMergedCMCSConfigMap(secretAppLevel, secretEnvLevel, repository2.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
 	}
 
+	var resolvedTemplateCM string
+	var variableMapCM map[string]string
+	var resolvedTemplateCS string
+	var variableMapCS map[string]string
+
+	mergedConfigMapJson, err := json.Marshal(mergedConfigMap)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if configAppLevel.ConfigMapData != "" || configEnvLevel.ConfigMapData != "" {
+		resolvedTemplateCM, variableMapCM, err = impl.appService.GetResolvedTemplateAndVariableMap(scope, string(mergedConfigMapJson), entitiesForCM, entityToVariablesCM)
+
+	}
+	mergedSecretJson, err := json.Marshal(mergedSecret)
+	if err != nil {
+		return nil, nil, err
+	}
+	if configAppLevel.SecretData != "" || configEnvLevel.SecretData != "" {
+		resolvedTemplateCS, variableMapCS, err = impl.appService.GetResolvedTemplateAndVariableMap(scope, string(mergedSecretJson), entitiesForCS, entityToVariablesCS)
+
+	}
 	var cmConfigsDto []*history.ComponentLevelHistoryDetailDto
 	for _, data := range mergedConfigMap {
-		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.CONFIGMAP_TYPE, userHasAdminAccess, nil, "")
+		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.CONFIGMAP_TYPE, userHasAdminAccess, variableMapCM, resolvedTemplateCM)
 		if err != nil {
 			impl.logger.Errorw("error in converting cmConfig to componentLevelData", "err", err)
 			return nil, nil, err
@@ -305,7 +367,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 
 	var secretConfigsDto []*history.ComponentLevelHistoryDetailDto
 	for _, data := range mergedSecret {
-		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess, nil, "")
+		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess, variableMapCS, resolvedTemplateCS)
 		if err != nil {
 			impl.logger.Errorw("error in converting secretConfig to componentLevelData", "err", err)
 			return nil, nil, err

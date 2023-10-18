@@ -201,6 +201,8 @@ type AppService interface {
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
+	GetEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error)
+	GetResolvedTemplateAndVariableMap(scope resourceQualifiers.Scope, template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string) (string, map[string]string, error)
 }
 
 func NewAppService(
@@ -1481,7 +1483,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQua
 
 	variableMap := make(map[string]string)
 	entities := []repository6.Entity{entity}
-	entityToVariables, err := impl.getEntityToVariableMapping(entities)
+	entityToVariables, err := impl.GetEntityToVariableMapping(entities)
 	if err != nil {
 		return template, variableMap, err
 	}
@@ -1515,7 +1517,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQua
 	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, variableMap, nil
 }
-func (impl *AppServiceImpl) getResolvedTemplateAndVariableMap(scope resourceQualifiers.Scope, template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string) (string, map[string]string, error) {
+func (impl *AppServiceImpl) GetResolvedTemplateAndVariableMap(scope resourceQualifiers.Scope, template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string) (string, map[string]string, error) {
 	variableMap := make(map[string]string)
 	//todo what to do here
 	//for _, entity := range entities {
@@ -1557,7 +1559,7 @@ func (impl *AppServiceImpl) getResolvedTemplateAndVariableMap(scope resourceQual
 	return resolvedTemplate, variableMap, nil
 }
 
-func (impl *AppServiceImpl) getEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error) {
+func (impl *AppServiceImpl) GetEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error) {
 	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities(entity)
 	return entityToVariables, err
 }
@@ -2347,11 +2349,11 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 			},
 		}
 
-		entityToVariablesCM, err = impl.getEntityToVariableMapping(entitiesForCM)
+		entityToVariablesCM, err = impl.GetEntityToVariableMapping(entitiesForCM)
 		if err != nil {
 			return nil, err
 		}
-		entityToVariablesCS, err = impl.getEntityToVariableMapping(entitiesForCS)
+		entityToVariablesCS, err = impl.GetEntityToVariableMapping(entitiesForCS)
 		if err != nil {
 			return nil, err
 		}
@@ -2444,7 +2446,7 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 	}
 
 	if configMapJson != "" && len(entityToVariablesCM) > 0 {
-		resolvedTemplateCM, variableMapCM, err = impl.getResolvedTemplateAndVariableMap(scope, string(configMapByte), entitiesForCM, entityToVariablesCM)
+		resolvedTemplateCM, variableMapCM, err = impl.GetResolvedTemplateAndVariableMap(scope, string(configMapByte), entitiesForCM, entityToVariablesCM)
 		cMCSJson.envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
 		cMCSJson.envOverride.VariableSnapshotForCM = variableMapCM
 	}
@@ -2457,7 +2459,7 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 		return []byte("{}"), err
 	}
 	if secretDataJson != "" && len(entityToVariablesCS) > 0 {
-		resolvedTemplateCS, variableMapCS, err = impl.getResolvedTemplateAndVariableMap(scope, string(secretDataByte), entitiesForCS, entityToVariablesCS)
+		resolvedTemplateCS, variableMapCS, err = impl.GetResolvedTemplateAndVariableMap(scope, string(secretDataByte), entitiesForCS, entityToVariablesCS)
 		cMCSJson.envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
 		cMCSJson.envOverride.VariableSnapshotForCS = variableMapCS
 	}
