@@ -56,6 +56,7 @@ type GitProviderRepository interface {
 	FindByUrl(providerUrl string) (GitProvider, error)
 	Update(gitProvider *GitProvider) error
 	MarkProviderDeleted(gitProvider *GitProvider) error
+	FindDisabledById(providerId string) (GitProvider, error)
 }
 
 type GitProviderRepositoryImpl struct {
@@ -87,6 +88,16 @@ func (impl GitProviderRepositoryImpl) FindAllActiveForAutocomplete() ([]GitProvi
 		Where("active = ?", true).Column("id", "name", "url", "auth_mode").
 		Where("deleted = ?", false).Select()
 	return providers, err
+}
+
+func (impl GitProviderRepositoryImpl) FindDisabledById(providerId string) (GitProvider, error) {
+	var provider GitProvider
+	err := impl.dbConnection.Model(&provider).
+		Where("id = ?", providerId).
+		Where("active = ?", false).
+		Column("id", "name", "url", "auth_mode").
+		Where("deleted = ?", false).Select()
+	return provider, err
 }
 
 func (impl GitProviderRepositoryImpl) FindAll() ([]GitProvider, error) {

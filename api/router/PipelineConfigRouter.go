@@ -122,6 +122,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/{appId}/autocomplete/environment").HandlerFunc(router.restHandler.EnvironmentListAutocomplete).Methods("GET")
 	configRouter.Path("/{appId}/autocomplete/git").HandlerFunc(router.restHandler.GitListAutocomplete).Methods("GET")
+	configRouter.Path("/{appId}/autocomplete/disabled-git/{providerId}").HandlerFunc(router.restHandler.DisabledGitListAutocomplete).Methods("GET")
 	configRouter.Path("/{appId}/autocomplete/docker").HandlerFunc(router.restHandler.RegistriesListAutocomplete).Methods("GET")
 	configRouter.Path("/{appId}/autocomplete/team").HandlerFunc(router.restHandler.TeamListAutocomplete).Methods("GET")
 

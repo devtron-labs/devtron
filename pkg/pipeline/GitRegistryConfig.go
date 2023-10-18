@@ -36,6 +36,7 @@ type GitRegistryConfig interface {
 	GetAll() ([]GitRegistry, error)
 	FetchAllGitProviders() ([]GitRegistry, error)
 	FetchOneGitProvider(id string) (*GitRegistry, error)
+	FetchOneDisabledGitProvider(id string) (*GitRegistry, error)
 	Update(request *GitRegistry) (*GitRegistry, error)
 	Delete(request *GitRegistry) error
 }
@@ -196,6 +197,24 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRe
 		Active:        provider.Active,
 		UserId:        provider.CreatedBy,
 		GitHostId:     provider.GitHostId,
+	}
+
+	return providerRes, err
+}
+
+func (impl GitRegistryConfigImpl) FetchOneDisabledGitProvider(providerId string) (*GitRegistry, error) {
+	impl.logger.Debug("fetch disabled git provider by ID from db")
+	provider, err := impl.gitProviderRepo.FindDisabledById(providerId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching disabled git providers", "err", err)
+		return nil, err
+	}
+
+	providerRes := &GitRegistry{
+		Id:       provider.Id,
+		Name:     provider.Name,
+		Url:      provider.Url,
+		AuthMode: provider.AuthMode,
 	}
 
 	return providerRes, err

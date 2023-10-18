@@ -17,6 +17,7 @@ import (
 
 type DevtronAppAutoCompleteRestHandler interface {
 	GitListAutocomplete(w http.ResponseWriter, r *http.Request)
+	DisabledGitListAutocomplete(w http.ResponseWriter, r *http.Request)
 	RegistriesListAutocomplete(w http.ResponseWriter, r *http.Request)
 	TeamListAutocomplete(w http.ResponseWriter, r *http.Request)
 	EnvironmentListAutocomplete(w http.ResponseWriter, r *http.Request)
@@ -162,6 +163,33 @@ func (handler PipelineConfigRestHandlerImpl) GitListAutocomplete(w http.Response
 	res, err := handler.gitRegistryConfig.GetAll()
 	if err != nil {
 		handler.Logger.Errorw("service err, GitListAutocomplete", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) DisabledGitListAutocomplete(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	providerId := vars["providerId"]
+	handler.Logger.Infow("request payload, DisabledGitListAutocomplete", "appId", appId)
+	//RBAC
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+	res, err := handler.gitRegistryConfig.FetchOneDisabledGitProvider(providerId)
+	if err != nil {
+		handler.Logger.Errorw("service err, DisabledGitListAutocomplete", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
