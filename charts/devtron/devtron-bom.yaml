@@ -77,4 +77,4 @@ security:
     image: "quay.io/devtron/image-scanner:ea03b0af-334-15158"
 
 notifier:
-  image: "quay.io/devtron/notifier:d9c72180-372-14306"
+  image: "quay.io/devtron/notifier:d71bcbcd-372-18717"
