@@ -424,7 +424,6 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	ciArtifactsResponse.CiArtifacts = ciArtifacts
 
 	if pipeline.ApprovalNodeConfigured() && stage == bean.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
-		artifactIds, err := impl.workflowDagExecutor.FetchApprovalArtifactIdsForPipeline(pipeline.Id, limit, 0, "")
 		if err != nil {
 			return ciArtifactsResponse, err
 		}
@@ -438,6 +437,22 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	return ciArtifactsResponse, nil
 }
 
+func (impl *AppArtifactManagerImpl) fetchArtifactsForPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, limit, offset int, isApprovalNode bool, latestWfArtifactId int) (*bean2.CiArtifactResponse, error) {
+	var ciArtifactsResponse *bean2.CiArtifactResponse
+	if pipeline.ApprovalNodeConfigured() && stage == bean.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
+		ciArtifacts, err := impl.workflowDagExecutor.FetchApprovalArtifactsForPipeline(pipeline.Id, limit, offset, searchString)
+		if err != nil {
+			return ciArtifactsResponse, err
+		}
+		ciArtifactsFinal, approvalConfig, err := impl.overrideArtifactsWithUserApprovalData(pipeline, ciArtifacts, isApprovalNode, latestWfArtifactId)
+		if err != nil {
+			return ciArtifactsResponse, err
+		}
+		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
+		ciArtifactsResponse.CiArtifacts = ciArtifactsFinal
+	}
+	return ciArtifactsResponse, nil
+}
 func (impl *AppArtifactManagerImpl) overrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean2.CiArtifactBean, isApprovalNode bool, latestArtifactId int) ([]bean2.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
 	impl.logger.Infow("approval node configured", "pipelineId", pipeline.Id, "isApproval", isApprovalNode)
 	ciArtifactsFinal := make([]bean2.CiArtifactBean, 0, len(inputArtifacts))

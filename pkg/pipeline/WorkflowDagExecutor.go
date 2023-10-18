@@ -83,7 +83,7 @@ type WorkflowDagExecutor interface {
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
-	FetchApprovalArtifactIdsForPipeline(pipelineId, limit, offset int, searchString string) ([]int, error)
+	FetchApprovalArtifactsForPipeline(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 }
 
@@ -2346,19 +2346,21 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 	return nil, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) FetchApprovalArtifactIdsForPipeline(pipelineId, limit, offset int, searchString string) ([]int, error) {
+func (impl *WorkflowDagExecutorImpl) FetchApprovalArtifactsForPipeline(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error) {
 
-	var ids []int
+	var ciArtifacts []bean2.CiArtifactBean
 	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForPipeline(pipelineId, limit, offset, searchString)
 	if err != nil {
-		return ids, err
+		return ciArtifacts, err
 	}
 
 	for _, r := range deploymentApprovalRequests {
-		id := r.ArtifactId
-		ids = append(ids, id)
+		var artifact bean2.CiArtifactBean
+		artifact.Id = r.CiArtifact.Id
+		artifact.Image = r.CiArtifact.Image
+		ciArtifacts = append(ciArtifacts, artifact)
 	}
-	return ids, err
+	return ciArtifacts, err
 }
 
 func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
