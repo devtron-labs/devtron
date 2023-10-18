@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"os"
@@ -34,7 +35,6 @@ type DeploymentTemplateRequest struct {
 	DeploymentTemplateHistoryId int                               `json:"deploymentTemplateHistoryId,omitempty"`
 	ResourceName                string                            `json:"resourceName"`
 	PipelineId                  int                               `json:"pipelineId"`
-	IsSuperAdmin                bool                              `json:"-"`
 }
 
 type RequestDataMode int
@@ -184,7 +184,7 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 	if request.Values != "" {
 		values = request.Values
 		if request.RequestDataMode == Manifest {
-			values, err = impl.resolveTemplateVariables(request.Values, request)
+			values, err = impl.resolveTemplateVariables(ctx, request.Values, request)
 			if err != nil {
 				return result, err
 			}
@@ -194,7 +194,7 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		case repository.DefaultVersions:
 			_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 		case repository.PublishedOnEnvironments:
-			values, err = impl.fetchResolvedTemplateForPublishedEnvs(request)
+			values, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)
 		case repository.DeployedOnSelfEnvironment, repository.DeployedOnOtherEnvironment:
 			values, err = impl.fetchTemplateForDeployedEnv(ctx, request)
 		}
@@ -217,7 +217,7 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 	return result, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(request DeploymentTemplateRequest) (string, error) {
+func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(ctx context.Context, request DeploymentTemplateRequest) (string, error) {
 	var values string
 	override, err := impl.propertiesConfigService.GetEnvironmentProperties(request.AppId, request.EnvId, request.ChartRefId)
 	if err == nil && override.GlobalConfig != nil {
@@ -231,7 +231,7 @@ func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(
 		return "", err
 	}
 	if request.RequestDataMode == Manifest {
-		resolvedTemplate, err := impl.resolveTemplateVariables(values, request)
+		resolvedTemplate, err := impl.resolveTemplateVariables(ctx, values, request)
 		if err != nil {
 			return values, err
 		}
@@ -253,15 +253,19 @@ func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx contex
 	return history.ResolvedTemplateData, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(values string, request DeploymentTemplateRequest) (string, error) {
+func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, error) {
 
+	isSuperAdmin, err := util2.GetIsSuperAdminFromContext(ctx)
+	if err != nil {
+		return values, err
+	}
 	scope, err := impl.extractScopeData(request)
 	if err != nil {
-		return "", err
+		return values, err
 	}
-	resolvedTemplate, err := impl.chartService.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate, request.IsSuperAdmin)
+	resolvedTemplate, err := impl.chartService.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate, isSuperAdmin)
 	if err != nil {
-		return "", err
+		return values, err
 	}
 	return resolvedTemplate, nil
 }
