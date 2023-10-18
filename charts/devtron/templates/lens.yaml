@@ -1,0 +1,121 @@
+{{- if .Values.installer.modules }}
+{{- with .Values.installer.modules }}
+{{- range . }}
+{{- if eq . "cicd" }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lens-secret
+  labels:
+    release: devtron
+{{- if $.Values.components.lens.secrets }}
+data:
+{{- range $k, $v := $.Values.components.lens.secrets }}
+  {{ $k }}: {{ $v | b64enc }}
+{{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lens-cm
+  labels:
+    release: devtron
+{{- if $.Values.components.lens.configs }}
+data:
+{{- range $k, $v := $.Values.components.lens.configs }}
+  {{ $k }}: {{ $v | b64enc }}
+{{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lens-service
+  labels:
+    app: lens
+    chart: lens-3.7.1
+    release: devtron
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: app
+      protocol: TCP
+      name: app
+  selector:
+    app: lens
+---
+# Source: lens/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lens
+  labels:
+    app: lens
+    chart: lens-3.7.1
+    release: devtron
+spec:
+  selector:
+    matchLabels:
+      app: lens
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: lens
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: lens
+          image: {{ $.Values.components.lens.image }}
+          {{- if  $.Values.components.lens.imagePullPolicy }}
+          imagePullPolicy: {{ $.Values.components.lens.imagePullPolicy }}
+          {{- else }}
+          imagePullPolicy: IfNotPresent
+          {{- end }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: app
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DEVTRON_APP_NAME
+              value: lens
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if .dbconfig }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .dbconfig.secretName }}
+                  key: {{ .dbconfig.keyName }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: lens-cm
+            - secretRef:
+                name: lens-secret
+          {{- if $.Values.components.lens.resources }}        
+          resources:
+          {{- toYaml $.Values.components.lens.resources | nindent 12 }}
+          {{- end }}
+          volumeMounts: []
+  revisionHistoryLimit: 3
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

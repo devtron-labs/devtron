@@ -1,0 +1,164 @@
+{{- if .Values.installer.modules }}
+{{- with .Values.installer.modules }}
+{{- range . }}
+{{- if eq . "cicd" }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-sensor-secret
+  labels:
+    app: git-sensor
+{{- if $.Values.components.gitsensor.secrets }}
+data:
+{{- range $k, $v := $.Values.components.gitsensor.secrets }}
+  {{ $k }}: {{ $v | b64enc }}
+{{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-sensor-cm
+  labels:
+    app: git-sensor
+{{- if $.Values.components.lens.configs }}
+data:
+{{- range $k, $v := $.Values.components.lens.configs }}
+  {{ $k }}: {{ $v | b64enc }}
+{{- end }}
+{{- end }}
+  
+---
+# Source: gitsensor/templates/generic.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: git-sensor-service
+  labels:
+    app: git-sensor
+    release: devtron
+spec:
+  ports:
+    - name: sensor
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+    - name: grpc
+      port: 90
+      protocol: TCP
+      targetPort: 8081
+  selector:
+    app: git-sensor
+---
+# Source: gitsensor/templates/generic.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: git-sensor
+  labels:
+    release: devtron
+    app: git-sensor
+spec:
+  selector:
+    matchLabels:
+      app: git-sensor # has to match .spec.template.metadata.labels
+  serviceName: git-sensor
+  replicas: 1 # by default is 1
+  template:
+    metadata:
+      labels:
+        app: git-sensor
+    spec:
+      terminationGracePeriodSeconds: 10
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - command:
+          - /bin/sh
+          - -c
+          - mkdir -p /git-base/ssh-keys && chown -R devtron:devtron /git-base && chmod 777 /git-base/ssh-keys
+          image: {{ $.Values.components.gitsensor.image }}
+          imagePullPolicy: IfNotPresent
+          name: chown-git-base
+          resources: {}
+          securityContext:
+            runAsUser: 0
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /git-base/
+            name: git-volume
+      containers:
+        - name: git-sensor
+          image: {{ $.Values.components.gitsensor.image }}
+          {{- if  $.Values.components.gitsensor.imagePullPolicy }}
+          imagePullPolicy: {{ $.Values.components.gitsensor.imagePullPolicy }}
+          {{- else }}
+          imagePullPolicy: IfNotPresent
+          {{- end }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: 8080
+              name: sensor
+            - containerPort: 8081
+              name: grpc
+          volumeMounts:
+            - name: git-volume
+              mountPath: /git-base/
+          env:
+            - name: DEVTRON_APP_NAME
+              value: git-sensor
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if .dbconfig }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .dbconfig.secretName }}
+                  key: {{ .dbconfig.keyName }}
+            {{- end }}
+          envFrom:
+          - secretRef:
+              name: git-sensor-secret
+          - configMapRef: 
+              name: git-sensor-cm
+          {{- if $.Values.components.gitsensor.resources }}        
+          resources:
+          {{- toYaml $.Values.components.gitsensor.resources | nindent 12 }}
+          {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: git-volume
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: git-sensor-sm
+  labels:
+    chart: gitsensor-0.11.0
+    app: git-sensor
+    kind: Prometheus
+    release: devtron
+spec:
+  endpoints:
+    - port: app
+      path: /metrics
+  selector:
+    matchLabels:
+      app: git-sensor
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
