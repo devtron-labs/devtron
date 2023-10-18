@@ -174,7 +174,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 		impl.logger.Errorw("err in merging app and env level configs", "err", err)
 		return 0, 0, err
 	}
-	historyModel := &repository.ConfigmapAndSecretHistory{
+	historyModelForCM := &repository.ConfigmapAndSecretHistory{
 		AppId:      pipeline.AppId,
 		PipelineId: pipeline.Id,
 		DataType:   repository.CONFIGMAP_TYPE,
@@ -189,9 +189,9 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 			UpdatedOn: deployedOn,
 		},
 	}
-	cmHistory, err := impl.configMapHistoryRepository.CreateHistory(historyModel)
+	cmHistory, err := impl.configMapHistoryRepository.CreateHistory(historyModelForCM)
 	if err != nil {
-		impl.logger.Errorw("error in creating new entry for cm history", "historyModel", historyModel)
+		impl.logger.Errorw("error in creating new entry for cm history", "historyModel", historyModelForCM)
 		return 0, 0, err
 	}
 	secretData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, repository.SECRET_TYPE, nil)
@@ -199,13 +199,28 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 		impl.logger.Errorw("err in merging app and env level configs", "err", err)
 		return 0, 0, err
 	}
+	historyModelForCS := &repository.ConfigmapAndSecretHistory{
+		AppId:      pipeline.AppId,
+		PipelineId: pipeline.Id,
+		DataType:   repository.SECRET_TYPE,
+		Deployed:   true,
+		DeployedBy: deployedBy,
+		DeployedOn: deployedOn,
+		Data:       secretData,
+		AuditLog: sql.AuditLog{
+			CreatedBy: deployedBy,
+			CreatedOn: deployedOn,
+			UpdatedBy: deployedBy,
+			UpdatedOn: deployedOn,
+		},
+	}
 	//using old model, updating secret data
-	historyModel.DataType = repository.SECRET_TYPE
-	historyModel.Id = 0
-	historyModel.Data = secretData
-	csHistory, err := impl.configMapHistoryRepository.CreateHistory(historyModel)
+	//historyModel.DataType = repository.SECRET_TYPE
+	//historyModel.Id = 0
+	//historyModel.Data = secretData
+	csHistory, err := impl.configMapHistoryRepository.CreateHistory(historyModelForCS)
 	if err != nil {
-		impl.logger.Errorw("error in creating new entry for secret history", "historyModel", historyModel)
+		impl.logger.Errorw("error in creating new entry for secret history", "historyModel", historyModelForCS)
 		return 0, 0, err
 	}
 
