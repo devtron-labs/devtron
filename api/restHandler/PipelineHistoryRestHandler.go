@@ -1,7 +1,6 @@
 package restHandler
 
 import (
-	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -213,7 +212,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
 	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
 
-	ctx := context.Background()
+	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	res, err := handler.deployedConfigurationHistoryService.GetDeployedHistoryComponentDetail(ctx, pipelineId, id, historyComponent, historyComponentName, userHasAdminAccess)
 	if err != nil {
@@ -256,7 +255,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
 	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
-	ctx := context.Background()
+	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	res, err := handler.deployedConfigurationHistoryService.GetAllDeployedConfigurationByPipelineIdAndLatestWfrId(ctx, pipelineId, userHasAdminAccess)
 	if err != nil {
@@ -305,7 +304,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	//RBAC END
 
 	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
-	ctx := context.Background()
+	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)

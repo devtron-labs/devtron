@@ -354,7 +354,7 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 	}
 	//RBAC END
 	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
-	ctx := context.Background()
+	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
