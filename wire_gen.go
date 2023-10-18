@@ -319,7 +319,6 @@ func InitializeApp() (*App, error) {
 	pipelineStrategyHistoryRepositoryImpl := repository6.NewPipelineStrategyHistoryRepositoryImpl(sugaredLogger, db)
 	pipelineStrategyHistoryServiceImpl := history.NewPipelineStrategyHistoryServiceImpl(sugaredLogger, pipelineStrategyHistoryRepositoryImpl, userServiceImpl)
 	configMapHistoryRepositoryImpl := repository6.NewConfigMapHistoryRepositoryImpl(sugaredLogger, db)
-	configMapHistoryServiceImpl := history.NewConfigMapHistoryServiceImpl(sugaredLogger, configMapHistoryRepositoryImpl, pipelineRepositoryImpl, configMapRepositoryImpl, userServiceImpl)
 	deploymentTemplateHistoryRepositoryImpl := repository6.NewDeploymentTemplateHistoryRepositoryImpl(sugaredLogger, db)
 	chartRefRepositoryImpl := chartRepoRepository.NewChartRefRepositoryImpl(db)
 	variableSnapshotHistoryRepositoryImpl := repository7.NewVariableSnapshotHistoryRepository(sugaredLogger, db)
@@ -347,6 +346,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	deploymentTemplateHistoryServiceImpl := history.NewDeploymentTemplateHistoryServiceImpl(sugaredLogger, deploymentTemplateHistoryRepositoryImpl, pipelineRepositoryImpl, chartRepositoryImpl, chartRefRepositoryImpl, envLevelAppMetricsRepositoryImpl, appLevelMetricsRepositoryImpl, userServiceImpl, cdWorkflowRepositoryImpl, variableSnapshotHistoryServiceImpl, variableTemplateParserImpl, scopedVariableServiceImpl)
+	configMapHistoryServiceImpl := history.NewConfigMapHistoryServiceImpl(sugaredLogger, configMapHistoryRepositoryImpl, pipelineRepositoryImpl, configMapRepositoryImpl, userServiceImpl, deploymentTemplateHistoryServiceImpl)
 	chartWorkingDir := _wireChartWorkingDirValue
 	globalEnvVariables, err := util3.GetGlobalEnvVariables()
 	if err != nil {

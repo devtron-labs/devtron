@@ -295,7 +295,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 
 	var cmConfigsDto []*history.ComponentLevelHistoryDetailDto
 	for _, data := range mergedConfigMap {
-		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.CONFIGMAP_TYPE, userHasAdminAccess)
+		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.CONFIGMAP_TYPE, userHasAdminAccess, nil, "")
 		if err != nil {
 			impl.logger.Errorw("error in converting cmConfig to componentLevelData", "err", err)
 			return nil, nil, err
@@ -305,7 +305,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 
 	var secretConfigsDto []*history.ComponentLevelHistoryDetailDto
 	for _, data := range mergedSecret {
-		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess)
+		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess, nil, "")
 		if err != nil {
 			impl.logger.Errorw("error in converting secretConfig to componentLevelData", "err", err)
 			return nil, nil, err

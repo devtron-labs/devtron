@@ -31,6 +31,7 @@ type DeploymentTemplateHistoryService interface {
 
 	// used for rollback
 	GetDeployedHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*HistoryDetailDto, error)
+	GetVariableSnapshotAndResolveTemplate(template string, reference repository6.HistoryReference, isSuperAdmin bool) (map[string]string, string, error)
 }
 
 type DeploymentTemplateHistoryServiceImpl struct {
@@ -332,7 +333,11 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 	if err != nil {
 		return nil, err
 	}
-	variableSnapshotMap, resolvedTemplate, err := impl.getVariableSnapshotAndResolveTemplate(history.Template, history.Id, isSuperAdmin)
+	reference := repository6.HistoryReference{
+		HistoryReferenceId:   history.Id,
+		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+	}
+	variableSnapshotMap, resolvedTemplate, err := impl.GetVariableSnapshotAndResolveTemplate(history.Template, reference, isSuperAdmin)
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 	}
@@ -351,11 +356,11 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 	return historyDto, nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) getVariableSnapshotAndResolveTemplate(template string, historyId int, isSuperAdmin bool) (map[string]string, string, error) {
-	reference := repository6.HistoryReference{
-		HistoryReferenceId:   historyId,
-		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
-	}
+func (impl DeploymentTemplateHistoryServiceImpl) GetVariableSnapshotAndResolveTemplate(template string, reference repository6.HistoryReference, isSuperAdmin bool) (map[string]string, string, error) {
+	//reference := repository6.HistoryReference{
+	//	HistoryReferenceId:   reference,
+	//	HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+	//}
 	variableSnapshotMap := make(map[string]string)
 	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
 	if err != nil {
@@ -426,7 +431,11 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 	if err != nil {
 		return nil, err
 	}
-	variableSnapshotMap, resolvedTemplate, err := impl.getVariableSnapshotAndResolveTemplate(history.Template, history.Id, isSuperAdmin)
+	reference := repository6.HistoryReference{
+		HistoryReferenceId:   history.Id,
+		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+	}
+	variableSnapshotMap, resolvedTemplate, err := impl.GetVariableSnapshotAndResolveTemplate(history.Template, reference, isSuperAdmin)
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "err", err, "id", id, "pipelineID", pipelineId)
 	}

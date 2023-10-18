@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -25,28 +26,32 @@ type ConfigMapHistoryService interface {
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 
 	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*ComponentLevelHistoryDetailDto, error)
-	ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error)
+	ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool, variableSnapshotMap map[string]string, resolvedTemplate string) (*ComponentLevelHistoryDetailDto, error)
 }
 
 type ConfigMapHistoryServiceImpl struct {
-	logger                     *zap.SugaredLogger
-	configMapHistoryRepository repository.ConfigMapHistoryRepository
-	pipelineRepository         pipelineConfig.PipelineRepository
-	configMapRepository        chartConfig.ConfigMapRepository
-	userService                user.UserService
+	logger                           *zap.SugaredLogger
+	configMapHistoryRepository       repository.ConfigMapHistoryRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	configMapRepository              chartConfig.ConfigMapRepository
+	userService                      user.UserService
+	deploymentTemplateHistoryService DeploymentTemplateHistoryService
 }
 
 func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,
 	configMapHistoryRepository repository.ConfigMapHistoryRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	userService user.UserService) *ConfigMapHistoryServiceImpl {
+	userService user.UserService,
+	deploymentTemplateHistoryService DeploymentTemplateHistoryService,
+) *ConfigMapHistoryServiceImpl {
 	return &ConfigMapHistoryServiceImpl{
-		logger:                     logger,
-		configMapHistoryRepository: configMapHistoryRepository,
-		pipelineRepository:         pipelineRepository,
-		configMapRepository:        configMapRepository,
-		userService:                userService,
+		logger:                           logger,
+		configMapHistoryRepository:       configMapHistoryRepository,
+		pipelineRepository:               pipelineRepository,
+		configMapRepository:              configMapRepository,
+		userService:                      userService,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 	}
 }
 
@@ -409,6 +414,10 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		return nil, err
 	}
 	var configData []*ConfigData
+	var variableSnapshotMapCM map[string]string
+	var resolvedTemplateCM string
+	var variableSnapshotMapCS map[string]string
+	var resolvedTemplateCS string
 	if configType == repository.CONFIGMAP_TYPE {
 		configList := ConfigList{}
 		if len(history.Data) > 0 {
@@ -419,6 +428,15 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 			}
 		}
 		configData = configList.ConfigData
+		configListJson, err := json.Marshal(configList)
+		reference := repository6.HistoryReference{
+			HistoryReferenceId:   history.Id,
+			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
+		}
+		variableSnapshotMapCM, resolvedTemplateCM, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess)
+		if err != nil {
+			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
+		}
 	} else if configType == repository.SECRET_TYPE {
 		secretList := SecretList{}
 		if len(history.Data) > 0 {
@@ -429,6 +447,15 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 			}
 		}
 		configData = secretList.ConfigData
+		secretListJson, err := json.Marshal(secretList)
+		reference := repository6.HistoryReference{
+			HistoryReferenceId:   history.Id,
+			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
+		}
+		variableSnapshotMapCS, resolvedTemplateCS, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(string(secretListJson), reference, userHasAdminAccess)
+		if err != nil {
+			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
+		}
 	}
 	config := &ConfigData{}
 	for _, data := range configData {
@@ -438,11 +465,15 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		}
 	}
 	historyDto := &HistoryDetailDto{
-		Type:           config.Type,
-		External:       &config.External,
-		MountPath:      config.MountPath,
-		SubPath:        &config.SubPath,
-		FilePermission: config.FilePermission,
+		Type:                           config.Type,
+		External:                       &config.External,
+		MountPath:                      config.MountPath,
+		SubPath:                        &config.SubPath,
+		FilePermission:                 config.FilePermission,
+		VariableSnapshotForCM:          variableSnapshotMapCM,
+		ResolvedEnvOverrideValuesForCM: resolvedTemplateCM,
+		VariableSnapshotForCS:          variableSnapshotMapCS,
+		ResolvedEnvOverrideValuesForCS: resolvedTemplateCS,
 		CodeEditorValue: &HistoryDetailConfig{
 			DisplayName: "Data",
 			Value:       string(config.Data),
@@ -492,6 +523,8 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		return nil, err
 	}
 	var configData []*ConfigData
+	var variableSnapshotMap map[string]string
+	var resolvedTemplate string
 	if configType == repository.CONFIGMAP_TYPE {
 		configList := ConfigList{}
 		if len(history.Data) > 0 {
@@ -502,6 +535,16 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			}
 		}
 		configData = configList.ConfigData
+		configListJson, err := json.Marshal(configList)
+		reference := repository6.HistoryReference{
+			HistoryReferenceId:   history.Id,
+			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
+		}
+		variableSnapshotMap, resolvedTemplate, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess)
+		if err != nil {
+			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
+		}
+
 	} else if configType == repository.SECRET_TYPE {
 		secretList := SecretList{}
 		if len(history.Data) > 0 {
@@ -512,10 +555,20 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			}
 		}
 		configData = secretList.ConfigData
+		secretListJson, err := json.Marshal(secretList)
+		reference := repository6.HistoryReference{
+			HistoryReferenceId:   history.Id,
+			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
+		}
+		variableSnapshotMap, resolvedTemplate, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(string(secretListJson), reference, userHasAdminAccess)
+		if err != nil {
+			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
+		}
 	}
+
 	var componentLevelHistoryData []*ComponentLevelHistoryDetailDto
 	for _, config := range configData {
-		componentLevelData, err := impl.ConvertConfigDataToComponentLevelDto(config, configType, userHasAdminAccess)
+		componentLevelData, err := impl.ConvertConfigDataToComponentLevelDto(config, configType, userHasAdminAccess, variableSnapshotMap, resolvedTemplate)
 		if err != nil {
 			impl.logger.Errorw("error in converting data to componentLevelData", "err", err)
 		}
@@ -524,7 +577,50 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 	return componentLevelHistoryData, nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error) {
+//func (impl ConfigMapHistoryServiceImpl) getVariableSnapshotAndResolveTemplate(template string, historyId int, isSuperAdmin bool) (map[string]string, string, error) {
+//	reference := repository6.HistoryReference{
+//		HistoryReferenceId:   historyId,
+//		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
+//	}
+//	variableSnapshotMap := make(map[string]string)
+//	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
+//	if err != nil {
+//		return variableSnapshotMap, template, err
+//	}
+//
+//	if _, ok := references[reference]; ok {
+//		err = json.Unmarshal(references[reference].VariableSnapshot, &variableSnapshotMap)
+//		if err != nil {
+//			return variableSnapshotMap, template, err
+//		}
+//	}
+//
+//	if len(variableSnapshotMap) == 0 {
+//		return variableSnapshotMap, template, err
+//	}
+//
+//	varNames := make([]string, 0)
+//	for varName, _ := range variableSnapshotMap {
+//		varNames = append(varNames, varName)
+//	}
+//	varNameToIsSensitive, err := impl.scopedVariableService.CheckForSensitiveVariables(varNames)
+//	if err != nil {
+//		return variableSnapshotMap, template, err
+//	}
+//
+//	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, varNameToIsSensitive, isSuperAdmin)
+//	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
+//	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
+//	err = parserResponse.Error
+//	if err != nil {
+//		return variableSnapshotMap, template, err
+//	}
+//	resolvedTemplate := parserResponse.ResolvedTemplate
+//
+//	return variableSnapshotMap, resolvedTemplate, nil
+//}
+
+func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool, variableSnapshotMap map[string]string, resolvedTemplate string) (*ComponentLevelHistoryDetailDto, error) {
 	historyDto := &HistoryDetailDto{
 		Type:           config.Type,
 		External:       &config.External,
@@ -581,6 +677,11 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 				historyDto.CodeEditorValue.Value = string(externalSecretData)
 			}
 		}
+		historyDto.VariableSnapshotForCS = variableSnapshotMap
+		historyDto.ResolvedEnvOverrideValuesForCS = resolvedTemplate
+	} else if configType == repository.CONFIGMAP_TYPE {
+		historyDto.VariableSnapshotForCM = variableSnapshotMap
+		historyDto.ResolvedEnvOverrideValuesForCM = resolvedTemplate
 	}
 	componentLevelData := &ComponentLevelHistoryDetailDto{
 		ComponentName: config.Name,

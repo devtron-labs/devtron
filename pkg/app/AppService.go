@@ -2276,8 +2276,14 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 	var secretDataJsonEnv string
 	var err error
 	var scope resourceQualifiers.Scope
-	var entity []repository6.Entity
-	var entityToVariables map[repository6.Entity][]string
+	var entitiesForCM []repository6.Entity
+	var entitiesForCS []repository6.Entity
+	var entityToVariablesCM map[repository6.Entity][]string
+	var entityToVariablesCS map[repository6.Entity][]string
+	var resolvedTemplateCM string
+	var variableMapCM map[string]string
+	var resolvedTemplateCS string
+	var variableMapCS map[string]string
 	//var configMapJsonPipeline string
 	//var secretDataJsonPipeline string
 
@@ -2320,25 +2326,32 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 			configMapJsonEnv = configMapE.ConfigMapData
 			secretDataJsonEnv = configMapE.SecretData
 		}
-		entity = []repository6.Entity{
+		entitiesForCM = []repository6.Entity{
 			{
 				EntityType: repository6.ConfigMapAppLevel,
-				EntityId:   configMapA.Id,
-			},
-			{
-				EntityType: repository6.SecretAppLevel,
 				EntityId:   configMapA.Id,
 			},
 			{
 				EntityType: repository6.ConfigMapEnvLevel,
 				EntityId:   configMapE.Id,
 			},
+		}
+		entitiesForCS = []repository6.Entity{
+			{
+				EntityType: repository6.SecretAppLevel,
+				EntityId:   configMapA.Id,
+			},
 			{
 				EntityType: repository6.SecretEnvLevel,
 				EntityId:   configMapE.Id,
 			},
 		}
-		entityToVariables, err = impl.getEntityToVariableMapping(entity)
+
+		entityToVariablesCM, err = impl.getEntityToVariableMapping(entitiesForCM)
+		if err != nil {
+			return nil, err
+		}
+		entityToVariablesCS, err = impl.getEntityToVariableMapping(entitiesForCS)
 		if err != nil {
 			return nil, err
 		}
@@ -2429,9 +2442,13 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 	if err != nil {
 		return []byte("{}"), err
 	}
-	resolvedTemplate, variableMap, err := impl.getResolvedTemplateAndVariableMap(scope, string(configMapByte), entity, entityToVariables)
-	cMCSJson.envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplate
-	cMCSJson.envOverride.VariableSnapshotForCM = variableMap
+
+	if configMapJson != "" && len(entityToVariablesCM) > 0 {
+		resolvedTemplateCM, variableMapCM, err = impl.getResolvedTemplateAndVariableMap(scope, string(configMapByte), entitiesForCM, entityToVariablesCM)
+		cMCSJson.envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
+		cMCSJson.envOverride.VariableSnapshotForCM = variableMapCM
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -2439,9 +2456,12 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 	if err != nil {
 		return []byte("{}"), err
 	}
-	resolvedTemplate, variableMap, err = impl.getResolvedTemplateAndVariableMap(scope, string(secretDataByte), entity, entityToVariables)
-	cMCSJson.envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplate
-	cMCSJson.envOverride.VariableSnapshotForCS = variableMap
+	if secretDataJson != "" && len(entityToVariablesCS) > 0 {
+		resolvedTemplateCS, variableMapCS, err = impl.getResolvedTemplateAndVariableMap(scope, string(secretDataByte), entitiesForCS, entityToVariablesCS)
+		cMCSJson.envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
+		cMCSJson.envOverride.VariableSnapshotForCS = variableMapCS
+	}
+
 	if err != nil {
 		return nil, err
 	}
