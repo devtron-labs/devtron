@@ -20,6 +20,7 @@ package argocdServer
 import (
 	"context"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/golang/protobuf/ptypes/empty"
 	"go.uber.org/zap"
 )
@@ -31,10 +32,10 @@ type VersionService interface {
 
 type VersionServiceImpl struct {
 	logger                  *zap.SugaredLogger
-	argoCDConnectionManager ArgoCDConnectionManager
+	argoCDConnectionManager connection.ArgoCDConnectionManager
 }
 
-func NewVersionServiceImpl(logger *zap.SugaredLogger, argoCDConnectionManager ArgoCDConnectionManager) *VersionServiceImpl {
+func NewVersionServiceImpl(logger *zap.SugaredLogger, argoCDConnectionManager connection.ArgoCDConnectionManager) *VersionServiceImpl {
 	return &VersionServiceImpl{logger: logger, argoCDConnectionManager: argoCDConnectionManager}
 }
 
