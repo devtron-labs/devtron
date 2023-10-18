@@ -114,6 +114,21 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
+  lens: 
+    image: "quay.io/devtron/lens:8803028b-333-16178"
+    imagePullPolicy: IfNotPresent
+    configs:
+      GIT_SENSOR_PROTOCOL: GRPC
+      GIT_SENSOR_URL: git-sensor-service.devtroncd:90
+      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_PORT: "5432"
+      PG_USER: postgres
+      PG_DATABASE: lens
+  kubewatch:
+    image: "quay.io/devtron/kubewatch:49f906a5-419-14814"
+    imagePullPolicy: IfNotPresent
+    
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
@@ -321,8 +336,6 @@ workflowController:
   image: "quay.io/argoproj/workflow-controller:v3.0.7"
   executorImage: "quay.io/argoproj/argoexec:v3.0.7"
 
-lens: 
-  image: "quay.io/devtron/lens:8803028b-333-16178"
 # Values for grafana integration
 monitoring:
   grafana:

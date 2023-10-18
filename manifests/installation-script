@@ -270,10 +270,7 @@ if !helmInstallation {
   kubelink = kubectl apply -n devtroncd kubelink -u kubelinkOverride;
   log("executed kubelink setup");
 }
-kubewatch = kubectl apply -n devtroncd kubewatch -u kubewatchOverride;
-log("executed kubewatch setup");
-lens = kubectl apply -n devtroncd lens -u lensOverride;
-log("executed lens setup");
+
 
 ## Applying Housekeeping Job
 appHousekeeping = kubectl apply -n devtroncd devtronHousekeeping -u devtronHousekeepingOverride;
