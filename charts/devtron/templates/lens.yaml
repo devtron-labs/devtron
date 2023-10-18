@@ -97,12 +97,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            {{- if .dbconfig }}
+            {{- if $.Values.components.lens.dbconfig }}
             - name: PG_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .dbconfig.secretName }}
-                  key: {{ .dbconfig.keyName }}
+                  name: {{ $.Values.components.lens.dbconfig.secretName }}
+                  key: {{ $.Values.components.lens.dbconfig.keyName }}
             {{- end }}
           envFrom:
             - configMapRef:

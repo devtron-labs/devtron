@@ -117,12 +117,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            {{- if .dbconfig }}
+            {{- if $.Values.components.gitsensor.dbconfig }}
             - name: PG_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .dbconfig.secretName }}
-                  key: {{ .dbconfig.keyName }}
+                  name: {{ $.Values.components.gitsensor.dbconfig.secretName }}
+                  key: {{ $.Values.components.gitsensor.dbconfig.keyName }}
             {{- end }}
           envFrom:
           - secretRef:
