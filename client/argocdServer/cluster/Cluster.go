@@ -22,7 +22,7 @@ import (
 	"errors"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"go.uber.org/zap"
 	"time"
 )
@@ -44,10 +44,10 @@ type ServiceClient interface {
 
 type ServiceClientImpl struct {
 	logger           *zap.SugaredLogger
-	argoCdConnection argocdServer.ArgoCDConnectionManager
+	argoCdConnection connection.ArgoCDConnectionManager
 }
 
-func NewServiceClientImpl(logger *zap.SugaredLogger, argoCdConnection argocdServer.ArgoCDConnectionManager) *ServiceClientImpl {
+func NewServiceClientImpl(logger *zap.SugaredLogger, argoCdConnection connection.ArgoCDConnectionManager) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:           logger,
 		argoCdConnection: argoCdConnection,
