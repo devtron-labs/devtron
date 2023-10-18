@@ -295,9 +295,6 @@ func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.W
 	var err error
 	if executorType != "" {
 		workflowExecutor := impl.getWorkflowExecutor(executorType)
-		if restConfig == nil {
-			restConfig = impl.config
-		}
 		err = workflowExecutor.TerminateWorkflow(name, namespace, restConfig)
 	} else {
 		wfClient, err := impl.getWfClient(environment, namespace, isExt)
