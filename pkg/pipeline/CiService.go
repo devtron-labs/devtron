@@ -593,6 +593,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageRetryCount:            impl.config.ImageRetryCount,
 		ImageRetryInterval:         impl.config.ImageRetryInterval,
 		WorkflowExecutor:           impl.config.GetWorkflowExecutorType(),
+		BlobStorageSecretName:      impl.config.BlobStorageSecretName,
+		BlobStorageCmName:          impl.config.BlobStorageCmName,
 		Type:                       bean2.CI_WORKFLOW_PIPELINE_TYPE,
 		CiArtifactLastFetch:        trigger.CiArtifactLastFetch,
 	}

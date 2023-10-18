@@ -366,6 +366,8 @@ type WorkflowRequest struct {
 	WorkflowExecutor         pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
 	PrePostDeploySteps       []*bean.StepObject                  `json:"prePostDeploySteps"`
 	CiArtifactLastFetch      time.Time                           `json:"ciArtifactLastFetch"`
+	BlobStorageCmName        string                              `json:"blobStorageCmName"`
+	BlobStorageSecretName    string                              `json:"blobStorageSecretName"`
 	Type                     bean.WorkflowPipelineType
 	Pipeline                 *pipelineConfig.Pipeline
 	Env                      *repository2.Environment
@@ -470,10 +472,6 @@ func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdCon
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE ||
 		workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		containerEnvVariables = []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: config.ImageScannerEndpoint}}
-	}
-	if config.CloudProvider == BLOB_STORAGE_S3 && config.BlobStorageS3AccessKey != "" {
-		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: config.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: config.BlobStorageS3SecretKey}}
-		containerEnvVariables = append(containerEnvVariables, miniCred...)
 	}
 	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}

@@ -243,6 +243,24 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *Work
 			workflowSecrets = append(workflowSecrets, *secret)
 		}
 	}
+	//internally inducing BlobStorageCmName and BlobStorageSecretName for getting logs, caches and artifacts from
+	//in-cluster configured blob storage
+	if workflowRequest.IsExtRun {
+		blobDetailsConfigMap := bean.ConfigSecretMap{
+			Name:     impl.ciCdConfig.BlobStorageCmName,
+			Type:     "environment",
+			External: true,
+		}
+		workflowConfigMaps = append(workflowConfigMaps, blobDetailsConfigMap)
+
+		blobDetailsSecret := bean.ConfigSecretMap{
+			Name:     impl.ciCdConfig.BlobStorageSecretName,
+			Type:     "environment",
+			External: true,
+		}
+		workflowSecrets = append(workflowSecrets, blobDetailsSecret)
+	}
+
 	return workflowConfigMaps, workflowSecrets, nil
 }
 

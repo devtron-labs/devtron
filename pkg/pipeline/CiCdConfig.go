@@ -116,6 +116,8 @@ type CiCdConfig struct {
 	BaseLogLocationPath            string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	InAppLoggingEnabled            bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
 	BuildxProvenanceMode           string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
+	BlobStorageCmName              string                       `env:"BLOB_STORAGE_CM_NAME" envDefault:"blob-storage-cm"`
+	BlobStorageSecretName          string                       `env:"BLOB_STORAGE_SECRET_NAME" envDefault:"blob-storage-secret"`
 }
 
 type CiConfig struct {
