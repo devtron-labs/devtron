@@ -99,6 +99,10 @@ components:
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
+      MANIFEST_FETCH_BATCH_SIZE: "2"
+      NATS_MSG_PROCESSING_BATCH_SIZE: "1"
+      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+      RUN_HELM_INSTALL_IN_ASYNC_MODE: "true"
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
