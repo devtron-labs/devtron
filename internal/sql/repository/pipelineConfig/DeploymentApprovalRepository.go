@@ -33,12 +33,13 @@ func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 }
 
 type DeploymentApprovalRequest struct {
-	tableName                   struct{} `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
-	Id                          int      `sql:"id,pk"`
-	PipelineId                  int      `sql:"pipeline_id"`
-	ArtifactId                  int      `sql:"ci_artifact_id"`
-	Active                      bool     `sql:"active,notnull"` // user can cancel request anytime
-	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"`
+	tableName                   struct{}  `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
+	Id                          int       `sql:"id,pk"`
+	PipelineId                  int       `sql:"pipeline_id"`
+	ArtifactId                  int       `sql:"ci_artifact_id"`
+	Active                      bool      `sql:"active,notnull"` // user can cancel request anytime
+	ArtifactDeploymentTriggered bool      `sql:"artifact_deployment_triggered"`
+	DeployedOn                  time.Time `sql:"deployed_on"`
 	Pipeline                    *Pipeline
 	CiArtifact                  *repository2.CiArtifact
 	UserEmail                   string                        `sql:"-"` // used for internal purpose
@@ -75,12 +76,12 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForPipeline(pipel
 	var requests []*DeploymentApprovalRequest
 	err := impl.dbConnection.
 		Model(&requests).
-		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
-		Join("LEFT JOIN pipeline_config_override pco on pco.ci_artifact_id = ca.id ").
-		Where("deployment_approval_request.pipeline_id = ?", pipelineId).
-		Where("deployment_approval_request.artifact_deployment_triggered = ?", false).
-		Where("deployment_approval_request.active = ?", true).
-		Where("ci_artifact.image ILIKE ?", "%"+searchString+"%").
+		ColumnExpr("dar.*, ca.*, pco.created_on as deployed_on").
+		Join("JOIN ci_artifact ca ON ca.id = dar.ci_artifact_id").
+		Join("LEFT JOIN pipeline_config_override pco ON pco.ci_artifact_id = ca.id").
+		Where("dar.active = true").
+		Where("dar.artifact_deployment_triggered = false").
+		Where("dar.pipeline_id = ?", pipelineId).
 		Limit(limit).
 		Offset(offset).
 		Select()
