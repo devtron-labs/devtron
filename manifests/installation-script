@@ -200,7 +200,7 @@ if !helmInstallation {
 devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 log("executed devtron setup");
 
-kubewatch = kubectl apply - n devtroncd kubewatch - u kubewatchOverride;
+kubewatch = kubectl apply -n devtroncd kubewatch -u kubewatchOverride;
 log("executed kubewatch setup");
 
 ## Applying Housekeeping Job
