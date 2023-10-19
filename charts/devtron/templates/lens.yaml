@@ -31,7 +31,6 @@ metadata:
   name: lens-service
   labels:
     app: lens
-    chart: lens-3.7.1
     release: devtron
 spec:
   type: ClusterIP
@@ -50,7 +49,6 @@ metadata:
   name: lens
   labels:
     app: lens
-    chart: lens-3.7.1
     release: devtron
 spec:
   selector:
