@@ -261,7 +261,8 @@ func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(ctx context.C
 	if err != nil {
 		return values, nil, err
 	}
-	resolvedTemplate, variableSnapshot, err := impl.chartService.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate, isSuperAdmin)
+	maskUnknownVariableForHelmGenerate := request.RequestDataMode == Manifest
+	resolvedTemplate, variableSnapshot, err := impl.chartService.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate, isSuperAdmin, maskUnknownVariableForHelmGenerate)
 	if err != nil {
 		return values, variableSnapshot, err
 	}
