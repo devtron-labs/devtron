@@ -721,6 +721,9 @@ type CiArtifactBean struct {
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
 	ImageReleaseTags              []*repository2.ImageTag   `json:"imageReleaseTags"`
 	ImageComment                  *repository2.ImageComment `json:"imageComment"`
+	ExternalCiPipelineId          int                       `json:"-"`
+	ParentCiArtifact              int                       `json:"-"`
+	CiWorkflowId                  int                       `json:"-"`
 }
 
 type CiArtifactResponse struct {

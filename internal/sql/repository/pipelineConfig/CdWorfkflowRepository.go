@@ -41,7 +41,7 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error)
-
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -377,6 +377,40 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	}
 	return wfrList, err
 }
+func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error) {
+	var wfrList []CdWorkflowRunner
+	var wfIds []int
+	err := impl.dbConnection.Model(&wfIds).
+		Column("MAX(cd_workflow_runner.id) AS id").
+		Join("INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id").
+		Join("INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id").
+		Where("(cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ?) OR (cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.status IN (?))",
+			listingFilterOptions.PipelineId,
+			listingFilterOptions.StageType,
+			listingFilterOptions.ParentId,
+			listingFilterOptions.ParentStageType,
+			pg.In([]string{application.Healthy, application.SUCCEEDED})).
+		Where("cia.image ILIKE %?%", listingFilterOptions.SearchString).
+		Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds)).
+		Group("cd_workflow.ci_artifact_id").
+		Limit(listingFilterOptions.Limit).
+		Offset(listingFilterOptions.Offset).
+		Select()
+
+	if err == pg.ErrNoRows || len(wfIds) == 0 {
+		return wfrList, nil
+	}
+	err = impl.dbConnection.
+		Model(&wfrList).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Where("cd_workflow_runner IN (?) ", pg.In(wfIds)).
+		Select()
+
+	if err == pg.ErrNoRows {
+		return wfrList, nil
+	}
+	return wfrList, err
+}
 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
@@ -386,11 +420,6 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipe
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
 		Order("cd_workflow_runner.id DESC").
-		//Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		//Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
-		//Join("inner join pipeline p on p.id = wf.pipeline_id").
-		//Join("left join users u on u.id = wfr.triggered_by").
-		//Order("ORDER BY cd_workflow_runner.started_on DESC").
 		Limit(limit).
 		Select()
 	if err != nil {

@@ -99,7 +99,7 @@ type ArtifactsListFilterOptions struct {
 	//list filter data
 	Limit        int
 	Offset       int
-	SearchString int
+	SearchString string
 	Order        string
 
 	//self stage data
@@ -110,4 +110,7 @@ type ArtifactsListFilterOptions struct {
 	ParentCdId      int
 	ParentId        int
 	ParentStageType WorkflowType
+
+	//excludeArtifactIds
+	ExcludeArtifactIds []int
 }
