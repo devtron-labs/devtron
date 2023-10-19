@@ -180,6 +180,7 @@ type AppServiceImpl struct {
 	scopedVariableService                  variables.ScopedVariableService
 	variableEntityMappingService           variables.VariableEntityMappingService
 	variableTemplateParser                 parsers.VariableTemplateParser
+	argoClientWrapperService               argocdServer.ArgoClientWrapperService
 }
 
 type AppService interface {
@@ -263,7 +264,9 @@ func NewAppService(
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
 	scopedVariableService variables.ScopedVariableService,
 	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser) *AppServiceImpl {
+	variableTemplateParser parsers.VariableTemplateParser,
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -328,6 +331,7 @@ func NewAppService(
 		scopedVariableService:                  scopedVariableService,
 		variableEntityMappingService:           variableEntityMappingService,
 		variableTemplateParser:                 variableTemplateParser,
+		argoClientWrapperService:               argoClientWrapperService,
 	}
 	return appServiceImpl
 }
@@ -2920,6 +2924,11 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 			impl.logger.Debugw("pipeline update req ", "res", patchReq)
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
+		}
+		// Doing normal refresh to avoid the sync delay in argo-cd.
+		err2 := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, argoAppName)
+		if err2 != nil {
+			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipelineName)
 		}
 		return true, nil
 	} else if appStatus.Code() == codes.NotFound {

@@ -19,6 +19,7 @@ import (
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -936,11 +937,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.Re
 		return
 	}
 	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
-	request.IsSuperAdmin = isSuperAdmin
+
 	//RBAC enforcer Ends
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 	defer cancel()
+	//TODO fix
 	resp, err := handler.deploymentTemplateService.GetDeploymentTemplate(ctx, request)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
@@ -948,7 +951,6 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.Re
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
-
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
