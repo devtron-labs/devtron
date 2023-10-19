@@ -468,9 +468,17 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
 		}
-		variableSnapshotMapCS, resolvedTemplateCS, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(string(secretListJson), reference, userHasAdminAccess)
+		data, err := bean.GetDecodedData(string(secretListJson))
+		if err != nil {
+			return nil, err
+		}
+		variableSnapshotMapCS, resolvedTemplateCS, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
+		}
+		resolvedTemplateCS, err = bean.GetEncodedData(resolvedTemplateCS)
+		if err != nil {
+			return nil, err
 		}
 	}
 	config := &ConfigData{}
