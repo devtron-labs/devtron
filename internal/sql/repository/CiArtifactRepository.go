@@ -277,8 +277,10 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 		return artifacts, nil
 	}
 	//processing
+	artifactsMap := make(map[int]*CiArtifact)
 	artifactsIds := make([]int, 0, len(artifacts))
 	for _, artifact := range artifacts {
+		artifactsMap[artifact.Id] = artifact
 		artifactsIds = append(artifactsIds, artifact.Id)
 	}
 
@@ -296,7 +298,20 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 		return artifacts, nil
 	}
 
-	//check deploy time
+	//set deployed time and latest deployed artifact
+	for i, deployedArtifact := range artifactsDeployed {
+		artifactId := deployedArtifact.Id
+		if _, ok := artifactsMap[artifactId]; ok {
+			artifactsMap[artifactId].Deployed = true
+			artifactsMap[artifactId].DeployedTime = deployedArtifact.CreatedOn
+			if i == 0 {
+				artifactsMap[artifactId].Latest = true
+
+			}
+		}
+	}
+
+	return artifacts, nil
 
 }
 
