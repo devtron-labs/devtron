@@ -34,6 +34,8 @@ type AppArtifactManager interface {
 	//RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType) (*bean2.CiArtifactResponse, error)
 
+	RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error)
+
 	//FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string) (bean2.CiArtifactResponse, error)
 
@@ -423,7 +425,6 @@ func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pi
 	return parentId, parentType, parentCdId, err
 }
 
-// continue here
 func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error) {
 
 	// retrieve parent details

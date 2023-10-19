@@ -1164,7 +1164,30 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	stage := r.URL.Query().Get("stage")
 	if len(stage) == 0 {
-		stage = "PRE"
+		stage = pipeline.WorklowTypePre
+	}
+	searchString := ""
+	search := r.URL.Query().Get("search")
+	if len(search) != 0 {
+		searchString = search
+	}
+
+	offset := 0
+	limit := 10
+	offsetQueryParam := r.URL.Query().Get("offset")
+	if offsetQueryParam != "" {
+		offset, err = strconv.Atoi(offsetQueryParam)
+		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
+		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+		return
+	}
+
+	sizeQueryParam := r.URL.Query().Get("size")
+	if sizeQueryParam != "" {
+		limit, err = strconv.Atoi(sizeQueryParam)
+		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
+		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+		return
 	}
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
 
@@ -1195,8 +1218,17 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		return
 	}
 	//rbac block ends here
-
-	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
+	var ciArtifactResponse *bean.CiArtifactResponse
+	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
+		artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
+			Limit:        limit,
+			Offset:       offset,
+			SearchString: searchString,
+		}
+		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions)
+	} else {
+		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
+	}
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
