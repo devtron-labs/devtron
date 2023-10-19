@@ -273,43 +273,45 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 		return artifacts, nil
 	}
 
-	if len(artifacts) == 0 {
-		return artifacts, nil
-	}
-	//processing
-	artifactsMap := make(map[int]*CiArtifact)
-	artifactsIds := make([]int, 0, len(artifacts))
-	for _, artifact := range artifacts {
-		artifactsMap[artifact.Id] = artifact
-		artifactsIds = append(artifactsIds, artifact.Id)
-	}
+	//Currently below computed data is not being used anywhere, if required use it
 
-	//(this will fetch all the artifacts that were deployed on the given pipeline atleast once in new->old deployed order)
-	artifactsDeployed := make([]*CiArtifact, 0, len(artifactsIds))
-	query := " SELECT cia.id,pco.created_on AS created_on " +
-		" FROM ci_artifact cia" +
-		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
-		" WHERE pco.pipeline_id = ? " +
-		" AND cia.id IN (?) " +
-		" ORDER BY pco.id desc;"
-
-	_, err := impl.dbConnection.Query(&artifactsDeployed, query, pg.In(artifactsIds))
-	if err != nil {
-		return artifacts, nil
-	}
-
-	//set deployed time and latest deployed artifact
-	for i, deployedArtifact := range artifactsDeployed {
-		artifactId := deployedArtifact.Id
-		if _, ok := artifactsMap[artifactId]; ok {
-			artifactsMap[artifactId].Deployed = true
-			artifactsMap[artifactId].DeployedTime = deployedArtifact.CreatedOn
-			if i == 0 {
-				artifactsMap[artifactId].Latest = true
-
-			}
-		}
-	}
+	//if len(artifacts) == 0 {
+	//	return artifacts, nil
+	//}
+	////processing
+	//artifactsMap := make(map[int]*CiArtifact)
+	//artifactsIds := make([]int, 0, len(artifacts))
+	//for _, artifact := range artifacts {
+	//	artifactsMap[artifact.Id] = artifact
+	//	artifactsIds = append(artifactsIds, artifact.Id)
+	//}
+	//
+	////(this will fetch all the artifacts that were deployed on the given pipeline atleast once in new->old deployed order)
+	//artifactsDeployed := make([]*CiArtifact, 0, len(artifactsIds))
+	//query := " SELECT cia.id,pco.created_on AS created_on " +
+	//	" FROM ci_artifact cia" +
+	//	" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
+	//	" WHERE pco.pipeline_id = ? " +
+	//	" AND cia.id IN (?) " +
+	//	" ORDER BY pco.id desc;"
+	//
+	//_, err := impl.dbConnection.Query(&artifactsDeployed, query, pg.In(artifactsIds))
+	//if err != nil {
+	//	return artifacts, nil
+	//}
+	//
+	////set deployed time and latest deployed artifact
+	//for i, deployedArtifact := range artifactsDeployed {
+	//	artifactId := deployedArtifact.Id
+	//	if _, ok := artifactsMap[artifactId]; ok {
+	//		artifactsMap[artifactId].Deployed = true
+	//		artifactsMap[artifactId].DeployedTime = deployedArtifact.CreatedOn
+	//		if i == 0 {
+	//			artifactsMap[artifactId].Latest = true
+	//
+	//		}
+	//	}
+	//}
 
 	return artifacts, nil
 
