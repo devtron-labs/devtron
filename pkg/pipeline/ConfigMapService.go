@@ -619,7 +619,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 	}
 	//todo
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretAppLevel, configMapRequest.UserId)
+	err = impl.extractAndMapVariables(model.SecretData, model.Id, repository5.SecretAppLevel, configMapRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
