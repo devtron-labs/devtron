@@ -59,7 +59,7 @@ type CiArtifactRepository interface {
 	GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error)
-
+	GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, error)
 	GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error)
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
@@ -238,6 +238,56 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 		artifactsAll = append(artifactsAll, a)
 	}
 	return artifactsAll, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, error) {
+	artifacts := make([]*CiArtifact, 0, listingFilterOpts.Limit)
+	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE {
+		query := " SELECT cia.* " +
+			" FROM ci_artifact cia" +
+			" INNER JOIN ci_pipeline cp ON cp.id=cia.pipeline_id" +
+			" INNER JOIN pipeline p ON p.ci_pipeline_id = cp.id and p.id=?" +
+			" WHERE cia.image LIKE %?%" +
+			" ORDER BY cia.id DESC" +
+			" LIMIT ?" +
+			" OFFSET ?;"
+
+		_, err := impl.dbConnection.Query(&artifacts, query)
+		if err != nil {
+			return artifacts, err
+		}
+
+	} else if listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
+		query := " SELECT cia.* " +
+			" FROM ci_artifact cia " +
+			" WHERE cia.external_ci_pipeline_id = webhook_id " +
+			" AND cia.image LIKE %?% " +
+			" ORDER BY cia.id DESC " +
+			" LIMIT ? " +
+			" OFFSET ?;"
+		_, err := impl.dbConnection.Query(&artifacts, query)
+		if err != nil {
+			return artifacts, err
+		}
+	} else {
+		return artifacts, nil
+	}
+
+	//processing
+	artifactsIds := make([]int, 0, len(artifacts))
+	for _, artifact := range artifacts {
+		artifactsIds = append(artifactsIds, artifact.Id)
+	}
+
+	//(this will fetch all the artifacts that were deployed on the given pipeline atleast once in new->old deployed order)
+
+	query := " SELECT cia.id,pco.created_on AS created_on " +
+		" FROM ci_artifact cia" +
+		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
+		" WHERE pco.pipeline_id = ? " +
+		" AND cia.id IN () " +
+		" ORDER BY pco.id desc;"
+
 }
 
 func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error) {

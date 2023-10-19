@@ -94,3 +94,20 @@ type TriggerEvent struct {
 	TriggeredBy                int32
 	TriggerdAt                 time.Time
 }
+
+type ArtifactsListFilterOptions struct {
+	//list filter data
+	Limit        int
+	Offset       int
+	SearchString int
+	Order        string
+
+	//self stage data
+	PipelineId int
+	StageType  WorkflowType
+
+	//parent satge data
+	ParentCdId      int
+	ParentId        int
+	ParentStageType WorkflowType
+}
