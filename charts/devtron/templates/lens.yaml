@@ -23,9 +23,7 @@ metadata:
     release: devtron
 {{- if $.Values.components.lens.configs }}
 data:
-{{- range $k, $v := $.Values.components.lens.configs }}
-  {{ $k }}: {{ $v | b64enc }}
-{{- end }}
+{{ toYaml $.Values.components.lens.configs | indent 2 }}
 {{- end }}
 ---
 apiVersion: v1

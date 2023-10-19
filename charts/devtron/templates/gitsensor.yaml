@@ -21,11 +21,9 @@ metadata:
   name: git-sensor-cm
   labels:
     app: git-sensor
-{{- if $.Values.components.lens.configs }}
+{{- if $.Values.components.gitsensor.configs }}
 data:
-{{- range $k, $v := $.Values.components.lens.configs }}
-  {{ $k }}: {{ $v | b64enc }}
-{{- end }}
+{{ toYaml $.Values.components.gitsensor.configs | indent 2 }}
 {{- end }}
   
 ---
