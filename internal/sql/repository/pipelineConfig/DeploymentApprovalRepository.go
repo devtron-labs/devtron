@@ -76,6 +76,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForPipeline(pipel
 	err := impl.dbConnection.
 		Model(&requests).
 		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
+		Join("LEFT JOIN pipeline_config_override pco on pco.ci_artifact_id = ca.id ").
 		Where("deployment_approval_request.pipeline_id = ?", pipelineId).
 		Where("deployment_approval_request.artifact_deployment_triggered = ?", false).
 		Where("deployment_approval_request.active = ?", true).
