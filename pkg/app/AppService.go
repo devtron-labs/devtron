@@ -36,7 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/k8s"
-	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -2459,19 +2458,20 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 	if err != nil {
 		return nil, err
 	}
-	//secretDataByte, err := json.Marshal(secretResponseR)
+	secretDataByte, err := json.Marshal(secretResponseR)
 	if err != nil {
-		return []byte("{}"), err
+		return secretDataByte, err
+
 	}
 	if secretDataJson != "" && len(entityToVariablesCS) > 0 {
-		data, err := bean4.GetDecodedData(secretDataJson)
+		data, err := bean.GetDecodedDataForSecret(string(secretDataByte))
 		if err != nil {
 			return nil, err
 		}
 		resolvedTemplateCS, variableMapCS, err = impl.GetResolvedTemplateAndVariableMap(scope, data, entitiesForCS, entityToVariablesCS)
 		cMCSJson.envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
 		cMCSJson.envOverride.VariableSnapshotForCS = variableMapCS
-		encodedData, err = bean4.GetEncodedData(resolvedTemplateCS)
+		encodedData, err = bean.GetEncodedDataForSecret(resolvedTemplateCS)
 		if err != nil {
 			return nil, err
 		}
@@ -3251,7 +3251,6 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 			return err
 		}
 	}
-	//todo
 	//VARIABLE_SNAPSHOT_SAVE
 	if envOverride.VariableSnapshot != nil && len(envOverride.VariableSnapshot) > 0 {
 		variableMapBytes, _ := json.Marshal(envOverride.VariableSnapshot)
@@ -3272,7 +3271,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		variableSnapshotHistory := &repository6.VariableSnapshotHistoryBean{
 			VariableSnapshot: variableMapBytes,
 			HistoryReference: repository6.HistoryReference{
-				HistoryReferenceId:   cmId, //todo what to here
+				HistoryReferenceId:   cmId,
 				HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
 			},
 		}
@@ -3287,7 +3286,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		variableSnapshotHistory := &repository6.VariableSnapshotHistoryBean{
 			VariableSnapshot: variableMapBytes,
 			HistoryReference: repository6.HistoryReference{
-				HistoryReferenceId:   csId, //todo what to here
+				HistoryReferenceId:   csId,
 				HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
 			},
 		}

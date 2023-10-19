@@ -18,7 +18,9 @@
 package bean
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/util"
 )
 
@@ -68,4 +70,82 @@ func (configSecretJson ConfigSecretJson) GetDereferencedSecrets() []ConfigSecret
 
 func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigSecretMap) {
 	configSecretJson.Secrets = util.GetReferencedArray(secrets)
+}
+
+func GetDecodedDataForSecret(data string) (string, error) {
+	secretsJson := ConfigSecretRootJson{}
+	err := json.Unmarshal([]byte(data), &secretsJson)
+	if err != nil {
+		return "", err
+	}
+
+	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
+		configData.SecretData = configData.GetDecodedData()
+	}
+
+	marshal, err := json.Marshal(secretsJson)
+	if err != nil {
+		return "", err
+	}
+	return string(marshal), nil
+}
+
+func (configSecretMap ConfigSecretMap) GetDecodedData() []byte {
+	dataMap := make(map[string]string)
+	err := json.Unmarshal(configSecretMap.SecretData, &dataMap)
+	if err != nil {
+		return nil
+	}
+	var decodedData []byte
+	for k, s := range dataMap {
+		decodedData, err = base64.StdEncoding.DecodeString(s)
+		if err != nil {
+			fmt.Println("Error decoding base64:", err)
+		}
+		dataMap[k] = string(decodedData)
+	}
+	marshal, err := json.Marshal(dataMap)
+	if err != nil {
+		return nil
+	}
+	return marshal
+}
+
+func GetEncodedDataForSecret(data string) (string, error) {
+	secretsJson := ConfigSecretRootJson{}
+	err := json.Unmarshal([]byte(data), &secretsJson)
+	if err != nil {
+		return "", err
+	}
+
+	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
+		configData.SecretData = configData.GetEncodedData()
+	}
+
+	marshal, err := json.Marshal(secretsJson)
+	if err != nil {
+		return "", err
+	}
+	return string(marshal), nil
+}
+
+func (configSecretMap ConfigSecretMap) GetEncodedData() []byte {
+	dataMap := make(map[string]string)
+	err := json.Unmarshal(configSecretMap.SecretData, &dataMap)
+	if err != nil {
+		return nil
+	}
+	var decodedData []byte
+	for k, s := range dataMap {
+		decodedData = []byte(base64.StdEncoding.EncodeToString([]byte(s)))
+		if err != nil {
+			fmt.Println("Error decoding base64:", err)
+		}
+		dataMap[k] = string(decodedData)
+	}
+	marshal, err := json.Marshal(dataMap)
+	if err != nil {
+		return nil
+	}
+	return marshal
 }
