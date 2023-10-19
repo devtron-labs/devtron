@@ -56,4 +56,4 @@ Please wait for ~1 minute before running any of the following commands.
 
 {{- end }}
 
-Experiencing issues? Reach out to our team on Discord https://discord.devtron.ai for immediate assistance!
+Facing issues? Reach out to our team on Discord https://discord.devtron.ai for immediate assistance!
