@@ -1,16 +1,15 @@
-{{- if .Values.installer.modules }}
-{{- with .Values.installer.modules }}
-{{- range . }}
-{{- if eq . "cicd" }}
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+{{- with .Values.components.lens }}
 apiVersion: v1
 kind: Secret
 metadata:
   name: lens-secret
   labels:
     release: devtron
-{{- if $.Values.components.lens.secrets }}
+{{- if .secrets }}
 data:
-{{- range $k, $v := $.Values.components.lens.secrets }}
+{{- range $k, $v := .secrets }}
   {{ $k }}: {{ $v | b64enc }}
 {{- end }}
 {{- end }}
@@ -21,9 +20,9 @@ metadata:
   name: lens-cm
   labels:
     release: devtron
-{{- if $.Values.components.lens.configs }}
+{{- if .configs }}
 data:
-{{ toYaml $.Values.components.lens.configs | indent 2 }}
+{{ toYaml .configs | indent 2 }}
 {{- end }}
 ---
 apiVersion: v1
@@ -74,11 +73,9 @@ spec:
       {{- end }}
       containers:
         - name: lens
-          image: {{ $.Values.components.lens.image }}
-          {{- if  $.Values.components.lens.imagePullPolicy }}
-          imagePullPolicy: {{ $.Values.components.lens.imagePullPolicy }}
-          {{- else }}
-          imagePullPolicy: IfNotPresent
+          image: {{ .image }}
+          {{- if  .imagePullPolicy }}
+          imagePullPolicy: {{ .imagePullPolicy }}
           {{- end }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
@@ -95,25 +92,24 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            {{- if $.Values.components.lens.dbconfig }}
+            {{- if .dbconfig }}
             - name: PG_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ $.Values.components.lens.dbconfig.secretName }}
-                  key: {{ $.Values.components.lens.dbconfig.keyName }}
+                  name: {{ .dbconfig.secretName }}
+                  key: {{ .dbconfig.keyName }}
             {{- end }}
           envFrom:
             - configMapRef:
                 name: lens-cm
             - secretRef:
                 name: lens-secret
-          {{- if $.Values.components.lens.resources }}        
+          {{- if .resources }}        
           resources:
-          {{- toYaml $.Values.components.lens.resources | nindent 12 }}
+          {{- toYaml .resources | nindent 12 }}
           {{- end }}
           volumeMounts: []
   revisionHistoryLimit: 3
-{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
