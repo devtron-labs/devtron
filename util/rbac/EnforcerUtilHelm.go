@@ -151,6 +151,6 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppIdAndTeamId(install
 		impl.logger.Errorw("error in fetching project by teamID", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	rbac := fmt.Sprintf("%s/%s/%s", project.Name, installedApp.Environment.EnvironmentIdentifier, strings.ToLower(installedApp.App.AppName))
+	rbac := fmt.Sprintf("%s/%s/%s", project.Name, installedApp.Environment.EnvironmentIdentifier, installedApp.App.AppName)
 	return rbac
 }
