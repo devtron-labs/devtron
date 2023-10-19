@@ -15,7 +15,7 @@ installer:
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
-  modules: [] # Available options are cicd
+  modules: ["cicd"] # Available options are cicd
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
 
 # Change the below values for full mode only
@@ -115,6 +115,8 @@ components:
   gitsensor:
     image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
     imagePullPolicy: "IfNotPresent"
+    persistence:
+      volumeSize: 2Gi
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_USER: postgres

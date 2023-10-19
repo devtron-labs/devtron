@@ -11,7 +11,7 @@ spec:
   {{- if or (eq $.Values.installer.source "gitee") (eq $.Values.installer.source "Gitee")}}
   url: https://gitee.com/{{ $.Values.installer.repo }}/raw/{{ $.Values.installer.release }}/manifests/installation-script
   {{- else }}
-  url: https://raw.githubusercontent.com/jatin-jangir/devtron/inception-remove-lens/manifests/installation-script
+  url: https://raw.githubusercontent.com/{{ $.Values.installer.repo }}/{{ $.Values.installer.release }}/manifests/installation-script
   {{- end }}
   reSync: true
 {{- end }}
