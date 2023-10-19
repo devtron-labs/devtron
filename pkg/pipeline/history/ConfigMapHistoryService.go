@@ -592,49 +592,6 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 	return componentLevelHistoryData, nil
 }
 
-//func (impl ConfigMapHistoryServiceImpl) getVariableSnapshotAndResolveTemplate(template string, historyId int, isSuperAdmin bool) (map[string]string, string, error) {
-//	reference := repository6.HistoryReference{
-//		HistoryReferenceId:   historyId,
-//		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
-//	}
-//	variableSnapshotMap := make(map[string]string)
-//	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
-//	if err != nil {
-//		return variableSnapshotMap, template, err
-//	}
-//
-//	if _, ok := references[reference]; ok {
-//		err = json.Unmarshal(references[reference].VariableSnapshot, &variableSnapshotMap)
-//		if err != nil {
-//			return variableSnapshotMap, template, err
-//		}
-//	}
-//
-//	if len(variableSnapshotMap) == 0 {
-//		return variableSnapshotMap, template, err
-//	}
-//
-//	varNames := make([]string, 0)
-//	for varName, _ := range variableSnapshotMap {
-//		varNames = append(varNames, varName)
-//	}
-//	varNameToIsSensitive, err := impl.scopedVariableService.CheckForSensitiveVariables(varNames)
-//	if err != nil {
-//		return variableSnapshotMap, template, err
-//	}
-//
-//	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, varNameToIsSensitive, isSuperAdmin)
-//	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
-//	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
-//	err = parserResponse.Error
-//	if err != nil {
-//		return variableSnapshotMap, template, err
-//	}
-//	resolvedTemplate := parserResponse.ResolvedTemplate
-//
-//	return variableSnapshotMap, resolvedTemplate, nil
-//}
-
 func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool, variableSnapshotMap map[string]string, resolvedTemplate string) (*ComponentLevelHistoryDetailDto, error) {
 	historyDto := &HistoryDetailDto{
 		Type:           config.Type,
