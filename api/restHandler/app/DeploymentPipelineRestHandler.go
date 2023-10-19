@@ -1279,12 +1279,16 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		return
 	}
 	//rbac block ends here
-
-	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, isApprovalNode)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+	var ciArtifactResponse *bean.CiArtifactResponse
+	if isApprovalNode && stage == "" {
+		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactsForPipeline(pipeline, bean2.WorkflowType(stage), searchString, 10, 0)
+	} else {
+		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, isApprovalNode)
+		if err != nil {
+			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if isApprovalNode {
