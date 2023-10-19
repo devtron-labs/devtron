@@ -7,6 +7,7 @@ metadata:
   name: git-sensor-secret
   labels:
     app: git-sensor
+    release: devtron
 {{- if .secrets }}
 data:
 {{- range $k, $v := .secrets }}
@@ -20,6 +21,7 @@ metadata:
   name: git-sensor-cm
   labels:
     app: git-sensor
+    release: devtron
 {{- if .configs }}
 data:
 {{ toYaml .configs | indent 2 }}

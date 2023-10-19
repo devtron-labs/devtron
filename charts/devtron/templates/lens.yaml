@@ -6,6 +6,7 @@ kind: Secret
 metadata:
   name: lens-secret
   labels:
+    app: lens
     release: devtron
 {{- if .secrets }}
 data:
@@ -19,6 +20,7 @@ kind: ConfigMap
 metadata:
   name: lens-cm
   labels:
+    app: lens
     release: devtron
 {{- if .configs }}
 data:
