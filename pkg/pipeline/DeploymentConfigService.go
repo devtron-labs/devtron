@@ -316,7 +316,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 	if err != nil {
 		return nil, nil, err
 	}
-	entityToVariablesCS, err := impl.appService.GetEntityToVariableMapping(entitiesForCM)
+	entityToVariablesCS, err := impl.appService.GetEntityToVariableMapping(entitiesForCS)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -353,7 +353,6 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 	}
 	if configAppLevel.SecretData != "" || configEnvLevel.SecretData != "" {
 		resolvedTemplateCS, variableMapCS, err = impl.appService.GetResolvedTemplateAndVariableMap(scope, string(mergedSecretJson), entitiesForCS, entityToVariablesCS)
-
 	}
 	var cmConfigsDto []*history.ComponentLevelHistoryDetailDto
 	for _, data := range mergedConfigMap {
