@@ -2358,10 +2358,6 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalArtifactsForPipeline(pipelineI
 		var artifact bean2.CiArtifactBean
 		artifact.Id = r.CiArtifact.Id
 		artifact.Image = r.CiArtifact.Image
-		if !r.DeployedOn.IsZero() {
-			artifact.Deployed = true
-			artifact.DeployedTime = formatDate(r.DeployedOn, bean2.LayoutRFC3339)
-		}
 		ciArtifacts = append(ciArtifacts, artifact)
 	}
 	return ciArtifacts, err
