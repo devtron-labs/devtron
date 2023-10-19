@@ -70,7 +70,6 @@ devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-leg
 log(devtronIngress_raw);
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
-rollout_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/rollout.yaml";
 
 ######Downloading the manifests
 argocdResource = download(argocdResource_raw);
@@ -81,7 +80,6 @@ devtron = download(devtron_raw);
 devtronIngress = download(devtronIngress_raw);
 serviceAccount = download(serviceAccount_raw);
 namespace = download(namespace_raw);
-rollout = download(rollout_raw);
 
 ######Downloading the manifests
 
@@ -92,7 +90,6 @@ devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
 devtronIngressOverride = kubectl get cm -n devtroncd devtron-ingress-override-cm;
 serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
 namespaceOverride = kubectl get cm -n devtroncd namespace-override-cm;
-rolloutOverride = kubectl get cm -n devtroncd rollout-override-cm;
 
 kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
 natsServerOverride = jsonSelect(natsServerOverride, "data.override");
@@ -100,7 +97,6 @@ devtronOverride = jsonSelect(devtronOverride, "data.override");
 devtronIngressOverride = jsonSelect(devtronIngressOverride, "data.override");
 serviceAccountOverride = jsonSelect(serviceAccountOverride, "data.override");
 namespaceOverride = jsonSelect(namespaceOverride, "data.override");
-rolloutOverride = jsonSelect(rolloutOverride, "data.override");
 
 namespaces = kubectl apply namespace;
 log("created namespaces");
@@ -110,9 +106,6 @@ log("created service account");
 pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
 log("executed argocd setup command");
 
-#rollout
-rollout = kubectl apply -n devtroncd rollout -u rolloutOverride;
-log("executed rollout setup command");
 
 migDelete = kubectl delete -n devtroncd job devtron-housekeeping;
 if !migDelete {
@@ -207,34 +200,6 @@ if !helmInstallation {
 
 devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 log("executed devtron setup");
-
-if !helmInstallation {
-  if devtronIngressAnnotations {
-      log("editing ingress");
-    kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
-  }
-
-  if setupDevtronIngress {
-    log("fetch ingress");
-    existingIngress = kubectl get -n devtroncd ing devtron-ingress;
-  }
-
-  if existingIngress {
-    annotations = jsonSelect(existingIngress, "metadata.annotations");
-  }
-
-  if annotations {
-    kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
-  }
-
-  if setupDevtronIngress {
-    log("setup ingress");
-    log(devtronIngress);
-    devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
-  }
-
-  log("executed devtron ingress setup");
-}
 
 kubewatch = kubectl apply -n devtroncd kubewatch -u kubewatchOverride;
 log("executed kubewatch setup");
