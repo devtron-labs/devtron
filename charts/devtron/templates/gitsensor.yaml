@@ -141,23 +141,6 @@ spec:
         resources:
           requests:
             storage: 2Gi
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: git-sensor-sm
-  labels:
-    chart: gitsensor-0.11.0
-    app: git-sensor
-    kind: Prometheus
-    release: devtron
-spec:
-  endpoints:
-    - port: app
-      path: /metrics
-  selector:
-    matchLabels:
-      app: git-sensor
 {{- end }}
 {{- end }}
 {{- end }}

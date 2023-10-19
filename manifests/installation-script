@@ -61,7 +61,6 @@ if !defaultCacheBucket {
 argocdResource_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd-resource.json";
 devtronHousekeeping_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-housekeeping.yaml";
 kubewatch_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubewatch.yaml";
-lens_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/lens.yaml";
 natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
@@ -76,7 +75,6 @@ namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
 argocdResource = download(argocdResource_raw);
 devtronHousekeeping = download(devtronHousekeeping_raw);
 kubewatch = download(kubewatch_raw);
-lens = download(lens_raw);
 natsServer = download(natsServer_raw);
 devtron = download(devtron_raw);
 devtronIngress = download(devtronIngress_raw);
@@ -87,7 +85,6 @@ namespace = download(namespace_raw);
 
 devtronHousekeepingOverride = kubectl get cm -n devtroncd devtron-housekeeping-override-cm;
 kubewatchOverride = kubectl get cm -n devtroncd kubewatch-override-cm;
-lensOverride = kubectl get cm -n devtroncd lens-override-cm;
 natsServerOverride = kubectl get cm -n devtroncd nats-server-override-cm;
 devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
 devtronIngressOverride = kubectl get cm -n devtroncd devtron-ingress-override-cm;
@@ -95,7 +92,6 @@ serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-ove
 namespaceOverride = kubectl get cm -n devtroncd namespace-override-cm;
 
 kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
-lensOverride = jsonSelect(lensOverride, "data.override");
 natsServerOverride = jsonSelect(natsServerOverride, "data.override");
 devtronOverride = jsonSelect(devtronOverride, "data.override");
 devtronIngressOverride = jsonSelect(devtronIngressOverride, "data.override");
@@ -109,12 +105,6 @@ log("created service account");
 
 pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
 log("executed argocd setup command");
-
-#git-sensor
-kubeYamlEdit(gitSensor, "data.PG_PASSWORD", postgresqlPassword, `/Secret//git-sensor-secret`);
-
-#lens
-kubeYamlEdit(lens, "data.PG_PASSWORD", postgresqlPassword, `/Secret//lens-secret`);
 
 migDelete = kubectl delete -n devtroncd job devtron-housekeeping;
 if !migDelete {
