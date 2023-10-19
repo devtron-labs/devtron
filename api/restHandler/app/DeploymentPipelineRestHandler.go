@@ -1243,6 +1243,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		searchString = search
 	}
 
+	// TODO - extract it from query params
+
 	//getAllArpproalArtifacts := r.URL.Query().Get("getAllArpproalArtifacts")
 	getAllArpproalArtifacts := true
 

@@ -470,6 +470,7 @@ func (impl *AppArtifactManagerImpl) FetchArtifactsForPipeline(pipeline *pipeline
 				artifact.UserApprovalMetadata = approvalMetadataForArtifact
 			}
 		}
+		ciArtifactsResponse.CdPipelineId = pipeline.Id
 		ciArtifactsResponse.CiArtifacts = ciArtifacts
 		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
 	}
