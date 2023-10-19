@@ -2,7 +2,9 @@ package pipeline
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -261,6 +263,67 @@ func (impl *DeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig(pipelin
 	return pipelineStrategyConfig, nil
 }
 
+func GetDecodedData(data map[string]*history.ConfigData) (map[string]*history.ConfigData, error) {
+	var marshal []byte
+	for name, configData := range data {
+		dataMap := make(map[string]string)
+
+		err := json.Unmarshal(configData.Data, &dataMap)
+		if err != nil {
+			return nil, err
+		}
+		for k, s := range dataMap {
+			decodedData, err := base64.StdEncoding.DecodeString(s)
+			if err != nil {
+				fmt.Println("Error decoding base64:", err)
+			}
+			dataMap[k] = string(decodedData)
+		}
+		marshal, err = json.Marshal(dataMap)
+		if err != nil {
+			return nil, err
+		}
+		configData.Data = marshal
+		data[name] = configData
+
+	}
+	return data, nil
+}
+func GetEncodedData(data string) (string, error) {
+	secretDataMap := make(map[string]*history.ConfigData)
+	err := json.Unmarshal([]byte(data), &secretDataMap)
+	if err != nil {
+		return "", err
+	}
+	var encodedData []byte
+	var ressolvedTemplate []byte
+	for _, configData := range secretDataMap {
+		dataMap := make(map[string]string)
+		err := json.Unmarshal(configData.Data, &dataMap)
+		if err != nil {
+			return "", err
+		}
+		for k, s := range dataMap {
+			encodedData = []byte(base64.StdEncoding.EncodeToString([]byte(s)))
+			if err != nil {
+				fmt.Println("Error decoding base64:", err)
+			}
+			dataMap[k] = string(encodedData)
+		}
+		marshal, err := json.Marshal(dataMap)
+		if err != nil {
+			return "", err
+		}
+		configData.Data = marshal
+
+	}
+
+	ressolvedTemplate, err = json.Marshal(secretDataMap)
+	if err != nil {
+		return "", err
+	}
+	return string(ressolvedTemplate), nil
+}
 func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineConfig.Pipeline, userHasAdminAccess bool) ([]*history.ComponentLevelHistoryDetailDto, []*history.ComponentLevelHistoryDetailDto, error) {
 
 	configAppLevel, err := impl.configMapRepository.GetByAppIdAppLevel(pipeline.AppId)
@@ -332,12 +395,16 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
 	}
+	data, err := GetDecodedData(mergedSecret)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	var resolvedTemplateCM string
 	var variableMapCM map[string]string
 	var resolvedTemplateCS string
 	var variableMapCS map[string]string
-
+	var encodedSecret string
 	mergedConfigMapJson, err := json.Marshal(mergedConfigMap)
 	if err != nil {
 		return nil, nil, err
@@ -347,12 +414,18 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		resolvedTemplateCM, variableMapCM, err = impl.appService.GetResolvedTemplateAndVariableMap(scope, string(mergedConfigMapJson), entitiesForCM, entityToVariablesCM)
 
 	}
-	mergedSecretJson, err := json.Marshal(mergedSecret)
+	mergedSecretJson, err := json.Marshal(data)
 	if err != nil {
 		return nil, nil, err
 	}
 	if configAppLevel.SecretData != "" || configEnvLevel.SecretData != "" {
+
 		resolvedTemplateCS, variableMapCS, err = impl.appService.GetResolvedTemplateAndVariableMap(scope, string(mergedSecretJson), entitiesForCS, entityToVariablesCS)
+		encodedSecret, err = GetEncodedData(resolvedTemplateCS)
+		if err != nil {
+			return nil, nil, err
+		}
+
 	}
 	var cmConfigsDto []*history.ComponentLevelHistoryDetailDto
 	for _, data := range mergedConfigMap {
@@ -366,7 +439,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 
 	var secretConfigsDto []*history.ComponentLevelHistoryDetailDto
 	for _, data := range mergedSecret {
-		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess, variableMapCS, resolvedTemplateCS)
+		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess, variableMapCS, encodedSecret)
 		if err != nil {
 			impl.logger.Errorw("error in converting secretConfig to componentLevelData", "err", err)
 			return nil, nil, err
@@ -431,6 +504,7 @@ func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, 
 				finalMap[data.Name] = data
 			}
 		}
+
 	}
 	return finalMap, nil
 }
