@@ -57,23 +57,23 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                        *zap.SugaredLogger
-	workflowService               WorkflowService
-	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	ciConfig                      *CiConfig
-	eventClient                   client.EventClient
-	eventFactory                  client.EventFactory
-	mergeUtil                     *util.MergeUtil
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
-	pipelineStageService          PipelineStageService
-	userService                   user.UserService
-	ciTemplateService             CiTemplateService
-	appCrudOperationService       app.AppCrudOperationService
-	envRepository                 repository1.EnvironmentRepository
-	appRepository                 appRepository.AppRepository
-	customTagService              pkg.CustomTagService
+	Logger                         *zap.SugaredLogger
+	workflowService                WorkflowService
+	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
+	ciConfig                       *CiConfig
+	eventClient                    client.EventClient
+	eventFactory                   client.EventFactory
+	mergeUtil                      *util.MergeUtil
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	prePostCiScriptHistoryService  history.PrePostCiScriptHistoryService
+	pipelineStageService           PipelineStageService
+	userService                    user.UserService
+	ciTemplateService              CiTemplateService
+	appCrudOperationService        app.AppCrudOperationService
+	envRepository                  repository1.EnvironmentRepository
+	appRepository                  appRepository.AppRepository
+	customTagService               pkg.CustomTagService
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 	config                         *CiConfig
 }
@@ -106,7 +106,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		envRepository:                  envRepository,
 		appRepository:                  appRepository,
 		variableSnapshotHistoryService: variableSnapshotHistoryService,
-		customTagService:              customTagService,
+		customTagService:               customTagService,
 	}
 	config, err := GetCiConfig()
 	if err != nil {
@@ -241,7 +241,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	}
 	impl.Logger.Debugw("ci triggered", " pipeline ", trigger.PipelineId)
 
-	//Save Scoped VariableSnapshot
+	//Save Scoped VariableSnapsVariableSnapshothot
 	if len(variableSnapshot) > 0 {
 		variableMapBytes, _ := json.Marshal(variableSnapshot)
 		err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository4.VariableSnapshotHistoryBean{{

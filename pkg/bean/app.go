@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
 )
 
@@ -559,6 +560,8 @@ type CDPipelineConfigObject struct {
 	ManifestStorageType           string                                 `json:"manifestStorageType"`
 	PreDeployStage                *bean.PipelineStageDto                 `json:"preDeployStage,omitempty"`
 	PostDeployStage               *bean.PipelineStageDto                 `json:"postDeployStage,omitempty"`
+	CustomTagObject               *CustomTagData                         `json:"customTag,omitempty"`
+	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage,omitempty"`
 }
 
 type PreStageConfigMapSecretNames struct {

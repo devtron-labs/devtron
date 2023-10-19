@@ -14,6 +14,8 @@ import (
 const (
 	EntityNull = iota
 	EntityTypeCiPipelineId
+	EntityTypePreCD
+	EntityTypePostCD
 )
 
 const (

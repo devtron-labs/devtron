@@ -37,3 +37,11 @@ type PluginVariableDto struct {
 	VariableStepIndex     int                                     `json:"variableStepIndex"`
 	ReferenceVariableName string                                  `json:"referenceVariableName,omitempty"`
 }
+
+type RegistryCredentials struct {
+	Username           string `json:"username"`
+	Password           string `json:"password"`
+	AWSAccessKeyId     string `json:"awsAccessKeyId,omitempty"`
+	AWSSecretAccessKey string `json:"awsSecretAccessKey,omitempty"`
+	AWSRegion          string `json:"awsRegion,omitempty"`
+}

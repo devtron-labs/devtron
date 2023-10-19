@@ -25,10 +25,12 @@ import (
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/pkg"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -83,42 +85,43 @@ type WorkflowDagExecutor interface {
 }
 
 type WorkflowDagExecutorImpl struct {
-	logger                        *zap.SugaredLogger
-	pipelineRepository            pipelineConfig.PipelineRepository
-	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	pubsubClient                  *pubsub.PubSubClientServiceImpl
-	appService                    app.AppService
-	cdWorkflowService             WorkflowService
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	materialRepository            pipelineConfig.MaterialRepository
-	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
-	ciArtifactRepository          repository.CiArtifactRepository
-	user                          user.UserService
-	enforcer                      casbin.Enforcer
-	enforcerUtil                  rbac.EnforcerUtil
-	groupRepository               repository.DeploymentGroupRepository
-	tokenCache                    *util3.TokenCache
-	acdAuthConfig                 *util3.ACDAuthConfig
-	envRepository                 repository2.EnvironmentRepository
-	eventFactory                  client.EventFactory
-	eventClient                   client.EventClient
-	cvePolicyRepository           security.CvePolicyRepository
-	scanResultRepository          security.ImageScanResultRepository
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
-	argoUserService               argo.ArgoUserService
-	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
-	pipelineStatusTimelineService status.PipelineStatusTimelineService
-	CiTemplateRepository          pipelineConfig.CiTemplateRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	appLabelRepository            pipelineConfig.AppLabelRepository
-	gitSensorGrpcClient           gitSensorClient.Client
-	k8sCommonService              k8s.K8sCommonService
-	pipelineStageRepository       repository4.PipelineStageRepository
-	pipelineStageService          PipelineStageService
-	config                        *CdConfig
-
+	logger                         *zap.SugaredLogger
+	pipelineRepository             pipelineConfig.PipelineRepository
+	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
+	pubsubClient                   *pubsub.PubSubClientServiceImpl
+	appService                     app.AppService
+	cdWorkflowService              WorkflowService
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	materialRepository             pipelineConfig.MaterialRepository
+	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
+	ciArtifactRepository           repository.CiArtifactRepository
+	user                           user.UserService
+	enforcer                       casbin.Enforcer
+	enforcerUtil                   rbac.EnforcerUtil
+	groupRepository                repository.DeploymentGroupRepository
+	tokenCache                     *util3.TokenCache
+	acdAuthConfig                  *util3.ACDAuthConfig
+	envRepository                  repository2.EnvironmentRepository
+	eventFactory                   client.EventFactory
+	eventClient                    client.EventClient
+	cvePolicyRepository            security.CvePolicyRepository
+	scanResultRepository           security.ImageScanResultRepository
+	appWorkflowRepository          appWorkflow.AppWorkflowRepository
+	prePostCdScriptHistoryService  history2.PrePostCdScriptHistoryService
+	argoUserService                argo.ArgoUserService
+	cdPipelineStatusTimelineRepo   pipelineConfig.PipelineStatusTimelineRepository
+	pipelineStatusTimelineService  status.PipelineStatusTimelineService
+	CiTemplateRepository           pipelineConfig.CiTemplateRepository
+	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
+	appLabelRepository             pipelineConfig.AppLabelRepository
+	gitSensorGrpcClient            gitSensorClient.Client
+	k8sCommonService               k8s.K8sCommonService
+	pipelineStageRepository        repository4.PipelineStageRepository
+	pipelineStageService           PipelineStageService
+	config                         *CdConfig
+	globalPluginService            plugin.GlobalPluginService
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
+	pluginInputVariableParser      plugin.InputVariableParser
 }
 
 const (
@@ -212,6 +215,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	globalPluginService plugin.GlobalPluginService,
+	pluginInputVariableParser plugin.InputVariableParser,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:             pipelineRepository,
@@ -246,6 +251,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		k8sCommonService:               k8sCommonService,
 		pipelineStageService:           pipelineStageService,
 		variableSnapshotHistoryService: variableSnapshotHistoryService,
+		globalPluginService:            globalPluginService,
+		pluginInputVariableParser:      pluginInputVariableParser,
 	}
 	config, err := GetCdConfig()
 	if err != nil {
@@ -579,13 +586,26 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	cdStageWorkflowRequest.StageType = PRE
+	// handling plugin specific logic
+	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(plugin.SKOPEO)
+	for _, step := range cdStageWorkflowRequest.PreCiSteps {
+		if step.RefPluginId == skopeoRefPluginId {
+			// for Skopeo plugin parse destination images and save its data in image path reservation table
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, pkg.EntityTypePreCD, strconv.Itoa(pipeline.Id), cdStageWorkflowRequest.CiArtifactDTO.Image)
+			if err != nil {
+				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
+				return err
+			}
+			cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
+			cdStageWorkflowRequest.RegistryCredentialMap = registryCredentialMap
+		}
+	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
 	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
-
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
 	if err != nil {
 		return err
@@ -699,6 +719,20 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
+	// handling plugin specific logic
+	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(plugin.SKOPEO)
+	for _, step := range cdStageWorkflowRequest.PostCiSteps {
+		if step.RefPluginId == skopeoRefPluginId {
+			// for Skopeo plugin parse destination images and save its data in image path reservation table
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, pkg.EntityTypePostCD, strconv.Itoa(pipeline.Id), cdStageWorkflowRequest.CiArtifactDTO.Image)
+			if err != nil {
+				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
+				return err
+			}
+			cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
+			cdStageWorkflowRequest.RegistryCredentialMap = registryCredentialMap
+		}
+	}
 	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)

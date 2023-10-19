@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -139,8 +140,8 @@ type CdPipelineConfigServiceImpl struct {
 	variableTemplateParser           parsers.VariableTemplateParser
 	deploymentConfig                 *DeploymentServiceTypeConfig
 	application                      application.ServiceClient
-
-	devtronAppCMCSService DevtronAppCMCSService
+	customTagService                 pkg.CustomTagService
+	devtronAppCMCSService            DevtronAppCMCSService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -173,8 +174,8 @@ func NewCdPipelineConfigServiceImpl(
 	variableTemplateParser parsers.VariableTemplateParser,
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
-
-	devtronAppCMCSService DevtronAppCMCSService) *CdPipelineConfigServiceImpl {
+	devtronAppCMCSService DevtronAppCMCSService,
+	customTagService pkg.CustomTagService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -206,6 +207,7 @@ func NewCdPipelineConfigServiceImpl(
 		deploymentConfig:                 deploymentConfig,
 		application:                      application,
 		devtronAppCMCSService:            devtronAppCMCSService,
+		customTagService:                 customTagService,
 	}
 }
 
@@ -383,10 +385,112 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				return nil, err
 			}
 		}
-
+		// save custom tag data
+		err = impl.CDPipelineCustomTagDBOperations(pipeline)
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	return pipelineCreateRequest, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) CDPipelineCustomTagDBOperations(pipeline *bean.CDPipelineConfigObject) error {
+	if pipeline.CustomTagObject == nil && pipeline.CustomTagStage == nil {
+		// delete custom tag if removed from request
+		err := impl.DeleteCustomTag(pipeline)
+		if err != nil {
+			return err
+		}
+		return nil
+	} else {
+		err := impl.SaveOrUpdateCustomTagForCDPipeline(pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in creating custom tag for pipeline stage", "err", err)
+			return err
+		}
+	}
+	if *pipeline.CustomTagStage == repository5.PIPELINE_STAGE_TYPE_POST_CD {
+		// delete entry for post stage if any
+		preCDStageName := repository5.PIPELINE_STAGE_TYPE_PRE_CD
+		err := impl.DeleteCustomTagByPipelineStageType(&preCDStageName, pipeline.Id)
+		if err != nil {
+			return err
+		}
+	} else if *pipeline.CustomTagStage == repository5.PIPELINE_STAGE_TYPE_PRE_CD {
+		postCdStageName := repository5.PIPELINE_STAGE_TYPE_POST_CD
+		err := impl.DeleteCustomTagByPipelineStageType(&postCdStageName, pipeline.Id)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DeleteCustomTag(pipeline *bean.CDPipelineConfigObject) error {
+	preStage := repository5.PIPELINE_STAGE_TYPE_PRE_CD
+	postStage := repository5.PIPELINE_STAGE_TYPE_POST_CD
+	err := impl.DeleteCustomTagByPipelineStageType(&preStage, pipeline.Id)
+	if err != nil {
+		return err
+	}
+	err = impl.DeleteCustomTagByPipelineStageType(&postStage, pipeline.Id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DeleteCustomTagByPipelineStageType(pipelineStageType *repository5.PipelineStageType, pipelineId int) error {
+	err := impl.customTagService.DeleteCustomTagIfExists(
+		bean2.CustomTag{EntityKey: getEntityTypeByPipelineStageType(pipelineStageType),
+			EntityValue: fmt.Sprintf("%d", pipelineId),
+		})
+	if err != nil {
+		impl.logger.Errorw("error in deleting custom tag for pre stage", "err", err, "pipeline-id", pipelineId)
+		return err
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) SaveOrUpdateCustomTagForCDPipeline(pipeline *bean.CDPipelineConfigObject) error {
+	customTag, err := impl.ParseCustomTagPatchRequest(pipeline.Id, pipeline.CustomTagObject, pipeline.CustomTagStage)
+	if err != nil {
+		impl.logger.Errorw("err", err)
+		return err
+	}
+	err = impl.customTagService.CreateOrUpdateCustomTag(customTag)
+	if err != nil {
+		impl.logger.Errorw("error in creating custom tag", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) ParseCustomTagPatchRequest(pipelineId int, customTagData *bean.CustomTagData, pipelineStageType *repository5.PipelineStageType) (*bean2.CustomTag, error) {
+	entityType := getEntityTypeByPipelineStageType(pipelineStageType)
+	if entityType == 0 {
+		return nil, fmt.Errorf("invalid stage for cd pipeline custom tag; pipelineStageType: %s ", string(*pipelineStageType))
+	}
+	customTag := &bean2.CustomTag{
+		EntityKey:            entityType,
+		EntityValue:          fmt.Sprintf("%d", pipelineId),
+		TagPattern:           customTagData.TagPattern,
+		AutoIncreasingNumber: customTagData.CounterX,
+		Metadata:             "",
+	}
+	return customTag, nil
+}
+
+func getEntityTypeByPipelineStageType(pipelineStageType *repository5.PipelineStageType) (customTagEntityType int) {
+	switch *pipelineStageType {
+	case repository5.PIPELINE_STAGE_TYPE_PRE_CD:
+		customTagEntityType = pkg.EntityTypePreCD
+	case repository5.PIPELINE_STAGE_TYPE_POST_CD:
+		customTagEntityType = pkg.EntityTypePostCD
+	default:
+		customTagEntityType = pkg.EntityNull
+	}
+	return customTagEntityType
 }
 
 func (impl *CdPipelineConfigServiceImpl) PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error) {
@@ -1548,7 +1652,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	err = impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
+	dbPipelineObj, err := impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline")
 		return err
@@ -1629,6 +1733,13 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 				return err
 			}
 		}
+	}
+	// update custom tag data
+	pipeline.Id = dbPipelineObj.Id // pipeline object is request received from FE
+	err = impl.SaveOrUpdateCustomTagForCDPipeline(pipeline)
+	if err != nil {
+		impl.logger.Errorw("error in updating custom tag data for pipeline", "err", err)
+		return err
 	}
 	err = tx.Commit()
 	if err != nil {

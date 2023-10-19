@@ -19,6 +19,7 @@ type GlobalPluginService interface {
 	GetAllGlobalVariables() ([]*GlobalVariable, error)
 	ListAllPlugins(stageType int) ([]*PluginListComponentDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
+	GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error)
 }
 
 func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository) *GlobalPluginServiceImpl {
@@ -293,4 +294,13 @@ func getVariableDto(pluginVariable *repository.PluginStepVariable) *PluginVariab
 		VariableStepIndex:     pluginVariable.VariableStepIndex,
 		ReferenceVariableName: pluginVariable.ReferenceVariableName,
 	}
+}
+
+func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error) {
+	pluginMetadata, err := impl.globalPluginRepository.GetPluginByName(pluginName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching plugin metadata by name", "err", err)
+		return 0, err
+	}
+	return pluginMetadata[0].Id, nil
 }
