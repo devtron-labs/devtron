@@ -19,15 +19,14 @@ package rbac
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
-
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -248,16 +247,16 @@ func (impl EnforcerUtilImpl) GetTeamNoEnvRBACNameByAppId(appId int) string {
 	}
 	var appName = application.AppName
 	var teamName = application.Team.Name
-	return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), strings.ToLower(casbin.ResourceObjectIgnorePlaceholder), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s/%s", teamName, casbin.ResourceObjectIgnorePlaceholder, appName)
 }
 
 func (impl EnforcerUtilImpl) GetTeamNoEnvRBACNameByAppName(appName string) string {
 	app, err := impl.appRepo.FindAppAndProjectByAppName(appName)
 	if err != nil {
-		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
+		return fmt.Sprintf("%s/%s", "", appName)
 	}
 	var teamName = app.Team.Name
-	return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), strings.ToLower(casbin.ResourceObjectIgnorePlaceholder), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s/%s", teamName, casbin.ResourceObjectIgnorePlaceholder, appName)
 }
 
 func (impl EnforcerUtilImpl) GetTeamRBACByCiPipelineId(pipelineId int) string {
