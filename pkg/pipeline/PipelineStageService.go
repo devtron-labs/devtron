@@ -964,10 +964,12 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 	if err == pg.ErrNoRows || createNewPipStage {
 		//no stage found, creating new stage
 		stageReq.Id = 0
-		err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
-			return err
+		if len(stageReq.Steps) > 0 {
+			err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
+				return err
+			}
 		}
 	} else {
 		//stageId found, to handle as an update request

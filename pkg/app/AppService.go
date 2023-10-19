@@ -184,6 +184,7 @@ type AppServiceImpl struct {
 	scopedVariableService                  variables.ScopedVariableService
 	variableEntityMappingService           variables.VariableEntityMappingService
 	variableTemplateParser                 parsers.VariableTemplateParser
+	argoClientWrapperService               argocdServer.ArgoClientWrapperService
 	pubsubClient                           *pubsub.PubSubClientServiceImpl
 }
 
@@ -269,6 +270,7 @@ func NewAppService(
 	scopedVariableService variables.ScopedVariableService,
 	variableEntityMappingService variables.VariableEntityMappingService,
 	variableTemplateParser parsers.VariableTemplateParser,
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pubsubClient *pubsub.PubSubClientServiceImpl) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
@@ -334,6 +336,7 @@ func NewAppService(
 		scopedVariableService:                  scopedVariableService,
 		variableEntityMappingService:           variableEntityMappingService,
 		variableTemplateParser:                 variableTemplateParser,
+		argoClientWrapperService:               argoClientWrapperService,
 		pubsubClient:                           pubsubClient,
 	}
 	return appServiceImpl
@@ -2064,7 +2067,7 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 	var ids []int
 	ids = append(ids, executionHistory.Id)
 
-	ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(appId, security.ScanObjectType_APP) //todo insure this touple unique in db
+	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
 	if err != nil && err != pg.ErrNoRows {
 		return err
 	} else if err == pg.ErrNoRows && isScanEnabled {
@@ -2762,6 +2765,11 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 			impl.logger.Debugw("pipeline update req ", "res", patchReq)
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
+		}
+		// Doing normal refresh to avoid the sync delay in argo-cd.
+		err2 := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, argoAppName)
+		if err2 != nil {
+			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipelineName)
 		}
 		return true, nil
 	} else if appStatus.Code() == codes.NotFound {
