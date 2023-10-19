@@ -76,15 +76,16 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForPipeline(pipel
 	var requests []*DeploymentApprovalRequest
 	err := impl.dbConnection.
 		Model(&requests).
-		ColumnExpr("dar.*, ca.*, pco.created_on as deployed_on").
-		Join("JOIN ci_artifact ca ON ca.id = dar.ci_artifact_id").
+		ColumnExpr("deployment_approval_request.*, ca.*, pco.created_on as deployed_on").
+		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
 		Join("LEFT JOIN pipeline_config_override pco ON pco.ci_artifact_id = ca.id").
-		Where("dar.active = true").
-		Where("dar.artifact_deployment_triggered = false").
-		Where("dar.pipeline_id = ?", pipelineId).
+		Where("deployment_approval_request.active = true").
+		Where("deployment_approval_request.artifact_deployment_triggered = false").
+		Where("deployment_approval_request.pipeline_id = ?", pipelineId).
 		Limit(limit).
 		Offset(offset).
 		Select()
+
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
 		return nil, err
