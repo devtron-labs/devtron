@@ -1,11 +1,11 @@
-LTAG = "v0.6.22";
-REPO_RAW_URL = "https://raw.githubusercontent.com/devtron-labs/devtron/";
+LTAG="v0.6.23";
+REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
-operatorSecret = kubectl get secret - n devtroncd devtron - operator - secret;
-operatorConfigMap = kubectl get cm - n devtroncd devtron - operator - cm;
+operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
+operatorConfigMap = kubectl get cm -n devtroncd devtron-operator-cm;
 postgresqlPassword = jsonSelect(operatorSecret, "data.POSTGRESQL_PASSWORD");
 webHookToken = jsonSelect(operatorSecret, "data.WEBHOOK_TOKEN");
-postgresSecret = kubectl get secret - n devtroncd postgresql - postgresql;
+postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
 enableLegacyApi = jsonSelect(operatorConfigMap, "data.ENABLE_LEGACY_API");
 helmInstallation = jsonSelect(operatorConfigMap, "data.INSTALLATION_THROUGH_HELM");
 
@@ -35,7 +35,7 @@ base64DecoderSuffix = ` | base64 -d | tr -d ':\n'`;
 existingPostgresSecret = jsonSelect(postgresSecret, "data.postgresql-password");
 
 if existingPostgresSecret {
-  postgresqlPassword = existingPostgresSecret;
+    postgresqlPassword = existingPostgresSecret;
 }
 
 log("postgres pwd");
@@ -43,18 +43,18 @@ log(existingPostgresSecret);
 log(existingPostgresSecretPlain);
 
 if !postgresqlPassword {
-  postgresqlPassword = shellScript passwordGen;
+	postgresqlPassword = shellScript passwordGen;
 }
 if !baseURL {
-  log("baseURL is mandatory");
+	log("baseURL is mandatory");
 }
 
 if !defaultBuildLogsBucket {
-  defaultBuildLogsBucket = "devtron-ci-log";
+  defaultBuildLogsBucket = "devtron-ci-log" ;
 }
 
 if !defaultCacheBucket {
-  defaultCacheBucket = "devtron-ci-cache";
+  defaultCacheBucket = "devtron-ci-cache" ;
 }
 
 ######Generating raw urls
@@ -64,12 +64,13 @@ kubewatch_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubewatch.yaml";
 natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
-if enableLegacyApi == "true" {
-  devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-legacy.yaml";
+if enableLegacyApi=="true" {
+devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-legacy.yaml";
 }
 log(devtronIngress_raw);
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
+rollout_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/rollout.yaml";
 
 ######Downloading the manifests
 argocdResource = download(argocdResource_raw);
@@ -80,16 +81,18 @@ devtron = download(devtron_raw);
 devtronIngress = download(devtronIngress_raw);
 serviceAccount = download(serviceAccount_raw);
 namespace = download(namespace_raw);
+rollout = download(rollout_raw);
 
 ######Downloading the manifests
 
-devtronHousekeepingOverride = kubectl get cm - n devtroncd devtron - housekeeping - override - cm;
-kubewatchOverride = kubectl get cm - n devtroncd kubewatch - override - cm;
-natsServerOverride = kubectl get cm - n devtroncd nats - server - override - cm;
-devtronOverride = kubectl get cm - n devtroncd devtron - override - cm;
-devtronIngressOverride = kubectl get cm - n devtroncd devtron - ingress - override - cm;
-serviceAccountOverride = kubectl get cm - n devtroncd devtron - service - account - override - cm;
-namespaceOverride = kubectl get cm - n devtroncd namespace - override - cm;
+devtronHousekeepingOverride = kubectl get cm -n devtroncd devtron-housekeeping-override-cm;
+kubewatchOverride = kubectl get cm -n devtroncd kubewatch-override-cm;
+natsServerOverride = kubectl get cm -n devtroncd nats-server-override-cm;
+devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
+devtronIngressOverride = kubectl get cm -n devtroncd devtron-ingress-override-cm;
+serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
+namespaceOverride = kubectl get cm -n devtroncd namespace-override-cm;
+rolloutOverride = kubectl get cm -n devtroncd rollout-override-cm;
 
 kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
 natsServerOverride = jsonSelect(natsServerOverride, "data.override");
@@ -97,50 +100,55 @@ devtronOverride = jsonSelect(devtronOverride, "data.override");
 devtronIngressOverride = jsonSelect(devtronIngressOverride, "data.override");
 serviceAccountOverride = jsonSelect(serviceAccountOverride, "data.override");
 namespaceOverride = jsonSelect(namespaceOverride, "data.override");
+rolloutOverride = jsonSelect(rolloutOverride, "data.override");
 
 namespaces = kubectl apply namespace;
 log("created namespaces");
 sa = kubectl apply serviceAccount;
 log("created service account");
 
-pa = kubectl patch - n devtroncd cm / argocd - cm--type "application/json-patch+json" - p argocdResource;
+pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
 log("executed argocd setup command");
 
-migDelete = kubectl delete -n devtroncd job devtron - housekeeping;
+#rollout
+rollout = kubectl apply -n devtroncd rollout -u rolloutOverride;
+log("executed rollout setup command");
+
+migDelete = kubectl delete -n devtroncd job devtron-housekeeping;
 if !migDelete {
-  log("migration job deletion failed");
+	log("migration job deletion failed");
 }
 
-hasNatsServerPod = kubectl get pod - n devtroncd devtron - nats - 0;
-hasNatsServerPVC = kubectl get - n devtroncd pvc data - devtron - nats - 0;
+hasNatsServerPod = kubectl get pod -n devtroncd devtron-nats-0;
+hasNatsServerPVC = kubectl get -n devtroncd pvc data-devtron-nats-0;
 if hasNatsServerPod && !hasNatsServerPVC {
   log("Nats Server PVC not found");
-  natsStsDelete = kubectl delete -n devtroncd sts devtron - nats;
+  natsStsDelete = kubectl delete -n devtroncd sts devtron-nats;
   ignore = shellScript sleep50;
-  natsServerWithPVC = kubectl apply - n devtroncd natsServer - u natsServerOverride;
+  natsServerWithPVC = kubectl apply -n devtroncd natsServer -u natsServerOverride;
   log("Nats PVC created and statefulset re-created");
 }
 else {
-  ignore = shellScript sleep50;
-  natsServer = kubectl apply - n devtroncd natsServer - u natsServerOverride;
+ignore = shellScript sleep50;
+natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
 }
 log(hasNatsServerPod);
 log("executed nats server setup");
-hasNatsStreaming = kubectl get statefulset - n devtroncd devtron - stan;
+hasNatsStreaming = kubectl get statefulset -n devtroncd devtron-stan;
 if hasNatsStreaming {
-  natsStreamingDelete = kubectl delete -n devtroncd sts devtron - stan;
-  natsStreamingConfigDelete = kubectl delete -n devtroncd cm devtron - stan - config;
-  natsStreamingServiceDelete = kubectl delete -n devtroncd svc devtron - stan;
-  natsStreamingPVC = kubectl get pvc - n devtroncd devtron - stan - pvc - devtron - stan - 0;
+  natsStreamingDelete = kubectl delete -n devtroncd sts devtron-stan;
+  natsStreamingConfigDelete = kubectl delete -n devtroncd cm devtron-stan-config;
+  natsStreamingServiceDelete = kubectl delete -n devtroncd svc devtron-stan;
+  natsStreamingPVC = kubectl get pvc -n devtroncd devtron-stan-pvc-devtron-stan-0;
   natsStreamingPV = jsonSelect(natsStreamingPVC, "spec.volumeName");
-  natsStreamingPVCDelete = kubectl delete -n devtroncd pvc devtron - stan - pvc - devtron - stan - 0;
+  natsStreamingPVCDelete = kubectl delete -n devtroncd pvc devtron-stan-pvc-devtron-stan-0;
   natsStreamingPVDelete = kubectl delete -n devtroncd pv natsStreamingPV;
   log("devtron-stan was found and all it's resources deleted deleted");
 }
 log(hasNatsStreaming);
 
 # devtron
-hasDevtron = kubectl get deployment "devtron" - n devtroncd;
+hasDevtron = kubectl get deployment "devtron" -n devtroncd;
 orchToken = shellScript passwordGen;
 webHookToken = shellScript passwordGen;
 dexSecret = shellScript passwordGen;
@@ -151,32 +159,32 @@ externalCIAPISecret = shellScript passwordGen;
 kubeYamlEdit(devtron, "data.PG_PASSWORD", postgresqlPassword, `/Secret//devtron-secret`);
 
 if hasDevtron {
-  devtronSecret = kubectl get secret - n devtroncd devtron - secret;
-  texternalCIAPISecret = jsonSelect(devtronSecret, "data.EXTERNAL_CI_API_SECRET");
-  twebHookToken = jsonSelect(devtronSecret, "data.WEBHOOK_TOKEN");
-  torchToken = jsonSelect(devtronSecret, "data.ORCH_TOKEN");
-  tdexSecret = jsonSelect(devtronSecret, "data.DEX_SECRET");
-  tdexJwtKey = jsonSelect(devtronSecret, "data.DEX_JWTKEY");
-  tdexCStoreKey = jsonSelect(devtronSecret, "data.DEX_CSTOREKEY");
+    devtronSecret = kubectl get secret -n devtroncd devtron-secret;
+    texternalCIAPISecret = jsonSelect(devtronSecret, "data.EXTERNAL_CI_API_SECRET");
+    twebHookToken = jsonSelect(devtronSecret, "data.WEBHOOK_TOKEN");
+    torchToken = jsonSelect(devtronSecret, "data.ORCH_TOKEN");
+    tdexSecret = jsonSelect(devtronSecret, "data.DEX_SECRET");
+    tdexJwtKey = jsonSelect(devtronSecret, "data.DEX_JWTKEY");
+    tdexCStoreKey = jsonSelect(devtronSecret, "data.DEX_CSTOREKEY");
 }
 
 if texternalCIAPISecret {
-  externalCIAPISecret = texternalCIAPISecret;
+    externalCIAPISecret = texternalCIAPISecret;
 }
 if twebHookToken {
-  webHookToken = twebHookToken;
+    webHookToken = twebHookToken;
 }
 if torchToken {
-  orchToken = torchToken;
+    orchToken = torchToken;
 }
 if tdexSecret {
-  dexSecret = tdexSecret;
+    dexSecret = tdexSecret;
 }
 if tdexJwtKey {
-  dexJwtKey = tdexJwtKey;
+    dexJwtKey = tdexJwtKey;
 }
 if tdexCStoreKey {
-  dexCStoreKey = tdexCStoreKey;
+    dexCStoreKey = tdexCStoreKey;
 }
 
 
@@ -188,7 +196,7 @@ kubeYamlEdit(devtron, "data.DEX_JWTKEY", dexJwtKey, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.DEX_CSTOREKEY", dexCStoreKey, `/Secret//devtron-secret`);
 
 if helmInstallation {
-  kubeYamlDelete(devtron, filter = `/Service//devtron-service`);
+  kubeYamlDelete(devtron, filter=`/Service//devtron-service`);
 }
 
 if !helmInstallation {
@@ -197,12 +205,40 @@ if !helmInstallation {
   }
 }
 
-devtron = kubectl apply - n devtroncd devtron - u devtronOverride;
+devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 log("executed devtron setup");
 
-kubewatch = kubectl apply - n devtroncd kubewatch - u kubewatchOverride;
+if !helmInstallation {
+  if devtronIngressAnnotations {
+      log("editing ingress");
+    kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
+  }
+
+  if setupDevtronIngress {
+    log("fetch ingress");
+    existingIngress = kubectl get -n devtroncd ing devtron-ingress;
+  }
+
+  if existingIngress {
+    annotations = jsonSelect(existingIngress, "metadata.annotations");
+  }
+
+  if annotations {
+    kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
+  }
+
+  if setupDevtronIngress {
+    log("setup ingress");
+    log(devtronIngress);
+    devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
+  }
+
+  log("executed devtron ingress setup");
+}
+
+kubewatch = kubectl apply -n devtroncd kubewatch -u kubewatchOverride;
 log("executed kubewatch setup");
 
 ## Applying Housekeeping Job
-appHousekeeping = kubectl apply - n devtroncd devtronHousekeeping - u devtronHousekeepingOverride;
+appHousekeeping = kubectl apply -n devtroncd devtronHousekeeping -u devtronHousekeepingOverride;
 log("executed devtron-housekeeping setup");
