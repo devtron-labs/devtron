@@ -440,7 +440,8 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 }
 
 func (impl *AppArtifactManagerImpl) FetchArtifactsForPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, limit, offset int) (*bean2.CiArtifactResponse, error) {
-	var ciArtifactsResponse *bean2.CiArtifactResponse
+	ciArtifactsResponse := &bean2.CiArtifactResponse{}
+
 	if pipeline.ApprovalNodeConfigured() && stage == bean.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
 		ciArtifacts, err := impl.workflowDagExecutor.FetchApprovalArtifactsForPipeline(pipeline.Id, limit, offset, searchString)
 		if err != nil {
@@ -469,6 +470,7 @@ func (impl *AppArtifactManagerImpl) FetchArtifactsForPipeline(pipeline *pipeline
 				artifact.UserApprovalMetadata = approvalMetadataForArtifact
 			}
 		}
+		ciArtifactsResponse.CiArtifacts = ciArtifacts
 		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
 	}
 	return ciArtifactsResponse, nil
