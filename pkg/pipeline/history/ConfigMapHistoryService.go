@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -575,9 +576,17 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
 		}
-		variableSnapshotMap, resolvedTemplate, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(string(secretListJson), reference, userHasAdminAccess)
+		data, err := bean.GetDecodedData(string(secretListJson))
+		if err != nil {
+			return nil, err
+		}
+		variableSnapshotMap, resolvedTemplate, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
+		}
+		resolvedTemplate, err = bean.GetEncodedData(resolvedTemplate)
+		if err != nil {
+			return nil, err
 		}
 	}
 
