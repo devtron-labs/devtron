@@ -789,15 +789,17 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 
 		// soft delete chart-group deployment
 		chartGroupDeployment, err := impl.chartGroupDeploymentRepository.FindByInstalledAppId(model.Id)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error while fetching chart group deployment", "error", err)
 			return nil, err
 		}
-		chartGroupDeployment.Deleted = true
-		_, err = impl.chartGroupDeploymentRepository.Update(chartGroupDeployment, tx)
-		if err != nil {
-			impl.logger.Errorw("error while updating chart group deployment", "error", err)
-			return nil, err
+		if chartGroupDeployment.Id != 0 {
+			chartGroupDeployment.Deleted = true
+			_, err = impl.chartGroupDeploymentRepository.Update(chartGroupDeployment, tx)
+			if err != nil {
+				impl.logger.Errorw("error while updating chart group deployment", "error", err)
+				return nil, err
+			}
 		}
 
 		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
