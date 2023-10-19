@@ -524,7 +524,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 				impl.logger.Warnw("value not found in resourceTreeVal, unable to extract port no")
 				continue
 			}
-			serviceNameRes, ok := value[k8sCommonBean.K8sClusterResourceNameKey]
+			serviceNameRes, ok := value[k8sCommonBean.K8sClusterResourceMetadataNameKey]
 			if !ok {
 				impl.logger.Warnw("service name not found in resourceTreeVal, unable to extract port no")
 				continue
