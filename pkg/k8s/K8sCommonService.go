@@ -358,17 +358,17 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 			impl.logger.Warnw("kind not found in resource tree, unable to extract port no")
 			continue
 		}
-		metadataResp, ok := portHolder.ManifestResponse.Manifest.Object["metadata"]
+		metadataResp, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.K8sClusterResourceMetadataKey]
 		if !ok {
 			impl.logger.Warnw("metadata not found in resource tree, unable to extract port no")
 			continue
 		}
 		metadata, ok := metadataResp.(map[string]interface{})
 		if !ok {
-			impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
+			impl.logger.Warnw("metadata not found in resource tree, unable to extract port no")
 			continue
 		}
-		serviceNameResp, ok := metadata["name"]
+		serviceNameResp, ok := metadata[k8sCommonBean.K8sClusterResourceMetadataNameKey]
 		if !ok {
 			impl.logger.Warnw("service name not found in resource tree, unable to extract port no")
 			continue
@@ -524,7 +524,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 				impl.logger.Warnw("value not found in resourceTreeVal, unable to extract port no")
 				continue
 			}
-			serviceNameRes, ok := value["name"]
+			serviceNameRes, ok := value[k8sCommonBean.K8sClusterResourceNameKey]
 			if !ok {
 				impl.logger.Warnw("service name not found in resourceTreeVal, unable to extract port no")
 				continue
