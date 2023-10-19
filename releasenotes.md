@@ -18,6 +18,8 @@
 - fix: App Labels node selector not getting attach in ci-workflow (#4084)
 - fix: Update cd pipeline create empty pre post cd steps (#4113)
 - fix: normal Refresh after triggering gitops deployment to avoid sync delay in argo (#4066)
+- fix: helm chart delete when no rows are found (#4124)
+- fix: Unable to abort pre-cd and post-cd workflow (#4121)
 ## Enhancements
 - feat: Helm async install (#3856)
 - feat: handle CI success event auto trigger in batch (#3951)
@@ -34,6 +36,7 @@
 - feat: manifest comparision (#3844)
 - feat: multiple images handling for single workflow for ECR Plugin Poll Images (#4027)
 - feat: Jenkins plugin migration (#4039)
+- feat: clone cd pipelines while cloning app across project (#4087)
 ## Documentation
 - doc: Glossary of jargonish terms for layman in the context of Devtron (#3820)
 - docs: Ephemeral Container Doc (#3912)
@@ -42,6 +45,7 @@
 - doc: Fixed issuer url in okta docs (#4062)
 - docs: Config Approval Draft (#3981)
 - docs: Modified Existing Container Registry Doc (#4048)
+- docs: Added OCI Pull in Usecases (#4112)
 ## Others
 - chore: added workflow to escalate pager-duty issue (#3927)
 - chore: changed loop from for to while (#3928)
@@ -59,3 +63,5 @@
 - chore: Add pager-duty issue template (#3988)
 - chore: first cut refactor ci-pipeline (#4091)
 - chore: refactored appartifact manager and cimaterialconfigservice (#4096)
+- chore: Remove the EnvVariablesFromFieldPath from values.yaml in refcharts (#4111)
+- chore: Updated schema for Scope Variable (#4079)
