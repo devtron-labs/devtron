@@ -41,7 +41,7 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int) ([]CdWorkflowRunner, error)
-
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -70,7 +70,7 @@ type CdWorkflowRepository interface {
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
 	ExistsByStatus(status string) (bool, error)
 
-	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error)
+	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 }
@@ -382,6 +382,40 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	}
 	return wfrList, err
 }
+func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error) {
+	var wfrList []CdWorkflowRunner
+	var wfIds []int
+	err := impl.dbConnection.Model(&wfIds).
+		Column("MAX(cd_workflow_runner.id) AS id").
+		Join("INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id").
+		Join("INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id").
+		Where("(cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ?) OR (cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.status IN (?))",
+			listingFilterOptions.PipelineId,
+			listingFilterOptions.StageType,
+			listingFilterOptions.ParentId,
+			listingFilterOptions.ParentStageType,
+			pg.In([]string{application.Healthy, application.SUCCEEDED})).
+		Where("cia.image ILIKE %?%", listingFilterOptions.SearchString).
+		Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds)).
+		Group("cd_workflow.ci_artifact_id").
+		Limit(listingFilterOptions.Limit).
+		Offset(listingFilterOptions.Offset).
+		Select()
+
+	if err == pg.ErrNoRows || len(wfIds) == 0 {
+		return wfrList, nil
+	}
+	err = impl.dbConnection.
+		Model(&wfrList).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Where("cd_workflow_runner IN (?) ", pg.In(wfIds)).
+		Select()
+
+	if err == pg.ErrNoRows {
+		return wfrList, nil
+	}
+	return wfrList, err
+}
 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
@@ -578,13 +612,14 @@ func (impl *CdWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error
 	return exists, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("ci_artifact.image ILIKE %?%", searchString).
 		Order("cd_workflow_runner.id DESC").
 		Limit(limit).Offset(offset).
 		Select()
