@@ -80,7 +80,7 @@ func GetDecodedDataForSecret(data string) (string, error) {
 	}
 
 	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
-		configData.SecretData = configData.GetDecodedData()
+		configData.Data = configData.GetDecodedData()
 	}
 
 	marshal, err := json.Marshal(secretsJson)
@@ -92,7 +92,7 @@ func GetDecodedDataForSecret(data string) (string, error) {
 
 func (configSecretMap ConfigSecretMap) GetDecodedData() []byte {
 	dataMap := make(map[string]string)
-	err := json.Unmarshal(configSecretMap.SecretData, &dataMap)
+	err := json.Unmarshal(configSecretMap.Data, &dataMap)
 	if err != nil {
 		return nil
 	}
@@ -119,7 +119,7 @@ func GetEncodedDataForSecret(data string) (string, error) {
 	}
 
 	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
-		configData.SecretData = configData.GetEncodedData()
+		configData.Data = configData.GetEncodedData()
 	}
 
 	marshal, err := json.Marshal(secretsJson)
@@ -131,17 +131,17 @@ func GetEncodedDataForSecret(data string) (string, error) {
 
 func (configSecretMap ConfigSecretMap) GetEncodedData() []byte {
 	dataMap := make(map[string]string)
-	err := json.Unmarshal(configSecretMap.SecretData, &dataMap)
+	err := json.Unmarshal(configSecretMap.Data, &dataMap)
 	if err != nil {
 		return nil
 	}
-	var decodedData []byte
+	var encodedData []byte
 	for k, s := range dataMap {
-		decodedData = []byte(base64.StdEncoding.EncodeToString([]byte(s)))
+		encodedData = []byte(base64.StdEncoding.EncodeToString([]byte(s)))
 		if err != nil {
 			fmt.Println("Error decoding base64:", err)
 		}
-		dataMap[k] = string(decodedData)
+		dataMap[k] = string(encodedData)
 	}
 	marshal, err := json.Marshal(dataMap)
 	if err != nil {
