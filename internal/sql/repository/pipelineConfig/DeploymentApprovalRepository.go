@@ -33,13 +33,12 @@ func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 }
 
 type DeploymentApprovalRequest struct {
-	tableName                   struct{}  `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
-	Id                          int       `sql:"id,pk"`
-	PipelineId                  int       `sql:"pipeline_id"`
-	ArtifactId                  int       `sql:"ci_artifact_id"`
-	Active                      bool      `sql:"active,notnull"` // user can cancel request anytime
-	ArtifactDeploymentTriggered bool      `sql:"artifact_deployment_triggered"`
-	DeployedOn                  time.Time `sql:"deployed_on"`
+	tableName                   struct{} `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
+	Id                          int      `sql:"id,pk"`
+	PipelineId                  int      `sql:"pipeline_id"`
+	ArtifactId                  int      `sql:"ci_artifact_id"`
+	Active                      bool     `sql:"active,notnull"` // user can cancel request anytime
+	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"`
 	Pipeline                    *Pipeline
 	CiArtifact                  *repository2.CiArtifact
 	UserEmail                   string                        `sql:"-"` // used for internal purpose
@@ -76,7 +75,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForPipeline(pipel
 	var requests []*DeploymentApprovalRequest
 	err := impl.dbConnection.
 		Model(&requests).
-		ColumnExpr("deployment_approval_request.*, ca.*, pco.created_on as deployed_on").
+		Column("deployment_approval_request.*", "Pipeline", "CiArtifact").
 		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
 		Join("LEFT JOIN pipeline_config_override pco ON pco.ci_artifact_id = ca.id").
 		Where("deployment_approval_request.active = true").
