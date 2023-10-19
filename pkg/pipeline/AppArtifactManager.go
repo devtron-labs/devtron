@@ -516,7 +516,7 @@ func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pi
 }
 
 // continue here
-func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
 
 	// retrieve parent details
 	parentId, parentType, parentCdId, err := impl.extractParentMetaDataByPipeline(pipeline, stage)
@@ -533,8 +533,15 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	artifactListingFilterOpts.ParentCdId = parentCdId
 	artifactListingFilterOpts.ParentStageType = parentType
 	artifactListingFilterOpts.StageType = stage
+	artifactListingFilterOpts.ApprovalNodeConfigured = pipeline.ApprovalNodeConfigured()
+	approvalConfig, err := pipeline.GetApprovalConfig()
+	if err != nil {
+		impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", pipeline.Id, "approvalConfig", approvalConfig)
+		return ciArtifactsResponse, err
+	}
+	artifactListingFilterOpts.ApproversCount = approvalConfig.RequiredCount
 
-	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, err := impl.BuildArtifactsList(artifactListingFilterOpts)
+	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, err := impl.BuildArtifactsList(artifactListingFilterOpts, isApprovalNode)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
 		return nil, err
@@ -611,9 +618,10 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	return ciArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, int, string, error) {
+func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, int, string, error) {
 
 	var ciArtifacts []*bean2.CiArtifactBean
+
 	//1)get current deployed artifact on this pipeline
 	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.PipelineId, listingFilterOpts.StageType, "", 1)
 	if err != nil {
@@ -624,24 +632,10 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		return ciArtifacts, 0, "", err
 	}
 	currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
-	listingFilterOpts.ExcludeArtifactIds = []int{currentRunningArtifact.Id}
-
-	//2) get artifact list limited by filterOptions
-	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE || listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
-		ciArtifacts, err = impl.BuildArtifactsForCIParentV2(listingFilterOpts)
-		if err != nil {
-			impl.logger.Errorw("error in getting ci artifacts for ci/webhook type parent", "pipelineId", listingFilterOpts.PipelineId, "parentPipelineId", listingFilterOpts.ParentId, "parentStageType", listingFilterOpts.ParentStageType, "currentStageType", listingFilterOpts.StageType)
-			return ciArtifacts, 0, "", err
-		}
-	} else {
-		ciArtifacts, err = impl.BuildArtifactsForCdStageV2(listingFilterOpts)
-		if err != nil {
-			impl.logger.Errorw("error in getting ci artifacts for ci/webhook type parent", "pipelineId", listingFilterOpts.PipelineId, "parentPipelineId", listingFilterOpts.ParentId, "parentStageType", listingFilterOpts.ParentStageType, "currentStageType", listingFilterOpts.StageType)
-			return ciArtifacts, 0, "", err
-		}
+	if !isApprovalNode {
+		listingFilterOpts.ExcludeArtifactIds = []int{currentRunningArtifact.Id}
 	}
-
-	//current deployed artifact is not included in the above computed ciArtifacts, we have to add this too
+	//current deployed artifact should always be computed, as we have to show it every time
 	mInfo, err := parseMaterialInfo([]byte(currentRunningArtifact.MaterialInfo), currentRunningArtifact.DataSource)
 	if err != nil {
 		mInfo = []byte("[]")
@@ -658,12 +652,46 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
 		Latest:       true,
 	}
-	ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+
+	//2) get artifact list limited by filterOptions
+
+	//if approval configured and request is for deploy stage, fetch approved images only
+	if listingFilterOpts.ApprovalNodeConfigured && listingFilterOpts.StageType == bean.CD_WORKFLOW_TYPE_DEPLOY && !isApprovalNode { //currently approval node is used for deploy stage
+		ciArtifacts, err = impl.fetchApprovedArtifacts(listingFilterOpts, currentRunningArtifactBean)
+		if err != nil {
+			impl.logger.Errorw("error in fetching approved artifacts for cd pipeline", "pipelineId", listingFilterOpts.PipelineId, "err", err)
+			return ciArtifacts, currentRunningArtifact.Id, latestWf[0].Status, err
+		}
+		return ciArtifacts, currentRunningArtifact.Id, latestWf[0].Status, nil
+
+	} else {
+
+		//if parent pipeline is CI/WEBHOOK, get all the ciArtifacts limited by listingFilterOpts
+		if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE || listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
+			ciArtifacts, err = impl.BuildArtifactsForCIParentV2(listingFilterOpts, isApprovalNode)
+			if err != nil {
+				impl.logger.Errorw("error in getting ci artifacts for ci/webhook type parent", "pipelineId", listingFilterOpts.PipelineId, "parentPipelineId", listingFilterOpts.ParentId, "parentStageType", listingFilterOpts.ParentStageType, "currentStageType", listingFilterOpts.StageType)
+				return ciArtifacts, 0, "", err
+			}
+		} else {
+			//if parent pipeline is PRE_CD/POST_CD/CD, then compute ciArtifacts using listingFilterOpts
+			ciArtifacts, err = impl.BuildArtifactsForCdStageV2(listingFilterOpts, isApprovalNode)
+			if err != nil {
+				impl.logger.Errorw("error in getting ci artifacts for ci/webhook type parent", "pipelineId", listingFilterOpts.PipelineId, "parentPipelineId", listingFilterOpts.ParentId, "parentStageType", listingFilterOpts.ParentStageType, "currentStageType", listingFilterOpts.StageType)
+				return ciArtifacts, 0, "", err
+			}
+		}
+	}
+
+	//we don't need currently deployed artifact in request approval page explicitly
+	if !isApprovalNode {
+		ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+	}
 	return ciArtifacts, currentRunningArtifact.Id, latestWf[0].Status, nil
 }
 
-func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, error) {
-	cdWfrList, err := impl.cdWorkflowRepository.FindArtifactByListFilter(listingFilterOpts)
+func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, error) {
+	cdWfrList, err := impl.cdWorkflowRepository.FindArtifactByListFilter(listingFilterOpts, isApprovalNode)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd workflow runners using filter", "filterOptions", listingFilterOpts, "err", err)
 		return nil, err
@@ -709,9 +737,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 	return ciArtifacts, nil
 }
 
-func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, error) {
+func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, error) {
 
-	artifacts, err := impl.ciArtifactRepository.GetArtifactsByCDPipelineV3(listingFilterOpts)
+	artifacts, err := impl.ciArtifactRepository.GetArtifactsByCDPipelineV3(listingFilterOpts, isApprovalNode)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifacts for ci", "err", err)
 		return nil, err
@@ -742,5 +770,63 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}
 
+	return ciArtifacts, nil
+}
+
+func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *bean.ArtifactsListFilterOptions, currentRunningArtifactBean *bean2.CiArtifactBean) ([]*bean2.CiArtifactBean, error) {
+	artifacts, err := impl.ciArtifactRepository.FindApprovedArtifactsWithFilter(listingFilterOpts)
+	if err != nil {
+		impl.logger.Errorw("error in fetching approved image list", "pipelineId", listingFilterOpts.PipelineId, "err", err)
+		return nil, err
+	}
+	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(artifacts))
+
+	//get approval metadata for above ciArtifacts and current running artifact
+	artifactIds := make([]int, 0, len(artifacts)+1)
+	for _, item := range artifacts {
+		artifactIds = append(artifactIds, item.Id)
+	}
+	artifactIds = append(artifactIds, currentRunningArtifactBean.Id)
+	var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
+	userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId, listingFilterOpts.ApproversCount) // it will fetch all the request data with nil cd_wfr_rnr_id
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", listingFilterOpts.PipelineId, "artifactIds", artifactIds, "err", err)
+		return ciArtifacts, err
+	}
+
+	for _, artifact := range artifacts {
+		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
+		if err != nil {
+			mInfo = []byte("[]")
+			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
+		}
+		ciArtifact := &bean2.CiArtifactBean{
+			Id:                   artifact.Id,
+			Image:                artifact.Image,
+			ImageDigest:          artifact.ImageDigest,
+			MaterialInfo:         mInfo,
+			ScanEnabled:          artifact.ScanEnabled,
+			Scanned:              artifact.Scanned,
+			Deployed:             artifact.Deployed,
+			DeployedTime:         formatDate(artifact.DeployedTime, bean2.LayoutRFC3339),
+			ExternalCiPipelineId: artifact.ExternalCiPipelineId,
+			ParentCiArtifact:     artifact.ParentCiArtifact,
+		}
+		if artifact.WorkflowId != nil {
+			ciArtifact.CiWorkflowId = *artifact.WorkflowId
+		}
+
+		if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok {
+			ciArtifact.UserApprovalMetadata = approvalMetadataForArtifact
+		}
+
+		ciArtifacts = append(ciArtifacts, ciArtifact)
+	}
+
+	if approvalMetadataForArtifact, ok := userApprovalMetadata[currentRunningArtifactBean.Id]; ok {
+		currentRunningArtifactBean.UserApprovalMetadata = approvalMetadataForArtifact
+	}
+
+	ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
 	return ciArtifacts, nil
 }
