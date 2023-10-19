@@ -48,8 +48,11 @@ components:
     armImage: "quay.io/devtron/postgres:11.9"
   gitsensor:
     image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
+    imagePullPolicy: "IfNotPresent"
     serviceMonitor:
       enabled: false
+    persistence:
+      volumeSize: 2Gi
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_USER: postgres
@@ -60,6 +63,7 @@ components:
       keyName: postgresql-password
   lens: 
     image: "quay.io/devtron/lens:8803028b-333-16178"
+    imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
       GIT_SENSOR_URL: git-sensor-service.devtroncd:90
