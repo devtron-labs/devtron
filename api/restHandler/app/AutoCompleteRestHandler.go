@@ -189,7 +189,7 @@ func (handler PipelineConfigRestHandlerImpl) DisabledGitListAutocomplete(w http.
 	//RBAC
 	res, err := handler.gitRegistryConfig.FetchOneDisabledGitProvider(providerId)
 	if err != nil {
-		handler.Logger.Errorw("service err, DisabledGitListAutocomplete", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, DisabledGitListAutocomplete", "err", err, "appId", appId, "providerId", providerId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

@@ -206,7 +206,7 @@ func (impl GitRegistryConfigImpl) FetchOneDisabledGitProvider(providerId string)
 	impl.logger.Debug("fetch disabled git provider by ID from db")
 	provider, err := impl.gitProviderRepo.FindDisabledById(providerId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching disabled git providers", "err", err)
+		impl.logger.Errorw("error in fetching disabled git providers", "err", err, "providerId", providerId)
 		return nil, err
 	}
 
