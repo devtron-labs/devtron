@@ -1,6 +1,10 @@
 package bean
 
-import "encoding/json"
+import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+)
 
 type ConfigDataRequest struct {
 	Id            int           `json:"id"`
@@ -41,6 +45,47 @@ type ConfigData struct {
 	SubPath               bool             `json:"subPath"`
 	FilePermission        string           `json:"filePermission"`
 	Overridden            bool             `json:"overridden"`
+}
+
+func (configData ConfigData) GetDecodedData() []byte {
+	dataMap := make(map[string]string)
+	err := json.Unmarshal(configData.Data, &dataMap)
+	if err != nil {
+		return nil
+	}
+	var decodedData []byte
+	for k, s := range dataMap {
+		decodedData, err = base64.StdEncoding.DecodeString(s)
+		if err != nil {
+			fmt.Println("Error decoding base64:", err)
+		}
+		dataMap[k] = string(decodedData)
+	}
+	marshal, err := json.Marshal(dataMap)
+	if err != nil {
+		return nil
+	}
+	return marshal
+}
+func (configData ConfigData) GetEncodedData() []byte {
+	dataMap := make(map[string]string)
+	err := json.Unmarshal(configData.Data, &dataMap)
+	if err != nil {
+		return nil
+	}
+	var decodedData []byte
+	for k, s := range dataMap {
+		decodedData = []byte(base64.StdEncoding.EncodeToString([]byte(s)))
+		if err != nil {
+			fmt.Println("Error decoding base64:", err)
+		}
+		dataMap[k] = string(decodedData)
+	}
+	marshal, err := json.Marshal(dataMap)
+	if err != nil {
+		return nil
+	}
+	return marshal
 }
 
 type ExternalSecret struct {
@@ -85,4 +130,43 @@ type CreateJobEnvOverridePayload struct {
 	AppId  int   `json:"appId"`
 	EnvId  int   `json:"envId"`
 	UserId int32 `json:"-"`
+}
+
+func GetDecodedData(data string) (string, error) {
+	secretsList := SecretsList{}
+	err := json.Unmarshal([]byte(data), &secretsList)
+	if err != nil {
+		return "", err
+	}
+
+	for _, configData := range secretsList.ConfigData {
+		configData.Data = configData.GetDecodedData()
+	}
+
+	marshal, err := json.Marshal(secretsList)
+	if err != nil {
+		return "", err
+	}
+	return string(marshal), nil
+}
+
+func GetEncodedData(data string) (string, error) {
+	secretsList := SecretsList{}
+	err := json.Unmarshal([]byte(data), &secretsList)
+	if err != nil {
+		return "", err
+	}
+
+	for _, configData := range secretsList.ConfigData {
+		configData.Data = configData.GetEncodedData()
+	}
+	marshal, err := json.Marshal(secretsList)
+	if err != nil {
+		return "", err
+	}
+	return string(marshal), nil
+}
+
+type SecretsList struct {
+	ConfigData []*ConfigData `json:"secrets"`
 }

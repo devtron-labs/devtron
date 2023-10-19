@@ -51,9 +51,6 @@ const (
 type ConfigsList struct {
 	ConfigData []*bean.ConfigData `json:"maps"`
 }
-type SecretsList struct {
-	ConfigData []*bean.ConfigData `json:"secrets"`
-}
 
 type ConfigMapService interface {
 	CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
@@ -133,6 +130,7 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 }
 func (impl ConfigMapServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
+
 	if err != nil {
 		return err
 	}
@@ -547,7 +545,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		secretsList := &SecretsList{}
+		secretsList := &bean.SecretsList{}
 		found := false
 		var configs []*bean.ConfigData
 		if len(model.SecretData) > 0 {
@@ -594,7 +592,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 
 	} else {
 		//creating config map record for first time
-		secretsList := &SecretsList{
+		secretsList := &bean.SecretsList{
 			ConfigData: configMapRequest.ConfigData,
 		}
 		secretDataByte, err := json.Marshal(secretsList)
@@ -617,9 +615,12 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		}
 		configMapRequest.Id = secret.Id
 	}
-	//todo
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(model.SecretData, model.Id, repository5.SecretAppLevel, configMapRequest.UserId)
+	data, err := bean.GetDecodedData(model.SecretData)
+	if err != nil {
+		return nil, err
+	}
+	err = impl.extractAndMapVariables(data, model.Id, repository5.SecretAppLevel, configMapRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
@@ -641,7 +642,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*bean.ConfigDataReque
 		impl.logger.Warnw("no app level secret found for this request", "appId", appId)
 	}
 
-	configMapGlobalList := &SecretsList{}
+	configMapGlobalList := &bean.SecretsList{}
 	if len(configMapGlobal.SecretData) > 0 {
 		err = json.Unmarshal([]byte(configMapGlobal.SecretData), configMapGlobalList)
 		if err != nil {
@@ -747,7 +748,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 		return nil, err
 	}
 	if err == nil && model.Id > 0 {
-		configsList := &SecretsList{}
+		configsList := &bean.SecretsList{}
 		found := false
 		var configs []*bean.ConfigData
 		if len(model.SecretData) > 0 {
@@ -794,7 +795,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 
 	} else if err == pg.ErrNoRows {
 		//creating config map record for first time
-		secretsList := &SecretsList{
+		secretsList := &bean.SecretsList{
 			ConfigData: configMapRequest.ConfigData,
 		}
 		secretDataByte, err := json.Marshal(secretsList)
@@ -818,7 +819,11 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 	}
 	//todo
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretEnvLevel, configMapRequest.UserId)
+	data, err := bean.GetDecodedData(model.SecretData)
+	if err != nil {
+		return nil, err
+	}
+	err = impl.extractAndMapVariables(data, model.Id, repository5.SecretEnvLevel, configMapRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
@@ -839,7 +844,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 	if pg.ErrNoRows == err {
 		impl.logger.Warnw("no app level secret found for this request", "appId", appId)
 	}
-	configMapGlobalList := &SecretsList{}
+	configMapGlobalList := &bean.SecretsList{}
 	if len(configMapGlobal.SecretData) > 0 {
 		err = json.Unmarshal([]byte(configMapGlobal.SecretData), configMapGlobalList)
 		if err != nil {
@@ -855,7 +860,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 	if pg.ErrNoRows == err {
 		impl.logger.Warnw("no env level secret found for this request", "appId", appId)
 	}
-	configsListEnvLevel := &SecretsList{}
+	configsListEnvLevel := &bean.SecretsList{}
 	if len(configMapEnvLevel.SecretData) > 0 {
 		err = json.Unmarshal([]byte(configMapEnvLevel.SecretData), configsListEnvLevel)
 		if err != nil {
@@ -1151,7 +1156,7 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &SecretsList{}
+	configsList := &bean.SecretsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.SecretData) > 0 {
@@ -1177,8 +1182,12 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 		model.SecretData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-		//todo have to delete mapping also
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretAppLevel, model.UpdatedBy)
+
+		data, err := bean.GetDecodedData(model.SecretData)
+		if err != nil {
+			return false, err
+		}
+		err = impl.extractAndMapVariables(data, model.Id, repository5.SecretAppLevel, model.UpdatedBy)
 		if err != nil {
 			return false, err
 		}
@@ -1207,7 +1216,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &SecretsList{}
+	configsList := &bean.SecretsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.SecretData) > 0 {
@@ -1234,8 +1243,11 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 
-		//todo have to delete mapping also
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretEnvLevel, model.UpdatedBy)
+		data, err := bean.GetDecodedData(model.SecretData)
+		if err != nil {
+			return false, err
+		}
+		err = impl.extractAndMapVariables(data, model.Id, repository5.SecretEnvLevel, model.UpdatedBy)
 		if err != nil {
 			return false, err
 		}
@@ -1364,7 +1376,7 @@ func (impl ConfigMapServiceImpl) CSGlobalDeleteByAppId(name string, appId int, u
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &SecretsList{}
+	configsList := &bean.SecretsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.SecretData) > 0 {
@@ -1390,7 +1402,11 @@ func (impl ConfigMapServiceImpl) CSGlobalDeleteByAppId(name string, appId int, u
 		model.SecretData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretAppLevel, model.UpdatedBy)
+		data, err := bean.GetDecodedData(model.SecretData)
+		if err != nil {
+			return false, err
+		}
+		err = impl.extractAndMapVariables(data, model.Id, repository5.SecretAppLevel, model.UpdatedBy)
 		if err != nil {
 			return false, err
 		}
@@ -1414,7 +1430,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &SecretsList{}
+	configsList := &bean.SecretsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.SecretData) > 0 {
@@ -1440,7 +1456,11 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 		model.SecretData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.SecretEnvLevel, model.UpdatedBy)
+		data, err := bean.GetDecodedData(model.SecretData)
+		if err != nil {
+			return false, err
+		}
+		err = impl.extractAndMapVariables(data, model.Id, repository5.SecretEnvLevel, model.UpdatedBy)
 		if err != nil {
 			return false, err
 		}
@@ -1465,7 +1485,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int) (*bea
 		return nil, err
 	}
 
-	configsList := &SecretsList{}
+	configsList := &bean.SecretsList{}
 	var configs []*bean.ConfigData
 	if len(configMapEnvLevel.SecretData) > 0 {
 		err = json.Unmarshal([]byte(configMapEnvLevel.SecretData), configsList)
@@ -1489,7 +1509,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int) (*bea
 
 func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*bean.ConfigDataRequest, error) {
 	configDataRequest := &bean.ConfigDataRequest{}
-	configsList := &SecretsList{}
+	configsList := &bean.SecretsList{}
 	var configs []*bean.ConfigData
 	if id > 0 {
 		configMapEnvLevel, err := impl.configMapRepository.GetByIdEnvLevel(id)
@@ -1519,7 +1539,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, 
 		if pg.ErrNoRows == err {
 			impl.logger.Warnw("no app level secret found for this request", "appId", appId)
 		}
-		configMapGlobalList := &SecretsList{}
+		configMapGlobalList := &bean.SecretsList{}
 		if len(configMapGlobal.SecretData) > 0 {
 			err = json.Unmarshal([]byte(configMapGlobal.SecretData), configMapGlobalList)
 			if err != nil {
@@ -1645,7 +1665,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *b
 			}
 			model.ConfigMapData = string(configDataByte)
 		} else if bulkPatchRequest.Type == "CS" {
-			secretsList := &SecretsList{}
+			secretsList := &bean.SecretsList{}
 			var configs []*bean.ConfigData
 			if len(model.SecretData) > 0 {
 				err = json.Unmarshal([]byte(model.SecretData), secretsList)
@@ -1677,9 +1697,16 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *b
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		//todo
+		data, err := bean.GetDecodedData(model.SecretData)
+		if err != nil {
+			return nil, err
+		}
 		//VARIABLE_MAPPING_UPDATE
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapEnvLevel, model.UpdatedBy)
+		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapAppLevel, model.UpdatedBy)
+		if err != nil {
+			return nil, err
+		}
+		err = impl.extractAndMapVariables(data, model.Id, repository5.SecretAppLevel, model.UpdatedBy)
 		if err != nil {
 			return nil, err
 		}
@@ -1741,7 +1768,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 			}
 			model.ConfigMapData = string(configDataByte)
 		} else if bulkPatchRequest.Type == "CS" {
-			secretsList := &SecretsList{}
+			secretsList := &bean.SecretsList{}
 			var configs []*bean.ConfigData
 			if len(model.SecretData) > 0 {
 				err = json.Unmarshal([]byte(model.SecretData), secretsList)
@@ -1773,9 +1800,16 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		//todo
+		data, err := bean.GetDecodedData(model.SecretData)
+		if err != nil {
+			return nil, err
+		}
 		//VARIABLE_MAPPING_UPDATE
 		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.ConfigMapEnvLevel, model.UpdatedBy)
+		if err != nil {
+			return nil, err
+		}
+		err = impl.extractAndMapVariables(data, model.Id, repository5.SecretEnvLevel, model.UpdatedBy)
 		if err != nil {
 			return nil, err
 		}

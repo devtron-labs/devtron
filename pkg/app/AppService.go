@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -2454,25 +2455,33 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(cMCSJson CMCSJsonDTO) ([
 		cMCSJson.envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
 		cMCSJson.envOverride.VariableSnapshotForCM = variableMapCM
 	}
-
+	var encodedData string
 	if err != nil {
 		return nil, err
 	}
-	secretDataByte, err := json.Marshal(secretResponseR)
+	//secretDataByte, err := json.Marshal(secretResponseR)
 	if err != nil {
 		return []byte("{}"), err
 	}
 	if secretDataJson != "" && len(entityToVariablesCS) > 0 {
-		resolvedTemplateCS, variableMapCS, err = impl.GetResolvedTemplateAndVariableMap(scope, string(secretDataByte), entitiesForCS, entityToVariablesCS)
+		data, err := bean4.GetDecodedData(secretDataJson)
+		if err != nil {
+			return nil, err
+		}
+		resolvedTemplateCS, variableMapCS, err = impl.GetResolvedTemplateAndVariableMap(scope, data, entitiesForCS, entityToVariablesCS)
 		cMCSJson.envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
 		cMCSJson.envOverride.VariableSnapshotForCS = variableMapCS
+		encodedData, err = bean4.GetEncodedData(resolvedTemplateCS)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	merged, err = impl.mergeUtil.JsonPatch(configMapByte, secretDataByte)
+	merged, err = impl.mergeUtil.JsonPatch([]byte(cMCSJson.envOverride.ResolvedEnvOverrideValuesForCM), []byte(encodedData))
 
 	if err != nil {
 		return []byte("{}"), err
@@ -3273,6 +3282,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		}
 	}
 	if envOverride.VariableSnapshotForCS != nil && len(envOverride.VariableSnapshotForCS) > 0 {
+
 		variableMapBytes, _ := json.Marshal(envOverride.VariableSnapshotForCS)
 		variableSnapshotHistory := &repository6.VariableSnapshotHistoryBean{
 			VariableSnapshot: variableMapBytes,
@@ -3281,6 +3291,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 				HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
 			},
 		}
+
 		err = impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository6.VariableSnapshotHistoryBean{variableSnapshotHistory}, deployedBy)
 		if err != nil {
 			return err
