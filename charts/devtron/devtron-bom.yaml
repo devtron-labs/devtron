@@ -48,6 +48,27 @@ components:
     armImage: "quay.io/devtron/postgres:11.9"
   gitsensor:
     image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_USER: postgres
+      COMMIT_STATS_TIMEOUT_IN_SEC: "2"
+      ENABLE_FILE_STATS: "true"
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
+  lens: 
+    image: "quay.io/devtron/lens:8803028b-333-16178"
+    configs:
+      GIT_SENSOR_PROTOCOL: GRPC
+      GIT_SENSOR_URL: git-sensor-service.devtroncd:90
+      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_PORT: "5432"
+      PG_USER: postgres
+      PG_DATABASE: lens
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
@@ -66,9 +87,6 @@ argo-cd:
       repository: quay.io/argoproj/argocd
       tag: "v2.5.2"
       imagePullPolicy: IfNotPresent
-
-lens: 
-  image: "quay.io/devtron/lens:8803028b-333-16178"
 
 security:
   imageScanner:

@@ -67,10 +67,9 @@ spec:
         app: git-sensor
     spec:
       terminationGracePeriodSeconds: 10
-      {{- if and $.Values.global $.Values.global.podSecurityContext }}
       securityContext:
-{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
-      {{- end }}
+        runAsGroup: 1000
+        runAsUser: 1000
       initContainers:
         - command:
           - /bin/sh
@@ -93,10 +92,10 @@ spec:
           {{- if  .imagePullPolicy }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- end }}
-          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
-{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
-          {{- end }}
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsNonRoot: true
           ports:
             - containerPort: 8080
               name: sensor
