@@ -48,6 +48,8 @@ components:
     armImage: "quay.io/devtron/postgres:11.9"
   gitsensor:
     image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
+    serviceMonitor:
+      enabled: false
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_USER: postgres
