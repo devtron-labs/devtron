@@ -380,7 +380,7 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	var wfIds []int
-	err := impl.dbConnection.Model(&wfIds).
+	query := impl.dbConnection.Model(&wfIds).
 		Column("MAX(cd_workflow_runner.id) AS id").
 		Join("INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id").
 		Join("INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id").
@@ -390,12 +390,16 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 			listingFilterOptions.ParentId,
 			listingFilterOptions.ParentStageType,
 			pg.In([]string{application.Healthy, application.SUCCEEDED})).
-		Where("cia.image ILIKE %?%", listingFilterOptions.SearchString).
-		Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds)).
+		Where("cia.image ILIKE %?%", listingFilterOptions.SearchString)
+	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
+		query = query.Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
+	}
+	query = query.
 		Group("cd_workflow.ci_artifact_id").
 		Limit(listingFilterOptions.Limit).
-		Offset(listingFilterOptions.Offset).
-		Select()
+		Offset(listingFilterOptions.Offset)
+
+	err := query.Select()
 
 	if err == pg.ErrNoRows || len(wfIds) == 0 {
 		return wfrList, nil
