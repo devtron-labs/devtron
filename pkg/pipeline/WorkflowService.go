@@ -167,10 +167,21 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *Workflo
 	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
-	workflowMainContainer := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, workflowJson, workflowTemplate, workflowConfigMaps, workflowSecrets)
+	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
+
+	if err != nil {
+		impl.Logger.Errorw("error occurred while getting workflow main container", "err", err)
+		return bean3.WorkflowTemplate{}, err
+	}
+
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate)
-
+	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
+		nodeSelector := impl.getAppLabelNodeSelector(workflowRequest)
+		if nodeSelector != nil {
+			workflowTemplate.NodeSelector = nodeSelector
+		}
+	}
 	if workflowRequest.Type == bean3.CD_WORKFLOW_PIPELINE_TYPE {
 		workflowTemplate.WfControllerInstanceID = impl.ciCdConfig.WfControllerInstanceID
 		workflowTemplate.TerminationGracePeriod = impl.ciCdConfig.TerminationGracePeriod
@@ -272,6 +283,21 @@ func (impl *WorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *Workfl
 	workflowTemplate.CloudStorageKey = workflowRequest.BlobStorageLogsKey
 }
 
+func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *WorkflowRequest) map[string]string {
+	// node selector
+	if val, ok := workflowRequest.AppLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok && !(workflowRequest.CheckForJob() && workflowRequest.IsExtRun) {
+		var nodeSelectors map[string]string
+		// Unmarshal or Decode the JSON to the interface.
+		err := json.Unmarshal([]byte(val), &nodeSelectors)
+		if err != nil {
+			impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
+			return nil
+		}
+		return nodeSelectors
+	}
+	return nil
+}
+
 func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
 	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
@@ -298,6 +324,9 @@ func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.W
 	var err error
 	if executorType != "" {
 		workflowExecutor := impl.getWorkflowExecutor(executorType)
+		if restConfig == nil {
+			restConfig = impl.config
+		}
 		err = workflowExecutor.TerminateWorkflow(name, namespace, restConfig)
 	} else {
 		wfClient, err := impl.getWfClient(environment, namespace, isExt)
