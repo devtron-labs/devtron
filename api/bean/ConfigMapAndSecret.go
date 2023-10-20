@@ -20,7 +20,6 @@ package bean
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/util"
 )
 
@@ -58,6 +57,12 @@ type ConfigSecretMap struct {
 	SubPath        bool            `json:"subPath"`
 	FilePermission string          `json:"filePermission"`
 }
+type SecretTransformMode int
+
+const (
+	EncodeSecret SecretTransformMode = 1
+	DecodeSecret SecretTransformMode = 2
+)
 
 func (configSecret ConfigSecretMap) GetDataMap() (map[string]string, error) {
 	var datamap map[string]string
@@ -72,7 +77,32 @@ func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigS
 	configSecretJson.Secrets = util.GetReferencedArray(secrets)
 }
 
-func GetDecodedDataForSecret(data string) (string, error) {
+func GetDecodedAndEncodedData(data json.RawMessage, transformer SecretTransformMode) ([]byte, error) {
+	dataMap := make(map[string]string)
+	err := json.Unmarshal(data, &dataMap)
+	if err != nil {
+		return nil, err
+	}
+	var transformedData []byte
+	for k, s := range dataMap {
+		switch transformer {
+		case EncodeSecret:
+			transformedData = []byte(base64.StdEncoding.EncodeToString([]byte(s)))
+		case DecodeSecret:
+			transformedData, err = base64.StdEncoding.DecodeString(s)
+			if err != nil {
+				return nil, err
+			}
+		}
+		dataMap[k] = string(transformedData)
+	}
+	marshal, err := json.Marshal(dataMap)
+	if err != nil {
+		return nil, err
+	}
+	return marshal, nil
+}
+func GetTransformedDataForSecret(data string, mode SecretTransformMode) (string, error) {
 	secretsJson := ConfigSecretRootJson{}
 	err := json.Unmarshal([]byte(data), &secretsJson)
 	if err != nil {
@@ -80,7 +110,7 @@ func GetDecodedDataForSecret(data string) (string, error) {
 	}
 
 	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
-		configData.Data = configData.GetDecodedData()
+		configData.Data, err = GetDecodedAndEncodedData(configData.Data, mode)
 	}
 
 	marshal, err := json.Marshal(secretsJson)
@@ -88,64 +118,4 @@ func GetDecodedDataForSecret(data string) (string, error) {
 		return "", err
 	}
 	return string(marshal), nil
-}
-
-func (configSecretMap ConfigSecretMap) GetDecodedData() []byte {
-	dataMap := make(map[string]string)
-	err := json.Unmarshal(configSecretMap.Data, &dataMap)
-	if err != nil {
-		return nil
-	}
-	var decodedData []byte
-	for k, s := range dataMap {
-		decodedData, err = base64.StdEncoding.DecodeString(s)
-		if err != nil {
-			fmt.Println("Error decoding base64:", err)
-		}
-		dataMap[k] = string(decodedData)
-	}
-	marshal, err := json.Marshal(dataMap)
-	if err != nil {
-		return nil
-	}
-	return marshal
-}
-
-func GetEncodedDataForSecret(data string) (string, error) {
-	secretsJson := ConfigSecretRootJson{}
-	err := json.Unmarshal([]byte(data), &secretsJson)
-	if err != nil {
-		return "", err
-	}
-
-	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
-		configData.Data = configData.GetEncodedData()
-	}
-
-	marshal, err := json.Marshal(secretsJson)
-	if err != nil {
-		return "", err
-	}
-	return string(marshal), nil
-}
-
-func (configSecretMap ConfigSecretMap) GetEncodedData() []byte {
-	dataMap := make(map[string]string)
-	err := json.Unmarshal(configSecretMap.Data, &dataMap)
-	if err != nil {
-		return nil
-	}
-	var encodedData []byte
-	for k, s := range dataMap {
-		encodedData = []byte(base64.StdEncoding.EncodeToString([]byte(s)))
-		if err != nil {
-			fmt.Println("Error decoding base64:", err)
-		}
-		dataMap[k] = string(encodedData)
-	}
-	marshal, err := json.Marshal(dataMap)
-	if err != nil {
-		return nil
-	}
-	return marshal
 }

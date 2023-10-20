@@ -356,21 +356,21 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 	}
 	entitiesForCM := []repository6.Entity{
 		{
-			EntityType: repository6.ConfigMapAppLevel,
+			EntityType: repository6.EntityTypeConfigMapAppLevel,
 			EntityId:   configAppLevel.Id,
 		},
 		{
-			EntityType: repository6.ConfigMapEnvLevel,
+			EntityType: repository6.EntityTypeConfigMapEnvLevel,
 			EntityId:   configEnvLevel.Id,
 		},
 	}
 	entitiesForCS := []repository6.Entity{
 		{
-			EntityType: repository6.SecretAppLevel,
+			EntityType: repository6.EntityTypeSecretAppLevel,
 			EntityId:   configAppLevel.Id,
 		},
 		{
-			EntityType: repository6.SecretEnvLevel,
+			EntityType: repository6.EntityTypeSecretEnvLevel,
 			EntityId:   configEnvLevel.Id,
 		},
 	}

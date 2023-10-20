@@ -24,9 +24,8 @@ const (
 	EntityTypeDeploymentTemplateAppLevel EntityType = 1
 	EntityTypeDeploymentTemplateEnvLevel EntityType = 2
 	EntityTypePipelineStage              EntityType = 3
-	//todo have to add cm/cs entity type
-	ConfigMapAppLevel EntityType = 4
-	ConfigMapEnvLevel EntityType = 5
-	SecretAppLevel    EntityType = 6
-	SecretEnvLevel    EntityType = 7
+	EntityTypeConfigMapAppLevel          EntityType = 4
+	EntityTypeConfigMapEnvLevel          EntityType = 5
+	EntityTypeSecretAppLevel             EntityType = 6
+	EntityTypeSecretEnvLevel             EntityType = 7
 )

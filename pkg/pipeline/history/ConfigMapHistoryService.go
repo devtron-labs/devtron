@@ -215,10 +215,6 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 			UpdatedOn: deployedOn,
 		},
 	}
-	//using old model, updating secret data
-	//historyModel.DataType = repository.SECRET_TYPE
-	//historyModel.Id = 0
-	//historyModel.Data = secretData
 	csHistory, err := impl.configMapHistoryRepository.CreateHistory(historyModelForCS)
 	if err != nil {
 		impl.logger.Errorw("error in creating new entry for secret history", "historyModel", historyModelForCS)
@@ -468,7 +464,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
 		}
-		data, err := bean.GetDecodedData(string(secretListJson))
+		data, err := bean.GetTransformedDataForSecret(string(secretListJson), bean.DecodeSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -476,7 +472,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
 		}
-		resolvedTemplateCS, err = bean.GetEncodedData(resolvedTemplateCS)
+		resolvedTemplateCS, err = bean.GetTransformedDataForSecret(resolvedTemplateCS, bean.EncodeSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -489,15 +485,15 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		}
 	}
 	historyDto := &HistoryDetailDto{
-		Type:                           config.Type,
-		External:                       &config.External,
-		MountPath:                      config.MountPath,
-		SubPath:                        &config.SubPath,
-		FilePermission:                 config.FilePermission,
-		VariableSnapshotForCM:          variableSnapshotMapCM,
-		ResolvedEnvOverrideValuesForCM: resolvedTemplateCM,
-		VariableSnapshotForCS:          variableSnapshotMapCS,
-		ResolvedEnvOverrideValuesForCS: resolvedTemplateCS,
+		Type:                      config.Type,
+		External:                  &config.External,
+		MountPath:                 config.MountPath,
+		SubPath:                   &config.SubPath,
+		FilePermission:            config.FilePermission,
+		VariableSnapshotForCM:     variableSnapshotMapCM,
+		ResolvedTemplateDataForCM: resolvedTemplateCM,
+		VariableSnapshotForCS:     variableSnapshotMapCS,
+		ResolvedTemplateDataForCS: resolvedTemplateCS,
 		CodeEditorValue: &HistoryDetailConfig{
 			DisplayName: "Data",
 			Value:       string(config.Data),
@@ -584,7 +580,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
 		}
-		data, err := bean.GetDecodedData(string(secretListJson))
+		data, err := bean.GetTransformedDataForSecret(string(secretListJson), bean.DecodeSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -592,7 +588,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 		}
-		resolvedTemplate, err = bean.GetEncodedData(resolvedTemplate)
+		resolvedTemplate, err = bean.GetTransformedDataForSecret(resolvedTemplate, bean.EncodeSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -667,10 +663,10 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 			}
 		}
 		historyDto.VariableSnapshotForCS = variableSnapshotMap
-		historyDto.ResolvedEnvOverrideValuesForCS = resolvedTemplate
+		historyDto.ResolvedTemplateDataForCS = resolvedTemplate
 	} else if configType == repository.CONFIGMAP_TYPE {
 		historyDto.VariableSnapshotForCM = variableSnapshotMap
-		historyDto.ResolvedEnvOverrideValuesForCM = resolvedTemplate
+		historyDto.ResolvedTemplateDataForCM = resolvedTemplate
 	}
 	componentLevelData := &ComponentLevelHistoryDetailDto{
 		ComponentName: config.Name,

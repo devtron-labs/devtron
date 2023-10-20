@@ -357,10 +357,6 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 }
 
 func (impl DeploymentTemplateHistoryServiceImpl) GetVariableSnapshotAndResolveTemplate(template string, reference repository6.HistoryReference, isSuperAdmin bool) (map[string]string, string, error) {
-	//reference := repository6.HistoryReference{
-	//	HistoryReferenceId:   reference,
-	//	HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
-	//}
 	variableSnapshotMap := make(map[string]string)
 	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
 	if err != nil {
