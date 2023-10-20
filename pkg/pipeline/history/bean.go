@@ -50,16 +50,16 @@ type HistoryDetailDto struct {
 	PipelineTriggerType pipelineConfig.TriggerType `json:"pipelineTriggerType,omitempty"`
 	Strategy            string                     `json:"strategy,omitempty"`
 	//for configmap and secret
-	Type               string               `json:"type,omitempty"`
-	External           *bool                `json:"external,omitempty"`
-	MountPath          string               `json:"mountPath,omitempty"`
-	ExternalSecretType string               `json:"externalType,omitempty"`
-	RoleARN            string               `json:"roleARN,omitempty"`
-	SubPath            *bool                `json:"subPath,omitempty"`
-	FilePermission     string               `json:"filePermission,omitempty"`
-	CodeEditorValue    *HistoryDetailConfig `json:"codeEditorValue"`
-	VariableSnapshot   map[string]string    `json:"variableSnapshot"`
-	ResolvedTemplate   string               `json:"-"`
+	Type                 string               `json:"type,omitempty"`
+	External             *bool                `json:"external,omitempty"`
+	MountPath            string               `json:"mountPath,omitempty"`
+	ExternalSecretType   string               `json:"externalType,omitempty"`
+	RoleARN              string               `json:"roleARN,omitempty"`
+	SubPath              *bool                `json:"subPath,omitempty"`
+	FilePermission       string               `json:"filePermission,omitempty"`
+	CodeEditorValue      *HistoryDetailConfig `json:"codeEditorValue"`
+	VariableSnapshot     map[string]string    `json:"variableSnapshot"`
+	ResolvedTemplateData string               `json:"resolvedTemplateData"`
 }
 
 type HistoryDetailConfig struct {

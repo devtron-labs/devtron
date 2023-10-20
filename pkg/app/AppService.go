@@ -1326,12 +1326,11 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
 
 		resolvedTemplate, variableMap, err := impl.getResolvedTemplateWithSnapshot(deploymentTemplateHistory.Id, envOverride.EnvOverrideValues)
-		if err != nil {
-			return nil, err
-		}
 		envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 		envOverride.VariableSnapshot = variableMap
-
+		if err != nil {
+			return envOverride, err
+		}
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.ActiveEnvConfigOverride")
 		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, overrideRequest.EnvId)
@@ -1418,8 +1417,9 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 				EnvironmentName: env.Name,
 				ClusterName:     env.Cluster.ClusterName,
 				Namespace:       env.Namespace,
-				ImageTag:        overrideRequest.ImageTag,
 				AppName:         overrideRequest.AppName,
+				Image:           overrideRequest.Image,
+				ImageTag:        util3.GetImageTagFromImage(overrideRequest.Image),
 			},
 		}
 
@@ -1429,21 +1429,23 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
 				EntityId:   envOverride.Id,
 			})
-			if err != nil {
-				return nil, err
-			}
 			envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 			envOverride.VariableSnapshot = variableMap
+			if err != nil {
+				return envOverride, err
+			}
+
 		} else {
 			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, chart.GlobalOverride, repository6.Entity{
 				EntityType: repository6.EntityTypeDeploymentTemplateAppLevel,
 				EntityId:   chart.Id,
 			})
-			if err != nil {
-				return nil, err
-			}
 			envOverride.Chart.ResolvedGlobalOverride = resolvedTemplate
 			envOverride.VariableSnapshot = variableMap
+			if err != nil {
+				return envOverride, err
+			}
+
 		}
 	}
 
@@ -1451,16 +1453,16 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 }
 
 func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHistoryId int, template string) (string, map[string]string, error) {
+
+	variableSnapshotMap := make(map[string]string)
 	reference := repository6.HistoryReference{
 		HistoryReferenceId:   deploymentTemplateHistoryId,
 		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
 	}
 	variableSnapshot, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository6.HistoryReference{reference})
 	if err != nil {
-		return "", nil, err
+		return template, variableSnapshotMap, err
 	}
-
-	variableSnapshotMap := make(map[string]string)
 
 	if _, ok := variableSnapshot[reference]; !ok {
 		return template, variableSnapshotMap, nil
@@ -1468,18 +1470,18 @@ func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHi
 
 	err = json.Unmarshal(variableSnapshot[reference].VariableSnapshot, &variableSnapshotMap)
 	if err != nil {
-		return "", nil, err
+		return template, variableSnapshotMap, err
 	}
 
 	if len(variableSnapshotMap) == 0 {
 		return template, variableSnapshotMap, nil
 	}
-	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap)
+	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, make(map[string]bool), true)
 	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
 	err = parserResponse.Error
 	if err != nil {
-		return "", nil, err
+		return template, variableSnapshotMap, err
 	}
 	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, variableSnapshotMap, nil
@@ -1487,29 +1489,36 @@ func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHi
 
 func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
 
+	variableMap := make(map[string]string)
 	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
 	if err != nil {
-		return "", nil, err
+		return template, variableMap, err
 	}
 
-	variableMap := make(map[string]string)
 	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
 		return template, variableMap, nil
 	}
+
+	// pre-populating variable map with variable so that the variables which don't have any resolved data
+	// is saved in snapshot
+	for _, variable := range entityToVariables[entity] {
+		variableMap[variable] = impl.scopedVariableService.GetFormattedVariableForName(variable)
+	}
+
 	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
 	if err != nil {
-		return "", nil, err
+		return template, variableMap, err
+	}
+
+	for _, variable := range scopedVariables {
+		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
 	}
 
 	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
 	err = parserResponse.Error
 	if err != nil {
-		return "", nil, err
-	}
-
-	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+		return template, variableMap, err
 	}
 
 	resolvedTemplate := parserResponse.ResolvedTemplate
@@ -1526,6 +1535,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	valuesOverrideResponse := &ValuesOverrideResponse{}
 
 	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	valuesOverrideResponse.Pipeline = pipeline
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline by pipeline id", "err", err, "pipeline-id-", overrideRequest.PipelineId)
 		return valuesOverrideResponse, err
@@ -1533,27 +1543,33 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
 	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
+	valuesOverrideResponse.Artifact = artifact
 	span.End()
 	if err != nil {
 		return valuesOverrideResponse, err
 	}
-	overrideRequest.ImageTag = getImageTagFromImage(artifact.Image)
+	overrideRequest.Image = artifact.Image
+
+	strategy, err := impl.GetDeploymentStrategyByTriggerType(overrideRequest, ctx)
+	valuesOverrideResponse.PipelineStrategy = strategy
+	if err != nil {
+		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
+		return valuesOverrideResponse, err
+	}
 
 	envOverride, err := impl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
+	valuesOverrideResponse.EnvOverride = envOverride
 	if err != nil {
 		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
 		return valuesOverrideResponse, err
 	}
 	appMetrics, err := impl.GetAppMetricsByTriggerType(overrideRequest, ctx)
+	valuesOverrideResponse.AppMetrics = appMetrics
 	if err != nil {
 		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
 		return valuesOverrideResponse, err
 	}
-	strategy, err := impl.GetDeploymentStrategyByTriggerType(overrideRequest, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
-		return valuesOverrideResponse, err
-	}
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "getDbMigrationOverride")
 	//FIXME: how to determine rollback
 	//we can't depend on ciArtifact ID because CI pipeline can be manually triggered in any order regardless of sourcecode status
@@ -1580,15 +1596,18 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "mergeAndSave")
 	pipelineOverride, err := impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
+	valuesOverrideResponse.PipelineOverride = pipelineOverride
 	if err != nil {
 		return valuesOverrideResponse, err
 	}
 	//TODO: check status and apply lock
 	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
+	valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson
 	if err != nil {
 		return valuesOverrideResponse, err
 	}
 	mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
+	valuesOverrideResponse.MergedValues = string(mergedValues)
 
 	appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 	mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
@@ -1605,23 +1624,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	if err != nil {
 		return valuesOverrideResponse, err
 	}
-	//valuesOverrideResponse.
-	valuesOverrideResponse.MergedValues = string(mergedValues)
-	valuesOverrideResponse.EnvOverride = envOverride
-	valuesOverrideResponse.PipelineOverride = pipelineOverride
-	valuesOverrideResponse.AppMetrics = appMetrics
-	valuesOverrideResponse.PipelineStrategy = strategy
-	valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson
-	valuesOverrideResponse.Artifact = artifact
-	valuesOverrideResponse.Pipeline = pipeline
 	return valuesOverrideResponse, err
-}
-
-func getImageTagFromImage(image string) string {
-	parts := strings.Split(image, ":")
-
-	// Get the last part
-	return parts[len(parts)-1]
 }
 
 func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, err error) {
@@ -1862,31 +1865,35 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 	_, span := otel.Tracer("orchestrator").Start(ctx, "AppService.BuildManifestForTrigger")
 	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, triggerEvent.TriggerdAt, ctx)
 	span.End()
-	if err != nil {
-		if triggerEvent.GetManifestInResponse {
-			timeline := &pipelineConfig.PipelineStatusTimeline{
-				CdWorkflowRunnerId: overrideRequest.WfrId,
-				Status:             "HELM_PACKAGE_GENERATION_FAILED",
-				StatusDetail:       fmt.Sprintf("Helm package generation failed. - %v", err),
-				StatusTime:         time.Now(),
-				AuditLog: sql.AuditLog{
-					CreatedBy: overrideRequest.UserId,
-					CreatedOn: time.Now(),
-					UpdatedBy: overrideRequest.UserId,
-					UpdatedOn: time.Now(),
-				},
-			}
-			err1 := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
-			if err1 != nil {
-				impl.logger.Errorw("error in saving timeline for manifest_download type")
-			}
+
+	if err != nil && triggerEvent.GetManifestInResponse {
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			CdWorkflowRunnerId: overrideRequest.WfrId,
+			Status:             "HELM_PACKAGE_GENERATION_FAILED",
+			StatusDetail:       fmt.Sprintf("Helm package generation failed. - %v", err),
+			StatusTime:         time.Now(),
+			AuditLog: sql.AuditLog{
+				CreatedBy: overrideRequest.UserId,
+				CreatedOn: time.Now(),
+				UpdatedBy: overrideRequest.UserId,
+				UpdatedOn: time.Now(),
+			},
 		}
-		return releaseNo, manifest, err
+		err1 := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+		if err1 != nil {
+			impl.logger.Errorw("error in saving timeline for manifest_download type")
+		}
 	}
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
-	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
+	err1 := impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
+	if err1 != nil {
+		impl.logger.Errorw("error in saving histories for trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "wfrId", overrideRequest.WfrId)
+	}
 	span.End()
+	if err != nil {
+		return releaseNo, manifest, err
+	}
 
 	if triggerEvent.GetManifestInResponse {
 		timeline := &pipelineConfig.PipelineStatusTimeline{
