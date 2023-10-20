@@ -351,6 +351,7 @@ minio:
     storage: "50Gi"
 # Change below values for workflow controller
 workflowController:
+  IMDSv2Enforced: true
   image: "quay.io/argoproj/workflow-controller:v3.4.3"
   executorImage: "quay.io/argoproj/argoexec:v3.4.3"
 
