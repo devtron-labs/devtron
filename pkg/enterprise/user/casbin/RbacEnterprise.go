@@ -128,7 +128,7 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCasbin(subject string, 
 	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel["p"]["p"].Policy, enforcedModel["g"]["g"].RM)
 	eft := effect.NewDefaultEffector()
 	for _, resourceItem := range resourceItems {
-		rvals := e.getRval(subject, resource, action, resourceItem)
+		rvals := e.getRval(subject, resource, action, strings.ToLower(resourceItem))
 		parameters := enforceParameters{
 			rTokens: rTokens,
 			rVals:   rvals,
@@ -239,7 +239,7 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCustom(subject string, 
 	defer casbin2.HandlePanic()
 	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel["p"]["p"].Policy, enforcedModel["g"]["g"].RM)
 	for _, resourceItem := range resourceItems {
-		rVals := e.getRvalCustom(subject, resource, action, resourceItem)
+		rVals := e.getRvalCustom(subject, resource, action, strings.ToLower(resourceItem))
 		result := false
 		if policyLen := len(filteredPolicies); policyLen != 0 {
 			if len(enforcedModel["r"]["r"].Tokens) != len(rVals) { //will break if our code assumptions for definition check and auth_model.conf mismatch
