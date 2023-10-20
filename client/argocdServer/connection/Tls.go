@@ -15,7 +15,7 @@
  *
  */
 
-package argocdServer
+package connection
 
 import (
 	"crypto/ecdsa"
