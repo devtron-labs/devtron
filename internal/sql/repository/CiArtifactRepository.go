@@ -710,6 +710,7 @@ func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilt
 		" ) " +
 		" SELECT cia.*" +
 		" FROM deployment_approval_request dar " +
+		// TODO Gireesh: ai.approval_count > ? instead greater-than-and-equal should be there and cia.image ILIKE %?% should be conditional
 		" INNER JOIN approved_images ai ON ai.approval_request_id=dar.id AND ai.approval_count > ? " +
 		" INNER JOIN ci_artifact cia ON ca.id = dar.ci_artifact_id " +
 		" WHERE dar.active=true AND dar.artifact_deployment_triggered = false AND dar.pipeline_id = ? AND cia.id NOT IN (?) AND cia.image ILIKE %?% " +

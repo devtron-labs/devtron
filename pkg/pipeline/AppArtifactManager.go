@@ -804,6 +804,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(artifacts))
 
 	//get approval metadata for above ciArtifacts and current running artifact
+	//TODO Gireesh: init array with default size and using append is not optimized
 	artifactIds := make([]int, 0, len(artifacts)+1)
 	for _, item := range artifacts {
 		artifactIds = append(artifactIds, item.Id)
@@ -819,6 +820,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 		return ciArtifacts, err
 	}
 
+	//TODO Gireesh: this needs refactoring
 	for _, artifact := range artifacts {
 		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
 		if err != nil {
