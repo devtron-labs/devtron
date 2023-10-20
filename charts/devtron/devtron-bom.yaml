@@ -99,6 +99,10 @@ argo-cd:
       repository: quay.io/argoproj/argocd
       tag: "v2.5.2"
       imagePullPolicy: IfNotPresent
+      
+workflowController:
+  image: "quay.io/argoproj/workflow-controller:v3.4.3"
+  executorImage: "quay.io/argoproj/argoexec:v3.4.3"
 
 security:
   imageScanner:
