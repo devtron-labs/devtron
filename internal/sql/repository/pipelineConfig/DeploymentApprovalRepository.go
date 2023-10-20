@@ -106,6 +106,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchLatestDeploymentByArtifactIds
 
 	_, err := impl.dbConnection.Query(&requests, query, pipelineId, pg.In(artifactIds))
 	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching latest deployment by artifact ids", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
 		return nil, err
 	}
 

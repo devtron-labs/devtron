@@ -2351,6 +2351,7 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 	var ciArtifacts []bean2.CiArtifactBean
 	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalRequestData(pipelineId, limit, offset, searchString)
 	if err != nil {
+		impl.logger.Errorw("error occurred while fetching approval request data", "pipelineId", pipelineId, "err", err)
 		return ciArtifacts, err
 	}
 
@@ -2362,6 +2363,7 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 	if len(artifactIds) > 0 {
 		deploymentApprovalRequests, err = impl.getLatestDeploymentByArtifactIds(pipelineId, deploymentApprovalRequests, artifactIds)
 		if err != nil {
+			impl.logger.Errorw("error occurred while fetching FetchLatestDeploymentByArtifactIds", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
 			return nil, err
 		}
 	}
@@ -2387,7 +2389,8 @@ func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId
 	var err error
 	if len(artifactIds) > 0 {
 		latestDeployedArtifacts, err = impl.deploymentApprovalRepository.FetchLatestDeploymentByArtifactIds(pipelineId, artifactIds)
-		if err != nil && err != pg.ErrNoRows {
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching FetchLatestDeploymentByArtifactIds", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
 			return nil, err
 		}
 	}
