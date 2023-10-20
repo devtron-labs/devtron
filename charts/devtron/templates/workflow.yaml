@@ -1146,6 +1146,9 @@ data:
     parallelism: 50
     artifactRepository:
       archiveLogs: false
+    {{- if not $.Values.workflowController.IMDSv2Enforced }}
+    containerRuntimeExecutor: pns
+    {{- end }}
     executor:
       imagePullPolicy: Always
 kind: ConfigMap
@@ -1172,7 +1175,11 @@ spec:
         - --configmap
         - workflow-controller-configmap
         - --executor-image
+        {{- if $.Values.workflowController.IMDSv2Enforced }}
         - {{ $.Values.workflowController.executorImage }}
+        {{- else }}
+        - quay.io/argoproj/argoexec:v3.0.7
+        {{- end }}
         command:
         - workflow-controller
         env:
@@ -1181,9 +1188,15 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: metadata.name
+        {{- if $.Values.workflowController.IMDSv2Enforced }}
         - name: POD_NAMES
           value: v1
+        {{- end }}
+        {{- if $.Values.workflowController.IMDSv2Enforced }}
         image: {{ $.Values.workflowController.image }}
+        {{- else }}
+        image: quay.io/argoproj/workflow-controller:v3.0.7
+        {{- end }}
         name: workflow-controller
         {{- if $.Values.workflowController.resources }}        
         resources:
