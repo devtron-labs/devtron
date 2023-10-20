@@ -638,35 +638,42 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 
 	//1)get current deployed artifact on this pipeline
 	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.PipelineId, listingFilterOpts.StageType, "", 1)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", listingFilterOpts.PipelineId, "currentStageType", listingFilterOpts.StageType)
 		return ciArtifacts, 0, "", err
 	}
-	if len(latestWf) == 0 {
-		return ciArtifacts, 0, "", err
-	}
-	currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
-	if !isApprovalNode {
-		listingFilterOpts.ExcludeArtifactIds = []int{currentRunningArtifact.Id}
-	}
-	//current deployed artifact should always be computed, as we have to show it every time
-	mInfo, err := parseMaterialInfo([]byte(currentRunningArtifact.MaterialInfo), currentRunningArtifact.DataSource)
-	if err != nil {
-		mInfo = []byte("[]")
-		impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", currentRunningArtifact)
-	}
-	currentRunningArtifactBean := &bean2.CiArtifactBean{
-		Id:           currentRunningArtifact.Id,
-		Image:        currentRunningArtifact.Image,
-		ImageDigest:  currentRunningArtifact.ImageDigest,
-		MaterialInfo: mInfo,
-		ScanEnabled:  currentRunningArtifact.ScanEnabled,
-		Scanned:      currentRunningArtifact.Scanned,
-		Deployed:     true,
-		DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
-		Latest:       true,
-	}
 
+	var currentRunningArtifactBean *bean2.CiArtifactBean
+	currentRunningArtifactId := 0
+	currentRunningWorkflowStatus := ""
+
+	//no artifacts deployed on this pipeline yet
+	if len(latestWf) > 0 {
+
+		currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
+		if !isApprovalNode {
+			listingFilterOpts.ExcludeArtifactIds = []int{currentRunningArtifact.Id}
+		}
+		currentRunningArtifactId = currentRunningArtifact.Id
+		currentRunningWorkflowStatus = latestWf[0].Status
+		//current deployed artifact should always be computed, as we have to show it every time
+		mInfo, err := parseMaterialInfo([]byte(currentRunningArtifact.MaterialInfo), currentRunningArtifact.DataSource)
+		if err != nil {
+			mInfo = []byte("[]")
+			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", currentRunningArtifact)
+		}
+		currentRunningArtifactBean = &bean2.CiArtifactBean{
+			Id:           currentRunningArtifact.Id,
+			Image:        currentRunningArtifact.Image,
+			ImageDigest:  currentRunningArtifact.ImageDigest,
+			MaterialInfo: mInfo,
+			ScanEnabled:  currentRunningArtifact.ScanEnabled,
+			Scanned:      currentRunningArtifact.Scanned,
+			Deployed:     true,
+			DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
+			Latest:       true,
+		}
+	}
 	//2) get artifact list limited by filterOptions
 
 	//if approval configured and request is for deploy stage, fetch approved images only
@@ -674,9 +681,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		ciArtifacts, err = impl.fetchApprovedArtifacts(listingFilterOpts, currentRunningArtifactBean)
 		if err != nil {
 			impl.logger.Errorw("error in fetching approved artifacts for cd pipeline", "pipelineId", listingFilterOpts.PipelineId, "err", err)
-			return ciArtifacts, currentRunningArtifact.Id, latestWf[0].Status, err
+			return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, err
 		}
-		return ciArtifacts, currentRunningArtifact.Id, latestWf[0].Status, nil
+		return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, nil
 
 	} else {
 
@@ -697,11 +704,12 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		}
 	}
 
-	//we don't need currently deployed artifact in request approval page explicitly
-	if !isApprovalNode {
+	//we don't need currently deployed artifact for approvalNode explicitly
+	//if no artifact deployed skip adding currentRunningArtifactBean in ciArtifacts arr
+	if !isApprovalNode && currentRunningArtifactBean != nil {
 		ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
 	}
-	return ciArtifacts, currentRunningArtifact.Id, latestWf[0].Status, nil
+	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, nil
 }
 
 func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, error) {
@@ -800,7 +808,10 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	for _, item := range artifacts {
 		artifactIds = append(artifactIds, item.Id)
 	}
-	artifactIds = append(artifactIds, currentRunningArtifactBean.Id)
+	if currentRunningArtifactBean != nil {
+		artifactIds = append(artifactIds, currentRunningArtifactBean.Id)
+	}
+
 	var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
 	userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId, listingFilterOpts.ApproversCount) // it will fetch all the request data with nil cd_wfr_rnr_id
 	if err != nil {
@@ -837,10 +848,12 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}
 
-	if approvalMetadataForArtifact, ok := userApprovalMetadata[currentRunningArtifactBean.Id]; ok {
-		currentRunningArtifactBean.UserApprovalMetadata = approvalMetadataForArtifact
+	if currentRunningArtifactBean != nil {
+		if approvalMetadataForArtifact, ok := userApprovalMetadata[currentRunningArtifactBean.Id]; ok {
+			currentRunningArtifactBean.UserApprovalMetadata = approvalMetadataForArtifact
+		}
+		ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
 	}
 
-	ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
 	return ciArtifacts, nil
 }
