@@ -3237,16 +3237,15 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 
 			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
 
-			// Ignoring context deadline exceeded errors
-			decodedErrorMsg := GetGRPCErrorDetailedMessage(err)
-			if err != nil && decodedErrorMsg != ContextDeadlineExceededError {
+			// For connection related errors, no need to update the db
+			if err != nil && strings.Contains(err.Error(), "connection error") {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
-				if decodedErrorMsg == ContextCanceledError {
-					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
-				}
 				return false, err
 			}
 
+			if GetGRPCErrorDetailedMessage(err) == ContextCanceledError {
+				err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
+			}
 			// IMP: update cd pipeline to mark deployment app created, even if helm install fails
 			// If the helm install fails, it still creates the app in failed state, so trying to
 			// re-create the app results in error from helm that cannot re-use name which is still in use
