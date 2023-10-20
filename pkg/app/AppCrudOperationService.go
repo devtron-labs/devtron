@@ -201,14 +201,14 @@ func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAp
 	}
 	appLabelMap := make(map[string]*pipelineConfig.AppLabel)
 	for _, appLabel := range appLabels {
-		uniqueLabelExists := fmt.Sprintf("%s", appLabel.Key)
+		uniqueLabelExists := fmt.Sprintf("%s:%s:%t", appLabel.Key, appLabel.Value, appLabel.Propagate)
 		if _, ok := appLabelMap[uniqueLabelExists]; !ok {
 			appLabelMap[uniqueLabelExists] = appLabel
 		}
 	}
 	appLabelDeleteMap := make(map[string]bool, 0)
 	for _, label := range request.AppLabels {
-		uniqueLabelRequest := fmt.Sprintf("%s", label.Key)
+		uniqueLabelRequest := fmt.Sprintf("%s:%s:%t", label.Key, label.Value, label.Propagate)
 		if _, ok := appLabelMap[uniqueLabelRequest]; !ok {
 			// create new
 			model := &pipelineConfig.AppLabel{
