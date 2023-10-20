@@ -55,3 +55,8 @@ func GetGRPCErrorDetailedMessage(err error) string {
 	}
 	return err.Error()
 }
+
+const (
+	ContextCanceledError         = "context canceled"
+	ContextDeadlineExceededError = "context deadline exceeded"
+)

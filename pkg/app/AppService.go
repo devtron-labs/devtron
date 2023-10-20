@@ -3225,6 +3225,9 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
+				if GetGRPCErrorDetailedMessage(err) == ContextCanceledError {
+					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
+				}
 				return false, err
 			} else {
 				impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
@@ -3234,9 +3237,13 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 
 			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
 
-			// For connection related errors, no need to update the db
-			if err != nil && strings.Contains(err.Error(), "connection error") {
+			// Ignoring context deadline exceeded errors
+			decodedErrorMsg := GetGRPCErrorDetailedMessage(err)
+			if err != nil && decodedErrorMsg != ContextDeadlineExceededError {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
+				if decodedErrorMsg == ContextCanceledError {
+					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
+				}
 				return false, err
 			}
 
