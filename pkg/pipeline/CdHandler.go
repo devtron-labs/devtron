@@ -20,6 +20,7 @@ package pipeline
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -52,6 +53,8 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -118,9 +121,10 @@ type CdHandlerImpl struct {
 	k8sUtil                                *k8s.K8sUtil
 	workflowService                        WorkflowService
 	config                                 *CdConfig
+	clusterRepository                      repository2.ClusterRepository
 }
 
-func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService) *CdHandlerImpl {
+func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService, clusterRepository repository2.ClusterRepository) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
 		userService:                            userService,
@@ -154,6 +158,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		imageTaggingService:                    imageTaggingService,
 		k8sUtil:                                k8sUtil,
 		workflowService:                        workflowService,
+		clusterRepository:                      clusterRepository,
 	}
 	config, err := GetCdConfig()
 	if err != nil {
@@ -167,6 +172,29 @@ type ArgoPipelineStatusSyncEvent struct {
 	PipelineId            int   `json:"pipelineId"`
 	UserId                int32 `json:"userId"`
 	IsAppStoreApplication bool  `json:"isAppStoreApplication"`
+}
+
+type CmBlobStorageConfig struct {
+	//AWS credentials
+	CloudProvider      blob_storage.BlobStorageType `json:"BLOB_STORAGE_PROVIDER"`
+	S3AccessKey        string                       `json:"BLOB_STORAGE_S3_ACCESS_KEY"`
+	S3Endpoint         string                       `json:"BLOB_STORAGE_S3_ENDPOINT"`
+	S3EndpointInsecure bool                         `json:"BLOB_STORAGE_S3_ENDPOINT_INSECURE"`
+	S3BucketVersioned  bool                         `json:"BLOB_STORAGE_S3_BUCKET_VERSIONED"`
+
+	//Azure credentials
+	AzureAccountName               string `json:"AZURE_ACCOUNT_NAME"`
+	AzureGatewayUrl                string `json:"AZURE_GATEWAY_URL"`
+	AzureGatewayConnectionInsecure bool   `json:"AZURE_GATEWAY_CONNECTION_INSECURE"`
+}
+
+type SecretBlobStorageConfig struct {
+	//aws
+	S3SecretKey string `json:"BLOB_STORAGE_S3_SECRET_KEY"`
+	//gcp
+	GcpBlobStorageCredentialJson string `json:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
+	//azure
+	AzureAccountKey string `json:"AZURE_ACCOUNT_KEY"`
 }
 
 const NotTriggered string = "Not Triggered"
@@ -909,7 +937,7 @@ func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineC
 			return nil, nil, errors.New("logs-not-stored-in-repository")
 		} else if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == WorkflowCancel {
 			impl.Logger.Debugw("pod is not live ", "err", err)
-			return impl.getLogsFromRepository(pipelineId, cdWorkflow)
+			return impl.getLogsFromRepository(pipelineId, cdWorkflow, clusterConfig, runStageInEnv)
 		}
 		impl.Logger.Errorw("err on fetch workflow logs", "err", err)
 		return nil, nil, err
@@ -918,7 +946,7 @@ func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineC
 	return logReader, cleanUp, err
 }
 
-func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
 	impl.Logger.Debug("getting historic logs")
 
 	cdConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(pipelineId)
@@ -960,6 +988,29 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
+
+	useExternalBlobStorage := isExt && !impl.config.UseBlobStorageConfigInCdWorkflow
+	if useExternalBlobStorage {
+		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
+		//from them else return.
+		cmConfig, secretConfig, err := impl.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, cdWorkflow.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching config map and secret from external cluster", "err", err, "clusterConfig", clusterConfig)
+			return nil, nil, err
+		}
+		cdLogRequest.CloudProvider = cmConfig.CloudProvider
+		cdLogRequest.AzureBlobConfig.AccountName = cmConfig.AzureAccountName
+		cdLogRequest.AzureBlobConfig.AccountKey = secretConfig.AzureAccountKey
+
+		cdLogRequest.GcpBlobBaseConfig.CredentialFileJsonData = secretConfig.GcpBlobStorageCredentialJson
+
+		cdLogRequest.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
+		cdLogRequest.AwsS3BaseConfig.EndpointUrl = cmConfig.S3Endpoint
+		cdLogRequest.AwsS3BaseConfig.IsInSecure = cmConfig.S3EndpointInsecure
+		cdLogRequest.AwsS3BaseConfig.Passkey = secretConfig.S3SecretKey
+
+	}
+
 	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, cdLogRequest)
 	if err != nil {
@@ -968,6 +1019,59 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	}
 	logReader := bufio.NewReader(oldLogsStream)
 	return logReader, cleanUp, err
+}
+
+func (impl *CdHandlerImpl) FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s.ClusterConfig, namespace string) (CmBlobStorageConfig, SecretBlobStorageConfig, error) {
+	var cmConfig CmBlobStorageConfig
+	var secretConfig SecretBlobStorageConfig
+	_, _, kubeClient, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)
+	if err != nil {
+		impl.Logger.Errorw("FetchCmAndSecretBlobConfigFromExternalCluster, error in getting kubeClient by cluster config", "err", err)
+		return cmConfig, secretConfig, err
+	}
+	cm, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), impl.config.ExtBlobStorageCmName, v12.GetOptions{})
+	if err != nil && !errors2.IsNotFound(err) {
+		impl.Logger.Errorw("error in getting config map in external cluster", "err", err, "blobStorageCmName", impl.config.ExtBlobStorageCmName, "clusterName", clusterConfig.ClusterName)
+		return cmConfig, secretConfig, err
+	}
+	if errors2.IsNotFound(err) {
+		cmNotFoundErr := fmt.Sprintf("config map: %s not found in namespace: %s", impl.config.ExtBlobStorageCmName, namespace)
+		return cmConfig, secretConfig, errors.New(cmNotFoundErr)
+	}
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), impl.config.ExtBlobStorageSecretName, v12.GetOptions{})
+	if err != nil && !errors2.IsNotFound(err) {
+		impl.Logger.Errorw("error in getting secret in external cluster", "err", err, "blobStorageSecretName", impl.config.ExtBlobStorageSecretName, "clusterName", clusterConfig.ClusterName)
+		return cmConfig, secretConfig, err
+	}
+	if errors2.IsNotFound(err) {
+		secretNotFoundErr := fmt.Sprintf("secret: %s not found in namespace: %s", impl.config.ExtBlobStorageSecretName, namespace)
+		return cmConfig, secretConfig, errors.New(secretNotFoundErr)
+	}
+	if cm.Data != nil && secret != nil {
+		cmDataJson, err := json.Marshal(cm.Data)
+		if err != nil {
+			fmt.Println("error marshalling external blob storage cm data to json:", err)
+			return cmConfig, secretConfig, err
+		}
+		err = json.Unmarshal(cmDataJson, &cmConfig)
+		if err != nil {
+			fmt.Println("error unmarshalling external blob storage cm json to struct:", err)
+			return cmConfig, secretConfig, err
+		}
+
+		secretDataJson, err := json.Marshal(secret.Data)
+		if err != nil {
+			fmt.Println("error marshalling external blob storage secret data to json:", err)
+			return cmConfig, secretConfig, err
+		}
+
+		err = json.Unmarshal(secretDataJson, &secretConfig)
+		if err != nil {
+			fmt.Println("error unmarshalling external blob storage secret json to struct:", err)
+			return cmConfig, secretConfig, err
+		}
+	}
+	return cmConfig, secretConfig, nil
 }
 
 func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (WorkflowResponse, error) {
@@ -1061,7 +1165,27 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		impl.Logger.Errorw("unable to fetch ciWorkflow", "err", err)
 		return nil, err
 	}
-
+	var clusterBean cluster.ClusterBean
+	if wfr.CdWorkflow.Pipeline.Environment.Id != 0 {
+		clusterFromDb, err := impl.clusterRepository.FindById(wfr.CdWorkflow.Pipeline.Environment.ClusterId)
+		if err != nil {
+			impl.Logger.Errorw("unable to fetch cluster by cluster Id", "clusterId", wfr.CdWorkflow.Pipeline.Environment.ClusterId, "err", err)
+			return nil, err
+		}
+		clusterBean = cluster.GetClusterBean(*clusterFromDb)
+	}
+	clusterConfig, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return nil, err
+	}
+	var isExtCluster bool
+	if wfr.WorkflowType == PRE {
+		isExtCluster = wfr.CdWorkflow.Pipeline.RunPreStageInEnv
+	} else if wfr.WorkflowType == POST {
+		isExtCluster = wfr.CdWorkflow.Pipeline.RunPostStageInEnv
+	}
+	useExternalBlobStorage := isExtCluster && !impl.config.UseBlobStorageConfigInCdWorkflow
 	if !wfr.BlobStorageEnabled {
 		return nil, errors.New("logs-not-stored-in-repository")
 	}
@@ -1110,6 +1234,26 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		AzureBlobBaseConfig: azureBlobBaseConfig,
 		AwsS3BaseConfig:     awsS3BaseConfig,
 		GcpBlobBaseConfig:   gcpBlobBaseConfig,
+	}
+	if useExternalBlobStorage {
+		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
+		//from them else return.
+		cmConfig, secretConfig, err := impl.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, wfr.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching config map and secret from external cluster", "err", err, "clusterConfig", clusterConfig)
+			return nil, err
+		}
+		request.StorageType = cmConfig.CloudProvider
+
+		request.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
+		request.AwsS3BaseConfig.EndpointUrl = cmConfig.S3Endpoint
+		request.AwsS3BaseConfig.IsInSecure = cmConfig.S3EndpointInsecure
+		request.AwsS3BaseConfig.Passkey = secretConfig.S3SecretKey
+
+		request.AzureBlobBaseConfig.AccountName = cmConfig.AzureAccountName
+		request.AzureBlobBaseConfig.AccountKey = secretConfig.AzureAccountKey
+
+		request.GcpBlobBaseConfig.CredentialFileJsonData = secretConfig.GcpBlobStorageCredentialJson
 	}
 	_, numBytes, err := blobStorageService.Get(request)
 	if err != nil {
