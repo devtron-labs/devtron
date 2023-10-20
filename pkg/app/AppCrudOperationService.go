@@ -201,14 +201,14 @@ func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAp
 	}
 	appLabelMap := make(map[string]*pipelineConfig.AppLabel)
 	for _, appLabel := range appLabels {
-		uniqueLabelExists := fmt.Sprintf("%s:%s:%t", appLabel.Key, appLabel.Value, appLabel.Propagate)
+		uniqueLabelExists := fmt.Sprintf("%s:%s", appLabel.Key, appLabel.Value)
 		if _, ok := appLabelMap[uniqueLabelExists]; !ok {
 			appLabelMap[uniqueLabelExists] = appLabel
 		}
 	}
-
+	appLabelDeleteMap := make(map[string]bool, 0)
 	for _, label := range request.AppLabels {
-		uniqueLabelRequest := fmt.Sprintf("%s:%s:%t", label.Key, label.Value, label.Propagate)
+		uniqueLabelRequest := fmt.Sprintf("%s:%s", label.Key, label.Value)
 		if _, ok := appLabelMap[uniqueLabelRequest]; !ok {
 			// create new
 			model := &pipelineConfig.AppLabel{
@@ -227,9 +227,12 @@ func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAp
 				return nil, err
 			}
 		} else {
-			// delete from map so that item remain live, all other item will be delete from this app
-			delete(appLabelMap, uniqueLabelRequest)
+			// storing this unique so that item remain live, all other item will be delete from this app
+			appLabelDeleteMap[uniqueLabelRequest] = true
 		}
+	}
+	for labelReq, _ := range appLabelDeleteMap {
+		delete(appLabelMap, labelReq)
 	}
 	for _, appLabel := range appLabelMap {
 		err = impl.appLabelRepository.Delete(appLabel, tx)
