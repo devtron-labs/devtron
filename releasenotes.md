@@ -1,7 +1,3 @@
-## v0.6.23
-
-
-
 ## Bugs
 - fix: DT19-v1 bug fixes (#3962)
 - fix: ci pod request correction (#3980)
