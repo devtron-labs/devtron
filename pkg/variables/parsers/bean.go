@@ -61,7 +61,7 @@ func GetScopedVarData(varData map[string]string, nameToIsSensitive map[string]bo
 
 		finalValue := value
 		if !isSuperAdmin && nameToIsSensitive[key] {
-			finalValue = "hidden-value"
+			finalValue = models.HiddenValue
 		}
 		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: &models.VariableValue{Value: models.GetInterfacedValue(finalValue)}})
 	}

@@ -42,6 +42,9 @@ const (
 	PRIMITIVE_TYPE DataType = "primitive"
 )
 
+const HiddenValue = "hidden-value"
+const UndefinedValue = "undefined-variable-value"
+
 func (variableType VariableType) IsTypeSensitive() bool {
 	if variableType == PRIVATE {
 		return true

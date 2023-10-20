@@ -1334,7 +1334,7 @@ const cpu = "cpu"
 const memory = "memory"
 
 func (impl ChartServiceImpl) ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType, isSuperAdmin bool, maskUnknownVariable bool) (string, map[string]string, error) {
-
+	//Todo Subhashish manager layer
 	variableSnapshot := make(map[string]string)
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, templateType)
 	if err != nil {
@@ -1359,7 +1359,7 @@ func (impl ChartServiceImpl) ExtractVariablesAndResolveTemplate(scope resourceQu
 			if _, ok := variableSnapshot[variable]; !ok {
 				scopedVariables = append(scopedVariables, &models2.ScopedVariableData{
 					VariableName:  variable,
-					VariableValue: &models2.VariableValue{Value: "undefined-variable-value"},
+					VariableValue: &models2.VariableValue{Value: models2.UndefinedValue},
 				})
 			}
 		}

@@ -26,6 +26,7 @@ type ScopedVariableService interface {
 	GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
 	GetJsonForVariables() (*models.Payload, error)
 	CheckForSensitiveVariables(variableNames []string) (map[string]bool, error)
+	GetFormattedVariableForName(name string) string
 }
 
 type ScopedVariableServiceImpl struct {
@@ -58,6 +59,7 @@ type VariableConfig struct {
 	VariableNameRegex    string `env:"SCOPED_VARIABLE_NAME_REGEX" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$"`
 	VariableCacheEnabled bool   `env:"VARIABLE_CACHE_ENABLED" envDefault:"true"`
 	SystemVariablePrefix string `env:"SYSTEM_VAR_PREFIX" envDefault:"DEVTRON_"`
+	ScopedVariableFormat string `env:"SCOPED_VARIABLE_FORMAT" envDefault:"@{{%s}}"`
 }
 
 func loadVariableCache(cfg *VariableConfig, service *ScopedVariableServiceImpl) {
@@ -86,6 +88,10 @@ func (impl *ScopedVariableServiceImpl) loadVarCache() {
 	}
 	variableCache.SetData(variableMetadata)
 	impl.logger.Info("variable cache loaded successfully")
+}
+
+func (impl *ScopedVariableServiceImpl) GetFormattedVariableForName(name string) string {
+	return fmt.Sprintf(impl.VariableNameConfig.ScopedVariableFormat, name)
 }
 
 func (impl *ScopedVariableServiceImpl) CheckForSensitiveVariables(variableNames []string) (map[string]bool, error) {
@@ -445,7 +451,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		var varValue *models.VariableValue
 		var isRedacted bool
 		if !unmaskSensitiveData && variableIdToDefinition[varId].VarType == models.PRIVATE {
-			varValue = &models.VariableValue{Value: "hidden-value"}
+			varValue = &models.VariableValue{Value: models.HiddenValue}
 			isRedacted = true
 		} else {
 			varValue = &models.VariableValue{Value: value}

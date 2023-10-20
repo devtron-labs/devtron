@@ -1485,7 +1485,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQua
 	// pre-populating variable map with variable so that the variables which don't have any resolved data
 	// is saved in snapshot
 	for _, variable := range entityToVariables[entity] {
-		variableMap[variable] = "@{{" + variable + "}}"
+		variableMap[variable] = impl.scopedVariableService.GetFormattedVariableForName(variable)
 	}
 
 	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
