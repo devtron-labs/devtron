@@ -242,18 +242,22 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, error) {
 	artifacts := make([]*CiArtifact, 0, listingFilterOpts.Limit)
+	commonPaginationQueryPart := " cia.image ILIKE %?%" +
+		" ORDER BY cia.id DESC" +
+		" LIMIT ?" +
+		" OFFSET ?;"
 	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE {
 		query := " SELECT cia.* " +
 			" FROM ci_artifact cia" +
 			" INNER JOIN ci_pipeline cp ON cp.id=cia.pipeline_id" +
 			" INNER JOIN pipeline p ON p.ci_pipeline_id = cp.id and p.id=?" +
-			" WHERE cia.id NOT IN (?) " +
-			" AND cia.image ILIKE %?%" +
-			" ORDER BY cia.id DESC" +
-			" LIMIT ?" +
-			" OFFSET ?;"
+			" WHERE "
+		if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
+			query += fmt.Sprintf(" cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+		}
+		query += commonPaginationQueryPart
 
-		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.PipelineId, pg.In(listingFilterOpts.ExcludeArtifactIds), listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
+		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.PipelineId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
 		if err != nil {
 			return artifacts, err
 		}
@@ -261,13 +265,12 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 	} else if listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
 		query := " SELECT cia.* " +
 			" FROM ci_artifact cia " +
-			" WHERE cia.external_ci_pipeline_id = ? " +
-			" AND cia.id NOT IN (?) " +
-			" AND cia.image ILIKE %?% " +
-			" ORDER BY cia.id DESC " +
-			" LIMIT ? " +
-			" OFFSET ?;"
-		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.ParentId, pg.In(listingFilterOpts.ExcludeArtifactIds), listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
+			" WHERE cia.external_ci_pipeline_id = ? AND "
+		if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
+			query += fmt.Sprintf(" cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+		}
+		query += commonPaginationQueryPart
+		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.ParentId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
 		if err != nil {
 			return artifacts, err
 		}

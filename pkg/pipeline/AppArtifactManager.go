@@ -523,18 +523,43 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, int, string, error) {
 
 	var ciArtifacts []*bean2.CiArtifactBean
+
 	//1)get current deployed artifact on this pipeline
 	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.PipelineId, listingFilterOpts.StageType, 1)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", listingFilterOpts.PipelineId, "currentStageType", listingFilterOpts.StageType)
 		return ciArtifacts, 0, "", err
 	}
-	if len(latestWf) == 0 {
-		return ciArtifacts, 0, "", err
-	}
-	currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
-	listingFilterOpts.ExcludeArtifactIds = []int{currentRunningArtifact.Id}
 
+	var currentRunningArtifactBean *bean2.CiArtifactBean
+	currentRunningArtifactId := 0
+	currentRunningWorkflowStatus := ""
+
+	//no artifacts deployed on this pipeline yet if latestWf is empty
+	if len(latestWf) > 0 {
+
+		currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
+		listingFilterOpts.ExcludeArtifactIds = []int{currentRunningArtifact.Id}
+		currentRunningArtifactId = currentRunningArtifact.Id
+		currentRunningWorkflowStatus = latestWf[0].Status
+		//current deployed artifact should always be computed, as we have to show it every time
+		mInfo, err := parseMaterialInfo([]byte(currentRunningArtifact.MaterialInfo), currentRunningArtifact.DataSource)
+		if err != nil {
+			mInfo = []byte("[]")
+			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", currentRunningArtifact)
+		}
+		currentRunningArtifactBean = &bean2.CiArtifactBean{
+			Id:           currentRunningArtifact.Id,
+			Image:        currentRunningArtifact.Image,
+			ImageDigest:  currentRunningArtifact.ImageDigest,
+			MaterialInfo: mInfo,
+			ScanEnabled:  currentRunningArtifact.ScanEnabled,
+			Scanned:      currentRunningArtifact.Scanned,
+			Deployed:     true,
+			DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
+			Latest:       true,
+		}
+	}
 	//2) get artifact list limited by filterOptions
 	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE || listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
 		ciArtifacts, err = impl.BuildArtifactsForCIParentV2(listingFilterOpts)
@@ -550,25 +575,11 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		}
 	}
 
-	//current deployed artifact is not included in the above computed ciArtifacts, we have to add this too
-	mInfo, err := parseMaterialInfo([]byte(currentRunningArtifact.MaterialInfo), currentRunningArtifact.DataSource)
-	if err != nil {
-		mInfo = []byte("[]")
-		impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", currentRunningArtifact)
+	//if no artifact deployed skip adding currentRunningArtifactBean in ciArtifacts arr
+	if currentRunningArtifactBean != nil {
+		ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
 	}
-	currentRunningArtifactBean := &bean2.CiArtifactBean{
-		Id:           currentRunningArtifact.Id,
-		Image:        currentRunningArtifact.Image,
-		ImageDigest:  currentRunningArtifact.ImageDigest,
-		MaterialInfo: mInfo,
-		ScanEnabled:  currentRunningArtifact.ScanEnabled,
-		Scanned:      currentRunningArtifact.Scanned,
-		Deployed:     true,
-		DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
-		Latest:       true,
-	}
-	ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
-	return ciArtifacts, currentRunningArtifact.Id, latestWf[0].Status, nil
+	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, nil
 }
 
 func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, error) {
