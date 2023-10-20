@@ -428,9 +428,6 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	ciArtifactsResponse.CiArtifacts = ciArtifacts
 
 	if pipeline.ApprovalNodeConfigured() && stage == bean.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
-		if err != nil {
-			return ciArtifactsResponse, err
-		}
 		ciArtifactsFinal, approvalConfig, err := impl.overrideArtifactsWithUserApprovalData(pipeline, ciArtifactsResponse.CiArtifacts, isApprovalNode, latestWfArtifactId)
 		if err != nil {
 			return ciArtifactsResponse, err
