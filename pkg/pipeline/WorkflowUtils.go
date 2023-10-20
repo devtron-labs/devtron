@@ -440,6 +440,7 @@ func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig
 func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]byte, error) {
 	workflowRequest.updateBlobStorageLogsKey(config)
 	workflowRequest.updateExternalRunMetadata()
+	workflowRequest.UseExternalClusterBlob = !workflowRequest.CheckBlobStorageConfig(config) && workflowRequest.IsExtRun
 	workflowJson, err := workflowRequest.getWorkflowJson()
 	if err != nil {
 		return nil, err

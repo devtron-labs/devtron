@@ -116,7 +116,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 }
 
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *WorkflowRequest) (bean3.WorkflowTemplate, error) {
-	workflowRequest.UseExternalClusterBlob = !workflowRequest.CheckBlobStorageConfig(impl.ciCdConfig) && workflowRequest.IsExtRun
 	workflowJson, err := workflowRequest.GetWorkflowJson(impl.ciCdConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting workflow json", "err", err)
