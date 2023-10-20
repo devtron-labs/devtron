@@ -12,7 +12,7 @@ import (
 
 type DeploymentApprovalRepository interface {
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error)
-	FetchApprovalDataForPipeline(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error)
+	FetchApprovalRequestData(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error)
 	FetchApprovalDataForRequests(requestIds []int) ([]*DeploymentApprovalUserData, error)
 	FetchById(requestId int) (*DeploymentApprovalRequest, error)
 	FetchWithPipelineAndArtifactDetails(requestId int) (*DeploymentApprovalRequest, error)
@@ -21,6 +21,7 @@ type DeploymentApprovalRepository interface {
 	SaveDeploymentUserData(userData *DeploymentApprovalUserData) error
 	ConsumeApprovalRequest(requestId int) error
 	FetchApprovedDataByApprovalId(approvalRequestId int) ([]*DeploymentApprovalUserData, error)
+	FetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error)
 }
 
 type DeploymentApprovalRepositoryImpl struct {
@@ -71,16 +72,16 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovedDataByApprovalId(appr
 
 }
 
-func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForPipeline(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error) {
+func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalRequestData(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error) {
 	var requests []*DeploymentApprovalRequest
 	err := impl.dbConnection.
 		Model(&requests).
-		Column("deployment_approval_request.*", "Pipeline", "CiArtifact").
-		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
+		Column("deployment_approval_request.*", "CiArtifact").
 		Join("LEFT JOIN pipeline_config_override pco ON pco.ci_artifact_id = ca.id").
 		Where("deployment_approval_request.active = true").
 		Where("deployment_approval_request.artifact_deployment_triggered = false").
 		Where("deployment_approval_request.pipeline_id = ?", pipelineId).
+		Where("ci_artifact.image ILIKE %?%", searchString).
 		Limit(limit).
 		Offset(offset).
 		Select()
@@ -89,57 +90,13 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForPipeline(pipel
 		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
 		return nil, err
 	}
-	requestIdMap := make(map[int]*DeploymentApprovalRequest)
-	var requestIds []int
-	for _, request := range requests {
-		requestId := request.Id
-		requestIdMap[requestId] = request
-		requestIds = append(requestIds, requestId)
-	}
-	if len(requestIds) > 0 {
-		usersData, err := impl.FetchApprovalDataForRequests(requestIds)
-		if err != nil {
-			return requests, err
-		}
-		for _, userData := range usersData {
-			approvalRequestId := userData.ApprovalRequestId
-			deploymentApprovalRequest := requestIdMap[approvalRequestId]
-			approvalUsers := deploymentApprovalRequest.DeploymentApprovalUserData
-			approvalUsers = append(approvalUsers, userData)
-			deploymentApprovalRequest.DeploymentApprovalUserData = approvalUsers
-		}
-	}
-
-	var artifactIds []int
-	for _, r := range requests {
-		id := r.ArtifactId
-		artifactIds = append(artifactIds, id)
-	}
-
-	deployedTimeArray, err := impl.fetchLatestDeploymentByArtifactIds(pipelineId, artifactIds)
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-
-	deploymentMap := make(map[int]time.Time, 0)
-	for _, r := range deployedTimeArray {
-		deploymentMap[r.ArtifactId] = r.AuditLog.CreatedOn
-	}
-
-	for _, r := range requests {
-		v, ok := deploymentMap[r.ArtifactId]
-		if ok {
-			r.CiArtifact.Deployed = true
-			r.CiArtifact.DeployedTime = v
-		}
-	}
 
 	return requests, nil
 }
 
-func (impl *DeploymentApprovalRepositoryImpl) fetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error) {
+func (impl *DeploymentApprovalRepositoryImpl) FetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error) {
 	var requests []*DeploymentApprovalRequest
-
+	// todo optimize it
 	query := `with minimal_pcos as (select max(pco.id) as id from pipeline_config_override pco where pco.pipeline_id  = ? and pco.ci_artifact_id in (?) group by pco.ci_artifact_id)
 	select pco.ci_artifact_id,pco.created_on from pipeline_config_override pco where pco.id in (select id from minimal_pcos); `
 

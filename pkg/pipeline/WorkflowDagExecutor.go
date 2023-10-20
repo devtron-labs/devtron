@@ -83,7 +83,7 @@ type WorkflowDagExecutor interface {
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
-	FetchApprovalArtifactsForPipeline(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error)
+	FetchApprovalRequestArtifacts(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 }
 
@@ -2346,24 +2346,67 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 	return nil, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) FetchApprovalArtifactsForPipeline(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error) {
+func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error) {
 
 	var ciArtifacts []bean2.CiArtifactBean
-	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForPipeline(pipelineId, limit, offset, searchString)
+	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalRequestData(pipelineId, limit, offset, searchString)
 	if err != nil {
 		return ciArtifacts, err
 	}
 
-	for _, r := range deploymentApprovalRequests {
+	requestIdMap := make(map[int]*pipelineConfig.DeploymentApprovalRequest)
+	var requestIds []int
+	var artifactIds []int
+	for _, request := range deploymentApprovalRequests {
+		requestId := request.Id
+		requestIdMap[requestId] = request
+		requestIds = append(requestIds, requestId)
+		artifactIds = append(artifactIds, request.ArtifactId)
+	}
+	if len(requestIds) > 0 {
+		usersData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests(requestIds)
+		if err != nil {
+			return ciArtifacts, err
+		}
+		for _, userData := range usersData {
+			approvalRequestId := userData.ApprovalRequestId
+			deploymentApprovalRequest := requestIdMap[approvalRequestId]
+			approvalUsers := deploymentApprovalRequest.DeploymentApprovalUserData
+			approvalUsers = append(approvalUsers, userData)
+			deploymentApprovalRequest.DeploymentApprovalUserData = approvalUsers
+		}
+	}
+
+	var latestDeployedArtifacts []*pipelineConfig.DeploymentApprovalRequest
+	if len(artifactIds) > 0 {
+		latestDeployedArtifacts, err = impl.deploymentApprovalRepository.FetchLatestDeploymentByArtifactIds(pipelineId, artifactIds)
+		if err != nil && err != pg.ErrNoRows {
+			return nil, err
+		}
+	}
+	latestDeployedArtifactsMap := make(map[int]time.Time, 0)
+	for _, r := range latestDeployedArtifacts {
+		latestDeployedArtifactsMap[r.ArtifactId] = r.AuditLog.CreatedOn
+	}
+
+	for _, request := range deploymentApprovalRequests {
+		if deployedTime, ok := latestDeployedArtifactsMap[request.ArtifactId]; ok {
+			request.CiArtifact.Deployed = true
+			request.CiArtifact.DeployedTime = deployedTime
+		}
+	}
+
+	for _, request := range deploymentApprovalRequests {
 		var artifact bean2.CiArtifactBean
-		artifact.Id = r.CiArtifact.Id
-		artifact.Image = r.CiArtifact.Image
-		artifact.ImageDigest = r.CiArtifact.ImageDigest
-		artifact.MaterialInfo = json.RawMessage(r.CiArtifact.MaterialInfo)
-		artifact.DataSource = r.CiArtifact.DataSource
-		artifact.WfrId = *r.CiArtifact.WorkflowId
-		artifact.Deployed = r.CiArtifact.Deployed
-		artifact.DeployedTime = formatDate(r.CiArtifact.DeployedTime, bean2.LayoutRFC3339)
+		ciArtifact := request.CiArtifact
+		artifact.Id = ciArtifact.Id
+		artifact.Image = ciArtifact.Image
+		artifact.ImageDigest = ciArtifact.ImageDigest
+		artifact.MaterialInfo = json.RawMessage(ciArtifact.MaterialInfo)
+		artifact.DataSource = ciArtifact.DataSource
+		artifact.WfrId = *ciArtifact.WorkflowId
+		artifact.Deployed = ciArtifact.Deployed
+		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean2.LayoutRFC3339)
 		ciArtifacts = append(ciArtifacts, artifact)
 	}
 	return ciArtifacts, err

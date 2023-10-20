@@ -441,8 +441,8 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, limit, offset int) (*bean2.CiArtifactResponse, error) {
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
-	if pipeline.ApprovalNodeConfigured() && stage == bean.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
-		ciArtifacts, err := impl.workflowDagExecutor.FetchApprovalArtifactsForPipeline(pipeline.Id, limit, offset, searchString)
+	if pipeline.ApprovalNodeConfigured() { // for now, we are checking artifacts for deploy stage only
+		ciArtifacts, err := impl.workflowDagExecutor.FetchApprovalRequestArtifacts(pipeline.Id, limit, offset, searchString)
 		if err != nil {
 			return ciArtifactsResponse, err
 		}
@@ -458,6 +458,7 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 		for _, item := range ciArtifacts {
 			artifactIds = append(artifactIds, item.Id)
 		}
+		// Todo - find out the deference between this metadata and one in repository
 		userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, pipeline.Id, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
 		if err != nil {
 			impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", pipeline.Id, "artifactIds", artifactIds, "err", err)
