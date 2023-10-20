@@ -576,6 +576,9 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		return ciArtifactsResponse, err
 	}
 
+	environment := pipeline.Environment
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
+
 	for i, artifact := range ciArtifacts {
 		if imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]; imageTaggingResp != nil {
 			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
@@ -584,8 +587,6 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 			ciArtifacts[i].ImageComment = imageCommentResp
 		}
 
-		environment := pipeline.Environment
-		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
 		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
 		metadata := resourceFilter.ExpressionMetadata{
 			Params: params,
