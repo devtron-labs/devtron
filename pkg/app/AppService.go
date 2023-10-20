@@ -2111,28 +2111,8 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 	ids = append(ids, executionHistory.Id)
 
 	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
-	if err != nil && err != pg.ErrNoRows {
-		return err
-	} else if err == pg.ErrNoRows && isScanEnabled {
-		imageScanDeployInfo := &security.ImageScanDeployInfo{
-			ImageScanExecutionHistoryId: ids,
-			ScanObjectMetaId:            appId,
-			ObjectType:                  security.ScanObjectType_APP,
-			EnvId:                       envId,
-			ClusterId:                   clusterId,
-			AuditLog: sql.AuditLog{
-				CreatedOn: time.Now(),
-				CreatedBy: 1,
-				UpdatedOn: time.Now(),
-				UpdatedBy: 1,
-			},
-		}
-		impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageScanDeployInfo", imageScanDeployInfo)
-		err = impl.imageScanDeployInfoRepository.Save(imageScanDeployInfo)
-		if err != nil {
-			impl.logger.Errorw("error in creating deploy info", "err", err)
-		}
-	} else {
+	switch err {
+	case nil:
 		// Updating Execution history for Latest Deployment to fetch out security Vulnerabilities for latest deployed info
 		if isScanEnabled {
 			ot.ImageScanExecutionHistoryId = ids
@@ -2143,9 +2123,35 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 		err = impl.imageScanDeployInfoRepository.Update(ot)
 		if err != nil {
 			impl.logger.Errorw("error in updating deploy info for latest deployed image", "err", err)
+			return err
 		}
+		return nil
+	case pg.ErrNoRows:
+		if isScanEnabled {
+			imageScanDeployInfo := &security.ImageScanDeployInfo{
+				ImageScanExecutionHistoryId: ids,
+				ScanObjectMetaId:            appId,
+				ObjectType:                  security.ScanObjectType_APP,
+				EnvId:                       envId,
+				ClusterId:                   clusterId,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: 1,
+					UpdatedOn: time.Now(),
+					UpdatedBy: 1,
+				},
+			}
+			impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageScanDeployInfo", imageScanDeployInfo)
+			err = impl.imageScanDeployInfoRepository.Save(imageScanDeployInfo)
+			if err != nil {
+				impl.logger.Errorw("error in creating deploy info", "err", err)
+				return err
+			}
+		}
+		return nil
+	default:
+		return err
 	}
-	return err
 }
 
 // FIXME tmp workaround
