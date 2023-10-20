@@ -58,7 +58,7 @@ Not all repository changes are worth triggering a new [CI build](../deploying-ap
 
 ![Figure 4: Sample Exclusion Rule](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/sample1.jpg)
 
-In other words, if a given commit contains changes in file(s) present in your exclusion rule, the commit won't show up while selecting the [Git material](../../reference/glossary#material), which means it will not be eligible for build.
+In other words, if a given commit contains changes only in file(s) present in your exclusion rule, the commit won't show up while selecting the [Git material](../../reference/glossary#material), which means it will not be eligible for build. However, if a given commit contains changes in other files too (along with the excluded file), the commit won't be excluded and it will definitely show up in the list of commits.
 
 ![Figure 5: Excludes commits made to README.md](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/excluded-commit.jpg)
 
@@ -70,74 +70,39 @@ To include a path, don't use any prefix, e.g. `path/to/file`
 
 #### Examples
 
-* **Exclusion of a single file in root folder (e.g. README.md)** <br />
 
-    ```
-    !README.md
-    ```
-    <br />
-    Commits containing changes made in only `README.md` file will not be shown <br />
+| Sample Values | Description |
+|---|---|
+| `!README.md` | **Exclusion of a single file in root folder:** <br/> Commits containing changes made only in README.md file will not be shown |
+| `!README.md` <br /> `!index.js` | **Exclusion of multiple files in root folder:** <br/> Commits containing changes made only in README.md or/and index.js files will not be shown |
+|  `README.md` | **Inclusion of a single file in root folder:** <br/> Commits containing changes made only in README.md file will be shown. Rest all will be excluded. |
+|  `!src/extensions/printer/code2.py` | **Exclusion of a single file in a folder tree:** <br/> Commits containing changes made specifically to code2.py file will not be shown |
+|  `!src/*` | **Exclusion of a single folder and all its files:** <br/> Commits containing changes made specifically to files within src folder will not be shown |
+|  `!README.md` <br/> `index.js` | **Exclusion and inclusion of files:** <br/> Commits containing changes made only in README.md will not be shown, but commits made in index.js file will be shown. All other commits apart from the aforementioned files will be excluded. |
+|  `!README.md` <br/> `README.md` | **Exclusion and inclusion of conflicting files:** <br/> If conflicting paths are defined in the rule, the one defined later will be considered. In this case, commits containing changes made only in README.md will be shown. |
 
-* **Exclusion of multiple files in root folder (e.g. README.md, index.js)** <br />
 
-    ```
-    !README.md
-    !index.js
-    ```
-    <br />
-    Commits containing changes made in only `README.md` or/and `index.js` files will not be shown <br />
+You may use the **Learn how** link (as shown below) to understand the syntax of defining an exclusion or inclusion rule.
 
-* **Inclusion of a single file in root folder (e.g. README.md)** <br />
+![Figure 6: 'Learn how' Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/rules.jpg)
 
-    ```
-    README.md
-    ```
-    <br />
-    Commits containing changes made in only `README.md` file will be shown. Rest all will be excluded.<br />
-
-* **Exclusion of a single file in a folder tree (e.g. README.md)** <br />
-
-    ```
-    !src/extensions/printer/code2.py
-    ```
-    <br />
-    Commits containing changes made specifically to `code2.py` file will not be shown <br />
-
-* **Exclusion of a single folder and all its files (e.g. src)** <br />
-
-    ```
-    !src/*
-    ```
-
-    <br />
-    Commits containing changes made specifically to files within `src` folder will not be shown <br />
-
-* **Exclusion and inclusion of files (e.g. README.md, index.js)** <br />
-
-    ```
-    !README.md
-    index.js
-    ```
-    <br />
-    Commits containing changes made in `README.md` will not be shown, but commits made in `index.js` file will be shown. All other commits apart from the aforementioned files will be excluded. <br />
-
-* **Exclusion and inclusion of conflicting files** <br />
-
-    ```
-    !README.md
-    README.md
-    ```
-    <br />
-
-    If conflicting paths are defined in the rule, the one defined later will be considered. In this case, commits containing changes made in `README.md` will be shown.<br />
-
-You may use the **Learn how** button (as shown below) to understand the syntax of defining an exclusion or inclusion rule.
-
-![Figure 6: 'Learn how' button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/rules.jpg)
-
-Since file paths can be long, Devtron supports regex too for writing the paths. To understand it better, you may click the `How to use` link as shown below.
+Since file paths can be long, Devtron supports regex too for writing the paths. To understand it better, you may click the **How to use** link as shown below.
 
 ![Figure 7: Regex Support](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/regex-help.jpg)
+
+#### How to view excluded commits?
+
+As we saw earlier in fig. 4 and 5, commits containing the changes of only `README.md` file were not displayed, since the file was in the exclusion list. 
+
+However, Devtron gives you the option to view the excluded commits too. There's a döner menu at the top-right (beside the `Search by commit hash` search bar).
+
+![Figure 8a: Döner Menu Icon](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/doner-menu.jpg)
+
+![Figure 8b: Show Excluded Commits](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/show-exclusions.jpg)
+
+![Figure 8c: Commits Unavailable for Build](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/excluded-commits.jpg)
+
+The **EXCLUDED** label (in red) indicates that the commits contain changes made only to the excluded file, and hence they are unavailable for build.
 
 
 ### Set clone directory
