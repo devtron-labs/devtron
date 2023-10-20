@@ -59,7 +59,7 @@ type HistoryDetailDto struct {
 	FilePermission       string               `json:"filePermission,omitempty"`
 	CodeEditorValue      *HistoryDetailConfig `json:"codeEditorValue"`
 	VariableSnapshot     map[string]string    `json:"variableSnapshot"`
-	ResolvedTemplateData string               `json:"resolvedTemplateData""`
+	ResolvedTemplateData string               `json:"resolvedTemplateData"`
 }
 
 type HistoryDetailConfig struct {
