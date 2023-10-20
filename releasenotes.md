@@ -24,6 +24,8 @@
 - fix: normal Refresh after triggering gitops deployment to avoid sync delay in argo (#4066)
 - fix: helm chart delete when no rows are found (#4124)
 - fix: Unable to abort pre-cd and post-cd workflow (#4121)
+- fix: Helm Apps permissions do not allow Terminal or Logs view (#4110)
+- fix: port service mapping (#4132)
 ## Enhancements
 - feat: Helm async install (#3856)
 - feat: handle CI success event auto trigger in batch (#3951)
@@ -69,3 +71,4 @@
 - chore: refactored appartifact manager and cimaterialconfigservice (#4096)
 - chore: Remove the EnvVariablesFromFieldPath from values.yaml in refcharts (#4111)
 - chore: Updated schema for Scope Variable (#4079)
+- chore: skip validation for release PRs (#4128)
