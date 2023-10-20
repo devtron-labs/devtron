@@ -64,7 +64,7 @@ func NewUserCommonServiceImpl(userAuthRepository repository2.UserAuthRepository,
 }
 
 type UserRbacConfig struct {
-	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"false"`
+	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"true"`
 }
 
 func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, userId int32) (bool, error, []casbin.Policy) {
@@ -85,7 +85,7 @@ func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entit
 		return false, err, nil
 	}
 	_, err = impl.userAuthRepository.CreateRole(renderedRole)
-	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+	if err != nil || strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 		return false, err, nil
 	}
 	return true, nil, renderedPolicyDetails

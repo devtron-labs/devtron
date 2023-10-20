@@ -251,7 +251,7 @@ func (_m *AppRepository) FindAll() ([]*app.App, error) {
 }
 
 // FindAllActiveAppsWithTeam provides a mock function with given fields:
-func (_m *AppRepository) FindAllActiveAppsWithTeam() ([]*app.App, error) {
+func (_m *AppRepository) FindAllActiveAppsWithTeam(helper.AppType) ([]*app.App, error) {
 	ret := _m.Called()
 
 	var r0 []*app.App

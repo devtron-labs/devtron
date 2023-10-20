@@ -718,7 +718,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 	//for non super admin users
 	if !isActionUserSuperAdmin {
 		userEmailId := strings.ToLower(user.EmailId)
-		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps()
+		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.CustomApp)
 		rbacObjectToAppIdMap := make(map[string]int)
 		rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
 		itr := 0
