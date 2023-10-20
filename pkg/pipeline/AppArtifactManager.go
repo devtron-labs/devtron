@@ -464,9 +464,9 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 			impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", pipeline.Id, "artifactIds", artifactIds, "err", err)
 			return ciArtifactsResponse, err
 		}
+
 		for _, artifact := range ciArtifacts {
-			approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]
-			if ok { // either approved or requested
+			if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok { // either approved or requested
 				artifact.UserApprovalMetadata = approvalMetadataForArtifact
 			}
 		}

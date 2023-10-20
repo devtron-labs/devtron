@@ -2354,30 +2354,37 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 		return ciArtifacts, err
 	}
 
-	requestIdMap := make(map[int]*pipelineConfig.DeploymentApprovalRequest)
-	var requestIds []int
 	var artifactIds []int
 	for _, request := range deploymentApprovalRequests {
-		requestId := request.Id
-		requestIdMap[requestId] = request
-		requestIds = append(requestIds, requestId)
 		artifactIds = append(artifactIds, request.ArtifactId)
 	}
-	if len(requestIds) > 0 {
-		usersData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests(requestIds)
+
+	if len(artifactIds) > 0 {
+		deploymentApprovalRequests, err = impl.getLatestDeploymentByArtifactIds(pipelineId, deploymentApprovalRequests, artifactIds)
 		if err != nil {
-			return ciArtifacts, err
-		}
-		for _, userData := range usersData {
-			approvalRequestId := userData.ApprovalRequestId
-			deploymentApprovalRequest := requestIdMap[approvalRequestId]
-			approvalUsers := deploymentApprovalRequest.DeploymentApprovalUserData
-			approvalUsers = append(approvalUsers, userData)
-			deploymentApprovalRequest.DeploymentApprovalUserData = approvalUsers
+			return nil, err
 		}
 	}
 
+	for _, request := range deploymentApprovalRequests {
+		var artifact bean2.CiArtifactBean
+		ciArtifact := request.CiArtifact
+		artifact.Id = ciArtifact.Id
+		artifact.Image = ciArtifact.Image
+		artifact.ImageDigest = ciArtifact.ImageDigest
+		artifact.MaterialInfo = json.RawMessage(ciArtifact.MaterialInfo)
+		artifact.DataSource = ciArtifact.DataSource
+		artifact.WfrId = *ciArtifact.WorkflowId
+		artifact.Deployed = ciArtifact.Deployed
+		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean2.LayoutRFC3339)
+		ciArtifacts = append(ciArtifacts, artifact)
+	}
+	return ciArtifacts, err
+}
+
+func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId int, deploymentApprovalRequests []*pipelineConfig.DeploymentApprovalRequest, artifactIds []int) ([]*pipelineConfig.DeploymentApprovalRequest, error) {
 	var latestDeployedArtifacts []*pipelineConfig.DeploymentApprovalRequest
+	var err error
 	if len(artifactIds) > 0 {
 		latestDeployedArtifacts, err = impl.deploymentApprovalRepository.FetchLatestDeploymentByArtifactIds(pipelineId, artifactIds)
 		if err != nil && err != pg.ErrNoRows {
@@ -2396,20 +2403,7 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 		}
 	}
 
-	for _, request := range deploymentApprovalRequests {
-		var artifact bean2.CiArtifactBean
-		ciArtifact := request.CiArtifact
-		artifact.Id = ciArtifact.Id
-		artifact.Image = ciArtifact.Image
-		artifact.ImageDigest = ciArtifact.ImageDigest
-		artifact.MaterialInfo = json.RawMessage(ciArtifact.MaterialInfo)
-		artifact.DataSource = ciArtifact.DataSource
-		artifact.WfrId = *ciArtifact.WorkflowId
-		artifact.Deployed = ciArtifact.Deployed
-		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean2.LayoutRFC3339)
-		ciArtifacts = append(ciArtifacts, artifact)
-	}
-	return ciArtifacts, err
+	return deploymentApprovalRequests, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
