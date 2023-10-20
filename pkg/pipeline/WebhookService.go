@@ -213,7 +213,11 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		impl.logger.Errorw("error in getting image scanning plugin", "err", err)
 		return 0, err
 	}
-	isScanPluginConfigured := impl.pipelineStageRepository.CheckPluginExistsInCiPipeline(pipeline.Id, string(repository2.PIPELINE_STAGE_TYPE_POST_CI), plugin[0].Id)
+	isScanPluginConfigured, err := impl.pipelineStageRepository.CheckPluginExistsInCiPipeline(pipeline.Id, string(repository2.PIPELINE_STAGE_TYPE_POST_CI), plugin[0].Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting ci pipeline plugin", "err", err)
+		return 0, err
+	}
 	if pipeline.ScanEnabled || isScanPluginConfigured {
 		artifact.Scanned = true
 		artifact.ScanEnabled = true
