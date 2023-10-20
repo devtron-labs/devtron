@@ -33,7 +33,7 @@
 - feat: added flag to configure ecr repo creation (#3963)
 - feat: Ability to change branch for all selected applications during bulk build from Application Groups (#3955)
 - feat: Variables support in pre-post CI, CD and Jobs (#3911)
-- feat:Poll Images from ECR Container Repository Plugin (#3971)
+- feat: Poll Images from ECR Container Repository Plugin (#3971)
 - feat: resource groups CRUD and environment filtering (#3974)
 - feat: Scoped variables primitive handling (#4033)
 - feat: adding DEVTRON_APP_NAME system variable for deployment template (#4041)
