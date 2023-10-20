@@ -3225,7 +3225,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
-				if GetGRPCErrorDetailedMessage(err) == ContextCanceledError {
+				if GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
 					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
 				}
 				return false, err
@@ -3243,7 +3243,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				return false, err
 			}
 
-			if GetGRPCErrorDetailedMessage(err) == ContextCanceledError {
+			if GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
 				err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
 			}
 			// IMP: update cd pipeline to mark deployment app created, even if helm install fails
