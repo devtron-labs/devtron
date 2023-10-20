@@ -109,6 +109,45 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForPipeline(pipel
 			deploymentApprovalRequest.DeploymentApprovalUserData = approvalUsers
 		}
 	}
+
+	var artifactIds []int
+	for _, r := range requests {
+		id := r.ArtifactId
+		artifactIds = append(artifactIds, id)
+	}
+
+	deployedTimeArray, err := impl.fetchLatestDeploymentByArtifactIds(pipelineId, artifactIds)
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+
+	deploymentMap := make(map[int]time.Time, 0)
+	for _, r := range deployedTimeArray {
+		deploymentMap[r.ArtifactId] = r.AuditLog.CreatedOn
+	}
+
+	for _, r := range requests {
+		v, ok := deploymentMap[r.ArtifactId]
+		if ok {
+			r.CiArtifact.Deployed = true
+			r.CiArtifact.DeployedTime = v
+		}
+	}
+
+	return requests, nil
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) fetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error) {
+	var requests []*DeploymentApprovalRequest
+
+	query := `with minimal_pcos as (select max(pco.id) as id from pipeline_config_override pco where pco.pipeline_id  = ? and pco.ci_artifact_id in (?) group by pco.ci_artifact_id)
+	select pco.ci_artifact_id,pco.created_on from pipeline_config_override pco where pco.id in (select id from minimal_pcos); `
+
+	_, err := impl.dbConnection.Query(&requests, query, pipelineId, artifactIds)
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+
 	return requests, nil
 }
 

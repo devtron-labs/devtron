@@ -38,7 +38,7 @@ type AppArtifactManager interface {
 
 	RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
-	FetchArtifactsForPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, limit, offset int) (*bean2.CiArtifactResponse, error)
+	FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, limit, offset int) (*bean2.CiArtifactResponse, error)
 
 	//FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string) (bean2.CiArtifactResponse, error)
@@ -438,7 +438,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	return ciArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) FetchArtifactsForPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, limit, offset int) (*bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, limit, offset int) (*bean2.CiArtifactResponse, error) {
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
 	if pipeline.ApprovalNodeConfigured() && stage == bean.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
