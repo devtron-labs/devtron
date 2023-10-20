@@ -62,7 +62,7 @@ components:
 
   devtron:
     image: "quay.io/devtron/hyperion:f349531b-280-18840"
-    cicdImage: "quay.io/devtron/devtron:f349531b-434-18837"
+    cicdImage: "quay.io/devtron/devtron:edfadc7f-434-18843"
     imagePullPolicy: IfNotPresent
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:ad3af321-138-18662"
