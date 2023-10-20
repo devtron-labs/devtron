@@ -351,6 +351,7 @@ minio:
     storage: "50Gi"
 # Change below values for workflow controller
 workflowController:
+  # Set this to true if you have IMDSv2 enforced or IMDSv1 and v2 on your AWS EKS cluster and false if you are using IMDSv1 with token hop limit set to 1
   IMDSv2Enforced: true
   image: "quay.io/argoproj/workflow-controller:v3.4.3"
   executorImage: "quay.io/argoproj/argoexec:v3.4.3"
