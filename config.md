@@ -1,143 +1,186 @@
-#application name 
-APP: "orchestrator"
-MODE: "PROD" 
+# DEVTRON CONFIGMAP PARAMETER
+
+| Key                                      | Value                                                     | Description |
+|------------------------------------------|-----------------------------------------------------------|-------------|
+| APP                                      | orchestrator                                              | Application name. |
+| MODE                                     | PROD                                                      | Operating mode. |
+| DASHBOARD_PORT                           | 80                                                        | Port number of the dashboard service. |
+| DASHBOARD_HOST                           | dashboard-service.devtroncd                               | URL of the dashboard service. |
+| CD_HOST                                  | argocd-server.devtroncd                                   | Service name of the ArgoCD service. |
+| CD_PORT                                  | 80                                                        | Port of the ArgoCD service. |
+| CD_NAMESPACE                             | devtroncd                                                 | Namespace for ArgoCD. |
+| GITOPS_REPO_PREFIX                       | devtron                                                   | GitOps repository prefix. |
+| EVENT_URL                               | http://notifier-service.devtroncd:80/notify                | URL of the notifier microservice. |
+| LENS_URL                                | http://lens-service.devtroncd:80                          | URL of the lens microservice. |
+| LENS_TIMEOUT                            | 300                                                       | Lens microservice timeout. |
+| HELM_CLIENT_URL                         | kubelink-service:50051                                    | URL of the Helm client microservice. |
+| NATS_SERVER_HOST                        | nats://devtron-nats.devtroncd:4222                        | URL of the NATS microservice. |
+| PG_ADDR                                 | postgresql-postgresql.devtroncd                          | URL of the PostgreSQL microservice. |
+| PG_PORT                                 | 5432                                                     | PostgreSQL port. |
+| PG_USER                                 | postgres                                                 | PostgreSQL user. |
+| PG_DATABASE                             | orchestrator                                             | PostgreSQL database. |
+| GIT_SENSOR_TIMEOUT                      | 300                                                      | Timeout for the Git sensor microservice. |
+| GIT_SENSOR_PROTOCOL                      | GRPC                                                     | Git sensor protocol. |
+| GIT_SENSOR_URL                          | git-sensor-service.devtroncd:90                          | URL of the Git sensor microservice. |
+| APP_SYNC_IMAGE                          | quay.io/devtron/chart-sync:0e8c785e-373-16172            | Image for syncing Devtron chart store. |
+| DEX_HOST                               | http://argocd-dex-server.devtroncd                        | URL of Argocd Dex server. |
+| DEX_PORT                               | 5556                                                     | Port of Argocd Dex server. |
+| DEX_RURL                               | http://argocd-dex-server.devtroncd:8080/callback          | Argocd Dex server redirect URL. |
+| DEX_URL                                | http://argocd-dex-server.devtroncd:5556/dex              | URL for Argocd Dex server. |
+| CExpirationTime                        | 600                                                      | Caching expiration time. |
+| JwtExpirationTime                      | 120                                                      | JWT expiration time. |
+| IMAGE_SCANNER_ENDPOINT                 | http://image-scanner-service.devtroncd:80                | URL of the image scanner microservice. |
+| LOG_LEVEL                              | 0                                                        | Log level (-2, -1, 0). |
+| PG_LOG_QUERY                           | true                                                     | Log PostgreSQL queries. |
+| GRAFANA_URL                            | http://%s:%s@devtron-grafana.devtroncd/grafana            | URL for Grafana. |
+| GRAFANA_HOST                           | devtron-grafana.devtroncd                                | Grafana host. |
+| GRAFANA_PORT                           | 80                                                       | Grafana port. |
+| GRAFANA_NAMESPACE                      | devtroncd                                                | Grafana namespace. |
+| GRAFANA_ORG_ID                         | 2                                                        | Grafana organization ID. |
+| ACD_URL                                | argocd-server.devtroncd                                  | URL for Argocd server. |
+| ACD_USERNAME                           | admin                                                    | Argocd username. |
+| ACD_USER                               | admin                                                    | Argocd user. |
+| ACD_CM                                 | argocd-cm                                                | Argocd config map. |
+| ACD_NAMESPACE                          | devtroncd                                                | Namespace for Argocd. |
+| ACD_TIMEOUT                            | 300                                                      | Argocd timeout. |
+| ACD_SKIP_VERIFY                        | true                                                     | Skip Argocd verification. |
+| GIT_WORKING_DIRECTORY                   | /tmp/gitops/                                             | Git working directory. |
+| CD_LIMIT_CI_CPU                        | 0.5                                                     | CI CPU limit for post-build workflow. |
+| CD_LIMIT_CI_MEM                        | 3G                                                      | CI memory limit for post-build workflow. |
+| CD_REQ_CI_CPU                          | 0.5                                                     | CI CPU request for post-build workflow. |
+| CD_REQ_CI_MEM                          | 1G                                                      | CI memory request for post-build workflow. |
+| CD_NODE_TAINTS_KEY                     | dedicated                                               | CI node taints key. |
+| CD_NODE_LABEL_SELECTOR                 | kubernetes.io/os=linux                                   | CI node label selector. |
+| CD_WORKFLOW_SERVICE_ACCOUNT             | cd-runner                                                | CI workflow service account. |
+| CD_NODE_TAINTS_VALUE                   | ci                                                      | CI node taints value. |
+| DEFAULT_CD_ARTIFACT_KEY_LOCATION       | devtron/cd-artifacts                                      | Default location for CI artifacts. |
+| CD_ARTIFACT_LOCATION_FORMAT            | %d/%d.zip                                                | Format for CI artifact locations. |
+| DEFAULT_CD_NAMESPACE                   | devtron-cd                                               | Default namespace for CI. |
+| DEFAULT_CD_TIMEOUT                     | 3600                                                    | Default timeout for CI. |
+| ENABLE_BUILD_CONTEXT                   | true                                                    | Enable build context in Devtron. |
+| DEFAULT_CI_IMAGE                       | quay.io/devtron/ci-runner:d8d774c3-138-16238             | Default image for CI pods. |
+| WF_CONTROLLER_INSTANCE_ID               | devtron-runner                                           | Workflow controller instance ID. |
+| CI_LOGS_KEY_PREFIX                     | ci-artifacts                                             | Key prefix for CI artifacts. |
+| DEFAULT_NAMESPACE                       | devtron-ci                                              | Default namespace for CI. |
+| DEFAULT_TIMEOUT                         | 3600                                                    | Default timeout for CI. |
+| LIMIT_CI_CPU                            | 0.5                                                    | CI CPU limit. |
+| LIMIT_CI_MEM                            | 3G                                                     | CI memory limit. |
+| REQ_CI_CPU                              | 0.5                                                    | CI CPU request. |
+| REQ_CI_MEM                              | 1G                                                     | CI memory request. |
+| CI_NODE_TAINTS_KEY                      |                                                        | CI node taints key. |
+| CI_NODE_TAINTS_VALUE                    |                                                        | CI node taints value. |
+| CI_NODE_LABEL_SELECTOR                  |                                                        | CI node label selector. |
+| CACHE_LIMIT                             | 5000000000                                            | Cache limit. |
+| DEFAULT_ARTIFACT_KEY_LOCATION           | devtron/ci-artifacts                                  | Default location for CI artifacts. |
+| WORKFLOW_SERVICE_ACCOUNT                | ci-runner                                            | Workflow service account for CI. |
+| CI_ARTIFACT_LOCATION_FORMAT             | %d/%d.zip                                            | Format for CI artifact locations. |
+| DEFAULT_BUILD_LOGS_KEY_PREFIX           | devtron                                              | Default key prefix for build logs. |
+| MINIO_ENDPOINT                           | http://devtron-minio:9000                           | If Minio is enabled, the Minio endpoint URL.        |
+| BLOB_STORAGE_ENABLED                     | "true"                                              | Enables blob storage configuration.                  |
+| BLOB_STORAGE_PROVIDER                    | "S3"                                                | The provider for blob storage.                      |
+| BLOB_STORAGE_S3_ENDPOINT                 | "http://devtron-minio.devtroncd:9000"              | S3 endpoint URL for blob storage.                   |
+| BLOB_STORAGE_S3_ENDPOINT_INSECURE        | "true"                                              | Indicates if S3 endpoint is insecure.               |
+| DEFAULT_BUILD_LOGS_BUCKET                | "devtron-ci-log"                                    | Default bucket for build logs.                      |
+| DEFAULT_CACHE_BUCKET                     | "devtron-ci-cache"                                  | Default bucket for caching.                         |
+| BLOB_STORAGE_S3_BUCKET_VERSIONED         | "false"                                             | If S3 buckets are versioned (false or true).        |
+| DEFAULT_CACHE_BUCKET_REGION               | "us-west-2"                                         | Default region for the cache bucket.                |
+| DEFAULT_CD_LOGS_BUCKET_REGION             | "us-west-2"                                         | Default region for CD logs bucket.                  |
+| BLOB_STORAGE_S3_ENDPOINT                 | ""                                                  | S3 endpoint (empty, may need to be removed).        |
+| BLOB_STORAGE_S3_BUCKET_VERSIONED         | "true"                                              | If S3 buckets are versioned (true or false).        |
+| ECR_REPO_NAME_PREFIX                     | "devtron/"                                          | Prefix for ECR repository name.                     |
+| EXTERNAL_CI_PAYLOAD                      | JSON Payload                                       | External CI payload with project details.           |
+| ENFORCER_CACHE                           | "true"                                              | Enable enforcer cache.                              |
+| ENFORCER_CACHE_EXPIRATION_IN_SEC          | "345600"                                            | Expiration time (in seconds) for enforcer cache.    |
+| ENFORCER_MAX_BATCH_SIZE                  | "1"                                                 | Maximum batch size for the enforcer.                |
+| DEVTRON_SECRET_NAME                      | "devtron-secret"                                    | Name of the Devtron secret.                         |
+| BLOB_STORAGE_PROVIDER                    | ""                                                  | Provider for blob storage (may need to be removed). |
+| DEVTRON_HELM_RELEASE_NAME                | devtron                                             | Name of the Devtron Helm release.                   |
+| ENABLE_LEGACY_API                        | "false"                                             | Enable the legacy API.                              |
+| INSTALLATION_THROUGH_HELM                | "True"                                              | Installation through Helm (True or False).          |
 
 
-#port no of dashbord service and url of the dashbord service
-DASHBOARD_PORT: "80"  
-DASHBOARD_HOST: "dashboard-service.devtroncd"  
+# DASHBOARD PARAMETER
 
-#service name and port of argocd service and namespace  
-CD_HOST: "argocd-server.devtroncd"  
-CD_PORT: "80"   
-CD_NAMESPACE: "devtroncd"  
-GITOPS_REPO_PREFIX: "devtron"
-
-
-#service url of notifier microservice it will be used if you installed notification module present in devtron stack   
-EVENT_URL: "http://notifier-service.devtroncd:80/notify" 
-
-#service url of lens microservice it will be used if you installed ci-cd module present in devtron stack to show you the deployment metrics 
-LENS_URL: "http://lens-service.devtroncd:80"
-LENS_TIMEOUT: "300"  
-
-#service url of kubelink microserivce it will be used for helm deploying application 
-HELM_CLIENT_URL: kubelink-service:50051
-
-
-#service url of nats microservice it will be used to  pass mesage between the microservice  
-NATS_SERVER_HOST: "nats://devtron-nats.devtroncd:4222"
-
-#service url of postgres microservice it will be used to  store the data   
-PG_ADDR: "postgresql-postgresql.devtroncd"
-PG_PORT: "5432"
-PG_USER: "postgres"
-PG_DATABASE: "orchestrator"
-
-#service url of git-sensor microservice it will be used to  store the data   
-GIT_SENSOR_TIMEOUT: "300" 
-GIT_SENSOR_PROTOCOL: GRPC
-GIT_SENSOR_URL: git-sensor-service.devtroncd:90
-
-#this image is used for sync all the latest helm chats present in devtron chart store 
-APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:0e8c785e-373-16172"
-
-#service url of argocd-dex-server  microservice it will be used to authenticet during sso login    
-DEX_HOST: "http://argocd-dex-server.devtroncd"
-DEX_PORT: "5556"
-DEX_RURL: "http://argocd-dex-server.devtroncd:8080/callback"
-DEX_URL: "http://argocd-dex-server.devtroncd:5556/dex"
-CExpirationTime: "600"
-JwtExpirationTime: "120"
+| Key                               | Value     | Description                                     |
+|-----------------------------------|-----------|-------------------------------------------------|
+| APPLICATION_METRICS_ENABLED        | "true"    | Show application metrics button                |
+| CLUSTER_NAME                       | demo      | Unknown                                         |
+| HIDE_APPLICATION_GROUPS            | "false"   | Hide application group from Devtron UI         |
+| HIDE_DISCORD                       | "true"    | Hide Discord button from UI                    |
+| HIDE_GITOPS_OR_HELM_OPTION         | "false"   | Enable GitOps and Helm option                 |
+| HOTJAR_ENABLED                     | "false"   | Hotjar integration status                      |
+| POSTHOG_ENABLED                    | "true"    | PostHog integration status                     |
+| POSTHOG_TOKEN                      | XXXXXXXX  | PostHog API token                        |
+| SENTRY_ENABLED                     | "false"   | Sentry integration status                      |
+| SENTRY_ENV                         | stage     | Sentry environment                              |
+| USE_V2                             | "true"    | Use the v2 APIs                                 |
+| ENABLE_RESTART_WORKLOAD            | "true"    | Show restart pods option in app details page   |
+| ENABLE_BUILD_CONTEXT               | "true"    | Enable build context in Devtron UI             |
+| FORCE_SECURITY_SCANNING            | "false"   | Force security scanning                         |
+| GA_ENABLED                         | "true"    | Enable Google Analytics (GA)                   |
+| GA_TRACKING_ID                     | G-XXXXXXXX | Google Analytics tracking ID                 |
 
 
-#service url of imagescanner microservice it will be used if you install trivy or clair from devtron-stack manager
-IMAGE_SCANNER_ENDPOINT: "http://image-scanner-service.devtroncd:80"
+#  KUBELINK PARAMAETER
 
-#printing which  level in logs allowed values are (-2,-1,0)  
-LOG_LEVEL: "0"  
-PG_LOG_QUERY: "true"
 
-#these are used if you are using monitering stack provided by devtron 
-GRAFANA_URL: "http://%s:%s@devtron-grafana.devtroncd/grafana"
-GRAFANA_HOST: "devtron-grafana.devtroncd"
-GRAFANA_PORT: "80"
-GRAFANA_NAMESPACE: "devtroncd"
-GRAFANA_ORG_ID: "2"  
-
-#details to be used by argocd 
-#service of argocd-server it willbe used if you install gitops module in devtron-stack  
-ACD_URL: "argocd-server.devtroncd"
-ACD_USERNAME: "admin"
-ACD_USER: "admin"
-ACD_CM: "argocd-cm"
-ACD_NAMESPACE: "devtroncd"
-ACD_TIMEOUT: "300"
-ACD_SKIP_VERIFY: "true"
-GIT_WORKING_DIRECTORY: "/tmp/gitops/"
-
-#these config are used for configure post-build workflow 
-CD_LIMIT_CI_CPU: "0.5"
-CD_LIMIT_CI_MEM: "3G"
-CD_REQ_CI_CPU: "0.5"
-CD_REQ_CI_MEM: "1G"
-CD_NODE_TAINTS_KEY: "dedicated"
-CD_NODE_LABEL_SELECTOR: "kubernetes.io/os=linux"
-CD_WORKFLOW_SERVICE_ACCOUNT: "cd-runner"
-CD_NODE_TAINTS_VALUE: "ci"
+| Key                    | Value                                | Description                                         |
+|-----------------------------------|--------------------------------------|-----------------------------------------------------|
+| ENABLE_HELM_RELEASE_CACHE         | "true"                               | Enable Helm release cache                          |
+| NATS_MSG_PROCESSING_BATCH_SIZE    | "1"                                  | NATS message processing batch size                 |
+| NATS_SERVER_HOST                  | nats://devtron-nats.devtroncd:4222   | NATS server host address                            |
+| RUN_HELM_INSTALL_IN_ASYNC_MODE    | "true"                               | Run Helm install in async mode                     |
+| PG_LOG_QUERY                      | "true"                               | Enable PostgreSQL query logging                     |
+| PG_ADDR                           | postgresql-postgresql.devtroncd      | PostgreSQL server address                           |
+| PG_DATABASE                       | orchestrator                         | PostgreSQL database name                            |
+| PG_PORT                           | "5432"                               | PostgreSQL server port                              |
+| PG_USER                           | postgres                             | PostgreSQL database user                            |
 
 
 
-DEFAULT_CD_ARTIFACT_KEY_LOCATION: "devtron/cd-artifacts"
-CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
-DEFAULT_CD_NAMESPACE: "devtron-cd"
-DEFAULT_CD_TIMEOUT: "3600"
-
-#this variable will use for enableing build context in devtron
-ENABLE_BUILD_CONTEXT: "true"
-
-#this image is use for creating pod in which your image build will be done and these are can be configured to modify your ci-pod limit-request and adding nodeselectors and taint  
-DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d8d774c3-138-16238"  
-
-WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
-CI_LOGS_KEY_PREFIX: "ci-artifacts"
-DEFAULT_NAMESPACE: "devtron-ci"
-DEFAULT_TIMEOUT: "3600"
-LIMIT_CI_CPU: "0.5"
-LIMIT_CI_MEM: "3G"
-REQ_CI_CPU: "0.5"
-REQ_CI_MEM: "1G"
-CI_NODE_TAINTS_KEY: ""
-CI_NODE_TAINTS_VALUE: ""
-CI_NODE_LABEL_SELECTOR: ""  #e.g. "purpose=ci"
-CACHE_LIMIT: "5000000000"
-DEFAULT_ARTIFACT_KEY_LOCATION: "devtron/ci-artifacts"
-WORKFLOW_SERVICE_ACCOUNT: "ci-runner"
-CI_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
-
-#these config are used if you configured logs bucket or cache bucket 
-DEFAULT_BUILD_LOGS_KEY_PREFIX: "devtron"
-
-#these are used if you enable blob storage configuration
-MINIO_ENDPOINT: http://devtron-minio:9000 # if minio is enabled 
-BLOB_STORAGE_ENABLED: "true"
-BLOB_STORAGE_PROVIDER: "S3"
-BLOB_STORAGE_S3_ENDPOINT: "http://devtron-minio.devtroncd:9000"
-BLOB_STORAGE_S3_ENDPOINT_INSECURE: "true"
-DEFAULT_BUILD_LOGS_BUCKET: "devtron-ci-log"
-DEFAULT_CACHE_BUCKET: "devtron-ci-cache"
-BLOB_STORAGE_S3_BUCKET_VERSIONED: "false"
-BLOB_STORAGE_S3_BUCKET_VERSIONED: "true"
-DEFAULT_CACHE_BUCKET_REGION: "us-west-2"
-DEFAULT_CD_LOGS_BUCKET_REGION: "us-west-2"
-BLOB_STORAGE_S3_ENDPOINT: ""
-BLOB_STORAGE_S3_BUCKET_VERSIONED: "true"
-ECR_REPO_NAME_PREFIX: "devtron/"
+# KUBEWATCH PARAMETER
 
 
-EXTERNAL_CI_PAYLOAD: "{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/srj92/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2019-10-31T20:55:21+05:30\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"Suraj Gupta \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\",\"digest\":\"test1\",\"dataSource\":\"ext\",\"materialType\":\"git\"}"
-ENFORCER_CACHE: "true"
-ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
-ENFORCER_MAX_BATCH_SIZE: "1"
+| Variable Name          | Value        | Description                 |
+|------------------------|--------------|-----------------------------|
+| DEFAULT_NAMESPACE      | devtron-ci   | The default namespace for CI |
+| CI_INFORMER            | true         | Enable CI informer           |
+| ACD_INFORMER           | true         | Enable ACD informer          |
+| NATS_STREAM_MAX_AGE    | 10800        | Maximum age for NATS stream  |
+| ACD_NAMESPACE          | devtroncd    | The namespace for ACD        |
+| LOG_LEVEL              | 2            | Logging level                |
 
-DEVTRON_SECRET_NAME: "devtron-secret"
+
+
+# IMAGESCANER
+
+
+| Variable Name       | Value                                  | Description                   |
+|---------------------|----------------------------------------|-------------------------------|
+| CLAIR_ADDR          | clair-dcd.devtroncd:6060               | For connecting to Clair if it's enabled |
+| CLIENT_ID           | client-2                               | Client ID                        |
+| NATS_SERVER_HOST    | nats://devtron-nats.devtroncd:4222    | For connecting to NATS         |
+| PG_LOG_QUERY        | "false"                                | PostgreSQL Query Logging (false to disable) |
+| PG_ADDR             | postgresql-postgresql.devtroncd        | PostgreSQL Server Address       |
+| PG_DATABASE         | orchestrator                           | PostgreSQL Database Name       |
+| PG_PORT             | "5432"                                 | PostgreSQL Port Number         |
+| PG_USER             | postgres                               | PostgreSQL User Name           |
+
+
+
+
+# GITSENSOR
+
+| Variable Name           | Value                    | Description                                 |
+|------------------------|--------------------------|---------------------------------------------|
+| PG_ADDR                | postgresql-postgresql.devtroncd | Connect to the Postgres database for git-sensor. |
+| PG_USER                | postgres                 | Postgres database username.                 |
+| PG_DATABASE            | git_sensor               | Name of the Postgres database.              |
+| POLL_DURATION          | 1                        | Polling duration in minutes.                |
+| POLL_WORKER            | 2                        | Number of workers for fetching commits.     |
+| PG_LOG_QUERY           | false                    | Enable or disable Postgres query logging.   |
+| COMMIT_STATS_TIMEOUT_IN_SEC | 2                 | Timeout for fetching commit .     |
+| ENABLE_FILE_STATS      | false                    | Enable or disable file stats.               |
+| GIT_HISTORY_COUNT      | 15                       | Number of commits to display in the UI.     |
+| CLONING_MODE           | FULL (or SHALLOW)         | Cloning mode for git repositories.          |
+| PG_PASSWORD            | **************            | Password for connecting to the Postgres database. |
