@@ -345,167 +345,84 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 }
 
 func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{} {
-	portsService := make([]int64, 0)
-	portsEndpoint := make([]int64, 0)
-	portEndpointSlice := make([]int64, 0)
+	_portList := make(map[string]*client.PortList)
+	//resourcePorts := &client.PortList{}
 	for _, portHolder := range resp {
 		if portHolder.ManifestResponse == nil {
 			continue
 		}
-		kind, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Kind]
+		serviceName, ok := portHolder.ManifestResponse.Manifest.Object["metadata"].(map[string]interface{})
 		if !ok {
-			impl.logger.Warnw("kind not found in resource tree, unable to extract port no")
+			impl.logger.Warnw("serviceName not found in resource tree, unable to extract port no")
+			return resourceTree
+		}
+		serviceNameValue := serviceName["name"].(string)
+
+		specField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Spec]
+		if !ok {
+			impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
 			continue
 		}
-		if kind == k8sCommonBean.ServiceKind {
-			specField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Spec]
-			if !ok {
-				impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
-				continue
-			}
-			spec, ok := specField.(map[string]interface{})
-			if !ok {
-				impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
-				continue
-			}
-			if spec != nil {
-				ports, ok := spec[k8sCommonBean.Ports]
-				if !ok {
-					impl.logger.Warnw("ports not found in resource tree, unable to extract port no")
-					continue
-				}
-				portList, ok := ports.([]interface{})
-				if !ok {
-					impl.logger.Warnw("portList not found in resource tree, unable to extract port no")
-					continue
-				}
-				for _, portItem := range portList {
-					portItems, ok := portItem.(map[string]interface{})
-					if !ok {
-						impl.logger.Warnw("portItems not found in resource tree, unable to extract port no")
-						continue
-					}
-					if portItems != nil {
-						portNumbers, ok := portItems[k8sCommonBean.Port]
-						if !ok {
-							impl.logger.Warnw("ports number found in resource tree, unable to extract port no")
-							continue
-						}
-						portNumber, ok := portNumbers.(int64)
-						if !ok {
-							impl.logger.Warnw("portNumber(int64) not found in resource tree, unable to extract port no")
-							continue
-						}
-						if portNumber != 0 {
-							portsService = append(portsService, portNumber)
-						}
-					}
-				}
-			} else {
-				impl.logger.Warnw("spec doest not contain data", "spec", spec)
-				continue
-			}
+		spec, ok := specField.(map[string]interface{})
+		if !ok {
+			impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
+			continue
 		}
-		if kind == k8sCommonBean.EndpointsKind {
-			subsetsField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Subsets]
+		if spec != nil {
+			ports, ok := spec[k8sCommonBean.Ports]
 			if !ok {
-				impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
+				impl.logger.Warnw("ports not found in resource tree, unable to extract port no")
 				continue
 			}
-			if subsetsField != nil {
-				subsets, ok := subsetsField.([]interface{})
-				if !ok {
-					impl.logger.Warnw("subsets not found in resource tree, unable to extract port no")
-					continue
-				}
-				for _, subset := range subsets {
-					subsetObj, ok := subset.(map[string]interface{})
-					if !ok {
-						impl.logger.Warnw("subsetObj not found in resource tree, unable to extract port no")
-						continue
-					}
-					if subsetObj != nil {
-						ports, ok := subsetObj[k8sCommonBean.Ports]
-						if !ok {
-							impl.logger.Warnw("ports not found in resource tree endpoints, unable to extract port no")
-							continue
-						}
-						portsIfs, ok := ports.([]interface{})
-						if !ok {
-							impl.logger.Warnw("portsIfs not found in resource tree, unable to extract port no")
-							continue
-						}
-						for _, portsIf := range portsIfs {
-							portsIfObj, ok := portsIf.(map[string]interface{})
-							if !ok {
-								impl.logger.Warnw("portsIfObj not found in resource tree, unable to extract port no")
-								continue
-							}
-							if portsIfObj != nil {
-								port, ok := portsIfObj[k8sCommonBean.Port].(int64)
-								if !ok {
-									impl.logger.Warnw("port not found in resource tree, unable to extract port no")
-									continue
-								}
-								portsEndpoint = append(portsEndpoint, port)
-							}
-						}
-					}
-				}
-			}
-		}
-		if kind == k8sCommonBean.EndPointsSlice {
-			portsField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Ports]
+			portList, ok := ports.([]interface{})
 			if !ok {
-				impl.logger.Warnw("ports not found in resource tree endpoint, unable to extract port no")
+				impl.logger.Warnw("portList not found in resource tree, unable to extract port no")
 				continue
 			}
-			if portsField != nil {
-				endPointsSlicePorts, ok := portsField.([]interface{})
+			for _, portItem := range portList {
+				portItems, ok := portItem.(map[string]interface{})
 				if !ok {
-					impl.logger.Warnw("endPointsSlicePorts not found in resource tree endpoint, unable to extract port no")
+					impl.logger.Warnw("portItems not found in resource tree, unable to extract port no")
 					continue
 				}
-				for _, val := range endPointsSlicePorts {
-					portNumbers, ok := val.(map[string]interface{})[k8sCommonBean.Port]
+				if portItems != nil {
+					portNumbers, ok := portItems[k8sCommonBean.Port]
 					if !ok {
-						impl.logger.Warnw("endPointsSlicePorts not found in resource tree endpoint, unable to extract port no")
+						impl.logger.Warnw("ports number found in resource tree, unable to extract port no")
 						continue
 					}
 					portNumber, ok := portNumbers.(int64)
 					if !ok {
-						impl.logger.Warnw("portNumber(int64) not found in resource tree endpoint, unable to extract port no")
+						impl.logger.Warnw("portNumber(int64) not found in resource tree, unable to extract port no")
 						continue
 					}
+
 					if portNumber != 0 {
-						portEndpointSlice = append(portEndpointSlice, portNumber)
+						_portList[serviceNameValue].ServicePorts = append(_portList[serviceNameValue].ServicePorts, portNumber)
 					}
 				}
 			}
+		} else {
+			impl.logger.Warnw("spec doest not contain data", "spec", spec)
+			continue
 		}
-	}
-	if val, ok := resourceTree[k8sCommonBean.Nodes]; ok {
-		resourceTreeVal, ok := val.([]interface{})
-		if !ok {
-			impl.logger.Warnw("resourceTreeVal not found in resourceTree, unable to extract port no")
-			return resourceTree
-		}
-		for _, val := range resourceTreeVal {
-			value, ok := val.(map[string]interface{})
+		if val, ok := resourceTree[k8sCommonBean.Nodes]; ok {
+			resourceTreeVal, ok := val.([]interface{})
 			if !ok {
-				impl.logger.Warnw("value not found in resourceTreeVal, unable to extract port no")
-				continue
+				impl.logger.Warnw("resourceTreeVal not found in resourceTree, unable to extract port no")
+				return resourceTree
 			}
-			for key, _type := range value {
-				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndpointsKind {
-					value[k8sCommonBean.Port] = portsEndpoint
+			for _, val := range resourceTreeVal {
+				value, ok := val.(map[string]interface{})
+				if !ok {
+					impl.logger.Warnw("value not found in resourceTreeVal, unable to extract port no")
+					continue
 				}
-				if key == k8sCommonBean.Kind && _type == k8sCommonBean.ServiceKind {
-					value[k8sCommonBean.Port] = portsService
+				_value := make(map[string]interface{})
+				for key, _type := range _portList {
+					_value[key] = _type
 				}
-				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndPointsSlice {
-					value[k8sCommonBean.Port] = portEndpointSlice
-				}
+				value[k8sCommonBean.Port] = _value
 			}
 		}
 	}
