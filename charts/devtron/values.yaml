@@ -351,8 +351,8 @@ minio:
     storage: "50Gi"
 # Change below values for workflow controller
 workflowController:
-  image: "quay.io/argoproj/workflow-controller:v3.0.7"
-  executorImage: "quay.io/argoproj/argoexec:v3.0.7"
+  image: "quay.io/argoproj/workflow-controller:v3.4.3"
+  executorImage: "quay.io/argoproj/argoexec:v3.4.3"
 
 # Values for grafana integration
 monitoring:
