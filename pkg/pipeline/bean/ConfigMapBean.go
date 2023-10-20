@@ -1,6 +1,9 @@
 package bean
 
-import "encoding/json"
+import (
+	"encoding/base64"
+	"encoding/json"
+)
 
 type ConfigDataRequest struct {
 	Id            int           `json:"id"`
@@ -42,7 +45,6 @@ type ConfigData struct {
 	FilePermission        string           `json:"filePermission"`
 	Overridden            bool             `json:"overridden"`
 }
-
 type ExternalSecret struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`
@@ -85,4 +87,56 @@ type CreateJobEnvOverridePayload struct {
 	AppId  int   `json:"appId"`
 	EnvId  int   `json:"envId"`
 	UserId int32 `json:"-"`
+}
+
+type SecretsList struct {
+	ConfigData []*ConfigData `json:"secrets"`
+}
+type SecretTransformMode int
+
+const (
+	EncodeSecret SecretTransformMode = 1
+	DecodeSecret SecretTransformMode = 2
+)
+
+func GetTransformedDataForSecret(data string, mode SecretTransformMode) (string, error) {
+	secretsList := SecretsList{}
+	err := json.Unmarshal([]byte(data), &secretsList)
+	if err != nil {
+		return "", err
+	}
+
+	for _, configData := range secretsList.ConfigData {
+		configData.Data = GetDecodedAndEncodedData(configData.Data, mode)
+	}
+
+	marshal, err := json.Marshal(secretsList)
+	if err != nil {
+		return "", err
+	}
+	return string(marshal), nil
+}
+
+func GetDecodedAndEncodedData(data json.RawMessage, transformer SecretTransformMode) []byte {
+	dataMap := make(map[string]string)
+	err := json.Unmarshal(data, &dataMap)
+	if err != nil {
+		return nil
+	}
+	var transformedData []byte
+	for key, value := range dataMap {
+		switch transformer {
+		case EncodeSecret:
+			transformedData = []byte(base64.StdEncoding.EncodeToString([]byte(value)))
+		case DecodeSecret:
+			transformedData, err = base64.StdEncoding.DecodeString(value)
+		}
+
+		dataMap[key] = string(transformedData)
+	}
+	marshal, err := json.Marshal(dataMap)
+	if err != nil {
+		return nil
+	}
+	return marshal
 }

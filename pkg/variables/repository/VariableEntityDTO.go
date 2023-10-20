@@ -1,6 +1,8 @@
 package repository
 
-import "github.com/devtron-labs/devtron/pkg/sql"
+import (
+	"github.com/devtron-labs/devtron/pkg/sql"
+)
 
 type VariableEntityMapping struct {
 	tableName    struct{} `sql:"variable_entity_mapping" pg:",discard_unknown_columns"`
@@ -22,4 +24,8 @@ const (
 	EntityTypeDeploymentTemplateAppLevel EntityType = 1
 	EntityTypeDeploymentTemplateEnvLevel EntityType = 2
 	EntityTypePipelineStage              EntityType = 3
+	EntityTypeConfigMapAppLevel          EntityType = 4
+	EntityTypeConfigMapEnvLevel          EntityType = 5
+	EntityTypeSecretAppLevel             EntityType = 6
+	EntityTypeSecretEnvLevel             EntityType = 7
 )
