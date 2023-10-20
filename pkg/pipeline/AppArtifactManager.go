@@ -26,6 +26,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
+	lo "github.com/samber/lo"
 	"go.uber.org/zap"
 	"sort"
 )
@@ -393,12 +394,10 @@ func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pi
 	// retrieve parent details
 	parentId, parentType, err = impl.cdPipelineConfigService.RetrieveParentDetails(pipeline.Id)
 	if err != nil {
-		impl.logger.Errorw("failed to retrieve parent details",
-			"cdPipelineId", pipeline.Id,
-			"err", err)
 		return parentId, parentType, parentCdId, err
 	}
 
+	//TODO Gireesh: why this(stage != bean.CD_WORKFLOW_TYPE_POST) check is added, explain that in comment ??
 	if parentType == bean.CD_WORKFLOW_TYPE_POST || (parentType == bean.CD_WORKFLOW_TYPE_DEPLOY && stage != bean.CD_WORKFLOW_TYPE_POST) {
 		// parentCdId is being set to store the artifact currently deployed on parent cd (if applicable).
 		// Parent component is CD only if parent type is POST/DEPLOY
@@ -460,7 +459,9 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		})
 	}
 
-	artifactIds := make([]int, 0, len(ciArtifacts))
+	//TODO Gireesh: need to check this behaviour, can we use this instead of below loop ??
+	artifactIds := lo.FlatMap(ciArtifacts, func(artifact bean2.CiArtifactBean, _ int) []int { return []int{artifact.Id} })
+	//artifactIds := make([]int, 0, len(ciArtifacts))
 	for _, artifact := range ciArtifacts {
 		artifactIds = append(artifactIds, artifact.Id)
 	}
@@ -477,6 +478,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		return ciArtifactsResponse, err
 	}
 
+	//TODO Gireesh: Create a meaningful func
 	for i, artifact := range ciArtifacts {
 		if imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]; imageTaggingResp != nil {
 			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
@@ -507,7 +509,6 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 			}
 		}
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
-		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
@@ -542,6 +543,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		listingFilterOpts.ExcludeArtifactIds = []int{currentRunningArtifact.Id}
 		currentRunningArtifactId = currentRunningArtifact.Id
 		currentRunningWorkflowStatus = latestWf[0].Status
+		// TODO Gireesh: move below logic to proper func belong to CiArtifactBean
 		//current deployed artifact should always be computed, as we have to show it every time
 		mInfo, err := parseMaterialInfo([]byte(currentRunningArtifact.MaterialInfo), currentRunningArtifact.DataSource)
 		if err != nil {
@@ -588,6 +590,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 		impl.logger.Errorw("error in fetching cd workflow runners using filter", "filterOptions", listingFilterOpts, "err", err)
 		return nil, err
 	}
+	//TODO Gireesh: initialized array with size but are using append, not optimized solution
 	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(cdWfrList))
 
 	//get artifact running on parent cd
@@ -603,6 +606,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 	}
 
 	for _, wfr := range cdWfrList {
+		//TODO Gireesh: Refactoring needed
 		mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
 		if err != nil {
 			mInfo = []byte("[]")
@@ -637,6 +641,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 		return nil, err
 	}
 
+	//TODO Gireesh: if initialized then no need of using append, put value directly to index
 	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(artifacts))
 	for _, artifact := range artifacts {
 		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)

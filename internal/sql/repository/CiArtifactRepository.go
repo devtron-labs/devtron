@@ -241,12 +241,14 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 }
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, error) {
+	//TODO Gireesh: listingFilterOpts.SearchString should be conditional,
 	artifacts := make([]*CiArtifact, 0, listingFilterOpts.Limit)
 	commonPaginationQueryPart := " cia.image ILIKE %?%" +
 		" ORDER BY cia.id DESC" +
 		" LIMIT ?" +
 		" OFFSET ?;"
 	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE {
+		//TODO Gireesh: listingFilterOpts.PipelineId is ciPipelineId in this case why are we taking join
 		query := " SELECT cia.* " +
 			" FROM ci_artifact cia" +
 			" INNER JOIN ci_pipeline cp ON cp.id=cia.pipeline_id" +
@@ -291,6 +293,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 
 	//(this will fetch all the artifacts that were deployed on the given pipeline atleast once in new->old deployed order)
 	artifactsDeployed := make([]*CiArtifact, 0, len(artifactsIds))
+	//TODO Gireesh: compare this query plan with cd_workflow & cd_workflow_runner join query Plan, since pco is heavy
 	query := " SELECT cia.id,pco.created_on AS created_on " +
 		" FROM ci_artifact cia" +
 		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
@@ -311,6 +314,8 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 			artifactsMap[artifactId].DeployedTime = deployedArtifact.CreatedOn
 		}
 	}
+
+	//TODO Gireesh: create separate meaningful functions of these queries
 
 	return artifacts, nil
 

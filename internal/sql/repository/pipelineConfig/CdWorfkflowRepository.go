@@ -380,11 +380,13 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	var wfIds []int
+	//TODO Gireesh: why are we extracting artifacts which belongs to current pipeline as it will impact page size of response ??
 	query := impl.dbConnection.Model(&wfIds).
 		Column("MAX(cd_workflow_runner.id) AS id").
 		Join("INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id").
 		Join("INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id").
-		Where("(cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ?) OR (cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.status IN (?))",
+		Where("(cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ?) "+
+			"OR (cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.status IN (?))",
 			listingFilterOptions.PipelineId,
 			listingFilterOptions.StageType,
 			listingFilterOptions.ParentId,
