@@ -216,6 +216,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	isScanPluginConfigured := impl.pipelineStageRepository.CheckPluginExistsInCiPipeline(pipeline.Id, string(repository2.PIPELINE_STAGE_TYPE_POST_CI), plugin[0].Id)
 	if pipeline.ScanEnabled || isScanPluginConfigured {
 		artifact.Scanned = true
+		artifact.ScanEnabled = true
 	}
 	if err = impl.ciArtifactRepository.Save(artifact); err != nil {
 		impl.logger.Errorw("error in saving material", "err", err)
