@@ -248,6 +248,21 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*CiArtifact, error) {
 	//TODO: refactor query here
 	artifacts := make([]*CiArtifact, 0, listingFilterOpts.Limit)
+
+	commonPaginatedQueryPart := " cia.image ILIKE %?%" +
+		" ORDER BY cia.id DESC" +
+		" LIMIT ?" +
+		" OFFSET ?;"
+
+	commonApprovalNodeSubQueryPart := fmt.Sprintf("cia.id NOT IN "+
+		" ( "+
+		" SELECT DISTINCT dar.artifact_id "+
+		" FROM deployment_approval_request dar "+
+		" WHERE dar.pipeline_id = %v "+
+		" AND dar.active=true "+
+		" AND dar.artifact_deployment_triggered = false"+
+		" ) AND ", listingFilterOpts.PipelineId)
+
 	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE {
 		query := " SELECT cia.* " +
 			" FROM ci_artifact cia" +
@@ -255,22 +270,12 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 			" INNER JOIN pipeline p ON p.ci_pipeline_id = cp.id and p.id=?" +
 			" WHERE "
 		if isApprovalNode {
-			query += fmt.Sprintf("cia.id NOT IN "+
-				"( "+
-				" SELECT DISTINCT dar.artifact_id "+
-				" FROM deployment_approval_request dar "+
-				" WHERE dar.pipeline_id = %v "+
-				" AND dar.active=true "+
-				" AND dar.artifact_deployment_triggered = false"+
-				" ) ", listingFilterOpts.PipelineId)
-		} else {
-			query += fmt.Sprintf("cia.id NOT IN (%s)", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+			query += commonApprovalNodeSubQueryPart
+		} else if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
+			query += fmt.Sprintf("cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
 		}
 
-		query += " AND cia.image ILIKE %?%" +
-			" ORDER BY cia.id DESC" +
-			" LIMIT ?" +
-			" OFFSET ?;"
+		query += commonPaginatedQueryPart
 
 		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.PipelineId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
 		if err != nil {
@@ -282,21 +287,12 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 			" FROM ci_artifact cia " +
 			" WHERE cia.external_ci_pipeline_id = ? AND "
 		if isApprovalNode {
-			query += fmt.Sprintf("cia.id NOT IN "+
-				"( "+
-				" SELECT DISTINCT dar.artifact_id "+
-				" FROM deployment_approval_request dar "+
-				" WHERE dar.pipeline_id = %v "+
-				" AND dar.active=true "+
-				" AND dar.artifact_deployment_triggered = false) ", listingFilterOpts.PipelineId)
-		} else {
-			query += fmt.Sprintf("cia.id NOT IN (%s)", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+			query += commonApprovalNodeSubQueryPart
+		} else if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
+			query += fmt.Sprintf("cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
 		}
 
-		query += " AND cia.image ILIKE %?%" +
-			" ORDER BY cia.id DESC" +
-			" LIMIT ?" +
-			" OFFSET ?;"
+		query += commonPaginatedQueryPart
 
 		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.ParentId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
 		if err != nil {
