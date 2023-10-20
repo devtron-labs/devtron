@@ -400,7 +400,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 
 	if isApprovalNode {
 		query = query.Where("cd_workflow.ci_artifact_id NOT IN (SELECT DISTINCT dar.artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = ? AND dar.active=true AND dar.artifact_deployment_triggered = false)", listingFilterOptions.PipelineId)
-	} else {
+	} else if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
 		query = query.Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
 	}
 
