@@ -455,7 +455,7 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 
 		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
 		requiredApprovals := approvalConfig.RequiredCount
-		artifactIds := make([]int, 0, len(ciArtifacts))
+		var artifactIds []int
 		for _, item := range ciArtifacts {
 			artifactIds = append(artifactIds, item.Id)
 		}

@@ -1300,6 +1300,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	var ciArtifactResponse *bean.CiArtifactResponse
 	pendingApprovalParam := r.URL.Query().Get("pendingApproval")
 	if isApprovalNode && pendingApprovalParam == "true" {
+		// TODO Shashwat: Accept ArtifactsListFilterOptions as request params
 		ciArtifactResponse, err = handler.pipelineBuilder.FetchApprovalPendingArtifacts(pipeline, bean2.WorkflowType(stage), searchString, limit, offset)
 	} else {
 		if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {

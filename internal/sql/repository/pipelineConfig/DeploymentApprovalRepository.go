@@ -100,6 +100,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalRequestData(pipelineI
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error) {
 	var requests []*DeploymentApprovalRequest
+	// TODO Shashwat: check for artifactIds length here
 	// todo optimize it
 	query := `with minimal_pcos as (select max(pco.id) as id from pipeline_config_override pco where pco.pipeline_id  = ? and pco.ci_artifact_id in (?) group by pco.ci_artifact_id)
 	select pco.ci_artifact_id,pco.created_on from pipeline_config_override pco where pco.id in (select id from minimal_pcos); `

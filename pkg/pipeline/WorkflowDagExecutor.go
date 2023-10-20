@@ -2374,6 +2374,7 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 		artifact.Id = ciArtifact.Id
 		artifact.Image = ciArtifact.Image
 		artifact.ImageDigest = ciArtifact.ImageDigest
+		// TODO Shashwat: Need to check this
 		artifact.MaterialInfo = json.RawMessage(ciArtifact.MaterialInfo)
 		artifact.DataSource = ciArtifact.DataSource
 		artifact.WfrId = *ciArtifact.WorkflowId
@@ -2395,8 +2396,8 @@ func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId
 		}
 	}
 	latestDeployedArtifactsMap := make(map[int]time.Time, 0)
-	for _, r := range latestDeployedArtifacts {
-		latestDeployedArtifactsMap[r.ArtifactId] = r.AuditLog.CreatedOn
+	for _, artifact := range latestDeployedArtifacts {
+		latestDeployedArtifactsMap[artifact.ArtifactId] = artifact.AuditLog.CreatedOn
 	}
 
 	for _, request := range deploymentApprovalRequests {
