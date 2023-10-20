@@ -272,12 +272,12 @@ func GetDecodedData(data map[string]*history.ConfigData) (map[string]*history.Co
 		if err != nil {
 			return nil, err
 		}
-		for k, s := range dataMap {
-			decodedData, err := base64.StdEncoding.DecodeString(s)
+		for key, value := range dataMap {
+			decodedData, err := base64.StdEncoding.DecodeString(value)
 			if err != nil {
 				fmt.Println("Error decoding base64:", err)
 			}
-			dataMap[k] = string(decodedData)
+			dataMap[key] = string(decodedData)
 		}
 		marshal, err = json.Marshal(dataMap)
 		if err != nil {
@@ -303,12 +303,12 @@ func GetEncodedData(data string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		for k, s := range dataMap {
-			encodedData = []byte(base64.StdEncoding.EncodeToString([]byte(s)))
+		for key, value := range dataMap {
+			encodedData = []byte(base64.StdEncoding.EncodeToString([]byte(value)))
 			if err != nil {
 				fmt.Println("Error decoding base64:", err)
 			}
-			dataMap[k] = string(encodedData)
+			dataMap[key] = string(encodedData)
 		}
 		marshal, err := json.Marshal(dataMap)
 		if err != nil {

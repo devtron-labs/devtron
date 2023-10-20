@@ -84,17 +84,17 @@ func GetDecodedAndEncodedData(data json.RawMessage, transformer SecretTransformM
 		return nil, err
 	}
 	var transformedData []byte
-	for k, s := range dataMap {
+	for key, value := range dataMap {
 		switch transformer {
 		case EncodeSecret:
-			transformedData = []byte(base64.StdEncoding.EncodeToString([]byte(s)))
+			transformedData = []byte(base64.StdEncoding.EncodeToString([]byte(value)))
 		case DecodeSecret:
-			transformedData, err = base64.StdEncoding.DecodeString(s)
+			transformedData, err = base64.StdEncoding.DecodeString(value)
 			if err != nil {
 				return nil, err
 			}
 		}
-		dataMap[k] = string(transformedData)
+		dataMap[key] = string(transformedData)
 	}
 	marshal, err := json.Marshal(dataMap)
 	if err != nil {
