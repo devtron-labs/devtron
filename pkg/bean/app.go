@@ -753,6 +753,10 @@ type CiArtifactBean struct {
 	ImageReleaseTags       []*repository2.ImageTag              `json:"imageReleaseTags"`
 	ImageComment           *repository2.ImageComment            `json:"imageComment"`
 	FilterState            resourceFilter.FilterState           `json:"filterState"`
+
+	ExternalCiPipelineId int `json:"-"`
+	ParentCiArtifact     int `json:"-"`
+	CiWorkflowId         int `json:"-"`
 }
 
 type CiArtifactResponse struct {
