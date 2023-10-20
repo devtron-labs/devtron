@@ -1245,8 +1245,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 
 	// TODO - extract it from query params
 
-	//getAllArpproalArtifacts := r.URL.Query().Get("getAllArpproalArtifacts")
-	getAllArpproalArtifacts := true
+	//getAllApprovalArtifacts := r.URL.Query().Get("getAllApprovalArtifacts")
+	getAllApprovalArtifacts := true
 
 	isApprovalNode := false
 
@@ -1285,7 +1285,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	//rbac block ends here
 	var ciArtifactResponse *bean.CiArtifactResponse
-	if isApprovalNode && getAllArpproalArtifacts {
+	if isApprovalNode && getAllApprovalArtifacts {
 		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactsForPipeline(pipeline, bean2.WorkflowType(stage), searchString, 10, 0)
 	} else {
 		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, isApprovalNode)
