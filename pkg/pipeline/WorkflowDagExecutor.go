@@ -537,14 +537,8 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 			return
 		}
 		// build merged values and save PCO history for the release
-		valuesOverrideResponse, err := impl.appService.BuildManifestForTrigger(overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, ctx)
+		valuesOverrideResponse, builtChartPath, err := impl.appService.BuildManifestForTrigger(overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, ctx)
 		if err != nil {
-			return
-		}
-		// build temp reference chart path for deployment
-		builtChartPath, err := impl.appService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in parsing reference chart", "cdWfrId", cdWfr.Id, "err", err)
 			return
 		}
 

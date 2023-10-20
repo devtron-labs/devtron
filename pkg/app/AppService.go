@@ -209,7 +209,7 @@ type AppService interface {
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
 	UpdateCDWorkflowRunnerStatus(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, status string) error
-	BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse *ValuesOverrideResponse, err error)
+	BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, err error)
 	BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error)
 	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 }
@@ -1549,12 +1549,37 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		return valuesOverrideResponse, err
 	}
 
-	// Conditional Block based on PipelineOverrideCreated --> start
 	var (
 		pipelineOverride                                     *chartConfig.PipelineOverride
 		mergedValuesString                                   string
 		dbMigrationOverride, configMapJson, appLabelJsonByte []byte
 	)
+
+	// Conditional Block based on PipelineOverrideCreated --> start
+	if !isPipelineOverrideCreated {
+		_, span = otel.Tracer("orchestrator").Start(ctx, "savePipelineOverride")
+		pipelineOverride, err = impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
+		span.End()
+		if err != nil {
+			return valuesOverrideResponse, err
+		}
+		overrideRequest.PipelineOverrideId = pipelineOverride.Id
+	} else {
+		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(overrideRequest.PipelineOverrideId)
+		if err != nil {
+			impl.logger.Errorw("error in getting pipelineOverride for valuesOverrideResponse", "PipelineOverrideId", overrideRequest.PipelineOverrideId)
+			return nil, err
+		}
+	}
+	// Conditional Block based on PipelineOverrideCreated --> end
+
+	//TODO: check status and apply lock
+	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
+	if err != nil {
+		return valuesOverrideResponse, err
+	}
+
+	// Conditional Block based on PipelineOverrideCreated --> start
 	if !isPipelineOverrideCreated {
 		_, span = otel.Tracer("orchestrator").Start(ctx, "getDbMigrationOverride")
 		//FIXME: how to determine rollback
@@ -1580,29 +1605,6 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 			impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 			appLabelJsonByte = nil
 		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "mergeAndSave")
-		pipelineOverride, err = impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
-		if err != nil {
-			return valuesOverrideResponse, err
-		}
-		overrideRequest.PipelineOverrideId = pipelineOverride.Id
-	} else {
-		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(overrideRequest.PipelineOverrideId)
-		if err != nil {
-			impl.logger.Errorw("error in getting pipelineOverride for valuesOverrideResponse", "PipelineOverrideId", overrideRequest.PipelineOverrideId)
-			return nil, err
-		}
-	}
-	// Conditional Block based on PipelineOverrideCreated --> end
-
-	//TODO: check status and apply lock
-	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
-	if err != nil {
-		return valuesOverrideResponse, err
-	}
-
-	// Conditional Block based on PipelineOverrideCreated --> start
-	if !isPipelineOverrideCreated {
 		mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 		mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
@@ -1637,15 +1639,21 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	return valuesOverrideResponse, err
 }
 
-func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse *ValuesOverrideResponse, err error) {
+func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, err error) {
 	valuesOverrideResponse = &ValuesOverrideResponse{}
 	valuesOverrideResponse, err = impl.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
-		return valuesOverrideResponse, err
+		return valuesOverrideResponse, builtChartPath, err
+	}
+	// build temp reference chart path for deployment
+	builtChartPath, err = impl.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, ctx)
+	if err != nil {
+		impl.logger.Errorw("error in parsing reference chart", "err", err)
+		return valuesOverrideResponse, builtChartPath, err
 	}
 
-	return valuesOverrideResponse, err
+	return valuesOverrideResponse, builtChartPath, err
 }
 
 func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {
@@ -1914,14 +1922,8 @@ func (impl *AppServiceImpl) HandleCDTriggerRelease(overrideRequest *bean.ValuesO
 	// synchronous mode of installation starts
 
 	// build merged values and save PCO history for the release
-	valuesOverrideResponse, err := impl.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
+	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
 	if err != nil {
-		return releaseNo, manifest, err
-	}
-	// build temp reference chart path for deployment
-	builtChartPath, err := impl.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
 		return releaseNo, manifest, err
 	}
 
@@ -1935,8 +1937,9 @@ func (impl *AppServiceImpl) HandleCDTriggerRelease(overrideRequest *bean.ValuesO
 // TriggerHelmAsyncRelease will publish async helm Install/Upgrade request event for Devtron App releases
 func (impl *AppServiceImpl) TriggerHelmAsyncRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
 	// build merged values and save PCO history for the release
-	valuesOverrideResponse, err := impl.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
+	valuesOverrideResponse, err := impl.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
 	if err != nil {
+		impl.logger.Errorw("error in fetching values for trigger", "err", err)
 		return releaseNo, manifest, err
 	}
 
