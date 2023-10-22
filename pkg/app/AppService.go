@@ -23,6 +23,7 @@ import (
 	error2 "errors"
 	"fmt"
 	"github.com/caarlos0/env"
+	mapset "github.com/deckarep/golang-set"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -40,9 +41,11 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
+	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -55,6 +58,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -203,7 +207,8 @@ type AppService interface {
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
 	GetEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error)
-	GetResolvedTemplateAndVariableMap(scope resourceQualifiers.Scope, template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string) (string, map[string]string, error)
+	GetResolvedTemplateAndVariableMap(template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string, scopedVariables []*models2.ScopedVariableData, varNameCMCS []string) (string, map[string]string, error)
+	ResolvedVariableForLastSaved(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel, configMapByte []byte, secretDataByte []byte) (string, string, error)
 }
 
 func NewAppService(
@@ -1443,11 +1448,6 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(template string, reference repository6.HistoryReference) (string, map[string]string, error) {
 
 	variableSnapshotMap := make(map[string]string)
-	//reference := repository6.HistoryReference{
-	//	HistoryReferenceId:   deploymentTemplateHistoryId,
-	//	HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
-	//}
-	//Todo
 	references := []repository6.HistoryReference{reference}
 	variableSnapshot, err := impl.getVariableSnapshot(references)
 	if err != nil {
@@ -1482,7 +1482,6 @@ func (impl *AppServiceImpl) getVariableSnapshot(reference []repository6.HistoryR
 	return variableSnapshot, err
 }
 
-// todo  to move  this to other fucntion GetAllMappingsForEntities
 func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
 
 	variableMap := make(map[string]string)
@@ -1491,7 +1490,6 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQua
 	if err != nil {
 		return template, variableMap, err
 	}
-	//todo what to do here
 	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
 		return template, variableMap, nil
 	}
@@ -1521,7 +1519,7 @@ func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQua
 	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, variableMap, nil
 }
-func (impl *AppServiceImpl) GetResolvedTemplateAndVariableMap(scope resourceQualifiers.Scope, template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string) (string, map[string]string, error) {
+func (impl *AppServiceImpl) GetResolvedTemplateAndVariableMap(template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string, scopedVariables []*models2.ScopedVariableData, varNameCMCS []string) (string, map[string]string, error) {
 	variableMap := make(map[string]string)
 	//todo what to do here
 	//for _, entity := range entities {
@@ -1534,27 +1532,35 @@ func (impl *AppServiceImpl) GetResolvedTemplateAndVariableMap(scope resourceQual
 	// is saved in snapshot
 	for _, entity := range entities {
 		for _, variable := range entityToVariables[entity] {
-			variableMap[variable] = variable
+			if slices.Contains(varNameCMCS, variable) {
+				variableMap[variable] = variable
+			}
+
 		}
 	}
 
-	var varNames []string
-	for _, vars := range entityToVariables {
-		varNames = append(varNames, vars...)
-	}
+	//var varNames []string
+	//for _, vars := range entityToVariables {
+	//	varNames = append(varNames, vars...)
+	//}
 
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, varNames, true)
-	if err != nil {
-		return template, variableMap, err
-	}
+	//scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, varNames, true)
+	//if err != nil {
+	//	return template, variableMap, err
+	//}
+
+	//for _, variable := range scopedVariables {
+	//			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+	//}
 
 	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+		if slices.Contains(varNameCMCS, variable.VariableName) {
+			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+		}
 	}
-
 	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err = parserResponse.Error
+	err := parserResponse.Error
 	if err != nil {
 		return template, variableMap, err
 	}
@@ -2298,18 +2304,15 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(request ConfigMapAndSecr
 	var configMapJsonEnv string
 	var secretDataJsonEnv string
 	var err error
-	var entitiesForCM []repository6.Entity
-	var entitiesForCS []repository6.Entity
-	var entityToVariablesCM map[repository6.Entity][]string
-	var entityToVariablesCS map[repository6.Entity][]string
-	var resolvedTemplateCM string
-	var variableMapCM map[string]string
-	var resolvedTemplateCS string
-	var variableMapCS map[string]string
+	var configMapA *chartConfig.ConfigMapAppModel
+	var configMapE *chartConfig.ConfigMapEnvModel
+	var configMapHistory *repository3.ConfigmapAndSecretHistory
+	var secretHistory *repository3.ConfigmapAndSecretHistory
+	var encodedSecretData string
 
 	merged := []byte("{}")
 	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(request.AppId)
+		configMapA, err = impl.configMapRepository.GetByAppIdAppLevel(request.AppId)
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
 		}
@@ -2318,7 +2321,7 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(request ConfigMapAndSecr
 			secretDataJsonApp = configMapA.SecretData
 		}
 
-		configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(request.AppId, request.EnvId)
+		configMapE, err = impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(request.AppId, request.EnvId)
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
 		}
@@ -2326,82 +2329,82 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(request ConfigMapAndSecr
 			configMapJsonEnv = configMapE.ConfigMapData
 			secretDataJsonEnv = configMapE.SecretData
 		}
-		entitiesForCM = []repository6.Entity{
-			{
-				EntityType: repository6.EntityTypeConfigMapAppLevel,
-				EntityId:   configMapA.Id,
-			},
-			{
-				EntityType: repository6.EntityTypeConfigMapEnvLevel,
-				EntityId:   configMapE.Id,
-			},
-		}
-		entitiesForCS = []repository6.Entity{
-			{
-				EntityType: repository6.EntityTypeSecretAppLevel,
-				EntityId:   configMapA.Id,
-			},
-			{
-				EntityType: repository6.EntityTypeSecretEnvLevel,
-				EntityId:   configMapE.Id,
-			},
-		}
-
-		entityToVariablesCM, err = impl.GetEntityToVariableMapping(entitiesForCM)
-		if err != nil {
-			return nil, err
-		}
-		entityToVariablesCS, err = impl.GetEntityToVariableMapping(entitiesForCS)
-		if err != nil {
-			return nil, err
-		}
+		//entitiesForCM = []repository6.Entity{
+		//	{
+		//		EntityType: repository6.EntityTypeConfigMapAppLevel,
+		//		EntityId:   configMapA.Id,
+		//	},
+		//	{
+		//		EntityType: repository6.EntityTypeConfigMapEnvLevel,
+		//		EntityId:   configMapE.Id,
+		//	},
+		//}
+		//entitiesForCS = []repository6.Entity{
+		//	{
+		//		EntityType: repository6.EntityTypeSecretAppLevel,
+		//		EntityId:   configMapA.Id,
+		//	},
+		//	{
+		//		EntityType: repository6.EntityTypeSecretEnvLevel,
+		//		EntityId:   configMapE.Id,
+		//	},
+		//}
+		//
+		//entityToVariablesCM, err = impl.GetEntityToVariableMapping(entitiesForCM)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//entityToVariablesCS, err = impl.GetEntityToVariableMapping(entitiesForCS)
+		//if err != nil {
+		//	return nil, err
+		//}
 
 	} else if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 
 		//fetching history and setting envLevelConfig and not appLevelConfig because history already contains merged appLevel and envLevel configs
-		configMapHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.wfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
+		configMapHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.wfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrid", request.wfrIdForDeploymentWithSpecificTrigger)
 			return []byte("{}"), err
 		}
-		reference := repository6.HistoryReference{
-			HistoryReferenceId:   configMapHistory.Id,
-			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
-		}
-		configMapHistoryJSON, err := json.Marshal(configMapHistory)
-		if err != nil {
-			impl.logger.Errorw("error in Marshalling configMapHistory", configMapHistory, "err", err)
-			return []byte("{}"), err
-		}
-
-		resolvedTemplateCM, variableMapCM, err = impl.getResolvedTemplateWithSnapshot(string(configMapHistoryJSON), reference)
-		if err != nil {
-			return nil, err
-		}
-		envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
-		envOverride.VariableSnapshotForCM = variableMapCM
+		//reference := repository6.HistoryReference{
+		//	HistoryReferenceId:   configMapHistory.Id,
+		//	HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
+		//}
+		//configMapHistoryJSON, err := json.Marshal(configMapHistory)
+		//if err != nil {
+		//	impl.logger.Errorw("error in Marshalling configMapHistory", configMapHistory, "err", err)
+		//	return []byte("{}"), err
+		//}
+		//
+		//resolvedTemplateCM, variableMapCM, err = impl.getResolvedTemplateWithSnapshot(string(configMapHistoryJSON), reference)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
+		//envOverride.VariableSnapshotForCM = variableMapCM
 		configMapJsonEnv = configMapHistory.Data
 
-		secretHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.wfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
+		secretHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.wfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrid", request.wfrIdForDeploymentWithSpecificTrigger)
 			return []byte("{}"), err
 		}
-		reference = repository6.HistoryReference{
-			HistoryReferenceId:   secretHistory.Id,
-			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
-		}
-		secretHistoryJSON, err := json.Marshal(secretHistory)
-		if err != nil {
-			impl.logger.Errorw("error in Marshalling secretHistory", secretHistory, "err", err)
-			return []byte("{}"), err
-		}
-		resolvedTemplateCS, variableMapCS, err = impl.getResolvedTemplateWithSnapshot(string(secretHistoryJSON), reference)
-		envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
-		envOverride.VariableSnapshotForCS = variableMapCS
-		if err != nil {
-			return nil, err
-		}
+		//reference = repository6.HistoryReference{
+		//	HistoryReferenceId:   secretHistory.Id,
+		//	HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
+		//}
+		//secretHistoryJSON, err := json.Marshal(secretHistory)
+		//if err != nil {
+		//	impl.logger.Errorw("error in Marshalling secretHistory", secretHistory, "err", err)
+		//	return []byte("{}"), err
+		//}
+		//resolvedTemplateCS, variableMapCS, err = impl.getResolvedTemplateWithSnapshot(string(secretHistoryJSON), reference)
+		//envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
+		//envOverride.VariableSnapshotForCS = variableMapCS
+		//if err != nil {
+		//	return nil, err
+		//}
 		secretDataJsonEnv = secretHistory.Data
 
 	}
@@ -2441,47 +2444,170 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(request ConfigMapAndSecr
 	if err != nil {
 		return []byte("{}"), err
 	}
-
-	if configMapJson != "" && len(entityToVariablesCM) > 0 {
-		resolvedTemplateCM, variableMapCM, err = impl.GetResolvedTemplateAndVariableMap(request.scope, string(configMapByte), entitiesForCM, entityToVariablesCM)
-		envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
-		envOverride.VariableSnapshotForCM = variableMapCM
-	}
-	var encodedSecretData string
-	if err != nil {
-		return nil, err
-	}
 	secretDataByte, err := json.Marshal(secretResponseR)
 	if err != nil {
-		return secretDataByte, err
+		return []byte("{}"), err
 
 	}
-	if secretDataJson != "" && len(entityToVariablesCS) > 0 {
+	var resolvedTemplateCM string
+	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+		resolvedTemplateCM, encodedSecretData, err = impl.ResolvedVariableForLastSaved(request, envOverride, configMapA, configMapE, configMapByte, secretDataByte)
+		if err != nil {
+			return []byte("{}"), err
+		}
 
-		data, err := bean.GetTransformedDataForSecret(string(secretDataByte), bean.DecodeSecret)
-		if err != nil {
-			return nil, err
-		}
-		resolvedTemplateCS, variableMapCS, err = impl.GetResolvedTemplateAndVariableMap(request.scope, data, entitiesForCS, entityToVariablesCS)
-		envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
-		envOverride.VariableSnapshotForCS = variableMapCS
-		encodedSecretData, err = bean.GetTransformedDataForSecret(resolvedTemplateCS, bean.EncodeSecret)
-		if err != nil {
-			return nil, err
-		}
 	}
+	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+		resolvedTemplateCM, encodedSecretData, err = impl.ResolvedVariableForSpecificType(configMapHistory, envOverride, secretHistory)
+		if err != nil {
+			return []byte("{}"), err
+		}
+
+	}
+
+	//if configMapJson != "" && len(entityToVariablesCM) > 0 {
+	//	resolvedTemplateCM, variableMapCM, err = impl.GetResolvedTemplateAndVariableMap(request.scope, string(configMapByte), entitiesForCM, entityToVariablesCM)
+	//	envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
+	//	envOverride.VariableSnapshotForCM = variableMapCM
+	//}
+
+	//if secretDataJson != "" && len(entityToVariablesCS) > 0 {
+	//
+	//	data, err := bean.GetTransformedDataForSecret(string(secretDataByte), bean.DecodeSecret)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	resolvedTemplateCS, variableMapCS, err = impl.GetResolvedTemplateAndVariableMap(request.scope, data, entitiesForCS, entityToVariablesCS)
+	//	envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
+	//	envOverride.VariableSnapshotForCS = variableMapCS
+	//	encodedSecretData, err = bean.GetTransformedDataForSecret(resolvedTemplateCS, bean.EncodeSecret)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	if err != nil {
 		return nil, err
 	}
 
-	merged, err = impl.mergeUtil.JsonPatch([]byte(envOverride.ResolvedEnvOverrideValuesForCM), []byte(encodedSecretData))
+	merged, err = impl.mergeUtil.JsonPatch([]byte(resolvedTemplateCM), []byte(encodedSecretData))
 
 	if err != nil {
 		return []byte("{}"), err
 	}
 
 	return merged, nil
+}
+
+func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *repository3.ConfigmapAndSecretHistory, envOverride *chartConfig.EnvConfigOverride, secretHistory *repository3.ConfigmapAndSecretHistory) (string, string, error) {
+	reference := repository6.HistoryReference{
+		HistoryReferenceId:   configMapHistory.Id,
+		HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
+	}
+	configMapHistoryJSON, err := json.Marshal(configMapHistory)
+	if err != nil {
+		impl.logger.Errorw("error in Marshalling configMapHistory", configMapHistory, "err", err)
+		return "", "", err
+	}
+
+	resolvedTemplateCM, variableMapCM, err := impl.getResolvedTemplateWithSnapshot(string(configMapHistoryJSON), reference)
+	if err != nil {
+		return "", "", err
+	}
+	envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
+	envOverride.VariableSnapshotForCM = variableMapCM
+
+	reference = repository6.HistoryReference{
+		HistoryReferenceId:   secretHistory.Id,
+		HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
+	}
+	secretHistoryJSON, err := json.Marshal(secretHistory)
+	if err != nil {
+		impl.logger.Errorw("error in Marshalling secretHistory", secretHistory, "err", err)
+		return "", "", err
+	}
+	data, err := repository3.GetTransformedDataForSecretHistory(string(secretHistoryJSON), bean.DecodeSecret)
+	if err != nil {
+		return "", "", err
+	}
+	resolvedTemplateCS, variableMapCS, err := impl.getResolvedTemplateWithSnapshot(data, reference)
+	envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
+	envOverride.VariableSnapshotForCS = variableMapCS
+	encodedSecretData, err := repository3.GetTransformedDataForSecretHistory(resolvedTemplateCS, bean.EncodeSecret)
+	if err != nil {
+		return "", "", err
+	}
+	if err != nil {
+		return "", "", err
+	}
+	return resolvedTemplateCM, encodedSecretData, nil
+}
+
+func (impl *AppServiceImpl) ResolvedVariableForLastSaved(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel, configMapByte []byte, secretDataByte []byte) (string, string, error) {
+	entitiesForCM := []repository6.Entity{
+		{
+			EntityType: repository6.EntityTypeConfigMapAppLevel,
+			EntityId:   configMapA.Id,
+		},
+		{
+			EntityType: repository6.EntityTypeConfigMapEnvLevel,
+			EntityId:   configMapE.Id,
+		},
+	}
+	entitiesForCS := []repository6.Entity{
+		{
+			EntityType: repository6.EntityTypeSecretAppLevel,
+			EntityId:   configMapA.Id,
+		},
+
+		{
+			EntityType: repository6.EntityTypeSecretEnvLevel,
+			EntityId:   configMapE.Id,
+		},
+	}
+	entityToVariables, err := impl.GetEntityToVariableMapping(append(entitiesForCS, entitiesForCM...))
+	if err != nil {
+		return "", "", err
+	}
+	varNamesCM := append(entityToVariables[entitiesForCM[0]], entityToVariables[entitiesForCM[1]]...)
+	varNamesCS := append(entityToVariables[entitiesForCS[0]], entityToVariables[entitiesForCS[1]]...)
+	uniqueVarNamesCM := mapset.NewSetFromSlice(utils.ToInterfaceArray(append(varNamesCM)))
+	FinalVarNamesCM := utils.ToStringArray(uniqueVarNamesCM.ToSlice())
+	uniqueVarNamesCS := mapset.NewSetFromSlice(utils.ToInterfaceArray(append(varNamesCS)))
+	FinalVarNamesCS := utils.ToStringArray(uniqueVarNamesCS.ToSlice())
+	uniqueCMCSNames := mapset.NewSetFromSlice(utils.ToInterfaceArray(append(FinalVarNamesCM, FinalVarNamesCS...)))
+	FinalCMCS := utils.ToStringArray(uniqueCMCSNames.ToSlice())
+	var encodedSecretData string
+	var resolvedTemplateCM string
+	var variableMapCM map[string]string
+
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(request.scope, FinalCMCS, true)
+	if err != nil {
+		return "", "", err
+	}
+	if configMapByte != nil && len(FinalVarNamesCM) > 0 {
+		resolvedTemplateCM, variableMapCM, err = impl.GetResolvedTemplateAndVariableMap(string(configMapByte), entitiesForCM, entityToVariables, scopedVariables, varNamesCM)
+		if err != nil {
+			return "", "", err
+		}
+		//envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
+		envOverride.VariableSnapshotForCM = variableMapCM
+	}
+
+	if secretDataByte != nil && len(entityToVariables) > 0 {
+		data, err := bean.GetTransformedDataForSecret(string(secretDataByte), bean.DecodeSecret)
+		if err != nil {
+			return "", "", err
+		}
+		resolvedTemplateCS, variableMapCS, err := impl.GetResolvedTemplateAndVariableMap(data, entitiesForCS, entityToVariables, scopedVariables, varNamesCS)
+		//envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
+		envOverride.VariableSnapshotForCS = variableMapCS
+		encodedSecretData, err = bean.GetTransformedDataForSecret(resolvedTemplateCS, bean.EncodeSecret)
+		if err != nil {
+			return "", "", err
+		}
+	}
+	return resolvedTemplateCM, encodedSecretData, nil
 }
 
 func (impl *AppServiceImpl) synchCD(pipeline *pipelineConfig.Pipeline, ctx context.Context,

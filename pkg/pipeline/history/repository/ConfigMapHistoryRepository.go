@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -46,6 +48,22 @@ type ConfigmapAndSecretHistory struct {
 	//getting below data from cd_workflow_runner join
 	DeploymentStatus  string `sql:"-"`
 	DeployedByEmailId string `sql:"-"`
+}
+
+func GetTransformedDataForSecretHistory(data string, mode bean.SecretTransformMode) (string, error) {
+	secretsJson := ConfigmapAndSecretHistory{}
+	err := json.Unmarshal([]byte(data), &secretsJson)
+	if err != nil {
+		return "", err
+	}
+	secretsData, err := bean.GetDecodedAndEncodedData([]byte(secretsJson.Data), mode)
+	secretsJson.Data = string(secretsData)
+
+	marshal, err := json.Marshal(secretsJson)
+	if err != nil {
+		return "", nil
+	}
+	return string(marshal), nil
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
