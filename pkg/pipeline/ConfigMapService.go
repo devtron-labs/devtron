@@ -32,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -87,19 +86,20 @@ type ConfigMapService interface {
 }
 
 type ConfigMapServiceImpl struct {
-	chartRepository              chartRepoRepository.ChartRepository
-	logger                       *zap.SugaredLogger
-	repoRepository               chartRepoRepository.ChartRepoRepository
-	mergeUtil                    util.MergeUtil
-	pipelineConfigRepository     chartConfig.PipelineConfigRepository
-	configMapRepository          chartConfig.ConfigMapRepository
-	environmentConfigRepository  chartConfig.EnvConfigOverrideRepository
-	commonService                commonService.CommonService
-	appRepository                app.AppRepository
-	configMapHistoryService      history2.ConfigMapHistoryService
-	environmentRepository        repository2.EnvironmentRepository
-	variableTemplateParser       parsers.VariableTemplateParser
-	variableEntityMappingService variables.VariableEntityMappingService
+	chartRepository             chartRepoRepository.ChartRepository
+	logger                      *zap.SugaredLogger
+	repoRepository              chartRepoRepository.ChartRepoRepository
+	mergeUtil                   util.MergeUtil
+	pipelineConfigRepository    chartConfig.PipelineConfigRepository
+	configMapRepository         chartConfig.ConfigMapRepository
+	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
+	commonService               commonService.CommonService
+	appRepository               app.AppRepository
+	configMapHistoryService     history2.ConfigMapHistoryService
+	environmentRepository       repository2.EnvironmentRepository
+	scopedVariableManager       variables.ScopedVariableManager
+	//variableTemplateParser       parsers.VariableTemplateParser
+	//variableEntityMappingService variables.VariableEntityMappingService
 }
 
 func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -110,38 +110,42 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	commonService commonService.CommonService, appRepository app.AppRepository,
 	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository2.EnvironmentRepository,
-	variableTemplateParser parsers.VariableTemplateParser, variableEntityMappingService variables.VariableEntityMappingService,
+	scopedVariableManager variables.ScopedVariableManager,
+//variableTemplateParser parsers.VariableTemplateParser,
+//variableEntityMappingService variables.VariableEntityMappingService,
 ) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
-		chartRepository:              chartRepository,
-		logger:                       logger,
-		repoRepository:               repoRepository,
-		mergeUtil:                    mergeUtil,
-		pipelineConfigRepository:     pipelineConfigRepository,
-		configMapRepository:          configMapRepository,
-		environmentConfigRepository:  environmentConfigRepository,
-		commonService:                commonService,
-		appRepository:                appRepository,
-		configMapHistoryService:      configMapHistoryService,
-		environmentRepository:        environmentRepository,
-		variableTemplateParser:       variableTemplateParser,
-		variableEntityMappingService: variableEntityMappingService,
+		chartRepository:             chartRepository,
+		logger:                      logger,
+		repoRepository:              repoRepository,
+		mergeUtil:                   mergeUtil,
+		pipelineConfigRepository:    pipelineConfigRepository,
+		configMapRepository:         configMapRepository,
+		environmentConfigRepository: environmentConfigRepository,
+		commonService:               commonService,
+		appRepository:               appRepository,
+		configMapHistoryService:     configMapHistoryService,
+		environmentRepository:       environmentRepository,
+		scopedVariableManager:       scopedVariableManager,
+		//variableTemplateParser:       variableTemplateParser,
+		//variableEntityMappingService: variableEntityMappingService,
 	}
 }
 func (impl ConfigMapServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-
-	if err != nil {
-		return err
-	}
-	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
-		EntityType: entityType,
-		EntityId:   entityId,
-	}, userId, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	//usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
+	//
+	//if err != nil {
+	//	return err
+	//}
+	//err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
+	//	EntityType: entityType,
+	//	EntityId:   entityId,
+	//}, userId, nil)
+	//if err != nil {
+	//	return err
+	//}
+	//return nil
+	return impl.scopedVariableManager.ExtractAndMapVariables(template, entityId, entityType, userId, nil)
 }
 func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {

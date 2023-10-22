@@ -279,6 +279,9 @@ func InitializeApp() (*App, error) {
 		variables.NewVariableSnapshotHistoryServiceImpl,
 		wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
 
+		variables.NewScopedVariableManagerImpl,
+		wire.Bind(new(variables.ScopedVariableManager), new(*variables.ScopedVariableManagerImpl)),
+
 		//end
 
 		chart.NewChartServiceImpl,

@@ -41,8 +41,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
@@ -50,7 +49,6 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
-	"golang.org/x/exp/slices"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -180,11 +178,9 @@ type AppServiceImpl struct {
 	globalEnvVariables                     *util2.GlobalEnvVariables
 	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
 	GitOpsManifestPushService              GitOpsPushService
-	variableSnapshotHistoryService         variables.VariableSnapshotHistoryService
-	scopedVariableService                  variables.ScopedVariableService
-	variableEntityMappingService           variables.VariableEntityMappingService
-	variableTemplateParser                 parsers.VariableTemplateParser
-	argoClientWrapperService               argocdServer.ArgoClientWrapperService
+	scopedVariableManager                  variables.ScopedVariableManager
+
+	argoClientWrapperService argocdServer.ArgoClientWrapperService
 }
 
 type AppService interface {
@@ -206,9 +202,9 @@ type AppService interface {
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
-	GetEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error)
-	GetResolvedTemplateAndVariableMap(template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string, scopedVariables []*models2.ScopedVariableData, varNameCMCS []string) (string, map[string]string, error)
-	ResolvedVariableForLastSaved(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel, configMapByte []byte, secretDataByte []byte) (string, string, error)
+	//GetEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error)
+	//GetResolvedTemplateAndVariableMap(template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string, scopedVariables []*models2.ScopedVariableData, varNameCMCS []string) (string, map[string]string, error)
+	//ResolvedVariableForLastSaved(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel, configMapByte []byte, secretDataByte []byte) (string, string, error)
 }
 
 func NewAppService(
@@ -266,10 +262,11 @@ func NewAppService(
 	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	GitOpsManifestPushService GitOpsPushService,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
-	scopedVariableService variables.ScopedVariableService,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser,
+	scopedVariableManager variables.ScopedVariableManager,
+	//variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	//scopedVariableService variables.ScopedVariableService,
+	//variableEntityMappingService variables.VariableEntityMappingService,
+	//variableTemplateParser parsers.VariableTemplateParser,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 ) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
@@ -332,11 +329,12 @@ func NewAppService(
 		helmAppService:                         helmAppService,
 		manifestPushConfigRepository:           manifestPushConfigRepository,
 		GitOpsManifestPushService:              GitOpsManifestPushService,
-		variableSnapshotHistoryService:         variableSnapshotHistoryService,
-		scopedVariableService:                  scopedVariableService,
-		variableEntityMappingService:           variableEntityMappingService,
-		variableTemplateParser:                 variableTemplateParser,
-		argoClientWrapperService:               argoClientWrapperService,
+		scopedVariableManager:                  scopedVariableManager,
+		//variableSnapshotHistoryService:         variableSnapshotHistoryService,
+		//scopedVariableService:        scopedVariableService,
+		//variableEntityMappingService: variableEntityMappingService,
+		//variableTemplateParser:                 variableTemplateParser,
+		argoClientWrapperService: argoClientWrapperService,
 	}
 	return appServiceImpl
 }
@@ -1318,7 +1316,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			HistoryReferenceId:   deploymentTemplateHistory.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
 		}
-		resolvedTemplate, variableMap, err := impl.getResolvedTemplateWithSnapshot(envOverride.EnvOverrideValues, reference)
+		resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetResolvedTemplateWithSnapshot(envOverride.EnvOverrideValues, reference)
 		envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 		envOverride.VariableSnapshot = variableMap
 		if err != nil {
@@ -1418,7 +1416,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 
 		if envOverride.IsOverride {
 
-			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, envOverride.EnvOverrideValues, repository6.Entity{
+			resolvedTemplate, variableMap, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplateAppService(scope, envOverride.EnvOverrideValues, repository6.Entity{
 				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
 				EntityId:   envOverride.Id,
 			})
@@ -1429,7 +1427,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			}
 
 		} else {
-			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, chart.GlobalOverride, repository6.Entity{
+			resolvedTemplate, variableMap, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplateAppService(scope, chart.GlobalOverride, repository6.Entity{
 				EntityType: repository6.EntityTypeDeploymentTemplateAppLevel,
 				EntityId:   chart.Id,
 			})
@@ -1445,134 +1443,134 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 	return envOverride, nil
 }
 
-func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(template string, reference repository6.HistoryReference) (string, map[string]string, error) {
+//func (impl *AppServiceImpl) getResolvedTemplateWithSnapshot(template string, reference repository6.HistoryReference) (string, map[string]string, error) {
+//
+//	variableSnapshotMap := make(map[string]string)
+//	references := []repository6.HistoryReference{reference}
+//	variableSnapshot, err := impl.getVariableSnapshot(references)
+//	if err != nil {
+//		return template, variableSnapshotMap, err
+//	}
+//
+//	if _, ok := variableSnapshot[reference]; !ok {
+//		return template, variableSnapshotMap, nil
+//	}
+//
+//	err = json.Unmarshal(variableSnapshot[reference].VariableSnapshot, &variableSnapshotMap)
+//	if err != nil {
+//		return template, variableSnapshotMap, err
+//	}
+//
+//	if len(variableSnapshotMap) == 0 {
+//		return template, variableSnapshotMap, nil
+//	}
+//	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, make(map[string]bool), true)
+//	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
+//	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
+//	err = parserResponse.Error
+//	if err != nil {
+//		return template, variableSnapshotMap, err
+//	}
+//	resolvedTemplate := parserResponse.ResolvedTemplate
+//	return resolvedTemplate, variableSnapshotMap, nil
+//}
+//
+//func (impl *AppServiceImpl) getVariableSnapshot(reference []repository6.HistoryReference) (map[repository6.HistoryReference]*repository6.VariableSnapshotHistoryBean, error) {
+//	variableSnapshot, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences(reference)
+//	return variableSnapshot, err
+//}
 
-	variableSnapshotMap := make(map[string]string)
-	references := []repository6.HistoryReference{reference}
-	variableSnapshot, err := impl.getVariableSnapshot(references)
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
+//func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
+//
+//	variableMap := make(map[string]string)
+//	entities := []repository6.Entity{entity}
+//	entityToVariables, err := impl.GetEntityToVariableMapping(entities)
+//	if err != nil {
+//		return template, variableMap, err
+//	}
+//	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
+//		return template, variableMap, nil
+//	}
+//
+//	// pre-populating variable map with variable so that the variables which don't have any resolved data
+//	// is saved in snapshot
+//	for _, variable := range entityToVariables[entity] {
+//		variableMap[variable] = "@{{" + variable + "}}"
+//	}
+//
+//	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
+//	if err != nil {
+//		return template, variableMap, err
+//	}
+//
+//	for _, variable := range scopedVariables {
+//		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+//	}
+//
+//	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
+//	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
+//	err = parserResponse.Error
+//	if err != nil {
+//		return template, variableMap, err
+//	}
+//
+//	resolvedTemplate := parserResponse.ResolvedTemplate
+//	return resolvedTemplate, variableMap, nil
+//}
+//func (impl *AppServiceImpl) GetResolvedTemplateAndVariableMap(template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string, scopedVariables []*models2.ScopedVariableData, varNameCMCS []string) (string, map[string]string, error) {
+//	variableMap := make(map[string]string)
+//	//todo what to do here
+//	//for _, entity := range entities {
+//	//	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
+//	//		return template, variableMap, nil
+//	//	}
+//	//}
+//
+//	// pre-populating variable map with variable so that the variables which don't have any resolved data
+//	// is saved in snapshot
+//	for _, entity := range entities {
+//		for _, variable := range entityToVariables[entity] {
+//			if slices.Contains(varNameCMCS, variable) {
+//				variableMap[variable] = variable
+//			}
+//
+//		}
+//	}
+//
+//	//var varNames []string
+//	//for _, vars := range entityToVariables {
+//	//	varNames = append(varNames, vars...)
+//	//}
+//
+//	//scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, varNames, true)
+//	//if err != nil {
+//	//	return template, variableMap, err
+//	//}
+//
+//	//for _, variable := range scopedVariables {
+//	//			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+//	//}
+//
+//	for _, variable := range scopedVariables {
+//		if slices.Contains(varNameCMCS, variable.VariableName) {
+//			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+//		}
+//	}
+//	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
+//	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
+//	err := parserResponse.Error
+//	if err != nil {
+//		return template, variableMap, err
+//	}
+//
+//	resolvedTemplate := parserResponse.ResolvedTemplate
+//	return resolvedTemplate, variableMap, nil
+//}
 
-	if _, ok := variableSnapshot[reference]; !ok {
-		return template, variableSnapshotMap, nil
-	}
-
-	err = json.Unmarshal(variableSnapshot[reference].VariableSnapshot, &variableSnapshotMap)
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-
-	if len(variableSnapshotMap) == 0 {
-		return template, variableSnapshotMap, nil
-	}
-	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, make(map[string]bool), true)
-	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
-	err = parserResponse.Error
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableSnapshotMap, nil
-}
-
-func (impl *AppServiceImpl) getVariableSnapshot(reference []repository6.HistoryReference) (map[repository6.HistoryReference]*repository6.VariableSnapshotHistoryBean, error) {
-	variableSnapshot, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences(reference)
-	return variableSnapshot, err
-}
-
-func (impl *AppServiceImpl) extractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, entity repository6.Entity) (string, map[string]string, error) {
-
-	variableMap := make(map[string]string)
-	entities := []repository6.Entity{entity}
-	entityToVariables, err := impl.GetEntityToVariableMapping(entities)
-	if err != nil {
-		return template, variableMap, err
-	}
-	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
-		return template, variableMap, nil
-	}
-
-	// pre-populating variable map with variable so that the variables which don't have any resolved data
-	// is saved in snapshot
-	for _, variable := range entityToVariables[entity] {
-		variableMap[variable] = "@{{" + variable + "}}"
-	}
-
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
-	}
-
-	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err = parserResponse.Error
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableMap, nil
-}
-func (impl *AppServiceImpl) GetResolvedTemplateAndVariableMap(template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string, scopedVariables []*models2.ScopedVariableData, varNameCMCS []string) (string, map[string]string, error) {
-	variableMap := make(map[string]string)
-	//todo what to do here
-	//for _, entity := range entities {
-	//	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
-	//		return template, variableMap, nil
-	//	}
-	//}
-
-	// pre-populating variable map with variable so that the variables which don't have any resolved data
-	// is saved in snapshot
-	for _, entity := range entities {
-		for _, variable := range entityToVariables[entity] {
-			if slices.Contains(varNameCMCS, variable) {
-				variableMap[variable] = variable
-			}
-
-		}
-	}
-
-	//var varNames []string
-	//for _, vars := range entityToVariables {
-	//	varNames = append(varNames, vars...)
-	//}
-
-	//scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, varNames, true)
-	//if err != nil {
-	//	return template, variableMap, err
-	//}
-
-	//for _, variable := range scopedVariables {
-	//			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
-	//}
-
-	for _, variable := range scopedVariables {
-		if slices.Contains(varNameCMCS, variable.VariableName) {
-			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
-		}
-	}
-	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err := parserResponse.Error
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableMap, nil
-}
-
-func (impl *AppServiceImpl) GetEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error) {
-	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities(entity)
-	return entityToVariables, err
-}
+//func (impl *AppServiceImpl) GetEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error) {
+//	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities(entity)
+//	return entityToVariables, err
+//}
 
 func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error) {
 	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
@@ -2510,7 +2508,7 @@ func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *re
 		return "", "", err
 	}
 
-	resolvedTemplateCM, variableMapCM, err := impl.getResolvedTemplateWithSnapshot(string(configMapHistoryJSON), reference)
+	resolvedTemplateCM, variableMapCM, err := impl.scopedVariableManager.GetResolvedTemplateWithSnapshot(string(configMapHistoryJSON), reference)
 	if err != nil {
 		return "", "", err
 	}
@@ -2530,7 +2528,7 @@ func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *re
 	if err != nil {
 		return "", "", err
 	}
-	resolvedTemplateCS, variableMapCS, err := impl.getResolvedTemplateWithSnapshot(data, reference)
+	resolvedTemplateCS, variableMapCS, err := impl.scopedVariableManager.GetResolvedTemplateWithSnapshot(data, reference)
 	envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
 	envOverride.VariableSnapshotForCS = variableMapCS
 	encodedSecretData, err := repository3.GetTransformedDataForSecretHistory(resolvedTemplateCS, bean.EncodeSecret)
@@ -2565,7 +2563,7 @@ func (impl *AppServiceImpl) ResolvedVariableForLastSaved(request ConfigMapAndSec
 			EntityId:   configMapE.Id,
 		},
 	}
-	entityToVariables, err := impl.GetEntityToVariableMapping(append(entitiesForCS, entitiesForCM...))
+	entityToVariables, err := impl.scopedVariableManager.GetEntityToVariableMapping(append(entitiesForCS, entitiesForCM...))
 	if err != nil {
 		return "", "", err
 	}
@@ -2581,12 +2579,12 @@ func (impl *AppServiceImpl) ResolvedVariableForLastSaved(request ConfigMapAndSec
 	var resolvedTemplateCM string
 	var variableMapCM map[string]string
 
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(request.scope, FinalCMCS, true)
+	scopedVariables, err := impl.scopedVariableManager.GetScopedVariables(request.scope, FinalCMCS, true)
 	if err != nil {
 		return "", "", err
 	}
 	if configMapByte != nil && len(FinalVarNamesCM) > 0 {
-		resolvedTemplateCM, variableMapCM, err = impl.GetResolvedTemplateAndVariableMap(string(configMapByte), entitiesForCM, entityToVariables, scopedVariables, varNamesCM)
+		resolvedTemplateCM, variableMapCM, err = impl.scopedVariableManager.GetResolvedTemplateAndVariableMapAppservice(string(configMapByte), entitiesForCM, entityToVariables, scopedVariables, varNamesCM)
 		if err != nil {
 			return "", "", err
 		}
@@ -2599,7 +2597,7 @@ func (impl *AppServiceImpl) ResolvedVariableForLastSaved(request ConfigMapAndSec
 		if err != nil {
 			return "", "", err
 		}
-		resolvedTemplateCS, variableMapCS, err := impl.GetResolvedTemplateAndVariableMap(data, entitiesForCS, entityToVariables, scopedVariables, varNamesCS)
+		resolvedTemplateCS, variableMapCS, err := impl.scopedVariableManager.GetResolvedTemplateAndVariableMapAppservice(data, entitiesForCS, entityToVariables, scopedVariables, varNamesCS)
 		//envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
 		envOverride.VariableSnapshotForCS = variableMapCS
 		encodedSecretData, err = bean.GetTransformedDataForSecret(resolvedTemplateCS, bean.EncodeSecret)
@@ -3377,7 +3375,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		repository6.GetSnapshotBean(csId, repository6.HistoryReferenceTypeSecret, envOverride.VariableSnapshotForCS),
 	)
 	if len(variableSnapshotHistories) > 0 {
-		err = impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger(variableSnapshotHistories, deployedBy)
+		err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, deployedBy)
 		if err != nil {
 			return err
 		}

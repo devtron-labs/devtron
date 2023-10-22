@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/variables"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -27,16 +28,16 @@ type ConfigMapHistoryService interface {
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 
 	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*ComponentLevelHistoryDetailDto, error)
-	ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool, variableSnapshotMap map[string]string, resolvedTemplate string) (*ComponentLevelHistoryDetailDto, error)
+	ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error)
 }
 
 type ConfigMapHistoryServiceImpl struct {
-	logger                           *zap.SugaredLogger
-	configMapHistoryRepository       repository.ConfigMapHistoryRepository
-	pipelineRepository               pipelineConfig.PipelineRepository
-	configMapRepository              chartConfig.ConfigMapRepository
-	userService                      user.UserService
-	deploymentTemplateHistoryService DeploymentTemplateHistoryService
+	logger                     *zap.SugaredLogger
+	configMapHistoryRepository repository.ConfigMapHistoryRepository
+	pipelineRepository         pipelineConfig.PipelineRepository
+	configMapRepository        chartConfig.ConfigMapRepository
+	userService                user.UserService
+	scopedVariableManager      variables.ScopedVariableManager
 }
 
 func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,
@@ -44,15 +45,15 @@ func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	userService user.UserService,
-	deploymentTemplateHistoryService DeploymentTemplateHistoryService,
+	scopedVariableManager variables.ScopedVariableManager,
 ) *ConfigMapHistoryServiceImpl {
 	return &ConfigMapHistoryServiceImpl{
-		logger:                           logger,
-		configMapHistoryRepository:       configMapHistoryRepository,
-		pipelineRepository:               pipelineRepository,
-		configMapRepository:              configMapRepository,
-		userService:                      userService,
-		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		logger:                     logger,
+		configMapHistoryRepository: configMapHistoryRepository,
+		pipelineRepository:         pipelineRepository,
+		configMapRepository:        configMapRepository,
+		userService:                userService,
+		scopedVariableManager:      scopedVariableManager,
 	}
 }
 
@@ -445,7 +446,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
 		}
-		variableSnapshotMapCM, resolvedTemplateCM, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess)
+		variableSnapshotMapCM, resolvedTemplateCM, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
 		}
@@ -468,7 +469,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		if err != nil {
 			return nil, err
 		}
-		variableSnapshotMapCS, resolvedTemplateCS, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess)
+		variableSnapshotMapCS, resolvedTemplateCS, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
 		}
@@ -560,7 +561,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
 		}
-		variableSnapshotMap, resolvedTemplate, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess)
+		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 		}
@@ -584,7 +585,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		if err != nil {
 			return nil, err
 		}
-		variableSnapshotMap, resolvedTemplate, err = impl.deploymentTemplateHistoryService.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess)
+		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 		}
@@ -596,16 +597,24 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 
 	var componentLevelHistoryData []*ComponentLevelHistoryDetailDto
 	for _, config := range configData {
-		componentLevelData, err := impl.ConvertConfigDataToComponentLevelDto(config, configType, userHasAdminAccess, variableSnapshotMap, resolvedTemplate)
+		componentLevelData, err := impl.ConvertConfigDataToComponentLevelDto(config, configType, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error in converting data to componentLevelData", "err", err)
 		}
+		if configType == repository.SECRET_TYPE {
+			componentLevelData.HistoryConfig.VariableSnapshotForCS = variableSnapshotMap
+			componentLevelData.HistoryConfig.ResolvedTemplateDataForCS = resolvedTemplate
+		} else if configType == repository.CONFIGMAP_TYPE {
+			componentLevelData.HistoryConfig.VariableSnapshotForCM = variableSnapshotMap
+			componentLevelData.HistoryConfig.ResolvedTemplateDataForCM = resolvedTemplate
+		}
+
 		componentLevelHistoryData = append(componentLevelHistoryData, componentLevelData)
 	}
 	return componentLevelHistoryData, nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool, variableSnapshotMap map[string]string, resolvedTemplate string) (*ComponentLevelHistoryDetailDto, error) {
+func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error) {
 	historyDto := &HistoryDetailDto{
 		Type:           config.Type,
 		External:       &config.External,
@@ -662,12 +671,12 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 				historyDto.CodeEditorValue.Value = string(externalSecretData)
 			}
 		}
-		historyDto.VariableSnapshotForCS = variableSnapshotMap
-		historyDto.ResolvedTemplateDataForCS = resolvedTemplate
-	} else if configType == repository.CONFIGMAP_TYPE {
-		historyDto.VariableSnapshotForCM = variableSnapshotMap
-		historyDto.ResolvedTemplateDataForCM = resolvedTemplate
-	}
+		//historyDto.VariableSnapshotForCS = variableSnapshotMap
+		//historyDto.ResolvedTemplateDataForCS = resolvedTemplate
+	} //else if configType == repository.CONFIGMAP_TYPE {
+	//historyDto.VariableSnapshotForCM = variableSnapshotMap
+	//historyDto.ResolvedTemplateDataForCM = resolvedTemplate
+	//}
 	componentLevelData := &ComponentLevelHistoryDetailDto{
 		ComponentName: config.Name,
 		HistoryConfig: historyDto,

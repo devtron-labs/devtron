@@ -118,7 +118,7 @@ type WorkflowDagExecutorImpl struct {
 	pipelineStageService          PipelineStageService
 	config                        *CdConfig
 
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
+	scopedVariableManager variables.ScopedVariableManager
 }
 
 const (
@@ -211,41 +211,41 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	scopedVariableManager variables.ScopedVariableManager,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
-		pipelineRepository:             pipelineRepository,
-		cdWorkflowRepository:           cdWorkflowRepository,
-		pubsubClient:                   pubsubClient,
-		appService:                     appService,
-		cdWorkflowService:              cdWorkflowService,
-		ciPipelineRepository:           ciPipelineRepository,
-		ciArtifactRepository:           ciArtifactRepository,
-		materialRepository:             materialRepository,
-		pipelineOverrideRepository:     pipelineOverrideRepository,
-		user:                           user,
-		enforcer:                       enforcer,
-		enforcerUtil:                   enforcerUtil,
-		groupRepository:                groupRepository,
-		tokenCache:                     tokenCache,
-		acdAuthConfig:                  acdAuthConfig,
-		envRepository:                  envRepository,
-		eventFactory:                   eventFactory,
-		eventClient:                    eventClient,
-		cvePolicyRepository:            cvePolicyRepository,
-		scanResultRepository:           scanResultRepository,
-		appWorkflowRepository:          appWorkflowRepository,
-		prePostCdScriptHistoryService:  prePostCdScriptHistoryService,
-		argoUserService:                argoUserService,
-		cdPipelineStatusTimelineRepo:   cdPipelineStatusTimelineRepo,
-		pipelineStatusTimelineService:  pipelineStatusTimelineService,
-		CiTemplateRepository:           CiTemplateRepository,
-		ciWorkflowRepository:           ciWorkflowRepository,
-		appLabelRepository:             appLabelRepository,
-		gitSensorGrpcClient:            gitSensorGrpcClient,
-		k8sCommonService:               k8sCommonService,
-		pipelineStageService:           pipelineStageService,
-		variableSnapshotHistoryService: variableSnapshotHistoryService,
+		pipelineRepository:            pipelineRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		pubsubClient:                  pubsubClient,
+		appService:                    appService,
+		cdWorkflowService:             cdWorkflowService,
+		ciPipelineRepository:          ciPipelineRepository,
+		ciArtifactRepository:          ciArtifactRepository,
+		materialRepository:            materialRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
+		user:                          user,
+		enforcer:                      enforcer,
+		enforcerUtil:                  enforcerUtil,
+		groupRepository:               groupRepository,
+		tokenCache:                    tokenCache,
+		acdAuthConfig:                 acdAuthConfig,
+		envRepository:                 envRepository,
+		eventFactory:                  eventFactory,
+		eventClient:                   eventClient,
+		cvePolicyRepository:           cvePolicyRepository,
+		scanResultRepository:          scanResultRepository,
+		appWorkflowRepository:         appWorkflowRepository,
+		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
+		argoUserService:               argoUserService,
+		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		CiTemplateRepository:          CiTemplateRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		appLabelRepository:            appLabelRepository,
+		gitSensorGrpcClient:           gitSensorGrpcClient,
+		k8sCommonService:              k8sCommonService,
+		pipelineStageService:          pipelineStageService,
+		scopedVariableManager:         scopedVariableManager,
 	}
 	config, err := GetCdConfig()
 	if err != nil {
@@ -944,15 +944,23 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 
 		//Save Scoped VariableSnapshot
-		if len(variableSnapshot) > 0 {
-			variableMapBytes, _ := json.Marshal(variableSnapshot)
-			err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository5.VariableSnapshotHistoryBean{{
-				VariableSnapshot: variableMapBytes,
-				HistoryReference: repository5.HistoryReference{
-					HistoryReferenceId:   runner.Id,
-					HistoryReferenceType: repository5.HistoryReferenceTypeCDWORKFLOWRUNNER,
-				},
-			}}, runner.TriggeredBy)
+		//if len(variableSnapshot) > 0 {
+		//	variableMapBytes, _ := json.Marshal(variableSnapshot)
+		//	err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository5.VariableSnapshotHistoryBean{{
+		//		VariableSnapshot: variableMapBytes,
+		//		HistoryReference: repository5.HistoryReference{
+		//			HistoryReferenceId:   runner.Id,
+		//			HistoryReferenceType: repository5.HistoryReferenceTypeCDWORKFLOWRUNNER,
+		//		},
+		//	}}, runner.TriggeredBy)
+		//	if err != nil {
+		//		impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s %d %s", err, runner.Id, variableSnapshot)
+		//	}
+		//}
+		var variableSnapshotHistories = repository5.GetBeans(
+			repository5.GetSnapshotBean(runner.Id, repository5.HistoryReferenceTypeCDWORKFLOWRUNNER, variableSnapshot))
+		if len(variableSnapshotHistories) > 0 {
+			err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, runner.TriggeredBy)
 			if err != nil {
 				impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s %d %s", err, runner.Id, variableSnapshot)
 			}
