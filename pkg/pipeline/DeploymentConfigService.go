@@ -512,7 +512,6 @@ func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, 
 				finalMap[data.Name] = data
 			}
 		}
-
 	}
 	return finalMap, nil
 }

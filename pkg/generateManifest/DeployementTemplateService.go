@@ -248,6 +248,7 @@ func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx contex
 		return "", "", nil, err
 	}
 
+	//todo Subhashish solve variable leak
 	return historyObject.CodeEditorValue.Value, historyObject.ResolvedTemplateData, historyObject.VariableSnapshot, nil
 }
 
