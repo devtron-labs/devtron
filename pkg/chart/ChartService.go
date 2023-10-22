@@ -478,7 +478,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	return chartVal, err
 }
 
-// todo make this public
 func (impl ChartServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
 	if err != nil {
