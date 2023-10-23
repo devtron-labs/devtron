@@ -148,18 +148,30 @@ func validateTagPattern(customTagPattern string) error {
 		return fmt.Errorf("tag length can not be zero")
 	}
 
-	count := 0
-	count = count + strings.Count(customTagPattern, ".{x}")
-	count = count + strings.Count(customTagPattern, ".{X}")
+	// for patterns like v1.0.{x} we will calculate count with . in {x} i.e .{x}
+	variableCount := 0
+	variableCount = variableCount + strings.Count(customTagPattern, ".{x}")
+	variableCount = variableCount + strings.Count(customTagPattern, ".{X}")
 
-	if count == 0 {
-		return fmt.Errorf("variable with format {x} or {X} not found")
-	} else if count > 1 {
+	if variableCount == 0 {
+		// there can be case when there is only one {x} or {x}
+		IsOnlyVariableTag := 0
+		IsOnlyVariableTag = IsOnlyVariableTag + strings.Count(customTagPattern, "{x}")
+		IsOnlyVariableTag = IsOnlyVariableTag + strings.Count(customTagPattern, "{X}")
+
+		if IsOnlyVariableTag == 0 {
+			return fmt.Errorf("variable with format {x} or {X} not found")
+		} else if IsOnlyVariableTag > 1 {
+			return fmt.Errorf("only one variable with format {x} or {X} found")
+		}
+	} else if variableCount > 1 {
 		return fmt.Errorf("only one variable with format {x} or {X} found")
 	}
 
 	tagWithoutVariable := strings.ReplaceAll(customTagPattern, ".{x}", "")
 	tagWithoutVariable = strings.ReplaceAll(tagWithoutVariable, ".{X}", "")
+	tagWithoutVariable = strings.ReplaceAll(tagWithoutVariable, "{x}", "")
+	tagWithoutVariable = strings.ReplaceAll(tagWithoutVariable, "{X}", "")
 	if len(tagWithoutVariable) == 0 {
 		return nil
 	}
