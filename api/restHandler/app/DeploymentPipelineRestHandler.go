@@ -1302,15 +1302,25 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	//rbac block ends here
 	var ciArtifactResponse *bean.CiArtifactResponse
-	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
+	pendingApprovalParam := r.URL.Query().Get("pendingApproval")
+	if isApprovalNode && pendingApprovalParam == "true" {
 		artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
 			Limit:        limit,
 			Offset:       offset,
 			SearchString: searchString,
 		}
-		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions, isApprovalNode)
+		ciArtifactResponse, err = handler.pipelineBuilder.FetchApprovalPendingArtifacts(pipeline, artifactsListFilterOptions)
 	} else {
-		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, isApprovalNode)
+		if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
+			artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
+				Limit:        limit,
+				Offset:       offset,
+				SearchString: searchString,
+			}
+			ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions, isApprovalNode)
+		} else {
+			ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, isApprovalNode)
+		}
 	}
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)

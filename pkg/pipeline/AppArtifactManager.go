@@ -38,6 +38,8 @@ type AppArtifactManager interface {
 
 	RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
+	FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error)
+
 	//FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string) (bean2.CiArtifactResponse, error)
 
@@ -436,6 +438,46 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	return ciArtifactsResponse, nil
 }
 
+func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error) {
+	ciArtifactsResponse := &bean2.CiArtifactResponse{}
+
+	if pipeline.ApprovalNodeConfigured() { // for now, we are checking artifacts for deploy stage only
+		ciArtifacts, err := impl.workflowDagExecutor.FetchApprovalRequestArtifacts(pipeline.Id, artifactListingFilterOpts.Limit, artifactListingFilterOpts.Offset, artifactListingFilterOpts.SearchString)
+		if err != nil {
+			impl.logger.Errorw("failed to fetch approval request artifacts", "err", err, "cdPipelineId", pipeline.Id)
+			return ciArtifactsResponse, err
+		}
+
+		approvalConfig, err := pipeline.GetApprovalConfig()
+		if err != nil {
+			impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", pipeline.Id, "approvalConfig", approvalConfig)
+			return ciArtifactsResponse, err
+		}
+
+		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
+		requiredApprovals := approvalConfig.RequiredCount
+		var artifactIds []int
+		for _, item := range ciArtifacts {
+			artifactIds = append(artifactIds, item.Id)
+		}
+
+		userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, pipeline.Id, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", pipeline.Id, "artifactIds", artifactIds, "err", err)
+			return ciArtifactsResponse, err
+		}
+
+		for _, artifact := range ciArtifacts {
+			if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok { // either approved or requested
+				artifact.UserApprovalMetadata = approvalMetadataForArtifact
+			}
+		}
+		ciArtifactsResponse.CdPipelineId = pipeline.Id
+		ciArtifactsResponse.CiArtifacts = ciArtifacts
+		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
+	}
+	return ciArtifactsResponse, nil
+}
 func (impl *AppArtifactManagerImpl) overrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean2.CiArtifactBean, isApprovalNode bool, latestArtifactId int) ([]bean2.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
 	impl.logger.Infow("approval node configured", "pipelineId", pipeline.Id, "isApproval", isApprovalNode)
 	ciArtifactsFinal := make([]bean2.CiArtifactBean, 0, len(inputArtifacts))

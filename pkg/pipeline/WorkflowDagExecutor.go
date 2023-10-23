@@ -83,6 +83,7 @@ type WorkflowDagExecutor interface {
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
+	FetchApprovalRequestArtifacts(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 }
 
@@ -2052,7 +2053,6 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		imageTag = strings.Split(artifact.Image, ":")[1]
 	}
 	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
-	// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR - First check whether this env has filter enabled
 	scope := resourceQualifiers.Scope{AppId: overrideRequest.AppId, EnvId: overrideRequest.EnvId, ClusterId: overrideRequest.ClusterId, ProjectId: overrideRequest.ProjectId, IsProdEnv: overrideRequest.IsProdEnv}
 	params := impl.celService.GetParamsFromArtifact(artifact.Image)
 	metadata := resourceFilter.ExpressionMetadata{
@@ -2343,6 +2343,69 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 		}
 	}
 	return nil, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error) {
+
+	var ciArtifacts []bean2.CiArtifactBean
+	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalRequestData(pipelineId, limit, offset, searchString)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching approval request data", "pipelineId", pipelineId, "err", err)
+		return ciArtifacts, err
+	}
+
+	var artifactIds []int
+	for _, request := range deploymentApprovalRequests {
+		artifactIds = append(artifactIds, request.ArtifactId)
+	}
+
+	if len(artifactIds) > 0 {
+		deploymentApprovalRequests, err = impl.getLatestDeploymentByArtifactIds(pipelineId, deploymentApprovalRequests, artifactIds)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching FetchLatestDeploymentByArtifactIds", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
+			return nil, err
+		}
+	}
+
+	for _, request := range deploymentApprovalRequests {
+		var artifact bean2.CiArtifactBean
+		ciArtifact := request.CiArtifact
+		artifact.Id = ciArtifact.Id
+		artifact.Image = ciArtifact.Image
+		artifact.ImageDigest = ciArtifact.ImageDigest
+		artifact.MaterialInfo = json.RawMessage(ciArtifact.MaterialInfo)
+		artifact.DataSource = ciArtifact.DataSource
+		artifact.WfrId = *ciArtifact.WorkflowId
+		artifact.Deployed = ciArtifact.Deployed
+		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean2.LayoutRFC3339)
+		ciArtifacts = append(ciArtifacts, artifact)
+	}
+	return ciArtifacts, err
+}
+
+func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId int, deploymentApprovalRequests []*pipelineConfig.DeploymentApprovalRequest, artifactIds []int) ([]*pipelineConfig.DeploymentApprovalRequest, error) {
+	var latestDeployedArtifacts []*pipelineConfig.DeploymentApprovalRequest
+	var err error
+	if len(artifactIds) > 0 {
+		latestDeployedArtifacts, err = impl.deploymentApprovalRepository.FetchLatestDeploymentByArtifactIds(pipelineId, artifactIds)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching FetchLatestDeploymentByArtifactIds", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
+			return nil, err
+		}
+	}
+	latestDeployedArtifactsMap := make(map[int]time.Time, 0)
+	for _, artifact := range latestDeployedArtifacts {
+		latestDeployedArtifactsMap[artifact.ArtifactId] = artifact.AuditLog.CreatedOn
+	}
+
+	for _, request := range deploymentApprovalRequests {
+		if deployedTime, ok := latestDeployedArtifactsMap[request.ArtifactId]; ok {
+			request.CiArtifact.Deployed = true
+			request.CiArtifact.DeployedTime = deployedTime
+		}
+	}
+
+	return deploymentApprovalRequests, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {

@@ -1380,7 +1380,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 		artifact := artifacts[0] // fetch latest approved artifact in case of approval node configured
-		// TODO - SHASHWAT - EXPRESSION EVALUATOR HAS BEEN ADDED ALREADY. CHECK WHETHER THE ARTIFACT IS VALID OR NOT
 		if artifact.FilterState != resourceFilter.ALLOW {
 			if artifact.FilterState == resourceFilter.ERROR {
 				impl.logger.Errorw("service err, GetArtifactsByCDPipeline, error in evaluating filter expression", "cdPipelineId", pipeline.Id)

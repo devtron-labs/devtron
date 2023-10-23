@@ -12,6 +12,7 @@ import (
 
 type DeploymentApprovalRepository interface {
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error)
+	FetchApprovalRequestData(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error)
 	FetchApprovalDataForRequests(requestIds []int) ([]*DeploymentApprovalUserData, error)
 	FetchById(requestId int) (*DeploymentApprovalRequest, error)
 	FetchWithPipelineAndArtifactDetails(requestId int) (*DeploymentApprovalRequest, error)
@@ -20,6 +21,7 @@ type DeploymentApprovalRepository interface {
 	SaveDeploymentUserData(userData *DeploymentApprovalUserData) error
 	ConsumeApprovalRequest(requestId int) error
 	FetchApprovedDataByApprovalId(approvalRequestId int) ([]*DeploymentApprovalUserData, error)
+	FetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error)
 }
 
 type DeploymentApprovalRepositoryImpl struct {
@@ -68,6 +70,50 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovedDataByApprovalId(appr
 	}
 	return results, nil
 
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalRequestData(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error) {
+	var requests []*DeploymentApprovalRequest
+
+	query := impl.dbConnection.Model(&requests).
+		Column("deployment_approval_request.*", "CiArtifact").
+		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
+		Where("deployment_approval_request.active = true").
+		Where("deployment_approval_request.artifact_deployment_triggered = false").
+		Where("deployment_approval_request.pipeline_id = ?", pipelineId)
+
+	if searchString != "" {
+		query = query.Where("ci_artifact.image ILIKE ?", "%"+searchString+"%")
+	}
+
+	err := query.Limit(limit).
+		Offset(offset).
+		Select()
+
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+
+	return requests, nil
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) FetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error) {
+	var requests []*DeploymentApprovalRequest
+	if len(artifactIds) == 0 {
+		return requests, nil
+	}
+
+	query := `with minimal_pcos as (select max(pco.id) as id from pipeline_config_override pco where pco.pipeline_id  = ? and pco.ci_artifact_id in (?) group by pco.ci_artifact_id)
+	select pco.ci_artifact_id,pco.created_on from pipeline_config_override pco where pco.id in (select id from minimal_pcos); `
+
+	_, err := impl.dbConnection.Query(&requests, query, pipelineId, pg.In(artifactIds))
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching latest deployment by artifact ids", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
+		return nil, err
+	}
+
+	return requests, nil
 }
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error) {
