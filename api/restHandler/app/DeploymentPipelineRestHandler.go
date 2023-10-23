@@ -1248,17 +1248,21 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	offsetQueryParam := r.URL.Query().Get("offset")
 	if offsetQueryParam != "" {
 		offset, err = strconv.Atoi(offsetQueryParam)
-		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
-		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
-		return
+		if err != nil {
+			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
+			common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+			return
+		}
 	}
 
 	sizeQueryParam := r.URL.Query().Get("size")
 	if sizeQueryParam != "" {
 		limit, err = strconv.Atoi(sizeQueryParam)
-		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
-		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
-		return
+		if err != nil {
+			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
+			common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+			return
+		}
 	}
 
 	isApprovalNode := false
