@@ -150,28 +150,19 @@ func validateTagPattern(customTagPattern string) error {
 
 	// for patterns like v1.0.{x} we will calculate count with . in {x} i.e .{x}
 	variableCount := 0
-	variableCount = variableCount + strings.Count(customTagPattern, ".{x}")
-	variableCount = variableCount + strings.Count(customTagPattern, ".{X}")
+	variableCount = variableCount + strings.Count(customTagPattern, "{x}")
+	variableCount = variableCount + strings.Count(customTagPattern, "{X}")
 
 	if variableCount == 0 {
 		// there can be case when there is only one {x} or {x}
-		IsOnlyVariableTag := 0
-		IsOnlyVariableTag = IsOnlyVariableTag + strings.Count(customTagPattern, "{x}")
-		IsOnlyVariableTag = IsOnlyVariableTag + strings.Count(customTagPattern, "{X}")
-		if IsOnlyVariableTag == 0 {
-			return fmt.Errorf("variable with format {x} or {X} not found")
-		} else if IsOnlyVariableTag > 1 {
-			return fmt.Errorf("only one variable with format {x} or {X} allowed")
-		}
+		return fmt.Errorf("variable with format {x} or {X} not found")
 	} else if variableCount > 1 {
 		return fmt.Errorf("only one variable with format {x} or {X} allowed")
 	}
 
 	// replacing variable with 1 (dummy value) and checking if resulting string is valid tag
-	tagWithDummyValue := strings.ReplaceAll(customTagPattern, ".{x}", "1")
-	tagWithDummyValue = strings.ReplaceAll(customTagPattern, ".{X}", "1")
-	tagWithDummyValue = strings.ReplaceAll(customTagPattern, "{x}", "1")
-	tagWithDummyValue = strings.ReplaceAll(customTagPattern, "{X}", "1")
+	tagWithDummyValue := strings.ReplaceAll(customTagPattern, "{x}", "1")
+	tagWithDummyValue = strings.ReplaceAll(tagWithDummyValue, "{X}", "1")
 
 	if !isValidDockerImageTag(tagWithDummyValue) {
 		return fmt.Errorf("not a valid image tag")
