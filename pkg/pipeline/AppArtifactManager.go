@@ -38,7 +38,7 @@ type AppArtifactManager interface {
 
 	RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
-	FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, limit, offset int) (*bean2.CiArtifactResponse, error)
+	FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error)
 
 	//FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string) (bean2.CiArtifactResponse, error)
@@ -438,15 +438,16 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	return ciArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, limit, offset int) (*bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error) {
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
 	if pipeline.ApprovalNodeConfigured() { // for now, we are checking artifacts for deploy stage only
-		ciArtifacts, err := impl.workflowDagExecutor.FetchApprovalRequestArtifacts(pipeline.Id, limit, offset, searchString)
+		ciArtifacts, err := impl.workflowDagExecutor.FetchApprovalRequestArtifacts(pipeline.Id, artifactListingFilterOpts.Limit, artifactListingFilterOpts.Offset, artifactListingFilterOpts.SearchString)
 		if err != nil {
 			impl.logger.Errorw("failed to fetch approval request artifacts", "err", err, "cdPipelineId", pipeline.Id)
 			return ciArtifactsResponse, err
 		}
+
 		approvalConfig, err := pipeline.GetApprovalConfig()
 		if err != nil {
 			impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", pipeline.Id, "approvalConfig", approvalConfig)

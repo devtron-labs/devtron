@@ -2053,7 +2053,6 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		imageTag = strings.Split(artifact.Image, ":")[1]
 	}
 	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
-	// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR - First check whether this env has filter enabled
 	scope := resourceQualifiers.Scope{AppId: overrideRequest.AppId, EnvId: overrideRequest.EnvId, ClusterId: overrideRequest.ClusterId, ProjectId: overrideRequest.ProjectId, IsProdEnv: overrideRequest.IsProdEnv}
 	params := impl.celService.GetParamsFromArtifact(artifact.Image)
 	metadata := resourceFilter.ExpressionMetadata{
@@ -2374,7 +2373,6 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 		artifact.Id = ciArtifact.Id
 		artifact.Image = ciArtifact.Image
 		artifact.ImageDigest = ciArtifact.ImageDigest
-		// TODO Shashwat: Need to check this
 		artifact.MaterialInfo = json.RawMessage(ciArtifact.MaterialInfo)
 		artifact.DataSource = ciArtifact.DataSource
 		artifact.WfrId = *ciArtifact.WorkflowId
