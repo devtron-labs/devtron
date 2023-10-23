@@ -53,6 +53,7 @@ type CdWorkflowRepository interface {
 	FindWorkflowRunnerByIdForApproval(wfrId int) (*CdWorkflowRunner, error)
 	FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error)
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
+	IsLatestCDWfr(pipelineId, wfrId int) (bool, error)
 	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
 
 	GetConnection() *pg.DB
@@ -150,6 +151,7 @@ const (
 	WORKFLOW_EXECUTOR_TYPE_AWF    = "AWF"
 	WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 	NEW_DEPLOYMENT_INITIATED      = "A new deployment was initiated before this deployment completed"
+	FOUND_VULNERABILITY           = "Found vulnerability on image"
 )
 
 type CdWorkflowRunner struct {
@@ -441,6 +443,20 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId
 		return wfr, err
 	}
 	return wfr, nil
+}
+
+func (impl *CdWorkflowRepositoryImpl) IsLatestCDWfr(pipelineId, wfrId int) (bool, error) {
+	wfr := &CdWorkflowRunner{}
+	exists, err := impl.dbConnection.
+		Model(wfr).
+		Column("cd_workflow_runner.*", "CdWorkflow").
+		Where("wf.pipeline_id = ?", pipelineId).
+		Where("cd_workflow_runner.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
+		Order("cd_workflow_runner.id DESC").
+		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Where("cd_workflow_runner.id > ?", wfrId).
+		Exists()
+	return exists, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {
