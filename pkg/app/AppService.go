@@ -2207,6 +2207,12 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 	ids = append(ids, executionHistory.Id)
 
 	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
+
+	if err == pg.ErrNoRows && !isScanEnabled {
+		//ignoring if no rows are found and scan is disabled
+		return nil
+	}
+
 	if err != nil && err != pg.ErrNoRows {
 		return err
 	} else if err == pg.ErrNoRows && isScanEnabled {
