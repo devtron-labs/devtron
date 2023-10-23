@@ -56,6 +56,7 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -264,6 +265,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 			return nil, err
 		}
 	}
+
 	if dbPipeline.PostStageConfigMapSecretNames != "" {
 		err = json.Unmarshal([]byte(dbPipeline.PostStageConfigMapSecretNames), &postStageConfigmapSecrets)
 		if err != nil {
@@ -275,6 +277,31 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	if err != nil {
 		return nil, err
 	}
+
+	var customTag *bean.CustomTagData
+	var customTagStage repository5.PipelineStageType
+	customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypePreCD, strconv.Itoa(pipelineId))
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching custom Tag precd")
+		return nil, err
+	}
+	customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypePostCD, strconv.Itoa(pipelineId))
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching custom Tag precd")
+		return nil, err
+	}
+	if customTagPreCD != nil && customTagPreCD.Id > 0 {
+		customTag = &bean.CustomTagData{TagPattern: customTagPreCD.TagPattern,
+			CounterX: customTagPreCD.AutoIncreasingNumber,
+		}
+		customTagStage = repository5.PIPELINE_STAGE_TYPE_PRE_CD
+	} else if customTagPostCD != nil && customTagPostCD.Id > 0 {
+		customTag = &bean.CustomTagData{TagPattern: customTagPostCD.TagPattern,
+			CounterX: customTagPostCD.AutoIncreasingNumber,
+		}
+		customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
+	}
+
 	cdPipeline = &bean.CDPipelineConfigObject{
 		Id:                            dbPipeline.Id,
 		Name:                          dbPipeline.Name,
@@ -296,6 +323,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		DeploymentAppType:             dbPipeline.DeploymentAppType,
 		DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+		CustomTagObject:               customTag,
+		CustomTagStage:                &customTagStage,
 	}
 	var preDeployStage *bean3.PipelineStageDto
 	var postDeployStage *bean3.PipelineStageDto
@@ -442,7 +471,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCustomTag(pipeline *bean.CDPipeli
 
 func (impl *CdPipelineConfigServiceImpl) DeleteCustomTagByPipelineStageType(pipelineStageType *repository5.PipelineStageType, pipelineId int) error {
 	err := impl.customTagService.DeleteCustomTagIfExists(
-		bean2.CustomTag{EntityKey: getEntityTypeByPipelineStageType(pipelineStageType),
+		bean2.CustomTag{EntityKey: getEntityTypeByPipelineStageType(*pipelineStageType),
 			EntityValue: fmt.Sprintf("%d", pipelineId),
 		})
 	if err != nil {
@@ -467,7 +496,7 @@ func (impl *CdPipelineConfigServiceImpl) SaveOrUpdateCustomTagForCDPipeline(pipe
 }
 
 func (impl *CdPipelineConfigServiceImpl) ParseCustomTagPatchRequest(pipelineId int, customTagData *bean.CustomTagData, pipelineStageType *repository5.PipelineStageType) (*bean2.CustomTag, error) {
-	entityType := getEntityTypeByPipelineStageType(pipelineStageType)
+	entityType := getEntityTypeByPipelineStageType(*pipelineStageType)
 	if entityType == 0 {
 		return nil, fmt.Errorf("invalid stage for cd pipeline custom tag; pipelineStageType: %s ", string(*pipelineStageType))
 	}
@@ -481,8 +510,8 @@ func (impl *CdPipelineConfigServiceImpl) ParseCustomTagPatchRequest(pipelineId i
 	return customTag, nil
 }
 
-func getEntityTypeByPipelineStageType(pipelineStageType *repository5.PipelineStageType) (customTagEntityType int) {
-	switch *pipelineStageType {
+func getEntityTypeByPipelineStageType(pipelineStageType repository5.PipelineStageType) (customTagEntityType int) {
+	switch pipelineStageType {
 	case repository5.PIPELINE_STAGE_TYPE_PRE_CD:
 		customTagEntityType = pkg.EntityTypePreCD
 	case repository5.PIPELINE_STAGE_TYPE_POST_CD:
@@ -995,6 +1024,29 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 	}
 
 	for _, dbPipeline := range authorizedPipelines {
+		var customTag *bean.CustomTagData
+		var customTagStage repository5.PipelineStageType
+		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching custom Tag precd")
+			return nil, err
+		}
+		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching custom Tag precd")
+			return nil, err
+		}
+		if customTagPreCD != nil && customTagPreCD.Id > 0 {
+			customTag = &bean.CustomTagData{TagPattern: customTagPreCD.TagPattern,
+				CounterX: customTagPreCD.AutoIncreasingNumber,
+			}
+			customTagStage = repository5.PIPELINE_STAGE_TYPE_PRE_CD
+		} else if customTagPostCD != nil && customTagPostCD.Id > 0 {
+			customTag = &bean.CustomTagData{TagPattern: customTagPostCD.TagPattern,
+				CounterX: customTagPostCD.AutoIncreasingNumber,
+			}
+			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -1017,6 +1069,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
 			PreDeployStage:                dbPipeline.PreDeployStage,
 			PostDeployStage:               dbPipeline.PostDeployStage,
+			CustomTagObject:               customTag,
+			CustomTagStage:                &customTagStage,
 		}
 		pipelines = append(pipelines, pipeline)
 	}

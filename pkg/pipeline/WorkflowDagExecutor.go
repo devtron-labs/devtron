@@ -72,7 +72,7 @@ type WorkflowDagExecutor interface {
 	HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool) (bool, error)
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(pipelineOverride *chartConfig.PipelineOverride) error
-	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
+	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32, refCdWorkflowRunnerId int) error
 	TriggerPreStage(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, triggeredBy int32, applyAuth bool, refCdWorkflowRunnerId int) error
@@ -121,33 +121,21 @@ type WorkflowDagExecutorImpl struct {
 	config                         *CdConfig
 	globalPluginService            plugin.GlobalPluginService
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
-	pluginInputVariableParser      plugin.InputVariableParser
+	pluginInputVariableParser      PluginInputVariableParser
 }
 
 const (
-	CD_PIPELINE_ENV_NAME_KEY     = "CD_PIPELINE_ENV_NAME"
-	CD_PIPELINE_CLUSTER_NAME_KEY = "CD_PIPELINE_CLUSTER_NAME"
 	GIT_COMMIT_HASH_PREFIX       = "GIT_COMMIT_HASH"
 	GIT_SOURCE_TYPE_PREFIX       = "GIT_SOURCE_TYPE"
 	GIT_SOURCE_VALUE_PREFIX      = "GIT_SOURCE_VALUE"
-	GIT_METADATA                 = "GIT_METADATA"
 	GIT_SOURCE_COUNT             = "GIT_SOURCE_COUNT"
 	APP_LABEL_KEY_PREFIX         = "APP_LABEL_KEY"
 	APP_LABEL_VALUE_PREFIX       = "APP_LABEL_VALUE"
-	APP_LABEL_METADATA           = "APP_LABEL_METADATA"
 	APP_LABEL_COUNT              = "APP_LABEL_COUNT"
 	CHILD_CD_ENV_NAME_PREFIX     = "CHILD_CD_ENV_NAME"
 	CHILD_CD_CLUSTER_NAME_PREFIX = "CHILD_CD_CLUSTER_NAME"
-	CHILD_CD_METADATA            = "CHILD_CD_METADATA"
 	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
-	DOCKER_IMAGE                 = "DOCKER_IMAGE"
-	DEPLOYMENT_RELEASE_ID        = "DEPLOYMENT_RELEASE_ID"
-	DEPLOYMENT_UNIQUE_ID         = "DEPLOYMENT_UNIQUE_ID"
-	CD_TRIGGERED_BY              = "CD_TRIGGERED_BY"
-	CD_TRIGGER_TIME              = "CD_TRIGGER_TIME"
-	APP_NAME                     = "APP_NAME"
-	DEVTRON_CD_TRIGGERED_BY      = "DEVTRON_CD_TRIGGERED_BY"
-	DEVTRON_CD_TRIGGER_TIME      = "DEVTRON_CD_TRIGGER_TIME"
+	DEVTRON_SYSTEM_USER_ID       = 1
 )
 
 type CiArtifactDTO struct {
@@ -162,15 +150,16 @@ type CiArtifactDTO struct {
 }
 
 type CdStageCompleteEvent struct {
-	CiProjectDetails []bean3.CiProjectDetails     `json:"ciProjectDetails"`
-	WorkflowId       int                          `json:"workflowId"`
-	WorkflowRunnerId int                          `json:"workflowRunnerId"`
-	CdPipelineId     int                          `json:"cdPipelineId"`
-	TriggeredBy      int32                        `json:"triggeredBy"`
-	StageYaml        string                       `json:"stageYaml"`
-	ArtifactLocation string                       `json:"artifactLocation"`
-	PipelineName     string                       `json:"pipelineName"`
-	CiArtifactDTO    pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
+	CiProjectDetails           []bean3.CiProjectDetails     `json:"ciProjectDetails"`
+	WorkflowId                 int                          `json:"workflowId"`
+	WorkflowRunnerId           int                          `json:"workflowRunnerId"`
+	CdPipelineId               int                          `json:"cdPipelineId"`
+	TriggeredBy                int32                        `json:"triggeredBy"`
+	StageYaml                  string                       `json:"stageYaml"`
+	ArtifactLocation           string                       `json:"artifactLocation"`
+	PipelineName               string                       `json:"pipelineName"`
+	CiArtifactDTO              pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
+	PluginRegistryImageDetails map[string][]string
 }
 
 type GitMetadata struct {
@@ -216,7 +205,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
 	globalPluginService plugin.GlobalPluginService,
-	pluginInputVariableParser plugin.InputVariableParser,
+	pluginInputVariableParser PluginInputVariableParser,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:             pipelineRepository,
@@ -299,7 +288,7 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 			}
 		} else if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
-			err = impl.HandlePostStageSuccessEvent(wf.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy)
+			err = impl.HandlePostStageSuccessEvent(wf.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, cdStageCompleteEvent.PluginRegistryImageDetails)
 			if err != nil {
 				impl.logger.Errorw("deployment success event error", "err", err)
 				return
@@ -470,10 +459,21 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 		if err != nil {
 			return err
 		}
+		ciArtifact, err := impl.ciArtifactRepository.Get(cdStageCompleteEvent.CiArtifactDTO.Id)
+		if err != nil {
+			return err
+		}
+		var PreCDArtifacts []*repository.CiArtifact
 		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
-			ciArtifact, err := impl.ciArtifactRepository.Get(cdStageCompleteEvent.CiArtifactDTO.Id)
-			if err != nil {
-				return err
+			if len(cdStageCompleteEvent.PluginRegistryImageDetails) > 0 {
+				PreCDArtifacts, err = impl.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryImageDetails, pipeline.Id, repository.PRE_CD)
+				if err != nil {
+					impl.logger.Errorw("error in saving plugin artifacts", "err", err)
+					return err
+				}
+				if len(PreCDArtifacts) > 0 {
+					ciArtifact = PreCDArtifacts[0] // deployment will be trigger with artifact copied by plugin
+				}
 			}
 			cdWorkflow, err := impl.cdWorkflowRepository.FindById(cdStageCompleteEvent.WorkflowId)
 			if err != nil {
@@ -491,6 +491,36 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 		}
 	}
 	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.CiArtifact, pluginArtifactsDetail map[string][]string, pipelineId int, stage string) ([]*repository.CiArtifact, error) {
+	var CDArtifacts []*repository.CiArtifact
+	for registry, artifacts := range pluginArtifactsDetail {
+		// artifacts are list of images
+		for _, artifact := range artifacts {
+			pluginArtifact := &repository.CiArtifact{
+				Image:                 artifact,
+				ImageDigest:           ciArtifact.ImageDigest,
+				DataSource:            stage,
+				ComponentId:           pipelineId,
+				CredentialsSourceType: repository.GLOBAL_CONTAINER_REGISTRY,
+				CredentialSourceValue: registry,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: DEVTRON_SYSTEM_USER_ID,
+					UpdatedOn: time.Now(),
+					UpdatedBy: DEVTRON_SYSTEM_USER_ID,
+				},
+			}
+			CDArtifacts = append(CDArtifacts, pluginArtifact)
+		}
+	}
+	err := impl.ciArtifactRepository.SaveAll(CDArtifacts)
+	if err != nil {
+		impl.logger.Errorw("Error in saving artifacts metadata generated by plugin")
+		return CDArtifacts, err
+	}
+	return CDArtifacts, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, triggeredBy int32, applyAuth bool, refCdWorkflowRunnerId int) error {
@@ -587,11 +617,11 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 	cdStageWorkflowRequest.StageType = PRE
 	// handling plugin specific logic
-	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(plugin.SKOPEO)
+	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(SKOPEO)
 	for _, step := range cdStageWorkflowRequest.PreCiSteps {
 		if step.RefPluginId == skopeoRefPluginId {
 			// for Skopeo plugin parse destination images and save its data in image path reservation table
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, pkg.EntityTypePreCD, strconv.Itoa(pipeline.Id), cdStageWorkflowRequest.CiArtifactDTO.Image)
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, pkg.EntityTypePreCD, strconv.Itoa(pipeline.Id), cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return err
@@ -720,11 +750,11 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
 	// handling plugin specific logic
-	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(plugin.SKOPEO)
+	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(SKOPEO)
 	for _, step := range cdStageWorkflowRequest.PostCiSteps {
 		if step.RefPluginId == skopeoRefPluginId {
 			// for Skopeo plugin parse destination images and save its data in image path reservation table
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, pkg.EntityTypePostCD, strconv.Itoa(pipeline.Id), cdStageWorkflowRequest.CiArtifactDTO.Image)
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, pkg.EntityTypePostCD, strconv.Itoa(pipeline.Id), cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return err
@@ -1038,9 +1068,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 
 	extraEnvVariables := make(map[string]string)
 	if env != nil {
-		extraEnvVariables[CD_PIPELINE_ENV_NAME_KEY] = env.Name
+		extraEnvVariables[plugin.CD_PIPELINE_ENV_NAME_KEY] = env.Name
 		if env.Cluster != nil {
-			extraEnvVariables[CD_PIPELINE_CLUSTER_NAME_KEY] = env.Cluster.ClusterName
+			extraEnvVariables[plugin.CD_PIPELINE_CLUSTER_NAME_KEY] = env.Cluster.ClusterName
 		}
 	}
 	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifact.Id)
@@ -1093,7 +1123,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("err while marshaling git metdata", "err", err)
 			return nil, err
 		}
-		extraEnvVariables[GIT_METADATA] = string(gitMetadata)
+		extraEnvVariables[plugin.GIT_METADATA] = string(gitMetadata)
 
 		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(len(ciWf.GitTriggers))
 	}
@@ -1124,7 +1154,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("err while marshaling childCdEnvVariables", "err", err)
 			return nil, err
 		}
-		extraEnvVariables[CHILD_CD_METADATA] = string(childCdEnvVariablesMetadata)
+		extraEnvVariables[plugin.CHILD_CD_METADATA] = string(childCdEnvVariablesMetadata)
 
 		extraEnvVariables[CHILD_CD_COUNT] = strconv.Itoa(len(childPipelines))
 	}
@@ -1139,6 +1169,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
+		cdStageWorkflowRequest.DockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
 	} else if cdPipeline.AppId > 0 {
 		ciTemplate, err := impl.CiTemplateRepository.FindByAppId(cdPipeline.AppId)
 		if err != nil {
@@ -1154,6 +1185,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
+		cdStageWorkflowRequest.DockerRegistryId = *ciTemplate.DockerRegistryId
 		appLabels, err := impl.appLabelRepository.FindAllByAppId(cdPipeline.AppId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
@@ -1175,7 +1207,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				impl.logger.Errorw("err while marshaling appLabelEnvVariables", "err", err)
 				return nil, err
 			}
-			extraEnvVariables[APP_LABEL_METADATA] = string(appLabelEnvVariablesMetadata)
+			extraEnvVariables[plugin.APP_LABEL_METADATA] = string(appLabelEnvVariablesMetadata)
 
 		}
 	}
@@ -1303,7 +1335,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(pipelineOverri
 	} else {
 		// to trigger next pre/cd, if any
 		// finding children cd by pipeline id
-		err = impl.HandlePostStageSuccessEvent(cdWorkflow.Id, pipelineOverride.PipelineId, 1)
+		err = impl.HandlePostStageSuccessEvent(cdWorkflow.Id, pipelineOverride.PipelineId, 1, nil)
 		if err != nil {
 			impl.logger.Errorw("error in triggering children cd after successful deployment event", "parentCdPipelineId", pipelineOverride.PipelineId)
 			return err
@@ -1312,7 +1344,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(pipelineOverri
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error {
 	// finding children cd by pipeline id
 	cdPipelinesMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(cdPipelineId)
 	if err != nil {
@@ -1323,6 +1355,16 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 	if err != nil {
 		impl.logger.Errorw("error in finding artifact by cd workflow id", "err", err, "cdWorkflowId", cdWorkflowId)
 		return err
+	}
+	if len(pluginRegistryImageDetails) > 0 {
+		PostCDArtifacts, err := impl.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD)
+		if err != nil {
+			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
+			return err
+		}
+		if len(PostCDArtifacts) > 0 {
+			ciArtifact = PostCDArtifacts[0]
+		}
 	}
 	//TODO : confirm about this logic used for applyAuth
 	applyAuth := false

@@ -6,6 +6,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"gopkg.in/yaml.v2"
 	"strings"
@@ -28,7 +29,7 @@ type Task struct {
 	RunStatus      bool   `json:"-,omitempty"`                          // task run was attempted or not
 }
 
-var globalInputVariableList = []string{DOCKER_IMAGE, DEPLOYMENT_RELEASE_ID, DEPLOYMENT_UNIQUE_ID, DEVTRON_CD_TRIGGER_TIME, DEVTRON_CD_TRIGGERED_BY, CD_PIPELINE_ENV_NAME_KEY, CD_PIPELINE_CLUSTER_NAME_KEY, APP_NAME}
+var globalInputVariableList = []string{plugin.DOCKER_IMAGE, plugin.DEPLOYMENT_RELEASE_ID, plugin.DEPLOYMENT_UNIQUE_ID, plugin.DEVTRON_CD_TRIGGER_TIME, plugin.DEVTRON_CD_TRIGGERED_BY, plugin.CD_PIPELINE_ENV_NAME_KEY, plugin.CD_PIPELINE_CLUSTER_NAME_KEY, plugin.APP_NAME}
 
 func ConvertStageYamlScriptsToPipelineStageSteps(cdPipeline *bean2.CDPipelineConfigObject) (*bean2.CDPipelineConfigObject, error) {
 	if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
@@ -202,11 +203,11 @@ func constructGlobalInputVariablesUsedInScript(script string) []*bean.StepVariab
 				VariableStepIndexInPlugin: 0,
 				ReferenceVariableStage:    "",
 			}
-			if inputVariable == DEVTRON_CD_TRIGGER_TIME {
-				stepVariable.ReferenceVariableName = CD_TRIGGER_TIME
+			if inputVariable == plugin.DEVTRON_CD_TRIGGER_TIME {
+				stepVariable.ReferenceVariableName = plugin.CD_TRIGGER_TIME
 			}
-			if inputVariable == DEVTRON_CD_TRIGGERED_BY {
-				stepVariable.ReferenceVariableName = CD_TRIGGERED_BY
+			if inputVariable == plugin.DEVTRON_CD_TRIGGERED_BY {
+				stepVariable.ReferenceVariableName = plugin.CD_TRIGGERED_BY
 			}
 			inputVariables = append(inputVariables, stepVariable)
 		}

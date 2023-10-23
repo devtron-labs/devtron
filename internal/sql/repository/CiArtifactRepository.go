@@ -31,24 +31,40 @@ import (
 	"go.uber.org/zap"
 )
 
+type credentialsSource = string
+type artifactsSourceType = string
+
+const (
+	GLOBAL_CONTAINER_REGISTRY credentialsSource = "global_container_registry"
+)
+const (
+	CI_RUNNER artifactsSourceType = "ci_runner"
+	WEBHOOK   artifactsSourceType = "ext"
+	PRE_CD    artifactsSourceType = "pre_cd"
+	POST_CD   artifactsSourceType = "post_cd"
+)
+
 type CiArtifact struct {
-	tableName            struct{}  `sql:"ci_artifact" pg:",discard_unknown_columns"`
-	Id                   int       `sql:"id,pk"`
-	PipelineId           int       `sql:"pipeline_id"` //id of the ci pipeline from which this webhook was triggered
-	Image                string    `sql:"image,notnull"`
-	ImageDigest          string    `sql:"image_digest,notnull"`
-	MaterialInfo         string    `sql:"material_info"` //git material metadata json array string
-	DataSource           string    `sql:"data_source,notnull"`
-	WorkflowId           *int      `sql:"ci_workflow_id"`
-	ParentCiArtifact     int       `sql:"parent_ci_artifact"`
-	ScanEnabled          bool      `sql:"scan_enabled,notnull"`
-	Scanned              bool      `sql:"scanned,notnull"`
-	ExternalCiPipelineId int       `sql:"external_ci_pipeline_id"`
-	IsArtifactUploaded   bool      `sql:"is_artifact_uploaded"`
-	DeployedTime         time.Time `sql:"-"`
-	Deployed             bool      `sql:"-"`
-	Latest               bool      `sql:"-"`
-	RunningOnParent      bool      `sql:"-"`
+	tableName             struct{}  `sql:"ci_artifact" pg:",discard_unknown_columns"`
+	Id                    int       `sql:"id,pk"`
+	PipelineId            int       `sql:"pipeline_id"` //id of the ci pipeline from which this webhook was triggered
+	Image                 string    `sql:"image,notnull"`
+	ImageDigest           string    `sql:"image_digest,notnull"`
+	MaterialInfo          string    `sql:"material_info"` //git material metadata json array string
+	DataSource            string    `sql:"data_source,notnull"`
+	WorkflowId            *int      `sql:"ci_workflow_id"`
+	ParentCiArtifact      int       `sql:"parent_ci_artifact"`
+	ScanEnabled           bool      `sql:"scan_enabled,notnull"`
+	Scanned               bool      `sql:"scanned,notnull"`
+	ExternalCiPipelineId  int       `sql:"external_ci_pipeline_id"`
+	IsArtifactUploaded    bool      `sql:"is_artifact_uploaded"`
+	CredentialsSourceType string    `sql:"credentials_source_type"`
+	CredentialSourceValue string    `sql:"credentials_source_value"`
+	ComponentId           int       `sql:"component_id"`
+	DeployedTime          time.Time `sql:"-"`
+	Deployed              bool      `sql:"-"`
+	Latest                bool      `sql:"-"`
+	RunningOnParent       bool      `sql:"-"`
 	sql.AuditLog
 }
 

@@ -39,6 +39,8 @@ type PluginVariableDto struct {
 }
 
 type RegistryCredentials struct {
+	RegistryType       string `json:"registryType" validate:"required"`
+	RegistryURL        string `json:"registryURL"`
 	Username           string `json:"username"`
 	Password           string `json:"password"`
 	AWSAccessKeyId     string `json:"awsAccessKeyId,omitempty"`

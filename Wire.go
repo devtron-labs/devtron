@@ -950,6 +950,9 @@ func InitializeApp() (*App, error) {
 
 		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
 		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+
+		pipeline.NewPluginInputVariableParserImpl,
+		wire.Bind(new(pipeline.PluginInputVariableParser), new(*pipeline.PluginInputVariableParserImpl)),
 	)
 	return &App{}, nil
 }
