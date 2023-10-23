@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"path/filepath"
 	"strconv"
@@ -250,7 +251,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	//		impl.Logger.Errorf("Not able to save variable snapshot for CI trigger %s", err)
 	//	}
 	//}
-	var variableSnapshotHistories = repository4.GetBeans(
+	var variableSnapshotHistories = util3.GetBeansPtr(
 		repository4.GetSnapshotBean(savedCiWf.Id, repository4.HistoryReferenceTypeCIWORKFLOW, variableSnapshot))
 	if len(variableSnapshotHistories) > 0 {
 		err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, trigger.TriggeredBy)

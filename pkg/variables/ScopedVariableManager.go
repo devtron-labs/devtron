@@ -15,13 +15,13 @@ import (
 
 type ScopedVariableManager interface {
 	GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
-
+	GetVariableMapForUsedVariables(scopedVariables []*models.ScopedVariableData, usedVars []string) map[string]string
 	GetEntityToVariableMapping(entity []repository.Entity) (map[repository.Entity][]string, error)
 	SaveVariableHistoriesForTrigger(variableHistories []*repository.VariableSnapshotHistoryBean, userId int32) error
 
 	GetVariableSnapshot(reference []repository.HistoryReference) (map[repository.HistoryReference]*repository.VariableSnapshotHistoryBean, error)
 	GetResolvedTemplateWithSnapshot(template string, reference repository.HistoryReference) (string, map[string]string, error)
-	GetResolvedTemplateAndVariableMapAppservice(template string, entities []repository.Entity, entityToVariables map[repository.Entity][]string, scopedVariables []*models.ScopedVariableData, varNameCMCS []string) (string, map[string]string, error)
+	ParseTemplateWithScopedVariables(template string, scopedVariables []*models.ScopedVariableData) (string, error)
 	ExtractVariablesAndResolveTemplateAppService(scope resourceQualifiers.Scope, template string, entity repository.Entity) (string, map[string]string, error)
 
 	GetMappedVariablesAndResolveTemplate(template string, scope resourceQualifiers.Scope, entity repository.Entity, isSuperAdmin bool) (string, map[string]string, error)
@@ -327,54 +327,27 @@ func (impl ScopedVariableManagerImpl) GetScopedVariables(scope resourceQualifier
 	return impl.scopedVariableService.GetScopedVariables(scope, varNames, unmaskSensitiveData)
 }
 
-func (impl ScopedVariableManagerImpl) GetResolvedTemplateAndVariableMapAppservice(template string, entities []repository.Entity, entityToVariables map[repository.Entity][]string, scopedVariables []*models.ScopedVariableData, varNameCMCS []string) (string, map[string]string, error) {
+func (impl ScopedVariableManagerImpl) GetVariableMapForUsedVariables(scopedVariables []*models.ScopedVariableData, usedVars []string) map[string]string {
 	variableMap := make(map[string]string)
-	//todo what to do here
-	//for _, entity := range entities {
-	//	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
-	//		return template, variableMap, nil
-	//	}
-	//}
-
-	// pre-populating variable map with variable so that the variables which don't have any resolved data
-	// is saved in snapshot
-	for _, entity := range entities {
-		for _, variable := range entityToVariables[entity] {
-			if slices.Contains(varNameCMCS, variable) {
-				variableMap[variable] = variable
-			}
-
-		}
-	}
-
-	//var varNames []string
-	//for _, vars := range entityToVariables {
-	//	varNames = append(varNames, vars...)
-	//}
-
-	//scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, varNames, true)
-	//if err != nil {
-	//	return template, variableMap, err
-	//}
-
-	//for _, variable := range scopedVariables {
-	//			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
-	//}
-
 	for _, variable := range scopedVariables {
-		if slices.Contains(varNameCMCS, variable.VariableName) {
+		if slices.Contains(usedVars, variable.VariableName) {
 			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
 		}
 	}
+	return variableMap
+}
+
+func (impl ScopedVariableManagerImpl) ParseTemplateWithScopedVariables(template string, scopedVariables []*models.ScopedVariableData) (string, error) {
+
 	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
 	err := parserResponse.Error
 	if err != nil {
-		return template, variableMap, err
+		return template, err
 	}
 
 	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableMap, nil
+	return resolvedTemplate, nil
 }
 
 func (impl ScopedVariableManagerImpl) GetResolvedTemplateWithSnapshot(template string, reference repository.HistoryReference) (string, map[string]string, error) {

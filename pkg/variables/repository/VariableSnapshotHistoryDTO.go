@@ -42,17 +42,6 @@ func GetSnapshotBean(referenceId int, referenceType HistoryReferenceType, snapsh
 	return nil
 }
 
-func GetBeans(beans ...*VariableSnapshotHistoryBean) []*VariableSnapshotHistoryBean {
-
-	finalBeans := make([]*VariableSnapshotHistoryBean, 0)
-	for _, bean := range beans {
-		if bean != nil {
-			finalBeans = append(finalBeans, bean)
-		}
-	}
-	return finalBeans
-}
-
 type HistoryReferenceType int
 
 const (

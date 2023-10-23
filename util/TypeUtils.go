@@ -33,3 +33,18 @@ func SplitCommaSeparatedIntValues(input string) ([]int, error) {
 	}
 	return items, nil
 }
+
+func GetBeansPtr[T any](beans ...*T) []*T {
+
+	finalBeans := make([]*T, 0)
+	for _, bean := range beans {
+		if bean != nil {
+			finalBeans = append(finalBeans, bean)
+		}
+	}
+	return finalBeans
+}
+
+func GetBeans[T any](beans ...T) []T {
+	return beans
+}

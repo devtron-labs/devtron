@@ -957,7 +957,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		//		impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s %d %s", err, runner.Id, variableSnapshot)
 		//	}
 		//}
-		var variableSnapshotHistories = repository5.GetBeans(
+		var variableSnapshotHistories = util4.GetBeansPtr(
 			repository5.GetSnapshotBean(runner.Id, repository5.HistoryReferenceTypeCDWORKFLOWRUNNER, variableSnapshot))
 		if len(variableSnapshotHistories) > 0 {
 			err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, runner.TriggeredBy)
