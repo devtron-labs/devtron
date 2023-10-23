@@ -203,9 +203,6 @@ type AppService interface {
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
-	//GetEntityToVariableMapping(entity []repository6.Entity) (map[repository6.Entity][]string, error)
-	//GetResolvedTemplateAndVariableMap(template string, entities []repository6.Entity, entityToVariables map[repository6.Entity][]string, scopedVariables []*models2.ScopedVariableData, varNameCMCS []string) (string, map[string]string, error)
-	//ResolvedVariableForLastSaved(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel, configMapByte []byte, secretDataByte []byte) (string, string, error)
 }
 
 func NewAppService(
@@ -264,10 +261,6 @@ func NewAppService(
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	GitOpsManifestPushService GitOpsPushService,
 	scopedVariableManager variables.ScopedVariableManager,
-	//variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
-	//scopedVariableService variables.ScopedVariableService,
-	//variableEntityMappingService variables.VariableEntityMappingService,
-	//variableTemplateParser parsers.VariableTemplateParser,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 ) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
@@ -331,11 +324,7 @@ func NewAppService(
 		manifestPushConfigRepository:           manifestPushConfigRepository,
 		GitOpsManifestPushService:              GitOpsManifestPushService,
 		scopedVariableManager:                  scopedVariableManager,
-		//variableSnapshotHistoryService:         variableSnapshotHistoryService,
-		//scopedVariableService:        scopedVariableService,
-		//variableEntityMappingService: variableEntityMappingService,
-		//variableTemplateParser:                 variableTemplateParser,
-		argoClientWrapperService: argoClientWrapperService,
+		argoClientWrapperService:               argoClientWrapperService,
 	}
 	return appServiceImpl
 }
@@ -2285,7 +2274,7 @@ func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *re
 	if err != nil {
 		return "", "", err
 	}
-	envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
+	//envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
 	envOverride.VariableSnapshotForCM = variableMapCM
 
 	reference = repository6.HistoryReference{
@@ -2302,7 +2291,7 @@ func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *re
 		return "", "", err
 	}
 	variableMapCS, resolvedTemplateCS, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, true, false)
-	envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
+	//envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
 	envOverride.VariableSnapshotForCS = variableMapCS
 	encodedSecretData, err := repository3.GetTransformedDataForSecretHistory(resolvedTemplateCS, bean.EncodeSecret)
 	if err != nil {

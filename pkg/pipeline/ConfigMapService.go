@@ -98,8 +98,6 @@ type ConfigMapServiceImpl struct {
 	configMapHistoryService     history2.ConfigMapHistoryService
 	environmentRepository       repository2.EnvironmentRepository
 	scopedVariableManager       variables.ScopedVariableManager
-	//variableTemplateParser       parsers.VariableTemplateParser
-	//variableEntityMappingService variables.VariableEntityMappingService
 }
 
 func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -111,8 +109,6 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	commonService commonService.CommonService, appRepository app.AppRepository,
 	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository2.EnvironmentRepository,
 	scopedVariableManager variables.ScopedVariableManager,
-//variableTemplateParser parsers.VariableTemplateParser,
-//variableEntityMappingService variables.VariableEntityMappingService,
 ) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
 		chartRepository:             chartRepository,
@@ -127,24 +123,9 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 		configMapHistoryService:     configMapHistoryService,
 		environmentRepository:       environmentRepository,
 		scopedVariableManager:       scopedVariableManager,
-		//variableTemplateParser:       variableTemplateParser,
-		//variableEntityMappingService: variableEntityMappingService,
 	}
 }
 func (impl ConfigMapServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
-	//usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-	//
-	//if err != nil {
-	//	return err
-	//}
-	//err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
-	//	EntityType: entityType,
-	//	EntityId:   entityId,
-	//}, userId, nil)
-	//if err != nil {
-	//	return err
-	//}
-	//return nil
 	return impl.scopedVariableManager.ExtractAndMapVariables(template, entityId, entityType, userId, nil)
 }
 func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {

@@ -944,19 +944,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 
 		//Save Scoped VariableSnapshot
-		//if len(variableSnapshot) > 0 {
-		//	variableMapBytes, _ := json.Marshal(variableSnapshot)
-		//	err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository5.VariableSnapshotHistoryBean{{
-		//		VariableSnapshot: variableMapBytes,
-		//		HistoryReference: repository5.HistoryReference{
-		//			HistoryReferenceId:   runner.Id,
-		//			HistoryReferenceType: repository5.HistoryReferenceTypeCDWORKFLOWRUNNER,
-		//		},
-		//	}}, runner.TriggeredBy)
-		//	if err != nil {
-		//		impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s %d %s", err, runner.Id, variableSnapshot)
-		//	}
-		//}
 		var variableSnapshotHistories = util4.GetBeansPtr(
 			repository5.GetSnapshotBean(runner.Id, repository5.HistoryReferenceTypeCDWORKFLOWRUNNER, variableSnapshot))
 		if len(variableSnapshotHistories) > 0 {

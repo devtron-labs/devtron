@@ -123,8 +123,6 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	argoUserService argo.ArgoUserService,
 	scopedVariableManager variables.ScopedVariableManager,
-	// variableEntityMappingService variables.VariableEntityMappingService,
-	// variableTemplateParser parsers.VariableTemplateParser,
 ) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
@@ -552,21 +550,6 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 	}
 	return deploymentTemplateBulkUpdateResponse
 }
-
-//func (impl BulkUpdateServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
-//	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-//	if err != nil {
-//		return err
-//	}
-//	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
-//		EntityType: entityType,
-//		EntityId:   entityId,
-//	}, userId, nil)
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}
 
 func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpdatePayload) *CmAndSecretBulkUpdateResponse {
 	configMapBulkUpdateResponse := &CmAndSecretBulkUpdateResponse{}

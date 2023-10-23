@@ -168,8 +168,6 @@ func NewCdPipelineConfigServiceImpl(
 	propertiesConfigService PropertiesConfigService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	//variableEntityMappingService variables.VariableEntityMappingService,
-	//variableTemplateParser parsers.VariableTemplateParser,
 	scopedVariableManager variables.ScopedVariableManager,
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
@@ -201,12 +199,10 @@ func NewCdPipelineConfigServiceImpl(
 		propertiesConfigService:          propertiesConfigService,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		//variableEntityMappingService:     variableEntityMappingService,
-		//variableTemplateParser:           variableTemplateParser,
-		scopedVariableManager: scopedVariableManager,
-		deploymentConfig:      deploymentConfig,
-		application:           application,
-		devtronAppCMCSService: devtronAppCMCSService,
+		scopedVariableManager:            scopedVariableManager,
+		deploymentConfig:                 deploymentConfig,
+		application:                      application,
+		devtronAppCMCSService:            devtronAppCMCSService,
 	}
 }
 
@@ -1771,21 +1767,6 @@ func (impl *CdPipelineConfigServiceImpl) getStrategiesMapping(dbPipelineIds []in
 	}
 	return strategiesMapping, nil
 }
-
-//func (impl *CdPipelineConfigServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository3.EntityType, userId int32, tx *pg.Tx) error {
-//	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-//	if err != nil {
-//		return err
-//	}
-//	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository3.Entity{
-//		EntityType: entityType,
-//		EntityId:   entityId,
-//	}, userId, tx)
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}
 
 func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, deleteAction int, userId int32) []*bean.CdBulkActionResponseDto {
 	var respDtos []*bean.CdBulkActionResponseDto

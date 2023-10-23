@@ -37,9 +37,7 @@ func NewPipelineStageService(logger *zap.SugaredLogger,
 	globalPluginRepository repository2.GlobalPluginRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	scopedVariableManager variables.ScopedVariableManager,
-	// scopedVariableService variables.ScopedVariableService,
-	// variableEntityMappingService variables.VariableEntityMappingService,
-	// variableTemplateParser parsers.VariableTemplateParser,
+
 ) *PipelineStageServiceImpl {
 	return &PipelineStageServiceImpl{
 		logger:                  logger,
@@ -47,9 +45,6 @@ func NewPipelineStageService(logger *zap.SugaredLogger,
 		globalPluginRepository:  globalPluginRepository,
 		pipelineRepository:      pipelineRepository,
 		scopedVariableManager:   scopedVariableManager,
-		//scopedVariableService:        scopedVariableService,
-		//variableEntityMappingService: variableEntityMappingService,
-		//variableTemplateParser:       variableTemplateParser,
 	}
 }
 
@@ -59,9 +54,6 @@ type PipelineStageServiceImpl struct {
 	globalPluginRepository  repository2.GlobalPluginRepository
 	pipelineRepository      pipelineConfig.PipelineRepository
 	scopedVariableManager   variables.ScopedVariableManager
-	//scopedVariableService        variables.ScopedVariableService
-	//variableEntityMappingService variables.VariableEntityMappingService
-	//variableTemplateParser       parsers.VariableTemplateParser
 }
 
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
@@ -1610,10 +1602,6 @@ func (impl *PipelineStageServiceImpl) DeletePipelineStage(stageReq *bean.Pipelin
 		}
 	}
 
-	//err = impl.variableEntityMappingService.DeleteMappingsForEntities([]repository3.Entity{{
-	//	EntityType: repository3.EntityTypePipelineStage,
-	//	EntityId:   stageReq.Id,
-	//}}, userId, tx)
 	err = impl.scopedVariableManager.RemoveMappedVariables(stageReq.Id, repository3.EntityTypePipelineStage, userId, tx)
 	if err != nil {
 		return err

@@ -746,30 +746,3 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 	}
 	return appMetricRequest, err
 }
-
-//func (impl PropertiesConfigServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32, tx *pg.Tx) error {
-//	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-//	if err != nil {
-//		return err
-//	}
-//	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
-//		EntityType: entityType,
-//		EntityId:   entityId,
-//	}, userId, tx)
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}
-
-//func (impl PropertiesConfigServiceImpl) RemoveMappedVariables(entityId int, entityType repository5.EntityType, userId int32) error {
-//
-//	err := impl.variableEntityMappingService.DeleteMappingsForEntities([]repository5.Entity{{
-//		EntityType: entityType,
-//		EntityId:   entityId,
-//	}}, userId, nil)
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}

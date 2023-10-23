@@ -237,20 +237,6 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	}
 	impl.Logger.Debugw("ci triggered", " pipeline ", trigger.PipelineId)
 
-	//Save Scoped VariableSnapshot
-	//if len(variableSnapshot) > 0 {
-	//	variableMapBytes, _ := json.Marshal(variableSnapshot)
-	//	err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository4.VariableSnapshotHistoryBean{{
-	//		VariableSnapshot: variableMapBytes,
-	//		HistoryReference: repository4.HistoryReference{
-	//			HistoryReferenceId:   savedCiWf.Id,
-	//			HistoryReferenceType: repository4.HistoryReferenceTypeCIWORKFLOW,
-	//		},
-	//	}}, trigger.TriggeredBy)
-	//	if err != nil {
-	//		impl.Logger.Errorf("Not able to save variable snapshot for CI trigger %s", err)
-	//	}
-	//}
 	var variableSnapshotHistories = util3.GetBeansPtr(
 		repository4.GetSnapshotBean(savedCiWf.Id, repository4.HistoryReferenceTypeCIWORKFLOW, variableSnapshot))
 	if len(variableSnapshotHistories) > 0 {

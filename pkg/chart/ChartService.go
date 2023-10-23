@@ -172,9 +172,6 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		client:                           client,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		scopedVariableManager:            scopedVariableManager,
-		//variableEntityMappingService:     variableEntityMappingService,
-		//variableTemplateParser:           variableTemplateParser,
-		//scopedVariableService:            scopedVariableService,
 	}
 }
 
@@ -473,21 +470,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
 	return chartVal, err
 }
-
-//func (impl ChartServiceImpl) ExtractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
-//	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-//	if err != nil {
-//		return err
-//	}
-//	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
-//		EntityType: entityType,
-//		EntityId:   entityId,
-//	}, userId, nil)
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}
 
 func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
 	err := impl.CheckChartExists(templateRequest.ChartRefId)
@@ -1328,48 +1310,6 @@ const memoryPattern = `"1000Mi" or "1Gi"`
 const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
-
-//func (impl ChartServiceImpl) ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType, isSuperAdmin bool, maskUnknownVariable bool) (string, map[string]string, error) {
-//	//Todo Subhashish manager layer
-//	variableSnapshot := make(map[string]string)
-//	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, templateType)
-//	if err != nil {
-//		return template, variableSnapshot, err
-//	}
-//
-//	if len(usedVariables) == 0 {
-//		return template, variableSnapshot, err
-//	}
-//
-//	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables, isSuperAdmin)
-//	if err != nil {
-//		return template, variableSnapshot, err
-//	}
-//
-//	for _, variable := range scopedVariables {
-//		variableSnapshot[variable.VariableName] = variable.VariableValue.StringValue()
-//	}
-//
-//	if maskUnknownVariable {
-//		for _, variable := range usedVariables {
-//			if _, ok := variableSnapshot[variable]; !ok {
-//				scopedVariables = append(scopedVariables, &models2.ScopedVariableData{
-//					VariableName:  variable,
-//					VariableValue: &models2.VariableValue{Value: models2.UndefinedValue},
-//				})
-//			}
-//		}
-//	}
-//
-//	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: templateType, IgnoreUnknownVariables: true}
-//	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-//	err = parserResponse.Error
-//	if err != nil {
-//		return template, variableSnapshot, err
-//	}
-//	resolvedTemplate := parserResponse.ResolvedTemplate
-//	return resolvedTemplate, variableSnapshot, nil
-//}
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "JsonSchemaExtractFromFile")
