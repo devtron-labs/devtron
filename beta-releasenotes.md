@@ -1,4 +1,5 @@
 ## Bugs
+- fix: error handling in image scan (#4150)
 - fix: valuesOverrideResponse (#4149)
 ## Enhancements
 - feat: enchancements in scoped variables (#4069)
