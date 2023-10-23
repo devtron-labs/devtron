@@ -167,15 +167,13 @@ func validateTagPattern(customTagPattern string) error {
 		return fmt.Errorf("only one variable with format {x} or {X} allowed")
 	}
 
-	tagWithoutVariable := strings.ReplaceAll(customTagPattern, ".{x}", "")
-	tagWithoutVariable = strings.ReplaceAll(tagWithoutVariable, ".{X}", "")
-	tagWithoutVariable = strings.ReplaceAll(tagWithoutVariable, "{x}", "")
-	tagWithoutVariable = strings.ReplaceAll(tagWithoutVariable, "{X}", "")
-	if len(tagWithoutVariable) == 0 {
-		return nil
-	}
+	// replacing variable with 1 (dummy value) and checking if resulting string is valid tag
+	tagWithDummyValue := strings.ReplaceAll(customTagPattern, ".{x}", "1")
+	tagWithDummyValue = strings.ReplaceAll(customTagPattern, ".{X}", "1")
+	tagWithDummyValue = strings.ReplaceAll(customTagPattern, "{x}", "1")
+	tagWithDummyValue = strings.ReplaceAll(customTagPattern, "{X}", "1")
 
-	if !isValidDockerImageTag(tagWithoutVariable) {
+	if !isValidDockerImageTag(tagWithDummyValue) {
 		return fmt.Errorf("not a valid image tag")
 	}
 
