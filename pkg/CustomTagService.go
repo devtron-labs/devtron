@@ -158,14 +158,13 @@ func validateTagPattern(customTagPattern string) error {
 		IsOnlyVariableTag := 0
 		IsOnlyVariableTag = IsOnlyVariableTag + strings.Count(customTagPattern, "{x}")
 		IsOnlyVariableTag = IsOnlyVariableTag + strings.Count(customTagPattern, "{X}")
-
 		if IsOnlyVariableTag == 0 {
 			return fmt.Errorf("variable with format {x} or {X} not found")
 		} else if IsOnlyVariableTag > 1 {
-			return fmt.Errorf("only one variable with format {x} or {X} found")
+			return fmt.Errorf("only one variable with format {x} or {X} allowed")
 		}
 	} else if variableCount > 1 {
-		return fmt.Errorf("only one variable with format {x} or {X} found")
+		return fmt.Errorf("only one variable with format {x} or {X} allowed")
 	}
 
 	tagWithoutVariable := strings.ReplaceAll(customTagPattern, ".{x}", "")
