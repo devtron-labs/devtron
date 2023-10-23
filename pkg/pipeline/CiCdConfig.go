@@ -1,12 +1,14 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/caarlos0/env"
 	blob_storage "github.com/devtron-labs/common-lib-private/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os/user"
@@ -420,5 +422,47 @@ func (impl *CiCdConfig) WorkflowRetriesEnabled() bool {
 		return impl.MaxCdWorkflowRunnerRetries > 0
 	default:
 		return false
+	}
+}
+
+func (impl *CiCdConfig) GetWorkflowVolumeAndVolumeMounts() ([]v12.Volume, []v12.VolumeMount, error) {
+	var volumes []v12.Volume
+	var volumeMounts []v12.VolumeMount
+	volumeMountsForCiJson := impl.VolumeMountsForCiJson
+	if len(volumeMountsForCiJson) > 0 {
+		var volumeMountsForCi []CiVolumeMount
+		// Unmarshal or Decode the JSON to the interface.
+		err := json.Unmarshal([]byte(volumeMountsForCiJson), &volumeMountsForCi)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, volumeMountForCi := range volumeMountsForCi {
+			volumes = append(volumes, getWorkflowVolume(volumeMountForCi))
+			volumeMounts = append(volumeMounts, getWorkflowVolumeMounts(volumeMountForCi))
+		}
+	}
+	return volumes, volumeMounts, nil
+}
+
+func getWorkflowVolume(volumeMountForCi CiVolumeMount) v12.Volume {
+	hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+
+	return v12.Volume{
+		Name: volumeMountForCi.Name,
+		VolumeSource: v12.VolumeSource{
+			HostPath: &v12.HostPathVolumeSource{
+				Path: volumeMountForCi.HostMountPath,
+				Type: &hostPathDirectoryOrCreate,
+			},
+		},
+	}
+
+}
+
+func getWorkflowVolumeMounts(volumeMountForCi CiVolumeMount) v12.VolumeMount {
+	return v12.VolumeMount{
+		Name:      volumeMountForCi.Name,
+		MountPath: volumeMountForCi.ContainerMountPath,
 	}
 }

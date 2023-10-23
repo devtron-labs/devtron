@@ -104,11 +104,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
-	beans, err := impl.ClusterServiceImpl.FindAll()
-	if err != nil {
-		return nil, err
-	}
+func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBean) ([]*ClusterBean, error) {
 	//devtron full mode logic
 	var clusterIds []int
 	for _, cluster := range beans {
@@ -174,6 +170,22 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 		item.DefaultClusterComponent = defaultClusterComponents
 	}
 	return beans, nil
+}
+
+func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
+}
+
+func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {

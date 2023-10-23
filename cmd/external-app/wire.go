@@ -5,8 +5,8 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
-	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	pubsub_lib "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
@@ -40,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -201,6 +202,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dockerRegistryRepository.DockerRegistryIpsConfigRepository), new(*dockerRegistryRepository.DockerRegistryIpsConfigRepositoryImpl)),
 		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
+
+		// chart group repository layer wire injection started
+		repository3.NewChartGroupDeploymentRepositoryImpl,
+		wire.Bind(new(repository3.ChartGroupDeploymentRepository), new(*repository3.ChartGroupDeploymentRepositoryImpl)),
+		// chart group repository layer wire injection ended
+
 		// end: docker registry wire set injection
 		util4.NewSSHTunnelWrapperServiceImpl,
 		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
