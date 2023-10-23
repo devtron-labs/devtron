@@ -21,6 +21,7 @@ const (
 	ImageTagUnavailableMessage                                    = "Desired image tag already exists"
 	REGEX_PATTERN_FOR_ENSURING_ONLY_ONE_VARIABLE_BETWEEN_BRACKETS = `\{.{2,}\}`
 	REGEX_PATTERN_FOR_CHARACTER_OTHER_THEN_X_OR_x                 = `\{[^xX]|{}\}`
+	REGEX_PATTERN_FOR_IMAGE_TAG                                   = `^[a-zA-Z0-9][a-zA-Z0-9._-]{0,126}[a-zA-Z0-9]$`
 )
 
 var (
@@ -148,38 +149,33 @@ func validateTagPattern(customTagPattern string) error {
 		return fmt.Errorf("tag length can not be zero")
 	}
 
-	if IsInvalidVariableFormat(customTagPattern) {
-		return fmt.Errorf("only one variable is allowed. Allowed variable format : {x} or {X}")
+	count := 0
+	count = count + strings.Count(customTagPattern, ".{x}")
+	count = count + strings.Count(customTagPattern, ".{X}")
+
+	if count == 0 {
+		return fmt.Errorf("variable with format {x} or {X} not found")
+	} else if count > 1 {
+		return fmt.Errorf("only one variable with format {x} or {X} found")
 	}
 
-	remainingString := strings.ReplaceAll(customTagPattern, ".{x}", "")
-	remainingString = strings.ReplaceAll(remainingString, ".{X}", "")
-	if len(remainingString) == 0 {
+	tagWithoutVariable := strings.ReplaceAll(customTagPattern, ".{x}", "")
+	tagWithoutVariable = strings.ReplaceAll(tagWithoutVariable, ".{X}", "")
+	if len(tagWithoutVariable) == 0 {
 		return nil
 	}
 
-	n := len(remainingString)
-	if remainingString[0] == '.' || remainingString[0] == '-' {
-		return fmt.Errorf("tag can not start with an hyphen or a period")
+	if isValidDockerImageTag(tagWithoutVariable) {
+		return fmt.Errorf("not a valid image tag")
 	}
-	if n != 0 && (remainingString[n-1] == '.' || remainingString[n-1] == '-') {
-		return fmt.Errorf("tag can not end with an hyphen or a period")
-	}
+
 	return nil
 }
 
-func IsInvalidVariableFormat(customTagPattern string) bool {
-	regex := regexp.MustCompile(REGEX_PATTERN_FOR_ENSURING_ONLY_ONE_VARIABLE_BETWEEN_BRACKETS)
-	matches := regex.FindAllString(customTagPattern, -1)
-	if len(matches) > 0 {
-		return true
-	}
-	regex = regexp.MustCompile(REGEX_PATTERN_FOR_CHARACTER_OTHER_THEN_X_OR_x)
-	matches = regex.FindAllString(customTagPattern, -1)
-	if len(matches) > 0 {
-		return true
-	}
-	return false
+func isValidDockerImageTag(tag string) bool {
+	// Define the regular expression for a valid Docker image tag
+	re := regexp.MustCompile(REGEX_PATTERN_FOR_IMAGE_TAG)
+	return re.MatchString(tag)
 }
 
 func validateTag(imageTag string) error {
