@@ -175,7 +175,7 @@ func validateTagPattern(customTagPattern string) error {
 		return nil
 	}
 
-	if isValidDockerImageTag(tagWithoutVariable) {
+	if !isValidDockerImageTag(tagWithoutVariable) {
 		return fmt.Errorf("not a valid image tag")
 	}
 
