@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -1316,7 +1317,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			HistoryReferenceId:   deploymentTemplateHistory.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
 		}
-		resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetResolvedTemplateWithSnapshot(envOverride.EnvOverrideValues, reference)
+		variableMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(envOverride.EnvOverrideValues, reference, true, false)
 		envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 		envOverride.VariableSnapshot = variableMap
 		if err != nil {
@@ -1416,7 +1417,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 		if envOverride.IsOverride {
 
 			entity := repository6.GetEntity(envOverride.Id, repository6.EntityTypeDeploymentTemplateEnvLevel)
-			resolvedTemplate, variableMap, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplateAppService(scope, envOverride.EnvOverrideValues, entity)
+			resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(envOverride.EnvOverrideValues, scope, entity, true)
 			envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 			envOverride.VariableSnapshot = variableMap
 			if err != nil {
@@ -1425,7 +1426,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 
 		} else {
 			entity := repository6.GetEntity(chart.Id, repository6.EntityTypeDeploymentTemplateAppLevel)
-			resolvedTemplate, variableMap, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplateAppService(scope, chart.GlobalOverride, entity)
+			resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(chart.GlobalOverride, scope, entity, true)
 			envOverride.Chart.ResolvedGlobalOverride = resolvedTemplate
 			envOverride.VariableSnapshot = variableMap
 			if err != nil {
@@ -2161,18 +2162,12 @@ type ConfigMapAndSecretJsonV2 struct {
 
 func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride) ([]byte, error) {
 
-	var configMapJson string
-	var secretDataJson string
-	var configMapJsonApp string
-	var secretDataJsonApp string
-	var configMapJsonEnv string
-	var secretDataJsonEnv string
+	var configMapJson, secretDataJson, configMapJsonApp, secretDataJsonApp, configMapJsonEnv, secretDataJsonEnv string
+
 	var err error
 	var configMapA *chartConfig.ConfigMapAppModel
 	var configMapE *chartConfig.ConfigMapEnvModel
-	var configMapHistory *repository3.ConfigmapAndSecretHistory
-	var secretHistory *repository3.ConfigmapAndSecretHistory
-	var encodedSecretData string
+	var configMapHistory, secretHistory *repository3.ConfigmapAndSecretHistory
 
 	merged := []byte("{}")
 	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
@@ -2252,22 +2247,22 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(request ConfigMapAndSecr
 		return []byte("{}"), err
 
 	}
-	var resolvedTemplateCM string
+	var resolvedCM, resolvedCS string
 	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		resolvedTemplateCM, encodedSecretData, err = impl.ResolvedVariableForLastSaved(request, envOverride, configMapA, configMapE, configMapByte, secretDataByte)
+		resolvedCM, resolvedCS, err = impl.ResolvedVariableForLastSaved(request, envOverride, configMapA, configMapE, configMapByte, secretDataByte)
 		if err != nil {
 			return []byte("{}"), err
 		}
 
 	}
 	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
-		resolvedTemplateCM, encodedSecretData, err = impl.ResolvedVariableForSpecificType(configMapHistory, envOverride, secretHistory)
+		resolvedCM, resolvedCS, err = impl.ResolvedVariableForSpecificType(configMapHistory, envOverride, secretHistory)
 		if err != nil {
 			return []byte("{}"), err
 		}
 
 	}
-	merged, err = impl.mergeUtil.JsonPatch([]byte(resolvedTemplateCM), []byte(encodedSecretData))
+	merged, err = impl.mergeUtil.JsonPatch([]byte(resolvedCM), []byte(resolvedCS))
 
 	if err != nil {
 		return []byte("{}"), err
@@ -2286,8 +2281,7 @@ func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *re
 		impl.logger.Errorw("error in Marshalling configMapHistory", configMapHistory, "err", err)
 		return "", "", err
 	}
-
-	resolvedTemplateCM, variableMapCM, err := impl.scopedVariableManager.GetResolvedTemplateWithSnapshot(string(configMapHistoryJSON), reference)
+	variableMapCM, resolvedTemplateCM, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configMapHistoryJSON), reference, true, false)
 	if err != nil {
 		return "", "", err
 	}
@@ -2307,13 +2301,10 @@ func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *re
 	if err != nil {
 		return "", "", err
 	}
-	resolvedTemplateCS, variableMapCS, err := impl.scopedVariableManager.GetResolvedTemplateWithSnapshot(data, reference)
+	variableMapCS, resolvedTemplateCS, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, true, false)
 	envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
 	envOverride.VariableSnapshotForCS = variableMapCS
 	encodedSecretData, err := repository3.GetTransformedDataForSecretHistory(resolvedTemplateCS, bean.EncodeSecret)
-	if err != nil {
-		return "", "", err
-	}
 	if err != nil {
 		return "", "", err
 	}
@@ -2330,11 +2321,12 @@ func (impl *AppServiceImpl) ResolvedVariableForLastSaved(request ConfigMapAndSec
 	var resolvedCS string
 	var resolvedCM string
 	if configMapByte != nil && len(varNamesCM) > 0 {
-		resolvedCM, err = impl.scopedVariableManager.ParseTemplateWithScopedVariables(string(configMapByte), scopedVariables)
+		parserRequest := parsers.CreateParserRequest(string(configMapByte), parsers.JsonVariableTemplate, scopedVariables, false)
+		resolvedCM, err = impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
 		if err != nil {
 			return "", "", err
 		}
-		envOverride.VariableSnapshotForCM = impl.scopedVariableManager.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
+		envOverride.VariableSnapshotForCM = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
 	}
 
 	if secretDataByte != nil && len(varNamesCS) > 0 {
@@ -2342,8 +2334,9 @@ func (impl *AppServiceImpl) ResolvedVariableForLastSaved(request ConfigMapAndSec
 		if err != nil {
 			return "", "", err
 		}
-		resolvedCSDecoded, err := impl.scopedVariableManager.ParseTemplateWithScopedVariables(data, scopedVariables)
-		envOverride.VariableSnapshotForCS = impl.scopedVariableManager.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
+		parserRequest := parsers.CreateParserRequest(data, parsers.JsonVariableTemplate, scopedVariables, false)
+		resolvedCSDecoded, err := impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
+		envOverride.VariableSnapshotForCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
 		resolvedCS, err = bean.GetTransformedDataForSecret(resolvedCSDecoded, bean.EncodeSecret)
 		if err != nil {
 			return "", "", err

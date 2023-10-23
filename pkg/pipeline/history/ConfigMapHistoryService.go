@@ -446,7 +446,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
 		}
-		variableSnapshotMapCM, resolvedTemplateCM, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess)
+		variableSnapshotMapCM, resolvedTemplateCM, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess, true)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
 		}
@@ -469,7 +469,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		if err != nil {
 			return nil, err
 		}
-		variableSnapshotMapCS, resolvedTemplateCS, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess)
+		variableSnapshotMapCS, resolvedTemplateCS, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess, false)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
 		}
@@ -561,7 +561,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
 		}
-		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess)
+		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, userHasAdminAccess, false)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 		}
@@ -585,7 +585,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		if err != nil {
 			return nil, err
 		}
-		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess)
+		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess, false)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 		}
@@ -671,12 +671,7 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 				historyDto.CodeEditorValue.Value = string(externalSecretData)
 			}
 		}
-		//historyDto.VariableSnapshotForCS = variableSnapshotMap
-		//historyDto.ResolvedTemplateDataForCS = resolvedTemplate
-	} //else if configType == repository.CONFIGMAP_TYPE {
-	//historyDto.VariableSnapshotForCM = variableSnapshotMap
-	//historyDto.ResolvedTemplateDataForCM = resolvedTemplate
-	//}
+	}
 	componentLevelData := &ComponentLevelHistoryDetailDto{
 		ComponentName: config.Name,
 		HistoryConfig: historyDto,

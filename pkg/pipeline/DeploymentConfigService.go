@@ -14,6 +14,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/devtron-labs/devtron/util"
@@ -309,11 +310,12 @@ func (impl *DeploymentConfigServiceImpl) resolveCMCS(
 		return "", "", nil, nil, err
 	}
 	if configAppLevel.ConfigMapData != "" || configEnvLevel.ConfigMapData != "" {
-		resolvedTemplateCM, err = impl.scopedVariableManager.ParseTemplateWithScopedVariables(string(mergedConfigMapJson), scopedVariables)
+		parserRequest := parsers.CreateParserRequest(string(mergedConfigMapJson), parsers.JsonVariableTemplate, scopedVariables, true)
+		resolvedTemplateCM, err = impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
 		if err != nil {
 			return "", "", nil, nil, err
 		}
-		variableMapCM = impl.scopedVariableManager.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
+		variableMapCM = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
 	}
 	if configAppLevel.SecretData != "" || configEnvLevel.SecretData != "" {
 		data, err := GetDecodedData(mergedSecret)
@@ -322,11 +324,12 @@ func (impl *DeploymentConfigServiceImpl) resolveCMCS(
 		}
 		mergedSecretJson, err := json.Marshal(data)
 
-		resolvedTemplateCS, err := impl.scopedVariableManager.ParseTemplateWithScopedVariables(string(mergedSecretJson), scopedVariables)
+		parserRequest := parsers.CreateParserRequest(string(mergedSecretJson), parsers.JsonVariableTemplate, scopedVariables, true)
+		resolvedTemplateCS, err := impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
 		if err != nil {
 			return "", "", nil, nil, err
 		}
-		variableMapCS = impl.scopedVariableManager.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
+		variableMapCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
 		encodedSecretData, err = GetEncodedData(resolvedTemplateCS)
 		if err != nil {
 			return "", "", nil, nil, err

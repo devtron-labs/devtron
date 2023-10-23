@@ -2112,7 +2112,7 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 		return nil, err
 	}
 
-	resolvedTemplate, variableSnapshot, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplateBatch(string(responseJson), entities, scope)
+	resolvedTemplate, variableSnapshot, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplateBatch(string(responseJson), scope, entities)
 	if err != nil {
 		return nil, err
 	}

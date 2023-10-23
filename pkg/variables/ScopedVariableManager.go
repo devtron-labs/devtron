@@ -10,26 +10,25 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"golang.org/x/exp/slices"
 )
 
 type ScopedVariableManager interface {
+
+	// pass throughs
 	GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
-	GetVariableMapForUsedVariables(scopedVariables []*models.ScopedVariableData, usedVars []string) map[string]string
 	GetEntityToVariableMapping(entity []repository.Entity) (map[repository.Entity][]string, error)
 	SaveVariableHistoriesForTrigger(variableHistories []*repository.VariableSnapshotHistoryBean, userId int32) error
-
-	GetVariableSnapshot(reference []repository.HistoryReference) (map[repository.HistoryReference]*repository.VariableSnapshotHistoryBean, error)
-	GetResolvedTemplateWithSnapshot(template string, reference repository.HistoryReference) (string, map[string]string, error)
-	ParseTemplateWithScopedVariables(template string, scopedVariables []*models.ScopedVariableData) (string, error)
-	ExtractVariablesAndResolveTemplateAppService(scope resourceQualifiers.Scope, template string, entity repository.Entity) (string, map[string]string, error)
-
-	GetMappedVariablesAndResolveTemplate(template string, scope resourceQualifiers.Scope, entity repository.Entity, isSuperAdmin bool) (string, map[string]string, error)
-	GetMappedVariablesAndResolveTemplateBatch(template string, entities []repository.Entity, scope resourceQualifiers.Scope) (string, map[string]string, error)
-	ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType, isSuperAdmin bool, maskUnknownVariable bool) (string, map[string]string, error)
-	ExtractAndMapVariables(template string, entityId int, entityType repository.EntityType, userId int32, tx *pg.Tx) error
-	GetVariableSnapshotAndResolveTemplate(template string, reference repository.HistoryReference, isSuperAdmin bool) (map[string]string, string, error)
 	RemoveMappedVariables(entityId int, entityType repository.EntityType, userId int32, tx *pg.Tx) error
+	ParseTemplateWithScopedVariables(request parsers.VariableParserRequest) (string, error)
+
+	// variable mapping
+	ExtractAndMapVariables(template string, entityId int, entityType repository.EntityType, userId int32, tx *pg.Tx) error
+
+	// template resolvers
+	ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType, unmaskSensitiveData bool, maskUnknownVariable bool) (string, map[string]string, error)
+	GetMappedVariablesAndResolveTemplate(template string, scope resourceQualifiers.Scope, entity repository.Entity, unmaskSensitiveData bool) (string, map[string]string, error)
+	GetMappedVariablesAndResolveTemplateBatch(template string, scope resourceQualifiers.Scope, entities []repository.Entity) (string, map[string]string, error)
+	GetVariableSnapshotAndResolveTemplate(template string, reference repository.HistoryReference, isSuperAdmin bool, ignoreUnknown bool) (map[string]string, string, error)
 }
 
 func (impl ScopedVariableManagerImpl) SaveVariableHistoriesForTrigger(variableHistories []*repository.VariableSnapshotHistoryBean, userId int32) error {
@@ -79,13 +78,10 @@ func (impl ScopedVariableManagerImpl) GetMappedVariablesAndResolveTemplate(templ
 		variableMap[variable] = impl.scopedVariableService.GetFormattedVariableForName(variable)
 	}
 
-	//scopedVariables := make([]*models.ScopedVariableData, 0)
-	//if _, ok := entityToVariables[entity]; ok && len(entityToVariables[entity]) > 0 {
 	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], isSuperAdmin)
 	if err != nil {
 		return template, variableMap, err
 	}
-	//}
 
 	for _, variable := range scopedVariables {
 		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
@@ -96,18 +92,17 @@ func (impl ScopedVariableManagerImpl) GetMappedVariablesAndResolveTemplate(templ
 	}
 
 	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err = parserResponse.Error
+
+	resolvedTemplate, err := impl.ParseTemplateWithScopedVariables(parserRequest)
 	if err != nil {
 		return template, variableMap, err
 	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
 
 	return resolvedTemplate, variableMap, nil
 }
 
 func (impl ScopedVariableManagerImpl) ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType, isSuperAdmin bool, maskUnknownVariable bool) (string, map[string]string, error) {
-	//Todo Subhashish manager layer
+
 	variableSnapshot := make(map[string]string)
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, templateType)
 	if err != nil {
@@ -139,12 +134,11 @@ func (impl ScopedVariableManagerImpl) ExtractVariablesAndResolveTemplate(scope r
 	}
 
 	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: templateType, IgnoreUnknownVariables: true}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err = parserResponse.Error
+	resolvedTemplate, err := impl.ParseTemplateWithScopedVariables(parserRequest)
 	if err != nil {
 		return template, variableSnapshot, err
 	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
+
 	return resolvedTemplate, variableSnapshot, nil
 }
 
@@ -163,7 +157,7 @@ func (impl ScopedVariableManagerImpl) ExtractAndMapVariables(template string, en
 	return nil
 }
 
-func (impl ScopedVariableManagerImpl) GetVariableSnapshotAndResolveTemplate(template string, reference repository.HistoryReference, isSuperAdmin bool) (map[string]string, string, error) {
+func (impl ScopedVariableManagerImpl) GetVariableSnapshotAndResolveTemplate(template string, reference repository.HistoryReference, isSuperAdmin bool, ignoreUnknown bool) (map[string]string, string, error) {
 	variableSnapshotMap := make(map[string]string)
 	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository.HistoryReference{reference})
 	if err != nil {
@@ -191,13 +185,12 @@ func (impl ScopedVariableManagerImpl) GetVariableSnapshotAndResolveTemplate(temp
 	}
 
 	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, varNameToIsSensitive, isSuperAdmin)
-	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData, IgnoreUnknownVariables: true}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
-	err = parserResponse.Error
+	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData, IgnoreUnknownVariables: ignoreUnknown}
+
+	resolvedTemplate, err := impl.ParseTemplateWithScopedVariables(request)
 	if err != nil {
-		return variableSnapshotMap, template, err
+		return variableSnapshotMap, resolvedTemplate, err
 	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
 
 	return variableSnapshotMap, resolvedTemplate, nil
 }
@@ -214,15 +207,8 @@ func (impl ScopedVariableManagerImpl) RemoveMappedVariables(entityId int, entity
 	return nil
 }
 
-func (impl ScopedVariableManagerImpl) GetMappedVariablesAndResolveTemplateBatch(template string, entities []repository.Entity, scope resourceQualifiers.Scope) (string, map[string]string, error) {
+func (impl ScopedVariableManagerImpl) GetMappedVariablesAndResolveTemplateBatch(template string, scope resourceQualifiers.Scope, entities []repository.Entity) (string, map[string]string, error) {
 
-	//entities := make([]repository.Entity, 0)
-	//for _, stageId := range pipelineStageIds {
-	//	entities = append(entities, repository.Entity{
-	//		EntityType: repository.EntityTypePipelineStage,
-	//		EntityId:   stageId,
-	//	})
-	//}
 	variableMap := make(map[string]string)
 	mappingsForEntities, err := impl.variableEntityMappingService.GetAllMappingsForEntities(entities)
 	if err != nil {
@@ -254,68 +240,19 @@ func (impl ScopedVariableManagerImpl) GetMappedVariablesAndResolveTemplateBatch(
 		variableSnapshot[variable.VariableName] = variable.VariableValue.StringValue()
 	}
 
-	//responseJson, err := json.Marshal(unresolvedResponse)
-	//if err != nil {
-	//	impl.logger.Errorw("Error in marshaling stage", "error", err, "unresolvedResponse", unresolvedResponse)
-	//	return nil, err
-	//}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parsers.VariableParserRequest{
+	request := parsers.VariableParserRequest{
 		TemplateType:           parsers.StringVariableTemplate,
 		Template:               template,
 		Variables:              scopedVariables,
 		IgnoreUnknownVariables: true,
-	})
-	err = parserResponse.Error
+	}
+	resolvedTemplate, err := impl.ParseTemplateWithScopedVariables(request)
 	if err != nil {
 		impl.logger.Errorw("Error in parsing stage", "error", err, "template", template, "vars", scopedVariables)
 		return template, variableMap, err
 	}
-	//resolvedResponse := &bean.PrePostAndRefPluginStepsResponse{}
-	//err = json.Unmarshal([]byte(parserResponse.ResolvedTemplate), resolvedResponse)
-	//if err != nil {
-	//	impl.logger.Errorw("Error in unmarshalling stage", "error", err)
-	//
-	//	return template, err
-	//}
-	//resolvedResponse.VariableSnapshot = variableSnapshot
-	return parserResponse.ResolvedTemplate, variableSnapshot, nil
-}
 
-func (impl ScopedVariableManagerImpl) ExtractVariablesAndResolveTemplateAppService(scope resourceQualifiers.Scope, template string, entity repository.Entity) (string, map[string]string, error) {
-
-	variableMap := make(map[string]string)
-	entities := []repository.Entity{entity}
-	entityToVariables, err := impl.GetEntityToVariableMapping(entities)
-	if err != nil {
-		return template, variableMap, err
-	}
-	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
-		return template, variableMap, nil
-	}
-
-	// pre-populating variable map with variable so that the variables which don't have any resolved data
-	// is saved in snapshot
-	for _, variable := range entityToVariables[entity] {
-		variableMap[variable] = impl.scopedVariableService.GetFormattedVariableForName(variable)
-	}
-
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
-	}
-
-	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err = parserResponse.Error
-	if err != nil {
-		return template, variableMap, err
-	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableMap, nil
+	return resolvedTemplate, variableSnapshot, nil
 }
 
 func (impl ScopedVariableManagerImpl) GetEntityToVariableMapping(entity []repository.Entity) (map[repository.Entity][]string, error) {
@@ -327,62 +264,14 @@ func (impl ScopedVariableManagerImpl) GetScopedVariables(scope resourceQualifier
 	return impl.scopedVariableService.GetScopedVariables(scope, varNames, unmaskSensitiveData)
 }
 
-func (impl ScopedVariableManagerImpl) GetVariableMapForUsedVariables(scopedVariables []*models.ScopedVariableData, usedVars []string) map[string]string {
-	variableMap := make(map[string]string)
-	for _, variable := range scopedVariables {
-		if slices.Contains(usedVars, variable.VariableName) {
-			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
-		}
-	}
-	return variableMap
-}
+func (impl ScopedVariableManagerImpl) ParseTemplateWithScopedVariables(request parsers.VariableParserRequest) (string, error) {
 
-func (impl ScopedVariableManagerImpl) ParseTemplateWithScopedVariables(template string, scopedVariables []*models.ScopedVariableData) (string, error) {
-
-	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
+	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
 	err := parserResponse.Error
 	if err != nil {
-		return template, err
+		return request.Template, err
 	}
 
 	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, nil
-}
-
-func (impl ScopedVariableManagerImpl) GetResolvedTemplateWithSnapshot(template string, reference repository.HistoryReference) (string, map[string]string, error) {
-
-	variableSnapshotMap := make(map[string]string)
-	references := []repository.HistoryReference{reference}
-	variableSnapshot, err := impl.GetVariableSnapshot(references)
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-
-	if _, ok := variableSnapshot[reference]; !ok {
-		return template, variableSnapshotMap, nil
-	}
-
-	err = json.Unmarshal(variableSnapshot[reference].VariableSnapshot, &variableSnapshotMap)
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-
-	if len(variableSnapshotMap) == 0 {
-		return template, variableSnapshotMap, nil
-	}
-	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, make(map[string]bool), true)
-	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
-	err = parserResponse.Error
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableSnapshotMap, nil
-}
-
-func (impl ScopedVariableManagerImpl) GetVariableSnapshot(reference []repository.HistoryReference) (map[repository.HistoryReference]*repository.VariableSnapshotHistoryBean, error) {
-	variableSnapshot, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences(reference)
-	return variableSnapshot, err
 }
