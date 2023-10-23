@@ -1561,7 +1561,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		return
 	}
 
-	searchString := r.URL.Query().Get("searchString")
+	searchString := r.URL.Query().Get("search")
 	//rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
