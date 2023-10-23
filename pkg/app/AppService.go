@@ -1607,7 +1607,6 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		return valuesOverrideResponse, err
 	}
 	mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
-	valuesOverrideResponse.MergedValues = string(mergedValues)
 
 	appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 	mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
@@ -1615,6 +1614,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
 	mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, mergedValues)
+	valuesOverrideResponse.MergedValues = string(mergedValues)
 	span.End()
 	if err != nil {
 		return valuesOverrideResponse, err
