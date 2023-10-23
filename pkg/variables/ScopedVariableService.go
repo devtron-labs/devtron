@@ -2,6 +2,7 @@ package variables
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-workflows/v3/errors"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -22,8 +23,10 @@ import (
 
 type ScopedVariableService interface {
 	CreateVariables(payload models.Payload) error
-	GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
+	GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error)
 	GetJsonForVariables() (*models.Payload, error)
+	CheckForSensitiveVariables(variableNames []string) (map[string]bool, error)
+	GetFormattedVariableForName(name string) string
 }
 
 type ScopedVariableServiceImpl struct {
@@ -56,6 +59,7 @@ type VariableConfig struct {
 	VariableNameRegex    string `env:"SCOPED_VARIABLE_NAME_REGEX" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$"`
 	VariableCacheEnabled bool   `env:"VARIABLE_CACHE_ENABLED" envDefault:"true"`
 	SystemVariablePrefix string `env:"SYSTEM_VAR_PREFIX" envDefault:"DEVTRON_"`
+	ScopedVariableFormat string `env:"SCOPED_VARIABLE_FORMAT" envDefault:"@{{%s}}"`
 }
 
 func loadVariableCache(cfg *VariableConfig, service *ScopedVariableServiceImpl) {
@@ -84,6 +88,43 @@ func (impl *ScopedVariableServiceImpl) loadVarCache() {
 	}
 	variableCache.SetData(variableMetadata)
 	impl.logger.Info("variable cache loaded successfully")
+}
+
+func (impl *ScopedVariableServiceImpl) GetFormattedVariableForName(name string) string {
+	return fmt.Sprintf(impl.VariableNameConfig.ScopedVariableFormat, name)
+}
+
+func (impl *ScopedVariableServiceImpl) CheckForSensitiveVariables(variableNames []string) (map[string]bool, error) {
+
+	// getting all variables from cache
+	allVariableDefinitions := impl.VariableCache.GetData()
+
+	var err error
+	// cache is not loaded get from repo
+	if allVariableDefinitions == nil {
+		allVariableDefinitions, err = impl.scopedVariableRepository.GetVariableTypeForVariableNames(variableNames)
+		if err != nil {
+			return nil, errors.Wrap(err, "400", "error in fetching variable type")
+		}
+	}
+
+	variableNameToType := make(map[string]models.VariableType)
+	for _, definition := range allVariableDefinitions {
+		variableNameToType[definition.Name] = definition.VarType
+	}
+
+	varNameToIsSensitive := make(map[string]bool)
+	for _, name := range variableNames {
+
+		// by default all variables are marked sensitive to handle deleted variables
+		// only super admin will be able to see the values once variable is deleted from system
+		if varType, ok := variableNameToType[name]; ok {
+			varNameToIsSensitive[name] = varType.IsTypeSensitive()
+		} else {
+			varNameToIsSensitive[name] = true
+		}
+	}
+	return varNameToIsSensitive, nil
 }
 
 func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) error {
@@ -319,7 +360,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 	return selectedParentScope
 }
 
-func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, maskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
+func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	//populating system variables from system metadata
 	var systemVariableData, allSystemVariables []*models.ScopedVariableData
@@ -336,7 +377,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		return scopedVariableDataObj, nil
 	}
 
-	// Need to get from repo for isSensitive even if cache is loaded since cache only contains metadata
+	// Cache is not loaded
 	if allVariableDefinitions == nil {
 		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
 
@@ -356,18 +397,22 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 	}
 
 	variableIds := make([]int, 0)
-	variableIdToDefinition := make(map[int]*repository2.VariableDefinition)
 	for _, definition := range variableDefinitions {
 		variableIds = append(variableIds, definition.Id)
-		variableIdToDefinition[definition.Id] = definition
 	}
-
 	// This to prevent corner case where no variables were found for the provided names
 	if len(varNames) > 0 && len(variableIds) == 0 {
 		return scopedVariableDataObj, nil
 	}
 
-	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, &scope, variableIds)
+	allVariableIds := make([]int, 0)
+	variableIdToDefinition := make(map[int]*repository2.VariableDefinition)
+	for _, definition := range allVariableDefinitions {
+		allVariableIds = append(allVariableIds, definition.Id)
+		variableIdToDefinition[definition.Id] = definition
+	}
+
+	varScope, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, &scope, allVariableIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting varScope", "err", err)
 		return nil, err
@@ -405,8 +450,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 
 		var varValue *models.VariableValue
 		var isRedacted bool
-		if !maskSensitiveData && variableIdToDefinition[varId].VarType == models.PRIVATE {
-			varValue = &models.VariableValue{Value: ""}
+		if !unmaskSensitiveData && variableIdToDefinition[varId].VarType == models.PRIVATE {
+			varValue = &models.VariableValue{Value: models.HiddenValue}
 			isRedacted = true
 		} else {
 			varValue = &models.VariableValue{Value: value}
@@ -420,20 +465,30 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		scopedVariableDataObj = append(scopedVariableDataObj, scopedVariableData)
 	}
 
+	allScopedVariableDataObj := scopedVariableDataObj
+	usedScopedVariableDataObj := make([]*models.ScopedVariableData, 0)
+	for _, data := range scopedVariableDataObj {
+		if varNames == nil || slices.Contains(varNames, data.VariableName) {
+			usedScopedVariableDataObj = append(usedScopedVariableDataObj, data)
+		}
+	}
+
 	//adding variable def for variables which don't have any scoped data defined
 	// This only happens when passed var names is null (called from UI to get all variables with or without data)
 	if varNames == nil {
 		for _, definition := range allVariableDefinitions {
 			if !slices.Contains(foundVarIds, definition.Id) {
-				scopedVariableDataObj = append(scopedVariableDataObj, &models.ScopedVariableData{
+				usedScopedVariableDataObj = append(usedScopedVariableDataObj, &models.ScopedVariableData{
 					VariableName:     definition.Name,
 					ShortDescription: definition.ShortDescription,
 				})
 			}
 		}
 	}
-	impl.deduceVariables(scopedVariableDataObj, allSystemVariables)
-	return scopedVariableDataObj, err
+
+	allScopedVariableDataObj = append(allScopedVariableDataObj, allSystemVariables...)
+	impl.deduceVariables(usedScopedVariableDataObj, allScopedVariableDataObj)
+	return usedScopedVariableDataObj, err
 }
 
 func resolveExpressionWithVariableValues(expr string, varNameToData map[string]*models.ScopedVariableData) (string, error) {
