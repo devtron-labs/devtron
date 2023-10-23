@@ -69,13 +69,23 @@ func (impl ScopedVariableManagerImpl) GetMappedVariablesAndResolveTemplate(templ
 	if err != nil {
 		return template, variableMap, err
 	}
-	scopedVariables := make([]*models.ScopedVariableData, 0)
-	if _, ok := entityToVariables[entity]; ok && len(entityToVariables[entity]) > 0 {
-		scopedVariables, err = impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], isSuperAdmin)
-		if err != nil {
-			return template, variableMap, err
-		}
+	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
+		return template, variableMap, nil
 	}
+
+	// pre-populating variable map with variable so that the variables which don't have any resolved data
+	// is saved in snapshot
+	for _, variable := range entityToVariables[entity] {
+		variableMap[variable] = impl.scopedVariableService.GetFormattedVariableForName(variable)
+	}
+
+	//scopedVariables := make([]*models.ScopedVariableData, 0)
+	//if _, ok := entityToVariables[entity]; ok && len(entityToVariables[entity]) > 0 {
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], isSuperAdmin)
+	if err != nil {
+		return template, variableMap, err
+	}
+	//}
 
 	for _, variable := range scopedVariables {
 		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
@@ -286,7 +296,7 @@ func (impl ScopedVariableManagerImpl) ExtractVariablesAndResolveTemplateAppServi
 	// pre-populating variable map with variable so that the variables which don't have any resolved data
 	// is saved in snapshot
 	for _, variable := range entityToVariables[entity] {
-		variableMap[variable] = "@{{" + variable + "}}"
+		variableMap[variable] = impl.scopedVariableService.GetFormattedVariableForName(variable)
 	}
 
 	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
@@ -304,7 +314,6 @@ func (impl ScopedVariableManagerImpl) ExtractVariablesAndResolveTemplateAppServi
 	if err != nil {
 		return template, variableMap, err
 	}
-
 	resolvedTemplate := parserResponse.ResolvedTemplate
 	return resolvedTemplate, variableMap, nil
 }

@@ -2116,49 +2116,6 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 	if err != nil {
 		return nil, err
 	}
-	//
-	//mappingsForEntities, err := impl.variableEntityMappingService.GetAllMappingsForEntities(entities)
-	//if err != nil {
-	//	impl.logger.Errorw("Error in fetching mapped variables in stage request", "error", err)
-	//	return nil, err
-	//}
-	//
-	////early exit if no variables found
-	//if len(mappingsForEntities) == 0 {
-	//	return unresolvedResponse, nil
-	//}
-
-	// collecting all unique variable names in a stage
-	//varNamesSet := mapset.NewSet()
-	//for _, variableNames := range mappingsForEntities {
-	//	for _, variableName := range variableNames {
-	//		varNamesSet.Add(variableName)
-	//	}
-	//}
-	//varNames := utils.ToStringArray(varNamesSet.ToSlice())
-
-	//scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, varNames, true)
-	if err != nil {
-		return nil, err
-	}
-
-	//variableSnapshot := make(map[string]string)
-	//for _, variable := range scopedVariables {
-	//	variableSnapshot[variable.VariableName] = variable.VariableValue.StringValue()
-	//}
-
-	//
-	//parserResponse := impl.variableTemplateParser.ParseTemplate(parsers.VariableParserRequest{
-	//	TemplateType:           parsers.StringVariableTemplate,
-	//	Template:               string(responseJson),
-	//	Variables:              scopedVariables,
-	//	IgnoreUnknownVariables: true,
-	//})
-	//err = parserResponse.Error
-	//if err != nil {
-	//	impl.logger.Errorw("Error in parsing stage", "error", err, "template", responseJson, "vars", scopedVariables)
-	//	return nil, err
-	//}
 	resolvedResponse := &bean.PrePostAndRefPluginStepsResponse{}
 	err = json.Unmarshal([]byte(resolvedTemplate), resolvedResponse)
 	if err != nil {
@@ -2175,25 +2132,7 @@ func (impl *PipelineStageServiceImpl) extractAndMapScopedVariables(stageReq *bea
 		impl.logger.Errorw("Error in marshalling stage request", "error", err)
 		return err
 	}
-	//scopedVariables, err := impl.variableTemplateParser.ExtractVariables(string(requestJson), parsers.JsonVariableTemplate)
-	//if err != nil {
-	//	impl.logger.Errorw("Error in parsing variable in stage request", "error", err)
-	//	return err
-	//}
-	//
-	//if len(scopedVariables) == 0 {
-	//	return nil
-	//}
-	//entity := repository3.Entity{
-	//	EntityType: repository3.EntityTypePipelineStage,
-	//	EntityId:   stageReq.Id,
-	//}
+
 	return impl.scopedVariableManager.ExtractAndMapVariables(string(requestJson), stageReq.Id, repository3.EntityTypePipelineStage, userId, tx)
 
-	//err = impl.variableEntityMappingService.UpdateVariablesForEntity(scopedVariables, entity, userId, tx)
-	//if err != nil {
-	//	impl.logger.Errorw("Error in updating variables for stage request", "error", err)
-	//	return err
-	//}
-	//return nil
 }
