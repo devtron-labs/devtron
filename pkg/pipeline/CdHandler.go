@@ -1115,7 +1115,7 @@ func (impl *CdHandlerImpl) FetchCmAndSecretBlobConfigFromExternalCluster(cluster
 	if secret.Data == nil {
 		return cmConfig, secretConfig, errors.New("Data field not found in secret")
 	}
-	impl.Logger.Infow("ext cluster cloud provider: ", cmConfig.CloudProvider)
+	impl.Logger.Infow("fetching cm and secret from external cluster cloud provider", "cloud provider: ", cmConfig.CloudProvider)
 	return cmConfig, secretConfig, nil
 }
 
@@ -1282,7 +1282,6 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 			impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
 			return nil, err
 		}
-		impl.Logger.Infow("external cluster config: ", clusterConfig.Host)
 		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
 		//from them else return.
 		cmConfig, secretConfig, err := impl.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, wfr.Namespace)
