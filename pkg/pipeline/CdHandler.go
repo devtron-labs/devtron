@@ -1043,6 +1043,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	return logReader, cleanUp, err
 }
 func assignNewBlobStorageConfigInCdLogRequest(cdLogRequest *BuildLogRequest, cmConfig CmBlobStorageConfig, secretConfig SecretBlobStorageConfig) BuildLogRequest {
+	//TODO maybe we need to put a check here because at time of parsing for other blob values can be empty
 	cdLogRequest.CloudProvider = cmConfig.CloudProvider
 	cdLogRequest.AzureBlobConfig.AccountName = cmConfig.AzureAccountName
 	cdLogRequest.AzureBlobConfig.AccountKey = secretConfig.AzureAccountKey
@@ -1275,6 +1276,7 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 			impl.Logger.Errorw("error in fetching config map and secret from external cluster", "err", err, "clusterConfig", clusterConfig)
 			return nil, err
 		}
+		impl.Logger.Infow("cmConfig from ext cluster: ", cmConfig, "secret from ext cluster: ", secretConfig)
 		request.StorageType = cmConfig.CloudProvider
 
 		request.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
