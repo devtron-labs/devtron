@@ -20,6 +20,7 @@ package pipeline
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1068,6 +1069,10 @@ func assignNewBlobStorageConfigInCdLogRequest(cdLogRequest *BuildLogRequest, cmC
 	s3BucketVersioned, _ := strconv.ParseBool(cmConfig.S3BucketVersioned)
 	cdLogRequest.AwsS3BaseConfig.VersioningEnabled = s3BucketVersioned
 
+	cdLogRequest.AzureBlobConfig.AccountKey = decodeSecretKey(secretConfig.AzureAccountKey)
+	cdLogRequest.AwsS3BaseConfig.Passkey = decodeSecretKey(secretConfig.S3SecretKey)
+	cdLogRequest.GcpBlobBaseConfig.CredentialFileJsonData = decodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
+
 	return *cdLogRequest
 }
 
@@ -1115,7 +1120,7 @@ func (impl *CdHandlerImpl) FetchCmAndSecretBlobConfigFromExternalCluster(cluster
 	if secret.Data == nil {
 		return cmConfig, secretConfig, errors.New("Data field not found in secret")
 	}
-	impl.Logger.Infow("fetching cm and secret from external cluster cloud provider", "cloud provider: ", cmConfig.CloudProvider)
+	impl.Logger.Infow("fetching cm and secret from external cluster cloud provider", "ext cluster config: ", cmConfig)
 	return cmConfig, secretConfig, nil
 }
 
@@ -1307,6 +1312,10 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 
 		request.GcpBlobBaseConfig.CredentialFileJsonData = secretConfig.GcpBlobStorageCredentialJson
 		request.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
+
+		request.AzureBlobBaseConfig.AccountKey = decodeSecretKey(secretConfig.AzureAccountKey)
+		request.AwsS3BaseConfig.Passkey = decodeSecretKey(secretConfig.S3SecretKey)
+		request.GcpBlobBaseConfig.CredentialFileJsonData = decodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
 	}
 	_, numBytes, err := blobStorageService.Get(request)
 	if err != nil {
@@ -1322,6 +1331,14 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 
 	impl.Logger.Infow("Downloaded ", "name", file.Name(), "bytes", numBytes)
 	return file, nil
+}
+
+func decodeSecretKey(secretKey string) string {
+	decodedKey, err := base64.StdEncoding.DecodeString(secretKey)
+	if err != nil {
+		fmt.Println("error decoding base64 key:", err)
+	}
+	return string(decodedKey)
 }
 
 func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pipelineConfig.CdWorkflowWithArtifact {
