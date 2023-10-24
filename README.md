@@ -1,8 +1,8 @@
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)"  srcset="./assets/devtron-darkmode-logo.png">
-  <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-lightmode-logo.png">
-  <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
+  <source media="(prefers-color-scheme: dark)"  srcset="https://ipfs.io/ipfs/bafybeifjl66ltrs7fqnjvocwemthmrpwo3vcjslynjtpct72ukffgca3c4/devtron-darkmode-logo.png">
+  <source media="(prefers-color-scheme: light)"  srcset="https://ipfs.io/ipfs/bafybeib56fksdl425ia3bztriecija7e2777lanerih7kndggzlexv4qqq/devtron-lightmode-logo.png">
+  <img width="333.333" height="260" src="https://ipfs.io/ipfs/bafybeidmgwngs6h55k7c5ipkyejs7v4uxdifey44x5ykwctnbgzpc25274/devtron-logo-dark-light.png">
 </picture>
 <h1 align= "center">Cloud Native tool integration platform for Kubernetes</h1>
 </p>
@@ -42,33 +42,33 @@
 
 Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface.
 <br>
-<p align="center"><img src="./assets/readme-comic.png"></p>
+<p align="center"><img src="https://ipfs.io/ipfs/bafybeih2m3dqbnyue4igpjkmusj7iaz47kaorhq7c3uftp3egs7jnjwrtu/readme-comic.png"></p>
 
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
 
 
 ## Devtron Demo Environment
 
-Please log in the <a href="https://preview.devtron.ai/dashboard/" rel="nofollow">Demo environment</a> using github credentials. Please note the user is granted view access.
+Please log in to the <a href="https://preview.devtron.ai/dashboard/" rel="nofollow">Demo environment</a> using github credentials. Please note the user is granted view access.
 
 ## Devtron Features
 
 <details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
 <br>
  
-- Devtron groups your Kubernetes objects deployed via Helm charts and display them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Devtron UI and even edit them!
+- Devtron groups your Kubernetes objects deployed via Helm charts and displays them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifest right from the Devtron UI and even edit them!
  
 </details>
 <details><summary> <b>Centralized Access Management</b></summary>
 <br>
 
-- Control and give customizable view-only, edit access to users on Project, Environment and Application levels
+- Control and give customizable view-only, edit access to users on Project, Environment, and Application levels
 </details>
 
 <details><summary> <b>Deploy, Manage and Observe on multiple clusters</b></summary>
 <br>
 
-- Deploy and manage Helm charts, applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup
+- Deploy and manage Helm charts, and applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup
 </details>
 
 <br>
@@ -93,7 +93,7 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 
 ## Architecture
 
-<p align="center"><img src="./assets/Architecture.jpg"></p>
+<p align="center"><img src="https://ipfs.io/ipfs/bafybeibeoblxb7c7uklb7tfov35kgoryv2jghjqtr2qzblljt2jotgyh6u/Architecture.jpg"></p>
 
 ## Installation
 
@@ -164,7 +164,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
  
 Devtron is built on some of the most trusted and loved technologies:
 <br>
-<p align="center"><img width="70%" height="70%" src="./assets/we-support.jpg"></p>
+<p align="center"><img width="70%" height="70%" src="https://ipfs.io/ipfs/bafybeieq54kesu7hlr3itcwpvjqo27wsr4u3gwppxx2pd3i6lxyg5shvbe/we-support.jpg"></p>
  
 ## :video_camera: Videos
  
@@ -200,7 +200,7 @@ Devtron is trusted by Enterprises and Communities all across the globe:
  
 ### Current build
  
-- Devtron uses modified version of [Argo Rollout](https://argoproj.github.io/argo-rollouts/)
+- Devtron uses a modified version of [Argo Rollout](https://argoproj.github.io/argo-rollouts/)
 - Application metrics only work for K8s version 1.16+
  
 ## Support, Contribution, and Community
@@ -212,12 +212,12 @@ Get updates on Devtron's development and chat with project maintainers, contribu
 - Raise feature requests, suggest enhancements, and report bugs in our [GitHub Issues](https://github.com/devtron-labs/devtron/issues)
 - Articles, Howtos, Tutorials - [Devtron Blogs](https://devtron.ai/blog/)
  
-### Join us at Discord channel
+### Join us on Discord channel
 <p>
 <a href="https://discord.gg/jsRG5qx2gp">
    <img
    src="https://invidget.switchblade.xyz/jsRG5qx2gp"
-   alt="Join Devtron : Heroku for Kubernetes"
+   alt="Join Devtron: Heroku for Kubernetes"
    >
 </a>
 </p>
