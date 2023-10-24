@@ -177,16 +177,22 @@ type ArgoPipelineStatusSyncEvent struct {
 
 type CmBlobStorageConfig struct {
 	//AWS credentials
-	CloudProvider      blob_storage.BlobStorageType `json:"BLOB_STORAGE_PROVIDER"`
-	S3AccessKey        string                       `json:"BLOB_STORAGE_S3_ACCESS_KEY"`
-	S3Endpoint         string                       `json:"BLOB_STORAGE_S3_ENDPOINT"`
-	S3EndpointInsecure string                       `json:"BLOB_STORAGE_S3_ENDPOINT_INSECURE"`
-	S3BucketVersioned  string                       `json:"BLOB_STORAGE_S3_BUCKET_VERSIONED"`
+	CloudProvider               blob_storage.BlobStorageType `json:"BLOB_STORAGE_PROVIDER"`
+	S3AccessKey                 string                       `json:"BLOB_STORAGE_S3_ACCESS_KEY"`
+	S3Endpoint                  string                       `json:"BLOB_STORAGE_S3_ENDPOINT"`
+	S3EndpointInsecure          string                       `json:"BLOB_STORAGE_S3_ENDPOINT_INSECURE"`
+	S3BucketVersioned           string                       `json:"BLOB_STORAGE_S3_BUCKET_VERSIONED"`
+	CdDefaultBuildLogsBucket    string                       `json:"DEFAULT_BUILD_LOGS_BUCKET" `
+	CdDefaultCdLogsBucketRegion string                       `json:"DEFAULT_CD_LOGS_BUCKET_REGION" `
+	DefaultCacheBucket          string                       `json:"DEFAULT_CACHE_BUCKET"`
+	DefaultCacheBucketRegion    string                       `json:"DEFAULT_CACHE_BUCKET_REGION"`
 
 	//Azure credentials
 	AzureAccountName               string `json:"AZURE_ACCOUNT_NAME"`
 	AzureGatewayUrl                string `json:"AZURE_GATEWAY_URL"`
 	AzureGatewayConnectionInsecure string `json:"AZURE_GATEWAY_CONNECTION_INSECURE"`
+	AzureBlobContainerCiLog        string `json:"AZURE_BLOB_CONTAINER_CI_LOG"`
+	AzureBlobContainerCiCache      string `json:"AZURE_BLOB_CONTAINER_CI_CACHE"`
 }
 
 func (c CmBlobStorageConfig) PopulateWithK8sExtBlobCmData(cm map[string]string) (CmBlobStorageConfig, error) {
@@ -1047,14 +1053,20 @@ func assignNewBlobStorageConfigInCdLogRequest(cdLogRequest *BuildLogRequest, cmC
 	cdLogRequest.CloudProvider = cmConfig.CloudProvider
 	cdLogRequest.AzureBlobConfig.AccountName = cmConfig.AzureAccountName
 	cdLogRequest.AzureBlobConfig.AccountKey = secretConfig.AzureAccountKey
+	cdLogRequest.AzureBlobConfig.BlobContainerName = cmConfig.AzureBlobContainerCiLog
 
 	cdLogRequest.GcpBlobBaseConfig.CredentialFileJsonData = secretConfig.GcpBlobStorageCredentialJson
+	cdLogRequest.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
 
 	cdLogRequest.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
 	cdLogRequest.AwsS3BaseConfig.EndpointUrl = cmConfig.S3Endpoint
 	cdLogRequest.AwsS3BaseConfig.Passkey = secretConfig.S3SecretKey
 	isEndpointInSecure, _ := strconv.ParseBool(cmConfig.S3EndpointInsecure)
 	cdLogRequest.AwsS3BaseConfig.IsInSecure = isEndpointInSecure
+	cdLogRequest.AwsS3BaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
+	cdLogRequest.AwsS3BaseConfig.Region = cmConfig.CdDefaultCdLogsBucketRegion
+	s3BucketVersioned, _ := strconv.ParseBool(cmConfig.S3BucketVersioned)
+	cdLogRequest.AwsS3BaseConfig.VersioningEnabled = s3BucketVersioned
 
 	return *cdLogRequest
 }
@@ -1269,6 +1281,7 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 			impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
 			return nil, err
 		}
+		impl.Logger.Infow("external cluster config ", clusterConfig)
 		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
 		//from them else return.
 		cmConfig, secretConfig, err := impl.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, wfr.Namespace)
@@ -1284,11 +1297,17 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		request.AwsS3BaseConfig.Passkey = secretConfig.S3SecretKey
 		isInSecure, _ := strconv.ParseBool(cmConfig.S3EndpointInsecure)
 		request.AwsS3BaseConfig.IsInSecure = isInSecure
+		request.AwsS3BaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
+		request.AwsS3BaseConfig.Region = cmConfig.CdDefaultCdLogsBucketRegion
+		s3BucketVersioned, _ := strconv.ParseBool(cmConfig.S3BucketVersioned)
+		request.AwsS3BaseConfig.VersioningEnabled = s3BucketVersioned
 
 		request.AzureBlobBaseConfig.AccountName = cmConfig.AzureAccountName
 		request.AzureBlobBaseConfig.AccountKey = secretConfig.AzureAccountKey
+		request.AzureBlobBaseConfig.BlobContainerName = cmConfig.AzureBlobContainerCiLog
 
 		request.GcpBlobBaseConfig.CredentialFileJsonData = secretConfig.GcpBlobStorageCredentialJson
+		request.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
 	}
 	_, numBytes, err := blobStorageService.Get(request)
 	if err != nil {
