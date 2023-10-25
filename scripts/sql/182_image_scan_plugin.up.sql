@@ -9,7 +9,7 @@ VALUES (nextval('id_seq_plugin_pipeline_script'),
         '#!/bin/sh
         echo "IMAGE SCAN"
         curl -X POST $IMAGE_SCANNER_ENDPOINT/scanner/image -H "Content-Type: application/json" -d "{\"image\": \"$DEST\", \"imageDigest\": \"$DIGEST\", \"pipelineId\" : $PIPELINE_ID, \"userId\":
- $TRIGGERED_BY, \"dockerRegistryId\": \"$DOCKER_REGISTRY_ID\" }"
+ $TRIGGERED_BY, \"dockerRegistryId\": \"$DOCKER_REGISTRY_ID\" }" >/dev/null 2>&1
         if [ $? != 0 ]
         then
         echo -e "\033[1m======== Image scanning request failed ========"
