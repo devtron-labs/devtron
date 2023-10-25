@@ -1388,7 +1388,7 @@ func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.Va
 			return nil, err
 		}
 		envOverride.Environment = env
-
+		//todo Aditya Have to move this to common function
 		scope := resourceQualifiers.Scope{
 			AppId:     overrideRequest.AppId,
 			EnvId:     overrideRequest.EnvId,
@@ -2260,6 +2260,8 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(request ConfigMapAndSecr
 	return merged, nil
 }
 
+//todo Aditya Have to refactor this , make one private function , and send cm/cs as parameter
+
 func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *repository3.ConfigmapAndSecretHistory, envOverride *chartConfig.EnvConfigOverride, secretHistory *repository3.ConfigmapAndSecretHistory) (string, string, error) {
 	reference := repository6.HistoryReference{
 		HistoryReferenceId:   configMapHistory.Id,
@@ -2267,9 +2269,10 @@ func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *re
 	}
 	configMapHistoryJSON, err := json.Marshal(configMapHistory)
 	if err != nil {
-		impl.logger.Errorw("error in Marshalling configMapHistory", configMapHistory, "err", err)
+		impl.logger.Errorw("error in Marshalling configMapHistory for Id", configMapHistory.Id, "err", err)
 		return "", "", err
 	}
+	//todo Aditya have to implement batch
 	variableMapCM, resolvedTemplateCM, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configMapHistoryJSON), reference, true, false)
 	if err != nil {
 		return "", "", err
@@ -2283,7 +2286,7 @@ func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *re
 	}
 	secretHistoryJSON, err := json.Marshal(secretHistory)
 	if err != nil {
-		impl.logger.Errorw("error in Marshalling secretHistory", secretHistory, "err", err)
+		impl.logger.Errorw("error in Marshalling secretHistory for Id ", secretHistory.Id, "err", err)
 		return "", "", err
 	}
 	data, err := repository3.GetTransformedDataForSecretHistory(string(secretHistoryJSON), bean.DecodeSecret)
@@ -2300,15 +2303,17 @@ func (impl *AppServiceImpl) ResolvedVariableForSpecificType(configMapHistory *re
 	return resolvedTemplateCM, encodedSecretData, nil
 }
 
+//TODO move to cmcs Manager layer
+
 func (impl *AppServiceImpl) ResolvedVariableForLastSaved(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel, configMapByte []byte, secretDataByte []byte) (string, string, error) {
 
-	varNamesCM, varNamesCS, scopedVariables, err := impl.GetScopedAndCollectVarNames(request.scope, configMapA, configMapE)
+	varNamesCM, varNamesCS, scopedVariables, err := impl.GetCMCSScopedVars(request.scope, configMapA, configMapE)
 	if err != nil {
 		return "", "", err
 	}
 
-	var resolvedCS string
-	var resolvedCM string
+	var resolvedCS, resolvedCM string
+	//var resolvedCM string
 	if configMapByte != nil && len(varNamesCM) > 0 {
 		parserRequest := parsers.CreateParserRequest(string(configMapByte), parsers.JsonVariableTemplate, scopedVariables, false)
 		resolvedCM, err = impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
@@ -2334,7 +2339,7 @@ func (impl *AppServiceImpl) ResolvedVariableForLastSaved(request ConfigMapAndSec
 	return resolvedCM, resolvedCS, nil
 }
 
-func (impl *AppServiceImpl) GetScopedAndCollectVarNames(scope resourceQualifiers.Scope, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel) ([]string, []string, []*models2.ScopedVariableData, error) {
+func (impl *AppServiceImpl) GetCMCSScopedVars(scope resourceQualifiers.Scope, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel) ([]string, []string, []*models2.ScopedVariableData, error) {
 	varNamesCM := make([]string, 0)
 	varNamesCS := make([]string, 0)
 	entitiesForCM := util2.GetBeans(
@@ -2350,10 +2355,14 @@ func (impl *AppServiceImpl) GetScopedAndCollectVarNames(scope resourceQualifiers
 	if err != nil {
 		return varNamesCM, varNamesCS, nil, err
 	}
+
 	varNamesCM = repository6.CollectVariables(entityToVariables, entitiesForCM)
 	varNamesCS = repository6.CollectVariables(entityToVariables, entitiesForCS)
 	usedVariablesInCMCS := utils.FilterDuplicatesInStringArray(append(varNamesCM, varNamesCS...))
-	scopedVariables, err := impl.scopedVariableManager.GetScopedVariables(scope, usedVariablesInCMCS, true)
+	scopedVariables := make([]*models2.ScopedVariableData, 0)
+	if len(entityToVariables) > 0 {
+		scopedVariables, err = impl.scopedVariableManager.GetScopedVariables(scope, usedVariablesInCMCS, true)
+	}
 	return varNamesCM, varNamesCS, scopedVariables, nil
 }
 

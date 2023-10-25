@@ -398,6 +398,8 @@ func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, 
 	return finalMap, nil
 }
 
+//TODO Aditya move to *history.ConfigData
+
 func GetDecodedData(data map[string]*history.ConfigData) (map[string]*history.ConfigData, error) {
 	var marshal []byte
 	for name, configData := range data {
@@ -409,6 +411,7 @@ func GetDecodedData(data map[string]*history.ConfigData) (map[string]*history.Co
 		}
 		for key, value := range dataMap {
 			decodedData, err := base64.StdEncoding.DecodeString(value)
+			//todo Aditya return err
 			if err != nil {
 				fmt.Println("Error decoding base64:", err)
 			}

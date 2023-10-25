@@ -201,6 +201,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 		impl.logger.Errorw("err in merging app and env level configs", "err", err)
 		return 0, 0, err
 	}
+	//todo Aditya Make clone function
 	historyModelForCS := &repository.ConfigmapAndSecretHistory{
 		AppId:      pipeline.AppId,
 		PipelineId: pipeline.Id,
