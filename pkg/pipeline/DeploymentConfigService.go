@@ -334,9 +334,29 @@ func (impl *DeploymentConfigServiceImpl) resolveCMCS(
 		if err != nil {
 			return "", "", nil, nil, err
 		}
+		err = getFinalMergedSecret(mergedSecret)
+		if err != nil {
+			return "", "", nil, nil, err
+		}
 
 	}
 	return resolvedTemplateCM, encodedSecretData, variableMapCM, variableMapCS, nil
+}
+
+func getFinalMergedSecret(mergedSecret map[string]*history.ConfigData) error {
+	newMergeSecret, err := json.Marshal(mergedSecret)
+	if err != nil {
+		return err
+	}
+	finalMergeSecret, err := GetEncodedData(string(newMergeSecret))
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal([]byte(finalMergeSecret), &mergedSecret)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*history.ConfigData, error) {

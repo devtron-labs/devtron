@@ -3452,6 +3452,7 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(request ConfigM
 		}
 
 	}
+
 	merged, err = impl.mergeUtil.JsonPatch([]byte(resolvedCM), []byte(resolvedCS))
 
 	if err != nil {
@@ -3464,19 +3465,17 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(request ConfigM
 //TODO move to cmcs Manager layer
 
 func (impl *WorkflowDagExecutorImpl) ResolvedVariableForLastSaved(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel, configMapByte []byte, secretDataByte []byte) (string, string, error) {
-
+	var resolvedCS, resolvedCM string
 	varNamesCM, varNamesCS, scopedVariables, err := impl.GetCMCSScopedVars(request.scope, configMapA, configMapE)
 	if err != nil {
-		return "", "", err
+		return string(configMapByte), string(secretDataByte), err
 	}
 
-	var resolvedCS, resolvedCM string
-	//var resolvedCM string
 	if configMapByte != nil && len(varNamesCM) > 0 {
 		parserRequest := parsers.CreateParserRequest(string(configMapByte), parsers.JsonVariableTemplate, scopedVariables, false)
 		resolvedCM, err = impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
 		if err != nil {
-			return "", "", err
+			return resolvedCM, string(secretDataByte), err
 		}
 		envOverride.VariableSnapshotForCM = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
 	}
@@ -3484,16 +3483,24 @@ func (impl *WorkflowDagExecutorImpl) ResolvedVariableForLastSaved(request Config
 	if secretDataByte != nil && len(varNamesCS) > 0 {
 		data, err := bean.GetTransformedDataForSecret(string(secretDataByte), bean.DecodeSecret)
 		if err != nil {
-			return "", "", err
+			return resolvedCM, string(secretDataByte), err
 		}
 		parserRequest := parsers.CreateParserRequest(data, parsers.JsonVariableTemplate, scopedVariables, false)
 		resolvedCSDecoded, err := impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
 		envOverride.VariableSnapshotForCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
 		resolvedCS, err = bean.GetTransformedDataForSecret(resolvedCSDecoded, bean.EncodeSecret)
 		if err != nil {
-			return "", "", err
+			return resolvedCM, resolvedCM, err
 		}
 	}
+	if resolvedCM != "" && resolvedCS == "" {
+		return resolvedCM, string(secretDataByte), nil
+	} else if resolvedCM == "" && resolvedCS != "" {
+		return string(configMapByte), resolvedCS, nil
+	} else if resolvedCM == "" && resolvedCS == "" {
+		return string(configMapByte), string(secretDataByte), nil
+	}
+
 	return resolvedCM, resolvedCS, nil
 }
 func (impl *WorkflowDagExecutorImpl) GetCMCSScopedVars(scope resourceQualifiers.Scope, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel) ([]string, []string, []*models2.ScopedVariableData, error) {
