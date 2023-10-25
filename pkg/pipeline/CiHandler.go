@@ -652,7 +652,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 	}
 
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow("", runningWf.Name, runningWf.Namespace, nil, isExt, env)
+	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, runningWf.Name, runningWf.Namespace, nil, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
