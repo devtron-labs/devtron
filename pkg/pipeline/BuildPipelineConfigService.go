@@ -2380,9 +2380,7 @@ func (impl *PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelin
 
 		releaseTags := make([]string, 0, len(imageTaggingResp))
 		for _, imageTag := range imageTaggingResp {
-			if !imageTag.Deleted {
-				releaseTags = append(releaseTags, imageTag.TagName)
-			}
+			releaseTags = append(releaseTags, imageTag.TagName)
 		}
 
 		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags)
@@ -2516,9 +2514,7 @@ func (impl *PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, appId, o
 		}
 		releaseTags := make([]string, 0, len(imageTaggingResp))
 		for _, imageTag := range imageTaggingResp {
-			if !imageTag.Deleted {
-				releaseTags = append(releaseTags, imageTag.TagName)
-			}
+			releaseTags = append(releaseTags, imageTag.TagName)
 		}
 
 		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, deployedCiArtifacts[i].Image, releaseTags)
