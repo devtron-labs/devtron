@@ -64,7 +64,6 @@ import (
 
 type CiCdPipelineOrchestrator interface {
 	CreateApp(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
-	UpdateApp(updateRequest *bean.UpdateAppDto) error
 	DeleteApp(appId int, userId int32) error
 	CreateMaterials(createMaterialRequest *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
 	UpdateMaterial(updateMaterialRequest *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
@@ -1047,16 +1046,6 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		createRequest.AppName = app.DisplayName
 	}
 	return createRequest, nil
-}
-
-func (impl CiCdPipelineOrchestratorImpl) UpdateApp(updateRequest *bean.UpdateAppDto) error {
-	//updating description as other fields are not supported yet
-	err := impl.appRepository.SetDescription(updateRequest.Id, updateRequest.Description, updateRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in setting app description", "err", err, "appId", updateRequest.Id)
-		return err
-	}
-	return nil
 }
 
 func (impl CiCdPipelineOrchestratorImpl) storeGenericNote(tx *pg.Tx, createRequest *bean.CreateAppDTO, appId int) error {

@@ -125,6 +125,13 @@ func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*
 		return nil, err
 	}
 
+	//updating description
+	err = impl.appRepository.SetDescription(app.Id, request.Description, request.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in setting app description", "err", err, "appId", app.Id)
+		return nil, err
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in commit db transaction", "error", err)

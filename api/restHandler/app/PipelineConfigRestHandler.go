@@ -401,55 +401,6 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var updateRequest bean.UpdateAppDto
-	err = decoder.Decode(&updateRequest)
-	updateRequest.UserId = userId
-	if err != nil {
-		handler.Logger.Errorw("request err, UpdateApp", "err", err, "updateRequest", updateRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if updateRequest.AppType == helper.Job {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else {
-		rbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(updateRequest.Id)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, rbacObj); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	}
-	handler.Logger.Infow("request payload, UpdateApp", "updateRequest", updateRequest)
-	err = handler.validator.Struct(updateRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err, CreateApp", "err", err, "updateRequest", updateRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	err = handler.pipelineBuilder.UpdateApp(&updateRequest)
-	if err != nil {
-		handler.Logger.Errorw("service err, UpdateApp", "err", err, "updateRequest", updateRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, "App updated successfully.", http.StatusOK)
-}
-
 func (handler PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)

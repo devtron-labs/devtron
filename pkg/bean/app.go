@@ -53,13 +53,6 @@ type CreateAppDTO struct {
 	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
-type UpdateAppDto struct {
-	Id          int            `json:"id" validate:"gt=0"`
-	AppType     helper.AppType `json:"appType" validate:"gt=-1,lt=3"`
-	Description string         `json:"description"`
-	UserId      int32          `json:"-"` //not exposed to UI
-}
-
 type CreateMaterialDTO struct {
 	Id       int            `json:"id,omitempty" validate:"number"`
 	AppId    int            `json:"appId" validate:"number"`
