@@ -21,7 +21,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -174,63 +173,6 @@ type ArgoPipelineStatusSyncEvent struct {
 	PipelineId            int   `json:"pipelineId"`
 	UserId                int32 `json:"userId"`
 	IsAppStoreApplication bool  `json:"isAppStoreApplication"`
-}
-
-type CmBlobStorageConfig struct {
-	//AWS credentials
-	CloudProvider               blob_storage.BlobStorageType `json:"BLOB_STORAGE_PROVIDER"`
-	S3AccessKey                 string                       `json:"BLOB_STORAGE_S3_ACCESS_KEY"`
-	S3Endpoint                  string                       `json:"BLOB_STORAGE_S3_ENDPOINT"`
-	S3EndpointInsecure          string                       `json:"BLOB_STORAGE_S3_ENDPOINT_INSECURE"`
-	S3BucketVersioned           string                       `json:"BLOB_STORAGE_S3_BUCKET_VERSIONED"`
-	CdDefaultBuildLogsBucket    string                       `json:"DEFAULT_BUILD_LOGS_BUCKET" `
-	CdDefaultCdLogsBucketRegion string                       `json:"DEFAULT_CD_LOGS_BUCKET_REGION" `
-	DefaultCacheBucket          string                       `json:"DEFAULT_CACHE_BUCKET"`
-	DefaultCacheBucketRegion    string                       `json:"DEFAULT_CACHE_BUCKET_REGION"`
-
-	//Azure credentials
-	AzureAccountName               string `json:"AZURE_ACCOUNT_NAME"`
-	AzureGatewayUrl                string `json:"AZURE_GATEWAY_URL"`
-	AzureGatewayConnectionInsecure string `json:"AZURE_GATEWAY_CONNECTION_INSECURE"`
-	AzureBlobContainerCiLog        string `json:"AZURE_BLOB_CONTAINER_CI_LOG"`
-	AzureBlobContainerCiCache      string `json:"AZURE_BLOB_CONTAINER_CI_CACHE"`
-}
-
-func (c *CmBlobStorageConfig) PopulateWithK8sExtBlobCmData(cm map[string]string) error {
-	cmDataJson, err := json.Marshal(cm)
-	if err != nil {
-		fmt.Println("error marshalling external blob storage cm data to json:", err)
-		return err
-	}
-	err = json.Unmarshal(cmDataJson, &c)
-	if err != nil {
-		fmt.Println("error unmarshalling external blob storage cm json to struct:", err)
-		return err
-	}
-	return nil
-}
-
-type SecretBlobStorageConfig struct {
-	//aws
-	S3SecretKey string `json:"BLOB_STORAGE_S3_SECRET_KEY"`
-	//gcp
-	GcpBlobStorageCredentialJson string `json:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
-	//azure
-	AzureAccountKey string `json:"AZURE_ACCOUNT_KEY"`
-}
-
-func (s *SecretBlobStorageConfig) PopulateWithK8sExtBlobSecretData(secret map[string][]byte) error {
-	cmDataJson, err := json.Marshal(secret)
-	if err != nil {
-		fmt.Println("error marshalling external blob storage secret data to json:", err)
-		return err
-	}
-	err = json.Unmarshal(cmDataJson, &s)
-	if err != nil {
-		fmt.Println("error unmarshalling external blob storage secret json to struct:", err)
-		return err
-	}
-	return nil
 }
 
 const NotTriggered string = "Not Triggered"
@@ -1049,7 +991,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	logReader := bufio.NewReader(oldLogsStream)
 	return logReader, cleanUp, err
 }
-func assignNewBlobStorageConfigInCdLogRequest(cdLogRequest *BuildLogRequest, cmConfig *CmBlobStorageConfig, secretConfig *SecretBlobStorageConfig) BuildLogRequest {
+func assignNewBlobStorageConfigInCdLogRequest(cdLogRequest *BuildLogRequest, cmConfig *bean2.CmBlobStorageConfig, secretConfig *bean2.SecretBlobStorageConfig) BuildLogRequest {
 	cdLogRequest.CloudProvider = cmConfig.CloudProvider
 	cdLogRequest.AzureBlobConfig.AccountName = cmConfig.AzureAccountName
 	cdLogRequest.AzureBlobConfig.AccountKey = decodeSecretKey(secretConfig.AzureAccountKey)
@@ -1071,9 +1013,9 @@ func assignNewBlobStorageConfigInCdLogRequest(cdLogRequest *BuildLogRequest, cmC
 	return *cdLogRequest
 }
 
-func (impl *CdHandlerImpl) FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s.ClusterConfig, namespace string) (*CmBlobStorageConfig, *SecretBlobStorageConfig, error) {
-	cmConfig := &CmBlobStorageConfig{}
-	secretConfig := &SecretBlobStorageConfig{}
+func (impl *CdHandlerImpl) FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error) {
+	cmConfig := &bean2.CmBlobStorageConfig{}
+	secretConfig := &bean2.SecretBlobStorageConfig{}
 	_, _, kubeClient, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.Logger.Errorw("FetchCmAndSecretBlobConfigFromExternalCluster, error in getting kubeClient by cluster config", "err", err)
@@ -1307,7 +1249,7 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	return file, nil
 }
 
-func assignNewBlobStorageConfigInRequest(request *blob_storage.BlobStorageRequest, cmConfig *CmBlobStorageConfig, secretConfig *SecretBlobStorageConfig) *blob_storage.BlobStorageRequest {
+func assignNewBlobStorageConfigInRequest(request *blob_storage.BlobStorageRequest, cmConfig *bean2.CmBlobStorageConfig, secretConfig *bean2.SecretBlobStorageConfig) *blob_storage.BlobStorageRequest {
 	request.StorageType = cmConfig.CloudProvider
 
 	request.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
