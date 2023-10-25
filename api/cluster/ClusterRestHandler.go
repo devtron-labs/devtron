@@ -471,12 +471,7 @@ func (impl ClusterRestHandlerImpl) UpdateClusterDescription(w http.ResponseWrite
 		return
 	}
 	impl.logger.Infow("request payload, UpdateClusterDescription", "payload", bean)
-	err = impl.validator.Struct(bean)
-	if err != nil {
-		impl.logger.Errorw("validate err, UpdateClusterDescription", "error", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+	//TODO: add apt validation
 	clusterDescription, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", bean.Id)
