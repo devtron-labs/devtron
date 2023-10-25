@@ -1065,18 +1065,23 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	}
 	// create labels and tags with app
 	if app.Active && len(createRequest.AppLabels) > 0 {
+		appLabelMap := make(map[string]bool)
 		for _, label := range createRequest.AppLabels {
-			request := &bean.AppLabelDto{
-				AppId:     app.Id,
-				Key:       label.Key,
-				Value:     label.Value,
-				Propagate: label.Propagate,
-				UserId:    createRequest.UserId,
-			}
-			_, err := impl.appLabelsService.Create(request, tx)
-			if err != nil {
-				impl.logger.Errorw("error on creating labels for app id ", "err", err, "appId", app.Id)
-				return nil, err
+			uniqueLabelExists := fmt.Sprintf("%s:%s:%t", label.Key, label.Value, label.Propagate)
+			if _, ok := appLabelMap[uniqueLabelExists]; !ok {
+				appLabelMap[uniqueLabelExists] = true
+				request := &bean.AppLabelDto{
+					AppId:     app.Id,
+					Key:       label.Key,
+					Value:     label.Value,
+					Propagate: label.Propagate,
+					UserId:    createRequest.UserId,
+				}
+				_, err := impl.appLabelsService.Create(request, tx)
+				if err != nil {
+					impl.logger.Errorw("error on creating labels for app id ", "err", err, "appId", app.Id)
+					return nil, err
+				}
 			}
 		}
 	}
