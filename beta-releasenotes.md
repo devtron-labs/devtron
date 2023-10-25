@@ -1,4 +1,5 @@
 ## Bugs
+- fix: duplication of tags on giving same key-value pair (#4139)
 - fix: error handling in image scan (#4150)
 - fix: valuesOverrideResponse (#4149)
 ## Enhancements
