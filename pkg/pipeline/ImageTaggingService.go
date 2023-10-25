@@ -169,7 +169,9 @@ func (impl ImageTaggingServiceImpl) GetTagNamesByArtifactId(artifactId int) ([]s
 	}
 	releaseTags := make([]string, 0, len(imageReleaseTags))
 	for _, imageTag := range imageReleaseTags {
-		releaseTags = append(releaseTags, imageTag.TagName)
+		if !imageTag.Deleted {
+			releaseTags = append(releaseTags, imageTag.TagName)
+		}
 	}
 	return releaseTags, nil
 }
