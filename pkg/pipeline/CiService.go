@@ -24,7 +24,6 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg"
 	"github.com/devtron-labs/devtron/pkg/app"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -73,7 +72,7 @@ type CiServiceImpl struct {
 	appCrudOperationService        app.AppCrudOperationService
 	envRepository                  repository1.EnvironmentRepository
 	appRepository                  appRepository.AppRepository
-	customTagService               pkg.CustomTagService
+	customTagService               CustomTagService
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 	config                         *CiConfig
 }
@@ -87,7 +86,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	userService user.UserService,
 	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
-	customTagService pkg.CustomTagService,
+	customTagService CustomTagService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                         Logger,
@@ -456,16 +455,16 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	var dockerImageTag string
-	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
 	if customTag.Id != 0 {
-		imagePathReservation, err := impl.customTagService.GenerateImagePath(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository)
+		imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository)
 		if err != nil {
-			if errors.Is(err, pkg.ErrImagePathInUse) {
+			if errors.Is(err, bean2.ErrImagePathInUse) {
 				savedWf.Status = pipelineConfig.WorkflowFailed
-				savedWf.Message = pkg.ImageTagUnavailableMessage
+				savedWf.Message = bean2.ImageTagUnavailableMessage
 				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 				if err1 != nil {
 					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")

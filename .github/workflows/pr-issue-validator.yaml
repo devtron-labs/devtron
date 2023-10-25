@@ -39,7 +39,7 @@ jobs:
         TITLE: ${{ github.event.pull_request.title }}
       run: |
         set -x
-        if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* ]]; then
+        if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* || "$TITLE" == *"release:"* || "$TITLE" == *"Release:"*  ]]; then
           echo "Skipping validation as this is a PR for documentation or chore."
           gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
           gh pr edit $PRNUM --add-label "PR:Ready-to-Review"

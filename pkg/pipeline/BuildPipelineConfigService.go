@@ -26,7 +26,6 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -126,7 +125,7 @@ type CiPipelineConfigServiceImpl struct {
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	resourceGroupService          resourceGroup2.ResourceGroupService
 	enforcerUtil                  rbac.EnforcerUtil
-	customTagService              pkg.CustomTagService
+	customTagService              CustomTagService
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -148,7 +147,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	resourceGroupService resourceGroup2.ResourceGroupService,
-	customTagService pkg.CustomTagService) *CiPipelineConfigServiceImpl {
+	customTagService CustomTagService) *CiPipelineConfigServiceImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -621,7 +620,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			impl.logger.Errorw("error in fetching ciEnvMapping", "ciPipelineId ", pipeline.Id, "err", err)
 			return nil, err
 		}
-		customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+		customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			return nil, err
 		}
@@ -757,6 +756,16 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 		PipelineType:             bean.PipelineType(pipeline.PipelineType),
+	}
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	if customTag.Id != 0 {
+		ciPipeline.CustomTagObject = &bean.CustomTagData{
+			TagPattern: customTag.TagPattern,
+			CounterX:   customTag.AutoIncreasingNumber,
+		}
 	}
 	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipelineId)
 	if err != nil && err != pg.ErrNoRows {

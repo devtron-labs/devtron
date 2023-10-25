@@ -32,7 +32,6 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
@@ -115,7 +114,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	configMapService              ConfigMapService
 	genericNoteService            genericNotes.GenericNoteService
-	customTagService              pkg.CustomTagService
+	customTagService              CustomTagService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -141,7 +140,7 @@ func NewCiCdPipelineOrchestrator(
 	ciTemplateService CiTemplateService,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	configMapService ConfigMapService,
-	customTagService pkg.CustomTagService,
+	customTagService CustomTagService,
 	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
@@ -335,7 +334,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	//Otherwise deleteIfExists
 	if createRequest.CustomTagObject != nil {
 		customTag := bean4.CustomTag{
-			EntityKey:            pkg.EntityTypeCiPipelineId,
+			EntityKey:            bean2.EntityTypeCiPipelineId,
 			EntityValue:          strconv.Itoa(ciPipelineObject.Id),
 			TagPattern:           createRequest.CustomTagObject.TagPattern,
 			AutoIncreasingNumber: createRequest.CustomTagObject.CounterX,
@@ -346,7 +345,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 	} else {
 		customTag := bean4.CustomTag{
-			EntityKey:   pkg.EntityTypeCiPipelineId,
+			EntityKey:   bean2.EntityTypeCiPipelineId,
 			EntityValue: strconv.Itoa(ciPipelineObject.Id),
 		}
 		err := impl.customTagService.DeleteCustomTagIfExists(customTag)
@@ -771,7 +770,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		//If customTagObejct has been passed, save it
 		if ciPipeline.CustomTagObject != nil {
 			customTag := &bean4.CustomTag{
-				EntityKey:            pkg.EntityTypeCiPipelineId,
+				EntityKey:            bean2.EntityTypeCiPipelineId,
 				EntityValue:          strconv.Itoa(ciPipeline.Id),
 				TagPattern:           ciPipeline.CustomTagObject.TagPattern,
 				AutoIncreasingNumber: ciPipeline.CustomTagObject.CounterX,
@@ -1065,18 +1064,23 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	}
 	// create labels and tags with app
 	if app.Active && len(createRequest.AppLabels) > 0 {
+		appLabelMap := make(map[string]bool)
 		for _, label := range createRequest.AppLabels {
-			request := &bean.AppLabelDto{
-				AppId:     app.Id,
-				Key:       label.Key,
-				Value:     label.Value,
-				Propagate: label.Propagate,
-				UserId:    createRequest.UserId,
-			}
-			_, err := impl.appLabelsService.Create(request, tx)
-			if err != nil {
-				impl.logger.Errorw("error on creating labels for app id ", "err", err, "appId", app.Id)
-				return nil, err
+			uniqueLabelExists := fmt.Sprintf("%s:%s:%t", label.Key, label.Value, label.Propagate)
+			if _, ok := appLabelMap[uniqueLabelExists]; !ok {
+				appLabelMap[uniqueLabelExists] = true
+				request := &bean.AppLabelDto{
+					AppId:     app.Id,
+					Key:       label.Key,
+					Value:     label.Value,
+					Propagate: label.Propagate,
+					UserId:    createRequest.UserId,
+				}
+				_, err := impl.appLabelsService.Create(request, tx)
+				if err != nil {
+					impl.logger.Errorw("error on creating labels for app id ", "err", err, "appId", app.Id)
+					return nil, err
+				}
 			}
 		}
 	}
