@@ -1,4 +1,4 @@
-package argocdServer
+package connection
 
 import "testing"
 

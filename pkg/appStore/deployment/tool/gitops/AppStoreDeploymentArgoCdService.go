@@ -11,6 +11,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -55,6 +56,7 @@ type AppStoreDeploymentArgoCdService interface {
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error
 	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
+	RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -75,6 +77,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	userService                          user.UserService
 	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
+	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
@@ -85,7 +88,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	pipelineStatusTimelineService status.PipelineStatusTimelineService, userService user.UserService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-) *AppStoreDeploymentArgoCdServiceImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                               logger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -104,7 +107,26 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		userService:                          userService,
 		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
+		argoClientWrapperService:             argoClientWrapperService,
 	}
+}
+
+// RefreshAndUpdateACDApp this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
+func (impl AppStoreDeploymentArgoCdServiceImpl) RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error {
+	if isMonoRepoMigrationRequired {
+		// update repo details on ArgoCD as repo is changed
+		err := impl.UpdateChartInfo(installAppVersionRequest, ChartGitAttribute, 0, ctx)
+		if err != nil {
+			impl.Logger.Errorw("error in acd patch request", "err", err)
+			return err
+		}
+	}
+	// Doing this to refresh normally by getting app to avoid sync delay argo cd
+	err := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
+	if err != nil {
+		impl.Logger.Errorw("error in getting argocd application with normal refresh", "err", err, "argoAppName", installAppVersionRequest.ACDAppName)
+	}
+	return nil
 }
 
 // UpdateChartInfo this will update chart info in acd app, needed when repo for an app is changed

@@ -55,6 +55,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -100,6 +101,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
@@ -170,10 +172,10 @@ func InitializeApp() (*App, error) {
 		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(chart.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
-		argocdServer.SettingsManager,
+		connection.SettingsManager,
 		//auth.GetConfig,
 
-		argocdServer.GetConfig,
+		connection.GetConfig,
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
@@ -221,8 +223,27 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
 		pipeline.GetDeploymentServiceTypeConfig,
+
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
+		pipeline.NewCiPipelineConfigServiceImpl,
+		wire.Bind(new(pipeline.CiPipelineConfigService), new(*pipeline.CiPipelineConfigServiceImpl)),
+		pipeline.NewCiMaterialConfigServiceImpl,
+		wire.Bind(new(pipeline.CiMaterialConfigService), new(*pipeline.CiMaterialConfigServiceImpl)),
+
+		pipeline.NewAppArtifactManagerImpl,
+		wire.Bind(new(pipeline.AppArtifactManager), new(*pipeline.AppArtifactManagerImpl)),
+		pipeline.NewDevtronAppCMCSServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppCMCSService), new(*pipeline.DevtronAppCMCSServiceImpl)),
+		pipeline.NewDevtronAppStrategyServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppStrategyService), new(*pipeline.DevtronAppStrategyServiceImpl)),
+		pipeline.NewAppDeploymentTypeChangeManagerImpl,
+		wire.Bind(new(pipeline.AppDeploymentTypeChangeManager), new(*pipeline.AppDeploymentTypeChangeManagerImpl)),
+		pipeline.NewCdPipelineConfigServiceImpl,
+		wire.Bind(new(pipeline.CdPipelineConfigService), new(*pipeline.CdPipelineConfigServiceImpl)),
+		pipeline.NewDevtronAppConfigServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppConfigService), new(*pipeline.DevtronAppConfigServiceImpl)),
+
 		util5.NewLoggingMiddlewareImpl,
 		wire.Bind(new(util5.LoggingMiddleware), new(*util5.LoggingMiddlewareImpl)),
 		pipeline2.NewPipelineRestHandlerImpl,
@@ -278,6 +299,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppListingService), new(*app.AppListingServiceImpl)),
 		repository.NewAppListingRepositoryImpl,
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+
+		repository.NewDeploymentTemplateRepositoryImpl,
+		wire.Bind(new(repository.DeploymentTemplateRepository), new(*repository.DeploymentTemplateRepositoryImpl)),
+		generateManifest.NewDeploymentTemplateServiceImpl,
+		wire.Bind(new(generateManifest.DeploymentTemplateService), new(*generateManifest.DeploymentTemplateServiceImpl)),
 
 		router.NewJobRouterImpl,
 		wire.Bind(new(router.JobRouter), new(*router.JobRouterImpl)),
@@ -789,8 +815,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
 		//plugin ends
 
-		argocdServer.NewArgoCDConnectionManagerImpl,
-		wire.Bind(new(argocdServer.ArgoCDConnectionManager), new(*argocdServer.ArgoCDConnectionManagerImpl)),
+		connection.NewArgoCDConnectionManagerImpl,
+		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 		util2.GetDevtronSecretName,
@@ -849,8 +875,8 @@ func InitializeApp() (*App, error) {
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 
-		chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
-		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
+		//chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
+		//wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
 		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
 
@@ -918,6 +944,9 @@ func InitializeApp() (*App, error) {
 
 		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
 		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+
+		argocdServer.NewArgoClientWrapperServiceImpl,
+		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
 	)
 	return &App{}, nil
 }
