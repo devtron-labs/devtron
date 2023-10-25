@@ -104,6 +104,7 @@ type InstallAppVersionDTO struct {
 	PerformGitOps                bool `json:"performGitOps"`
 	PerformACDDeployment         bool `json:"performACDDeployment"`
 	PerformHelmDeployment        bool `json:"performHelmDeployment"`
+	PerformedSyncHelmInstall     bool `json:"-"` // For Internal Use
 }
 
 type InstalledAppDeleteResponseDTO struct {

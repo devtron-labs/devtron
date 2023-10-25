@@ -131,11 +131,11 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		InstallAppVersionHistoryId: int32(installAppVersionRequest.InstalledAppVersionHistoryId),
 	}
 
-	_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
+	resp, err := impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
 	if err != nil {
 		return installAppVersionRequest, err
 	}
-
+	installAppVersionRequest.PerformedSyncHelmInstall = resp.PerformedHelmSyncInstall
 	return installAppVersionRequest, nil
 }
 

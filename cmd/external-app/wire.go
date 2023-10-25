@@ -5,7 +5,6 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
-	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
@@ -185,7 +184,7 @@ func InitializeApp() (*App, error) {
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
-		pubsub_lib.NewPubSubClientServiceImpl,
+		//pubsub_lib.NewPubSubClientServiceImpl,
 
 		// start: docker registry wire set injection
 		router.NewDockerRegRouterImpl,
