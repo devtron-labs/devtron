@@ -6,11 +6,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// FilterTargetObject represents the targeted areas where filters are evaluated
 type FilterTargetObject int
 
 const (
-	Artifact FilterTargetObject = 0
-	Commits  FilterTargetObject = 1
+	DeploymentPipeline FilterTargetObject = 0
+	BuildPipeline      FilterTargetObject = 1
 )
 
 type ResourceConditionType int
@@ -31,10 +32,6 @@ type ResourceFilter struct {
 	sql.AuditLog
 }
 
-func (o *ResourceFilter) GetMetaData() {
-
-}
-
 type ResourceFilterRepository interface {
 	//transaction util funcs
 	sql.TransactionWrapper
@@ -48,17 +45,19 @@ type ResourceFilterRepository interface {
 }
 
 type ResourceFilterRepositoryImpl struct {
-	logger       *zap.SugaredLogger
-	dbConnection *pg.DB
+	logger          *zap.SugaredLogger
+	dbConnection    *pg.DB
+	filterAuditRepo FilterAuditRepository
 	*sql.TransactionUtilImpl
 }
 
 func NewResourceFilterRepositoryImpl(logger *zap.SugaredLogger,
-	dbConnection *pg.DB) *ResourceFilterRepositoryImpl {
+	dbConnection *pg.DB, filterAuditRepo FilterAuditRepository) *ResourceFilterRepositoryImpl {
 	return &ResourceFilterRepositoryImpl{
 		logger:              logger,
 		dbConnection:        dbConnection,
 		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		filterAuditRepo:     filterAuditRepo,
 	}
 }
 
@@ -67,11 +66,47 @@ func (repo *ResourceFilterRepositoryImpl) GetConnection() *pg.DB {
 }
 func (repo *ResourceFilterRepositoryImpl) CreateResourceFilter(tx *pg.Tx, filter *ResourceFilter) (*ResourceFilter, error) {
 	err := tx.Insert(filter)
+	if err != nil {
+		repo.logger.Errorw("error in creating resource filter", "filter", filter, "err", err)
+		return filter, err
+	}
+	action := Create
+	filterAudit := &ResourceFilterAudit{
+		FilterId:     filter.Id,
+		Conditions:   filter.ConditionExpression,
+		TargetObject: filter.TargetObject,
+		AuditLog: sql.AuditLog{
+			CreatedOn: filter.CreatedOn,
+			CreatedBy: filter.CreatedBy,
+		},
+		Action: &action,
+	}
+	_, err = repo.filterAuditRepo.CreateResourceFilterAudit(tx, filterAudit)
+	if err != nil {
+		repo.logger.Errorw("error in creating resource filter audit", "filter", filter, "err", err)
+		return filter, err
+	}
 	return filter, err
 }
 
 func (repo *ResourceFilterRepositoryImpl) UpdateFilter(tx *pg.Tx, filter *ResourceFilter) error {
 	err := tx.Update(filter)
+	if err != nil {
+		repo.logger.Errorw("error in updating resource filter", "filter", filter, "err", err)
+		return err
+	}
+
+	action := Update
+	if *filter.Deleted {
+		action = Delete
+	}
+
+	filterAudit := NewResourceFilterAudit(filter.Id, filter.ConditionExpression, filter.TargetObject, &action, filter.CreatedBy)
+	_, err = repo.filterAuditRepo.CreateResourceFilterAudit(tx, &filterAudit)
+	if err != nil {
+		repo.logger.Errorw("error in creating resource filter audit", "filter", filter, "err", err)
+		return err
+	}
 	return err
 }
 

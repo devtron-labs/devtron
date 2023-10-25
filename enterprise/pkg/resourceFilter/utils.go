@@ -9,6 +9,7 @@ const (
 	NoResourceFiltersFound           = "no active resource filters found"
 	AppAndEnvSelectorRequiredMessage = "both application and environment selectors are required"
 	InvalidExpressions               = "one or more expressions are invalid"
+	FilterNotFound                   = "filter not found"
 )
 
 // util methods
@@ -18,20 +19,26 @@ func getJsonStringFromResourceCondition(resourceConditions []ResourceCondition) 
 	return string(jsonBytes), err
 }
 
+func getResourceConditionFromJsonString(conditionExpression string) ([]ResourceCondition, error) {
+	res := make([]ResourceCondition, 0)
+	err := json.Unmarshal([]byte(conditionExpression), &res)
+	return res, err
+}
+
 func extractResourceConditions(resourceConditionJson string) ([]ResourceCondition, error) {
 	var resourceConditions []ResourceCondition
 	err := json.Unmarshal([]byte(resourceConditionJson), &resourceConditions)
 	return resourceConditions, err
 }
 
-func convertToResponseBeans(resourceFilters []*ResourceFilter) ([]*FilterRequestResponseBean, error) {
-	var filterResponseBeans []*FilterRequestResponseBean
+func convertToResponseBeans(resourceFilters []*ResourceFilter) ([]*FilterMetaDataBean, error) {
+	var filterResponseBeans []*FilterMetaDataBean
 	for _, resourceFilter := range resourceFilters {
 		filterResponseBean, err := convertToFilterBean(resourceFilter)
 		if err != nil {
 			return filterResponseBeans, err
 		}
-		filterResponseBeans = append(filterResponseBeans, filterResponseBean)
+		filterResponseBeans = append(filterResponseBeans, filterResponseBean.FilterMetaDataBean)
 	}
 	return filterResponseBeans, nil
 }
@@ -48,8 +55,8 @@ func convertToFilterBean(resourceFilter *ResourceFilter) (*FilterRequestResponse
 			TargetObject: resourceFilter.TargetObject,
 			Description:  resourceFilter.Description,
 			Name:         resourceFilter.Name,
+			Conditions:   resourceConditions,
 		},
-		Conditions: resourceConditions,
 	}
 	return filterResponseBean, nil
 }
@@ -68,4 +75,9 @@ func GetIdentifierKey(identifierType IdentifierType, searchableKeyNameIdMap map[
 		//TODO: revisit
 		return -1
 	}
+}
+
+func getJsonStringFromFilterHistoryObjects(filterHistoryObjects []*FilterHistoryObject) (string, error) {
+	jsonBytes, err := json.Marshal(filterHistoryObjects)
+	return string(jsonBytes), err
 }
