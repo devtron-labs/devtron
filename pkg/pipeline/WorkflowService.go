@@ -153,10 +153,11 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *Workflo
 			workflowTemplate.NodeSelector = nodeSelector
 		}
 	}
+	//todo Aditya
 	if workflowRequest.Type == bean3.CD_WORKFLOW_PIPELINE_TYPE {
 		workflowTemplate.WfControllerInstanceID = impl.ciCdConfig.WfControllerInstanceID
-		workflowTemplate.TerminationGracePeriod = impl.ciCdConfig.TerminationGracePeriod
 	}
+	workflowTemplate.TerminationGracePeriod = impl.ciCdConfig.TerminationGracePeriod
 
 	clusterConfig, err := impl.getClusterConfig(workflowRequest)
 	workflowTemplate.ClusterConfig = clusterConfig
