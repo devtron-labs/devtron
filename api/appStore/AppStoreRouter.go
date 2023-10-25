@@ -78,7 +78,8 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	chartProviderSubRouter := configRouter.PathPrefix("/chart-provider").Subrouter()
 	router.chartProviderRouter.Init(chartProviderSubRouter)
 	// chart provider router ends
-
+	configRouter.Path("/overview").Queries("installedAppId", "{installedAppId}").
+		HandlerFunc(router.deployRestHandler.FetchAppOverview).Methods("POST")
 	configRouter.Path("/application/exists").
 		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
 	configRouter.Path("/group/install").

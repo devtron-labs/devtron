@@ -758,13 +758,14 @@ type Label struct {
 type AppMetaInfoDto struct {
 	AppId       int                            `json:"appId"`
 	AppName     string                         `json:"appName"`
+	Description string                         `json:"description"`
 	ProjectId   int                            `json:"projectId"`
 	ProjectName string                         `json:"projectName"`
 	CreatedBy   string                         `json:"createdBy"`
 	CreatedOn   time.Time                      `json:"createdOn"`
 	Active      bool                           `json:"active,notnull"`
 	Labels      []*Label                       `json:"labels"`
-	Description *bean2.GenericNoteResponseBean `json:"description"`
+	Note        *bean2.GenericNoteResponseBean `json:"note"`
 	UserId      int32                          `json:"-"`
 }
 

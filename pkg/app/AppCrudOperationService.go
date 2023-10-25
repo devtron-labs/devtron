@@ -48,6 +48,7 @@ type AppCrudOperationService interface {
 	GetAppMetaInfoByAppName(appName string) (*bean.AppMetaInfoDto, error)
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 }
+
 type AppCrudOperationServiceImpl struct {
 	logger                 *zap.SugaredLogger
 	appLabelRepository     pipelineConfig.AppLabelRepository
@@ -330,7 +331,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 	if app.AppType == helper.Job {
 		appName = app.DisplayName
 	}
-	descriptionResp, err := impl.genericNoteService.GetGenericNotesForAppIds([]int{app.Id})
+	noteResp, err := impl.genericNoteService.GetGenericNotesForAppIds([]int{app.Id})
 	if err != nil {
 		impl.logger.Errorw("error in fetching description", "err", err, "appId", app.Id)
 		return nil, err
@@ -338,13 +339,14 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
 		AppName:     appName,
+		Description: app.Description,
 		ProjectId:   app.TeamId,
 		ProjectName: app.Team.Name,
 		CreatedBy:   userEmailId,
 		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
-		Description: descriptionResp[app.Id],
+		Note:        noteResp[app.Id],
 	}
 	return info, nil
 }
