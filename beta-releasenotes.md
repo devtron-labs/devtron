@@ -4,6 +4,7 @@
 ## Enhancements
 - feat: enchancements in scoped variables (#4069)
 ## Documentation
+- doc: Changed Relative Path to Absolute Path (#4155)
 - docs: Mentioned Partial Cloning Capability of Devtron (#4142)
 - docs: Added Exclude Git Files section in Existing Doc (#4136)
 ## Others
