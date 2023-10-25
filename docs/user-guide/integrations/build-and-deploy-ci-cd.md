@@ -14,6 +14,10 @@ Devtron CI/CD integration enables software development teams to automate the bui
 * Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
 * Seamless integration with Grafana for continuous application metrics like CPU and memory usage, status code, throughput, and latency on the dashboard.
 
+{% hint style="info" %}
+Devtron also gives you the option of partial cloning. It increases the cloning speed of your [code repository](../../../docs/reference/glossary#repo), thus reducing the [build time](../../../docs/reference/glossary#build-pipeline) during the [CI process](../deploying-application/triggering-ci).
+{% endhint %}
+
 ## Installation
 
 1. On the **Devtron Stack Manager > Discover** page, click the **Build and Deploy (CI/CD)**.
