@@ -10,6 +10,21 @@ Once clicked, a list will appear showing various commits made in the repository,
 
 CI Pipelines with automatic trigger enabled are triggered immediately when a new commit is made to the git branch. If the trigger for a build pipeline is set to manual, it will not be automatically triggered and requires a manual trigger.
 
+{% hint style="info" %}
+
+### Partal Cloning Feature [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+
+CI builds can be time-consuming for large repositories, especially for enterprises. However, Devtron's partial cloning feature significantly increases cloning speed, reducing the time it takes to clone your source code and leading to faster build times.
+
+**Advantages**
+* Smaller image sizes
+* Reduced resource usage and costs
+* Faster software releases
+* Improved productivity
+
+Get in touch with us if you are looking for a way to improve the efficiency of your software development process
+{% endhint %}
+
 The **Refresh** icon updates the Git Commits section in the CI Pipeline by fetching the latest commits from the repository. Clicking on the refresh icon ensures that you have the most recent commit available.
 
 The **Ignore Cache** option ignores the previous build cache and creates a fresh build. If selected, will take a longer build time than usual.
@@ -31,4 +46,6 @@ By selecting the `Artifacts` option, you can download reports related to the tas
 To check for any vulnerabilities in the build image, click on `Security`. Please note that vulnerabilities will only be visible if you have enabled the `Scan for vulnerabilities` option in the advanced options of the CI pipeline before building the image. For more information about this feature, please refer to this [documentation](../../user-guide/security-features.md).
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/security-scan-report.jpg)
+
+
 
