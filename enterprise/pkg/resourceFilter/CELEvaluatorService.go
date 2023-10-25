@@ -155,6 +155,7 @@ func (impl *CELServiceImpl) GetParamsFromArtifact(artifact string) []ExpressionP
 	lastColonIndex := strings.LastIndex(artifact, ":")
 
 	containerRepository := artifact[:lastColonIndex]
+
 	containerImageTag := artifact[lastColonIndex+1:]
 	containerImage := artifact
 	params := []ExpressionParam{
