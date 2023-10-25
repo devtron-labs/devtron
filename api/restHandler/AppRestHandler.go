@@ -43,7 +43,7 @@ type AppRestHandler interface {
 	UpdateApp(w http.ResponseWriter, r *http.Request)
 	UpdateProjectForApps(w http.ResponseWriter, r *http.Request)
 	GetAppListByTeamIds(w http.ResponseWriter, r *http.Request)
-	UpdateAppDescription(w http.ResponseWriter, r *http.Request)
+	UpdateAppNote(w http.ResponseWriter, r *http.Request)
 }
 
 type AppRestHandlerImpl struct {
@@ -343,7 +343,7 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, err, projectWiseApps, http.StatusOK)
 }
 
-func (handler AppRestHandlerImpl) UpdateAppDescription(w http.ResponseWriter, r *http.Request) {
+func (handler AppRestHandlerImpl) UpdateAppNote(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)

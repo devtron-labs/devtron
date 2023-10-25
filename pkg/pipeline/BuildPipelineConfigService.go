@@ -436,8 +436,8 @@ func (impl *CiPipelineConfigServiceImpl) buildPayloadOption() []bean.PayloadOpti
 func (impl *CiPipelineConfigServiceImpl) buildExternalCiWebhookSchema() map[string]interface{} {
 	schema := make(map[string]interface{})
 	schema["dockerImage"] = &bean.SchemaObject{Description: "docker image created for your application (Eg. quay.io/devtron/test:da3ba325-161-467)", DataType: "String", Example: "test-docker-repo/test:b150cc81-5-20", Optional: false}
-	//schema["digest"] = &bean.SchemaObject{Description: "docker image sha1 digest", DataType: "String", Example: "sha256:94180dead8336237430e848ef8145f060b51", Optional: true}
-	//schema["materialType"] = &bean.SchemaObject{Description: "git", DataType: "String", Example: "git", Optional: true}
+	//schema["digest"] = &bean.SchemaObject{GenericNote: "docker image sha1 digest", DataType: "String", Example: "sha256:94180dead8336237430e848ef8145f060b51", Optional: true}
+	//schema["materialType"] = &bean.SchemaObject{GenericNote: "git", DataType: "String", Example: "git", Optional: true}
 
 	ciProjectDetails := make([]map[string]interface{}, 0)
 	ciProjectDetail := make(map[string]interface{})

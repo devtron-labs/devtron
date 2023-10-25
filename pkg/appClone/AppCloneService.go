@@ -131,7 +131,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		ProjectId:   createReq.TeamId,
 		AppLabels:   createReq.AppLabels,
 		AppType:     createReq.AppType,
-		Description: createReq.Description,
+		Description: createReq.GenericNote,
 	}
 	userId := createReq.UserId
 	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId, int(cloneReq.AppType))
@@ -238,7 +238,7 @@ func (impl *AppCloneServiceImpl) CreateApp(cloneReq *CloneRequest, userId int32)
 		TeamId:      cloneReq.ProjectId,
 		AppLabels:   cloneReq.AppLabels,
 		AppType:     cloneReq.AppType,
-		Description: cloneReq.Description,
+		GenericNote: cloneReq.Description,
 	}
 	createRes, err := impl.pipelineBuilder.CreateApp(createAppReq)
 	return createRes, err

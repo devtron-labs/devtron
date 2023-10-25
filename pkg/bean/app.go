@@ -43,13 +43,21 @@ type SourceTypeConfig struct {
 type CreateAppDTO struct {
 	Id          int                            `json:"id,omitempty" validate:"number"`
 	AppName     string                         `json:"appName" validate:"name-component,max=100"`
+	Description string                         `json:"description"`
 	UserId      int32                          `json:"-"` //not exposed to UI
 	Material    []*GitMaterial                 `json:"material" validate:"dive,min=1"`
 	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId  int                            `json:"templateId"`
 	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
-	Description *bean2.GenericNoteResponseBean `json:"description,omitempty"`
+	GenericNote *bean2.GenericNoteResponseBean `json:"genericNote,omitempty"`
 	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
+}
+
+type UpdateAppDto struct {
+	Id          int            `json:"id" validate:"gt=0"`
+	AppType     helper.AppType `json:"appType" validate:"gt=-1,lt=3"`
+	Description string         `json:"description"`
+	UserId      int32          `json:"-"` //not exposed to UI
 }
 
 type CreateMaterialDTO struct {

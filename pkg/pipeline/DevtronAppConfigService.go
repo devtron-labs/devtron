@@ -31,6 +31,9 @@ type DevtronAppConfigService interface {
 	//CreateApp : This function creates applications of type Job as well as Devtronapps
 	// In case of error response object is nil
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
+	//UpdateApp : This function updates(currently only limited to description) applications of all type(Jobs, DevtronApps, HelmApps)
+	//No response object, only error is returned
+	UpdateApp(request *bean.UpdateAppDto) error
 	//DeleteApp : This function deletes applications of type Job as well as DevtronApps
 	DeleteApp(appId int, userId int32) error
 	//GetApp : Gets Application along with Git materials for given appId.
@@ -109,6 +112,16 @@ func (impl *DevtronAppConfigServiceImpl) CreateApp(request *bean.CreateAppDTO) (
 		impl.logger.Errorw("error in saving create app req", "req", request, "err", err)
 	}
 	return res, err
+}
+
+func (impl *DevtronAppConfigServiceImpl) UpdateApp(request *bean.UpdateAppDto) error {
+	impl.logger.Debugw("app update request received", "req", request)
+
+	err := impl.ciCdPipelineOrchestrator.UpdateApp(request)
+	if err != nil {
+		impl.logger.Errorw("error in updating app", "req", request, "err", err)
+	}
+	return err
 }
 
 func (impl *DevtronAppConfigServiceImpl) DeleteApp(appId int, userId int32) error {

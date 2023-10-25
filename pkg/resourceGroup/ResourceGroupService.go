@@ -132,7 +132,7 @@ type ResourceGroupDto struct {
 //	AppId           int    `json:"appId,omitempty"`
 //	AppName         string `json:"appName,omitempty"`
 //	EnvironmentId   int    `json:"environmentId,omitempty"`
-//	Description     string `json:"description,omitempty"`
+//	GenericNote     string `json:"description,omitempty"`
 //}
 
 func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error) {
@@ -350,7 +350,7 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 //	for _, appGroup := range appGroups {
 //		appGroupDto := &ApplicationDto{
 //			AppId:       appGroup.ResourceId,
-//			Description: appGroup.ResourceGroup.Description,
+//			GenericNote: appGroup.ResourceGroup.GenericNote,
 //		}
 //		applications = append(applications, appGroupDto)
 //	}
