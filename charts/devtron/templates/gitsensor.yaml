@@ -1,10 +1,19 @@
-# Source: gitsensor/templates/generic.yaml
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+{{- with .Values.components.gitsensor }}
 apiVersion: v1
 kind: Secret
 metadata:
   name: git-sensor-secret
   labels:
     app: git-sensor
+    release: devtron
+{{- if .secrets }}
+data:
+{{- range $k, $v := .secrets }}
+  {{ $k }}: {{ $v | b64enc }}
+{{- end }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -12,11 +21,12 @@ metadata:
   name: git-sensor-cm
   labels:
     app: git-sensor
+    release: devtron
+{{- if .configs }}
 data:
-  PG_ADDR: postgresql-postgresql.devtroncd
-  PG_USER: postgres
-  COMMIT_STATS_TIMEOUT_IN_SEC: "2"
-  ENABLE_FILE_STATS: "true"
+{{ toYaml .configs | indent 2 }}
+{{- end }}
+  
 ---
 # Source: gitsensor/templates/generic.yaml
 apiVersion: v1
@@ -67,7 +77,7 @@ spec:
           - /bin/sh
           - -c
           - mkdir -p /git-base/ssh-keys && chown -R devtron:devtron /git-base && chmod 777 /git-base/ssh-keys
-          image: "quay.io/devtron/git-sensor:b6c3ea0e-200-16327"
+          image: {{ .image }}
           imagePullPolicy: IfNotPresent
           name: chown-git-base
           resources: {}
@@ -80,7 +90,10 @@ spec:
             name: git-volume
       containers:
         - name: git-sensor
-          image: "quay.io/devtron/git-sensor:b6c3ea0e-200-16327"
+          image: {{ .image }}
+          {{- if  .imagePullPolicy }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000
@@ -93,11 +106,29 @@ spec:
           volumeMounts:
             - name: git-volume
               mountPath: /git-base/
+          env:
+            - name: DEVTRON_APP_NAME
+              value: git-sensor
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if $.Values.components.gitsensor.dbconfig }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .dbconfig.secretName }}
+                  key: {{ .dbconfig.keyName }}
+            {{- end }}
           envFrom:
           - secretRef:
               name: git-sensor-secret
           - configMapRef: 
               name: git-sensor-cm
+          {{- if .resources }}        
+          resources:
+          {{- toYaml .resources | nindent 12 }}
+          {{- end }}
   volumeClaimTemplates:
     - metadata:
         name: git-volume
@@ -105,15 +136,14 @@ spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: 2Gi
+            storage: {{ .persistence.volumeSize }}
 ---
-# Source: gitsensor/templates/servicemonitor.yaml
+{{- if .serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: git-sensor-sm
   labels:
-    chart: gitsensor-0.11.0
     app: git-sensor
     kind: Prometheus
     release: devtron
@@ -124,3 +154,7 @@ spec:
   selector:
     matchLabels:
       app: git-sensor
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

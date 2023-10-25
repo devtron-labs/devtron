@@ -42,6 +42,9 @@ const (
 	PRIMITIVE_TYPE DataType = "primitive"
 )
 
+const HiddenValue = "hidden-value"
+const UndefinedValue = "undefined-variable-value"
+
 func (variableType VariableType) IsTypeSensitive() bool {
 	if variableType == PRIVATE {
 		return true
@@ -83,4 +86,18 @@ func (value VariableValue) StringValue() string {
 		return strconv.FormatBool(value.Value.(bool))
 	}
 	return value.Value.(string)
+}
+
+func GetInterfacedValue(input string) interface{} {
+	var interfaceValue interface{}
+	if intValue, err := strconv.Atoi(input); err == nil {
+		interfaceValue = intValue
+	} else if floatValue, err := strconv.ParseFloat(input, 64); err == nil {
+		interfaceValue = floatValue
+	} else if boolValue, err := strconv.ParseBool(input); err == nil {
+		interfaceValue = boolValue
+	} else {
+		interfaceValue = input
+	}
+	return interfaceValue
 }
