@@ -94,5 +94,5 @@ type PortMap struct {
 }
 
 const (
-	IMAGE_SCANNING_PLUGIN string = "Image Scanning"
+	IMAGE_SCANNING_PLUGIN string = "Vulnerability Scanning"
 )
