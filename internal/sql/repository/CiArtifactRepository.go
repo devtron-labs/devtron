@@ -249,7 +249,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 	//TODO: refactor query here
 	artifacts := make([]*CiArtifact, 0, listingFilterOpts.Limit)
 
-	commonPaginatedQueryPart := " cia.image ILIKE %?%" +
+	commonPaginatedQueryPart := " cia.image LIKE ?" +
 		" ORDER BY cia.id DESC" +
 		" LIMIT ?" +
 		" OFFSET ?;"
@@ -276,6 +276,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 		}
 
 		query += commonPaginatedQueryPart
+		listingFilterOpts.SearchString = "%" + listingFilterOpts.SearchString + "%"
 
 		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.PipelineId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
 		if err != nil {
