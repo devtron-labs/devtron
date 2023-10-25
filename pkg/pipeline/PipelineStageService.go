@@ -964,10 +964,12 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 	if err == pg.ErrNoRows || createNewPipStage {
 		//no stage found, creating new stage
 		stageReq.Id = 0
-		err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
-			return err
+		if len(stageReq.Steps) > 0 {
+			err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
+				return err
+			}
 		}
 	} else {
 		//stageId found, to handle as an update request
@@ -2139,7 +2141,7 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 		return nil, err
 	}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parsers.VariableParserRequest{
-		TemplateType:           parsers.JsonVariableTemplate,
+		TemplateType:           parsers.StringVariableTemplate,
 		Template:               string(responseJson),
 		Variables:              scopedVariables,
 		IgnoreUnknownVariables: true,
