@@ -3658,7 +3658,7 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(appId int, pipelineName 
 	}
 	argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
 	impl.logger.Infow("received payload, updateArgoPipeline", "appId", appId, "pipelineName", pipelineName, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName, "context", ctx)
-	application, err := impl.acdClient.Get(ctx, &application3.ApplicationQuery{Name: &argoAppName})
+	argoApplication, err := impl.acdClient.Get(ctx, &application3.ApplicationQuery{Name: &argoAppName})
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipelineName)
 		return false, err
@@ -3668,7 +3668,7 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(appId int, pipelineName 
 
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipelineName)
-		if application.Spec.Source.Path != envOverride.Chart.ChartLocation || application.Spec.Source.TargetRevision != "master" {
+		if argoApplication.Spec.Source.Path != envOverride.Chart.ChartLocation || argoApplication.Spec.Source.TargetRevision != "master" {
 			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"}}}
 			reqbyte, err := json.Marshal(patchReq)
 			if err != nil {
