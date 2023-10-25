@@ -2,7 +2,7 @@
 
 ## Introduction
 
-During the [CI process](../deploying-application/triggering-ci), the application source code is pulled from your [git repository](../../reference/glossary#repo). 
+During the [CI process](https://docs.devtron.ai/usage/applications/deploying-application/triggering-ci), the application source code is pulled from your [git repository](https://docs.devtron.ai/resources/glossary#repo). 
 
 Devtron also supports multiple Git repositories (be it from one Git account or multiple Git accounts) in a single deployment.
 
@@ -29,7 +29,7 @@ In your application, go to **App Configuration** → **Git Repository**. You wil
 
 ### Git Account
 
-This is a dropdown that shows the list of Git accounts added to your organization on Devtron. If you haven't done already, we recommend you to first [add your Git account](../global-configurations/git-accounts) (especially when the repository is private).
+This is a dropdown that shows the list of Git accounts added to your organization on Devtron. If you haven't done already, we recommend you to first [add your Git account](https://docs.devtron.ai/global-configurations/git-accounts) (especially when the repository is private).
 
 ![Figure 2: Selecting Git Account](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/select-git-account.jpg)
 
@@ -54,11 +54,11 @@ You can find this URL by clicking on the **Code** button available on your repos
 
 ### Exclude specific file/folder in this repo
 
-Not all repository changes are worth triggering a new [CI build](../deploying-application/triggering-ci). If you enable this checkbox, you can define the file(s) or folder(s) whose commits you wish to use in the CI build.
+Not all repository changes are worth triggering a new [CI build](https://docs.devtron.ai/usage/applications/deploying-application/triggering-ci). If you enable this checkbox, you can define the file(s) or folder(s) whose commits you wish to use in the CI build.
 
 ![Figure 4: Sample Exclusion Rule](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/sample1.jpg)
 
-In other words, if a given commit contains changes only in file(s) present in your exclusion rule, the commit won't show up while selecting the [Git material](../../reference/glossary#material), which means it will not be eligible for build. However, if a given commit contains changes in other files too (along with the excluded file), the commit won't be excluded and it will definitely show up in the list of commits.
+In other words, if a given commit contains changes only in file(s) present in your exclusion rule, the commit won't show up while selecting the [Git material](https://docs.devtron.ai/resources/glossary#material), which means it will not be eligible for build. However, if a given commit contains changes in other files too (along with the excluded file), the commit won't be excluded and it will definitely show up in the list of commits.
 
 ![Figure 5: Excludes commits made to README.md](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/excluded-commit.jpg)
 
