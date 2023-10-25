@@ -1790,7 +1790,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 	}
 	// update custom tag data
 	pipeline.Id = dbPipelineObj.Id // pipeline object is request received from FE
-	err = impl.SaveOrUpdateCustomTagForCDPipeline(pipeline)
+	err = impl.CDPipelineCustomTagDBOperations(pipeline)
 	if err != nil {
 		impl.logger.Errorw("error in updating custom tag data for pipeline", "err", err)
 		return err
