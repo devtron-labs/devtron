@@ -61,7 +61,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 		return
 	}
 	token := r.Header.Get("token")
-	clusters, err := handler.clusterService.FindAllExceptVirtual()
+	clusters, err := handler.clusterService.FindAll()
 	if err != nil {
 		handler.logger.Errorw("error in getting all clusters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -83,6 +83,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 				Id:                cluster.Id,
 				Name:              cluster.ClusterName,
 				ErrorInConnection: cluster.ErrorInConnecting,
+				IsVirtualCluster:  cluster.IsVirtualCluster,
 			}
 			clusterDetailList = append(clusterDetailList, clusterDetail)
 		}
@@ -101,7 +102,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 		return
 	}
 	token := r.Header.Get("token")
-	clusters, err := handler.clusterService.FindAllExceptVirtual()
+	clusters, err := handler.clusterService.FindAll()
 	if err != nil {
 		handler.logger.Errorw("error in getting all clusters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

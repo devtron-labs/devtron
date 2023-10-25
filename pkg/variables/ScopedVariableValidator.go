@@ -30,11 +30,6 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 		variableNamesList = append(variableNamesList, variable.Definition.VarName)
 		uniqueVariableMap := make(map[string]interface{})
 		for _, attributeValue := range variable.AttributeValues {
-
-			if !utils.IsStringType(attributeValue.VariableValue.Value) && variable.Definition.VarType.IsTypeSensitive() {
-				return models.ValidationError{Err: fmt.Errorf("data type other than string cannot be sensitive")}, false
-			}
-
 			validIdentifierTypeList := helper.GetIdentifierTypeFromAttributeType(attributeValue.AttributeType)
 			if len(validIdentifierTypeList) != len(attributeValue.AttributeParams) {
 				return models.ValidationError{Err: fmt.Errorf("attribute selectors are not valid for given category %s", attributeValue.AttributeType)}, false

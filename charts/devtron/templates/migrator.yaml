@@ -270,7 +270,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r sql /shared/
-          image: {{ $.Values.components.lens.image }}
+          image: {{ $.Values.lens.image }}
           name: init-lens
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:

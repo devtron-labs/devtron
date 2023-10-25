@@ -50,11 +50,9 @@ Kubernetes objects used to store configuration data as key-value pairs. They all
 
 You can use different ConfigMaps for respective environments too. [Read More...](https://docs.devtron.ai/usage/applications/creating-application/config-maps)
 
-### Container/OCI Registry
+### Container Registry
 
-It is a collection of repositories that store container images. It allows developers to store, share, and manage images used to deploy containers. In Devtron, you can add a container registry by going to Global Configurations → Container / OCI Registry. Your CI images are pushed to the container registry you configure. [Read More...](https://docs.devtron.ai/global-configurations/container-registries). 
-
-An OCI-compliant registry can also store artifacts (such as helm charts). Here, OCI stands for Open Container Initiative. It is an open industry standard for container formats and registries.
+It is a collection of repositories that store container images. It allows developers to store, share, and manage images used to deploy containers. In Devtron, you can add a container registry by going to Global Configurations → Container / OCI Registry. Your CI images are pushed to the container registry you configure. [Read More...](https://docs.devtron.ai/global-configurations/docker-registries)
 
 ### Cordoning
 

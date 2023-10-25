@@ -40,14 +40,12 @@ func NewVariableTemplateParserImpl(logger *zap.SugaredLogger) (*VariableTemplate
 	return impl, nil
 }
 
-type VariableTemplateParserConfig struct {
-	ScopedVariableEnabled          bool   `env:"SCOPED_VARIABLE_ENABLED" envDefault:"false"`
-	ScopedVariableHandlePrimitives bool   `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false"`
-	VariableExpressionRegex        string `env:"VARIABLE_EXPRESSION_REGEX" envDefault:"@{{([^}]+)}}"`
-}
+const VariableRegex = `@\{\{[a-zA-Z0-9-+/*%_\s]+\}\}`
+const VariableSubRegexWithQuotes = `\"@{{([a-zA-Z0-9-+/*%_\s]+)}}\"`
 
-func (cfg VariableTemplateParserConfig) isScopedVariablesDisabled() bool {
-	return !cfg.ScopedVariableEnabled
+type VariableTemplateParserConfig struct {
+	ScopedVariableEnabled          bool `env:"SCOPED_VARIABLE_ENABLED" envDefault:"false"`
+	ScopedVariableHandlePrimitives bool `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false"`
 }
 
 func getVariableTemplateParserConfig() (*VariableTemplateParserConfig, error) {
@@ -56,22 +54,10 @@ func getVariableTemplateParserConfig() (*VariableTemplateParserConfig, error) {
 	return cfg, err
 }
 
-func getRegexSubMatches(regex string, input string) [][]string {
-	re := regexp.MustCompile(regex)
-	matches := re.FindAllStringSubmatch(input, -1)
-	return matches
-}
+func preProcessPlaceholder(template string, variableValueMap map[string]interface{}) string {
 
-const quote = "\""
-const escapedQuote = `\\"`
-
-func (impl *VariableTemplateParserImpl) preProcessPlaceholder(template string, variableValueMap map[string]interface{}) string {
-
-	variableSubRegexWithQuotes := quote + impl.variableTemplateParserConfig.VariableExpressionRegex + quote
-	variableSubRegexWithEscapedQuotes := escapedQuote + impl.variableTemplateParserConfig.VariableExpressionRegex + escapedQuote
-
-	matches := getRegexSubMatches(variableSubRegexWithQuotes, template)
-	matches = append(matches, getRegexSubMatches(variableSubRegexWithEscapedQuotes, template)...)
+	re := regexp.MustCompile(VariableSubRegexWithQuotes)
+	matches := re.FindAllStringSubmatch(template, -1)
 
 	// Replace the surrounding quotes for variables whose value is known
 	// and type is primitive
@@ -90,23 +76,30 @@ func (impl *VariableTemplateParserImpl) preProcessPlaceholder(template string, v
 
 func (impl *VariableTemplateParserImpl) ParseTemplate(parserRequest VariableParserRequest) VariableParserResponse {
 
-	if impl.variableTemplateParserConfig.isScopedVariablesDisabled() {
-		return parserRequest.GetEmptyResponse()
+	if !impl.variableTemplateParserConfig.ScopedVariableEnabled {
+		return VariableParserResponse{
+			Request:          parserRequest,
+			ResolvedTemplate: parserRequest.Template,
+		}
 	}
-	request := parserRequest
-	if impl.handlePrimitivesForJson(parserRequest) {
-		variableToValue := parserRequest.GetOriginalValuesMap()
-		template := impl.preProcessPlaceholder(parserRequest.Template, variableToValue)
 
-		//overriding request to handle primitives in json request
-		request.TemplateType = StringVariableTemplate
-		request.Template = template
+	if impl.variableTemplateParserConfig.ScopedVariableHandlePrimitives && parserRequest.TemplateType == JsonVariableTemplate {
+
+		var variableToValue = make(map[string]interface{}, 0)
+		for _, variable := range parserRequest.Variables {
+			variableToValue[variable.VariableName] = variable.VariableValue.Value
+		}
+		template := preProcessPlaceholder(parserRequest.Template, variableToValue)
+		request := VariableParserRequest{
+			TemplateType:           StringVariableTemplate,
+			Template:               template,
+			Variables:              parserRequest.Variables,
+			IgnoreUnknownVariables: parserRequest.IgnoreUnknownVariables,
+		}
+		return impl.parseTemplate(request)
+	} else {
+		return impl.parseTemplate(parserRequest)
 	}
-	return impl.parseTemplate(request)
-}
-
-func (impl *VariableTemplateParserImpl) handlePrimitivesForJson(parserRequest VariableParserRequest) bool {
-	return impl.variableTemplateParserConfig.ScopedVariableHandlePrimitives && parserRequest.TemplateType == JsonVariableTemplate
 }
 
 func (impl *VariableTemplateParserImpl) ExtractVariables(template string, templateType VariableTemplateType) ([]string, error) {
@@ -282,7 +275,6 @@ func (impl *VariableTemplateParserImpl) getDefaultMappedFunc() map[string]functi
 		"upper":  stdlib.UpperFunc,
 		"toInt":  stdlib.IntFunc,
 		"toBool": ParseBoolFunc,
-		"split":  stdlib.SplitFunc,
 	}
 }
 
@@ -323,7 +315,7 @@ func (impl *VariableTemplateParserImpl) diluteExistingHclVars(template string, t
 
 func (impl *VariableTemplateParserImpl) convertToHclExpression(template string) string {
 
-	var devtronRegexCompiledPattern = regexp.MustCompile(impl.variableTemplateParserConfig.VariableExpressionRegex)
+	var devtronRegexCompiledPattern = regexp.MustCompile(VariableRegex) //TODO KB: add support of Braces () also
 	indexesData := devtronRegexCompiledPattern.FindAllIndex([]byte(template), -1)
 	var strBuilder strings.Builder
 	strBuilder.Grow(len(template))

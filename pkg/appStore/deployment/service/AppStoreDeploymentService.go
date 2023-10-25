@@ -91,7 +91,6 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 type AppStoreDeploymentServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository.InstalledAppRepository
-	chartGroupDeploymentRepository       repository.ChartGroupDeploymentRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                clusterRepository.EnvironmentRepository
 	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
@@ -111,7 +110,7 @@ type AppStoreDeploymentServiceImpl struct {
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
-	chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
 	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
@@ -123,7 +122,6 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	appStoreDeploymentServiceImpl := &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
-		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentRepository:                environmentRepository,
 		clusterInstalledAppsRepository:       clusterInstalledAppsRepository,
@@ -763,21 +761,6 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
 			if err != nil {
 				impl.logger.Errorw("error while fetching from db", "error", err)
-				return nil, err
-			}
-		}
-
-		// soft delete chart-group deployment
-		chartGroupDeployment, err := impl.chartGroupDeploymentRepository.FindByInstalledAppId(model.Id)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error while fetching chart group deployment", "error", err)
-			return nil, err
-		}
-		if chartGroupDeployment.Id != 0 {
-			chartGroupDeployment.Deleted = true
-			_, err = impl.chartGroupDeploymentRepository.Update(chartGroupDeployment, tx)
-			if err != nil {
-				impl.logger.Errorw("error while updating chart group deployment", "error", err)
 				return nil, err
 			}
 		}
@@ -1487,11 +1470,13 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 
 	if installAppVersionRequest.PerformACDDeployment {
-		// refresh update repo details on ArgoCD if repo is changed
-		err = impl.appStoreDeploymentArgoCdService.RefreshAndUpdateACDApp(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, monoRepoMigrationRequired, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in acd patch request", "err", err)
-			return nil, err
+		if monoRepoMigrationRequired {
+			// update repo details on ArgoCD as repo is changed
+			err = impl.appStoreDeploymentArgoCdService.UpdateChartInfo(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, 0, ctx)
+			if err != nil {
+				impl.logger.Errorw("error in acd patch request", "err", err)
+				return nil, err
+			}
 		}
 	} else if installAppVersionRequest.PerformHelmDeployment {
 		err = impl.appStoreDeploymentHelmService.UpdateChartInfo(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, installAppVersionRequest.InstalledAppVersionHistoryId, ctx)

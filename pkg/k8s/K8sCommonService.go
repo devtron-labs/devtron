@@ -345,10 +345,9 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 }
 
 func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{} {
-	servicePortMapping := make(map[string]interface{})
-	endpointPortMapping := make(map[string]interface{})
-	endpointSlicePortMapping := make(map[string]interface{})
-
+	portsService := make([]int64, 0)
+	portsEndpoint := make([]int64, 0)
+	portEndpointSlice := make([]int64, 0)
 	for _, portHolder := range resp {
 		if portHolder.ManifestResponse == nil {
 			continue
@@ -356,26 +355,6 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 		kind, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Kind]
 		if !ok {
 			impl.logger.Warnw("kind not found in resource tree, unable to extract port no")
-			continue
-		}
-		metadataResp, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.K8sClusterResourceMetadataKey]
-		if !ok {
-			impl.logger.Warnw("metadata not found in resource tree, unable to extract port no")
-			continue
-		}
-		metadata, ok := metadataResp.(map[string]interface{})
-		if !ok {
-			impl.logger.Warnw("metadata not found in resource tree, unable to extract port no")
-			continue
-		}
-		serviceNameResp, ok := metadata[k8sCommonBean.K8sClusterResourceMetadataNameKey]
-		if !ok {
-			impl.logger.Warnw("service name not found in resource tree, unable to extract port no")
-			continue
-		}
-		serviceName, ok := serviceNameResp.(string)
-		if !ok {
-			impl.logger.Warnw("service name not found in resource tree, unable to extract port no")
 			continue
 		}
 		if kind == k8sCommonBean.ServiceKind {
@@ -389,7 +368,6 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 				impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
 				continue
 			}
-
 			if spec != nil {
 				ports, ok := spec[k8sCommonBean.Ports]
 				if !ok {
@@ -401,7 +379,6 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 					impl.logger.Warnw("portList not found in resource tree, unable to extract port no")
 					continue
 				}
-				servicePorts := make([]int64, 0)
 				for _, portItem := range portList {
 					portItems, ok := portItem.(map[string]interface{})
 					if !ok {
@@ -420,11 +397,10 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 							continue
 						}
 						if portNumber != 0 {
-							servicePorts = append(servicePorts, portNumber)
+							portsService = append(portsService, portNumber)
 						}
 					}
 				}
-				servicePortMapping[serviceName] = servicePorts
 			} else {
 				impl.logger.Warnw("spec doest not contain data", "spec", spec)
 				continue
@@ -459,7 +435,6 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 							impl.logger.Warnw("portsIfs not found in resource tree, unable to extract port no")
 							continue
 						}
-						endpointPorts := make([]int64, 0)
 						for _, portsIf := range portsIfs {
 							portsIfObj, ok := portsIf.(map[string]interface{})
 							if !ok {
@@ -472,10 +447,9 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 									impl.logger.Warnw("port not found in resource tree, unable to extract port no")
 									continue
 								}
-								endpointPorts = append(endpointPorts, port)
+								portsEndpoint = append(portsEndpoint, port)
 							}
 						}
-						endpointPortMapping[serviceName] = endpointPorts
 					}
 				}
 			}
@@ -492,7 +466,6 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 					impl.logger.Warnw("endPointsSlicePorts not found in resource tree endpoint, unable to extract port no")
 					continue
 				}
-				endpointSlicePorts := make([]int64, 0)
 				for _, val := range endPointsSlicePorts {
 					portNumbers, ok := val.(map[string]interface{})[k8sCommonBean.Port]
 					if !ok {
@@ -505,10 +478,9 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 						continue
 					}
 					if portNumber != 0 {
-						endpointSlicePorts = append(endpointSlicePorts, portNumber)
+						portEndpointSlice = append(portEndpointSlice, portNumber)
 					}
 				}
-				endpointSlicePortMapping[serviceName] = endpointSlicePorts
 			}
 		}
 	}
@@ -524,25 +496,15 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 				impl.logger.Warnw("value not found in resourceTreeVal, unable to extract port no")
 				continue
 			}
-			serviceNameRes, ok := value[k8sCommonBean.K8sClusterResourceMetadataNameKey]
-			if !ok {
-				impl.logger.Warnw("service name not found in resourceTreeVal, unable to extract port no")
-				continue
-			}
-			serviceName, ok := serviceNameRes.(string)
-			if !ok {
-				impl.logger.Warnw("service name not found in resourceTreeVal, unable to extract port no")
-				continue
-			}
 			for key, _type := range value {
 				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndpointsKind {
-					value[k8sCommonBean.Port] = endpointPortMapping[serviceName]
+					value[k8sCommonBean.Port] = portsEndpoint
 				}
 				if key == k8sCommonBean.Kind && _type == k8sCommonBean.ServiceKind {
-					value[k8sCommonBean.Port] = servicePortMapping[serviceName]
+					value[k8sCommonBean.Port] = portsService
 				}
 				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndPointsSlice {
-					value[k8sCommonBean.Port] = endpointSlicePortMapping[serviceName]
+					value[k8sCommonBean.Port] = portEndpointSlice
 				}
 			}
 		}

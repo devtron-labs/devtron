@@ -23,13 +23,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -116,11 +116,11 @@ type Manifests struct {
 
 type ServiceClientImpl struct {
 	logger                  *zap.SugaredLogger
-	argoCDConnectionManager connection.ArgoCDConnectionManager
+	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
 }
 
 func NewApplicationClientImpl(
-	logger *zap.SugaredLogger, argoCDConnectionManager connection.ArgoCDConnectionManager,
+	logger *zap.SugaredLogger, argoCDConnectionManager argocdServer.ArgoCDConnectionManager,
 ) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:                  logger,

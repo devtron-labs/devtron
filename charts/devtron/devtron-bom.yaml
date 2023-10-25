@@ -9,38 +9,32 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.23"
+  release: "v0.6.22"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:ba04f4f4-325-18824"
+    image: "quay.io/devtron/dashboard:12717798-325-16265"
     config:
       extraConfigs:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
         ENABLE_RESTART_WORKLOAD: "true"
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
-        ENABLE_SCOPED_VARIABLES: "true"
-        ENABLE_CI_JOB: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:65577374-280-18804"
-    cicdImage: "quay.io/devtron/devtron:50ac85e6-434-18829"
+    image: "quay.io/devtron/hyperion:3c1ba1ad-280-16262"
+    cicdImage: "quay.io/devtron/devtron:3c1ba1ad-434-16260"
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:ad3af321-138-18662"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d8d774c3-138-16238"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:25052130-318-18795"
+    image: "quay.io/devtron/kubelink:aefc1baf-318-16208"
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
-      MANIFEST_FETCH_BATCH_SIZE: "2"
-      NATS_MSG_PROCESSING_BATCH_SIZE: "1"
-      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      RUN_HELM_INSTALL_IN_ASYNC_MODE: "true"
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
@@ -53,34 +47,7 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:b6c3ea0e-200-16327"
-    imagePullPolicy: "IfNotPresent"
-    serviceMonitor:
-      enabled: false
-    persistence:
-      volumeSize: 2Gi
-    configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_USER: postgres
-      COMMIT_STATS_TIMEOUT_IN_SEC: "2"
-      ENABLE_FILE_STATS: "true"
-    dbconfig:
-      secretName: postgresql-postgresql
-      keyName: postgresql-password
-  lens: 
-    image: "quay.io/devtron/lens:8803028b-333-16178"
-    imagePullPolicy: IfNotPresent
-    configs:
-      GIT_SENSOR_PROTOCOL: GRPC
-      GIT_SENSOR_URL: git-sensor-service.devtroncd:90
-      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_PORT: "5432"
-      PG_USER: postgres
-      PG_DATABASE: lens
-    dbconfig:
-      secretName: postgresql-postgresql
-      keyName: postgresql-password
+    image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
@@ -99,14 +66,13 @@ argo-cd:
       repository: quay.io/argoproj/argocd
       tag: "v2.5.2"
       imagePullPolicy: IfNotPresent
-      
-workflowController:
-  image: "quay.io/argoproj/workflow-controller:v3.4.3"
-  executorImage: "quay.io/argoproj/argoexec:v3.4.3"
+
+lens: 
+  image: "quay.io/devtron/lens:8803028b-333-16178"
 
 security:
   imageScanner:
     image: "quay.io/devtron/image-scanner:ea03b0af-334-15158"
 
 notifier:
-  image: "quay.io/devtron/notifier:d71bcbcd-372-18717"
+  image: "quay.io/devtron/notifier:d9c72180-372-14306"

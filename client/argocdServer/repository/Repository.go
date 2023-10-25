@@ -23,8 +23,8 @@ import (
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"go.uber.org/zap"
 )
 
@@ -45,10 +45,10 @@ type ServiceClient interface {
 
 type ServiceClientImpl struct {
 	logger                  *zap.SugaredLogger
-	argoCDConnectionManager connection.ArgoCDConnectionManager
+	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
 }
 
-func NewServiceClientImpl(logger *zap.SugaredLogger, argoCDConnectionManager connection.ArgoCDConnectionManager) *ServiceClientImpl {
+func NewServiceClientImpl(logger *zap.SugaredLogger, argoCDConnectionManager argocdServer.ArgoCDConnectionManager) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:                  logger,
 		argoCDConnectionManager: argoCDConnectionManager,

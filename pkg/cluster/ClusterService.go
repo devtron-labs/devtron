@@ -159,7 +159,6 @@ type ClusterService interface {
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
-	FindAllExceptVirtual() ([]*ClusterBean, error)
 	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
 	DeleteFromDb(bean *ClusterBean, userId int32) error
@@ -346,19 +345,6 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
 
 func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	models, err := impl.clusterRepository.FindAllActive()
-	if err != nil {
-		return nil, err
-	}
-	var beans []*ClusterBean
-	for _, model := range models {
-		bean := GetClusterBean(model)
-		beans = append(beans, &bean)
-	}
-	return beans, nil
-}
-
-func (impl *ClusterServiceImpl) FindAllExceptVirtual() ([]*ClusterBean, error) {
-	models, err := impl.clusterRepository.FindAllActiveExceptVirtual()
 	if err != nil {
 		return nil, err
 	}

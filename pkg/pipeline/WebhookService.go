@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/event"
@@ -70,7 +71,7 @@ type WebhookServiceImpl struct {
 	eventFactory         client.EventFactory
 	workflowDagExecutor  WorkflowDagExecutor
 	ciHandler            CiHandler
-	customTagService     CustomTagService
+	customTagService     pkg.CustomTagService
 }
 
 func NewWebhookServiceImpl(
@@ -80,7 +81,7 @@ func NewWebhookServiceImpl(
 	appService app.AppService, eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	customTagService CustomTagService,
+	customTagService pkg.CustomTagService,
 	workflowDagExecutor WorkflowDagExecutor, ciHandler CiHandler) *WebhookServiceImpl {
 	webhookHandler := &WebhookServiceImpl{
 		ciArtifactRepository: ciArtifactRepository,

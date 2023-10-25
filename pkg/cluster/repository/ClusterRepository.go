@@ -50,7 +50,6 @@ type ClusterRepository interface {
 	FindOneActive(clusterName string) (*Cluster, error)
 	FindAll() ([]Cluster, error)
 	FindAllActive() ([]Cluster, error)
-	FindAllActiveExceptVirtual() ([]Cluster, error)
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
@@ -124,16 +123,6 @@ func (impl ClusterRepositoryImpl) FindAllActive() ([]Cluster, error) {
 	err := impl.dbConnection.
 		Model(&clusters).
 		Where("active=?", true).
-		Select()
-	return clusters, err
-}
-
-func (impl ClusterRepositoryImpl) FindAllActiveExceptVirtual() ([]Cluster, error) {
-	var clusters []Cluster
-	err := impl.dbConnection.
-		Model(&clusters).
-		Where("active=?", true).
-		Where("is_virtual_cluster=?", false).
 		Select()
 	return clusters, err
 }

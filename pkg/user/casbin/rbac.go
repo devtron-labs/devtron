@@ -115,7 +115,8 @@ func (e *EnforcerImpl) Enforce(token string, resource string, action string, res
 }
 
 func (e *EnforcerImpl) EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
-	return e.enforceByEmail(emailId, resource, action, strings.ToLower(resourceItem))
+	allowed := e.enforceByEmail(emailId, resource, action, resourceItem)
+	return allowed
 }
 
 func (e *EnforcerImpl) ReloadPolicy() error {
@@ -165,10 +166,6 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	batchRequestLock := e.getBatchRequestLock(emailId)
 	batchRequestLock.Lock()
 	defer batchRequestLock.Unlock()
-
-	for index, val := range vals {
-		vals[index] = strings.ToLower(val)
-	}
 
 	var metrics = make(map[int]int64)
 	result, notFoundItemList := e.batchEnforceFromCache(emailId, resource, action, vals)

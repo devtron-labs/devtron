@@ -24,13 +24,6 @@ type VariableParserRequest struct {
 	IgnoreUnknownVariables bool
 }
 
-func (request VariableParserRequest) GetEmptyResponse() VariableParserResponse {
-	return VariableParserResponse{
-		Request:          request,
-		ResolvedTemplate: request.Template,
-	}
-}
-
 type VariableParserResponse struct {
 	Request          VariableParserRequest
 	ResolvedTemplate string
@@ -47,23 +40,10 @@ func (request VariableParserRequest) GetValuesMap() map[string]string {
 	return variablesMap
 }
 
-func (request VariableParserRequest) GetOriginalValuesMap() map[string]interface{} {
-	var variableToValue = make(map[string]interface{}, 0)
-	for _, variable := range request.Variables {
-		variableToValue[variable.VariableName] = variable.VariableValue.Value
-	}
-	return variableToValue
-}
-
-func GetScopedVarData(varData map[string]string, nameToIsSensitive map[string]bool, isSuperAdmin bool) []*models.ScopedVariableData {
+func GetScopedVarData(varData map[string]string) []*models.ScopedVariableData {
 	scopedVarData := make([]*models.ScopedVariableData, 0)
 	for key, value := range varData {
-
-		finalValue := value
-		if !isSuperAdmin && nameToIsSensitive[key] {
-			finalValue = models.HiddenValue
-		}
-		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: &models.VariableValue{Value: models.GetInterfacedValue(finalValue)}})
+		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: &models.VariableValue{Value: value}})
 	}
 	return scopedVarData
 }

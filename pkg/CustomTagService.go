@@ -1,15 +1,32 @@
-package pipeline
+package pkg
 
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"regexp"
 	"strconv"
 	"strings"
+)
+
+const (
+	EntityNull = iota
+	EntityTypeCiPipelineId
+	EntityTypePreCD
+	EntityTypePostCD
+)
+
+const (
+	imagePathPattern                                              = "%s/%s:%s" // dockerReg/dockerRepo:Tag
+	ImageTagUnavailableMessage                                    = "Desired image tag already exists"
+	REGEX_PATTERN_FOR_ENSURING_ONLY_ONE_VARIABLE_BETWEEN_BRACKETS = `\{.{2,}\}`
+	REGEX_PATTERN_FOR_CHARACTER_OTHER_THEN_X_OR_x                 = `\{[^xX]|{}\}`
+)
+
+var (
+	ErrImagePathInUse = fmt.Errorf(ImageTagUnavailableMessage)
 )
 
 type CustomTagService interface {
@@ -44,7 +61,7 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 	customTagData := repository.CustomTag{
 		EntityKey:            tag.EntityKey,
 		EntityValue:          tag.EntityValue,
-		TagPattern:           strings.ReplaceAll(tag.TagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_X, bean2.IMAGE_TAG_VARIABLE_NAME_x),
+		TagPattern:           strings.ReplaceAll(tag.TagPattern, "{X}", "{x}"),
 		AutoIncreasingNumber: tag.AutoIncreasingNumber,
 		Metadata:             tag.Metadata,
 		Active:               true,
@@ -89,13 +106,13 @@ func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue s
 	if err != nil {
 		return nil, err
 	}
-	imagePath := fmt.Sprintf(bean2.ImagePathPattern, dockerRegistryURL, dockerRepo, tag)
+	imagePath := fmt.Sprintf(imagePathPattern, dockerRegistryURL, dockerRepo, tag)
 	imagePathReservations, err := impl.customTagRepository.FindByImagePath(tx, imagePath)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
 	if len(imagePathReservations) > 0 {
-		return nil, bean2.ErrImagePathInUse
+		return nil, ErrImagePathInUse
 	}
 	imagePathReservation := &repository.ImagePathReservation{
 		ImagePath:   imagePath,
@@ -120,9 +137,10 @@ func validateAndConstructTag(customTagData *repository.CustomTag) (string, error
 	if customTagData.AutoIncreasingNumber < 0 {
 		return "", fmt.Errorf("counter {x} can not be negative")
 	}
-	dockerImageTag := strings.ReplaceAll(customTagData.TagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_x, strconv.Itoa(customTagData.AutoIncreasingNumber-1)) //-1 because number is already incremented, current value will be used next time
-	if !isValidDockerImageTag(dockerImageTag) {
-		return dockerImageTag, fmt.Errorf("invalid docker tag")
+	dockerImageTag := strings.ReplaceAll(customTagData.TagPattern, "{x}", strconv.Itoa(customTagData.AutoIncreasingNumber-1)) //-1 because number is already incremented, current value will be used next time
+	err = validateTag(dockerImageTag)
+	if err != nil {
+		return "", err
 	}
 	return dockerImageTag, nil
 }
@@ -132,32 +150,38 @@ func validateTagPattern(customTagPattern string) error {
 		return fmt.Errorf("tag length can not be zero")
 	}
 
-	variableCount := 0
-	variableCount = variableCount + strings.Count(customTagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_x)
-	variableCount = variableCount + strings.Count(customTagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_X)
-
-	if variableCount == 0 {
-		// there can be case when there is only one {x} or {x}
-		return fmt.Errorf("variable with format {x} or {X} not found")
-	} else if variableCount > 1 {
-		return fmt.Errorf("only one variable with format {x} or {X} allowed")
+	if IsInvalidVariableFormat(customTagPattern) {
+		return fmt.Errorf("only one variable is allowed. Allowed variable format : {x} or {X}")
 	}
 
-	// replacing variable with 1 (dummy value) and checking if resulting string is valid tag
-	tagWithDummyValue := strings.ReplaceAll(customTagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_x, "1")
-	tagWithDummyValue = strings.ReplaceAll(tagWithDummyValue, bean2.IMAGE_TAG_VARIABLE_NAME_X, "1")
-
-	if !isValidDockerImageTag(tagWithDummyValue) {
-		return fmt.Errorf("not a valid image tag")
+	remainingString := strings.ReplaceAll(customTagPattern, ".{x}", "")
+	remainingString = strings.ReplaceAll(remainingString, ".{X}", "")
+	if len(remainingString) == 0 {
+		return nil
 	}
 
+	n := len(remainingString)
+	if remainingString[0] == '.' || remainingString[0] == '-' {
+		return fmt.Errorf("tag can not start with an hyphen or a period")
+	}
+	if n != 0 && (remainingString[n-1] == '.' || remainingString[n-1] == '-') {
+		return fmt.Errorf("tag can not end with an hyphen or a period")
+	}
 	return nil
 }
 
-func isValidDockerImageTag(tag string) bool {
-	// Define the regular expression for a valid Docker image tag
-	re := regexp.MustCompile(bean2.REGEX_PATTERN_FOR_IMAGE_TAG)
-	return re.MatchString(tag)
+func IsInvalidVariableFormat(customTagPattern string) bool {
+	regex := regexp.MustCompile(REGEX_PATTERN_FOR_ENSURING_ONLY_ONE_VARIABLE_BETWEEN_BRACKETS)
+	matches := regex.FindAllString(customTagPattern, -1)
+	if len(matches) > 0 {
+		return true
+	}
+	regex = regexp.MustCompile(REGEX_PATTERN_FOR_CHARACTER_OTHER_THEN_X_OR_x)
+	matches = regex.FindAllString(customTagPattern, -1)
+	if len(matches) > 0 {
+		return true
+	}
+	return false
 }
 
 func validateTag(imageTag string) error {

@@ -86,7 +86,6 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	gitOpsConfigRepository               repository3.GitOpsConfigRepository
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -102,7 +101,6 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoUserService argo.ArgoUserService, gitOpsConfigRepository repository3.GitOpsConfigRepository,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 ) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
@@ -122,7 +120,6 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigRepository:               gitOpsConfigRepository,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
-		argoClientWrapperService:             argoClientWrapperService,
 	}
 }
 
@@ -318,12 +315,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	}
 	//STEP 6: Force Sync ACD - works like trigger deployment
 	//impl.SyncACD(installAppVersionRequest.ACDAppName, ctx)
-
-	//STEP 7: normal refresh ACD - update for step 6 to avoid delay
-	err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
-	if err != nil {
-		impl.logger.Errorw("error in getting the argo application with normal refresh", "err", err)
-	}
 
 	return installAppVersionRequest, nil
 }

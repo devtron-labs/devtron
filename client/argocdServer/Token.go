@@ -15,20 +15,31 @@
  *
  */
 
-package connection
+package argocdServer
 
-import (
-	"github.com/caarlos0/env"
-)
+import "context"
 
-type Config struct {
-	Host      string `env:"CD_HOST" envDefault:"localhost"`
-	Port      string `env:"CD_PORT" envDefault:"8000"`
-	Namespace string `env:"CD_NAMESPACE" envDefault:"devtroncd"`
+type TokenAuth struct {
+	token string
 }
 
-func GetConfig() (*Config, error) {
-	cfg := &Config{}
-	err := env.Parse(cfg)
-	return cfg, err
+// Return value is mapped to request headers.
+func (t TokenAuth) GetRequestMetadata(ctx context.Context, in ...string) (map[string]string, error) {
+	return map[string]string{
+		"token": t.token,
+	}, nil
+}
+
+func (TokenAuth) RequireTransportSecurity() bool {
+	return false
+}
+
+var tokenAuth TokenAuth
+
+func GetTokenAuth() *TokenAuth {
+	return &tokenAuth
+}
+
+func SetTokenAuth(token string) {
+	tokenAuth = TokenAuth{token: token}
 }

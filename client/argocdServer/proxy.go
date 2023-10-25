@@ -15,7 +15,7 @@
  *
  */
 
-package connection
+package argocdServer
 
 import (
 	"bytes"

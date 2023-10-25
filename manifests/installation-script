@@ -1,4 +1,4 @@
-LTAG="v0.6.23";
+LTAG="v0.6.22";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
@@ -60,7 +60,11 @@ if !defaultCacheBucket {
 ######Generating raw urls
 argocdResource_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd-resource.json";
 devtronHousekeeping_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-housekeeping.yaml";
+dashboard_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/dashboard.yaml";
+gitSensor_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/gitsensor.yaml";
+kubelink_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubelink.yaml";
 kubewatch_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubewatch.yaml";
+lens_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/lens.yaml";
 natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
@@ -70,33 +74,49 @@ devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-leg
 log(devtronIngress_raw);
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
+rollout_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/rollout.yaml";
 
 ######Downloading the manifests
 argocdResource = download(argocdResource_raw);
 devtronHousekeeping = download(devtronHousekeeping_raw);
+dashboard = download(dashboard_raw);
+gitSensor = download(gitSensor_raw);
+kubelink = download(kubelink_raw);
 kubewatch = download(kubewatch_raw);
+lens = download(lens_raw);
 natsServer = download(natsServer_raw);
 devtron = download(devtron_raw);
 devtronIngress = download(devtronIngress_raw);
 serviceAccount = download(serviceAccount_raw);
 namespace = download(namespace_raw);
+rollout = download(rollout_raw);
 
 ######Downloading the manifests
 
 devtronHousekeepingOverride = kubectl get cm -n devtroncd devtron-housekeeping-override-cm;
+dashboardOverride = kubectl get cm -n devtroncd dashboard-override-cm;
+gitSensorOverride = kubectl get cm -n devtroncd git-sensor-override-cm;
+kubelinkOverride = kubectl get cm -n devtroncd kubelink-override-cm;
 kubewatchOverride = kubectl get cm -n devtroncd kubewatch-override-cm;
+lensOverride = kubectl get cm -n devtroncd lens-override-cm;
 natsServerOverride = kubectl get cm -n devtroncd nats-server-override-cm;
 devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
 devtronIngressOverride = kubectl get cm -n devtroncd devtron-ingress-override-cm;
 serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
 namespaceOverride = kubectl get cm -n devtroncd namespace-override-cm;
+rolloutOverride = kubectl get cm -n devtroncd rollout-override-cm;
 
+dashboardOverride = jsonSelect(dashboardOverride, "data.override");
+gitSensorOverride = jsonSelect(gitSensorOverride, "data.override");
+kubelinkOverride = jsonSelect(kubelinkOverride, "data.override");
 kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
+lensOverride = jsonSelect(lensOverride, "data.override");
 natsServerOverride = jsonSelect(natsServerOverride, "data.override");
 devtronOverride = jsonSelect(devtronOverride, "data.override");
 devtronIngressOverride = jsonSelect(devtronIngressOverride, "data.override");
 serviceAccountOverride = jsonSelect(serviceAccountOverride, "data.override");
 namespaceOverride = jsonSelect(namespaceOverride, "data.override");
+rolloutOverride = jsonSelect(rolloutOverride, "data.override");
 
 namespaces = kubectl apply namespace;
 log("created namespaces");
@@ -106,6 +126,15 @@ log("created service account");
 pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
 log("executed argocd setup command");
 
+#rollout
+rollout = kubectl apply -n devtroncd rollout -u rolloutOverride;
+log("executed rollout setup command");
+
+#git-sensor
+kubeYamlEdit(gitSensor, "data.PG_PASSWORD", postgresqlPassword, `/Secret//git-sensor-secret`);
+
+#lens
+kubeYamlEdit(lens, "data.PG_PASSWORD", postgresqlPassword, `/Secret//lens-secret`);
 
 migDelete = kubectl delete -n devtroncd job devtron-housekeeping;
 if !migDelete {
@@ -201,8 +230,50 @@ if !helmInstallation {
 devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 log("executed devtron setup");
 
+if !helmInstallation {
+  if devtronIngressAnnotations {
+      log("editing ingress");
+    kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
+  }
+
+  if setupDevtronIngress {
+    log("fetch ingress");
+    existingIngress = kubectl get -n devtroncd ing devtron-ingress;
+  }
+
+  if existingIngress {
+    annotations = jsonSelect(existingIngress, "metadata.annotations");
+  }
+
+  if annotations {
+    kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
+  }
+
+  if setupDevtronIngress {
+    log("setup ingress");
+    log(devtronIngress);
+    devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
+  }
+
+  log("executed devtron ingress setup");
+}
+
+if !helmInstallation {
+  dashboard = kubectl apply -n devtroncd dashboard -u dashboardOverride;
+  log("executed dashboard setup");
+}
+gitSensor = kubectl apply -n devtroncd gitSensor -u gitSensorOverride;
+log("executed git sensor setup");
+##imageScanner = kubectl apply -n devtroncd imageScanner -u imageScannerOverride;
+log("executed image scanner setup");
+if !helmInstallation {
+  kubelink = kubectl apply -n devtroncd kubelink -u kubelinkOverride;
+  log("executed kubelink setup");
+}
 kubewatch = kubectl apply -n devtroncd kubewatch -u kubewatchOverride;
 log("executed kubewatch setup");
+lens = kubectl apply -n devtroncd lens -u lensOverride;
+log("executed lens setup");
 
 ## Applying Housekeeping Job
 appHousekeeping = kubectl apply -n devtroncd devtronHousekeeping -u devtronHousekeepingOverride;

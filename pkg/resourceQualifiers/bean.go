@@ -13,7 +13,6 @@ type SystemMetadata struct {
 	ClusterName     string
 	Namespace       string
 	ImageTag        string
-	Image           string
 	AppName         string
 }
 
@@ -29,8 +28,6 @@ func (metadata *SystemMetadata) GetDataFromSystemVariable(variable SystemVariabl
 		return metadata.ImageTag
 	case DevtronAppName:
 		return metadata.AppName
-	case DevtronImage:
-		return metadata.Image
 	}
 	return ""
 }

@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 
@@ -101,7 +100,7 @@ type ChartService interface {
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
-	ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType, isSuperAdmin bool, maskUnknownVariable bool) (string, map[string]string, error)
+	ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType) (string, error)
 }
 
 type ChartServiceImpl struct {
@@ -1333,46 +1332,30 @@ const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
-func (impl ChartServiceImpl) ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType, isSuperAdmin bool, maskUnknownVariable bool) (string, map[string]string, error) {
-	//Todo Subhashish manager layer
-	variableSnapshot := make(map[string]string)
+func (impl ChartServiceImpl) ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType) (string, error) {
+
 	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, templateType)
 	if err != nil {
-		return template, variableSnapshot, err
+		return "", err
 	}
 
 	if len(usedVariables) == 0 {
-		return template, variableSnapshot, err
+		return template, nil
 	}
 
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables, isSuperAdmin)
+	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables, true)
 	if err != nil {
-		return template, variableSnapshot, err
-	}
-
-	for _, variable := range scopedVariables {
-		variableSnapshot[variable.VariableName] = variable.VariableValue.StringValue()
-	}
-
-	if maskUnknownVariable {
-		for _, variable := range usedVariables {
-			if _, ok := variableSnapshot[variable]; !ok {
-				scopedVariables = append(scopedVariables, &models2.ScopedVariableData{
-					VariableName:  variable,
-					VariableValue: &models2.VariableValue{Value: models2.UndefinedValue},
-				})
-			}
-		}
+		return "", err
 	}
 
 	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: templateType, IgnoreUnknownVariables: true}
 	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
 	err = parserResponse.Error
 	if err != nil {
-		return template, variableSnapshot, err
+		return "", err
 	}
 	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableSnapshot, nil
+	return resolvedTemplate, nil
 }
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error) {
@@ -1392,7 +1375,7 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, tem
 	//}
 
 	templateBytes := template.(json.RawMessage)
-	templatejsonstring, _, err := impl.ExtractVariablesAndResolveTemplate(scope, string(templateBytes), parsers.JsonVariableTemplate, true, false)
+	templatejsonstring, err := impl.ExtractVariablesAndResolveTemplate(scope, string(templateBytes), parsers.JsonVariableTemplate)
 	if err != nil {
 		return false, err
 	}
