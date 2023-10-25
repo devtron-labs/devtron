@@ -39,7 +39,7 @@ type AppCrudOperationService interface {
 	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
-	GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error)
+	GetAppMetaInfo(appId int, installedAppId int, installedAppEnvId int) (*bean.AppMetaInfoDto, error)
 	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
 	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
 	GetLabelsByAppId(appId int) (map[string]string, error)
@@ -289,7 +289,7 @@ func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	return results, nil
 }
 
-func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error) {
+func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId int, installedAppEnvId int) (*bean.AppMetaInfoDto, error) {
 	app, err := impl.appRepository.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
@@ -336,6 +336,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 		impl.logger.Errorw("error in fetching description", "err", err, "appId", app.Id)
 		return nil, err
 	}
+
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
 		AppName:     appName,
@@ -347,6 +348,25 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 		Labels:      labels,
 		Active:      app.Active,
 		Note:        noteResp[app.Id],
+	}
+	if installedAppId > 0 {
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, installedAppEnvId)
+		if err != nil {
+			impl.logger.Error(err)
+			return nil, err
+		}
+		var chartName string
+		if installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepoId != 0 {
+			chartName = installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepo.Name
+		} else {
+			chartName = installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
+		}
+		info.ChartUsed = &bean.ChartUsedDto{
+			AppStoreChartName:  chartName,
+			AppStoreChartId:    installedAppVersion.AppStoreApplicationVersion.AppStore.Id,
+			AppStoreAppName:    installedAppVersion.AppStoreApplicationVersion.Name,
+			AppStoreAppVersion: installedAppVersion.AppStoreApplicationVersion.Version,
+		}
 	}
 	return info, nil
 }

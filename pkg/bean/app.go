@@ -767,6 +767,15 @@ type AppMetaInfoDto struct {
 	Labels      []*Label                       `json:"labels"`
 	Note        *bean2.GenericNoteResponseBean `json:"note"`
 	UserId      int32                          `json:"-"`
+	//below field is only valid for helm apps
+	ChartUsed *ChartUsedDto `json:"chartUsed,omitempty"`
+}
+
+type ChartUsedDto struct {
+	AppStoreChartName  string `json:"appStoreChartName,omitempty"`
+	AppStoreChartId    int    `json:"appStoreChartId,omitempty"`
+	AppStoreAppName    string `json:"appStoreAppName,omitempty"`
+	AppStoreAppVersion string `json:"appStoreAppVersion,omitempty"`
 }
 
 type AppLabelsJsonForDeployment struct {
