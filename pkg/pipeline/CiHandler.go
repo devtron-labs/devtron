@@ -37,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/rest"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -645,14 +646,32 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		}
 	}
 
-	runningWf, err := impl.workflowService.GetWorkflow(workflow.Name, workflow.Namespace, isExt, env)
+	var clusterBean cluster.ClusterBean
+	if env != nil && env.Cluster != nil {
+		clusterBean = cluster.GetClusterBean(*env.Cluster)
+	}
+	clusterConfig, err := clusterBean.GetClusterConfig()
 	if err != nil {
-		impl.Logger.Errorw("cannot find workflow ", "err", err)
-		return 0, errors.New("cannot find workflow " + workflow.Name)
+		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return 0, err
+	}
+	var restConfig *rest.Config
+	if isExt {
+		restConfig, err = impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err != nil {
+			impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
+			return 0, err
+		}
 	}
 
+	//runningWf, err := impl.workflowService.GetWorkflow(workflow.Name, workflow.Namespace, isExt, env)
+	//if err != nil {
+	//	impl.Logger.Errorw("cannot find workflow ", "err", err)
+	//	return 0, errors.New("cannot find workflow " + workflow.Name)
+	//}
+
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, runningWf.Name, runningWf.Namespace, nil, isExt, env)
+	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, workflow.Name, workflow.Namespace, restConfig, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
