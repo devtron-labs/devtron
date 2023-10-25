@@ -4,6 +4,7 @@
 ## Enhancements
 - feat: enchancements in scoped variables (#4069)
 ## Documentation
+- docs: Added Exclude Git Files section in Existing Doc (#4136)
 ## Others
 - chore: moved methods use by workflowdagexecutor to it (#4147)
 - chore: fix sql 181 script  (#4144)
