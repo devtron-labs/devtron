@@ -1233,6 +1233,7 @@ func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w h
 func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	handler.Logger.Infow("Hello world")
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
