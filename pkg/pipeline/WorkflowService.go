@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -33,7 +32,6 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 	"strings"
@@ -44,7 +42,7 @@ import (
 type WorkflowService interface {
 	SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, error)
 	//DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(name string, namespace string, isExt bool, environment *repository.Environment) (*v1alpha1.Workflow, error)
+	GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
 	//ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	//UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
 	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
@@ -279,16 +277,14 @@ func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig
 	impl.Logger.Warnw("workflow executor not found", "type", executorType)
 	return nil
 }
-func (impl *WorkflowServiceImpl) GetWorkflow(name string, namespace string, isExt bool, environment *repository.Environment) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error) {
 	impl.Logger.Debug("getting wf", name)
-	wfClient, err := impl.getWfClient(environment, namespace, isExt)
-
-	if err != nil {
-		return nil, err
+	workflowExecutor := impl.getWorkflowExecutor(executorType)
+	if restConfig == nil {
+		restConfig = impl.config
 	}
-
-	workflow, err := wfClient.Get(context.Background(), name, v1.GetOptions{})
-	return workflow, err
+	wf, err := workflowExecutor.GetWorkflow(name, namespace, restConfig)
+	return wf, err
 }
 
 func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error {

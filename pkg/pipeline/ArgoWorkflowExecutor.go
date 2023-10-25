@@ -40,6 +40,7 @@ var SECRET_KEY_SELECTOR = &v12.SecretKeySelector{Key: CRED_SECRET_KEY, LocalObje
 type WorkflowExecutor interface {
 	ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error)
 	TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error
+	GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error)
 }
 
 type ArgoWorkflowExecutor interface {
@@ -133,6 +134,21 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	}
 	impl.logger.Debugw("workflow submitted: ", "name", createdWf.Name)
 	return impl.convertToUnstructured(createdWf), nil
+}
+
+func (impl *ArgoWorkflowExecutorImpl) GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error) {
+
+	wfClient, err := impl.getClientInstance(namespace, clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("cannot build wf client", "wfName", workflowName, "err", err)
+		return nil, err
+	}
+	wf, err := wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
+		return nil, errors.New("cannot find workflow " + workflowName)
+	}
+	return impl.convertToUnstructured(wf), err
 }
 
 func (impl *ArgoWorkflowExecutorImpl) convertToUnstructured(cdWorkflow interface{}) *unstructured.UnstructuredList {

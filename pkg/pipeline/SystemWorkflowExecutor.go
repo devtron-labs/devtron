@@ -97,9 +97,28 @@ func (impl *SystemWorkflowExecutorImpl) TerminateWorkflow(workflowName string, n
 	return err
 }
 
+func (impl *SystemWorkflowExecutorImpl) GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error) {
+	templatesList := &unstructured.UnstructuredList{}
+	_, clientset, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while creating k8s client", "workflowName", workflowName, "namespace", namespace, "err", err)
+		return nil, err
+	}
+	wf, err := clientset.BatchV1().Jobs(namespace).Get(context.Background(), workflowName, v12.GetOptions{})
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			err = fmt.Errorf("cannot find workflow %s", workflowName)
+		}
+		return nil, err
+	}
+	impl.addToUnstructuredList(wf, templatesList)
+	return templatesList, nil
+}
+
 func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.WorkflowTemplate) *v1.Job {
 
-	workflowLabels := map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE, "devtron.ai/purpose": "workflow"}
+	workflowLabels := map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE, "devtron.ai/purpose": "workflow", "workflowType": workflowTemplate.WorkflowType}
 
 	//setting TerminationGracePeriodSeconds in PodSpec
 	//which ensures Pod has enough time to execute cleanup on SIGTERM event

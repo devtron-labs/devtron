@@ -37,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"net/http"
 	"os"
@@ -1625,8 +1626,26 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		isEligibleToMarkFailed := false
 		isPodDeleted := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
+
+			var clusterBean cluster.ClusterBean
+			if env != nil && env.Cluster != nil {
+				clusterBean = cluster.GetClusterBean(*env.Cluster)
+			}
+			clusterConfig, err := clusterBean.GetClusterConfig()
+			if err != nil {
+				impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+				return err
+			}
+			var restConfig *rest.Config
+			if isExt {
+				restConfig, err = impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+				if err != nil {
+					impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
+					return err
+				}
+			}
 			//check weather pod is exists or not, if exits check its status
-			wf, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, ciWorkflow.Namespace, isExt, env)
+			wf, err := impl.workflowService.GetWorkflow(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
 			if err != nil {
 				impl.Logger.Warnw("unable to fetch ci workflow", "err", err)
 				statusError, ok := err.(*errors2.StatusError)
@@ -1662,10 +1681,15 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						// skip this and process for next ci workflow
 					}
 				}
+				if ciWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
+					createdWf := &v1alpha1.Workflow{}
+					obj := wf.Items[0].Object
 
-				//check workflow status,get the status
-				if wf.Status.Phase == v1alpha1.WorkflowFailed && wf.Status.Message == POD_DELETED_MESSAGE {
-					isPodDeleted = true
+					runtime.DefaultUnstructuredConverter.FromUnstructured(obj, createdWf)
+					//check workflow status,get the status
+					if createdWf.Status.Phase == v1alpha1.WorkflowFailed && createdWf.Status.Message == POD_DELETED_MESSAGE {
+						isPodDeleted = true
+					}
 				}
 			}
 		}
