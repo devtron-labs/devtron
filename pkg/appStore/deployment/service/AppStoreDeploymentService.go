@@ -1057,7 +1057,7 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 				impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
 				return err
 			}
-			installedAppVersionHistory.Status = "Unknown"
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
 			_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
