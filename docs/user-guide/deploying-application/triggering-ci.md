@@ -12,7 +12,7 @@ CI Pipelines with automatic trigger enabled are triggered immediately when a new
 
 {% hint style="info" %}
 
-### Partal Cloning Feature [![](https://img.shields.io/badge/ENT-Devtron-blue)](https://devtron.ai/pricing)
+### Partal Cloning Feature [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 CI builds can be time-consuming for large repositories, especially for enterprises. However, Devtron's partial cloning feature significantly increases cloning speed, reducing the time it takes to clone your source code and leading to faster build times.
 
