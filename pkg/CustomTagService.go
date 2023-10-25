@@ -137,7 +137,7 @@ func validateAndConstructTag(customTagData *repository.CustomTag) (string, error
 		return "", fmt.Errorf("counter {x} can not be negative")
 	}
 	dockerImageTag := strings.ReplaceAll(customTagData.TagPattern, "{x}", strconv.Itoa(customTagData.AutoIncreasingNumber-1)) //-1 because number is already incremented, current value will be used next time
-	if isValidDockerImageTag(dockerImageTag) {
+	if !isValidDockerImageTag(dockerImageTag) {
 		return dockerImageTag, fmt.Errorf("invalid docker tag")
 	}
 	return dockerImageTag, nil
