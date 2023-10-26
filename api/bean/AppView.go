@@ -198,6 +198,8 @@ type Environment struct {
 	Prod                       bool   `json:"prod"`
 	ChartRefId                 int    `json:"chartRefId"`
 	LastDeployed               string `json:"lastDeployed"`
+	LastDeployedBy             string `json:"lastDeployedBy"`
+	LastDeployedImage          string `json:"lastDeployedImage"`
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 	Description                string `json:"description" validate:"max=40"`
 	IsVirtualEnvironment       bool   `json:"isVirtualEnvironment"`
