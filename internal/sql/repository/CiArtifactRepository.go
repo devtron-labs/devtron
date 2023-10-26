@@ -256,7 +256,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 
 	commonApprovalNodeSubQueryPart := fmt.Sprintf("cia.id NOT IN "+
 		" ( "+
-		" SELECT DISTINCT dar.artifact_id "+
+		" SELECT DISTINCT dar.ci_artifact_id "+
 		" FROM deployment_approval_request dar "+
 		" WHERE dar.pipeline_id = %v "+
 		" AND dar.active=true "+
