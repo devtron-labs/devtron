@@ -41,6 +41,7 @@ type WorkflowExecutor interface {
 	ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error)
 	TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error
 	GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error)
+	GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*WorkflowStatus, error)
 }
 
 type ArgoWorkflowExecutor interface {
@@ -149,6 +150,25 @@ func (impl *ArgoWorkflowExecutorImpl) GetWorkflow(workflowName string, namespace
 		return nil, fmt.Errorf("cannot find workflow %s", workflowName)
 	}
 	return impl.convertToUnstructured(wf), err
+}
+
+func (impl *ArgoWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*WorkflowStatus, error) {
+
+	wfClient, err := impl.getClientInstance(namespace, clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("cannot build wf client", "wfName", workflowName, "err", err)
+		return nil, err
+	}
+	wf, err := wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
+		return nil, fmt.Errorf("cannot find workflow %s", workflowName)
+	}
+	wfStatus := &WorkflowStatus{
+		Status:  string(wf.Status.Phase),
+		Message: wf.Status.Message,
+	}
+	return wfStatus, err
 }
 
 func (impl *ArgoWorkflowExecutorImpl) convertToUnstructured(cdWorkflow interface{}) *unstructured.UnstructuredList {

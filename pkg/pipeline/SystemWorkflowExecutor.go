@@ -116,6 +116,28 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflow(workflowName string, namespa
 	return templatesList, nil
 }
 
+// This will work for
+
+func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*WorkflowStatus, error) {
+
+	_, clientset, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while creating k8s client", "workflowName", workflowName, "namespace", namespace, "err", err)
+		return nil, err
+	}
+	wf, err := clientset.BatchV1().Jobs(namespace).Get(context.Background(), workflowName, v12.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			err = fmt.Errorf("cannot find workflow %s", workflowName)
+		}
+		return nil, err
+	}
+	wfStatus := &WorkflowStatus{
+		Status: string(wf.Status.Conditions[0].Type),
+	}
+	return wfStatus, nil
+}
+
 func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.WorkflowTemplate) *v1.Job {
 
 	workflowLabels := map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE, "devtron.ai/purpose": "workflow", "workflowType": workflowTemplate.WorkflowType}

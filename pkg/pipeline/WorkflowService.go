@@ -43,6 +43,7 @@ type WorkflowService interface {
 	SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, error)
 	//DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
+	GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*WorkflowStatus, error)
 	//ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	//UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
 	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
@@ -283,8 +284,17 @@ func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.Workflo
 	if restConfig == nil {
 		restConfig = impl.config
 	}
-	wf, err := workflowExecutor.GetWorkflow(name, namespace, restConfig)
-	return wf, err
+	return workflowExecutor.GetWorkflow(name, namespace, restConfig)
+}
+
+func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*WorkflowStatus, error) {
+	impl.Logger.Debug("getting wf", name)
+	workflowExecutor := impl.getWorkflowExecutor(executorType)
+	if restConfig == nil {
+		restConfig = impl.config
+	}
+	wfStatus, err := workflowExecutor.GetWorkflowStatus(name, namespace, restConfig)
+	return wfStatus, err
 }
 
 func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error {

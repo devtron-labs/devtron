@@ -36,9 +36,7 @@ import (
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
-	v1 "k8s.io/api/batch/v1"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"net/http"
 	"os"
@@ -1632,7 +1630,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 
 			}
 			//check weather pod is exists or not, if exits check its status
-			wf, err := impl.workflowService.GetWorkflow(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
+			wf, err := impl.workflowService.GetWorkflowStatus(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
 			if err != nil {
 				impl.Logger.Warnw("unable to fetch ci workflow", "err", err)
 				statusError, ok := err.(*errors2.StatusError)
@@ -1669,20 +1667,14 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 					}
 				}
 				if ciWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
-					createdWf := &v1alpha1.Workflow{}
-					obj := wf.Items[0].Object
-
-					runtime.DefaultUnstructuredConverter.FromUnstructured(obj, createdWf)
 					//check workflow status,get the status
-					if createdWf.Status.Phase == v1alpha1.WorkflowFailed && createdWf.Status.Message == POD_DELETED_MESSAGE {
+					if wf.Status == string(v1alpha1.WorkflowFailed) && wf.Message == POD_DELETED_MESSAGE {
 						isPodDeleted = true
 					}
 				} else if ciWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
-					createdWf := &v1.Job{}
-					obj := wf.Items[0].Object
-
-					runtime.DefaultUnstructuredConverter.FromUnstructured(obj, createdWf)
-					impl.Logger.Debugw("workflow in case of system executor", "createdWf", createdWf)
+					if wf.Status == string(v1alpha1.WorkflowFailed) {
+						isPodDeleted = true
+					}
 				}
 			}
 		}
