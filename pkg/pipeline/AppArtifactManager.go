@@ -617,6 +617,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 			return ciArtifactsResponse, err
 		}
 		artifactListingFilterOpts.ApproversCount = approvalConfig.RequiredCount
+		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
 	}
 
 	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, err := impl.BuildArtifactsList(artifactListingFilterOpts, isApprovalNode)
