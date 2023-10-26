@@ -700,7 +700,6 @@ func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilt
 	//	Where("user_response = 0").
 	//	Group("deployment_approval_user_data.approval_request_id")
 
-	listingFilterOpts.SearchString = "%" + listingFilterOpts.SearchString + "%"
 	artifacts := make([]*CiArtifact, 0)
 	query := "WITH " +
 		" approved_images AS " +
@@ -713,9 +712,10 @@ func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilt
 		" SELECT cia.*" +
 		" FROM deployment_approval_request dar " +
 		// TODO Gireesh: ai.approval_count > ? instead greater-than-and-equal should be there and cia.image ILIKE %?% should be conditional
-		" INNER JOIN approved_images ai ON ai.approval_request_id=dar.id AND ai.approval_count > ? " +
+		" INNER JOIN approved_images ai ON ai.approval_request_id=dar.id AND ai.approval_count >= ? " +
 		" INNER JOIN ci_artifact cia ON cia.id = dar.ci_artifact_id " +
-		" WHERE dar.active=true AND dar.artifact_deployment_triggered = false AND dar.pipeline_id = ? AND cia.id NOT IN (?) AND cia.image LIKE ? " +
+		" WHERE dar.active=true AND dar.artifact_deployment_triggered = false AND dar.pipeline_id = ? AND cia.id NOT IN (?) AND " +
+		" cia.image LIKE ? " +
 		" ORDER BY cia.created_on " +
 		" LIMIT ? " +
 		" OFFSET ? "
