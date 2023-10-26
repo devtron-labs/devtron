@@ -717,6 +717,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
 			Latest:       true,
 		}
+		if currentRunningArtifact.WorkflowId != nil {
+			currentRunningArtifactBean.CiWorkflowId = *currentRunningArtifact.WorkflowId
+		}
 	}
 	//2) get artifact list limited by filterOptions
 
