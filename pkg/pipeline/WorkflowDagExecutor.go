@@ -3443,7 +3443,6 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(request ConfigM
 		if err != nil {
 			return []byte("{}"), err
 		}
-
 	}
 	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		resolvedCM, resolvedCS, err = impl.ResolvedVariableForSpecificType(configMapHistory, envOverride, secretHistory)
@@ -3493,15 +3492,23 @@ func (impl *WorkflowDagExecutorImpl) ResolvedVariableForLastSaved(request Config
 			return resolvedCM, resolvedCM, err
 		}
 	}
-	if resolvedCM != "" && resolvedCS == "" {
-		return resolvedCM, string(secretDataByte), nil
-	} else if resolvedCM == "" && resolvedCS != "" {
-		return string(configMapByte), resolvedCS, nil
-	} else if resolvedCM == "" && resolvedCS == "" {
-		return string(configMapByte), string(secretDataByte), nil
+	resolvedCMs, resolvedCSs, ok := resolvedCMCS(resolvedCM, resolvedCS, secretDataByte, configMapByte)
+	if ok {
+		return resolvedCMs, resolvedCSs, nil
 	}
 
 	return resolvedCM, resolvedCS, nil
+}
+
+func resolvedCMCS(resolvedCM string, resolvedCS string, secretDataByte []byte, configMapByte []byte) (string, string, bool) {
+	if resolvedCM != "" && resolvedCS == "" {
+		return resolvedCM, string(secretDataByte), true
+	} else if resolvedCM == "" && resolvedCS != "" {
+		return string(configMapByte), resolvedCS, true
+	} else if resolvedCM == "" && resolvedCS == "" {
+		return string(configMapByte), string(secretDataByte), true
+	}
+	return "", "", false
 }
 func (impl *WorkflowDagExecutorImpl) GetCMCSScopedVars(scope resourceQualifiers.Scope, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel) ([]string, []string, []*models2.ScopedVariableData, error) {
 	varNamesCM := make([]string, 0)
@@ -3537,36 +3544,24 @@ func (impl *WorkflowDagExecutorImpl) ResolvedVariableForSpecificType(configMapHi
 		HistoryReferenceId:   configMapHistory.Id,
 		HistoryReferenceType: repository5.HistoryReferenceTypeConfigMap,
 	}
-	configMapHistoryJSON, err := json.Marshal(configMapHistory)
-	if err != nil {
-		impl.logger.Errorw("error in Marshalling configMapHistory for Id", configMapHistory.Id, "err", err)
-		return "", "", err
-	}
 	//todo Aditya have to implement batch
-	variableMapCM, resolvedTemplateCM, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configMapHistoryJSON), reference, true, false)
+	variableMapCM, resolvedTemplateCM, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(configMapHistory.Data, reference, true, false)
 	if err != nil {
 		return "", "", err
 	}
-	//envOverride.ResolvedEnvOverrideValuesForCM = resolvedTemplateCM
 	envOverride.VariableSnapshotForCM = variableMapCM
 
 	reference = repository5.HistoryReference{
 		HistoryReferenceId:   secretHistory.Id,
 		HistoryReferenceType: repository5.HistoryReferenceTypeSecret,
 	}
-	secretHistoryJSON, err := json.Marshal(secretHistory)
-	if err != nil {
-		impl.logger.Errorw("error in Marshalling secretHistory for Id ", secretHistory.Id, "err", err)
-		return "", "", err
-	}
-	data, err := repository3.GetTransformedDataForSecretHistory(string(secretHistoryJSON), bean.DecodeSecret)
+	data, err := bean3.GetTransformedDataForSecret(secretHistory.Data, bean3.DecodeSecret)
 	if err != nil {
 		return "", "", err
 	}
 	variableMapCS, resolvedTemplateCS, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, true, false)
-	//envOverride.ResolvedEnvOverrideValuesForCS = resolvedTemplateCS
 	envOverride.VariableSnapshotForCS = variableMapCS
-	encodedSecretData, err := repository3.GetTransformedDataForSecretHistory(resolvedTemplateCS, bean.EncodeSecret)
+	encodedSecretData, err := bean3.GetTransformedDataForSecret(resolvedTemplateCS, bean3.EncodeSecret)
 	if err != nil {
 		return "", "", err
 	}
