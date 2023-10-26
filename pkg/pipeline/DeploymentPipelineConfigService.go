@@ -293,11 +293,13 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	if customTagPreCD != nil && customTagPreCD.Id > 0 {
 		customTag = &bean.CustomTagData{TagPattern: customTagPreCD.TagPattern,
 			CounterX: customTagPreCD.AutoIncreasingNumber,
+			Enabled:  customTagPreCD.Enabled,
 		}
 		customTagStage = repository5.PIPELINE_STAGE_TYPE_PRE_CD
 	} else if customTagPostCD != nil && customTagPostCD.Id > 0 {
 		customTag = &bean.CustomTagData{TagPattern: customTagPostCD.TagPattern,
 			CounterX: customTagPostCD.AutoIncreasingNumber,
+			Enabled:  customTagPostCD.Enabled,
 		}
 		customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
 	}

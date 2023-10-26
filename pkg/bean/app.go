@@ -244,6 +244,7 @@ type CiMaterialPatchRequest struct {
 type CustomTagData struct {
 	TagPattern string `json:"tagPattern"`
 	CounterX   int    `json:"counterX"`
+	Enabled    bool   `json:"enabled"`
 }
 
 type CiMaterialValuePatchRequest struct {
