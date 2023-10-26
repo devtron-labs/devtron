@@ -789,6 +789,25 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 				return ciArtifacts, 0, "", err
 			}
 		}
+
+		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
+		if isApprovalNode {
+			artifactIds := make([]int, len(ciArtifacts))
+			for i, artifact := range ciArtifacts {
+				artifactIds[i] = artifact.Id
+			}
+			userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId, listingFilterOpts.ApproversCount) // it will fetch all the request data with nil cd_wfr_rnr_id
+			if err != nil {
+				impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", listingFilterOpts.PipelineId, "artifactIds", artifactIds, "err", err)
+				return ciArtifacts, 0, "", err
+			}
+			for i, artifact := range ciArtifacts {
+				if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok {
+					ciArtifacts[i].UserApprovalMetadata = approvalMetadataForArtifact
+				}
+			}
+		}
+
 	}
 
 	//we don't need currently deployed artifact for approvalNode explicitly
