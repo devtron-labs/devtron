@@ -1555,8 +1555,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return nil, err
 		}
-	} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && installAppVersionRequest.PerformedSyncHelmInstall {
-		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
 	}
 
 	return installAppVersionRequest, nil
