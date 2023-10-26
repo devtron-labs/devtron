@@ -36,6 +36,7 @@ import (
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
+	v1 "k8s.io/api/batch/v1"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -636,40 +637,17 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		impl.Logger.Warn("cannot cancel build, build not in progress")
 		return 0, errors.New("cannot cancel build, build not in progress")
 	}
-	var isExt bool
+	//var isExt bool
+	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
 	var env *repository3.Environment
-	if workflow.Namespace != DefaultCiWorkflowNamespace {
-		isExt = true
-		env, err = impl.envRepository.FindById(workflow.EnvironmentId)
-		if err != nil {
-			impl.Logger.Errorw("could not fetch stage env", "err", err)
-			return 0, err
-		}
-	}
-
-	var clusterBean cluster.ClusterBean
-	if env != nil && env.Cluster != nil {
-		clusterBean = cluster.GetClusterBean(*env.Cluster)
-	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return 0, err
-	}
 	var restConfig *rest.Config
 	if isExt {
-		restConfig, err = impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+		//isExt = true
+		restConfig, err = impl.getRestConfig(workflow)
 		if err != nil {
-			impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
 			return 0, err
 		}
 	}
-
-	//runningWf, err := impl.workflowService.GetWorkflow(workflow.Name, workflow.Namespace, isExt, env)
-	//if err != nil {
-	//	impl.Logger.Errorw("cannot find workflow ", "err", err)
-	//	return 0, errors.New("cannot find workflow " + workflow.Name)
-	//}
 
 	// Terminate workflow
 	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, workflow.Name, workflow.Namespace, restConfig, isExt, env)
@@ -685,6 +663,28 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		return 0, err
 	}
 	return workflow.Id, nil
+}
+
+func (impl *CiHandlerImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*rest.Config, error) {
+	env, err := impl.envRepository.FindById(workflow.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("could not fetch stage env", "err", err)
+		return nil, err
+	}
+
+	clusterBean := cluster.GetClusterBean(*env.Cluster)
+
+	clusterConfig, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return nil, err
+	}
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
+		return nil, err
+	}
+	return restConfig, nil
 }
 
 func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, buildId int) (WorkflowResponse, error) {
@@ -1627,22 +1627,9 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		isPodDeleted := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
 
-			var clusterBean cluster.ClusterBean
-			if env != nil && env.Cluster != nil {
-				clusterBean = cluster.GetClusterBean(*env.Cluster)
-			}
-			clusterConfig, err := clusterBean.GetClusterConfig()
+			restConfig, err := impl.getRestConfig(ciWorkflow)
 			if err != nil {
-				impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-				return err
-			}
-			var restConfig *rest.Config
-			if isExt {
-				restConfig, err = impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
-				if err != nil {
-					impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
-					return err
-				}
+
 			}
 			//check weather pod is exists or not, if exits check its status
 			wf, err := impl.workflowService.GetWorkflow(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
@@ -1690,6 +1677,12 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 					if createdWf.Status.Phase == v1alpha1.WorkflowFailed && createdWf.Status.Message == POD_DELETED_MESSAGE {
 						isPodDeleted = true
 					}
+				} else if ciWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+					createdWf := &v1.Job{}
+					obj := wf.Items[0].Object
+
+					runtime.DefaultUnstructuredConverter.FromUnstructured(obj, createdWf)
+					impl.Logger.Debugw("workflow in case of system executor", "createdWf", createdWf)
 				}
 			}
 		}
