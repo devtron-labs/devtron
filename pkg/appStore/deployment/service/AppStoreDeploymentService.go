@@ -1058,7 +1058,17 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 				return err
 			}
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-			installedAppVersionHistory.HelmReleaseStatusConfig = "Release Installed"
+			helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{
+				Message:             "Release Installed",
+				IsReleaseInstalled:  true,
+				ErrorInInstallation: false,
+			}
+			data, err := json.Marshal(helmInstallStatus)
+			if err != nil {
+				impl.logger.Errorw("error in marshalling helmInstallStatus message")
+				return err
+			}
+			installedAppVersionHistory.HelmReleaseStatusConfig = string(data)
 			_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
@@ -1545,6 +1555,8 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return nil, err
 		}
+	} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && installAppVersionRequest.PerformedSyncHelmInstall {
+		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
 	}
 
 	return installAppVersionRequest, nil
