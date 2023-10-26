@@ -1618,6 +1618,13 @@ func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequ
 		impl.logger.Errorw("error while installing app via helm", "error", err)
 		return installAppVersionRequest, err
 	}
+	if installAppVersionRequest.PerformedSyncHelmInstall {
+		err = impl.updateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+		if err != nil {
+			impl.logger.Errorw("error in updating installed app version history with sync", "err", err)
+			return installAppVersionRequest, err
+		}
+	}
 	return installAppVersionRequest, nil
 }
 
