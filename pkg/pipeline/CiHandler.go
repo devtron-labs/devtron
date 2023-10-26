@@ -1666,13 +1666,13 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						// skip this and process for next ci workflow
 					}
 				}
-				if ciWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
-					//check workflow status,get the status
-					if wf.Status == string(v1alpha1.WorkflowFailed) && wf.Message == POD_DELETED_MESSAGE {
+				if ciWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+					if wf.Status == string(v1alpha1.WorkflowFailed) {
 						isPodDeleted = true
 					}
-				} else if ciWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
-					if wf.Status == string(v1alpha1.WorkflowFailed) {
+				} else {
+					//check workflow status,get the status
+					if wf.Status == string(v1alpha1.WorkflowFailed) && wf.Message == POD_DELETED_MESSAGE {
 						isPodDeleted = true
 					}
 				}
