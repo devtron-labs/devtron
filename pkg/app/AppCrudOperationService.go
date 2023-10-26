@@ -356,17 +356,25 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 			return nil, err
 		}
 		var chartName string
-		if installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepoId != 0 {
-			chartName = installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepo.Name
-		} else {
-			chartName = installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
+		if installedAppVersion != nil {
+			info.ChartUsed = &bean.ChartUsedDto{
+				AppStoreAppName:    installedAppVersion.AppStoreApplicationVersion.Name,
+				AppStoreAppVersion: installedAppVersion.AppStoreApplicationVersion.Version,
+				ChartAvatar:        installedAppVersion.AppStoreApplicationVersion.Icon,
+			}
+			if installedAppVersion.AppStoreApplicationVersion.AppStore != nil {
+				appStore := installedAppVersion.AppStoreApplicationVersion.AppStore
+				if appStore.ChartRepoId != 0 && appStore.ChartRepo != nil {
+					chartName = appStore.ChartRepo.Name
+				} else if appStore.DockerArtifactStore != nil {
+					chartName = appStore.DockerArtifactStore.Id
+				}
+
+				info.ChartUsed.AppStoreChartId = appStore.Id
+				info.ChartUsed.AppStoreChartName = chartName
+			}
 		}
-		info.ChartUsed = &bean.ChartUsedDto{
-			AppStoreChartName:  chartName,
-			AppStoreChartId:    installedAppVersion.AppStoreApplicationVersion.AppStore.Id,
-			AppStoreAppName:    installedAppVersion.AppStoreApplicationVersion.Name,
-			AppStoreAppVersion: installedAppVersion.AppStoreApplicationVersion.Version,
-		}
+
 	}
 	return info, nil
 }

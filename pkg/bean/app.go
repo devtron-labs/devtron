@@ -776,6 +776,7 @@ type ChartUsedDto struct {
 	AppStoreChartId    int    `json:"appStoreChartId,omitempty"`
 	AppStoreAppName    string `json:"appStoreAppName,omitempty"`
 	AppStoreAppVersion string `json:"appStoreAppVersion,omitempty"`
+	ChartAvatar        string `json:"chartAvatar,omitempty"`
 }
 
 type AppLabelsJsonForDeployment struct {
