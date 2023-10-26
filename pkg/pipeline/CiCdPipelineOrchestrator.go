@@ -780,6 +780,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				EntityValue:          strconv.Itoa(ciPipeline.Id),
 				TagPattern:           ciPipeline.CustomTagObject.TagPattern,
 				AutoIncreasingNumber: ciPipeline.CustomTagObject.CounterX,
+				Enabled:              ciPipeline.EnableCustomTag,
 			}
 			err := impl.customTagService.CreateOrUpdateCustomTag(customTag)
 			if err != nil {
