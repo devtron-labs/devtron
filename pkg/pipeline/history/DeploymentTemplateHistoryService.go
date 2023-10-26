@@ -338,11 +338,11 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 		TemplateVersion:     history.TemplateVersion,
 		IsAppMetricsEnabled: &history.IsAppMetricsEnabled,
 		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName: "values.yaml",
-			Value:       history.Template,
+			DisplayName:      "values.yaml",
+			Value:            history.Template,
+			VariableSnapshot: variableSnapshotMap,
+			ResolvedValue:    resolvedTemplate,
 		},
-		VariableSnapshot:     variableSnapshotMap,
-		ResolvedTemplateData: resolvedTemplate,
 	}
 	return historyDto, nil
 }
@@ -392,11 +392,11 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 		TemplateVersion:     history.TemplateVersion,
 		IsAppMetricsEnabled: &history.IsAppMetricsEnabled,
 		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName: "values.yaml",
-			Value:       history.Template,
+			DisplayName:      "values.yaml",
+			Value:            history.Template,
+			VariableSnapshot: variableSnapshotMap,
+			ResolvedValue:    resolvedTemplate,
 		},
-		VariableSnapshot:     variableSnapshotMap,
-		ResolvedTemplateData: resolvedTemplate,
 	}
 	return historyDto, nil
 }

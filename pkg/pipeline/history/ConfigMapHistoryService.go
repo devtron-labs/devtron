@@ -429,10 +429,8 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 		return nil, err
 	}
 	var configData []*ConfigData
-	var variableSnapshotMapCM map[string]string
-	var resolvedTemplateCM string
-	var variableSnapshotMapCS map[string]string
-	var resolvedTemplateCS string
+	var variableSnapshotMap map[string]string
+	var resolvedTemplate string
 	isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -452,7 +450,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
 		}
-		variableSnapshotMapCM, resolvedTemplateCM, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, isSuperAdmin, true)
+		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, isSuperAdmin, true)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
 		}
@@ -475,11 +473,11 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 		if err != nil {
 			return nil, err
 		}
-		variableSnapshotMapCS, resolvedTemplateCS, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, isSuperAdmin, false)
+		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, isSuperAdmin, false)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
 		}
-		resolvedTemplateCS, err = secretList.GetTransformedDataForSecret(resolvedTemplateCS, util.EncodeSecret)
+		resolvedTemplate, err = secretList.GetTransformedDataForSecret(resolvedTemplate, util.EncodeSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -492,18 +490,16 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 		}
 	}
 	historyDto := &HistoryDetailDto{
-		Type:                      config.Type,
-		External:                  &config.External,
-		MountPath:                 config.MountPath,
-		SubPath:                   &config.SubPath,
-		FilePermission:            config.FilePermission,
-		VariableSnapshotForCM:     variableSnapshotMapCM,
-		ResolvedTemplateDataForCM: resolvedTemplateCM,
-		VariableSnapshotForCS:     variableSnapshotMapCS,
-		ResolvedTemplateDataForCS: resolvedTemplateCS,
+		Type:           config.Type,
+		External:       &config.External,
+		MountPath:      config.MountPath,
+		SubPath:        &config.SubPath,
+		FilePermission: config.FilePermission,
 		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName: "Data",
-			Value:       string(config.Data),
+			DisplayName:      "Data",
+			Value:            string(config.Data),
+			VariableSnapshot: variableSnapshotMap,
+			ResolvedValue:    resolvedTemplate,
 		},
 	}
 	if configType == repository.SECRET_TYPE {
@@ -613,11 +609,11 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			impl.logger.Errorw("error in converting data to componentLevelData", "err", err)
 		}
 		if configType == repository.SECRET_TYPE {
-			componentLevelData.HistoryConfig.VariableSnapshotForCS = variableSnapshotMap
-			componentLevelData.HistoryConfig.ResolvedTemplateDataForCS = resolvedTemplate
+			componentLevelData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableSnapshotMap
+			componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = resolvedTemplate
 		} else if configType == repository.CONFIGMAP_TYPE {
-			componentLevelData.HistoryConfig.VariableSnapshotForCM = variableSnapshotMap
-			componentLevelData.HistoryConfig.ResolvedTemplateDataForCM = resolvedTemplate
+			componentLevelData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableSnapshotMap
+			componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = resolvedTemplate
 		}
 
 		componentLevelHistoryData = append(componentLevelHistoryData, componentLevelData)

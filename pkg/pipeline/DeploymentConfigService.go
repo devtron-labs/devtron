@@ -150,11 +150,11 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 				TemplateVersion:     chartRef.Version,
 				IsAppMetricsEnabled: &isAppMetricsEnabled,
 				CodeEditorValue: &history.HistoryDetailConfig{
-					DisplayName: "values.yaml",
-					Value:       envOverride.EnvOverrideValues,
+					DisplayName:      "values.yaml",
+					Value:            envOverride.EnvOverrideValues,
+					VariableSnapshot: scopedVariablesMap,
+					ResolvedValue:    resolvedTemplate,
 				},
-				VariableSnapshot:     scopedVariablesMap,
-				ResolvedTemplateData: resolvedTemplate,
 			}
 		}
 	} else {
@@ -191,11 +191,11 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 			TemplateVersion:     chartRef.Version,
 			IsAppMetricsEnabled: &isAppMetricsEnabled,
 			CodeEditorValue: &history.HistoryDetailConfig{
-				DisplayName: "values.yaml",
-				Value:       chart.GlobalOverride,
+				DisplayName:      "values.yaml",
+				Value:            chart.GlobalOverride,
+				VariableSnapshot: scopedVariablesMap,
+				ResolvedValue:    resolvedTemplate,
 			},
-			VariableSnapshot:     scopedVariablesMap,
-			ResolvedTemplateData: resolvedTemplate,
 		}
 	}
 	return deploymentTemplateConfig, nil
@@ -271,8 +271,8 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			impl.logger.Errorw("error in converting cmConfig to componentLevelData", "err", err)
 			return nil, nil, err
 		}
-		convertedData.HistoryConfig.VariableSnapshotForCM = variableMapCM
-		convertedData.HistoryConfig.ResolvedTemplateDataForCM = resolvedCM
+		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCM
+		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = resolvedCM
 		cmConfigsDto = append(cmConfigsDto, convertedData)
 	}
 
@@ -283,8 +283,8 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			impl.logger.Errorw("error in converting secretConfig to componentLevelData", "err", err)
 			return nil, nil, err
 		}
-		convertedData.HistoryConfig.VariableSnapshotForCS = variableMapCS
-		convertedData.HistoryConfig.ResolvedTemplateDataForCS = resolvedCS
+		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCS
+		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = resolvedCS
 		secretConfigsDto = append(secretConfigsDto, convertedData)
 	}
 	return cmConfigsDto, secretConfigsDto, nil
