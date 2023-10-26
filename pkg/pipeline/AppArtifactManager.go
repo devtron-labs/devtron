@@ -610,12 +610,14 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	artifactListingFilterOpts.ApprovalNodeConfigured = pipeline.ApprovalNodeConfigured()
 	artifactListingFilterOpts.SearchString = "%" + artifactListingFilterOpts.SearchString + "%"
 
-	approvalConfig, err := pipeline.GetApprovalConfig()
-	if err != nil {
-		impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", pipeline.Id, "approvalConfig", approvalConfig)
-		return ciArtifactsResponse, err
+	if artifactListingFilterOpts.ApprovalNodeConfigured {
+		approvalConfig, err := pipeline.GetApprovalConfig()
+		if err != nil {
+			impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", pipeline.Id, "approvalConfig", approvalConfig)
+			return ciArtifactsResponse, err
+		}
+		artifactListingFilterOpts.ApproversCount = approvalConfig.RequiredCount
 	}
-	artifactListingFilterOpts.ApproversCount = approvalConfig.RequiredCount
 
 	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, err := impl.BuildArtifactsList(artifactListingFilterOpts, isApprovalNode)
 	if err != nil && err != pg.ErrNoRows {
