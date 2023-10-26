@@ -596,7 +596,8 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		configMapRequest.Id = secret.Id
 	}
 	//VARIABLE_MAPPING_UPDATE
-	data, err := bean.GetTransformedDataForSecret(model.SecretData, bean.DecodeSecret)
+	sl := bean.SecretsList{}
+	data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -797,7 +798,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 		configMapRequest.Id = configMap.Id
 	}
 	//VARIABLE_MAPPING_UPDATE
-	data, err := bean.GetTransformedDataForSecret(model.SecretData, bean.DecodeSecret)
+	sl := bean.SecretsList{}
+	data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -1158,7 +1160,8 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 		//VARIABLE_MAPPING_UPDATE
-		data, err := bean.GetTransformedDataForSecret(model.SecretData, bean.DecodeSecret)
+		sl := bean.SecretsList{}
+		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
 		if err != nil {
 			return false, err
 		}
@@ -1218,7 +1221,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 		//VARIABLE_MAPPING_UPDATE
-		data, err := bean.GetTransformedDataForSecret(model.SecretData, bean.DecodeSecret)
+		sl := bean.SecretsList{}
+		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
 		if err != nil {
 			return false, err
 		}
@@ -1378,7 +1382,8 @@ func (impl ConfigMapServiceImpl) CSGlobalDeleteByAppId(name string, appId int, u
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 		//VARIABLE_MAPPING_UPDATE
-		data, err := bean.GetTransformedDataForSecret(model.SecretData, bean.DecodeSecret)
+		sl := bean.SecretsList{}
+		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
 		if err != nil {
 			return false, err
 		}
@@ -1433,7 +1438,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 		//VARIABLE_MAPPING_UPDATE
-		data, err := bean.GetTransformedDataForSecret(model.SecretData, bean.DecodeSecret)
+		sl := bean.SecretsList{}
+		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
 		if err != nil {
 			return false, err
 		}
@@ -1675,7 +1681,8 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *b
 			return nil, err
 		}
 		//VARIABLE_MAPPING_UPDATE
-		data, err := bean.GetTransformedDataForSecret(model.SecretData, bean.DecodeSecret)
+		sl := bean.SecretsList{}
+		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -1778,7 +1785,8 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 			return nil, err
 		}
 		//VARIABLE_MAPPING_UPDATE
-		data, err := bean.GetTransformedDataForSecret(model.SecretData, bean.DecodeSecret)
+		sl := bean.SecretsList{}
+		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
 		if err != nil {
 			return nil, err
 		}

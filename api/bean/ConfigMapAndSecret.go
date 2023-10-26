@@ -18,7 +18,6 @@
 package bean
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/util"
 )
@@ -57,12 +56,6 @@ type ConfigSecretMap struct {
 	SubPath        bool            `json:"subPath"`
 	FilePermission string          `json:"filePermission"`
 }
-type SecretTransformMode int
-
-const (
-	EncodeSecret SecretTransformMode = 1
-	DecodeSecret SecretTransformMode = 2
-)
 
 func (configSecret ConfigSecretMap) GetDataMap() (map[string]string, error) {
 	var datamap map[string]string
@@ -77,32 +70,7 @@ func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigS
 	configSecretJson.Secrets = util.GetReferencedArray(secrets)
 }
 
-func GetDecodedAndEncodedData(data json.RawMessage, transformer SecretTransformMode) ([]byte, error) {
-	dataMap := make(map[string]string)
-	err := json.Unmarshal(data, &dataMap)
-	if err != nil {
-		return nil, err
-	}
-	var transformedData []byte
-	for key, value := range dataMap {
-		switch transformer {
-		case EncodeSecret:
-			transformedData = []byte(base64.StdEncoding.EncodeToString([]byte(value)))
-		case DecodeSecret:
-			transformedData, err = base64.StdEncoding.DecodeString(value)
-			if err != nil {
-				return nil, err
-			}
-		}
-		dataMap[key] = string(transformedData)
-	}
-	marshal, err := json.Marshal(dataMap)
-	if err != nil {
-		return nil, err
-	}
-	return marshal, nil
-}
-func GetTransformedDataForSecret(data string, mode SecretTransformMode) (string, error) {
+func (ConfigSecretRootJson) GetTransformedDataForSecret(data string, mode util.SecretTransformMode) (string, error) {
 	secretsJson := ConfigSecretRootJson{}
 	err := json.Unmarshal([]byte(data), &secretsJson)
 	if err != nil {
@@ -110,7 +78,10 @@ func GetTransformedDataForSecret(data string, mode SecretTransformMode) (string,
 	}
 
 	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
-		configData.Data, err = GetDecodedAndEncodedData(configData.Data, mode)
+		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	marshal, err := json.Marshal(secretsJson)

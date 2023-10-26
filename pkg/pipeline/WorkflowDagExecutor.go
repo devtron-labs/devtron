@@ -3480,14 +3480,15 @@ func (impl *WorkflowDagExecutorImpl) ResolvedVariableForLastSaved(request Config
 	}
 
 	if secretDataByte != nil && len(varNamesCS) > 0 {
-		data, err := bean.GetTransformedDataForSecret(string(secretDataByte), bean.DecodeSecret)
+		ab := bean.ConfigSecretRootJson{}
+		data, err := ab.GetTransformedDataForSecret(string(secretDataByte), util4.DecodeSecret)
 		if err != nil {
 			return resolvedCM, string(secretDataByte), err
 		}
 		parserRequest := parsers.CreateParserRequest(data, parsers.JsonVariableTemplate, scopedVariables, false)
 		resolvedCSDecoded, err := impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
 		envOverride.VariableSnapshotForCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
-		resolvedCS, err = bean.GetTransformedDataForSecret(resolvedCSDecoded, bean.EncodeSecret)
+		resolvedCS, err = ab.GetTransformedDataForSecret(resolvedCSDecoded, util4.EncodeSecret)
 		if err != nil {
 			return resolvedCM, resolvedCM, err
 		}
@@ -3555,13 +3556,14 @@ func (impl *WorkflowDagExecutorImpl) ResolvedVariableForSpecificType(configMapHi
 		HistoryReferenceId:   secretHistory.Id,
 		HistoryReferenceType: repository5.HistoryReferenceTypeSecret,
 	}
-	data, err := bean.GetTransformedDataForSecret(string(secretDataByte), bean.DecodeSecret)
+	ab := bean.ConfigSecretRootJson{}
+	data, err := ab.GetTransformedDataForSecret(string(secretDataByte), util4.DecodeSecret)
 	if err != nil {
 		return "", "", err
 	}
 	variableMapCS, resolvedTemplateCS, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, true, false)
 	envOverride.VariableSnapshotForCS = variableMapCS
-	encodedSecretData, err := bean.GetTransformedDataForSecret(resolvedTemplateCS, bean.EncodeSecret)
+	encodedSecretData, err := ab.GetTransformedDataForSecret(resolvedTemplateCS, util4.EncodeSecret)
 	if err != nil {
 		return "", "", err
 	}

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -466,7 +466,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
 		}
-		data, err := bean.GetTransformedDataForSecret(string(secretListJson), bean.DecodeSecret)
+		data, err := secretList.GetTransformedDataForSecret(string(secretListJson), util.DecodeSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -474,7 +474,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
 		}
-		resolvedTemplateCS, err = bean.GetTransformedDataForSecret(resolvedTemplateCS, bean.EncodeSecret)
+		resolvedTemplateCS, err = secretList.GetTransformedDataForSecret(resolvedTemplateCS, util.EncodeSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -582,15 +582,16 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			HistoryReferenceId:   history.Id,
 			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
 		}
-		data, err := bean.GetTransformedDataForSecret(string(secretListJson), bean.DecodeSecret)
+
+		decodedSecret, err := secretList.GetTransformedDataForSecret(string(secretListJson), util.DecodeSecret)
 		if err != nil {
 			return nil, err
 		}
-		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, userHasAdminAccess, false)
+		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(decodedSecret, reference, userHasAdminAccess, false)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 		}
-		resolvedTemplate, err = bean.GetTransformedDataForSecret(resolvedTemplate, bean.EncodeSecret)
+		resolvedTemplate, err = secretList.GetTransformedDataForSecret(resolvedTemplate, util.EncodeSecret)
 		if err != nil {
 			return nil, err
 		}

@@ -1,8 +1,8 @@
 package bean
 
 import (
-	"encoding/base64"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/util"
 )
 
 type ConfigDataRequest struct {
@@ -92,14 +92,39 @@ type CreateJobEnvOverridePayload struct {
 type SecretsList struct {
 	ConfigData []*ConfigData `json:"secrets"`
 }
-type SecretTransformMode int
 
-const (
-	EncodeSecret SecretTransformMode = 1
-	DecodeSecret SecretTransformMode = 2
-)
+//type SecretTransformMode int
+//
+//const (
+//	EncodeSecret SecretTransformMode = 1
+//	DecodeSecret SecretTransformMode = 2
+//)
 
-func GetTransformedDataForSecret(data string, mode SecretTransformMode) (string, error) {
+//	func GetDecodedAndEncodedData(data json.RawMessage, transformer SecretTransformMode) []byte {
+//		dataMap := make(map[string]string)
+//		err := json.Unmarshal(data, &dataMap)
+//		if err != nil {
+//			return nil
+//		}
+//		var transformedData []byte
+//		for key, value := range dataMap {
+//			switch transformer {
+//			case EncodeSecret:
+//				transformedData = []byte(base64.StdEncoding.EncodeToString([]byte(value)))
+//			case DecodeSecret:
+//				transformedData, err = base64.StdEncoding.DecodeString(value)
+//			}
+//
+//			dataMap[key] = string(transformedData)
+//		}
+//		marshal, err := json.Marshal(dataMap)
+//		if err != nil {
+//			return nil
+//		}
+//		return marshal
+//	}
+
+func (SecretsList) GetTransformedDataForSecret(data string, mode util.SecretTransformMode) (string, error) {
 	secretsList := SecretsList{}
 	err := json.Unmarshal([]byte(data), &secretsList)
 	if err != nil {
@@ -107,7 +132,10 @@ func GetTransformedDataForSecret(data string, mode SecretTransformMode) (string,
 	}
 
 	for _, configData := range secretsList.ConfigData {
-		configData.Data = GetDecodedAndEncodedData(configData.Data, mode)
+		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	marshal, err := json.Marshal(secretsList)
@@ -117,26 +145,23 @@ func GetTransformedDataForSecret(data string, mode SecretTransformMode) (string,
 	return string(marshal), nil
 }
 
-func GetDecodedAndEncodedData(data json.RawMessage, transformer SecretTransformMode) []byte {
-	dataMap := make(map[string]string)
-	err := json.Unmarshal(data, &dataMap)
-	if err != nil {
-		return nil
-	}
-	var transformedData []byte
-	for key, value := range dataMap {
-		switch transformer {
-		case EncodeSecret:
-			transformedData = []byte(base64.StdEncoding.EncodeToString([]byte(value)))
-		case DecodeSecret:
-			transformedData, err = base64.StdEncoding.DecodeString(value)
-		}
-
-		dataMap[key] = string(transformedData)
-	}
-	marshal, err := json.Marshal(dataMap)
-	if err != nil {
-		return nil
-	}
-	return marshal
-}
+//func (SecretsList) GetTransformedDataForSecret(data string, mode util.SecretTransformMode) (string, error) {
+//	secretsList := SecretsList{}
+//	err := json.Unmarshal([]byte(data), &secretsList)
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	for _, configData := range secretsList.ConfigData {
+//		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
+//		if err != nil {
+//			return "", err
+//		}
+//	}
+//
+//	marshal, err := json.Marshal(secretsList)
+//	if err != nil {
+//		return "", err
+//	}
+//	return string(marshal), nil
+//}
