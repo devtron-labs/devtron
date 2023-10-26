@@ -67,6 +67,7 @@ type ImageTaggingService interface {
 	// ValidateImageTaggingRequest validates the requested payload
 	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO, appId, artifactId int) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error)
+	GetTagNamesByArtifactId(artifactId int) ([]string, error)
 	// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 	GetTagsDataMapByAppId(appId int) (map[int][]*repository.ImageTag, error)
 	// GetTaggingDataMapByAppId this will fetch a map of artifact vs imageComment for given artifactIds
@@ -158,6 +159,21 @@ func (impl ImageTaggingServiceImpl) GetTagsByArtifactId(artifactId int) ([]*repo
 		return imageReleaseTags, err
 	}
 	return imageReleaseTags, nil
+}
+
+func (impl ImageTaggingServiceImpl) GetTagNamesByArtifactId(artifactId int) ([]string, error) {
+	imageReleaseTags, err := impl.GetTagsByArtifactId(artifactId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching image tags using artifactId", "err", err, "artifactId", artifactId)
+		return nil, err
+	}
+	releaseTags := make([]string, 0, len(imageReleaseTags))
+	for _, imageTag := range imageReleaseTags {
+		if !imageTag.Deleted {
+			releaseTags = append(releaseTags, imageTag.TagName)
+		}
+	}
+	return releaseTags, nil
 }
 
 // GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId

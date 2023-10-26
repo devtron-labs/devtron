@@ -24,11 +24,14 @@ import (
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"io"
+	"k8s.io/utils/pointer"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 )
+
+const DefaultMinArtifactCount = 10
 
 type DeploymentHistoryResp struct {
 	CdWorkflows                []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
@@ -1253,6 +1256,10 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	if len(search) != 0 {
 		searchString = search
 	}
+	count, err := common.ExtractIntQueryParam(w, r, "count", pointer.Int(DefaultMinArtifactCount))
+	if err != nil {
+		return
+	}
 
 	isApprovalNode := false
 
@@ -1291,7 +1298,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	//rbac block ends here
 
-	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, isApprovalNode)
+	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, count, isApprovalNode)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1540,6 +1547,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
 		return
 	}
+	searchString := r.URL.Query().Get("search")
+
 	//rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
@@ -1555,7 +1564,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 	//rbac for edit tags access
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
 
-	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit)
+	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, "unable to fetch artifacts", http.StatusInternalServerError)

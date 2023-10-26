@@ -34,10 +34,10 @@ import (
 
 type AppArtifactManager interface {
 	//RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
-	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
+	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
 	//FetchArtifactForRollback :
-	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean2.CiArtifactResponse, error)
+	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, pipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error)
 
 	BuildArtifactsForCdStage(pipelineId int, stageType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, parent bool, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, map[int]int, int, string, error)
 
@@ -199,12 +199,12 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParent(cdPipelineId int, 
 	return ciArtifacts, nil
 }
 
-func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId, offset, limit int) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error) {
 	var deployedCiArtifacts []bean2.CiArtifactBean
 	var deployedCiArtifactsResponse bean2.CiArtifactResponse
 	var pipeline *pipelineConfig.Pipeline
 
-	cdWfrs, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineId(cdPipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY, offset, limit)
+	cdWfrs, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineId(cdPipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY, offset, limit, searchString)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifacts for rollback by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
 		return deployedCiArtifactsResponse, err
@@ -262,13 +262,35 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId
 		return deployedCiArtifactsResponse, err
 	}
 
+	scope := resourceQualifiers.Scope{AppId: app.Id, EnvId: deploymentPipeline.EnvironmentId, ClusterId: deploymentPipeline.Environment.ClusterId, ProjectId: app.TeamId, IsProdEnv: deploymentPipeline.Environment.Default}
+	impl.logger.Infow("scope for rollback deployment ", "scope", scope)
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return deployedCiArtifactsResponse, err
+	}
+
 	for i, _ := range deployedCiArtifacts {
-		if imageTaggingResp := imageTagsDataMap[deployedCiArtifacts[i].Id]; imageTaggingResp != nil {
+		imageTaggingResp := imageTagsDataMap[deployedCiArtifacts[i].Id]
+		if imageTaggingResp != nil {
 			deployedCiArtifacts[i].ImageReleaseTags = imageTaggingResp
 		}
 		if imageCommentResp := imageCommentsDataMap[deployedCiArtifacts[i].Id]; imageCommentResp != nil {
 			deployedCiArtifacts[i].ImageComment = imageCommentResp
+			releaseTags := make([]string, 0, len(imageTaggingResp))
+			for _, imageTag := range imageTaggingResp {
+				if !imageTag.Deleted {
+					releaseTags = append(releaseTags, imageTag.TagName)
+				}
+			}
+
+			filterState, _, err := impl.resourceFilterService.CheckForResource(filters, deployedCiArtifacts[i].Image, releaseTags)
+			if err != nil {
+				return deployedCiArtifactsResponse, err
+			}
+			deployedCiArtifacts[i].FilterState = filterState
 		}
+		deployedCiArtifactsResponse.ResourceFilters = filters
 	}
 
 	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
@@ -286,7 +308,7 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId
 	return deployedCiArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
 
 	// retrieve parent details
 	parentId, parentType, err := impl.cdPipelineConfigService.RetrieveParentDetails(pipeline.Id)
@@ -327,7 +349,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
 	artifactMap := make(map[int]int)
-	limit := 10
+	limit := count
 
 	ciArtifacts, artifactMap, latestWfArtifactId, latestWfArtifactStatus, err := impl.
 		BuildArtifactsForCdStage(pipeline.Id, stage, ciArtifacts, artifactMap, false, searchString, limit, parentCdId)
@@ -370,21 +392,30 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 		return ciArtifactsResponse, err
 	}
 
+	environment := pipeline.Environment
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return ciArtifactsResponse, err
+	}
+
 	for i, artifact := range artifacts {
-		if imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]; imageTaggingResp != nil {
+		imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]
+		if imageTaggingResp != nil {
 			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
 		}
 		if imageCommentResp := imageCommentsDataMap[ciArtifacts[i].Id]; imageCommentResp != nil {
 			ciArtifacts[i].ImageComment = imageCommentResp
 		}
 
-		environment := pipeline.Environment
-		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
-		params := impl.celService.GetParamsFromArtifact(ciArtifacts[i].Image)
-		metadata := resourceFilter.ExpressionMetadata{
-			Params: params,
+		releaseTags := make([]string, 0, len(imageTaggingResp))
+		for _, imageTag := range imageTaggingResp {
+			if !imageTag.Deleted {
+				releaseTags = append(releaseTags, imageTag.TagName)
+			}
 		}
-		filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
+		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags)
 		if err != nil {
 			return ciArtifactsResponse, err
 		}
@@ -414,7 +445,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
 	}
-
+	ciArtifactsResponse.ResourceFilters = filters
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
 	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
 	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
