@@ -4887,6 +4887,7 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 		}
 	}
 	// Conditional Block based on PipelineOverrideCreated --> end
+	valuesOverrideResponse.PipelineOverride = pipelineOverride
 
 	//TODO: check status and apply lock
 	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
