@@ -441,7 +441,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	artifactListingFilterOpts.ParentCdId = parentCdId
 	artifactListingFilterOpts.ParentStageType = parentType
 	artifactListingFilterOpts.StageType = stage
-
+	artifactListingFilterOpts.SearchString = "%" + artifactListingFilterOpts.SearchString + "%"
 	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, err := impl.BuildArtifactsList(artifactListingFilterOpts)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)

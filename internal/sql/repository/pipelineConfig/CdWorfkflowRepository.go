@@ -392,7 +392,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 			listingFilterOptions.ParentId,
 			listingFilterOptions.ParentStageType,
 			pg.In([]string{application.Healthy, application.SUCCEEDED})).
-		Where("cia.image ILIKE %?%", listingFilterOptions.SearchString)
+		Where("cia.image LIKE ?", listingFilterOptions.SearchString)
 	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
 		query = query.Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
 	}
