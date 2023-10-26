@@ -26,7 +26,7 @@ type CmBlobStorageConfig struct {
 	AzureBlobContainerCiCache      string `json:"AZURE_BLOB_CONTAINER_CI_CACHE"`
 }
 
-func (c *CmBlobStorageConfig) PopulateWithK8sExtBlobCmData(cm map[string]string) error {
+func (c *CmBlobStorageConfig) SetCmBlobStorageConfig(cm map[string]string) error {
 	cmDataJson, err := json.Marshal(cm)
 	if err != nil {
 		fmt.Println("error marshalling external blob storage cm data to json:", err)
@@ -49,7 +49,8 @@ type SecretBlobStorageConfig struct {
 	AzureAccountKey string `json:"AZURE_ACCOUNT_KEY"`
 }
 
-func (s *SecretBlobStorageConfig) PopulateWithK8sExtBlobSecretData(secret map[string][]byte) error {
+// input secret data contains encoded bytes
+func (s *SecretBlobStorageConfig) SetSecretBlobStorageConfig(secret map[string][]byte) error {
 	cmDataJson, err := json.Marshal(secret)
 	if err != nil {
 		fmt.Println("error marshalling external blob storage secret data to json:", err)

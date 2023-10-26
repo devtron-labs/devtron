@@ -180,6 +180,8 @@ type ClusterService interface {
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
+
+	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
 }
 
 type ClusterServiceImpl struct {
@@ -1094,4 +1096,20 @@ func (impl ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBe
 		Config: cdClusterConfig,
 	}
 	return cl
+}
+
+func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error) {
+	clusterBean := &ClusterBean{}
+	clusterBean, err := impl.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	rq := *clusterBean
+	clusterConfig, err := rq.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return nil, err
+	}
+	return clusterConfig, nil
 }

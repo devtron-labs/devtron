@@ -366,13 +366,12 @@ type WorkflowRequest struct {
 	WorkflowExecutor         pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
 	PrePostDeploySteps       []*bean.StepObject                  `json:"prePostDeploySteps"`
 	CiArtifactLastFetch      time.Time                           `json:"ciArtifactLastFetch"`
-	ExtBlobStorageCmName     string                              `json:"extBlobStorageCmName"`
-	ExtBlobStorageSecretName string                              `json:"extBlobStorageSecretName"`
-	UseExternalClusterBlob   bool                                `json:"useExternalClusterBlob"`
-	Type                     bean.WorkflowPipelineType
-	Pipeline                 *pipelineConfig.Pipeline
-	Env                      *repository2.Environment
-	AppLabels                map[string]string
+
+	UseExternalClusterBlob bool `json:"useExternalClusterBlob"`
+	Type                   bean.WorkflowPipelineType
+	Pipeline               *pipelineConfig.Pipeline
+	Env                    *repository2.Environment
+	AppLabels              map[string]string
 }
 
 type CiCdTriggerEvent struct {
@@ -392,6 +391,10 @@ func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 		workflowRequest.EnvironmentId = env.Id
 		workflowRequest.IsExtRun = true
 	}
+}
+
+func (workflowRequest *WorkflowRequest) updateUseExternalClusterBlob(config *CiCdConfig) {
+	workflowRequest.UseExternalClusterBlob = !workflowRequest.CheckBlobStorageConfig(config) && workflowRequest.IsExtRun
 }
 
 func (workflowRequest *WorkflowRequest) CheckBlobStorageConfig(config *CiCdConfig) bool {
@@ -440,7 +443,7 @@ func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig
 func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]byte, error) {
 	workflowRequest.updateBlobStorageLogsKey(config)
 	workflowRequest.updateExternalRunMetadata()
-	workflowRequest.UseExternalClusterBlob = !workflowRequest.CheckBlobStorageConfig(config) && workflowRequest.IsExtRun
+	workflowRequest.updateUseExternalClusterBlob(config)
 	workflowJson, err := workflowRequest.getWorkflowJson()
 	if err != nil {
 		return nil, err
