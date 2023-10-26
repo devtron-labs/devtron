@@ -1058,6 +1058,7 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 				return err
 			}
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+			installedAppVersionHistory.HelmReleaseStatusConfig = "Release Installed"
 			_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
