@@ -4099,6 +4099,7 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 		if err != nil {
 			return valuesOverrideResponse, err
 		}
+		valuesOverrideResponse.PipelineOverride = pipelineOverride
 	} else {
 		valuesOverrideResponse.MergedValues = pipelineOverride.PipelineMergedValues
 	}
