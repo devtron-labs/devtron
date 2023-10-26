@@ -18,7 +18,7 @@ jobs:
          export GIT_USERNAME="${GIT_CONFIG_NAME}"
          export GIT_PASSWORD="${GH_TOKEN}"
          export ENTERPRISE_REPO="https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/devtron-labs/devtron-enterprise.git"
-         git clone https://github.com/devtron-labs/devtron
+         git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/devtron-labs/devtron
          git clone $ENTERPRISE_REPO
 
          cd devtron
@@ -26,6 +26,7 @@ jobs:
          LAST_RELEASE_BRANCH=$(git branch -a | grep release-v | tail -n 1)
          LAST_RELEASE_BRANCH=$(echo ${LAST_RELEASE_BRANCH##*( remotes/origin/)})
          git checkout $LAST_RELEASE_BRANCH
+         # Merge hotfixes from main if any
          git pull origin main
          export GIT_COMMIT_ID=`git log --format="%H" -n 1`
 
@@ -33,8 +34,8 @@ jobs:
          echo $GIT_COMMIT
          git config --global user.email $GIT_CONFIG_EMAIL
          git config --global user.name $GIT_USERNAME
-
-         git status && git checkout main && git pull
+         # Push all hotfixes merged to release-branch
+         git status && git push origin $LAST_RELEASE_BRANCH
 
          cd ../devtron-enterprise && git status && git checkout release-candidate && git pull
          git remote add oss-devtron ../devtron && git remote -v && git remote update && git merge oss-devtron/main
