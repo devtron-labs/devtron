@@ -38,17 +38,31 @@ func (impl *CustomTagServiceImpl) DeactivateImagePathReservation(id int) error {
 }
 
 func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) error {
-	if err := validateTagPattern(tag.TagPattern); err != nil {
-		return err
+	if tag.Enabled {
+		if err := validateTagPattern(tag.TagPattern); err != nil {
+			return err
+		}
 	}
-	customTagData := repository.CustomTag{
-		EntityKey:            tag.EntityKey,
-		EntityValue:          tag.EntityValue,
-		TagPattern:           strings.ReplaceAll(tag.TagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_X, bean2.IMAGE_TAG_VARIABLE_NAME_x),
-		AutoIncreasingNumber: tag.AutoIncreasingNumber,
-		Metadata:             tag.Metadata,
-		Active:               true,
+	var customTagData repository.CustomTag
+	if tag.Enabled {
+		customTagData = repository.CustomTag{
+			EntityKey:            tag.EntityKey,
+			EntityValue:          tag.EntityValue,
+			TagPattern:           strings.ReplaceAll(tag.TagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_X, bean2.IMAGE_TAG_VARIABLE_NAME_x),
+			AutoIncreasingNumber: tag.AutoIncreasingNumber,
+			Metadata:             tag.Metadata,
+			Active:               true,
+			Enabled:              true,
+		}
+	} else {
+		customTagData = repository.CustomTag{
+			EntityKey:   tag.EntityKey,
+			EntityValue: tag.EntityValue,
+			Active:      true,
+			Enabled:     false,
+		}
 	}
+
 	oldTagObject, err := impl.customTagRepository.FetchCustomTagData(customTagData.EntityKey, customTagData.EntityValue)
 	if err != nil && err != pg.ErrNoRows {
 		return err

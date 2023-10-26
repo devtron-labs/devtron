@@ -3,7 +3,6 @@ package pipeline
 import (
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/go-pg/pg"
@@ -30,13 +29,13 @@ type PluginInputVariableParser interface {
 type PluginInputVariableParserImpl struct {
 	logger               *zap.SugaredLogger
 	dockerRegistryConfig DockerRegistryConfig
-	customTagService     pkg.CustomTagService
+	customTagService     CustomTagService
 }
 
 func NewPluginInputVariableParserImpl(
 	logger *zap.SugaredLogger,
 	dockerRegistryConfig DockerRegistryConfig,
-	customTagService pkg.CustomTagService,
+	customTagService CustomTagService,
 ) *PluginInputVariableParserImpl {
 	return &PluginInputVariableParserImpl{
 		logger:               logger,

@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -142,7 +141,7 @@ type CdPipelineConfigServiceImpl struct {
 	variableTemplateParser           parsers.VariableTemplateParser
 	deploymentConfig                 *DeploymentServiceTypeConfig
 	application                      application.ServiceClient
-	customTagService                 pkg.CustomTagService
+	customTagService                 CustomTagService
 	devtronAppCMCSService            DevtronAppCMCSService
 }
 
@@ -177,7 +176,7 @@ func NewCdPipelineConfigServiceImpl(
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
 	devtronAppCMCSService DevtronAppCMCSService,
-	customTagService pkg.CustomTagService) *CdPipelineConfigServiceImpl {
+	customTagService CustomTagService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -281,12 +280,12 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 
 	var customTag *bean.CustomTagData
 	var customTagStage repository5.PipelineStageType
-	customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypePreCD, strconv.Itoa(pipelineId))
+	customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(pipelineId))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching custom Tag precd")
 		return nil, err
 	}
-	customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypePostCD, strconv.Itoa(pipelineId))
+	customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(pipelineId))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching custom Tag precd")
 		return nil, err
@@ -425,6 +424,9 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 }
 
 func (impl *CdPipelineConfigServiceImpl) CDPipelineCustomTagDBOperations(pipeline *bean.CDPipelineConfigObject) error {
+	if pipeline.EnableCustomTag && pipeline.CustomTagObject == nil {
+		return fmt.Errorf("please provide custom tag data if tag is enabled")
+	}
 	if pipeline.CustomTagObject == nil && pipeline.CustomTagStage == nil {
 		// delete custom tag if removed from request
 		err := impl.DeleteCustomTag(pipeline)
@@ -483,7 +485,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCustomTagByPipelineStageType(pipe
 }
 
 func (impl *CdPipelineConfigServiceImpl) SaveOrUpdateCustomTagForCDPipeline(pipeline *bean.CDPipelineConfigObject) error {
-	customTag, err := impl.ParseCustomTagPatchRequest(pipeline.Id, pipeline.CustomTagObject, pipeline.CustomTagStage)
+	customTag, err := impl.ParseCustomTagPatchRequest(pipeline)
 	if err != nil {
 		impl.logger.Errorw("err", err)
 		return err
@@ -496,17 +498,18 @@ func (impl *CdPipelineConfigServiceImpl) SaveOrUpdateCustomTagForCDPipeline(pipe
 	return nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) ParseCustomTagPatchRequest(pipelineId int, customTagData *bean.CustomTagData, pipelineStageType *repository5.PipelineStageType) (*bean2.CustomTag, error) {
-	entityType := getEntityTypeByPipelineStageType(*pipelineStageType)
+func (impl *CdPipelineConfigServiceImpl) ParseCustomTagPatchRequest(pipelineRequest *bean.CDPipelineConfigObject) (*bean2.CustomTag, error) {
+	entityType := getEntityTypeByPipelineStageType(*pipelineRequest.CustomTagStage)
 	if entityType == 0 {
-		return nil, fmt.Errorf("invalid stage for cd pipeline custom tag; pipelineStageType: %s ", string(*pipelineStageType))
+		return nil, fmt.Errorf("invalid stage for cd pipeline custom tag; pipelineStageType: %s ", string(*pipelineRequest.CustomTagStage))
 	}
 	customTag := &bean2.CustomTag{
 		EntityKey:            entityType,
-		EntityValue:          fmt.Sprintf("%d", pipelineId),
-		TagPattern:           customTagData.TagPattern,
-		AutoIncreasingNumber: customTagData.CounterX,
+		EntityValue:          fmt.Sprintf("%d", pipelineRequest.Id),
+		TagPattern:           pipelineRequest.CustomTagObject.TagPattern,
+		AutoIncreasingNumber: pipelineRequest.CustomTagObject.CounterX,
 		Metadata:             "",
+		Enabled:              pipelineRequest.EnableCustomTag,
 	}
 	return customTag, nil
 }
@@ -514,11 +517,11 @@ func (impl *CdPipelineConfigServiceImpl) ParseCustomTagPatchRequest(pipelineId i
 func getEntityTypeByPipelineStageType(pipelineStageType repository5.PipelineStageType) (customTagEntityType int) {
 	switch pipelineStageType {
 	case repository5.PIPELINE_STAGE_TYPE_PRE_CD:
-		customTagEntityType = pkg.EntityTypePreCD
+		customTagEntityType = bean3.EntityTypePreCD
 	case repository5.PIPELINE_STAGE_TYPE_POST_CD:
-		customTagEntityType = pkg.EntityTypePostCD
+		customTagEntityType = bean3.EntityTypePostCD
 	default:
-		customTagEntityType = pkg.EntityNull
+		customTagEntityType = bean3.EntityNull
 	}
 	return customTagEntityType
 }
@@ -1027,12 +1030,12 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 	for _, dbPipeline := range authorizedPipelines {
 		var customTag *bean.CustomTagData
 		var customTagStage repository5.PipelineStageType
-		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
+		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching custom Tag precd")
 			return nil, err
 		}
-		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pkg.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
+		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching custom Tag precd")
 			return nil, err

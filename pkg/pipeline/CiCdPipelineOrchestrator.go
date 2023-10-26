@@ -330,6 +330,10 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 
+	if createRequest.EnableCustomTag && createRequest.CustomTagObject == nil {
+		return nil, errors.New("please input custom tag data if tag is enabled")
+	}
+
 	//If customTagObject has been passed, create or update the resource
 	//Otherwise deleteIfExists
 	if createRequest.CustomTagObject != nil {
@@ -338,6 +342,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			EntityValue:          strconv.Itoa(ciPipelineObject.Id),
 			TagPattern:           createRequest.CustomTagObject.TagPattern,
 			AutoIncreasingNumber: createRequest.CustomTagObject.CounterX,
+			Enabled:              createRequest.EnableCustomTag,
 		}
 		err = impl.customTagService.CreateOrUpdateCustomTag(&customTag)
 		if err != nil {
@@ -347,6 +352,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		customTag := bean4.CustomTag{
 			EntityKey:   bean2.EntityTypeCiPipelineId,
 			EntityValue: strconv.Itoa(ciPipelineObject.Id),
+			Enabled:     false,
 		}
 		err := impl.customTagService.DeleteCustomTagIfExists(customTag)
 		if err != nil {
