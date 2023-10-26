@@ -197,8 +197,34 @@ func (ConfigData) GetTransformedDataForSecret(data string, mode util.SecretTrans
 		configData.Data = data
 
 	}
-
 	resolvedTemplate, err := json.Marshal(secretDataMap)
+	if err != nil {
+		return "", err
+	}
+	return string(resolvedTemplate), nil
+}
+func (ConfigData) GetTransformedDataForSecretForComponent(data string, mode util.SecretTransformMode) (string, error) {
+	secretDataMap := ConfigData{}
+	if mode == util.DecodeSecret {
+		err := json.Unmarshal([]byte(data), &secretDataMap)
+		if err != nil {
+			return "", err
+		}
+		secretData, err := util.GetDecodedAndEncodedData(secretDataMap.Data, mode)
+		if err != nil {
+			return "", err
+		}
+		secretDataMap.Data = secretData
+	}
+	if mode == util.EncodeSecret {
+		secretData, err := util.GetDecodedAndEncodedData([]byte(data), mode)
+		if err != nil {
+			return "", err
+		}
+		return string(secretData), nil
+	}
+
+	resolvedTemplate, err := json.Marshal(secretDataMap.Data)
 	if err != nil {
 		return "", err
 	}
