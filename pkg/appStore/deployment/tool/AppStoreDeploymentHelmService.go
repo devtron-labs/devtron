@@ -131,11 +131,10 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		InstallAppVersionHistoryId: int32(installAppVersionRequest.InstalledAppVersionHistoryId),
 	}
 
-	resp, err := impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
+	_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
 	if err != nil {
 		return installAppVersionRequest, err
 	}
-	installAppVersionRequest.PerformedSyncHelmInstall = resp.PerformedHelmSyncInstall
 	return installAppVersionRequest, nil
 }
 
@@ -460,8 +459,6 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 	if !res.GetSuccess() {
 		return errors.New("helm application update unsuccessful")
 	}
-
-	installAppVersionRequest.PerformedSyncHelmInstall = *res.PerformedHelmSyncInstall
 
 	return nil
 }
