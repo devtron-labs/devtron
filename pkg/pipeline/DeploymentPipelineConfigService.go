@@ -327,6 +327,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 		CustomTagObject:               customTag,
 		CustomTagStage:                &customTagStage,
+		EnableCustomTag:               customTag.Enabled,
 	}
 	var preDeployStage *bean3.PipelineStageDto
 	var postDeployStage *bean3.PipelineStageDto
