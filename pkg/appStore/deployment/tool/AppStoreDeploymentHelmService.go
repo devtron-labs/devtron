@@ -304,7 +304,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) OnUpdateRepoInInstalledApp(ctx co
 		}
 	}
 
-	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.InstalledAppVersionHistoryId, nil)
+	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.InstalledAppVersionHistoryId, installAppVersionRequest)
 	if err != nil {
 		return installAppVersionRequest, err
 	}
