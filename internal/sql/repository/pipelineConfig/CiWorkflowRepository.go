@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -74,6 +75,10 @@ type CiWorkflow struct {
 	ReferenceCiWorkflowId int               `sql:"ref_ci_workflow_id"`
 	ParentCiWorkFlowId    int               `sql:"parent_ci_workflow_id"`
 	CiPipeline            *CiPipeline
+}
+
+func (r *CiWorkflow) IsJobType() bool {
+	return r.CiPipeline.App.AppType == helper.Job
 }
 
 type WorkflowWithArtifact struct {
