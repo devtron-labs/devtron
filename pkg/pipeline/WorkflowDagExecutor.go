@@ -2771,9 +2771,10 @@ func getScopeForVariables(overrideRequest *bean.ValuesOverrideRequest, envOverri
 		SystemMetadata: &resourceQualifiers.SystemMetadata{
 			EnvironmentName: envOverride.Environment.Name,
 			ClusterName:     envOverride.Environment.Cluster.ClusterName,
-			Namespace:       envOverride.Namespace,
-			ImageTag:        overrideRequest.Image,
+			Namespace:       envOverride.Environment.Namespace,
+			ImageTag:        util3.GetImageTagFromImage(overrideRequest.Image),
 			AppName:         overrideRequest.AppName,
+			Image:           overrideRequest.Image,
 		},
 	}
 	return scope
@@ -3199,21 +3200,7 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 			return nil, err
 		}
 		envOverride.Environment = env
-		//todo Aditya Have to move this to common function
-		scope := resourceQualifiers.Scope{
-			AppId:     overrideRequest.AppId,
-			EnvId:     overrideRequest.EnvId,
-			ClusterId: overrideRequest.ClusterId,
-			SystemMetadata: &resourceQualifiers.SystemMetadata{
-				EnvironmentName: env.Name,
-				ClusterName:     env.Cluster.ClusterName,
-				Namespace:       env.Namespace,
-				AppName:         overrideRequest.AppName,
-				Image:           overrideRequest.Image,
-				ImageTag:        util3.GetImageTagFromImage(overrideRequest.Image),
-			},
-		}
-
+		scope := getScopeForVariables(overrideRequest, envOverride)
 		if envOverride.IsOverride {
 
 			entity := repository5.GetEntity(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel)

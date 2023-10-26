@@ -28,7 +28,6 @@ type VariableSnapshotHistoryBeanRaw struct {
 }
 
 func GetSnapshotBean(referenceId int, referenceType HistoryReferenceType, snapshot map[string]string) *VariableSnapshotHistoryBean {
-	//todo Aditya have to handle error
 	if snapshot != nil && len(snapshot) > 0 {
 		variableMapBytes, _ := json.Marshal(snapshot)
 		return &VariableSnapshotHistoryBean{
