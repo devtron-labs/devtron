@@ -75,7 +75,7 @@ type CiArtifactRepository interface {
 	GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error)
-
+	GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, error)
 	GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error)
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
@@ -254,6 +254,87 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 		artifactsAll = append(artifactsAll, a)
 	}
 	return artifactsAll, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, error) {
+	//TODO Gireesh: listingFilterOpts.SearchString should be conditional,
+	artifacts := make([]*CiArtifact, 0, listingFilterOpts.Limit)
+	commonPaginationQueryPart := " cia.image ILIKE %?%" +
+		" ORDER BY cia.id DESC" +
+		" LIMIT ?" +
+		" OFFSET ?;"
+	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE {
+		//TODO Gireesh: listingFilterOpts.PipelineId is ciPipelineId in this case why are we taking join
+		query := " SELECT cia.* " +
+			" FROM ci_artifact cia" +
+			" INNER JOIN ci_pipeline cp ON cp.id=cia.pipeline_id" +
+			" INNER JOIN pipeline p ON p.ci_pipeline_id = cp.id and p.id=?" +
+			" WHERE "
+		if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
+			query += fmt.Sprintf(" cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+		}
+		query += commonPaginationQueryPart
+
+		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.PipelineId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
+		if err != nil {
+			return artifacts, err
+		}
+
+	} else if listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
+		query := " SELECT cia.* " +
+			" FROM ci_artifact cia " +
+			" WHERE cia.external_ci_pipeline_id = ? AND "
+		if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
+			query += fmt.Sprintf(" cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+		}
+		query += commonPaginationQueryPart
+		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.ParentId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
+		if err != nil {
+			return artifacts, err
+		}
+	} else {
+		return artifacts, nil
+	}
+
+	if len(artifacts) == 0 {
+		return artifacts, nil
+	}
+	//processing
+	artifactsMap := make(map[int]*CiArtifact)
+	artifactsIds := make([]int, 0, len(artifacts))
+	for _, artifact := range artifacts {
+		artifactsMap[artifact.Id] = artifact
+		artifactsIds = append(artifactsIds, artifact.Id)
+	}
+
+	//(this will fetch all the artifacts that were deployed on the given pipeline atleast once in new->old deployed order)
+	artifactsDeployed := make([]*CiArtifact, 0, len(artifactsIds))
+	//TODO Gireesh: compare this query plan with cd_workflow & cd_workflow_runner join query Plan, since pco is heavy
+	query := " SELECT cia.id,pco.created_on AS created_on " +
+		" FROM ci_artifact cia" +
+		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
+		" WHERE pco.pipeline_id = ? " +
+		" AND cia.id IN (?) " +
+		" ORDER BY pco.id desc;"
+
+	_, err := impl.dbConnection.Query(&artifactsDeployed, query, pg.In(artifactsIds))
+	if err != nil {
+		return artifacts, nil
+	}
+
+	//set deployed time and latest deployed artifact
+	for _, deployedArtifact := range artifactsDeployed {
+		artifactId := deployedArtifact.Id
+		if _, ok := artifactsMap[artifactId]; ok {
+			artifactsMap[artifactId].Deployed = true
+			artifactsMap[artifactId].DeployedTime = deployedArtifact.CreatedOn
+		}
+	}
+
+	//TODO Gireesh: create separate meaningful functions of these queries
+
+	return artifacts, nil
+
 }
 
 func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error) {
