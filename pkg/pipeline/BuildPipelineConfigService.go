@@ -630,6 +630,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 				CounterX:   customTag.AutoIncreasingNumber,
 				Enabled:    customTag.Enabled,
 			}
+			ciPipeline.EnableCustomTag = customTag.Enabled
 		}
 		if ciEnvMapping.Id > 0 {
 			ciPipeline.EnvironmentId = ciEnvMapping.EnvironmentId
