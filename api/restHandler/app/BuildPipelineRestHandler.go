@@ -639,6 +639,11 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	//RBAC ENDS
 	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
+	if errors.Is(err, bean1.ErrImagePathInUse) {
+		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, err, response, http.StatusConflict)
+		return
+	}
 	if err != nil {
 		handler.Logger.Errorw("service err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
@@ -1154,6 +1159,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	ciPipeline.DefaultTag = []string{"{git_hash}", "{ci_pipeline_id}", "{global_counter}"}
 	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
 }
 

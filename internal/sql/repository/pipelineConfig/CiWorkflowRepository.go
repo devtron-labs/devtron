@@ -53,52 +53,54 @@ type CiWorkflowRepositoryImpl struct {
 }
 
 type CiWorkflow struct {
-	tableName             struct{}          `sql:"ci_workflow" pg:",discard_unknown_columns"`
-	Id                    int               `sql:"id,pk"`
-	Name                  string            `sql:"name"`
-	Status                string            `sql:"status"`
-	PodStatus             string            `sql:"pod_status"`
-	Message               string            `sql:"message"`
-	StartedOn             time.Time         `sql:"started_on"`
-	FinishedOn            time.Time         `sql:"finished_on"`
-	CiPipelineId          int               `sql:"ci_pipeline_id"`
-	Namespace             string            `sql:"namespace"`
-	BlobStorageEnabled    bool              `sql:"blob_storage_enabled,notnull"`
-	LogLocation           string            `sql:"log_file_path"`
-	GitTriggers           map[int]GitCommit `sql:"git_triggers"`
-	TriggeredBy           int32             `sql:"triggered_by"`
-	CiArtifactLocation    string            `sql:"ci_artifact_location"`
-	PodName               string            `sql:"pod_name"`
-	CiBuildType           string            `sql:"ci_build_type"`
-	EnvironmentId         int               `sql:"environment_id"`
+	tableName              struct{}          `sql:"ci_workflow" pg:",discard_unknown_columns"`
+	Id                     int               `sql:"id,pk"`
+	Name                   string            `sql:"name"`
+	Status                 string            `sql:"status"`
+	PodStatus              string            `sql:"pod_status"`
+	Message                string            `sql:"message"`
+	StartedOn              time.Time         `sql:"started_on"`
+	FinishedOn             time.Time         `sql:"finished_on"`
+	CiPipelineId           int               `sql:"ci_pipeline_id"`
+	Namespace              string            `sql:"namespace"`
+	BlobStorageEnabled     bool              `sql:"blob_storage_enabled,notnull"`
+	LogLocation            string            `sql:"log_file_path"`
+	GitTriggers            map[int]GitCommit `sql:"git_triggers"`
+	TriggeredBy            int32             `sql:"triggered_by"`
+	CiArtifactLocation     string            `sql:"ci_artifact_location"`
+	PodName                string            `sql:"pod_name"`
+	CiBuildType            string            `sql:"ci_build_type"`
+	EnvironmentId          int               `sql:"environment_id"`
+	ImagePathReservationId int               `sql:"image_path_reservation_id"`
 	ReferenceCiWorkflowId int               `sql:"ref_ci_workflow_id"`
 	ParentCiWorkFlowId    int               `sql:"parent_ci_workflow_id"`
 	CiPipeline            *CiPipeline
 }
 
 type WorkflowWithArtifact struct {
-	Id                 int               `json:"id"`
-	Name               string            `json:"name"`
-	PodName            string            `json:"podName"`
-	Status             string            `json:"status"`
-	PodStatus          string            `json:"pod_status"`
-	Message            string            `json:"message"`
-	StartedOn          time.Time         `json:"started_on"`
-	FinishedOn         time.Time         `json:"finished_on"`
-	CiPipelineId       int               `json:"ci_pipeline_id"`
-	Namespace          string            `json:"namespace"`
-	LogFilePath        string            `json:"log_file_path"`
-	GitTriggers        map[int]GitCommit `json:"git_triggers"`
-	TriggeredBy        int32             `json:"triggered_by"`
-	EmailId            string            `json:"email_id"`
-	Image              string            `json:"image"`
-	CiArtifactLocation string            `json:"ci_artifact_location"`
-	CiArtifactId       int               `json:"ci_artifact_d"`
-	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
-	CiBuildType        string            `json:"ci_build_type"`
-	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
-	EnvironmentId      int               `json:"environmentId"`
-	EnvironmentName    string            `json:"environmentName"`
+	Id                     int               `json:"id"`
+	Name                   string            `json:"name"`
+	PodName                string            `json:"podName"`
+	Status                 string            `json:"status"`
+	PodStatus              string            `json:"pod_status"`
+	Message                string            `json:"message"`
+	StartedOn              time.Time         `json:"started_on"`
+	FinishedOn             time.Time         `json:"finished_on"`
+	CiPipelineId           int               `json:"ci_pipeline_id"`
+	Namespace              string            `json:"namespace"`
+	LogFilePath            string            `json:"log_file_path"`
+	GitTriggers            map[int]GitCommit `json:"git_triggers"`
+	TriggeredBy            int32             `json:"triggered_by"`
+	EmailId                string            `json:"email_id"`
+	Image                  string            `json:"image"`
+	CiArtifactLocation     string            `json:"ci_artifact_location"`
+	CiArtifactId           int               `json:"ci_artifact_d"`
+	BlobStorageEnabled     bool              `json:"blobStorageEnabled"`
+	CiBuildType            string            `json:"ci_build_type"`
+	IsArtifactUploaded     bool              `json:"is_artifact_uploaded"`
+	EnvironmentId          int               `json:"environmentId"`
+	EnvironmentName        string            `json:"environmentName"`
+	ImagePathReservationId int               `json:"image_path_reservation_id"`
 	RefCiWorkflowId    int               `json:"referenceCiWorkflowId"`
 	ParentCiWorkflowId int               `json:"parent_ci_workflow_id"`
 }
