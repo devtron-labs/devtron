@@ -497,7 +497,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 				}
 			}
 			if configType == repository.CONFIGMAP_TYPE {
-				configListJson, err := json.Marshal(dataCMCS)
+				configListJson, err := json.Marshal(dataCMCS.Data)
 				reference := repository6.HistoryReference{
 					HistoryReferenceId:   history.Id,
 					HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
