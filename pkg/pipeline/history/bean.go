@@ -186,61 +186,6 @@ type ESOData struct {
 	Property  string `json:"property,omitempty"`
 }
 
-// //TODO Aditya move to *history.ConfigData
-//
-//	func GetDecodedData(secretDataMap map[string]*ConfigData) (map[string]*ConfigData, error) {
-//		//var marshal []byte
-//		for name, configData := range secretDataMap {
-//			//dataMap := make(map[string]string)
-//			//
-//			//err := json.Unmarshal(configData.Data, &dataMap)
-//			//if err != nil {
-//			//	return nil, err
-//			//}
-//			//for key, value := range dataMap {
-//			//	decodedData, err := base64.StdEncoding.DecodeString(value)
-//			//	//todo Aditya return err
-//			//	if err != nil {
-//			//		fmt.Println("Error decoding base64:", err)
-//			//	}
-//			//	dataMap[key] = string(decodedData)
-//			//}
-//			//marshal, err = json.Marshal(dataMap)
-//			//if err != nil {
-//			//	return nil, err
-//			//}
-//			marshal, err := util.GetDecodedAndEncodedData(configData.Data, util.DecodeSecret)
-//			if err != nil {
-//				return nil, err
-//			}
-//			configData.Data = marshal
-//			secretDataMap[name] = configData
-//
-//		}
-//		return secretDataMap, nil
-//	}
-
-//func (SecretList) GetTransformedDataForSecret(data string, mode util.SecretTransformMode) (string, error) {
-//	secretsList := SecretList{}
-//	err := json.Unmarshal([]byte(data), &secretsList)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	for _, configData := range secretsList.ConfigData {
-//		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
-//		if err != nil {
-//			return "", err
-//		}
-//	}
-//
-//	marshal, err := json.Marshal(secretsList)
-//	if err != nil {
-//		return "", err
-//	}
-//	return string(marshal), nil
-//}
-
 func (ConfigData) GetTransformedDataForSecret(data string, mode util.SecretTransformMode) (string, error) {
 	secretDataMap := make(map[string]*ConfigData)
 	err := json.Unmarshal([]byte(data), &secretDataMap)

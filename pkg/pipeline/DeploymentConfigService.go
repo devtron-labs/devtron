@@ -322,12 +322,7 @@ func (impl *DeploymentConfigServiceImpl) resolveCMCS(
 		if err != nil {
 			return "", "", nil, nil, err
 		}
-		//cd := history.ConfigData{}
 
-		//decodedSecrets, err := history.ConfigData.GetTransformedDataForSecret(history.ConfigData{}, string(mergedSecretJson), util.DecodeSecret)
-		//cd.GetTransformedDataForSecret()
-
-		//data, err := GetDecodedData(mergedSecretJson)
 		decodedSecrets, err := configData.GetTransformedDataForSecret(string(mergedSecretJson), util.DecodeSecret)
 		if err != nil {
 			return "", "", nil, nil, err
@@ -339,35 +334,13 @@ func (impl *DeploymentConfigServiceImpl) resolveCMCS(
 			return "", "", nil, nil, err
 		}
 		variableMapCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
-		//encodedSecretData, err = GetEncodedData(resolvedTemplateCS)
 		encodedSecretData, err = configData.GetTransformedDataForSecret(resolvedTemplateCS, util.EncodeSecret)
 		if err != nil {
 			return "", "", nil, nil, err
 		}
-		//err = getFinalMergedSecret(mergedSecret)
-		//if err != nil {
-		//	return "", "", nil, nil, err
-		//}
-
 	}
 	return resolvedTemplateCM, encodedSecretData, variableMapCM, variableMapCS, nil
 }
-
-//func getFinalMergedSecret(mergedSecret map[string]*history.ConfigData) error {
-//	newMergeSecret, err := json.Marshal(mergedSecret)
-//	if err != nil {
-//		return err
-//	}
-//	finalMergeSecret, err := GetEncodedData(string(newMergeSecret))
-//	if err != nil {
-//		return err
-//	}
-//	err = json.Unmarshal([]byte(finalMergeSecret), &mergedSecret)
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}
 
 func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*history.ConfigData, error) {
 	envLevelMap := make(map[string]*history.ConfigData, 0)
@@ -427,63 +400,6 @@ func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, 
 	}
 	return finalMap, nil
 }
-
-//
-////TODO Aditya move to *history.ConfigData
-//
-//func GetDecodedData(data map[string]*history.ConfigData) (map[string]*history.ConfigData, error) {
-//	//var marshal []byte
-//	for name, configData := range data {
-//		//dataMap := make(map[string]string)
-//		//
-//		//err := json.Unmarshal(configData.Data, &dataMap)
-//		//if err != nil {
-//		//	return nil, err
-//		//}
-//		//for key, value := range dataMap {
-//		//	decodedData, err := base64.StdEncoding.DecodeString(value)
-//		//	//todo Aditya return err
-//		//	if err != nil {
-//		//		fmt.Println("Error decoding base64:", err)
-//		//	}
-//		//	dataMap[key] = string(decodedData)
-//		//}
-//		//marshal, err = json.Marshal(dataMap)
-//		//if err != nil {
-//		//	return nil, err
-//		//}
-//		marshal, err := util.GetDecodedAndEncodedData(configData.Data, util.DecodeSecret)
-//		if err != nil {
-//			return nil, err
-//		}
-//		configData.Data = marshal
-//		data[name] = configData
-//
-//	}
-//	return data, nil
-//}
-//func GetTransformedDataForSecret(data string) (string, error) {
-//	secretDataMap := make(map[string]*history.ConfigData)
-//	err := json.Unmarshal([]byte(data), &secretDataMap)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	for _, configData := range secretDataMap {
-//		data, err := util.GetDecodedAndEncodedData(configData.Data, util.EncodeSecret)
-//		if err != nil {
-//			return "", err
-//		}
-//		configData.Data = data
-//
-//	}
-//
-//	resolvedTemplate, err := json.Marshal(secretDataMap)
-//	if err != nil {
-//		return "", err
-//	}
-//	return string(resolvedTemplate), nil
-//}
 
 func (impl *DeploymentConfigServiceImpl) getScopedAndCollectVarNames(scope resourceQualifiers.Scope, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel) ([]string, []string, []*models2.ScopedVariableData, error) {
 	varNamesCM := make([]string, 0)
