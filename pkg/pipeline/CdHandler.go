@@ -20,7 +20,6 @@ package pipeline
 import (
 	"bufio"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -53,7 +52,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"os"
@@ -969,7 +967,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
-
+	//TODO impl.config.UseBlobStorageConfigInCdWorkflow fetches the live status, we need to check from db as well, we should put useExternalBlobStorage in db
 	useExternalBlobStorage := isExt && !impl.config.UseBlobStorageConfigInCdWorkflow
 	if useExternalBlobStorage {
 		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
@@ -991,27 +989,6 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	logReader := bufio.NewReader(oldLogsStream)
 	return logReader, cleanUp, err
 }
-func assignNewBlobStorageConfigInCdLogRequest(cdLogRequest *BuildLogRequest, cmConfig *bean2.CmBlobStorageConfig, secretConfig *bean2.SecretBlobStorageConfig) BuildLogRequest {
-	cdLogRequest.CloudProvider = cmConfig.CloudProvider
-	cdLogRequest.AzureBlobConfig.AccountName = cmConfig.AzureAccountName
-	cdLogRequest.AzureBlobConfig.AccountKey = decodeSecretKey(secretConfig.AzureAccountKey)
-	cdLogRequest.AzureBlobConfig.BlobContainerName = cmConfig.AzureBlobContainerCiLog
-
-	cdLogRequest.GcpBlobBaseConfig.CredentialFileJsonData = decodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
-	cdLogRequest.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
-
-	cdLogRequest.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
-	cdLogRequest.AwsS3BaseConfig.EndpointUrl = cmConfig.S3Endpoint
-	cdLogRequest.AwsS3BaseConfig.Passkey = decodeSecretKey(secretConfig.S3SecretKey)
-	isEndpointInSecure, _ := strconv.ParseBool(cmConfig.S3EndpointInsecure)
-	cdLogRequest.AwsS3BaseConfig.IsInSecure = isEndpointInSecure
-	cdLogRequest.AwsS3BaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
-	cdLogRequest.AwsS3BaseConfig.Region = cmConfig.CdDefaultCdLogsBucketRegion
-	s3BucketVersioned, _ := strconv.ParseBool(cmConfig.S3BucketVersioned)
-	cdLogRequest.AwsS3BaseConfig.VersioningEnabled = s3BucketVersioned
-
-	return *cdLogRequest
-}
 
 func (impl *CdHandlerImpl) FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error) {
 	cmConfig := &bean2.CmBlobStorageConfig{}
@@ -1022,22 +999,14 @@ func (impl *CdHandlerImpl) FetchCmAndSecretBlobConfigFromExternalCluster(cluster
 		return cmConfig, secretConfig, err
 	}
 	cm, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), impl.config.ExtBlobStorageCmName, v12.GetOptions{})
-	if err != nil && !errors2.IsNotFound(err) {
+	if err != nil {
 		impl.Logger.Errorw("error in getting config map in external cluster", "err", err, "blobStorageCmName", impl.config.ExtBlobStorageCmName, "clusterName", clusterConfig.ClusterName)
 		return cmConfig, secretConfig, err
 	}
-	if errors2.IsNotFound(err) {
-		cmNotFoundErr := fmt.Sprintf("config map: %s not found in namespace: %s", impl.config.ExtBlobStorageCmName, namespace)
-		return cmConfig, secretConfig, errors.New(cmNotFoundErr)
-	}
 	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), impl.config.ExtBlobStorageSecretName, v12.GetOptions{})
-	if err != nil && !errors2.IsNotFound(err) {
+	if err != nil {
 		impl.Logger.Errorw("error in getting secret in external cluster", "err", err, "blobStorageSecretName", impl.config.ExtBlobStorageSecretName, "clusterName", clusterConfig.ClusterName)
 		return cmConfig, secretConfig, err
-	}
-	if errors2.IsNotFound(err) {
-		secretNotFoundErr := fmt.Sprintf("secret: %s not found in namespace: %s", impl.config.ExtBlobStorageSecretName, namespace)
-		return cmConfig, secretConfig, errors.New(secretNotFoundErr)
 	}
 	if cm.Data != nil && secret != nil {
 		err = cmConfig.PopulateWithK8sExtBlobCmData(cm.Data)
@@ -1247,37 +1216,6 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 
 	impl.Logger.Infow("Downloaded ", "name", file.Name(), "bytes", numBytes)
 	return file, nil
-}
-
-func assignNewBlobStorageConfigInRequest(request *blob_storage.BlobStorageRequest, cmConfig *bean2.CmBlobStorageConfig, secretConfig *bean2.SecretBlobStorageConfig) *blob_storage.BlobStorageRequest {
-	request.StorageType = cmConfig.CloudProvider
-
-	request.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
-	request.AwsS3BaseConfig.EndpointUrl = cmConfig.S3Endpoint
-	request.AwsS3BaseConfig.Passkey = decodeSecretKey(secretConfig.S3SecretKey)
-	isInSecure, _ := strconv.ParseBool(cmConfig.S3EndpointInsecure)
-	request.AwsS3BaseConfig.IsInSecure = isInSecure
-	request.AwsS3BaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
-	request.AwsS3BaseConfig.Region = cmConfig.CdDefaultCdLogsBucketRegion
-	s3BucketVersioned, _ := strconv.ParseBool(cmConfig.S3BucketVersioned)
-	request.AwsS3BaseConfig.VersioningEnabled = s3BucketVersioned
-
-	request.AzureBlobBaseConfig.AccountName = cmConfig.AzureAccountName
-	request.AzureBlobBaseConfig.AccountKey = decodeSecretKey(secretConfig.AzureAccountKey)
-	request.AzureBlobBaseConfig.BlobContainerName = cmConfig.AzureBlobContainerCiLog
-
-	request.GcpBlobBaseConfig.CredentialFileJsonData = decodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
-	request.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
-
-	return request
-}
-
-func decodeSecretKey(secretKey string) string {
-	decodedKey, err := base64.StdEncoding.DecodeString(secretKey)
-	if err != nil {
-		fmt.Println("error decoding base64 key:", err)
-	}
-	return string(decodedKey)
 }
 
 func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pipelineConfig.CdWorkflowWithArtifact {
