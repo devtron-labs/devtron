@@ -3,6 +3,7 @@
 - fix: error handling in image scan (#4150)
 - fix: valuesOverrideResponse (#4149)
 ## Enhancements
+- feat: custom tag (#3847)
 - feat: enchancements in scoped variables (#4069)
 ## Documentation
 - docs: Reverted to relative path with extension type (#4156)
