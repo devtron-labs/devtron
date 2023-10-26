@@ -26,6 +26,7 @@ jobs:
          LAST_RELEASE_BRANCH=$(git branch -a | grep release-v | tail -n 1)
          LAST_RELEASE_BRANCH=$(echo ${LAST_RELEASE_BRANCH##*( remotes/origin/)})
          git checkout $LAST_RELEASE_BRANCH
+         git pull origin main
          export GIT_COMMIT_ID=`git log --format="%H" -n 1`
 
          export GIT_COMMIT=${GIT_COMMIT_ID:0:8}
