@@ -75,18 +75,16 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovedDataByApprovalId(appr
 func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalRequestData(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error) {
 	var requests []*DeploymentApprovalRequest
 
-	query := impl.dbConnection.Model(&requests).
+	searchString = "%" + searchString + "%"
+
+	err := impl.dbConnection.Model(&requests).
 		Column("deployment_approval_request.*", "CiArtifact").
 		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
 		Where("deployment_approval_request.active = true").
 		Where("deployment_approval_request.artifact_deployment_triggered = false").
-		Where("deployment_approval_request.pipeline_id = ?", pipelineId)
-
-	if searchString != "" {
-		query = query.Where("ci_artifact.image ILIKE ?", "%"+searchString+"%")
-	}
-
-	err := query.Limit(limit).
+		Where("deployment_approval_request.pipeline_id = ?", pipelineId).
+		Where("ci_artifact.image LIKE ? ", searchString).
+		Limit(limit).
 		Offset(offset).
 		Select()
 
