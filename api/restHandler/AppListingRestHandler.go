@@ -1594,6 +1594,14 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		if detail != nil && detail.ReleaseExist {
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			// add isNew flag in podMetaData - isNew flag will be missing only where it is false
+			podMetadata := resourceTree["podMetadata"]
+			for _, data := range podMetadata.([]interface{}) {
+				dataMap := data.(map[string]interface{})
+				if _, ok := dataMap["isNew"]; !ok {
+					dataMap["isNew"] = false
+				}
+			}
 			releaseStatus := util2.InterfaceToMapAdapter(detail.ReleaseStatus)
 			applicationStatus := detail.ApplicationStatus
 			resourceTree["releaseStatus"] = releaseStatus
