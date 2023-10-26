@@ -577,6 +577,8 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	artifactListingFilterOpts.ParentStageType = parentType
 	artifactListingFilterOpts.StageType = stage
 	artifactListingFilterOpts.ApprovalNodeConfigured = pipeline.ApprovalNodeConfigured()
+	artifactListingFilterOpts.SearchString = "%" + artifactListingFilterOpts.SearchString + "%"
+
 	approvalConfig, err := pipeline.GetApprovalConfig()
 	if err != nil {
 		impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", pipeline.Id, "approvalConfig", approvalConfig)
@@ -719,7 +721,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 	//2) get artifact list limited by filterOptions
 
 	//if approval configured and request is for deploy stage, fetch approved images only
-	if listingFilterOpts.ApprovalNodeConfigured && listingFilterOpts.StageType == bean.CD_WORKFLOW_TYPE_DEPLOY && !isApprovalNode { //currently approval node is used for deploy stage
+	if listingFilterOpts.ApprovalNodeConfigured && listingFilterOpts.StageType == bean.CD_WORKFLOW_TYPE_DEPLOY && !isApprovalNode { //currently approval node is configured for this deploy stage
 		ciArtifacts, err = impl.fetchApprovedArtifacts(listingFilterOpts, currentRunningArtifactBean)
 		if err != nil {
 			impl.logger.Errorw("error in fetching approved artifacts for cd pipeline", "pipelineId", listingFilterOpts.PipelineId, "err", err)

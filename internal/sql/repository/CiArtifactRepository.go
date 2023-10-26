@@ -276,8 +276,6 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 		}
 
 		query += commonPaginatedQueryPart
-		listingFilterOpts.SearchString = "%" + listingFilterOpts.SearchString + "%"
-
 		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.PipelineId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
 		if err != nil {
 			return artifacts, err
@@ -699,7 +697,6 @@ func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilt
 	//	Column("deployment_approval_user_data.approval_request_id", "count(deployment_approval_user_data.approval_request_id)").
 	//	Where("user_response = 0").
 	//	Group("deployment_approval_user_data.approval_request_id")
-
 	artifacts := make([]*CiArtifact, 0)
 	query := "WITH " +
 		" approved_images AS " +

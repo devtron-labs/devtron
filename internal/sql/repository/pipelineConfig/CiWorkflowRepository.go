@@ -216,7 +216,9 @@ func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciW
 		Column("ci_workflow.git_triggers", "ci_workflow.triggered_by").
 		Where("ci_workflow.id = ? ", id).
 		Select()
-
+	if err == pg.ErrNoRows {
+		return workflow, nil
+	}
 	return workflow, err
 }
 

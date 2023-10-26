@@ -396,7 +396,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 			listingFilterOptions.ParentId,
 			listingFilterOptions.ParentStageType,
 			pg.In([]string{application.Healthy, application.SUCCEEDED})).
-		Where("cia.image ILIKE %?%", listingFilterOptions.SearchString)
+		Where("cia.image LIKE ?", listingFilterOptions.SearchString)
 
 	if isApprovalNode {
 		query = query.Where("cd_workflow.ci_artifact_id NOT IN (SELECT DISTINCT dar.artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = ? AND dar.active=true AND dar.artifact_deployment_triggered = false)", listingFilterOptions.PipelineId)
