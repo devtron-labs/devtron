@@ -36,6 +36,7 @@ jobs:
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}")
         TARGET_BRANCH=$(echo "$PR_DATA" | jq -r '.base.ref')
         SOURCE_BRANCH=$(echo "$PR_DATA" | jq -r '.head.ref')
+        PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | sed -e 's/\(.*\)/\L\1/')
         echo "Target Branch: $TARGET_BRANCH"
         if [[ "$TARGET_BRANCH" != "main" ]]
         then
@@ -43,8 +44,11 @@ jobs:
         elif [[ "$SOURCE_BRANCH" == "release-bot" ]] || [[ "$SOURCE_BRANCH" = *"release-v"* ]]
         then
           echo "Source branch is of release category, Skipping"
+        elif [[ "$PR_TITLE" == *"fix:"* || "$PR_TITLE" == *"fixes:"* && "$TARGET_BRANCH" == "main" ]]
+        then
+          echo "Seems like a hotfix, skipping target branch change"
         else
-          echo "Target branch is main, changing target branch"
+          echo "Target branch is main and PR is not a hotfix, changing target branch"
           # Get target branch
           TARGET_BRANCH=$(git branch -a | grep release-v | tail -n 1)
           TARGET_BRANCH=$(echo ${TARGET_BRANCH##*( remotes/origin/)})
