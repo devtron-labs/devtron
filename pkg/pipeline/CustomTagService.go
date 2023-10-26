@@ -44,23 +44,14 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 		}
 	}
 	var customTagData repository.CustomTag
-	if tag.Enabled {
-		customTagData = repository.CustomTag{
-			EntityKey:            tag.EntityKey,
-			EntityValue:          tag.EntityValue,
-			TagPattern:           strings.ReplaceAll(tag.TagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_X, bean2.IMAGE_TAG_VARIABLE_NAME_x),
-			AutoIncreasingNumber: tag.AutoIncreasingNumber,
-			Metadata:             tag.Metadata,
-			Active:               true,
-			Enabled:              true,
-		}
-	} else {
-		customTagData = repository.CustomTag{
-			EntityKey:   tag.EntityKey,
-			EntityValue: tag.EntityValue,
-			Active:      true,
-			Enabled:     false,
-		}
+	customTagData = repository.CustomTag{
+		EntityKey:            tag.EntityKey,
+		EntityValue:          tag.EntityValue,
+		TagPattern:           strings.ReplaceAll(tag.TagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_X, bean2.IMAGE_TAG_VARIABLE_NAME_x),
+		AutoIncreasingNumber: tag.AutoIncreasingNumber,
+		Metadata:             tag.Metadata,
+		Active:               true,
+		Enabled:              true,
 	}
 
 	oldTagObject, err := impl.customTagRepository.FetchCustomTagData(customTagData.EntityKey, customTagData.EntityValue)
@@ -72,6 +63,11 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 	} else {
 		customTagData.Id = oldTagObject.Id
 		customTagData.Active = true
+		if !tag.Enabled {
+			customTagData.TagPattern = oldTagObject.TagPattern
+			customTagData.AutoIncreasingNumber = oldTagObject.AutoIncreasingNumber
+			customTagData.Enabled = false
+		}
 		return impl.customTagRepository.UpdateImageTag(&customTagData)
 	}
 }
