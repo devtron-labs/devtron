@@ -3445,7 +3445,7 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(request ConfigM
 		}
 	}
 	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
-		resolvedCM, resolvedCS, err = impl.ResolvedVariableForSpecificType(configMapHistory, envOverride, secretHistory)
+		resolvedCM, resolvedCS, err = impl.ResolvedVariableForSpecificType(configMapHistory, envOverride, secretHistory, configMapByte, secretDataByte)
 		if err != nil {
 			return []byte("{}"), err
 		}
@@ -3539,13 +3539,13 @@ func (impl *WorkflowDagExecutorImpl) GetCMCSScopedVars(scope resourceQualifiers.
 
 //todo Aditya Have to refactor this , make one private function , and send cm/cs as parameter
 
-func (impl *WorkflowDagExecutorImpl) ResolvedVariableForSpecificType(configMapHistory *repository3.ConfigmapAndSecretHistory, envOverride *chartConfig.EnvConfigOverride, secretHistory *repository3.ConfigmapAndSecretHistory) (string, string, error) {
+func (impl *WorkflowDagExecutorImpl) ResolvedVariableForSpecificType(configMapHistory *repository3.ConfigmapAndSecretHistory, envOverride *chartConfig.EnvConfigOverride, secretHistory *repository3.ConfigmapAndSecretHistory, configMapByte []byte, secretDataByte []byte) (string, string, error) {
 	reference := repository5.HistoryReference{
 		HistoryReferenceId:   configMapHistory.Id,
 		HistoryReferenceType: repository5.HistoryReferenceTypeConfigMap,
 	}
 	//todo Aditya have to implement batch
-	variableMapCM, resolvedTemplateCM, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(configMapHistory.Data, reference, true, false)
+	variableMapCM, resolvedTemplateCM, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configMapByte), reference, true, false)
 	if err != nil {
 		return "", "", err
 	}
@@ -3555,13 +3555,13 @@ func (impl *WorkflowDagExecutorImpl) ResolvedVariableForSpecificType(configMapHi
 		HistoryReferenceId:   secretHistory.Id,
 		HistoryReferenceType: repository5.HistoryReferenceTypeSecret,
 	}
-	data, err := bean3.GetTransformedDataForSecret(secretHistory.Data, bean3.DecodeSecret)
+	data, err := bean.GetTransformedDataForSecret(string(secretDataByte), bean.DecodeSecret)
 	if err != nil {
 		return "", "", err
 	}
 	variableMapCS, resolvedTemplateCS, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, true, false)
 	envOverride.VariableSnapshotForCS = variableMapCS
-	encodedSecretData, err := bean3.GetTransformedDataForSecret(resolvedTemplateCS, bean3.EncodeSecret)
+	encodedSecretData, err := bean.GetTransformedDataForSecret(resolvedTemplateCS, bean.EncodeSecret)
 	if err != nil {
 		return "", "", err
 	}
