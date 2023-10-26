@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -104,11 +105,13 @@ type CiHandlerImpl struct {
 	resourceGroupService         resourceGroup.ResourceGroupService
 	envRepository                repository3.EnvironmentRepository
 	imageTaggingService          ImageTaggingService
+	customTagService             CustomTagService
+	appWorkflowRepository        appWorkflow.AppWorkflowRepository
 	config                       *CiConfig
 	k8sCommonService             k8s2.K8sCommonService
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService, k8sCommonService k8s2.K8sCommonService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -129,6 +132,8 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		resourceGroupService:         resourceGroupService,
 		envRepository:                envRepository,
 		imageTaggingService:          imageTaggingService,
+		customTagService:             customTagService,
+		appWorkflowRepository:        appWorkflowRepository,
 		k8sCommonService:             k8sCommonService,
 	}
 	config, err := GetCiConfig()
@@ -169,6 +174,8 @@ type WorkflowResponse struct {
 	EnvironmentName      string                                      `json:"environmentName"`
 	ImageReleaseTags     []*repository2.ImageTag                     `json:"imageReleaseTags"`
 	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
+	AppWorkflowId        int                                         `json:"appWorkflowId"`
+	CustomTag            *bean2.CustomTagErrorResponse               `json:"customTag,omitempty"`
 	PipelineType         string                                      `json:"pipelineType"`
 	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
 }
@@ -615,6 +622,23 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			EnvironmentName:     w.EnvironmentName,
 			ReferenceWorkflowId: w.RefCiWorkflowId,
 		}
+		if w.Message == bean3.ImageTagUnavailableMessage {
+			customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(w.CiPipelineId))
+			if err != nil && err != pg.ErrNoRows {
+				//err == pg.ErrNoRows should never happen
+				return nil, err
+			}
+			appWorkflows, err := impl.appWorkflowRepository.FindWFCIMappingByCIPipelineId(w.CiPipelineId)
+			if err != nil && err != pg.ErrNoRows {
+				return nil, err
+			}
+			wfResponse.AppWorkflowId = appWorkflows[0].AppWorkflowId //it is guaranteed there will always be 1 entry (in case of ci_pipeline_id)
+			wfResponse.CustomTag = &bean2.CustomTagErrorResponse{
+				TagPattern:           customTag.TagPattern,
+				AutoIncreasingNumber: customTag.AutoIncreasingNumber,
+				Message:              bean3.ImageTagUnavailableMessage,
+			}
+		}
 		if imageTagsDataMap[w.CiArtifactId] != nil {
 			wfResponse.ImageReleaseTags = imageTagsDataMap[w.CiArtifactId] //if artifact is not yet created,empty list will be sent
 		}
@@ -664,6 +688,12 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 	err = impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
 	if err != nil {
 		impl.Logger.Errorw("cannot update deleted workflow status, but wf deleted", "err", err)
+		return 0, err
+	}
+	imagePathReservationId := workflow.ImagePathReservationId
+	err = impl.customTagService.DeactivateImagePathReservation(imagePathReservationId)
+	if err != nil {
+		impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
 		return 0, err
 	}
 	return workflow.Id, nil
@@ -1647,8 +1677,11 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			err := impl.ciWorkflowRepository.UpdateWorkFlow(ciWorkflow)
 			if err != nil {
 				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
-				continue
 				// skip this and process for next ci workflow
+			}
+			err = impl.customTagService.DeactivateImagePathReservation(ciWorkflow.ImagePathReservationId)
+			if err != nil {
+				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
 			}
 		}
 	}
@@ -1757,6 +1790,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 		ciWorkflowStatus.CiPipelineName = ciWorkflow.CiPipeline.Name
 		ciWorkflowStatus.CiStatus = ciWorkflow.Status
 		ciWorkflowStatus.StorageConfigured = ciWorkflow.BlobStorageEnabled
+		ciWorkflowStatus.CiWorkflowId = ciWorkflow.Id
 		ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
 		notTriggeredWorkflows[ciWorkflowStatus.CiPipelineId] = true
 	}

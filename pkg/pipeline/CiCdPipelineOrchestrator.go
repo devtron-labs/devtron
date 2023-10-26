@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	util3 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	bean5 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -118,6 +119,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	manifestPushConfigRepository  repository5.ManifestPushConfigRepository
 	configMapService              ConfigMapService
 	genericNoteService            genericNotes.GenericNoteService
+	customTagService              CustomTagService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -146,6 +148,7 @@ func NewCiCdPipelineOrchestrator(
 	CiArtifactRepository repository.CiArtifactRepository,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	configMapService ConfigMapService,
+	customTagService CustomTagService,
 	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
@@ -175,6 +178,7 @@ func NewCiCdPipelineOrchestrator(
 		manifestPushConfigRepository:  manifestPushConfigRepository,
 		configMapService:              configMapService,
 		genericNoteService:            genericNoteService,
+		customTagService:              customTagService,
 	}
 }
 
@@ -335,6 +339,30 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		ScanEnabled:              createRequest.ScanEnabled,
 		IsDockerConfigOverridden: createRequest.IsDockerConfigOverridden,
 		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+	}
+
+	//If customTagObject has been passed, create or update the resource
+	//Otherwise deleteIfExists
+	if createRequest.CustomTagObject != nil {
+		customTag := bean5.CustomTag{
+			EntityKey:            bean2.EntityTypeCiPipelineId,
+			EntityValue:          strconv.Itoa(ciPipelineObject.Id),
+			TagPattern:           createRequest.CustomTagObject.TagPattern,
+			AutoIncreasingNumber: createRequest.CustomTagObject.CounterX,
+		}
+		err = impl.customTagService.CreateOrUpdateCustomTag(&customTag)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		customTag := bean5.CustomTag{
+			EntityKey:   bean2.EntityTypeCiPipelineId,
+			EntityValue: strconv.Itoa(ciPipelineObject.Id),
+		}
+		err := impl.customTagService.DeleteCustomTagIfExists(customTag)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	createOnTimeMap := make(map[int]time.Time)
@@ -749,6 +777,21 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			impl.logger.Errorw("error in saving pipeline", "ciPipelineObject", ciPipelineObject, "err", err)
 			return nil, err
 		}
+
+		//If customTagObejct has been passed, save it
+		if ciPipeline.CustomTagObject != nil {
+			customTag := &bean5.CustomTag{
+				EntityKey:            bean2.EntityTypeCiPipelineId,
+				EntityValue:          strconv.Itoa(ciPipeline.Id),
+				TagPattern:           ciPipeline.CustomTagObject.TagPattern,
+				AutoIncreasingNumber: ciPipeline.CustomTagObject.CounterX,
+			}
+			err := impl.customTagService.CreateOrUpdateCustomTag(customTag)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		if createRequest.IsJob {
 			CiEnvMapping := &pipelineConfig.CiEnvMapping{
 				CiPipelineId:  ciPipeline.Id,

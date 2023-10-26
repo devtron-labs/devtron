@@ -40,6 +40,7 @@ import (
 	"github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -127,6 +128,7 @@ type CiPipelineConfigServiceImpl struct {
 	resourceGroupService          resourceGroup2.ResourceGroupService
 	enforcerUtil                  rbac.EnforcerUtil
 	globalPolicyService           globalPolicy.GlobalPolicyService
+	customTagService              CustomTagService
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -148,7 +150,8 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	globalPolicyService globalPolicy.GlobalPolicyService,
-	resourceGroupService resourceGroup2.ResourceGroupService) *CiPipelineConfigServiceImpl {
+	resourceGroupService resourceGroup2.ResourceGroupService,
+	customTagService CustomTagService) *CiPipelineConfigServiceImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -177,6 +180,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		resourceGroupService:          resourceGroupService,
 		securityConfig:                securityConfig,
 		globalPolicyService:           globalPolicyService,
+		customTagService:              customTagService,
 	}
 }
 
@@ -701,6 +705,16 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			impl.logger.Errorw("error in fetching ciEnvMapping", "ciPipelineId ", pipeline.Id, "err", err)
 			return nil, err
 		}
+		customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+		if err != nil && err != pg.ErrNoRows {
+			return nil, err
+		}
+		if customTag.Id != 0 {
+			ciPipeline.CustomTagObject = &bean.CustomTagData{
+				TagPattern: customTag.TagPattern,
+				CounterX:   customTag.AutoIncreasingNumber,
+			}
+		}
 		if ciEnvMapping.Id > 0 {
 			ciPipeline.EnvironmentId = ciEnvMapping.EnvironmentId
 		}
@@ -839,6 +853,16 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 		PipelineType:             bean.PipelineType(pipeline.PipelineType),
+	}
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	if customTag.Id != 0 {
+		ciPipeline.CustomTagObject = &bean.CustomTagData{
+			TagPattern: customTag.TagPattern,
+			CounterX:   customTag.AutoIncreasingNumber,
+		}
 	}
 	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipelineId)
 	if err != nil && err != pg.ErrNoRows {
