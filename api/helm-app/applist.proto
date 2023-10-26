@@ -241,6 +241,7 @@ message UpgradeReleaseRequest {
 
 message UpgradeReleaseResponse {
   bool success = 1;
+  bool performedHelmSyncInstall =2;
 }
 
 message DeploymentDetailRequest {

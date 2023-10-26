@@ -532,7 +532,8 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfo(ctx context.Conte
 	}
 
 	response := &openapi.UpdateReleaseResponse{
-		Success: &updateReleaseResponse.Success,
+		Success:                  &updateReleaseResponse.Success,
+		PerformedHelmSyncInstall: &updateReleaseResponse.PerformedHelmSyncInstall,
 	}
 
 	return response, nil

@@ -18,6 +18,7 @@ import (
 type UpdateReleaseResponse struct {
 	// success or failure
 	Success *bool `json:"success,omitempty"`
+	PerformedHelmSyncInstall *bool `json:"performedHelmSyncInstall,omitempty"`
 }
 
 // NewUpdateReleaseResponse instantiates a new UpdateReleaseResponse object
