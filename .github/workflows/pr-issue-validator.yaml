@@ -41,7 +41,7 @@ jobs:
         if [[ "$TARGET_BRANCH" != "main" ]]
         then
           echo "Skipping as target branch isn't main"
-        elif [[ "$SOURCE_BRANCH" == "release-bot" ]] || [[ "$SOURCE_BRANCH" = *"release-v"* ]]
+        elif [[ "$SOURCE_BRANCH" == "release-bot" ]] || [[ "$SOURCE_BRANCH" == *"release-v"* ]]
         then
           echo "Source branch is of release category, Skipping"
         elif [[ "$PR_TITLE" == *"fix:"* || "$PR_TITLE" == *"fixes:"* && "$TARGET_BRANCH" == "main" ]]
