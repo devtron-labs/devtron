@@ -264,6 +264,11 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 	if err != nil {
 		return nil, nil, err
 	}
+	resolvedSecretList, resolvedConfigList, err := getResolvedCMCSList(resolvedCS, resolvedCM)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	var cmConfigsDto []*history.ComponentLevelHistoryDetailDto
 	for _, data := range mergedConfigMap {
 		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.CONFIGMAP_TYPE, userHasAdminAccess)
@@ -272,7 +277,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			return nil, nil, err
 		}
 		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCM
-		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = resolvedCM
+		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedConfigList[data.Name].Data)
 		cmConfigsDto = append(cmConfigsDto, convertedData)
 	}
 
@@ -284,10 +289,24 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			return nil, nil, err
 		}
 		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCS
-		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = resolvedCS
+		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedSecretList[data.Name].Data)
 		secretConfigsDto = append(secretConfigsDto, convertedData)
 	}
 	return cmConfigsDto, secretConfigsDto, nil
+}
+
+func getResolvedCMCSList(resolvedCS string, resolvedCM string) (map[string]*history.ConfigData, map[string]*history.ConfigData, error) {
+	resolvedSecretList := map[string]*history.ConfigData{}
+	err := json.Unmarshal([]byte(resolvedCS), &resolvedSecretList)
+	if err != nil {
+		return nil, nil, err
+	}
+	resolvedConfigList := map[string]*history.ConfigData{}
+	err = json.Unmarshal([]byte(resolvedCM), &resolvedConfigList)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resolvedSecretList, resolvedConfigList, nil
 }
 
 func (impl *DeploymentConfigServiceImpl) resolveCMCS(

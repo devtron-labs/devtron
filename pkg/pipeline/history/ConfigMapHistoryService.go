@@ -433,15 +433,6 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 			}
 		}
 		configData = configList.ConfigData
-		//configListJson, err := json.Marshal(configList)
-		//reference := repository6.HistoryReference{
-		//	HistoryReferenceId:   history.Id,
-		//	HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
-		//}
-		//variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, isSuperAdmin, true)
-		//if err != nil {
-		//	impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
-		//}
 	} else if configType == repository.SECRET_TYPE {
 		secretList := SecretList{}
 		if len(history.Data) > 0 {
@@ -452,23 +443,6 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 			}
 		}
 		configData = secretList.ConfigData
-		//secretListJson, err := json.Marshal(secretList)
-		//reference := repository6.HistoryReference{
-		//	HistoryReferenceId:   history.Id,
-		//	HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
-		//}
-		//data, err := secretList.GetTransformedDataForSecret(string(secretListJson), util.DecodeSecret)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, isSuperAdmin, false)
-		//if err != nil {
-		//	impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
-		//}
-		//resolvedTemplate, err = secretList.GetTransformedDataForSecret(resolvedTemplate, util.EncodeSecret)
-		//if err != nil {
-		//	return nil, err
-		//}
 	}
 	config := &ConfigData{}
 	for _, dataCMCS := range configData {
@@ -567,6 +541,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		return nil, err
 	}
 	var configData []*ConfigData
+	cMCSData := make(map[string]ConfigData, 0)
 	var variableSnapshotMap map[string]string
 	var resolvedTemplate string
 	isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
@@ -591,6 +566,14 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, isSuperAdmin, false)
 		if err != nil {
 			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
+		}
+		resolvedConfigList := ConfigList{}
+		err = json.Unmarshal([]byte(resolvedTemplate), &resolvedConfigList)
+		if err != nil {
+			return nil, err
+		}
+		for i, _ := range resolvedConfigList.ConfigData {
+			cMCSData[resolvedConfigList.ConfigData[i].Name] = *resolvedConfigList.ConfigData[i]
 		}
 
 	} else if configType == repository.SECRET_TYPE {
@@ -621,6 +604,14 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		if err != nil {
 			return nil, err
 		}
+		resolvedSecretList := SecretList{}
+		err = json.Unmarshal([]byte(resolvedTemplate), &resolvedSecretList)
+		if err != nil {
+			return nil, err
+		}
+		for i, _ := range resolvedSecretList.ConfigData {
+			cMCSData[resolvedSecretList.ConfigData[i].Name] = *resolvedSecretList.ConfigData[i]
+		}
 	}
 
 	var componentLevelHistoryData []*ComponentLevelHistoryDetailDto
@@ -631,10 +622,10 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		}
 		if configType == repository.SECRET_TYPE {
 			componentLevelData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableSnapshotMap
-			componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = resolvedTemplate
+			componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = string(cMCSData[config.Name].Data)
 		} else if configType == repository.CONFIGMAP_TYPE {
 			componentLevelData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableSnapshotMap
-			componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = resolvedTemplate
+			componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = string(cMCSData[config.Name].Data)
 		}
 
 		componentLevelHistoryData = append(componentLevelHistoryData, componentLevelData)
