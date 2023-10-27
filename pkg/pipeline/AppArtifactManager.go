@@ -40,6 +40,8 @@ type AppArtifactManager interface {
 	//FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string) (bean2.CiArtifactResponse, error)
 
+	FetchArtifactForRollbackV2(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error)
+
 	BuildArtifactsForCdStage(pipelineId int, stageType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, parent bool, limit int, parentCdId int) ([]bean2.CiArtifactBean, map[int]int, int, string, error)
 
 	BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, limit int, parentCdId int) ([]bean2.CiArtifactBean, error)
@@ -262,6 +264,116 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId
 	deployedCiArtifactsResponse.CiArtifacts = deployedCiArtifacts
 
 	return deployedCiArtifactsResponse, nil
+}
+
+func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error) {
+	var deployedCiArtifactsResponse bean2.CiArtifactResponse
+	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", appId)
+		return deployedCiArtifactsResponse, err
+	}
+
+	artifactListingFilterOpts := bean.ArtifactsListFilterOptions{}
+	artifactListingFilterOpts.PipelineId = cdPipelineId
+	artifactListingFilterOpts.StageType = bean.CD_WORKFLOW_TYPE_DEPLOY
+	artifactListingFilterOpts.SearchString = "%" + searchString + "%"
+	artifactListingFilterOpts.Limit = limit
+	artifactListingFilterOpts.Offset = offset
+	deployedCiArtifacts, artifactIds, totalCount, err := impl.BuildRollbackArtifactsList(artifactListingFilterOpts)
+	if err != nil {
+		impl.logger.Errorw("error in building ci artifacts for rollback", "err", err, "cdPipelineId", cdPipelineId)
+		return deployedCiArtifactsResponse, err
+	}
+
+	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", appId, "artifactIds", artifactIds)
+		return deployedCiArtifactsResponse, err
+	}
+
+	for i, _ := range deployedCiArtifacts {
+		imageTaggingResp := imageTagsDataMap[deployedCiArtifacts[i].Id]
+		if imageTaggingResp != nil {
+			deployedCiArtifacts[i].ImageReleaseTags = imageTaggingResp
+		}
+		if imageCommentResp := imageCommentsDataMap[deployedCiArtifacts[i].Id]; imageCommentResp != nil {
+			deployedCiArtifacts[i].ImageComment = imageCommentResp
+		}
+	}
+
+	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
+	if deployedCiArtifacts == nil {
+		deployedCiArtifacts = []bean2.CiArtifactBean{}
+	}
+	deployedCiArtifactsResponse.CiArtifacts = deployedCiArtifacts
+	deployedCiArtifactsResponse.TotalCount = totalCount
+	return deployedCiArtifactsResponse, nil
+}
+
+func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFilterOpts bean.ArtifactsListFilterOptions) ([]bean2.CiArtifactBean, []int, int, error) {
+	var deployedCiArtifacts []bean2.CiArtifactBean
+
+	//1)get current deployed artifact on this pipeline
+	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(artifactListingFilterOpts.PipelineId, artifactListingFilterOpts.StageType, 1)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", artifactListingFilterOpts.PipelineId, "currentStageType", artifactListingFilterOpts.StageType)
+		return deployedCiArtifacts, nil, 0, err
+	}
+	if len(latestWf) > 0 {
+		//we should never show current deployed artifact in rollback API
+		artifactListingFilterOpts.ExcludeArtifactIds = []int{latestWf[0].CdWorkflow.CiArtifactId}
+	}
+
+	cdWfrs, totalCount, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineIdV2(artifactListingFilterOpts)
+
+	if err != nil {
+		impl.logger.Errorw("error in getting artifacts for rollback by cdPipelineId", "err", err, "cdPipelineId", artifactListingFilterOpts.PipelineId)
+		return deployedCiArtifacts, nil, totalCount, err
+	}
+
+	var ids []int32
+	for _, item := range cdWfrs {
+		ids = append(ids, item.TriggeredBy)
+	}
+
+	userEmails := make(map[int32]string)
+	users, err := impl.userService.GetByIds(ids)
+	if err != nil {
+		impl.logger.Errorw("unable to fetch users by ids", "err", err, "ids", ids)
+	}
+	for _, item := range users {
+		userEmails[item.Id] = item.EmailId
+	}
+
+	artifactIds := make([]int, 0)
+
+	for _, cdWfr := range cdWfrs {
+		ciArtifact := &repository.CiArtifact{}
+		if cdWfr.CdWorkflow != nil && cdWfr.CdWorkflow.CiArtifact != nil {
+			ciArtifact = cdWfr.CdWorkflow.CiArtifact
+		}
+		if ciArtifact == nil {
+			continue
+		}
+		mInfo, err := parseMaterialInfo([]byte(ciArtifact.MaterialInfo), ciArtifact.DataSource)
+		if err != nil {
+			mInfo = []byte("[]")
+			impl.logger.Errorw("error in parsing ciArtifact material info", "err", err, "ciArtifact", ciArtifact)
+		}
+		userEmail := userEmails[cdWfr.TriggeredBy]
+		deployedCiArtifacts = append(deployedCiArtifacts, bean2.CiArtifactBean{
+			Id:           ciArtifact.Id,
+			Image:        ciArtifact.Image,
+			MaterialInfo: mInfo,
+			DeployedTime: formatDate(cdWfr.StartedOn, bean2.LayoutRFC3339),
+			WfrId:        cdWfr.Id,
+			DeployedBy:   userEmail,
+		})
+		artifactIds = append(artifactIds, ciArtifact.Id)
+	}
+	return deployedCiArtifacts, artifactIds, totalCount, nil
+
 }
 
 func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType) (*bean2.CiArtifactResponse, error) {

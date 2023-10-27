@@ -735,6 +735,7 @@ type CiArtifactResponse struct {
 	TagsEditable               bool             `json:"tagsEditable"`
 	AppReleaseTagNames         []string         `json:"appReleaseTagNames"` //unique list of tags exists in the app
 	HideImageTaggingHardDelete bool             `json:"hideImageTaggingHardDelete"`
+	TotalCount                 int              `json:"totalCount"`
 }
 
 type AppLabelsDto struct {
