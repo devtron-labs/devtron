@@ -1150,6 +1150,10 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		if savedWorkflow.Status != WorkflowCancel {
 			savedWorkflow.Status = status
 		}
+		if savedWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == WorkflowCancel {
+			savedWorkflow.PodStatus = "Failed"
+			savedWorkflow.Message = "workflow shutdown with strategy: Terminate"
+		}
 		savedWorkflow.PodStatus = podStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
