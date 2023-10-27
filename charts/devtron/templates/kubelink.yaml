@@ -28,6 +28,11 @@ metadata:
 {{- if .configs }}
 data:
 {{ toYaml .configs | indent 2 }}
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+  RUN_HELM_INSTALL_IN_ASYNC_MODE: "true"
+{{- end }}
+{{- end }}
 {{- end }}
 ---
 apiVersion: apps/v1
