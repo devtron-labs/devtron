@@ -43,6 +43,8 @@ type AppArtifactManager interface {
 	//FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, pipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error)
 
+	FetchArtifactForRollbackV2(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error)
+
 	BuildArtifactsForCdStage(pipelineId int, stageType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, parent bool, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, map[int]int, int, string, error)
 
 	BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, error)
@@ -319,7 +321,25 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", appId)
 		return deployedCiArtifactsResponse, err
 	}
-	deployedCiArtifacts, artifactIds, err := impl.BuildRollbackArtifatsList(cdPipelineId, offset, limit, searchString)
+
+	artifactListingFilterOpts := bean.ArtifactsListFilterOptions{}
+	artifactListingFilterOpts.PipelineId = cdPipelineId
+	artifactListingFilterOpts.StageType = bean.CD_WORKFLOW_TYPE_DEPLOY
+	artifactListingFilterOpts.ApprovalNodeConfigured = deploymentPipeline.ApprovalNodeConfigured()
+	artifactListingFilterOpts.SearchString = "%" + searchString + "%"
+	artifactListingFilterOpts.Limit = limit
+	artifactListingFilterOpts.Offset = offset
+	if artifactListingFilterOpts.ApprovalNodeConfigured {
+		approvalConfig, err := deploymentPipeline.GetApprovalConfig()
+		if err != nil {
+			impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", deploymentPipeline.Id, "approvalConfig", approvalConfig)
+			return deployedCiArtifactsResponse, err
+		}
+		artifactListingFilterOpts.ApproversCount = approvalConfig.RequiredCount
+		deployedCiArtifactsResponse.UserApprovalConfig = &approvalConfig
+	}
+
+	deployedCiArtifacts, artifactIds, totalCount, err := impl.BuildRollbackArtifactsList(artifactListingFilterOpts)
 	if err != nil {
 		impl.logger.Errorw("error in building ci artifacts for rollback", "err", err, "cdPipelineId", cdPipelineId)
 		return deployedCiArtifactsResponse, err
@@ -367,17 +387,37 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 		deployedCiArtifacts = []bean2.CiArtifactBean{}
 	}
 	deployedCiArtifactsResponse.CiArtifacts = deployedCiArtifacts
-
+	deployedCiArtifactsResponse.TotalCount = totalCount
 	return deployedCiArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) BuildRollbackArtifatsList(cdPipelineId, offset, limit int, searchString string) ([]bean2.CiArtifactBean, []int, error) {
+func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFilterOpts bean.ArtifactsListFilterOptions) ([]bean2.CiArtifactBean, []int, int, error) {
 	var deployedCiArtifacts []bean2.CiArtifactBean
-	cdWfrs, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineId(cdPipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY, offset, limit, searchString)
-	if err != nil {
-		impl.logger.Errorw("error in getting artifacts for rollback by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
-		return deployedCiArtifacts, nil, err
+	totalCount := 0
+
+	//1)get current deployed artifact on this pipeline
+	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(artifactListingFilterOpts.PipelineId, artifactListingFilterOpts.StageType, "", 1)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", artifactListingFilterOpts.PipelineId, "currentStageType", artifactListingFilterOpts.StageType)
+		return deployedCiArtifacts, nil, totalCount, err
 	}
+	if len(latestWf) > 0 {
+		//we should never show current deployed artifact in rollback API
+		artifactListingFilterOpts.ExcludeArtifactIds = []int{latestWf[0].CdWorkflow.CiArtifactId}
+	}
+
+	var cdWfrs []pipelineConfig.CdWorkflowRunner
+	if artifactListingFilterOpts.ApprovalNodeConfigured {
+		cdWfrs, totalCount, err = impl.cdWorkflowRepository.FetchApprovedArtifactsForRollback(artifactListingFilterOpts)
+	} else {
+		cdWfrs, totalCount, err = impl.cdWorkflowRepository.FetchArtifactsByCdPipelineIdV2(artifactListingFilterOpts)
+	}
+
+	if err != nil {
+		impl.logger.Errorw("error in getting artifacts for rollback by cdPipelineId", "err", err, "cdPipelineId", artifactListingFilterOpts.PipelineId)
+		return deployedCiArtifacts, nil, totalCount, err
+	}
+
 	var ids []int32
 	for _, item := range cdWfrs {
 		ids = append(ids, item.TriggeredBy)
@@ -418,7 +458,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifatsList(cdPipelineId, offs
 		})
 		artifactIds = append(artifactIds, ciArtifact.Id)
 	}
-	return deployedCiArtifacts, artifactIds, nil
+	return deployedCiArtifacts, artifactIds, totalCount, nil
 
 }
 
