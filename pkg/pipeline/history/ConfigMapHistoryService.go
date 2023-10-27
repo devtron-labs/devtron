@@ -433,6 +433,27 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 			}
 		}
 		configData = configList.ConfigData
+		configListJson, err := json.Marshal(configList)
+		reference := repository6.HistoryReference{
+			HistoryReferenceId:   history.Id,
+			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
+		}
+		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, isSuperAdmin, true)
+		if err != nil {
+			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
+		}
+		resolvedConfigList := ConfigList{}
+		err = json.Unmarshal([]byte(resolvedTemplate), &resolvedConfigList)
+		if err != nil {
+			return nil, err
+		}
+		for _, data := range resolvedConfigList.ConfigData {
+
+			if data.Name == componentName {
+				resolvedTemplate = string(data.Data)
+				break
+			}
+		}
 	} else if configType == repository.SECRET_TYPE {
 		secretList := SecretList{}
 		if len(history.Data) > 0 {
@@ -443,44 +464,40 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 			}
 		}
 		configData = secretList.ConfigData
+		secretListJson, err := json.Marshal(secretList)
+		reference := repository6.HistoryReference{
+			HistoryReferenceId:   history.Id,
+			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
+		}
+		data, err := secretList.GetTransformedDataForSecret(string(secretListJson), util.DecodeSecret)
+		if err != nil {
+			return nil, err
+		}
+		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, isSuperAdmin, false)
+		if err != nil {
+			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
+		}
+		resolvedTemplate, err = secretList.GetTransformedDataForSecret(resolvedTemplate, util.EncodeSecret)
+		if err != nil {
+			return nil, err
+		}
+
+		resolvedSecretList := SecretList{}
+		err = json.Unmarshal([]byte(resolvedTemplate), &resolvedSecretList)
+		if err != nil {
+			return nil, err
+		}
+		for _, data := range resolvedSecretList.ConfigData {
+			if data.Name == componentName {
+				resolvedTemplate = string(data.Data)
+				break
+			}
+		}
 	}
 	config := &ConfigData{}
-	for _, dataCMCS := range configData {
-		if dataCMCS.Name == componentName {
-			config = dataCMCS
-			if configType == repository.SECRET_TYPE {
-				reference := repository6.HistoryReference{
-					HistoryReferenceId:   history.Id,
-					HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
-				}
-				secretData, err := json.Marshal(dataCMCS)
-				if err != nil {
-					return nil, err
-				}
-				data, err := dataCMCS.GetTransformedDataForSecretForComponent(string(secretData), util.DecodeSecret)
-				if err != nil {
-					return nil, err
-				}
-				variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, isSuperAdmin, false)
-				if err != nil {
-					impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
-				}
-				resolvedTemplate, err = dataCMCS.GetTransformedDataForSecretForComponent(resolvedTemplate, util.EncodeSecret)
-				if err != nil {
-					return nil, err
-				}
-			}
-			if configType == repository.CONFIGMAP_TYPE {
-				configListJson, err := json.Marshal(dataCMCS.Data)
-				reference := repository6.HistoryReference{
-					HistoryReferenceId:   history.Id,
-					HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
-				}
-				variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, isSuperAdmin, true)
-				if err != nil {
-					impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
-				}
-			}
+	for _, data := range configData {
+		if data.Name == componentName {
+			config = data
 			break
 		}
 	}
