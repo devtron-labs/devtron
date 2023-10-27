@@ -106,6 +106,7 @@ components:
       PG_LOG_QUERY: "true"
       PG_PORT: "5432"
       PG_USER: postgres
+      RUN_HELM_INSTALL_IN_ASYNC_MODE: "false"
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
