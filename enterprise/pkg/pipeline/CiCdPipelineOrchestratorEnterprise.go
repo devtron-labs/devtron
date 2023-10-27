@@ -67,13 +67,14 @@ func NewCiCdPipelineOrchestratorEnterpriseImpl(pipelineGroupRepository app2.AppR
 	globalTagService globalTag.GlobalTagService,
 	PipelineOverrideRepository chartConfig.PipelineOverrideRepository, CiArtifactRepository repository.CiArtifactRepository, manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	configMapService pipeline.ConfigMapService,
-	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorEnterpriseImpl {
+	genericNoteService genericNotes.GenericNoteService,
+	customTagService pipeline.CustomTagService) *CiCdPipelineOrchestratorEnterpriseImpl {
 	return &CiCdPipelineOrchestratorEnterpriseImpl{
 		CiCdPipelineOrchestratorImpl: pipeline.NewCiCdPipelineOrchestrator(pipelineGroupRepository, logger, materialRepository, pipelineRepository,
 			ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService,
 			appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService,
 			pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService,
-			dockerArtifactStoreRepository, PipelineOverrideRepository, CiArtifactRepository, manifestPushConfigRepository, configMapService, nil, genericNoteService),
+			dockerArtifactStoreRepository, PipelineOverrideRepository, CiArtifactRepository, manifestPushConfigRepository, configMapService, customTagService, genericNoteService),
 		globalTagService: globalTagService,
 	}
 }
