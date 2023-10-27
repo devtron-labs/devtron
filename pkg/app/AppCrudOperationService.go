@@ -214,7 +214,7 @@ func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAp
 			appLabelMap[uniqueLabelExists] = appLabel
 		}
 	}
-
+	appLabelDeleteMap := make(map[string]bool, 0)
 	for _, label := range request.AppLabels {
 		uniqueLabelRequest := fmt.Sprintf("%s:%s:%t", label.Key, label.Value, label.Propagate)
 		if _, ok := appLabelMap[uniqueLabelRequest]; !ok {
@@ -235,9 +235,12 @@ func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAp
 				return nil, err
 			}
 		} else {
-			// delete from map so that item remain live, all other item will be delete from this app
-			delete(appLabelMap, uniqueLabelRequest)
+			// storing this unique so that item remain live, all other item will be delete from this app
+			appLabelDeleteMap[uniqueLabelRequest] = true
 		}
+	}
+	for labelReq, _ := range appLabelDeleteMap {
+		delete(appLabelMap, labelReq)
 	}
 	for _, appLabel := range appLabelMap {
 		err = impl.appLabelRepository.Delete(appLabel, tx)
