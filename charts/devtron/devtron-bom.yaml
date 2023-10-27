@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.24-rc.0"
+  release: "v0.6.24"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
@@ -34,7 +34,7 @@ components:
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:9dfbf267-318-18988"
+    image: "quay.io/devtron/kubelink:2dbe99a8-564-18999"
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
