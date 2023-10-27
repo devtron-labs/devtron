@@ -12,7 +12,7 @@ import (
 
 type DeploymentApprovalRepository interface {
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error)
-	FetchApprovalRequestData(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error)
+	FetchApprovalRequestData(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, int, error)
 	FetchApprovalDataForRequests(requestIds []int) ([]*DeploymentApprovalUserData, error)
 	FetchById(requestId int) (*DeploymentApprovalRequest, error)
 	FetchWithPipelineAndArtifactDetails(requestId int) (*DeploymentApprovalRequest, error)
@@ -72,28 +72,44 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovedDataByApprovalId(appr
 
 }
 
-func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalRequestData(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, error) {
+func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalRequestData(pipelineId int, limit int, offset int, searchString string) ([]*DeploymentApprovalRequest, int, error) {
+
 	var requests []*DeploymentApprovalRequest
 
 	searchString = "%" + searchString + "%"
 
-	err := impl.dbConnection.Model(&requests).
+	subquery := impl.dbConnection.Model(&DeploymentApprovalRequest{}).
+		Column("deployment_approval_request.*", "CiArtifact").
+		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
+		Where("deployment_approval_request.active = true").
+		Where("deployment_approval_request.artifact_deployment_triggered = false").
+		Where("deployment_approval_request.pipeline_id = ?", pipelineId).
+		Where("ci_artifact.image LIKE ? ", searchString)
+
+	totalCount, err := subquery.Count()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching total count", "pipelineId", pipelineId, "err", err)
+		return nil, 0, err
+	}
+
+	err = impl.dbConnection.Model(&requests).
 		Column("deployment_approval_request.*", "CiArtifact").
 		Join("JOIN ci_artifact ca ON ca.id = deployment_approval_request.ci_artifact_id").
 		Where("deployment_approval_request.active = true").
 		Where("deployment_approval_request.artifact_deployment_triggered = false").
 		Where("deployment_approval_request.pipeline_id = ?", pipelineId).
 		Where("ci_artifact.image LIKE ? ", searchString).
+		Order("ci_artifact.id DESC").
 		Limit(limit).
 		Offset(offset).
 		Select()
 
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
-		return nil, err
+		return nil, 0, err
 	}
 
-	return requests, nil
+	return requests, totalCount, nil
 }
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error) {

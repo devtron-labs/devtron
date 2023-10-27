@@ -106,7 +106,7 @@ type WorkflowDagExecutor interface {
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
-	FetchApprovalRequestArtifacts(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error)
+	FetchApprovalRequestArtifacts(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, int, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 }
 
@@ -2601,13 +2601,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 	return nil, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, error) {
+func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, limit, offset int, searchString string) ([]bean2.CiArtifactBean, int, error) {
 
 	var ciArtifacts []bean2.CiArtifactBean
-	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalRequestData(pipelineId, limit, offset, searchString)
+	deploymentApprovalRequests, totalCount, err := impl.deploymentApprovalRepository.FetchApprovalRequestData(pipelineId, limit, offset, searchString)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching approval request data", "pipelineId", pipelineId, "err", err)
-		return ciArtifacts, err
+		return ciArtifacts, 0, err
 	}
 
 	var artifactIds []int
@@ -2619,7 +2619,7 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 		deploymentApprovalRequests, err = impl.getLatestDeploymentByArtifactIds(pipelineId, deploymentApprovalRequests, artifactIds)
 		if err != nil {
 			impl.logger.Errorw("error occurred while fetching FetchLatestDeploymentByArtifactIds", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
-			return nil, err
+			return nil, 0, err
 		}
 	}
 
@@ -2636,7 +2636,7 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean2.LayoutRFC3339)
 		ciArtifacts = append(ciArtifacts, artifact)
 	}
-	return ciArtifacts, err
+	return ciArtifacts, totalCount, err
 }
 
 func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId int, deploymentApprovalRequests []*pipelineConfig.DeploymentApprovalRequest, artifactIds []int) ([]*pipelineConfig.DeploymentApprovalRequest, error) {

@@ -583,7 +583,7 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
 	if pipeline.ApprovalNodeConfigured() { // for now, we are checking artifacts for deploy stage only
-		ciArtifacts, err := impl.workflowDagExecutor.FetchApprovalRequestArtifacts(pipeline.Id, artifactListingFilterOpts.Limit, artifactListingFilterOpts.Offset, artifactListingFilterOpts.SearchString)
+		ciArtifacts, totalCount, err := impl.workflowDagExecutor.FetchApprovalRequestArtifacts(pipeline.Id, artifactListingFilterOpts.Limit, artifactListingFilterOpts.Offset, artifactListingFilterOpts.SearchString)
 		if err != nil {
 			impl.logger.Errorw("failed to fetch approval request artifacts", "err", err, "cdPipelineId", pipeline.Id)
 			return ciArtifactsResponse, err
@@ -608,14 +608,56 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 			return ciArtifactsResponse, err
 		}
 
-		for _, artifact := range ciArtifacts {
+		imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(pipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", pipeline.AppId)
+			return ciArtifactsResponse, err
+		}
+
+		imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", pipeline.AppId, "artifactIds", artifactIds)
+			return ciArtifactsResponse, err
+		}
+
+		environment := pipeline.Environment
+		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
+		filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+			return ciArtifactsResponse, err
+		}
+
+		for i, artifact := range ciArtifacts {
 			if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok { // either approved or requested
 				artifact.UserApprovalMetadata = approvalMetadataForArtifact
 			}
+			imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]
+			if imageTaggingResp != nil {
+				ciArtifacts[i].ImageReleaseTags = imageTaggingResp
+			}
+
+			if imageCommentResp := imageCommentsDataMap[ciArtifacts[i].Id]; imageCommentResp != nil {
+				ciArtifacts[i].ImageComment = imageCommentResp
+			}
+
+			releaseTags := make([]string, 0, len(imageTaggingResp))
+			for _, imageTag := range imageTaggingResp {
+				if !imageTag.Deleted {
+					releaseTags = append(releaseTags, imageTag.TagName)
+				}
+			}
+			filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags)
+			if err != nil {
+				return ciArtifactsResponse, err
+			}
+			ciArtifacts[i].FilterState = filterState
 		}
 		ciArtifactsResponse.CdPipelineId = pipeline.Id
 		ciArtifactsResponse.CiArtifacts = ciArtifacts
 		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
+		ciArtifactsResponse.ResourceFilters = filters
+		ciArtifactsResponse.TotalCount = totalCount
 	}
 	return ciArtifactsResponse, nil
 }
