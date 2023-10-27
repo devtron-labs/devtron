@@ -19,7 +19,6 @@ package pipelineConfig
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -78,8 +77,8 @@ type CiWorkflow struct {
 	CiPipeline             *CiPipeline
 }
 
-func (r *CiWorkflow) IsJobType() bool {
-	return r.CiPipeline.App.AppType == helper.Job
+func (r *CiWorkflow) IsExternalRunInJobType() bool {
+	return r.EnvironmentId != 0
 }
 
 type WorkflowWithArtifact struct {
