@@ -263,7 +263,6 @@ func (impl AppWorkflowRepositoryImpl) FindWFAllMappingByWorkflowId(workflowId in
 
 func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error) {
 	var appWorkflowsMapping []*AppWorkflowMapping
-
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("component_id = ?", ciPipelineId).
 		Where("type = ?", CIPIPELINE).

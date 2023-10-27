@@ -60,6 +60,7 @@ type CiServiceImpl struct {
 	workflowService                WorkflowService
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
+	ciConfig                       *CiConfig
 	eventClient                    client.EventClient
 	eventFactory                   client.EventFactory
 	mergeUtil                      *util.MergeUtil
@@ -71,6 +72,7 @@ type CiServiceImpl struct {
 	appCrudOperationService        app.AppCrudOperationService
 	envRepository                  repository1.EnvironmentRepository
 	appRepository                  appRepository.AppRepository
+	customTagService               CustomTagService
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 	config                         *CiConfig
 }
@@ -84,6 +86,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	userService user.UserService,
 	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	customTagService CustomTagService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                         Logger,
@@ -102,6 +105,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		envRepository:                  envRepository,
 		appRepository:                  appRepository,
 		variableSnapshotHistoryService: variableSnapshotHistoryService,
+		customTagService:               customTagService,
 	}
 	config, err := GetCiConfig()
 	if err != nil {
@@ -451,7 +455,32 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		refPluginsData = []*bean2.RefPluginObject{}
 	}
 
-	dockerImageTag := impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
+	var dockerImageTag string
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	if customTag.Id != 0 {
+		imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository)
+		if err != nil {
+			if errors.Is(err, bean2.ErrImagePathInUse) {
+				savedWf.Status = pipelineConfig.WorkflowFailed
+				savedWf.Message = bean2.ImageTagUnavailableMessage
+				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+				if err1 != nil {
+					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+				}
+				return nil, err
+			}
+			return nil, err
+		}
+		savedWf.ImagePathReservationId = imagePathReservation.Id
+		//imagePath = docker.io/avd0/dashboard:fd23414b
+		dockerImageTag = strings.Split(imagePathReservation.ImagePath, ":")[1]
+	} else {
+		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
+	}
+
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
 	}
@@ -779,5 +808,4 @@ func _getTruncatedImageTag(imageTag string) string {
 	} else {
 		return imageTag[:_truncatedLength]
 	}
-
 }

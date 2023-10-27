@@ -70,6 +70,7 @@ type WebhookServiceImpl struct {
 	eventFactory         client.EventFactory
 	workflowDagExecutor  WorkflowDagExecutor
 	ciHandler            CiHandler
+	customTagService     CustomTagService
 }
 
 func NewWebhookServiceImpl(
@@ -79,6 +80,7 @@ func NewWebhookServiceImpl(
 	appService app.AppService, eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	customTagService CustomTagService,
 	workflowDagExecutor WorkflowDagExecutor, ciHandler CiHandler) *WebhookServiceImpl {
 	webhookHandler := &WebhookServiceImpl{
 		ciArtifactRepository: ciArtifactRepository,
@@ -90,6 +92,7 @@ func NewWebhookServiceImpl(
 		ciWorkflowRepository: ciWorkflowRepository,
 		workflowDagExecutor:  workflowDagExecutor,
 		ciHandler:            ciHandler,
+		customTagService:     customTagService,
 	}
 	config, err := GetCiConfig()
 	if err != nil {
@@ -140,6 +143,13 @@ func (impl WebhookServiceImpl) HandleCiStepFailedEvent(ciPipelineId int, request
 		impl.logger.Errorw("unable to find pipeline", "ID", ciPipelineId, "err", err)
 		return err
 	}
+
+	go func() {
+		err := impl.customTagService.DeactivateImagePathReservation(savedWorkflow.ImagePathReservationId)
+		if err != nil {
+			impl.logger.Errorw("unable to deactivate impage_path_reservation ", err)
+		}
+	}()
 
 	go impl.WriteCIStepFailedEvent(pipeline, request, savedWorkflow)
 	return nil
