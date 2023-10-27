@@ -259,7 +259,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, error) {
 	//TODO Gireesh: listingFilterOpts.SearchString should be conditional,
 	artifacts := make([]*CiArtifact, 0, listingFilterOpts.Limit)
-	commonPaginationQueryPart := " cia.image ILIKE %?%" +
+	commonPaginationQueryPart := " cia.image LIKE ?" +
 		" ORDER BY cia.id DESC" +
 		" LIMIT ?" +
 		" OFFSET ?;"
