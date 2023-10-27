@@ -980,7 +980,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		impl.Logger.Errorw("err", "err", err)
 		return WorkflowResponse{}, err
 	} else if err == pg.ErrNoRows {
-		return WorkflowResponse{}, nil
+		return WorkflowResponse{}, err
 	}
 	workflow := impl.converterWFR(*workflowR)
 
