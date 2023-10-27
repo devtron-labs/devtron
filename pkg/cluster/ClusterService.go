@@ -1115,15 +1115,14 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 }
 
 func (impl ClusterServiceImpl) GetClusterConfigByEnvId(envId int) (*k8s.ClusterConfig, error) {
-	clusterBean, err := impl.environmentService.FindClusterByEnvId(envId)
+	envBean, err := impl.environmentService.FindById(envId)
 	if err != nil {
-		impl.logger.Errorw("error in getting clusterBean by envId", "err", err, "envId", envId)
+		impl.logger.Errorw("error in getting envBean by envId", "err", err, "envId", envId)
 		return nil, err
 	}
-	rq := *clusterBean
-	clusterConfig, err := rq.GetClusterConfig()
+	clusterConfig, err := impl.GetClusterConfigByClusterId(envBean.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		impl.logger.Errorw("error in getting cluster config by env id", "err", err, "envId", envId)
 		return nil, err
 	}
 	return clusterConfig, nil
