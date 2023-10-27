@@ -280,6 +280,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 
 	var customTag *bean.CustomTagData
 	var customTagStage repository5.PipelineStageType
+	var customTagEnabled bool
 	customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(pipelineId))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching custom Tag precd")
@@ -296,12 +297,14 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 			Enabled:  customTagPreCD.Enabled,
 		}
 		customTagStage = repository5.PIPELINE_STAGE_TYPE_PRE_CD
+		customTagEnabled = customTagPreCD.Enabled
 	} else if customTagPostCD != nil && customTagPostCD.Id > 0 {
 		customTag = &bean.CustomTagData{TagPattern: customTagPostCD.TagPattern,
 			CounterX: customTagPostCD.AutoIncreasingNumber,
 			Enabled:  customTagPostCD.Enabled,
 		}
 		customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
+		customTagEnabled = customTagPostCD.Enabled
 	}
 
 	cdPipeline = &bean.CDPipelineConfigObject{
@@ -327,7 +330,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 		CustomTagObject:               customTag,
 		CustomTagStage:                &customTagStage,
-		EnableCustomTag:               customTag.Enabled,
+		EnableCustomTag:               customTagEnabled,
 	}
 	var preDeployStage *bean3.PipelineStageDto
 	var postDeployStage *bean3.PipelineStageDto
