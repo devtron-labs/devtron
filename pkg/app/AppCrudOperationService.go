@@ -35,11 +35,16 @@ import (
 	"time"
 )
 
+const (
+	ZERO_INSTALLED_APP_ID = 0
+	ZERO_ENVIRONMENT_ID   = 0
+)
+
 type AppCrudOperationService interface {
 	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
-	GetAppMetaInfo(appId int, installedAppId int, installedAppEnvId int) (*bean.AppMetaInfoDto, error)
+	GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error)
 	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
 	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
 	GetLabelsByAppId(appId int) (map[string]string, error)
@@ -292,7 +297,8 @@ func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	return results, nil
 }
 
-func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId int, installedAppEnvId int) (*bean.AppMetaInfoDto, error) {
+// GetAppMetaInfo here envId is for installedApp
+func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error) {
 	app, err := impl.appRepository.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
@@ -353,7 +359,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 		Note:        noteResp[app.Id],
 	}
 	if installedAppId > 0 {
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, installedAppEnvId)
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 		if err != nil {
 			impl.logger.Error(err)
 			return nil, err

@@ -127,14 +127,6 @@ type ResourceGroupDto struct {
 	EnvironmentId int   `json:"environmentId,omitempty"`
 }
 
-//type ApplicationDto struct {
-//	ResourceGroupId int    `json:"appGroupId,omitempty"`
-//	AppId           int    `json:"appId,omitempty"`
-//	AppName         string `json:"appName,omitempty"`
-//	EnvironmentId   int    `json:"environmentId,omitempty"`
-//	GenericNote     string `json:"description,omitempty"`
-//}
-
 func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error) {
 
 	resourceKeyToId := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
