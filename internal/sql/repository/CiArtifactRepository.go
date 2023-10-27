@@ -717,8 +717,12 @@ func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilt
 	remainingQueryPart := " FROM deployment_approval_request dar " +
 		" INNER JOIN approved_images ai ON ai.approval_request_id=dar.id AND ai.approval_count >= ? " +
 		" INNER JOIN ci_artifact cia ON cia.id = dar.ci_artifact_id " +
-		" WHERE dar.active=true AND dar.artifact_deployment_triggered = false AND dar.pipeline_id = ? AND cia.id NOT IN (?) AND " +
+		" WHERE dar.active=true AND dar.artifact_deployment_triggered = false AND dar.pipeline_id = ? AND " +
 		" cia.image LIKE ? "
+
+	if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
+		remainingQueryPart += fmt.Sprintf(" AND cia.id NOT IN (%s) ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+	}
 
 	orderByClause := " ORDER BY cia.created_on "
 	limitOffsetQueryPart := " LIMIT ? OFFSET ? "
@@ -728,7 +732,6 @@ func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilt
 	_, err := impl.dbConnection.Query(&totalCount, totalCountQuery,
 		listingFilterOpts.ApproversCount,
 		listingFilterOpts.PipelineId,
-		pg.In(listingFilterOpts.ExcludeArtifactIds),
 		listingFilterOpts.SearchString)
 	if err != nil {
 		return artifacts, totalCount, err
@@ -737,7 +740,6 @@ func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilt
 	_, err = impl.dbConnection.Query(&artifacts, finalQuery,
 		listingFilterOpts.ApproversCount,
 		listingFilterOpts.PipelineId,
-		pg.In(listingFilterOpts.ExcludeArtifactIds),
 		listingFilterOpts.SearchString,
 		listingFilterOpts.Limit,
 		listingFilterOpts.Offset)
