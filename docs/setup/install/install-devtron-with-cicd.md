@@ -7,6 +7,21 @@ In this section, we describe the steps in detail on how you can install Devtron 
 
 Install [Helm](https://helm.sh/docs/intro/install/), if you have not installed it.
 
+## Install AWS EBS CSI Driver, if require
+
+If you are using EKS version 1.23 or above, you must install [aws-ebs-csi-driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html).
+
+
+Run the following command to install aws ebs csi driver using Helm:
+
+```bash
+helm repo add aws-ebs-csi-driver \
+https://kubernetes-sigs.github.io/aws-ebs-csi-driver \
+helm repo update \
+helm upgrade --install aws-ebs-csi-driver \
+--namespace kube-system aws-ebs-csi-driver/aws-ebs-csi-driver
+```
+
 
 ## Install Devtron with CI/CD
 
@@ -22,21 +37,6 @@ helm install devtron devtron/devtron-operator \
 
 **Note**: If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-duing-installation).
 
-
-## Install AWS EBS CSI Driver, if require
-
-If you are using EKS version 1.23 or above, you must install [aws-ebs-csi-driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html).
-
-
-Run the following command to install aws ebs csi driver using Helm:
-
-```bash
-helm repo add aws-ebs-csi-driver \
-https://kubernetes-sigs.github.io/aws-ebs-csi-driver \
-helm repo update \
-helm upgrade --install aws-ebs-csi-driver \
---namespace kube-system aws-ebs-csi-driver/aws-ebs-csi-driver
-```
 
 ## Install Multi-Architecture Nodes (ARM and AMD)
 
