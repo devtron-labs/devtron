@@ -186,6 +186,7 @@ type WorkflowDagExecutorImpl struct {
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
 	scopedVariableService               variables.ScopedVariableService
 	dockerArtifactStoreRepository       repository6.DockerArtifactStoreRepository
+	imageTaggingService                 ImageTaggingService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -326,6 +327,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	scopedVariableService variables.ScopedVariableService,
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository,
+	imageTaggingService ImageTaggingService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:             pipelineRepository,
@@ -402,6 +404,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		argoClientWrapperService:            argoClientWrapperService,
 		scopedVariableService:               scopedVariableService,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		imageTaggingService:                 imageTaggingService,
 	}
 	config, err := GetCdConfig()
 	if err != nil {
@@ -709,22 +712,46 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 
-	// Todo - optimize
 	app, err := impl.appRepository.FindById(pipeline.AppId)
+	if err != nil {
+		return err
+	}
+
+	preStage, err := impl.getPipelineStage(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
 	if err != nil {
 		return err
 	}
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
-	params := impl.celService.GetParamsFromArtifact(artifact.Image)
-	metadata := resourceFilter.ExpressionMetadata{
-		Params: params,
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return err
 	}
-	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
-	if err != nil || filterState != resourceFilter.ALLOW {
-		return fmt.Errorf("the artifact does not pass filtering condition")
+	//get releaseTags from imageTaggingService
+	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
+		return err
+	}
 
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
+	if err != nil {
+		return err
 	}
+
+	//store evaluated result
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, resourceFilter.PipelineStage, preStage.Id, filters, filterIdVsState)
+	if err != nil {
+		impl.logger.Errorw("error in creating filter evaluation audit data cd pre stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "preStageId", preStage.Id)
+		return err
+	}
+
+	//allow or block w.r.t filterState
+	if filterState != resourceFilter.ALLOW {
+		return fmt.Errorf("the artifact does not pass filtering condition")
+	}
+
 	if cdWf == nil {
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
@@ -762,6 +789,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 
+	//update resource_filter_evaluation entry with wfrId and type
+	err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+	if err != nil {
+		impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+		return err
+	}
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, pipeline, ctx)
 	if err != nil {
@@ -911,8 +944,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	if err != nil {
 		return err
 	}
+	postStage, err := impl.getPipelineStage(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_POST_CD)
+	if err != nil {
+		return err
+	}
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return err
+	}
 	if cdWf.CiArtifact == nil || cdWf.CiArtifact.Id == 0 {
 		cdWf.CiArtifact, err = impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 		if err != nil {
@@ -920,12 +962,27 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			return err
 		}
 	}
-	params := impl.celService.GetParamsFromArtifact(cdWf.CiArtifact.Image)
-	metadata := resourceFilter.ExpressionMetadata{
-		Params: params,
+	//get releaseTags from imageTaggingService
+	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(cdWf.CiArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", cdWf.CiArtifactId, "err", err)
+		return err
 	}
-	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
-	if err != nil || filterState != resourceFilter.ALLOW {
+
+	//evaluate filters
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, cdWf.CiArtifact.Image, imageTagNames)
+	if err != nil {
+		return err
+	}
+	//store evaluated result
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, cdWf.CiArtifact.Id, resourceFilter.PipelineStage, postStage.Id, filters, filterIdVsState)
+	if err != nil {
+		impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", cdWf.CiArtifact.Id)
+		return err
+	}
+
+	//allow or block w.r.t filterState
+	if filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
 	}
 
@@ -952,6 +1009,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 
+	//update resource_filter_evaluation entry with wfrId and type
+	err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+	if err != nil {
+		impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+		return err
+	}
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(cdWf.CiArtifact, pipeline, context.Background())
 	if err != nil {
@@ -1683,21 +1746,40 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		impl.logger.Errorw("error while fetching env", "err", err)
 		return err
 	}
-	// Todo - optimize
+
 	app, err := impl.appRepository.FindById(pipeline.AppId)
 	if err != nil {
 		return err
 	}
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
-	params := impl.celService.GetParamsFromArtifact(artifact.Image)
-	metadata := resourceFilter.ExpressionMetadata{
-		Params: params,
+	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return err
 	}
-	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
-	if err != nil || filterState != resourceFilter.ALLOW {
-		return fmt.Errorf("the artifact does not pass filtering condition")
+	//get releaseTags from imageTaggingService
+	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
+		return err
+	}
 
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
+	if err != nil {
+		return err
+	}
+
+	//store evaluated result
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, resourceFilter.Pipeline, pipeline.Id, filters, filterIdVsState)
+	if err != nil {
+		impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
+		return err
+	}
+
+	//allow or block w.r.t filterState
+	if filterState != resourceFilter.ALLOW {
+		return fmt.Errorf("the artifact does not pass filtering condition")
 	}
 	// need to check for approved artifact only in case configured
 	approvalRequestId, err := impl.checkApprovalNodeForDeployment(triggeredBy, pipeline, artifactId)
@@ -1736,6 +1818,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 	savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	if err != nil {
+		return err
+	}
+
+	//update resource_filter_evaluation entry with wfrId and type
+	err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+	if err != nil {
+		impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
 		return err
 	}
 	if approvalRequestId > 0 {
@@ -2191,16 +2280,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		imageTag = strings.Split(artifact.Image, ":")[1]
 	}
 	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
-	// TODO - SHASHWAT - ADD EXPRESSION EVALUATOR - First check whether this env has filter enabled
-	scope := resourceQualifiers.Scope{AppId: overrideRequest.AppId, EnvId: overrideRequest.EnvId, ClusterId: overrideRequest.ClusterId, ProjectId: overrideRequest.ProjectId, IsProdEnv: overrideRequest.IsProdEnv}
-	params := impl.celService.GetParamsFromArtifact(artifact.Image)
-	metadata := resourceFilter.ExpressionMetadata{
-		Params: params,
-	}
-	filterState, err := impl.resourceFilterService.CheckForResource(scope, metadata)
-	if err != nil || filterState != resourceFilter.ALLOW {
-		return 0, "", fmt.Errorf("the artifact does not pass filtering condition")
-	}
+
 	if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		cdWf := &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
@@ -2231,6 +2311,37 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("err", "err", err)
 			return 0, "", err
+		}
+
+		scope := resourceQualifiers.Scope{AppId: overrideRequest.AppId, EnvId: overrideRequest.EnvId, ClusterId: overrideRequest.ClusterId, ProjectId: overrideRequest.ProjectId, IsProdEnv: overrideRequest.IsProdEnv}
+		filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", overrideRequest.PipelineId, "err", err)
+			return 0, "", err
+		}
+
+		//get releaseTags from imageTaggingService
+		imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
+			return 0, "", err
+		}
+
+		filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
+		if err != nil {
+			return 0, "", err
+		}
+
+		//store evaluated result
+		filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, ciArtifactId, resourceFilter.Pipeline, cdPipeline.Id, filters, filterIdVsState)
+		if err != nil {
+			impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", cdPipeline.Id, "artifactId", ciArtifactId)
+			return 0, "", err
+		}
+
+		//allow or block w.r.t filterState
+		if filterState != resourceFilter.ALLOW {
+			return 0, "", fmt.Errorf("the artifact does not pass filtering condition")
 		}
 
 		cdWorkflowId := cdWf.CdWorkflowId
@@ -2266,6 +2377,13 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		overrideRequest.WfrId = savedWfr.Id
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
+			return 0, "", err
+		}
+
+		//update resource_filter_evaluation entry with wfrId and type
+		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+		if err != nil {
+			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
 			return 0, "", err
 		}
 		if approvalRequestId > 0 {

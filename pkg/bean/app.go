@@ -124,6 +124,8 @@ type CiPipeline struct {
 	CiBlockState               *bean2.ConsequenceDto  `json:"ciBlockState,omitempty"`
 	EnvironmentId              int                    `json:"environmentId,omitempty"`
 	LastTriggeredEnvId         int                    `json:"lastTriggeredEnvId"`
+	CustomTagObject            *CustomTagData         `json:"customTag,omitempty"`
+	DefaultTag                 []string               `json:"defaultTag,omitempty"`
 }
 
 type DockerConfigOverride struct {
@@ -242,6 +244,11 @@ type CiMaterialPatchRequest struct {
 	AppId         int               `json:"appId" validate:"required"`
 	EnvironmentId int               `json:"environmentId" validate:"required"`
 	Source        *SourceTypeConfig `json:"source" validate:"required"`
+}
+
+type CustomTagData struct {
+	TagPattern string `json:"tagPattern"`
+	CounterX   int    `json:"counterX"`
 }
 
 type CiMaterialValuePatchRequest struct {
@@ -757,17 +764,18 @@ type CiArtifactBean struct {
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId               int                                `json:"cd_pipeline_id,notnull"`
-	LatestWfArtifactId         int                                `json:"latest_wf_artifact_id"`
-	LatestWfArtifactStatus     string                             `json:"latest_wf_artifact_status"`
-	CiArtifacts                []CiArtifactBean                   `json:"ci_artifacts,notnull"`
-	UserApprovalConfig         *pipelineConfig.UserApprovalConfig `json:"userApprovalConfig"`
-	ApprovalUsers              []string                           `json:"approvalUsers"`
-	RequestedUserId            int32                              `json:"requestedUserId"`
-	IsVirtualCluster           bool                               `json:"isVirtualCluster"`
-	TagsEditable               bool                               `json:"tagsEditable"`
-	AppReleaseTagNames         []string                           `json:"appReleaseTagNames"` //unique list of tags exists in the app
-	HideImageTaggingHardDelete bool                               `json:"hideImageTaggingHardDelete"`
+	CdPipelineId               int                                  `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId         int                                  `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus     string                               `json:"latest_wf_artifact_status"`
+	CiArtifacts                []CiArtifactBean                     `json:"ci_artifacts,notnull"`
+	UserApprovalConfig         *pipelineConfig.UserApprovalConfig   `json:"userApprovalConfig"`
+	ApprovalUsers              []string                             `json:"approvalUsers"`
+	RequestedUserId            int32                                `json:"requestedUserId"`
+	IsVirtualCluster           bool                                 `json:"isVirtualCluster"`
+	TagsEditable               bool                                 `json:"tagsEditable"`
+	AppReleaseTagNames         []string                             `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	HideImageTaggingHardDelete bool                                 `json:"hideImageTaggingHardDelete"`
+	ResourceFilters            []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
 }
 
 type AppLabelsDto struct {

@@ -70,7 +70,7 @@ type CdWorkflowRepository interface {
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
 	ExistsByStatus(status string) (bool, error)
 
-	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error)
+	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 }
@@ -239,6 +239,7 @@ type CiWorkflowStatus struct {
 	CiPipelineName    string `json:"ciPipelineName,omitempty"`
 	CiStatus          string `json:"ciStatus"`
 	StorageConfigured bool   `json:"storageConfigured"`
+	CiWorkflowId      int    `json:"ciWorkflowId,omitempty"`
 }
 
 type AppDeploymentStatus struct {
@@ -578,13 +579,15 @@ func (impl *CdWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error
 	return exists, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
+	searchStringFinal := "%" + searchString + "%"
 	err := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("cd_workflow__ci_artifact.image LIKE ?", searchStringFinal).
 		Order("cd_workflow_runner.id DESC").
 		Limit(limit).Offset(offset).
 		Select()

@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -24,23 +25,26 @@ type ResourceFilterService interface {
 	CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error)
 	DeleteFilter(userId int32, id int) error
 
-	//GetFiltersByScope
-	GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterRequestResponseBean, error)
+	GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error)
+	CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string) (FilterState, map[int]FilterState, error)
 
-	CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error)
+	//filter evaluation audit
+	CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
+	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
 }
 
 type ResourceFilterServiceImpl struct {
-	logger                              *zap.SugaredLogger
-	qualifyingMappingService            resourceQualifiers.QualifierMappingService
-	resourceFilterRepository            ResourceFilterRepository
-	resourceFilterEvaluator             ResourceFilterEvaluator
-	appRepository                       appRepository.AppRepository
-	teamRepository                      team.TeamRepository
-	clusterRepository                   clusterRepository.ClusterRepository
-	environmentRepository               clusterRepository.EnvironmentRepository
-	ceLEvaluatorService                 CELEvaluatorService
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceService
+	logger                               *zap.SugaredLogger
+	qualifyingMappingService             resourceQualifiers.QualifierMappingService
+	resourceFilterRepository             ResourceFilterRepository
+	resourceFilterEvaluator              ResourceFilterEvaluator
+	appRepository                        appRepository.AppRepository
+	teamRepository                       team.TeamRepository
+	clusterRepository                    clusterRepository.ClusterRepository
+	environmentRepository                clusterRepository.EnvironmentRepository
+	ceLEvaluatorService                  CELEvaluatorService
+	devtronResourceSearchableKeyService  devtronResource.DevtronResourceService
+	resourceFilterEvaluationAuditService FilterEvaluationAuditService
 }
 
 func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
@@ -53,18 +57,20 @@ func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository clusterRepository.EnvironmentRepository,
 	ceLEvaluatorService CELEvaluatorService,
 	devtronResourceSearchableKeyService devtronResource.DevtronResourceService,
+	resourceFilterEvaluationAuditService FilterEvaluationAuditService,
 ) *ResourceFilterServiceImpl {
 	return &ResourceFilterServiceImpl{
-		logger:                              logger,
-		qualifyingMappingService:            qualifyingMappingService,
-		resourceFilterRepository:            resourceFilterRepository,
-		resourceFilterEvaluator:             resourceFilterEvaluator,
-		appRepository:                       appRepository,
-		teamRepository:                      teamRepository,
-		clusterRepository:                   clusterRepository,
-		environmentRepository:               environmentRepository,
-		ceLEvaluatorService:                 ceLEvaluatorService,
-		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
+		logger:                               logger,
+		qualifyingMappingService:             qualifyingMappingService,
+		resourceFilterRepository:             resourceFilterRepository,
+		resourceFilterEvaluator:              resourceFilterEvaluator,
+		appRepository:                        appRepository,
+		teamRepository:                       teamRepository,
+		clusterRepository:                    clusterRepository,
+		environmentRepository:                environmentRepository,
+		ceLEvaluatorService:                  ceLEvaluatorService,
+		devtronResourceSearchableKeyService:  devtronResourceSearchableKeyService,
+		resourceFilterEvaluationAuditService: resourceFilterEvaluationAuditService,
 	}
 }
 
@@ -80,11 +86,17 @@ func (impl *ResourceFilterServiceImpl) ListFilters() ([]*FilterMetaDataBean, err
 	}
 	filtersResp := make([]*FilterMetaDataBean, len(filtersList))
 	for i, filter := range filtersList {
+		resourceConditions, err := getResourceConditionFromJsonString(filter.ConditionExpression)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling ConditionExpression to Conditions", "err", err, "conditionExpression", filter.ConditionExpression, "filterId", filter.Id)
+			return nil, err
+		}
 		filtersResp[i] = &FilterMetaDataBean{
 			Id:           filter.Id,
 			Description:  filter.Description,
 			Name:         filter.Name,
 			TargetObject: filter.TargetObject,
+			Conditions:   resourceConditions,
 		}
 	}
 	return filtersResp, err
@@ -98,7 +110,7 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 	if err != nil {
 		impl.logger.Errorw("error in fetching filter by id", "err", err, "filterId", id)
 		if err == pg.ErrNoRows {
-			err = errors.New("filter not found for given id")
+			err = errors.New(FilterNotFound)
 		}
 		return nil, err
 	}
@@ -126,6 +138,12 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error) {
 	if strings.Contains(filterRequest.Name, " ") {
 		return nil, errors.New("spaces are not allowed in name")
+	}
+	appSelectorsExist := len(filterRequest.QualifierSelector.ApplicationSelectors) > 0
+	envSelectorExist := len(filterRequest.QualifierSelector.EnvironmentSelectors) > 0
+
+	if util.XORBool(appSelectorsExist, envSelectorExist) {
+		return filterRequest, errors.New("invalid qualifier selectors")
 	}
 
 	//validating given condition expressions
@@ -183,10 +201,12 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return nil, err
 	}
 
-	err = impl.saveQualifierMappings(tx, userId, createdFilterDataBean.Id, filterRequest.QualifierSelector)
-	if err != nil {
-		impl.logger.Errorw("error in saveQualifierMappings", "err", err, "QualifierSelector", filterRequest.QualifierSelector)
-		return nil, err
+	if appSelectorsExist && envSelectorExist {
+		err = impl.saveQualifierMappings(tx, userId, createdFilterDataBean.Id, filterRequest.QualifierSelector)
+		if err != nil {
+			impl.logger.Errorw("error in saveQualifierMappings", "err", err, "QualifierSelector", filterRequest.QualifierSelector)
+			return nil, err
+		}
 	}
 
 	err = impl.resourceFilterRepository.CommitTx(tx)
@@ -199,6 +219,11 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 }
 
 func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error) {
+	appSelectorsExist := len(filterRequest.QualifierSelector.ApplicationSelectors) > 0
+	envSelectorExist := len(filterRequest.QualifierSelector.EnvironmentSelectors) > 0
+	if util.XORBool(appSelectorsExist, envSelectorExist) {
+		return filterRequest, errors.New("invalid qualifier selectors")
+	}
 	//validating given condition expressions
 	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
 	if errored {
@@ -268,11 +293,15 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		impl.logger.Errorw("error in DeleteAllQualifierMappingsByResourceTypeAndId", "resourceType", resourceQualifiers.Filter, "resourceId", resourceFilter.Id, "err", err)
 		return filterRequest, err
 	}
-	err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, filterRequest.QualifierSelector)
-	if err != nil {
-		impl.logger.Errorw("error in saveQualifierMappings for resourceFilter", "resourceFilterId", resourceFilter.Id, "qualifierMappings", filterRequest.QualifierSelector, "err", err)
-		return filterRequest, err
+
+	if appSelectorsExist && envSelectorExist {
+		err = impl.saveQualifierMappings(tx, userId, resourceFilter.Id, filterRequest.QualifierSelector)
+		if err != nil {
+			impl.logger.Errorw("error in saveQualifierMappings for resourceFilter", "resourceFilterId", resourceFilter.Id, "qualifierMappings", filterRequest.QualifierSelector, "err", err)
+			return filterRequest, err
+		}
 	}
+
 	err = impl.resourceFilterRepository.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction", "err", err, "resourceFilterId", filterRequest.Id)
@@ -318,9 +347,29 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 	return nil
 }
 
-func (impl *ResourceFilterServiceImpl) GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterRequestResponseBean, error) {
+func (impl *ResourceFilterServiceImpl) CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string) (FilterState, map[int]FilterState, error) {
+	params := getParamsFromArtifact(artifactImage, imageLabels)
+	filterIdVsState := make(map[int]FilterState)
+	finalState := ALLOW
+	for _, filter := range filters {
+		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, ExpressionMetadata{Params: params})
+		if err != nil {
+			finalState = ERROR
+			filterIdVsState[filter.Id] = ERROR
+			//return ERROR, nil
+		}
+		if !allowed {
+			finalState = BLOCK
+			filterIdVsState[filter.Id] = BLOCK
+			//return BLOCK, nil
+		}
+	}
+	return finalState, filterIdVsState, nil
+}
+
+func (impl *ResourceFilterServiceImpl) GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error) {
 	// fetch all the qualifier mappings, club them by filterIds, check for each filter whether it is eligible or not, then fetch filter details
-	var filters []*FilterRequestResponseBean
+	var filters []*FilterMetaDataBean
 	qualifierMappings, err := impl.qualifyingMappingService.GetQualifierMappingsForFilter(scope)
 	if err != nil {
 		return filters, err
@@ -337,6 +386,7 @@ func (impl *ResourceFilterServiceImpl) GetFiltersByScope(scope resourceQualifier
 	return filters, err
 }
 
+// private methods
 func (impl *ResourceFilterServiceImpl) validateOwnershipAndGetIdMaps(qualifierSelector QualifierSelector) (map[string]int, map[string]int, map[string]int, map[string]int, error) {
 	teams := make([]string, 0)
 	apps := make([]string, 0)
@@ -441,24 +491,6 @@ func (impl *ResourceFilterServiceImpl) validateOwnershipAndGetIdMaps(qualifierSe
 	}
 
 	return teamsMap, appsMap, clustersMap, envsMap, nil
-}
-
-func (impl *ResourceFilterServiceImpl) CheckForResource(scope resourceQualifiers.Scope, metadata ExpressionMetadata) (FilterState, error) {
-	// fetch filters for given scope, use FilterEvaluator.Evaluate to check for access
-	filters, err := impl.GetFiltersByScope(scope)
-	if err != nil {
-		return ERROR, err
-	}
-	for _, filter := range filters {
-		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, metadata)
-		if err != nil {
-			return ERROR, nil
-		}
-		if !allowed {
-			return BLOCK, nil
-		}
-	}
-	return ALLOW, nil
 }
 
 func (impl *ResourceFilterServiceImpl) saveQualifierMappings(tx *pg.Tx, userId int32, resourceFilterId int, qualifierSelector QualifierSelector) error {
@@ -684,4 +716,12 @@ func (impl *ResourceFilterServiceImpl) fetchAppsAndEnvs(appIds []int, envIds []i
 		return apps, envs, err
 	}
 	return apps, envs, nil
+}
+
+func (impl *ResourceFilterServiceImpl) CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
+	return impl.resourceFilterEvaluationAuditService.CreateFilterEvaluation(subjectType, subjectId, refType, refId, filters, filterIdVsState)
+}
+
+func (impl *ResourceFilterServiceImpl) UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error {
+	return impl.resourceFilterEvaluationAuditService.UpdateFilterEvaluationAuditRef(id, refType, refId)
 }

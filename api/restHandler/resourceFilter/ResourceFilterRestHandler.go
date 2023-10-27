@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -35,6 +36,7 @@ type ResourceFilterRestHandlerImpl struct {
 	resourceFilterService resourceFilter.ResourceFilterService
 	celService            resourceFilter.CELEvaluatorService
 	validator             *validator.Validate
+	pipelineRepository    pipelineConfig.PipelineRepository
 }
 
 func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
@@ -43,7 +45,8 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 	enforcer casbin.Enforcer,
 	celService resourceFilter.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService,
-	validator *validator.Validate) *ResourceFilterRestHandlerImpl {
+	validator *validator.Validate,
+	pipelineRepository pipelineConfig.PipelineRepository) *ResourceFilterRestHandlerImpl {
 	return &ResourceFilterRestHandlerImpl{
 		logger:                logger,
 		userAuthService:       userAuthService,
@@ -52,6 +55,7 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 		resourceFilterService: resourceFilterService,
 		celService:            celService,
 		validator:             validator,
+		pipelineRepository:    pipelineRepository,
 	}
 }
 
@@ -96,8 +100,12 @@ func (handler *ResourceFilterRestHandlerImpl) GetFilterById(w http.ResponseWrite
 	}
 	res, err := handler.resourceFilterService.GetFilterById(filterId)
 	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if err.Error() == resourceFilter.FilterNotFound {
+			statusCode = http.StatusNotFound
+		}
 		handler.logger.Errorw("error in getting  resource filter", "err", err, "filterId", filterId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
@@ -183,7 +191,7 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 	req.Id = filterId
 	res, err := handler.resourceFilterService.UpdateFilter(userId, req)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
+		statusCode := http.StatusBadRequest
 		handler.logger.Errorw("error in updating resource filters", "err", err)
 		if err.Error() == resourceFilter.AppAndEnvSelectorRequiredMessage {
 			statusCode = http.StatusBadRequest
@@ -213,14 +221,14 @@ func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter
 	filterId, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.logger.Errorw("error in getting active resource filters", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	err = handler.resourceFilterService.DeleteFilter(userId, filterId)
 	if err != nil {
 		handler.logger.Errorw("error in deleting resource filters", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)

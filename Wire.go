@@ -300,6 +300,12 @@ func InitializeApp() (*App, error) {
 		bulkAction.NewBulkUpdateServiceImpl,
 		wire.Bind(new(bulkAction.BulkUpdateService), new(*bulkAction.BulkUpdateServiceImpl)),
 
+		repository.NewImageTagRepository,
+		wire.Bind(new(repository.ImageTagRepository), new(*repository.ImageTagRepositoryImpl)),
+
+		pipeline.NewCustomTagService,
+		wire.Bind(new(pipeline.CustomTagService), new(*pipeline.CustomTagServiceImpl)),
+
 		repository.NewGitProviderRepositoryImpl,
 		wire.Bind(new(repository.GitProviderRepository), new(*repository.GitProviderRepositoryImpl)),
 		pipeline.NewGitRegistryConfigImpl,
@@ -884,6 +890,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
 		resourceFilter.NewResourceFilterRepositoryImpl,
 		wire.Bind(new(resourceFilter.ResourceFilterRepository), new(*resourceFilter.ResourceFilterRepositoryImpl)),
+		resourceFilter.NewFilterAuditRepositoryImpl,
+		wire.Bind(new(resourceFilter.FilterAuditRepository), new(*resourceFilter.FilterAuditRepositoryImpl)),
+		resourceFilter.NewFilterEvaluationAuditRepositoryImpl,
+		wire.Bind(new(resourceFilter.FilterEvaluationAuditRepository), new(*resourceFilter.FilterEvaluationAuditRepositoryImpl)),
+		resourceFilter.NewFilterEvaluationAuditServiceImpl,
+		wire.Bind(new(resourceFilter.FilterEvaluationAuditService), new(*resourceFilter.FilterEvaluationAuditServiceImpl)),
 		resourceFilter.NewResourceFilterServiceImpl,
 		wire.Bind(new(resourceFilter.ResourceFilterService), new(*resourceFilter.ResourceFilterServiceImpl)),
 		resourceFilter.NewResourceFilterEvaluatorImpl,

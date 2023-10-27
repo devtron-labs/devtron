@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"strings"
 	"time"
 )
 
@@ -22,17 +23,17 @@ type FilterMetaDataBean struct {
 	TargetObject *FilterTargetObject `json:"targetObject" validate:"required,min=0,max=1"`
 	Description  string              `json:"description" `
 	Name         string              `json:"name" validate:"required,max=300"`
+	Conditions   []ResourceCondition `json:"conditions" validate:"required,dive"`
 }
 
 type FilterRequestResponseBean struct {
 	*FilterMetaDataBean
-	Conditions        []ResourceCondition `json:"conditions" validate:"required,dive"`
-	QualifierSelector QualifierSelector   `json:"qualifierSelector" validate:"required,dive"`
+	QualifierSelector QualifierSelector `json:"qualifierSelector" validate:"dive"`
 }
 
 type ResourceCondition struct {
 	ConditionType ResourceConditionType `json:"conditionType" validate:"min=0,max=1"`
-	Expression    string                `json:"expression" validate:"required,min=1""`
+	Expression    string                `json:"expression" validate:"required,min=1"`
 	ErrorMsg      string                `json:"errorMsg,omitempty"`
 }
 
@@ -51,8 +52,8 @@ type EnvironmentSelector struct {
 }
 
 type QualifierSelector struct {
-	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors" validate:"required,min=1,dive"`
-	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors" validate:"required,min=1,dive"`
+	ApplicationSelectors []ApplicationSelector `json:"applicationSelectors" validate:"dive"`
+	EnvironmentSelectors []EnvironmentSelector `json:"environmentSelectors" validate:"dive"`
 }
 
 func (o QualifierSelector) BuildQualifierMappings(resourceFilterId int, projectNameToIdMap, appNameToIdMap, clusterNameToIdMap, envNameToIdMap map[string]int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, userId int32) ([]*resourceQualifiers.QualifierMapping, error) {
@@ -244,12 +245,46 @@ const (
 	ParamTypeString  ParamValuesType = "string"
 	ParamTypeObject  ParamValuesType = "object"
 	ParamTypeInteger ParamValuesType = "integer"
+	ParamTypeList    ParamValuesType = "list"
 )
 
 type ExpressionParam struct {
 	ParamName string          `json:"paramName"`
 	Value     interface{}     `json:"value"`
 	Type      ParamValuesType `json:"type"`
+}
+
+func getParamsFromArtifact(artifact string, imageLabels []string) []ExpressionParam {
+
+	lastColonIndex := strings.LastIndex(artifact, ":")
+
+	containerRepository := artifact[:lastColonIndex]
+	containerImageTag := artifact[lastColonIndex+1:]
+	containerImage := artifact
+	params := []ExpressionParam{
+		{
+			ParamName: "containerRepository",
+			Value:     containerRepository,
+			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "containerImage",
+			Value:     containerImage,
+			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "containerImageTag",
+			Value:     containerImageTag,
+			Type:      ParamTypeString,
+		},
+		{
+			ParamName: "imageLabels",
+			Value:     imageLabels,
+			Type:      ParamTypeList,
+		},
+	}
+
+	return params
 }
 
 type ExpressionMetadata struct {

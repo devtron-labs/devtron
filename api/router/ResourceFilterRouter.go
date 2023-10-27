@@ -21,6 +21,7 @@ func NewResourceFilterRouterImpl(resourceFilterRestHandler resourceFilter.Resour
 }
 
 func (impl *ResourceFilterRouterImpl) InitResourceFilterRouter(router *mux.Router) {
+
 	router.Path("").
 		HandlerFunc(impl.resourceFilterRestHandler.ListFilters).
 		Methods("GET")
@@ -44,4 +45,5 @@ func (impl *ResourceFilterRouterImpl) InitResourceFilterRouter(router *mux.Route
 	router.Path("/expression/validate").
 		HandlerFunc(impl.resourceFilterRestHandler.ValidateExpression).
 		Methods("POST")
+
 }
