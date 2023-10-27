@@ -34,17 +34,19 @@ func (impl *BlobStorageConfigServiceImpl) FetchCmAndSecretBlobConfigFromExternal
 	secretConfig := &bean2.SecretBlobStorageConfig{}
 	ctx := context.Background()
 	opts := v12.GetOptions{}
+	extBlobStorageCmName := impl.ciCdConfig.ExtBlobStorageCmName
+	extBlobStorageSecretName := impl.ciCdConfig.ExtBlobStorageSecretName
 	_, _, kubeClient, err := impl.k8sUtil.GetK8sConfigAndClients(&k8s.ClusterConfig{})
 	if err != nil {
 		impl.Logger.Errorw("FetchCmAndSecretBlobConfigFromExternalCluster, error in getting kubeClient by cluster config", "err", err)
 		return cmConfig, secretConfig, err
 	}
-	cm, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, impl.ciCdConfig.ExtBlobStorageCmName, opts)
+	cm, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, extBlobStorageCmName, opts)
 	if err != nil {
 		impl.Logger.Errorw("error in getting config map in external cluster", "err", err, "blobStorageCmName", impl.ciCdConfig.ExtBlobStorageCmName, "clusterName", clusterConfig.ClusterName)
 		return cmConfig, secretConfig, err
 	}
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, impl.ciCdConfig.ExtBlobStorageSecretName, opts)
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, extBlobStorageSecretName, opts)
 	if err != nil {
 		impl.Logger.Errorw("error in getting secret in external cluster", "err", err, "blobStorageSecretName", impl.ciCdConfig.ExtBlobStorageSecretName, "clusterName", clusterConfig.ClusterName)
 		return cmConfig, secretConfig, err
