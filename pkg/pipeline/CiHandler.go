@@ -679,6 +679,10 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 	}
 
 	workflow.Status = WorkflowCancel
+	if workflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+		workflow.PodStatus = "Failed"
+		workflow.Message = "workflow shutdown with strategy: Terminate"
+	}
 	err = impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
 	if err != nil {
 		impl.Logger.Errorw("cannot update deleted workflow status, but wf deleted", "err", err)
