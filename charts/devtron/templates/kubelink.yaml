@@ -31,6 +31,8 @@ data:
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
   RUN_HELM_INSTALL_IN_ASYNC_MODE: "true"
+{{- else }}
+  RUN_HELM_INSTALL_IN_ASYNC_MODE: "false"
 {{- end }}
 {{- end }}
 {{- end }}
