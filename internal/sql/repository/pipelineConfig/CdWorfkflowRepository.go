@@ -41,7 +41,7 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int) ([]CdWorkflowRunner, error)
-	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CdWorkflowRunner, error)
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CdWorkflowRunner, int, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -383,11 +383,10 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	}
 	return wfrList, err
 }
-func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CdWorkflowRunner, int, error) {
 
 	var wfrList []CdWorkflowRunner
-	var wfIds []int
-	query := impl.dbConnection.Model(&wfIds).
+	query := impl.dbConnection.Model(&wfrList).
 		Column("MAX(cd_workflow_runner.id) AS id").
 		Join("INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id").
 		Join("INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id").
@@ -405,14 +404,22 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 		query = query.Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
 	}
 
+	totalCount, err := query.Count()
+	if err == pg.ErrNoRows {
+		return wfrList, totalCount, err
+	}
+
+	wfIds := make([]int, len(wfrList))
+	for i, wf := range wfrList {
+		wfIds[i] = wf.Id
+	}
 	query = query.Group("cd_workflow.ci_artifact_id").
 		Limit(listingFilterOptions.Limit).
 		Offset(listingFilterOptions.Offset)
 
-	err := query.Select()
-
+	err = query.Select()
 	if err == pg.ErrNoRows || len(wfIds) == 0 {
-		return wfrList, nil
+		return wfrList, totalCount, nil
 	}
 	err = impl.dbConnection.
 		Model(&wfrList).
@@ -421,9 +428,9 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 		Select()
 
 	if err == pg.ErrNoRows {
-		return wfrList, nil
+		return wfrList, totalCount, nil
 	}
-	return wfrList, err
+	return wfrList, totalCount, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int) ([]CdWorkflowRunner, error) {

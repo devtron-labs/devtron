@@ -124,8 +124,8 @@ type CiPipeline struct {
 	CiBlockState               *bean2.ConsequenceDto  `json:"ciBlockState,omitempty"`
 	EnvironmentId              int                    `json:"environmentId,omitempty"`
 	LastTriggeredEnvId         int                    `json:"lastTriggeredEnvId"`
-	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
-	DefaultTag               []string               `json:"defaultTag,omitempty"`
+	CustomTagObject            *CustomTagData         `json:"customTag,omitempty"`
+	DefaultTag                 []string               `json:"defaultTag,omitempty"`
 }
 
 type DockerConfigOverride struct {
@@ -780,6 +780,7 @@ type CiArtifactResponse struct {
 	AppReleaseTagNames         []string                             `json:"appReleaseTagNames"` //unique list of tags exists in the app
 	HideImageTaggingHardDelete bool                                 `json:"hideImageTaggingHardDelete"`
 	ResourceFilters            []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
+	TotalCount                 int                                  `json:"totalCount"`
 }
 
 type AppLabelsDto struct {
