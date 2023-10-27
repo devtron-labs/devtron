@@ -922,6 +922,34 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 				deploymentTemplate = item.Strategy
 			}
 		}
+		var customTag *bean.CustomTagData
+		var customTagStage repository5.PipelineStageType
+		var customTagEnabled bool
+		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching custom Tag precd")
+			return nil, err
+		}
+		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching custom Tag precd")
+			return nil, err
+		}
+		if customTagPreCD != nil && customTagPreCD.Id > 0 {
+			customTag = &bean.CustomTagData{TagPattern: customTagPreCD.TagPattern,
+				CounterX: customTagPreCD.AutoIncreasingNumber,
+				Enabled:  customTagPreCD.Enabled,
+			}
+			customTagStage = repository5.PIPELINE_STAGE_TYPE_PRE_CD
+			customTagEnabled = customTagPreCD.Enabled
+		} else if customTagPostCD != nil && customTagPostCD.Id > 0 {
+			customTag = &bean.CustomTagData{TagPattern: customTagPostCD.TagPattern,
+				CounterX: customTagPostCD.AutoIncreasingNumber,
+				Enabled:  customTagPostCD.Enabled,
+			}
+			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
+			customTagEnabled = customTagPostCD.Enabled
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -945,6 +973,9 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
 			PreDeployStage:                dbPipeline.PreDeployStage,
 			PostDeployStage:               dbPipeline.PostDeployStage,
+			CustomTagObject:               customTag,
+			CustomTagStage:                &customTagStage,
+			EnableCustomTag:               customTagEnabled,
 		}
 		pipelines = append(pipelines, pipeline)
 	}

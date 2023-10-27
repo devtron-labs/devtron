@@ -565,8 +565,8 @@ type CDPipelineConfigObject struct {
 	SourceToNewPipelineId         map[int]int                            `json:"sourceToNewPipelineId,omitempty"`
 	RefPipelineId                 int                                    `json:"refPipelineId,omitempty"`
 	ExternalCiPipelineId          int                                    `json:"externalCiPipelineId,omitempty"`
-	CustomTagObject               *CustomTagData                         `json:"customTag,omitempty"`
-	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage,omitempty"`
+	CustomTagObject               *CustomTagData                         `json:"customTag"`
+	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage"`
 	EnableCustomTag               bool                                   `json:"enableCustomTag"`
 }
 
