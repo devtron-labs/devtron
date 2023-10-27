@@ -115,6 +115,7 @@
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
   * [Pull Helm Charts from OCI Registry](user-guide/use-cases/oci-pull.md)
+  * [Push Helm Charts to OCI Registry](user-guide/use-cases/oci-push.md)
 * [Telemetry Overview](user-guide/telemetry.md)
 * [Devtron on Graviton](reference/graviton.md)
 * [Release Notes](https://github.com/devtron-labs/devtron/releases)
