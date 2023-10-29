@@ -43,7 +43,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -119,7 +118,7 @@ type CdHandlerImpl struct {
 	imageTaggingService                    ImageTaggingService
 	k8sUtil                                *k8s.K8sUtil
 	workflowService                        WorkflowService
-	config                                 *types.CdConfig
+	config                                 *CdConfig
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService) *CdHandlerImpl {
@@ -157,7 +156,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		k8sUtil:                                k8sUtil,
 		workflowService:                        workflowService,
 	}
-	config, err := types.GetCdConfig()
+	config, err := GetCdConfig()
 	if err != nil {
 		return nil
 	}
@@ -597,9 +596,9 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		return 0, err
 	}
 	var isExtCluster bool
-	if workflowRunner.WorkflowType == types.PRE {
+	if workflowRunner.WorkflowType == PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
-	} else if workflowRunner.WorkflowType == types.POST {
+	} else if workflowRunner.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
 	var restConfig *rest.Config
@@ -894,9 +893,9 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		return nil, nil, err
 	}
 	var isExtCluster bool
-	if cdWorkflow.WorkflowType == types.PRE {
+	if cdWorkflow.WorkflowType == PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
-	} else if cdWorkflow.WorkflowType == types.POST {
+	} else if cdWorkflow.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
 	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
@@ -946,7 +945,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		LogsFilePath:  cdWorkflow.LogLocation, // impl.ciCdConfig.CiDefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
 		CloudProvider: impl.config.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
-			Enabled:           impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
+			Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
 			AccountName:       impl.config.AzureAccountName,
 			BlobContainerName: impl.config.AzureBlobContainerCiLog,
 			AccountKey:        impl.config.AzureAccountKey,
@@ -1095,7 +1094,7 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
 	}
 	azureBlobBaseConfig := &blob_storage.AzureBlobBaseConfig{
-		Enabled:           impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
+		Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
 		AccountKey:        impl.config.AzureAccountKey,
 		AccountName:       impl.config.AzureAccountName,
 		BlobContainerName: impl.config.AzureBlobContainerCiLog,

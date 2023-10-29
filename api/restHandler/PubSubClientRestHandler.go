@@ -19,12 +19,12 @@ package restHandler
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"net/http"
 	"strings"
 
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
 )
 
@@ -35,7 +35,7 @@ type PubSubClientRestHandler interface {
 type PubSubClientRestHandlerImpl struct {
 	pubsubClient *pubsub.PubSubClientServiceImpl
 	logger       *zap.SugaredLogger
-	cdConfig     *types.CiCdConfig
+	cdConfig     *pipeline.CiCdConfig
 }
 
 type PublishRequest struct {
@@ -43,7 +43,7 @@ type PublishRequest struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-func NewPubSubClientRestHandlerImpl(pubsubClient *pubsub.PubSubClientServiceImpl, logger *zap.SugaredLogger, cdConfig *types.CiCdConfig) *PubSubClientRestHandlerImpl {
+func NewPubSubClientRestHandlerImpl(pubsubClient *pubsub.PubSubClientServiceImpl, logger *zap.SugaredLogger, cdConfig *pipeline.CiCdConfig) *PubSubClientRestHandlerImpl {
 	return &PubSubClientRestHandlerImpl{
 		pubsubClient: pubsubClient,
 		logger:       logger,

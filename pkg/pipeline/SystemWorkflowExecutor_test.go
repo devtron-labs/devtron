@@ -8,7 +8,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/batch/v1"
 	v12 "k8s.io/api/core/v1"
@@ -25,7 +24,7 @@ func TestSystemWorkflowExecute(t *testing.T) {
 	t.SkipNow()
 	logger, loggerErr := util.NewSugardLogger()
 	assert.Nil(t, loggerErr)
-	cdConfig, err := types.GetCiCdConfig()
+	cdConfig, err := GetCiCdConfig()
 	assert.Nil(t, err)
 	runtimeConfig, err := client.GetRuntimeConfig()
 	assert.Nil(t, err)

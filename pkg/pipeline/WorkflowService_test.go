@@ -5,7 +5,6 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
 	v12 "k8s.io/api/core/v1"
 	"log"
@@ -15,11 +14,11 @@ import (
 func Test_getConfigMapsAndSecrets(t *testing.T) {
 	t.SkipNow()
 	type args struct {
-		workflowRequest   *types.WorkflowRequest
+		workflowRequest   *WorkflowRequest
 		existingConfigMap *bean3.ConfigMapJson
 		existingSecrets   *bean3.ConfigSecretJson
 	}
-	workflowRequest := &types.WorkflowRequest{
+	workflowRequest := &WorkflowRequest{
 		WorkflowId: 123,
 	}
 	existingConfigMap := &bean3.ConfigMapJson{

@@ -17,7 +17,6 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/stretchr/testify/assert"
 	"log"
@@ -136,7 +135,7 @@ func InitClusterNoteService() {
 	ciPipelineHistoryRepository := repository4.NewCiPipelineHistoryRepositoryImpl(conn, logger)
 	ciPipelineMaterialRepository := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(conn, logger)
 	GitSensorClient, err := gitSensor.NewGitSensorClient(logger, &gitSensor.ClientConfig{})
-	ciConfig := &types.CiCdConfig{}
+	ciConfig := &CiCdConfig{}
 	appWorkflowRepository := appWorkflow.NewAppWorkflowRepositoryImpl(logger, conn)
 	envRepository := repository3.NewEnvironmentRepositoryImpl(conn, logger, nil)
 	attributesService := attributes.NewAttributesServiceImpl(logger, nil)

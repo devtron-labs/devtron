@@ -23,7 +23,6 @@ import (
 	"fmt"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
 	"strings"
@@ -35,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -63,7 +63,7 @@ type PolicyServiceImpl struct {
 	imageScanObjectMetaRepository security.ImageScanObjectMetaRepository
 	client                        *http.Client
 	ciArtifactRepository          repository.CiArtifactRepository
-	ciConfig                      *types.CiCdConfig
+	ciConfig                      *pipeline.CiCdConfig
 	scanHistoryRepository         security.ImageScanHistoryRepository
 	cveStoreRepository            security.CveStoreRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
@@ -79,7 +79,7 @@ func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	scanResultRepository security.ImageScanResultRepository,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
 	imageScanObjectMetaRepository security.ImageScanObjectMetaRepository, client *http.Client,
-	ciArtifactRepository repository.CiArtifactRepository, ciConfig *types.CiCdConfig,
+	ciArtifactRepository repository.CiArtifactRepository, ciConfig *pipeline.CiCdConfig,
 	scanHistoryRepository security.ImageScanHistoryRepository, cveStoreRepository security.CveStoreRepository,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository) *PolicyServiceImpl {
 	return &PolicyServiceImpl{

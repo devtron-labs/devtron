@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
@@ -62,7 +61,7 @@ type WebhookService interface {
 
 type WebhookServiceImpl struct {
 	ciArtifactRepository repository.CiArtifactRepository
-	ciConfig             *types2.CiConfig
+	ciConfig             *CiConfig
 	logger               *zap.SugaredLogger
 	ciPipelineRepository pipelineConfig.CiPipelineRepository
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository
@@ -95,7 +94,7 @@ func NewWebhookServiceImpl(
 		ciHandler:            ciHandler,
 		customTagService:     customTagService,
 	}
-	config, err := types2.GetCiConfig()
+	config, err := GetCiConfig()
 	if err != nil {
 		return nil
 	}

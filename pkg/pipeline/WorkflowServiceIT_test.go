@@ -18,7 +18,6 @@ import (
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -41,7 +40,7 @@ var cmManifest4 = "{\"kind\":\"ConfigMap\",\"apiVersion\":\"v1\",\"metadata\":{\
 
 func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	logger, dbConnection := getDbConnAndLoggerService(t)
-	ciCdConfig, _ := types.GetCiCdConfig()
+	ciCdConfig, _ := GetCiCdConfig()
 	newGlobalCMCSRepositoryImpl := repository.NewGlobalCMCSRepositoryImpl(logger, dbConnection)
 	globalCMCSServiceImpl := NewGlobalCMCSServiceImpl(logger, newGlobalCMCSRepositoryImpl)
 	newEnvConfigOverrideRepository := chartConfig.NewEnvConfigOverrideRepository(dbConnection)
@@ -68,7 +67,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 
 	t.Run("Verify submit workflow with S3 archive logs", func(t *testing.T) {
 
-		workflowRequest := types.WorkflowRequest{
+		workflowRequest := WorkflowRequest{
 			WorkflowNamePrefix: "1-ci",
 			PipelineName:       "ci-1-sslm",
 			PipelineId:         2,
@@ -218,7 +217,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 
 	t.Run("Verify submit workflow without archive logs", func(t *testing.T) {
 
-		workflowRequest := types.WorkflowRequest{
+		workflowRequest := WorkflowRequest{
 			WorkflowNamePrefix: "1-ci",
 			PipelineName:       "ci-1-sslm",
 			PipelineId:         2,
@@ -360,7 +359,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 
 	t.Run("Verify submit workflow for Jobs", func(t *testing.T) {
 
-		workflowRequest := types.WorkflowRequest{
+		workflowRequest := WorkflowRequest{
 			WorkflowNamePrefix: "20-pipeline-2",
 			PipelineName:       "pipeline",
 			PipelineId:         1,
@@ -557,7 +556,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 
 	t.Run("Verify submit workflow for External Jobs", func(t *testing.T) {
 
-		workflowRequest := types.WorkflowRequest{
+		workflowRequest := WorkflowRequest{
 			WorkflowNamePrefix: "7-pipeline-1",
 			PipelineName:       "pipeline",
 			PipelineId:         1,
@@ -856,7 +855,7 @@ func verifyTemplateResource(t *testing.T, resource *v1alpha1.ResourceTemplate, a
 	//assert.Equal(t, manifest, resource.Manifest)
 }
 
-func verifyMetadata(t *testing.T, workflowRequest types.WorkflowRequest, createdWf *v1alpha1.Workflow) {
+func verifyMetadata(t *testing.T, workflowRequest WorkflowRequest, createdWf *v1alpha1.Workflow) {
 	assert.Equal(t, map[string]string{"devtron.ai/workflow-purpose": "ci"}, createdWf.ObjectMeta.Labels)
 	assert.Equal(t, workflowRequest.WorkflowNamePrefix+"-", createdWf.ObjectMeta.GenerateName)
 	assert.Equal(t, workflowRequest.Namespace, createdWf.ObjectMeta.Namespace)
@@ -916,7 +915,7 @@ func verifyResourceLimitAndRequest(t *testing.T, template v1alpha1.Template, wor
 	assert.Equal(t, resourceRequest["memory"], resource.MustParse(workflowServiceImpl.ciCdConfig.CiReqMem))
 }
 
-func verifyS3BlobStorage(t *testing.T, template v1alpha1.Template, workflowServiceImpl *WorkflowServiceImpl, workflowRequest types.WorkflowRequest) {
+func verifyS3BlobStorage(t *testing.T, template v1alpha1.Template, workflowServiceImpl *WorkflowServiceImpl, workflowRequest WorkflowRequest) {
 
 	assert.Equal(t, true, *template.ArchiveLocation.ArchiveLogs)
 	assert.Equal(t, workflowServiceImpl.ciCdConfig.CiDefaultBuildLogsKeyPrefix+"/"+workflowRequest.WorkflowNamePrefix, template.ArchiveLocation.S3.Key)
