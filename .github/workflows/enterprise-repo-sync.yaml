@@ -42,7 +42,7 @@ jobs:
          git status && git push origin $LAST_RELEASE_BRANCH
 
          cd ../devtron-enterprise && git status && git checkout release-candidate && git pull
-         git remote add oss-devtron ../devtron && git remote -v && git remote update && git merge oss-devtron/main
+         git remote add oss-devtron ../devtron && git remote -v && git remote update && git merge oss-devtron/main --no-commit --no-ff && git reset -- .github/workflows/ 
          export WIRE_GEN_FILE_NAME="wire_gen.go"
          export CONFLICT_FILES=`git diff --name-only --diff-filter=U --relative`
 
