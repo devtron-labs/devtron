@@ -135,7 +135,6 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 	if err != nil {
 		return installAppVersionRequest, err
 	}
-
 	return installAppVersionRequest, nil
 }
 
