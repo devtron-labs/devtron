@@ -1,4 +1,4 @@
-package pipeline
+package types
 
 import (
 	"encoding/json"
@@ -191,7 +191,7 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 	return cfg, err
 }
 
-func getNodeLabel(cfg *CiCdConfig, pipelineType bean.WorkflowPipelineType, isExt bool) (map[string]string, error) {
+func GetNodeLabel(cfg *CiCdConfig, pipelineType bean.WorkflowPipelineType, isExt bool) (map[string]string, error) {
 	node := []string{}
 	if pipelineType == bean.CI_WORKFLOW_PIPELINE_TYPE || pipelineType == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		node = cfg.CiNodeLabelSelector
@@ -464,3 +464,11 @@ func getWorkflowVolumeMounts(volumeMountForCi CiVolumeMount) v12.VolumeMount {
 		MountPath: volumeMountForCi.ContainerMountPath,
 	}
 }
+
+const BLOB_STORAGE_AZURE = "AZURE"
+
+const BLOB_STORAGE_S3 = "S3"
+
+const BLOB_STORAGE_GCP = "GCP"
+
+const BLOB_STORAGE_MINIO = "MINIO"

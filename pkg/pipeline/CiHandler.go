@@ -34,6 +34,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
@@ -108,7 +109,7 @@ type CiHandlerImpl struct {
 	imageTaggingService          ImageTaggingService
 	customTagService             CustomTagService
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
-	config                       *CiConfig
+	config                       *types.CiConfig
 	k8sCommonService             k8s2.K8sCommonService
 }
 
@@ -137,7 +138,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		appWorkflowRepository:        appWorkflowRepository,
 		k8sCommonService:             k8sCommonService,
 	}
-	config, err := GetCiConfig()
+	config, err := types.GetCiConfig()
 	if err != nil {
 		return nil
 	}
@@ -862,7 +863,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		LogsFilePath:  logsFilePath,
 		CloudProvider: impl.config.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
-			Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
+			Enabled:           impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
 			AccountName:       impl.config.AzureAccountName,
 			BlobContainerName: impl.config.AzureBlobContainerCiLog,
 			AccountKey:        impl.config.AzureAccountKey,
@@ -921,7 +922,7 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		ciConfig.CiCacheRegion = impl.config.DefaultCacheBucketRegion
 	}
 	azureBlobConfig := &blob_storage.AzureBlobBaseConfig{
-		Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
+		Enabled:           impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
 		AccountName:       impl.config.AzureAccountName,
 		BlobContainerName: impl.config.AzureBlobContainerCiLog,
 		AccountKey:        impl.config.AzureAccountKey,
@@ -993,7 +994,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 		LogsFilePath:  ciWorkflow.LogLocation,
 		CloudProvider: impl.config.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
-			Enabled:           impl.config.CloudProvider == BLOB_STORAGE_AZURE,
+			Enabled:           impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
 			AccountName:       impl.config.AzureAccountName,
 			BlobContainerName: impl.config.AzureBlobContainerCiLog,
 			AccountKey:        impl.config.AzureAccountKey,
