@@ -139,36 +139,37 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 
 func (impl *ArgoWorkflowExecutorImpl) GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error) {
 
-	wfClient, err := impl.getClientInstance(namespace, clusterConfig)
+	wf, err := impl.getWorkflow(workflowName, namespace, clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("cannot build wf client", "wfName", workflowName, "err", err)
 		return nil, err
-	}
-	wf, err := wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
-	if err != nil {
-		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
-		return nil, fmt.Errorf("cannot find workflow %s", workflowName)
 	}
 	return impl.convertToUnstructured(wf), err
 }
 
 func (impl *ArgoWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*WorkflowStatus, error) {
-
-	wfClient, err := impl.getClientInstance(namespace, clusterConfig)
+	wf, err := impl.getWorkflow(workflowName, namespace, clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("cannot build wf client", "wfName", workflowName, "err", err)
 		return nil, err
-	}
-	wf, err := wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
-	if err != nil {
-		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
-		return nil, fmt.Errorf("cannot find workflow %s", workflowName)
 	}
 	wfStatus := &WorkflowStatus{
 		Status:  string(wf.Status.Phase),
 		Message: wf.Status.Message,
 	}
 	return wfStatus, err
+}
+
+func (impl *ArgoWorkflowExecutorImpl) getWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*v1alpha1.Workflow, error) {
+	wfClient, err := impl.getClientInstance(namespace, clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("cannot build wf client", "wfName", workflowName, "err", err)
+		return nil, err
+	}
+	wf, err := wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
+		return nil, fmt.Errorf("cannot find workflow %s", workflowName)
+	}
+	return wf, nil
 }
 
 func (impl *ArgoWorkflowExecutorImpl) convertToUnstructured(cdWorkflow interface{}) *unstructured.UnstructuredList {
