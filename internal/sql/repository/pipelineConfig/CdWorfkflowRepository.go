@@ -443,6 +443,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 		query = query.Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
 	}
 
+	query = query.Group("cd_workflow.ci_artifact_id")
 	totalCount, err := query.Count()
 	if err == pg.ErrNoRows {
 		return wfrList, totalCount, err
@@ -452,7 +453,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 	for i, wf := range wfrList {
 		wfIds[i] = wf.Id
 	}
-	query = query.Group("cd_workflow.ci_artifact_id").
+	query = query.
 		Limit(listingFilterOptions.Limit).
 		Offset(listingFilterOptions.Offset)
 
