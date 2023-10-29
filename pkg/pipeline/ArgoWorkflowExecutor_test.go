@@ -9,6 +9,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
 	v12 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +28,7 @@ func TestExecuteWorkflow(t *testing.T) {
 	t.SkipNow()
 	logger, loggerErr := util.NewSugardLogger()
 	assert.Nil(t, loggerErr)
-	cdConfig, err := GetCiCdConfig()
+	cdConfig, err := types.GetCiCdConfig()
 	assert.Nil(t, err)
 	workflowExecutorImpl := NewArgoWorkflowExecutorImpl(logger)
 
@@ -260,7 +261,7 @@ func getGcpBlobStorage() *blob_storage.GcpBlobConfig {
 	}
 }
 
-func getBaseWorkflowTemplate(cdConfig *CiCdConfig) bean.WorkflowTemplate {
+func getBaseWorkflowTemplate(cdConfig *types.CiCdConfig) bean.WorkflowTemplate {
 
 	workflowTemplate := bean.WorkflowTemplate{}
 	workflowTemplate.WfControllerInstanceID = "random-controller-id"
