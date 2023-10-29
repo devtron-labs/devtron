@@ -112,6 +112,7 @@ import (
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
@@ -441,7 +442,7 @@ func InitializeApp() (*App, error) {
 		repository.NewNotificationSettingsRepositoryImpl,
 		wire.Bind(new(repository.NotificationSettingsRepository), new(*repository.NotificationSettingsRepositoryImpl)),
 		util.IntValidator,
-		pipeline.GetCiCdConfig,
+		types.GetCiCdConfig,
 
 		pipeline.NewWorkflowServiceImpl,
 		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
