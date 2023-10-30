@@ -745,7 +745,7 @@ func (impl *ResourceFilterServiceImpl) GetEvaluatedFilters(subjectType SubjectTy
 	}
 
 	filterHistoryIds := make([]int, 0, len(filterHistoryStates))
-	for filterHistoryId, _ := range filterHistoryIds {
+	for filterHistoryId, _ := range filterHistoryStates {
 		filterHistoryIds = append(filterHistoryIds, filterHistoryId)
 	}
 	filtersAuditList, err := impl.filterAuditRepo.GetByIds(filterHistoryIds)

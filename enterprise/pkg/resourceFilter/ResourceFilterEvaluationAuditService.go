@@ -82,15 +82,15 @@ func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryData
 	//}
 
 	// find the evaluation audit
-	resourceFilterEvalutionAudit, err := impl.filterEvaluationAuditRepo.GetByRefAndSubject(referenceType, referenceId, subjectType, subjectId)
+	resourceFilterEvaluationAudit, err := impl.filterEvaluationAuditRepo.GetByRefAndSubject(referenceType, referenceId, subjectType, subjectId)
 	if err != nil {
 		impl.logger.Errorw("error in finding resource filters evaluation audit data", "referenceType", referenceType, "referenceId", referenceId, "subjectType", subjectType, "subjectId", subjectId)
 		return nil, err
 	}
 
-	filterHistoryObjects, err := getFilterHistoryObjectsFromJsonString(resourceFilterEvalutionAudit.FilterHistoryObjects)
+	filterHistoryObjects, err := getFilterHistoryObjectsFromJsonString(resourceFilterEvaluationAudit.FilterHistoryObjects)
 	if err != nil {
-		impl.logger.Errorw("error in extracting filter history objects from json string", "err", err, "jsonString", resourceFilterEvalutionAudit.FilterHistoryObjects)
+		impl.logger.Errorw("error in extracting filter history objects from json string", "err", err, "jsonString", resourceFilterEvaluationAudit.FilterHistoryObjects)
 		return nil, err
 	}
 	filterHistoryIdVsStateMap := make(map[int]FilterState)
