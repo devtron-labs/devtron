@@ -55,7 +55,7 @@ CREATE TABLE "public"."devtron_resource_object_audit"
 (
     "id"                         int         NOT NULL DEFAULT nextval('id_seq_devtron_resource_object_audit'::regclass),
     "devtron_resource_object_id" int,
-    "schema"                     jsonb,
+    "schema"                     json,
     "audit_operation"            VARCHAR(10) NOT NULL,
     "created_on"                 timestamptz,
     "created_by"                 integer,
