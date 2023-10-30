@@ -998,12 +998,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 					return nil, err
 				}
 				ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
-			} else {
+			} else if ciPipeline.PipelineType == bean3.CI_JOB {
 				// This has been done to resolve unmarshalling issue in ci-runner, in case of no commit time(eg- polling container images)
 				ciProjectDetail.CommitTime = time.Time{}.Format(bean2.LayoutRFC3339)
+			} else {
 				impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
-				// This has been commented to avoid the case where no modifications are present in case of polling plugin.
-				//return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
+				return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
 			}
 
 			// set webhook data
