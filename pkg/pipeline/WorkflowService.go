@@ -218,7 +218,7 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *Work
 	isJob := workflowRequest.CheckForJob()
 	allowAll := isJob
 	namePrefix := workflowRequest.GetExistingCmCsNamePrefix()
-	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
+	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob, workflowRequest.Scope)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
 		return nil, nil, err

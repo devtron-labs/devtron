@@ -32,6 +32,9 @@ type ScopedVariableCMCSManager interface {
 		configEnvLevelId int,
 		mergedConfigMap map[string]*bean2.ConfigData,
 		mergedSecret map[string]*bean2.ConfigData) (map[string]*bean2.ConfigData, map[string]*bean2.ConfigData, map[string]string, map[string]string, error)
+
+	ResolvedVariableForLastSaved(scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int, configMapByte []byte, secretDataByte []byte) (string, string, map[string]string, map[string]string, error)
+	ResolveForPrePostStageTrigger(scope resourceQualifiers.Scope, configResponse bean.ConfigMapJson, secretResponse bean.ConfigSecretJson, cmAppId int, cmEnvId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 }
 
 type ScopedVariableCMCSManagerImpl struct {
@@ -59,7 +62,7 @@ func NewScopedVariableCMCSManagerImpl(logger *zap.SugaredLogger,
 	return scopedVariableCMCSManagerImpl, nil
 }
 
-func (impl ScopedVariableCMCSManagerImpl) ResolveCMCSHistoryDto(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, componentName string, secretList bean2.SecretList) (map[string]string, string, error) {
+func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCSHistoryDto(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, componentName string, secretList bean2.SecretList) (map[string]string, string, error) {
 	var variableSnapshotMap map[string]string
 	var cMCSData map[string]bean2.ConfigData
 	var err error
@@ -75,7 +78,7 @@ func (impl ScopedVariableCMCSManagerImpl) ResolveCMCSHistoryDto(ctx context.Cont
 	return variableSnapshotMap, string(cMCSData[componentName].Data), nil
 }
 
-func (impl ScopedVariableCMCSManagerImpl) ResolveSecretHistoryDto(ctx context.Context, secretList bean2.SecretList, history *repository.ConfigmapAndSecretHistory) (map[string]bean2.ConfigData, map[string]string, error) {
+func (impl *ScopedVariableCMCSManagerImpl) ResolveSecretHistoryDto(ctx context.Context, secretList bean2.SecretList, history *repository.ConfigmapAndSecretHistory) (map[string]bean2.ConfigData, map[string]string, error) {
 	cMCSData := make(map[string]bean2.ConfigData, 0)
 	secretListJson, err := json.Marshal(secretList)
 	reference := repository1.HistoryReference{
@@ -108,7 +111,7 @@ func (impl ScopedVariableCMCSManagerImpl) ResolveSecretHistoryDto(ctx context.Co
 	return cMCSData, variableSnapshotMap, nil
 }
 
-func (impl ScopedVariableCMCSManagerImpl) ResolveCMHistoryDto(ctx context.Context, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory) (map[string]bean2.ConfigData, map[string]string, error) {
+func (impl *ScopedVariableCMCSManagerImpl) ResolveCMHistoryDto(ctx context.Context, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory) (map[string]bean2.ConfigData, map[string]string, error) {
 	cMCSData := make(map[string]bean2.ConfigData, 0)
 	configListJson, err := json.Marshal(configList)
 	reference := repository1.HistoryReference{
@@ -135,7 +138,7 @@ func (impl ScopedVariableCMCSManagerImpl) ResolveCMHistoryDto(ctx context.Contex
 	return cMCSData, variableSnapshotMap, nil
 }
 
-func (impl ScopedVariableCMCSManagerImpl) GetResolvedCMCSHistoryDtos(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, secretList bean2.SecretList) (map[string]bean2.ConfigData, map[string]string, error) {
+func (impl *ScopedVariableCMCSManagerImpl) GetResolvedCMCSHistoryDtos(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, secretList bean2.SecretList) (map[string]bean2.ConfigData, map[string]string, error) {
 	resolvedData := make(map[string]bean2.ConfigData, 0)
 	var variableSnapshotMap map[string]string
 	var err error
@@ -153,13 +156,13 @@ func (impl ScopedVariableCMCSManagerImpl) GetResolvedCMCSHistoryDtos(ctx context
 	return resolvedData, variableSnapshotMap, nil
 }
 
-func (impl ScopedVariableCMCSManagerImpl) CreateVariableMappingsForCMEnv(model *chartConfig.ConfigMapEnvModel) error {
+func (impl *ScopedVariableCMCSManagerImpl) CreateVariableMappingsForCMEnv(model *chartConfig.ConfigMapEnvModel) error {
 	return impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository1.EntityTypeConfigMapEnvLevel, model.UpdatedBy)
 }
-func (impl ScopedVariableCMCSManagerImpl) CreateVariableMappingsForCMApp(model *chartConfig.ConfigMapAppModel) error {
+func (impl *ScopedVariableCMCSManagerImpl) CreateVariableMappingsForCMApp(model *chartConfig.ConfigMapAppModel) error {
 	return impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository1.EntityTypeConfigMapAppLevel, model.UpdatedBy)
 }
-func (impl ScopedVariableCMCSManagerImpl) CreateVariableMappingsForSecretEnv(model *chartConfig.ConfigMapEnvModel) error {
+func (impl *ScopedVariableCMCSManagerImpl) CreateVariableMappingsForSecretEnv(model *chartConfig.ConfigMapEnvModel) error {
 	//VARIABLE_MAPPING_UPDATE
 	sl := bean2.SecretList{}
 	data, err := sl.GetTransformedDataForSecret(model.SecretData, util.DecodeSecret)
@@ -168,7 +171,7 @@ func (impl ScopedVariableCMCSManagerImpl) CreateVariableMappingsForSecretEnv(mod
 	}
 	return impl.extractAndMapVariables(data, model.Id, repository1.EntityTypeSecretEnvLevel, model.UpdatedBy)
 }
-func (impl ScopedVariableCMCSManagerImpl) CreateVariableMappingsForSecretApp(model *chartConfig.ConfigMapAppModel) error {
+func (impl *ScopedVariableCMCSManagerImpl) CreateVariableMappingsForSecretApp(model *chartConfig.ConfigMapAppModel) error {
 	//VARIABLE_MAPPING_UPDATE
 	sl := bean2.SecretList{}
 	data, err := sl.GetTransformedDataForSecret(model.SecretData, util.DecodeSecret)
@@ -178,7 +181,7 @@ func (impl ScopedVariableCMCSManagerImpl) CreateVariableMappingsForSecretApp(mod
 	return impl.extractAndMapVariables(data, model.Id, repository1.EntityTypeSecretAppLevel, model.UpdatedBy)
 }
 
-func (impl ScopedVariableCMCSManagerImpl) extractAndMapVariables(template string, entityId int, entityType repository1.EntityType, userId int32) error {
+func (impl *ScopedVariableCMCSManagerImpl) extractAndMapVariables(template string, entityId int, entityType repository1.EntityType, userId int32) error {
 	return impl.ExtractAndMapVariables(template, entityId, entityType, userId, nil)
 }
 
@@ -363,4 +366,34 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCSTrigger(cType bean.Deploym
 		return "", "", nil, nil, err
 	}
 	return resolvedCM, resolvedCS, cmSnapshot, csSnapshot, nil
+}
+
+func (impl *ScopedVariableCMCSManagerImpl) ResolveForPrePostStageTrigger(scope resourceQualifiers.Scope, configResponse bean.ConfigMapJson, secretResponse bean.ConfigSecretJson, cmAppId int, cmEnvId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
+
+	configResponseR := bean.ConfigMapRootJson{ConfigMapJson: configResponse}
+	secretResponseR := bean.ConfigSecretRootJson{ConfigSecretJson: secretResponse}
+	configMapByte, err := json.Marshal(configResponseR)
+	if err != nil {
+		return nil, nil, err
+	}
+	secretDataByte, err := json.Marshal(secretResponseR)
+	if err != nil {
+		return nil, nil, err
+
+	}
+
+	resolvedCM, resolvedCS, _, _, err := impl.ResolvedVariableForLastSaved(scope, cmAppId, cmEnvId, configMapByte, secretDataByte)
+
+	var configResponseResolved bean.ConfigMapRootJson
+	var secretResponseResolved bean.ConfigSecretRootJson
+	err = json.Unmarshal([]byte(resolvedCM), &configResponseResolved)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = json.Unmarshal([]byte(resolvedCS), &secretResponseResolved)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &configResponseResolved.ConfigMapJson, &secretResponseResolved.ConfigSecretJson, nil
 }

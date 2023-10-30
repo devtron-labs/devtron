@@ -205,6 +205,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return 0, err
 	}
+	workflowRequest.Scope = scope
 
 	if impl.config != nil && impl.config.BuildxK8sDriverOptions != "" {
 		err = impl.setBuildxK8sDriverData(workflowRequest)

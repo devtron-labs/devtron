@@ -14,6 +14,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/util"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -370,6 +371,7 @@ type WorkflowRequest struct {
 	Pipeline                 *pipelineConfig.Pipeline
 	Env                      *repository2.Environment
 	AppLabels                map[string]string
+	Scope                    resourceQualifiers.Scope
 }
 
 type CiCdTriggerEvent struct {

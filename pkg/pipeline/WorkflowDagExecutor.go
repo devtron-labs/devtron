@@ -1025,21 +1025,21 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		return nil, err
 	}
 
+	//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
+	//since user sees the environment of the CD pipeline
+	scope := resourceQualifiers.Scope{
+		AppId:     cdPipeline.App.Id,
+		EnvId:     env.Id,
+		ClusterId: env.ClusterId,
+		SystemMetadata: &resourceQualifiers.SystemMetadata{
+			EnvironmentName: env.Name,
+			ClusterName:     env.Cluster.ClusterName,
+			Namespace:       env.Namespace,
+			Image:           artifact.Image,
+			ImageTag:        util3.GetImageTagFromImage(artifact.Image),
+		},
+	}
 	if pipelineStage != nil {
-		//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
-		//since user sees the environment of the CD pipeline
-		scope := resourceQualifiers.Scope{
-			AppId:     cdPipeline.App.Id,
-			EnvId:     env.Id,
-			ClusterId: env.ClusterId,
-			SystemMetadata: &resourceQualifiers.SystemMetadata{
-				EnvironmentName: env.Name,
-				ClusterName:     env.Cluster.ClusterName,
-				Namespace:       env.Namespace,
-				Image:           artifact.Image,
-				ImageTag:        util3.GetImageTagFromImage(artifact.Image),
-			},
-		}
 		var variableSnapshot map[string]string
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 			//preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
@@ -1124,6 +1124,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CloudProvider:     impl.config.CloudProvider,
 		WorkflowExecutor:  workflowExecutor,
 		RefPlugins:        refPluginsData,
+		Scope:             scope,
 	}
 
 	extraEnvVariables := make(map[string]string)
