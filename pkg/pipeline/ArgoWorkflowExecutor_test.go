@@ -31,7 +31,7 @@ func TestExecuteWorkflow(t *testing.T) {
 	assert.Nil(t, loggerErr)
 	cdConfig, err := types.GetCiCdConfig()
 	assert.Nil(t, err)
-	workflowExecutorImpl := NewArgoWorkflowExecutorImpl(logger)
+	workflowExecutorImpl := executors.NewArgoWorkflowExecutorImpl(logger)
 
 	t.Run("validate not configured blob storage", func(t *testing.T) {
 		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
@@ -53,14 +53,14 @@ func TestExecuteWorkflow(t *testing.T) {
 		s3Artifact := archiveLocation.S3
 		assert.Equal(t, workflowTemplate.CloudStorageKey, s3Artifact.Key)
 		assert.Equal(t, s3BlobStorage.CiLogBucketName, s3Artifact.Bucket)
-		assert.Equal(t, S3_ENDPOINT_URL, s3Artifact.Endpoint)
+		assert.Equal(t, executors.S3_ENDPOINT_URL, s3Artifact.Endpoint)
 		assert.Equal(t, s3BlobStorage.IsInSecure, *s3Artifact.Insecure)
 		accessKeySecret := s3Artifact.AccessKeySecret
 		secretKeySecret := s3Artifact.SecretKeySecret
 		assert.NotNil(t, accessKeySecret)
 		assert.NotNil(t, secretKeySecret)
-		assert.True(t, reflect.DeepEqual(accessKeySecret, ACCESS_KEY_SELECTOR))
-		assert.True(t, reflect.DeepEqual(secretKeySecret, SECRET_KEY_SELECTOR))
+		assert.True(t, reflect.DeepEqual(accessKeySecret, executors.ACCESS_KEY_SELECTOR))
+		assert.True(t, reflect.DeepEqual(secretKeySecret, executors.SECRET_KEY_SELECTOR))
 	})
 
 	t.Run("validate s3 blob storage with endpoint", func(t *testing.T) {
@@ -89,7 +89,7 @@ func TestExecuteWorkflow(t *testing.T) {
 		assert.Equal(t, gcpBlobStorage.LogBucketName, gcsArtifact.Bucket)
 		secretKeySecret := gcsArtifact.ServiceAccountKeySecret
 		assert.NotNil(t, secretKeySecret)
-		assert.True(t, reflect.DeepEqual(secretKeySecret, SECRET_KEY_SELECTOR))
+		assert.True(t, reflect.DeepEqual(secretKeySecret, executors.SECRET_KEY_SELECTOR))
 	})
 	t.Run("validate env specific cm and secret", func(t *testing.T) {
 		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
@@ -197,13 +197,13 @@ func getEnvSpecificExternalCmCs(t *testing.T) ([]bean2.ConfigSecretMap, []bean2.
 	return configMaps, secrets
 }
 
-func executeWorkflowAndGetCdTemplate(t *testing.T, workflowExecutorImpl *ArgoWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) v1alpha1.Template {
+func executeWorkflowAndGetCdTemplate(t *testing.T, workflowExecutorImpl *executors.ArgoWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) v1alpha1.Template {
 	cdWorkflow := executeAndGetWorkflow(t, workflowExecutorImpl, workflowTemplate)
 	cdTemplate := verifyCdTemplate(t, cdWorkflow, workflowTemplate)
 	return cdTemplate
 }
 
-func executeAndGetWorkflow(t *testing.T, workflowExecutorImpl *ArgoWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) v1alpha1.Workflow {
+func executeAndGetWorkflow(t *testing.T, workflowExecutorImpl *executors.ArgoWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) v1alpha1.Workflow {
 	unstructuredWorkflow, err := workflowExecutorImpl.ExecuteWorkflow(workflowTemplate)
 	assert.Nil(t, err)
 	cdWorkflow, err := getWorkflow(unstructuredWorkflow)
@@ -215,9 +215,9 @@ func executeAndGetWorkflow(t *testing.T, workflowExecutorImpl *ArgoWorkflowExecu
 func validateCdWorkflowSpec(t *testing.T, cdWorkflow v1alpha1.Workflow, workflowTemplate bean.WorkflowTemplate) {
 	assert.Equal(t, "default", cdWorkflow.Namespace)
 	objectMeta := cdWorkflow.ObjectMeta
-	assert.Equal(t, fmt.Sprintf(WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix), objectMeta.GenerateName)
+	assert.Equal(t, fmt.Sprintf(executors.WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix), objectMeta.GenerateName)
 	wfLabels := objectMeta.Labels
-	assert.Equal(t, DEVTRON_WORKFLOW_LABEL_VALUE, wfLabels[DEVTRON_WORKFLOW_LABEL_KEY])
+	assert.Equal(t, executors.DEVTRON_WORKFLOW_LABEL_VALUE, wfLabels[executors.DEVTRON_WORKFLOW_LABEL_KEY])
 	workflowSpec := cdWorkflow.GetWorkflowSpec()
 	assert.Equal(t, workflowTemplate.ServiceAccountName, workflowSpec.ServiceAccountName)
 	//assert.Equal(t, "", workflowSpec.Entrypoint)
@@ -308,7 +308,7 @@ func verifySecretTemplate(t *testing.T, secret bean2.ConfigSecretMap, workflow v
 			continue
 		}
 		resourceAction := resourceTemplate.Action
-		assert.Equal(t, RESOURCE_CREATE_ACTION, resourceAction)
+		assert.Equal(t, executors.RESOURCE_CREATE_ACTION, resourceAction)
 		assert.True(t, resourceTemplate.SetOwnerReference)
 		secretJson := resourceTemplate.Manifest
 		secretFromTemplateMap := make(map[string]interface{})
@@ -332,7 +332,7 @@ func verifyConfigMapTemplate(t *testing.T, configMap bean2.ConfigSecretMap, work
 			continue
 		}
 		resourceAction := resourceTemplate.Action
-		assert.Equal(t, RESOURCE_CREATE_ACTION, resourceAction)
+		assert.Equal(t, executors.RESOURCE_CREATE_ACTION, resourceAction)
 		assert.True(t, resourceTemplate.SetOwnerReference)
 		configMapJson := resourceTemplate.Manifest
 		cmFromTemplateMap := make(map[string]interface{})
