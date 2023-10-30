@@ -59,7 +59,7 @@ type CiArtifactRepository interface {
 	GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error)
-	GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, error)
+	GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 	GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error)
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
@@ -240,48 +240,63 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 	return artifactsAll, err
 }
 
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, error) {
-	//TODO Gireesh: listingFilterOpts.SearchString should be conditional,
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error) {
 	artifacts := make([]*CiArtifact, 0, listingFilterOpts.Limit)
-	commonPaginationQueryPart := " cia.image LIKE ?" +
-		" ORDER BY cia.id DESC" +
-		" LIMIT ?" +
-		" OFFSET ?;"
+	totalCount := 0
+	commonPaginatedQueryPart := " cia.image LIKE ?"
+	orderByClause := " ORDER BY cia.id DESC"
+	limitOffsetQueryPart :=
+		" LIMIT ? OFFSET ?;"
 	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE {
-		//TODO Gireesh: listingFilterOpts.PipelineId is ciPipelineId in this case why are we taking join
-		query := " SELECT cia.* " +
-			" FROM ci_artifact cia" +
+		selectQuery := " SELECT cia.* "
+		remainingQuery := " FROM ci_artifact cia" +
 			" INNER JOIN ci_pipeline cp ON cp.id=cia.pipeline_id" +
 			" INNER JOIN pipeline p ON p.ci_pipeline_id = cp.id and p.id=?" +
 			" WHERE "
 		if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
-			query += fmt.Sprintf(" cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+			remainingQuery += fmt.Sprintf(" cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
 		}
-		query += commonPaginationQueryPart
 
-		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.PipelineId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
+		countQuery := " SELECT count(cia.id)  "
+		totalCountQuery := countQuery + remainingQuery + commonPaginatedQueryPart
+		_, err := impl.dbConnection.Query(&totalCount, totalCountQuery, listingFilterOpts.PipelineId, listingFilterOpts.SearchString)
 		if err != nil {
-			return artifacts, err
+			return artifacts, totalCount, err
+		}
+
+		finalQuery := selectQuery + remainingQuery + commonPaginatedQueryPart + orderByClause + limitOffsetQueryPart
+		_, err = impl.dbConnection.Query(&artifacts, finalQuery, listingFilterOpts.PipelineId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
+		if err != nil {
+			return artifacts, totalCount, err
 		}
 
 	} else if listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
-		query := " SELECT cia.* " +
-			" FROM ci_artifact cia " +
+		selectQuery := " SELECT cia.* "
+		remainingQuery := " FROM ci_artifact cia " +
 			" WHERE cia.external_ci_pipeline_id = ? AND "
 		if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
-			query += fmt.Sprintf(" cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+			remainingQuery += fmt.Sprintf(" cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
 		}
-		query += commonPaginationQueryPart
-		_, err := impl.dbConnection.Query(&artifacts, query, listingFilterOpts.ParentId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
+
+		countQuery := " SELECT count(cia.id)  "
+		totalCountQuery := countQuery + remainingQuery + commonPaginatedQueryPart
+		_, err := impl.dbConnection.Query(&totalCount, totalCountQuery, listingFilterOpts.PipelineId, listingFilterOpts.SearchString)
 		if err != nil {
-			return artifacts, err
+			return artifacts, totalCount, err
+		}
+
+		finalQuery := selectQuery + remainingQuery + commonPaginatedQueryPart + orderByClause + limitOffsetQueryPart
+
+		_, err = impl.dbConnection.Query(&artifacts, finalQuery, listingFilterOpts.ParentId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
+		if err != nil {
+			return artifacts, totalCount, err
 		}
 	} else {
-		return artifacts, nil
+		return artifacts, totalCount, nil
 	}
 
 	if len(artifacts) == 0 {
-		return artifacts, nil
+		return artifacts, totalCount, nil
 	}
 	//processing
 	artifactsMap := make(map[int]*CiArtifact)
@@ -303,7 +318,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 
 	_, err := impl.dbConnection.Query(&artifactsDeployed, query, pg.In(artifactsIds))
 	if err != nil {
-		return artifacts, nil
+		return artifacts, totalCount, nil
 	}
 
 	//set deployed time and latest deployed artifact
@@ -317,7 +332,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 
 	//TODO Gireesh: create separate meaningful functions of these queries
 
-	return artifacts, nil
+	return artifacts, totalCount, nil
 
 }
 

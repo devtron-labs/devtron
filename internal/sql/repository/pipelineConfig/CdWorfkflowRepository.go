@@ -41,7 +41,7 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error)
-	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error)
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, int, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -378,12 +378,11 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	}
 	return wfrList, err
 }
-func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, int, error) {
 	var wfrList []CdWorkflowRunner
-	var wfIds []int
 	//TODO Gireesh: why are we extracting artifacts which belongs to current pipeline as it will impact page size of response ??
-	query := impl.dbConnection.Model(&wfIds).
-		Column("MAX(cd_workflow_runner.id) AS id").
+	query := impl.dbConnection.Model(&wfrList).
+		ColumnExpr("MAX(cd_workflow_runner.id) AS id").
 		Join("INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id").
 		Join("INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id").
 		Where("(cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ?) "+
@@ -397,26 +396,37 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
 		query = query.Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
 	}
+
+	query = query.Group("cd_workflow.ci_artifact_id")
+	totalCount, err := query.Count()
+	if err == pg.ErrNoRows {
+		return wfrList, totalCount, err
+	}
+
 	query = query.
-		Group("cd_workflow.ci_artifact_id").
 		Limit(listingFilterOptions.Limit).
 		Offset(listingFilterOptions.Offset)
 
-	err := query.Select()
-
-	if err == pg.ErrNoRows || len(wfIds) == 0 {
-		return wfrList, nil
+	err = query.Select()
+	if err == pg.ErrNoRows || len(wfrList) == 0 {
+		return wfrList, totalCount, nil
 	}
+	wfIds := make([]int, len(wfrList))
+	for i, wf := range wfrList {
+		wfIds[i] = wf.Id
+	}
+	wfrList = make([]CdWorkflowRunner, 0)
+
 	err = impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
-		Where("cd_workflow_runner IN (?) ", pg.In(wfIds)).
+		Where("cd_workflow_runner.id IN (?) ", pg.In(wfIds)).
 		Select()
 
 	if err == pg.ErrNoRows {
-		return wfrList, nil
+		return wfrList, totalCount, nil
 	}
-	return wfrList, err
+	return wfrList, totalCount, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error) {

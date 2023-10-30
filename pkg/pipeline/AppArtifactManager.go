@@ -555,7 +555,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	artifactListingFilterOpts.ParentStageType = parentType
 	artifactListingFilterOpts.StageType = stage
 	artifactListingFilterOpts.SearchString = "%" + artifactListingFilterOpts.SearchString + "%"
-	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, err := impl.BuildArtifactsList(artifactListingFilterOpts)
+	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, totalCount, err := impl.BuildArtifactsList(artifactListingFilterOpts)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
 		return nil, err
@@ -625,6 +625,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
+	ciArtifactsResponse.TotalCount = totalCount
 	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
 	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
 	if ciArtifacts == nil {
@@ -634,15 +635,15 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	return ciArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, int, string, error) {
+func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, int, string, int, error) {
 
 	var ciArtifacts []*bean2.CiArtifactBean
-
+	totalCount := 0
 	//1)get current deployed artifact on this pipeline
 	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.PipelineId, listingFilterOpts.StageType, 1)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", listingFilterOpts.PipelineId, "currentStageType", listingFilterOpts.StageType)
-		return ciArtifacts, 0, "", err
+		return ciArtifacts, 0, "", totalCount, err
 	}
 
 	var currentRunningArtifactBean *bean2.CiArtifactBean
@@ -678,16 +679,16 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 	}
 	//2) get artifact list limited by filterOptions
 	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE || listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
-		ciArtifacts, err = impl.BuildArtifactsForCIParentV2(listingFilterOpts)
+		ciArtifacts, totalCount, err = impl.BuildArtifactsForCIParentV2(listingFilterOpts)
 		if err != nil {
 			impl.logger.Errorw("error in getting ci artifacts for ci/webhook type parent", "pipelineId", listingFilterOpts.PipelineId, "parentPipelineId", listingFilterOpts.ParentId, "parentStageType", listingFilterOpts.ParentStageType, "currentStageType", listingFilterOpts.StageType)
-			return ciArtifacts, 0, "", err
+			return ciArtifacts, 0, "", totalCount, err
 		}
 	} else {
-		ciArtifacts, err = impl.BuildArtifactsForCdStageV2(listingFilterOpts)
+		ciArtifacts, totalCount, err = impl.BuildArtifactsForCdStageV2(listingFilterOpts)
 		if err != nil {
 			impl.logger.Errorw("error in getting ci artifacts for ci/webhook type parent", "pipelineId", listingFilterOpts.PipelineId, "parentPipelineId", listingFilterOpts.ParentId, "parentStageType", listingFilterOpts.ParentStageType, "currentStageType", listingFilterOpts.StageType)
-			return ciArtifacts, 0, "", err
+			return ciArtifacts, 0, "", totalCount, err
 		}
 	}
 
@@ -699,14 +700,14 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		}
 	}
 
-	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, nil
+	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, error) {
-	cdWfrList, err := impl.cdWorkflowRepository.FindArtifactByListFilter(listingFilterOpts)
+func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, int, error) {
+	cdWfrList, totalCount, err := impl.cdWorkflowRepository.FindArtifactByListFilter(listingFilterOpts)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd workflow runners using filter", "filterOptions", listingFilterOpts, "err", err)
-		return nil, err
+		return nil, totalCount, err
 	}
 	//TODO Gireesh: initialized array with size but are using append, not optimized solution
 	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(cdWfrList))
@@ -718,7 +719,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.ParentCdId, bean.CD_WORKFLOW_TYPE_DEPLOY, 1)
 		if err != nil || len(parentCdWfrList) == 0 {
 			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", listingFilterOpts.ParentCdId)
-			return ciArtifacts, err
+			return ciArtifacts, totalCount, err
 		}
 		artifactRunningOnParentCd = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
 	}
@@ -749,15 +750,15 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}
 
-	return ciArtifacts, nil
+	return ciArtifacts, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, error) {
+func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, int, error) {
 
-	artifacts, err := impl.ciArtifactRepository.GetArtifactsByCDPipelineV3(listingFilterOpts)
+	artifacts, totalCount, err := impl.ciArtifactRepository.GetArtifactsByCDPipelineV3(listingFilterOpts)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifacts for ci", "err", err)
-		return nil, err
+		return nil, totalCount, err
 	}
 
 	//TODO Gireesh: if initialized then no need of using append, put value directly to index
@@ -787,5 +788,5 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}
 
-	return ciArtifacts, nil
+	return ciArtifacts, totalCount, nil
 }
