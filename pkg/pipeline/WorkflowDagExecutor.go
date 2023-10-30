@@ -1000,7 +1000,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
 			} else {
 				impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
-				return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
+				//return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
 			}
 
 			// set webhook data
