@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -158,7 +159,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 
 	workflowTemplate.ConfigMaps = workflowConfigMaps
 	workflowTemplate.Secrets = workflowSecrets
-	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
+	workflowTemplate.Volumes = executors.ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
@@ -222,7 +223,7 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *types.Workflo
 		for i := range globalCmCsConfigs {
 			globalCmCsConfigs[i].Name = strings.ToLower(globalCmCsConfigs[i].Name) + "-" + workflowRequest.GetGlobalCmCsNamePrefix()
 		}
-		workflowConfigMaps, workflowSecrets, err = GetFromGlobalCmCsDtos(globalCmCsConfigs)
+		workflowConfigMaps, workflowSecrets, err = executors.GetFromGlobalCmCsDtos(globalCmCsConfigs)
 		if err != nil {
 			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 			return nil, nil, err
@@ -337,7 +338,7 @@ func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *reposi
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
 		return nil, err
 	}
-	wfClient, err := GetClientInstance(restConfig, environment.Namespace)
+	wfClient, err := executors.GetClientInstance(restConfig, environment.Namespace)
 	if err != nil {
 		impl.Logger.Errorw("error in getting wfClient", "err", err)
 		return nil, err
@@ -355,7 +356,7 @@ func (impl *WorkflowServiceImpl) getWfClient(environment *repository.Environment
 			return nil, err
 		}
 	} else {
-		wfClient, err = GetClientInstance(impl.config, namespace)
+		wfClient, err = executors.GetClientInstance(impl.config, namespace)
 		if err != nil {
 			impl.Logger.Errorw("cannot build wf client", "err", err)
 			return nil, err

@@ -9,6 +9,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
 	v12 "k8s.io/api/core/v1"
@@ -366,7 +367,7 @@ func validateCmData(t *testing.T, data []byte, cmMap map[string]string) {
 func verifyOwnerRef(t *testing.T, ownerReferences []metav1.OwnerReference) {
 	assert.Equal(t, 1, len(ownerReferences))
 	ownerReference := ownerReferences[0]
-	assert.True(t, reflect.DeepEqual(ownerReference, ArgoWorkflowOwnerRef))
+	assert.True(t, reflect.DeepEqual(ownerReference, executors.ArgoWorkflowOwnerRef))
 }
 
 func getCdTemplate(workflow v1alpha1.Workflow) v1alpha1.Template {

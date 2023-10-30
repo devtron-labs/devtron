@@ -29,6 +29,7 @@ import (
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -56,8 +57,8 @@ import (
 
 const (
 	MandatoryPluginCiTriggerBlockError = "ci trigger request blocked, mandatory plugins not configured"
-	CloningModeShallow                 = "SHALLOW"
-	CloningModeFull                    = "FULL"
+
+	CloningModeFull = "FULL"
 )
 
 type CiService interface {
@@ -465,8 +466,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 				AuthMode:      ciMaterial.GitMaterial.GitProvider.AuthMode,
 			},
 		}
-		if IsShallowClonePossible(ciMaterial, impl.config.GitProviders, impl.config.CloningMode) {
-			ciProjectDetail.CloningMode = CloningModeShallow
+		if executors.IsShallowClonePossible(ciMaterial, impl.config.GitProviders, impl.config.CloningMode) {
+			ciProjectDetail.CloningMode = executors.CloningModeShallow
 		}
 
 		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
