@@ -74,11 +74,13 @@ type AppStoreDeploymentService interface {
 	UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error)
 	UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	UpdateInstallAppVersionHistoryStatus(installedAppVersionHistoryId int, status string) error
+	UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 }
 
 type DeploymentServiceTypeConfig struct {
 	IsInternalUse        bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 	HelmInstallASyncMode bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
+	HelmInstallAsyncMode bool `env:"HELM_INSTALL_ASYNC_MODE" envDefault:"false"`
 }
 
 func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
@@ -316,6 +318,8 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 			return nil, err
 		}
 	}
+	installAppVersionRequest.HelmInstallAsyncMode = impl.deploymentTypeConfig.HelmInstallAsyncMode
+	installAppVersionRequest.HelmInstallASyncMode = impl.deploymentTypeConfig.HelmInstallASyncMode
 	return installAppVersionRequest, nil
 }
 
@@ -1043,7 +1047,7 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 		}
 	}
 	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.updateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+		err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
 			return err
@@ -1052,7 +1056,7 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 	return nil
 }
 
-func (impl AppStoreDeploymentServiceImpl) updateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
+func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
 		err := impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
 		if err != nil {
@@ -1565,7 +1569,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			return nil, err
 		}
 	} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.updateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+		err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error in updating install app version history on sync", "err", err)
 			return nil, err
@@ -1619,7 +1623,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequ
 		return installAppVersionRequest, err
 	}
 	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.updateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+		err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error in updating installed app version history with sync", "err", err)
 			return installAppVersionRequest, err

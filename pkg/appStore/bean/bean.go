@@ -19,6 +19,7 @@ package appStoreBean
 
 import (
 	"encoding/json"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
 )
@@ -99,11 +100,18 @@ type InstallAppVersionDTO struct {
 	DeploymentAppType            string                         `json:"deploymentAppType"`
 	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
 	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
+	HelmInstallAsyncMode         bool                           `json:"helmInstallAsyncMode"`
+	HelmInstallASyncMode         bool                           `json:"helmInstallASyncMode"`
 	AppStoreApplicationVersionId int
 	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
 	PerformGitOps                bool `json:"performGitOps"`
 	PerformACDDeployment         bool `json:"performACDDeployment"`
 	PerformHelmDeployment        bool `json:"performHelmDeployment"`
+}
+
+type InstallHelmAsyncRequest struct {
+	InstallAppVersionDTO  *InstallAppVersionDTO         `json:"installAppVersionDTO"`
+	InstallReleaseRequest *client.InstallReleaseRequest `json:"installReleaseRequest"`
 }
 
 type InstalledAppDeleteResponseDTO struct {
@@ -380,3 +388,5 @@ type HelmReleaseStatusConfig struct {
 	IsReleaseInstalled         bool
 	ErrorInInstallation        bool
 }
+
+const HELM_CHART_INSTALL_STATUS_TOPIC_NEW string = "HELM-CHART-INSTALL-STATUS-TOPIC"

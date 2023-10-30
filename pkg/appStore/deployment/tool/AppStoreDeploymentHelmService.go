@@ -2,7 +2,9 @@ package appStoreDeploymentTool
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"net/http"
 	"time"
@@ -48,10 +50,12 @@ type AppStoreDeploymentHelmServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
+	pubSubClient                         *pubsub.PubSubClientServiceImpl
 }
 
 func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient, installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService, OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *AppStoreDeploymentHelmServiceImpl {
+	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient, installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService, OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
+	pubSubClient *pubsub.PubSubClientServiceImpl) *AppStoreDeploymentHelmServiceImpl {
 	return &AppStoreDeploymentHelmServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,
@@ -61,6 +65,7 @@ func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppServ
 		installedAppRepository:               installedAppRepository,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
+		pubSubClient:                         pubSubClient,
 	}
 }
 
@@ -131,7 +136,20 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		InstallAppVersionHistoryId: int32(installAppVersionRequest.InstalledAppVersionHistoryId),
 	}
 
-	_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
+	if installAppVersionRequest.HelmInstallAsyncMode {
+		impl.Logger.Debugw("Helm Install with Async mode")
+		installHelmAsyncRequest := appStoreBean.InstallHelmAsyncRequest{
+			InstallAppVersionDTO:  installAppVersionRequest,
+			InstallReleaseRequest: installReleaseRequest,
+		}
+		data, err := json.Marshal(installHelmAsyncRequest)
+		if err != nil {
+			return nil, err
+		}
+		impl.pubSubClient.Publish(appStoreBean.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
+	} else {
+		_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
+	}
 	if err != nil {
 		return installAppVersionRequest, err
 	}
