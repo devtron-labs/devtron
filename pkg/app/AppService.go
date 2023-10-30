@@ -35,7 +35,6 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
@@ -160,11 +159,9 @@ type AppServiceImpl struct {
 	globalEnvVariables                     *util2.GlobalEnvVariables
 	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
 	GitOpsManifestPushService              GitOpsPushService
-	variableSnapshotHistoryService         variables.VariableSnapshotHistoryService
-	scopedVariableService                  variables.ScopedVariableService
-	variableEntityMappingService           variables.VariableEntityMappingService
-	variableTemplateParser                 parsers.VariableTemplateParser
-	argoClientWrapperService               argocdServer.ArgoClientWrapperService
+	scopedVariableManager                  variables.ScopedVariableManager
+
+	argoClientWrapperService argocdServer.ArgoClientWrapperService
 }
 
 type AppService interface {
@@ -245,10 +242,7 @@ func NewAppService(
 	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	GitOpsManifestPushService GitOpsPushService,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
-	scopedVariableService variables.ScopedVariableService,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser,
+	scopedVariableManager variables.ScopedVariableManager,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 ) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
@@ -311,10 +305,7 @@ func NewAppService(
 		helmAppService:                         helmAppService,
 		manifestPushConfigRepository:           manifestPushConfigRepository,
 		GitOpsManifestPushService:              GitOpsManifestPushService,
-		variableSnapshotHistoryService:         variableSnapshotHistoryService,
-		scopedVariableService:                  scopedVariableService,
-		variableEntityMappingService:           variableEntityMappingService,
-		variableTemplateParser:                 variableTemplateParser,
+		scopedVariableManager:                  scopedVariableManager,
 		argoClientWrapperService:               argoClientWrapperService,
 	}
 	return appServiceImpl

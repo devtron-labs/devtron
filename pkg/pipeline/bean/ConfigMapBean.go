@@ -1,6 +1,9 @@
 package bean
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/devtron-labs/devtron/util"
+)
 
 type ConfigDataRequest struct {
 	Id            int           `json:"id"`
@@ -42,7 +45,6 @@ type ConfigData struct {
 	FilePermission        string           `json:"filePermission"`
 	Overridden            bool             `json:"overridden"`
 }
-
 type ExternalSecret struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`
@@ -85,4 +87,29 @@ type CreateJobEnvOverridePayload struct {
 	AppId  int   `json:"appId"`
 	EnvId  int   `json:"envId"`
 	UserId int32 `json:"-"`
+}
+
+type SecretsList struct {
+	ConfigData []*ConfigData `json:"secrets"`
+}
+
+func (SecretsList) GetTransformedDataForSecret(data string, mode util.SecretTransformMode) (string, error) {
+	secretsList := SecretsList{}
+	err := json.Unmarshal([]byte(data), &secretsList)
+	if err != nil {
+		return "", err
+	}
+
+	for _, configData := range secretsList.ConfigData {
+		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	marshal, err := json.Marshal(secretsList)
+	if err != nil {
+		return "", err
+	}
+	return string(marshal), nil
 }

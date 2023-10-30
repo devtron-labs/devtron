@@ -3,6 +3,7 @@ package history
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/util"
 	"time"
 )
 
@@ -50,21 +51,21 @@ type HistoryDetailDto struct {
 	PipelineTriggerType pipelineConfig.TriggerType `json:"pipelineTriggerType,omitempty"`
 	Strategy            string                     `json:"strategy,omitempty"`
 	//for configmap and secret
-	Type                 string               `json:"type,omitempty"`
-	External             *bool                `json:"external,omitempty"`
-	MountPath            string               `json:"mountPath,omitempty"`
-	ExternalSecretType   string               `json:"externalType,omitempty"`
-	RoleARN              string               `json:"roleARN,omitempty"`
-	SubPath              *bool                `json:"subPath,omitempty"`
-	FilePermission       string               `json:"filePermission,omitempty"`
-	CodeEditorValue      *HistoryDetailConfig `json:"codeEditorValue"`
-	VariableSnapshot     map[string]string    `json:"variableSnapshot"`
-	ResolvedTemplateData string               `json:"resolvedTemplateData"`
+	Type               string               `json:"type,omitempty"`
+	External           *bool                `json:"external,omitempty"`
+	MountPath          string               `json:"mountPath,omitempty"`
+	ExternalSecretType string               `json:"externalType,omitempty"`
+	RoleARN            string               `json:"roleARN,omitempty"`
+	SubPath            *bool                `json:"subPath,omitempty"`
+	FilePermission     string               `json:"filePermission,omitempty"`
+	CodeEditorValue    *HistoryDetailConfig `json:"codeEditorValue"`
 }
 
 type HistoryDetailConfig struct {
-	DisplayName string `json:"displayName"`
-	Value       string `json:"value"`
+	DisplayName      string            `json:"displayName"`
+	Value            string            `json:"value"`
+	VariableSnapshot map[string]string `json:"variableSnapshot"`
+	ResolvedValue    string            `json:"resolvedValue"`
 }
 
 //history components(deployment template, configMaps, secrets, pipeline strategy) components below
@@ -179,4 +180,47 @@ type ESOData struct {
 	SecretKey string `json:"secretKey"`
 	Key       string `json:"key"`
 	Property  string `json:"property,omitempty"`
+}
+
+func (ConfigData) GetTransformedDataForSecret(data string, mode util.SecretTransformMode) (string, error) {
+	secretDataMap := make(map[string]*ConfigData)
+	err := json.Unmarshal([]byte(data), &secretDataMap)
+	if err != nil {
+		return "", err
+	}
+
+	for _, configData := range secretDataMap {
+		data, err := util.GetDecodedAndEncodedData(configData.Data, mode)
+		if err != nil {
+			return "", err
+		}
+		configData.Data = data
+
+	}
+	resolvedTemplate, err := json.Marshal(secretDataMap)
+	if err != nil {
+		return "", err
+	}
+	return string(resolvedTemplate), nil
+}
+
+func (SecretList) GetTransformedDataForSecret(data string, mode util.SecretTransformMode) (string, error) {
+	secretsList := SecretList{}
+	err := json.Unmarshal([]byte(data), &secretsList)
+	if err != nil {
+		return "", err
+	}
+
+	for _, configData := range secretsList.ConfigData {
+		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	marshal, err := json.Marshal(secretsList)
+	if err != nil {
+		return "", err
+	}
+	return string(marshal), nil
 }

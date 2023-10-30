@@ -45,7 +45,6 @@ import (
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository3 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -136,8 +135,7 @@ type CdPipelineConfigServiceImpl struct {
 	propertiesConfigService          PropertiesConfigService
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
-	variableEntityMappingService     variables.VariableEntityMappingService
-	variableTemplateParser           parsers.VariableTemplateParser
+	scopedVariableManager            variables.ScopedVariableManager
 	deploymentConfig                 *DeploymentServiceTypeConfig
 	application                      application.ServiceClient
 
@@ -170,8 +168,7 @@ func NewCdPipelineConfigServiceImpl(
 	propertiesConfigService PropertiesConfigService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser,
+	scopedVariableManager variables.ScopedVariableManager,
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
 
@@ -202,8 +199,7 @@ func NewCdPipelineConfigServiceImpl(
 		propertiesConfigService:          propertiesConfigService,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		variableEntityMappingService:     variableEntityMappingService,
-		variableTemplateParser:           variableTemplateParser,
+		scopedVariableManager:            scopedVariableManager,
 		deploymentConfig:                 deploymentConfig,
 		application:                      application,
 		devtronAppCMCSService:            devtronAppCMCSService,
@@ -1472,7 +1468,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		return 0, err
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository3.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
+	err = impl.scopedVariableManager.ExtractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository3.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
 	if err != nil {
 		return 0, err
 	}
@@ -1770,21 +1766,6 @@ func (impl *CdPipelineConfigServiceImpl) getStrategiesMapping(dbPipelineIds []in
 		strategiesMapping[strategy.PipelineId] = append(strategiesMapping[strategy.PipelineId], strategy)
 	}
 	return strategiesMapping, nil
-}
-
-func (impl *CdPipelineConfigServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository3.EntityType, userId int32, tx *pg.Tx) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-	if err != nil {
-		return err
-	}
-	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository3.Entity{
-		EntityType: entityType,
-		EntityId:   entityId,
-	}, userId, tx)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, deleteAction int, userId int32) []*bean.CdBulkActionResponseDto {

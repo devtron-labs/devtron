@@ -43,8 +43,10 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
+	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
@@ -140,7 +142,7 @@ type WorkflowDagExecutorImpl struct {
 	pipelineStageService          PipelineStageService
 	config                        *CdConfig
 
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
+	scopedVariableManager variables.ScopedVariableManager
 
 	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
 	configMapHistoryService             history2.ConfigMapHistoryService
@@ -173,10 +175,7 @@ type WorkflowDagExecutorImpl struct {
 	gitOpsConfigRepository              repository.GitOpsConfigRepository
 	gitFactory                          *util.GitFactory
 	acdClient                           application2.ServiceClient
-	variableEntityMappingService        variables.VariableEntityMappingService
-	variableTemplateParser              parsers.VariableTemplateParser
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
-	scopedVariableService               variables.ScopedVariableService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -276,7 +275,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	scopedVariableManager variables.ScopedVariableManager,
 
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
@@ -309,44 +308,41 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	gitFactory *util.GitFactory,
 	acdClient application2.ServiceClient,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
-	scopedVariableService variables.ScopedVariableService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
-		pipelineRepository:             pipelineRepository,
-		cdWorkflowRepository:           cdWorkflowRepository,
-		pubsubClient:                   pubsubClient,
-		appService:                     appService,
-		cdWorkflowService:              cdWorkflowService,
-		ciPipelineRepository:           ciPipelineRepository,
-		ciArtifactRepository:           ciArtifactRepository,
-		materialRepository:             materialRepository,
-		pipelineOverrideRepository:     pipelineOverrideRepository,
-		user:                           user,
-		enforcer:                       enforcer,
-		enforcerUtil:                   enforcerUtil,
-		groupRepository:                groupRepository,
-		tokenCache:                     tokenCache,
-		acdAuthConfig:                  acdAuthConfig,
-		envRepository:                  envRepository,
-		eventFactory:                   eventFactory,
-		eventClient:                    eventClient,
-		cvePolicyRepository:            cvePolicyRepository,
-		scanResultRepository:           scanResultRepository,
-		appWorkflowRepository:          appWorkflowRepository,
-		prePostCdScriptHistoryService:  prePostCdScriptHistoryService,
-		argoUserService:                argoUserService,
-		cdPipelineStatusTimelineRepo:   cdPipelineStatusTimelineRepo,
-		pipelineStatusTimelineService:  pipelineStatusTimelineService,
-		CiTemplateRepository:           CiTemplateRepository,
-		ciWorkflowRepository:           ciWorkflowRepository,
-		appLabelRepository:             appLabelRepository,
-		gitSensorGrpcClient:            gitSensorGrpcClient,
-		k8sCommonService:               k8sCommonService,
-		pipelineStageService:           pipelineStageService,
-		variableSnapshotHistoryService: variableSnapshotHistoryService,
+		pipelineRepository:            pipelineRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		pubsubClient:                  pubsubClient,
+		appService:                    appService,
+		cdWorkflowService:             cdWorkflowService,
+		ciPipelineRepository:          ciPipelineRepository,
+		ciArtifactRepository:          ciArtifactRepository,
+		materialRepository:            materialRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
+		user:                          user,
+		enforcer:                      enforcer,
+		enforcerUtil:                  enforcerUtil,
+		groupRepository:               groupRepository,
+		tokenCache:                    tokenCache,
+		acdAuthConfig:                 acdAuthConfig,
+		envRepository:                 envRepository,
+		eventFactory:                  eventFactory,
+		eventClient:                   eventClient,
+		cvePolicyRepository:           cvePolicyRepository,
+		scanResultRepository:          scanResultRepository,
+		appWorkflowRepository:         appWorkflowRepository,
+		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
+		argoUserService:               argoUserService,
+		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		CiTemplateRepository:          CiTemplateRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		appLabelRepository:            appLabelRepository,
+		gitSensorGrpcClient:           gitSensorGrpcClient,
+		k8sCommonService:              k8sCommonService,
+		pipelineStageService:          pipelineStageService,
+		scopedVariableManager:         scopedVariableManager,
 
 		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
 		configMapHistoryService:             configMapHistoryService,
@@ -379,10 +375,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		gitOpsConfigRepository:              gitOpsConfigRepository,
 		gitFactory:                          gitFactory,
 		acdClient:                           acdClient,
-		variableEntityMappingService:        variableEntityMappingService,
-		variableTemplateParser:              variableTemplateParser,
 		argoClientWrapperService:            argoClientWrapperService,
-		scopedVariableService:               scopedVariableService,
 	}
 	config, err := GetCdConfig()
 	if err != nil {
@@ -1081,15 +1074,10 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 
 		//Save Scoped VariableSnapshot
-		if len(variableSnapshot) > 0 {
-			variableMapBytes, _ := json.Marshal(variableSnapshot)
-			err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository5.VariableSnapshotHistoryBean{{
-				VariableSnapshot: variableMapBytes,
-				HistoryReference: repository5.HistoryReference{
-					HistoryReferenceId:   runner.Id,
-					HistoryReferenceType: repository5.HistoryReferenceTypeCDWORKFLOWRUNNER,
-				},
-			}}, runner.TriggeredBy)
+		var variableSnapshotHistories = util4.GetBeansPtr(
+			repository5.GetSnapshotBean(runner.Id, repository5.HistoryReferenceTypeCDWORKFLOWRUNNER, variableSnapshot))
+		if len(variableSnapshotHistories) > 0 {
+			err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, runner.TriggeredBy)
 			if err != nil {
 				impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s %d %s", err, runner.Id, variableSnapshot)
 			}
@@ -2466,7 +2454,7 @@ func (impl *WorkflowDagExecutorImpl) CreateHistoriesForDeploymentTrigger(pipelin
 		impl.logger.Errorw("error in creating deployment template history for deployment trigger", "err", err)
 		return err
 	}
-	err = impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
+	cmId, csId, err := impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
 	if err != nil {
 		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
 		return err
@@ -2478,17 +2466,14 @@ func (impl *WorkflowDagExecutorImpl) CreateHistoriesForDeploymentTrigger(pipelin
 			return err
 		}
 	}
-	//VARIABLE_SNAPSHOT_SAVE
-	if envOverride.VariableSnapshot != nil && len(envOverride.VariableSnapshot) > 0 {
-		variableMapBytes, _ := json.Marshal(envOverride.VariableSnapshot)
-		variableSnapshotHistory := &repository5.VariableSnapshotHistoryBean{
-			VariableSnapshot: variableMapBytes,
-			HistoryReference: repository5.HistoryReference{
-				HistoryReferenceId:   deploymentTemplateHistory.Id,
-				HistoryReferenceType: repository5.HistoryReferenceTypeDeploymentTemplate,
-			},
-		}
-		err = impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository5.VariableSnapshotHistoryBean{variableSnapshotHistory}, deployedBy)
+
+	var variableSnapshotHistories = util4.GetBeansPtr(
+		repository5.GetSnapshotBean(deploymentTemplateHistory.Id, repository5.HistoryReferenceTypeDeploymentTemplate, envOverride.VariableSnapshot),
+		repository5.GetSnapshotBean(cmId, repository5.HistoryReferenceTypeConfigMap, envOverride.VariableSnapshotForCM),
+		repository5.GetSnapshotBean(csId, repository5.HistoryReferenceTypeSecret, envOverride.VariableSnapshotForCS),
+	)
+	if len(variableSnapshotHistories) > 0 {
+		err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, deployedBy)
 		if err != nil {
 			return err
 		}
@@ -2716,7 +2701,11 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 	}
 	chartVersion := envOverride.Chart.ChartVersion
 	_, span = otel.Tracer("orchestrator").Start(ctx, "getConfigMapAndSecretJsonV2")
-	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+	scope := getScopeForVariables(overrideRequest, envOverride)
+	request := createConfigMapAndSecretJsonRequest(overrideRequest, envOverride, chartVersion, scope)
+
+	configMapJson, err := impl.getConfigMapAndSecretJsonV2(request, envOverride)
+
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in fetching config map n secret ", "err", err)
@@ -2742,6 +2731,7 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 		return valuesOverrideResponse, err
 	}
 	mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
+	valuesOverrideResponse.MergedValues = string(mergedValues)
 
 	appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 	mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
@@ -2749,7 +2739,6 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 	_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
 	mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, mergedValues)
-	valuesOverrideResponse.MergedValues = string(mergedValues)
 	span.End()
 	if err != nil {
 		return valuesOverrideResponse, err
@@ -2760,6 +2749,35 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 		return valuesOverrideResponse, err
 	}
 	return valuesOverrideResponse, err
+}
+func createConfigMapAndSecretJsonRequest(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, chartVersion string, scope resourceQualifiers.Scope) ConfigMapAndSecretJsonV2 {
+	request := ConfigMapAndSecretJsonV2{
+		AppId:                                 overrideRequest.AppId,
+		EnvId:                                 envOverride.TargetEnvironment,
+		PipeLineId:                            overrideRequest.PipelineId,
+		ChartVersion:                          chartVersion,
+		DeploymentWithConfig:                  overrideRequest.DeploymentWithConfig,
+		wfrIdForDeploymentWithSpecificTrigger: overrideRequest.WfrIdForDeploymentWithSpecificTrigger,
+		scope:                                 scope,
+	}
+	return request
+}
+
+func getScopeForVariables(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride) resourceQualifiers.Scope {
+	scope := resourceQualifiers.Scope{
+		AppId:     overrideRequest.AppId,
+		EnvId:     envOverride.TargetEnvironment,
+		ClusterId: envOverride.Environment.Id,
+		SystemMetadata: &resourceQualifiers.SystemMetadata{
+			EnvironmentName: envOverride.Environment.Name,
+			ClusterName:     envOverride.Environment.Cluster.ClusterName,
+			Namespace:       envOverride.Environment.Namespace,
+			ImageTag:        util3.GetImageTagFromImage(overrideRequest.Image),
+			AppName:         overrideRequest.AppName,
+			Image:           overrideRequest.Image,
+		},
+	}
+	return scope
 }
 
 func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context) error {
@@ -3096,8 +3114,11 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 		//updating historical data in envConfigOverride and appMetrics flag
 		envOverride.IsOverride = true
 		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
-
-		resolvedTemplate, variableMap, err := impl.getResolvedTemplateWithSnapshot(deploymentTemplateHistory.Id, envOverride.EnvOverrideValues)
+		reference := repository5.HistoryReference{
+			HistoryReferenceId:   deploymentTemplateHistory.Id,
+			HistoryReferenceType: repository5.HistoryReferenceTypeDeploymentTemplate,
+		}
+		variableMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(envOverride.EnvOverrideValues, reference, true, false)
 		envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 		envOverride.VariableSnapshot = variableMap
 		if err != nil {
@@ -3179,28 +3200,11 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 			return nil, err
 		}
 		envOverride.Environment = env
-
-		//VARIABLE different cases for variable resolution
-		scope := resourceQualifiers.Scope{
-			AppId:     overrideRequest.AppId,
-			EnvId:     overrideRequest.EnvId,
-			ClusterId: overrideRequest.ClusterId,
-			SystemMetadata: &resourceQualifiers.SystemMetadata{
-				EnvironmentName: env.Name,
-				ClusterName:     env.Cluster.ClusterName,
-				Namespace:       env.Namespace,
-				AppName:         overrideRequest.AppName,
-				Image:           overrideRequest.Image,
-				ImageTag:        util3.GetImageTagFromImage(overrideRequest.Image),
-			},
-		}
-
+		scope := getScopeForVariables(overrideRequest, envOverride)
 		if envOverride.IsOverride {
 
-			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, envOverride.EnvOverrideValues, repository5.Entity{
-				EntityType: repository5.EntityTypeDeploymentTemplateEnvLevel,
-				EntityId:   envOverride.Id,
-			})
+			entity := repository5.GetEntity(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel)
+			resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(envOverride.EnvOverrideValues, scope, entity, true)
 			envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 			envOverride.VariableSnapshot = variableMap
 			if err != nil {
@@ -3208,10 +3212,8 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 			}
 
 		} else {
-			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, chart.GlobalOverride, repository5.Entity{
-				EntityType: repository5.EntityTypeDeploymentTemplateAppLevel,
-				EntityId:   chart.Id,
-			})
+			entity := repository5.GetEntity(chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel)
+			resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(chart.GlobalOverride, scope, entity, true)
 			envOverride.Chart.ResolvedGlobalOverride = resolvedTemplate
 			envOverride.VariableSnapshot = variableMap
 			if err != nil {
@@ -3325,21 +3327,28 @@ func (impl *WorkflowDagExecutorImpl) getDbMigrationOverride(overrideRequest *bea
 	return confByte, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pipelineId int, chartVersion string, deploymentWithConfig bean.DeploymentConfigurationType, wfrIdForDeploymentWithSpecificTrigger int) ([]byte, error) {
+type ConfigMapAndSecretJsonV2 struct {
+	AppId                                 int
+	EnvId                                 int
+	PipeLineId                            int
+	ChartVersion                          string
+	DeploymentWithConfig                  bean.DeploymentConfigurationType
+	wfrIdForDeploymentWithSpecificTrigger int
+	scope                                 resourceQualifiers.Scope
+}
 
-	var configMapJson string
-	var secretDataJson string
-	var configMapJsonApp string
-	var secretDataJsonApp string
-	var configMapJsonEnv string
-	var secretDataJsonEnv string
+func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride) ([]byte, error) {
+
+	var configMapJson, secretDataJson, configMapJsonApp, secretDataJsonApp, configMapJsonEnv, secretDataJsonEnv string
+
 	var err error
-	//var configMapJsonPipeline string
-	//var secretDataJsonPipeline string
+	var configMapA *chartConfig.ConfigMapAppModel
+	var configMapE *chartConfig.ConfigMapEnvModel
+	var configMapHistory, secretHistory *repository3.ConfigmapAndSecretHistory
 
 	merged := []byte("{}")
-	if deploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
+	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+		configMapA, err = impl.configMapRepository.GetByAppIdAppLevel(request.AppId)
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
 		}
@@ -3347,7 +3356,8 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envI
 			configMapJsonApp = configMapA.ConfigMapData
 			secretDataJsonApp = configMapA.SecretData
 		}
-		configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
+
+		configMapE, err = impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(request.AppId, request.EnvId)
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
 		}
@@ -3355,17 +3365,20 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envI
 			configMapJsonEnv = configMapE.ConfigMapData
 			secretDataJsonEnv = configMapE.SecretData
 		}
-	} else if deploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+
+	} else if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+
 		//fetching history and setting envLevelConfig and not appLevelConfig because history already contains merged appLevel and envLevel configs
-		configMapHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
+		configMapHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.wfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
 		if err != nil {
-			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", pipelineId, "wfrid", wfrIdForDeploymentWithSpecificTrigger)
+			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrid", request.wfrIdForDeploymentWithSpecificTrigger)
 			return []byte("{}"), err
 		}
 		configMapJsonEnv = configMapHistory.Data
-		secretHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
+
+		secretHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.wfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
 		if err != nil {
-			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", pipelineId, "wfrid", wfrIdForDeploymentWithSpecificTrigger)
+			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrid", request.wfrIdForDeploymentWithSpecificTrigger)
 			return []byte("{}"), err
 		}
 		secretDataJsonEnv = secretHistory.Data
@@ -3374,7 +3387,7 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envI
 	if err != nil {
 		return []byte("{}"), err
 	}
-	chartMajorVersion, chartMinorVersion, err := util4.ExtractChartVersion(chartVersion)
+	chartMajorVersion, chartMinorVersion, err := util4.ExtractChartVersion(request.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return []byte("{}"), err
@@ -3409,13 +3422,139 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envI
 	secretDataByte, err := json.Marshal(secretResponseR)
 	if err != nil {
 		return []byte("{}"), err
+
+	}
+	var resolvedCM, resolvedCS string
+	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+		resolvedCM, resolvedCS, err = impl.ResolvedVariableForLastSaved(request, envOverride, configMapA, configMapE, configMapByte, secretDataByte)
+		if err != nil {
+			return []byte("{}"), err
+		}
+	}
+	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+		resolvedCM, resolvedCS, err = impl.ResolvedVariableForSpecificType(configMapHistory, envOverride, secretHistory, configMapByte, secretDataByte)
+		if err != nil {
+			return []byte("{}"), err
+		}
+
 	}
 
-	merged, err = impl.mergeUtil.JsonPatch(configMapByte, secretDataByte)
+	merged, err = impl.mergeUtil.JsonPatch([]byte(resolvedCM), []byte(resolvedCS))
+
 	if err != nil {
 		return []byte("{}"), err
 	}
+
 	return merged, nil
+}
+
+//TODO move to cmcs Manager layer
+
+func (impl *WorkflowDagExecutorImpl) ResolvedVariableForLastSaved(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel, configMapByte []byte, secretDataByte []byte) (string, string, error) {
+	var resolvedCS, resolvedCM string
+	varNamesCM, varNamesCS, scopedVariables, err := impl.GetCMCSScopedVars(request.scope, configMapA, configMapE)
+	if err != nil {
+		return string(configMapByte), string(secretDataByte), err
+	}
+
+	if configMapByte != nil && len(varNamesCM) > 0 {
+		parserRequest := parsers.CreateParserRequest(string(configMapByte), parsers.JsonVariableTemplate, scopedVariables, false)
+		resolvedCM, err = impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
+		if err != nil {
+			return resolvedCM, string(secretDataByte), err
+		}
+		envOverride.VariableSnapshotForCM = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
+	}
+
+	if secretDataByte != nil && len(varNamesCS) > 0 {
+		ab := bean.ConfigSecretRootJson{}
+		data, err := ab.GetTransformedDataForSecret(string(secretDataByte), util4.DecodeSecret)
+		if err != nil {
+			return resolvedCM, string(secretDataByte), err
+		}
+		parserRequest := parsers.CreateParserRequest(data, parsers.JsonVariableTemplate, scopedVariables, false)
+		resolvedCSDecoded, err := impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
+		envOverride.VariableSnapshotForCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
+		resolvedCS, err = ab.GetTransformedDataForSecret(resolvedCSDecoded, util4.EncodeSecret)
+		if err != nil {
+			return resolvedCM, resolvedCM, err
+		}
+	}
+	resolvedCMs, resolvedCSs, ok := resolvedCMCS(resolvedCM, resolvedCS, secretDataByte, configMapByte)
+	if ok {
+		return resolvedCMs, resolvedCSs, nil
+	}
+
+	return resolvedCM, resolvedCS, nil
+}
+
+func resolvedCMCS(resolvedCM string, resolvedCS string, secretDataByte []byte, configMapByte []byte) (string, string, bool) {
+	if resolvedCM != "" && resolvedCS == "" {
+		return resolvedCM, string(secretDataByte), true
+	} else if resolvedCM == "" && resolvedCS != "" {
+		return string(configMapByte), resolvedCS, true
+	} else if resolvedCM == "" && resolvedCS == "" {
+		return string(configMapByte), string(secretDataByte), true
+	}
+	return "", "", false
+}
+func (impl *WorkflowDagExecutorImpl) GetCMCSScopedVars(scope resourceQualifiers.Scope, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel) ([]string, []string, []*models2.ScopedVariableData, error) {
+	varNamesCM := make([]string, 0)
+	varNamesCS := make([]string, 0)
+	entitiesForCM := util4.GetBeans(
+		repository5.GetEntity(configMapA.Id, repository5.EntityTypeConfigMapAppLevel),
+		repository5.GetEntity(configMapE.Id, repository5.EntityTypeConfigMapEnvLevel),
+	)
+	entitiesForCS := util4.GetBeans(
+		repository5.GetEntity(configMapA.Id, repository5.EntityTypeSecretAppLevel),
+		repository5.GetEntity(configMapE.Id, repository5.EntityTypeSecretEnvLevel),
+	)
+
+	entityToVariables, err := impl.scopedVariableManager.GetEntityToVariableMapping(append(entitiesForCS, entitiesForCM...))
+	if err != nil {
+		return varNamesCM, varNamesCS, nil, err
+	}
+
+	varNamesCM = repository5.CollectVariables(entityToVariables, entitiesForCM)
+	varNamesCS = repository5.CollectVariables(entityToVariables, entitiesForCS)
+	usedVariablesInCMCS := utils.FilterDuplicatesInStringArray(append(varNamesCM, varNamesCS...))
+	scopedVariables := make([]*models2.ScopedVariableData, 0)
+	if len(entityToVariables) > 0 {
+		scopedVariables, err = impl.scopedVariableManager.GetScopedVariables(scope, usedVariablesInCMCS, true)
+	}
+	return varNamesCM, varNamesCS, scopedVariables, nil
+}
+
+//todo Aditya Have to refactor this , make one private function , and send cm/cs as parameter
+
+func (impl *WorkflowDagExecutorImpl) ResolvedVariableForSpecificType(configMapHistory *repository3.ConfigmapAndSecretHistory, envOverride *chartConfig.EnvConfigOverride, secretHistory *repository3.ConfigmapAndSecretHistory, configMapByte []byte, secretDataByte []byte) (string, string, error) {
+	reference := repository5.HistoryReference{
+		HistoryReferenceId:   configMapHistory.Id,
+		HistoryReferenceType: repository5.HistoryReferenceTypeConfigMap,
+	}
+	//todo Aditya have to implement batch
+	variableMapCM, resolvedTemplateCM, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configMapByte), reference, true, false)
+	if err != nil {
+		return "", "", err
+	}
+	envOverride.VariableSnapshotForCM = variableMapCM
+
+	reference = repository5.HistoryReference{
+		HistoryReferenceId:   secretHistory.Id,
+		HistoryReferenceType: repository5.HistoryReferenceTypeSecret,
+	}
+	ab := bean.ConfigSecretRootJson{}
+	data, err := ab.GetTransformedDataForSecret(string(secretDataByte), util4.DecodeSecret)
+	if err != nil {
+		return "", "", err
+	}
+	variableMapCS, resolvedTemplateCS, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, true, false)
+	envOverride.VariableSnapshotForCS = variableMapCS
+	encodedSecretData, err := ab.GetTransformedDataForSecret(resolvedTemplateCS, util4.EncodeSecret)
+	if err != nil {
+		return "", "", err
+	}
+	return resolvedTemplateCM, encodedSecretData, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) savePipelineOverride(overrideRequest *bean.ValuesOverrideRequest, envOverrideId int, triggeredAt time.Time) (override *chartConfig.PipelineOverride, err error) {
@@ -3873,79 +4012,6 @@ func (impl *WorkflowDagExecutorImpl) helmInstallReleaseWithCustomChart(ctx conte
 
 	// Request exec
 	return impl.helmAppClient.InstallReleaseWithCustomChart(ctx, &helmInstallRequest)
-}
-
-func (impl *WorkflowDagExecutorImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHistoryId int, template string) (string, map[string]string, error) {
-
-	variableSnapshotMap := make(map[string]string)
-	reference := repository5.HistoryReference{
-		HistoryReferenceId:   deploymentTemplateHistoryId,
-		HistoryReferenceType: repository5.HistoryReferenceTypeDeploymentTemplate,
-	}
-	variableSnapshot, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository5.HistoryReference{reference})
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-
-	if _, ok := variableSnapshot[reference]; !ok {
-		return template, variableSnapshotMap, nil
-	}
-
-	err = json.Unmarshal(variableSnapshot[reference].VariableSnapshot, &variableSnapshotMap)
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-
-	if len(variableSnapshotMap) == 0 {
-		return template, variableSnapshotMap, nil
-	}
-	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, make(map[string]bool), true)
-	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
-	err = parserResponse.Error
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableSnapshotMap, nil
-}
-
-func (impl *WorkflowDagExecutorImpl) extractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, entity repository5.Entity) (string, map[string]string, error) {
-
-	variableMap := make(map[string]string)
-	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository5.Entity{entity})
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
-		return template, variableMap, nil
-	}
-
-	// pre-populating variable map with variable so that the variables which don't have any resolved data
-	// is saved in snapshot
-	for _, variable := range entityToVariables[entity] {
-		variableMap[variable] = impl.scopedVariableService.GetFormattedVariableForName(variable)
-	}
-
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
-	}
-
-	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err = parserResponse.Error
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableMap, nil
 }
 
 type EnvironmentOverride struct {

@@ -11,9 +11,10 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/models"
+	models2 "github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
@@ -35,9 +36,7 @@ type DeploymentConfigServiceImpl struct {
 	configMapRepository          chartConfig.ConfigMapRepository
 	configMapHistoryService      history.ConfigMapHistoryService
 	chartRefRepository           chartRepoRepository.ChartRefRepository
-	variableEntityMappingService variables.VariableEntityMappingService
-	scopedVariableService        variables.ScopedVariableService
-	variableTemplateParser       parsers.VariableTemplateParser
+	scopedVariableManager        variables.ScopedVariableManager
 }
 
 func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -50,9 +49,7 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	configMapRepository chartConfig.ConfigMapRepository,
 	configMapHistoryService history.ConfigMapHistoryService,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	scopedVariableService variables.ScopedVariableService,
-	variableTemplateParser parsers.VariableTemplateParser,
+	scopedVariableManager variables.ScopedVariableManager,
 ) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
 		logger:                       logger,
@@ -65,9 +62,7 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		configMapRepository:          configMapRepository,
 		configMapHistoryService:      configMapHistoryService,
 		chartRefRepository:           chartRefRepository,
-		variableEntityMappingService: variableEntityMappingService,
-		scopedVariableService:        scopedVariableService,
-		variableTemplateParser:       variableTemplateParser,
+		scopedVariableManager:        scopedVariableManager,
 	}
 }
 
@@ -101,40 +96,6 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	configResp.ConfigMapConfig = configMapConfig
 	configResp.SecretConfig = secretConfig
 	return configResp, nil
-}
-
-func (impl *DeploymentConfigServiceImpl) extractVariablesAndGetScopedVariables(template string, scope resourceQualifiers.Scope, entity repository6.Entity, isSuperAdmin bool) (string, map[string]string, error) {
-
-	variableMap := make(map[string]string)
-	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository6.Entity{entity})
-	if err != nil {
-		return template, variableMap, err
-	}
-	scopedVariables := make([]*models.ScopedVariableData, 0)
-	if _, ok := entityToVariables[entity]; ok && len(entityToVariables[entity]) > 0 {
-		scopedVariables, err = impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], isSuperAdmin)
-		if err != nil {
-			return template, variableMap, err
-		}
-	}
-
-	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
-	}
-
-	if len(variableMap) == 0 {
-		return template, variableMap, nil
-	}
-
-	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err = parserResponse.Error
-	if err != nil {
-		return template, variableMap, err
-	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
-
-	return resolvedTemplate, variableMap, nil
 }
 
 func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
@@ -179,7 +140,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 			if err != nil {
 				return nil, err
 			}
-			resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(envOverride.EnvOverrideValues, scope, entity, isSuperAdmin)
+			resolvedTemplate, scopedVariablesMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(envOverride.EnvOverrideValues, scope, entity, isSuperAdmin)
 			if err != nil {
 				impl.logger.Errorw("could not resolve template", "err", err, "envOverrideId", envOverride.Id, "scope", scope, "pipelineId", pipeline.Id)
 			}
@@ -189,11 +150,11 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 				TemplateVersion:     chartRef.Version,
 				IsAppMetricsEnabled: &isAppMetricsEnabled,
 				CodeEditorValue: &history.HistoryDetailConfig{
-					DisplayName: "values.yaml",
-					Value:       envOverride.EnvOverrideValues,
+					DisplayName:      "values.yaml",
+					Value:            envOverride.EnvOverrideValues,
+					VariableSnapshot: scopedVariablesMap,
+					ResolvedValue:    resolvedTemplate,
 				},
-				VariableSnapshot:     scopedVariablesMap,
-				ResolvedTemplateData: resolvedTemplate,
 			}
 		}
 	} else {
@@ -221,7 +182,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 		if err != nil {
 			return nil, err
 		}
-		resolvedTemplate, scopedVariablesMap, err := impl.extractVariablesAndGetScopedVariables(chart.GlobalOverride, scope, entity, isSuperAdmin)
+		resolvedTemplate, scopedVariablesMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(chart.GlobalOverride, scope, entity, isSuperAdmin)
 		if err != nil {
 			impl.logger.Errorw("could not resolve template", "err", err, "chartId", chart.Id, "scope", scope, "pipelineId", pipeline.Id)
 		}
@@ -230,11 +191,11 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 			TemplateVersion:     chartRef.Version,
 			IsAppMetricsEnabled: &isAppMetricsEnabled,
 			CodeEditorValue: &history.HistoryDetailConfig{
-				DisplayName: "values.yaml",
-				Value:       chart.GlobalOverride,
+				DisplayName:      "values.yaml",
+				Value:            chart.GlobalOverride,
+				VariableSnapshot: scopedVariablesMap,
+				ResolvedValue:    resolvedTemplate,
 			},
-			VariableSnapshot:     scopedVariablesMap,
-			ResolvedTemplateData: resolvedTemplate,
 		}
 	}
 	return deploymentTemplateConfig, nil
@@ -287,9 +248,24 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
 	}
+
 	mergedSecret, err := impl.GetMergedCMCSConfigMap(secretAppLevel, secretEnvLevel, repository2.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
+		return nil, nil, err
+	}
+
+	scope := resourceQualifiers.Scope{
+		AppId:     pipeline.AppId,
+		EnvId:     pipeline.EnvironmentId,
+		ClusterId: pipeline.Environment.ClusterId,
+	}
+	resolvedCM, resolvedCS, variableMapCM, variableMapCS, err := impl.resolveCMCS(scope, configAppLevel, configEnvLevel, mergedConfigMap, mergedSecret)
+	if err != nil {
+		return nil, nil, err
+	}
+	resolvedSecretList, resolvedConfigList, err := getResolvedCMCSList(resolvedCS, resolvedCM)
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -300,6 +276,8 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			impl.logger.Errorw("error in converting cmConfig to componentLevelData", "err", err)
 			return nil, nil, err
 		}
+		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCM
+		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedConfigList[data.Name].Data)
 		cmConfigsDto = append(cmConfigsDto, convertedData)
 	}
 
@@ -310,9 +288,77 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			impl.logger.Errorw("error in converting secretConfig to componentLevelData", "err", err)
 			return nil, nil, err
 		}
+		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCS
+		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedSecretList[data.Name].Data)
 		secretConfigsDto = append(secretConfigsDto, convertedData)
 	}
 	return cmConfigsDto, secretConfigsDto, nil
+}
+
+func getResolvedCMCSList(resolvedCS string, resolvedCM string) (map[string]*history.ConfigData, map[string]*history.ConfigData, error) {
+	resolvedSecretList := map[string]*history.ConfigData{}
+	err := json.Unmarshal([]byte(resolvedCS), &resolvedSecretList)
+	if err != nil {
+		return nil, nil, err
+	}
+	resolvedConfigList := map[string]*history.ConfigData{}
+	err = json.Unmarshal([]byte(resolvedCM), &resolvedConfigList)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resolvedSecretList, resolvedConfigList, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) resolveCMCS(
+	scope resourceQualifiers.Scope, configAppLevel *chartConfig.ConfigMapAppModel,
+	configEnvLevel *chartConfig.ConfigMapEnvModel,
+	mergedConfigMap map[string]*history.ConfigData,
+	mergedSecret map[string]*history.ConfigData) (string, string, map[string]string, map[string]string, error) {
+
+	varNamesCM, varNamesCS, scopedVariables, err := impl.getScopedAndCollectVarNames(scope, configAppLevel, configEnvLevel)
+	if err != nil {
+		return "", "", nil, nil, err
+	}
+	var resolvedTemplateCM, encodedSecretData string
+	var variableMapCM, variableMapCS map[string]string
+
+	mergedConfigMapJson, err := json.Marshal(mergedConfigMap)
+	if err != nil {
+		return "", "", nil, nil, err
+	}
+	if configAppLevel.ConfigMapData != "" || configEnvLevel.ConfigMapData != "" {
+		parserRequest := parsers.CreateParserRequest(string(mergedConfigMapJson), parsers.JsonVariableTemplate, scopedVariables, true)
+		resolvedTemplateCM, err = impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
+		if err != nil {
+			return "", "", nil, nil, err
+		}
+		variableMapCM = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
+	}
+	if configAppLevel.SecretData != "" || configEnvLevel.SecretData != "" {
+
+		configData := history.ConfigData{}
+		mergedSecretJson, err := json.Marshal(mergedSecret)
+		if err != nil {
+			return "", "", nil, nil, err
+		}
+
+		decodedSecrets, err := configData.GetTransformedDataForSecret(string(mergedSecretJson), util.DecodeSecret)
+		if err != nil {
+			return "", "", nil, nil, err
+		}
+
+		parserRequest := parsers.CreateParserRequest(decodedSecrets, parsers.JsonVariableTemplate, scopedVariables, true)
+		resolvedTemplateCS, err := impl.scopedVariableManager.ParseTemplateWithScopedVariables(parserRequest)
+		if err != nil {
+			return "", "", nil, nil, err
+		}
+		variableMapCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
+		encodedSecretData, err = configData.GetTransformedDataForSecret(resolvedTemplateCS, util.EncodeSecret)
+		if err != nil {
+			return "", "", nil, nil, err
+		}
+	}
+	return resolvedTemplateCM, encodedSecretData, variableMapCM, variableMapCS, nil
 }
 
 func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*history.ConfigData, error) {
@@ -372,4 +418,27 @@ func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, 
 		}
 	}
 	return finalMap, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) getScopedAndCollectVarNames(scope resourceQualifiers.Scope, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel) ([]string, []string, []*models2.ScopedVariableData, error) {
+	varNamesCM := make([]string, 0)
+	varNamesCS := make([]string, 0)
+	entitiesForCM := util.GetBeans(
+		repository6.GetEntity(configMapA.Id, repository6.EntityTypeConfigMapAppLevel),
+		repository6.GetEntity(configMapE.Id, repository6.EntityTypeConfigMapEnvLevel),
+	)
+	entitiesForCS := util.GetBeans(
+		repository6.GetEntity(configMapA.Id, repository6.EntityTypeSecretAppLevel),
+		repository6.GetEntity(configMapE.Id, repository6.EntityTypeSecretEnvLevel),
+	)
+
+	entityToVariables, err := impl.scopedVariableManager.GetEntityToVariableMapping(append(entitiesForCS, entitiesForCM...))
+	if err != nil {
+		return varNamesCM, varNamesCS, nil, err
+	}
+	varNamesCM = repository6.CollectVariables(entityToVariables, entitiesForCM)
+	varNamesCS = repository6.CollectVariables(entityToVariables, entitiesForCS)
+	usedVariablesInCMCS := utils.FilterDuplicatesInStringArray(append(varNamesCM, varNamesCS...))
+	scopedVariables, err := impl.scopedVariableManager.GetScopedVariables(scope, usedVariablesInCMCS, true)
+	return varNamesCM, varNamesCS, scopedVariables, nil
 }
