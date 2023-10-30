@@ -232,6 +232,7 @@ const DefaultCiWorkflowNamespace = "devtron-ci"
 const Running = "Running"
 const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
+const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -679,7 +680,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 	workflow.Status = WorkflowCancel
 	if workflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		workflow.PodStatus = "Failed"
-		workflow.Message = "workflow shutdown with strategy: Terminate"
+		workflow.Message = TERMINATE_MESSAGE
 	}
 	err = impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
 	if err != nil {
@@ -1152,7 +1153,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.Message = message
 		if savedWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
-			savedWorkflow.Message = "workflow shutdown with strategy: Terminate"
+			savedWorkflow.Message = TERMINATE_MESSAGE
 		}
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
