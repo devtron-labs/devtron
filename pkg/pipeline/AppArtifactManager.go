@@ -668,6 +668,12 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 			return ciArtifactsResponse, err
 		}
 
+		userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, pipeline.Id, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", pipeline.Id, "artifactIds", artifactIds, "err", err)
+			return ciArtifactsResponse, err
+		}
+
 		for i, artifact := range ciArtifacts {
 			if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok { // either approved or requested
 				artifact.UserApprovalMetadata = approvalMetadataForArtifact
@@ -687,17 +693,24 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 					releaseTags = append(releaseTags, imageTag.TagName)
 				}
 			}
+
+			if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok {
+				ciArtifacts[i].UserApprovalMetadata = approvalMetadataForArtifact
+			}
+
 			filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags)
 			if err != nil {
 				return ciArtifactsResponse, err
 			}
 			ciArtifacts[i].FilterState = filterState
 		}
+
 		ciArtifactsResponse.CdPipelineId = pipeline.Id
 		ciArtifactsResponse.CiArtifacts = ciArtifacts
 		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
 		ciArtifactsResponse.ResourceFilters = filters
 		ciArtifactsResponse.TotalCount = totalCount
+
 	}
 	return ciArtifactsResponse, nil
 }
