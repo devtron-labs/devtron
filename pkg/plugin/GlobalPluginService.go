@@ -317,5 +317,8 @@ func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName st
 		impl.logger.Errorw("error in fetching plugin metadata by name", "err", err)
 		return 0, err
 	}
+	if pluginMetadata == nil {
+		return 0, nil
+	}
 	return pluginMetadata[0].Id, nil
 }

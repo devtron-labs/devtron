@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
@@ -41,7 +42,7 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error)
-	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error)
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]repository.CiArtifact, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -378,45 +379,46 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	}
 	return wfrList, err
 }
-func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, error) {
-	var wfrList []CdWorkflowRunner
-	var wfIds []int
+func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]repository.CiArtifact, error) {
+
+	var ciArtifacts []repository.CiArtifact
 	//TODO Gireesh: why are we extracting artifacts which belongs to current pipeline as it will impact page size of response ??
-	query := impl.dbConnection.Model(&wfIds).
-		Column("MAX(cd_workflow_runner.id) AS id").
-		Join("INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id").
-		Join("INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id").
-		Where("(cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ?) "+
-			"OR (cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.status IN (?))",
-			listingFilterOptions.PipelineId,
-			listingFilterOptions.StageType,
-			listingFilterOptions.ParentId,
-			listingFilterOptions.ParentStageType,
-			pg.In([]string{application.Healthy, application.SUCCEEDED})).
-		Where("cia.image LIKE ?", listingFilterOptions.SearchString)
+	query := impl.dbConnection.Model(&ciArtifacts).
+		Column("ci_artifact.*").
+		Join("LEFT JOIN cd_workflow ON ci_artifact.id = cd_workflow.ci_artifact_id").
+		Join("INNER JOIN cd_workflow_runner ON cd_workflow_runner.cd_workflow_id=cd_workflow.id").
+		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.WhereGroup(func(sq *orm.Query) (*orm.Query, error) {
+				sq.Where("cd_workflow_runner.id IN (select MAX(cd_workflow_runner.id) OVER (PARTITION BY cd_workflow.ci_artifact_id) FROM cd_workflow_runner inner join cd_workflow on cd_workflow.id=cd_workflow_runner.cd_workflow_id) ")
+				sq.WhereGroup(func(ssq *orm.Query) (*orm.Query, error) {
+					ssq.WhereOr(" cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ? ",
+						listingFilterOptions.PipelineId, listingFilterOptions.StageType).
+						WhereOr("cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.status IN (?)",
+							listingFilterOptions.ParentId,
+							listingFilterOptions.ParentStageType,
+							pg.In([]string{application.Healthy, application.SUCCEEDED}))
+					return ssq, nil
+				})
+				return sq, nil
+			})
+			q = q.WhereOr("ci_artifact.data_source=? AND ci_artifact.component_id=?",
+				listingFilterOptions.ParentStageType,
+				listingFilterOptions.ParentId)
+			return q, nil
+		}).
+		Where("ci_artifact.image LIKE ?", listingFilterOptions.SearchString)
 	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
 		query = query.Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
 	}
 	query = query.
-		Group("cd_workflow.ci_artifact_id").
 		Limit(listingFilterOptions.Limit).
 		Offset(listingFilterOptions.Offset)
 
 	err := query.Select()
-
-	if err == pg.ErrNoRows || len(wfIds) == 0 {
-		return wfrList, nil
-	}
-	err = impl.dbConnection.
-		Model(&wfrList).
-		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
-		Where("cd_workflow_runner IN (?) ", pg.In(wfIds)).
-		Select()
-
 	if err == pg.ErrNoRows {
-		return wfrList, nil
+		return ciArtifacts, nil
 	}
-	return wfrList, err
+	return ciArtifacts, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error) {

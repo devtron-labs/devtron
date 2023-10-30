@@ -774,7 +774,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 
 		//If customTagObejct has been passed, save it
-		if ciPipeline.CustomTagObject != nil {
+		if ciPipeline.CustomTagObject != nil && len(ciPipeline.CustomTagObject.TagPattern) != 0 {
 			customTag := &bean4.CustomTag{
 				EntityKey:            bean2.EntityTypeCiPipelineId,
 				EntityValue:          strconv.Itoa(ciPipeline.Id),

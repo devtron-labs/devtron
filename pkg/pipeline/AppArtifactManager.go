@@ -585,13 +585,13 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 }
 
 func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, error) {
-	cdWfrList, err := impl.cdWorkflowRepository.FindArtifactByListFilter(listingFilterOpts)
+	cdArtifacts, err := impl.cdWorkflowRepository.FindArtifactByListFilter(listingFilterOpts)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd workflow runners using filter", "filterOptions", listingFilterOpts, "err", err)
 		return nil, err
 	}
 	//TODO Gireesh: initialized array with size but are using append, not optimized solution
-	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(cdWfrList))
+	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(cdArtifacts))
 
 	//get artifact running on parent cd
 	artifactRunningOnParentCd := 0
@@ -605,27 +605,27 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 		artifactRunningOnParentCd = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
 	}
 
-	for _, wfr := range cdWfrList {
+	for _, artifact := range cdArtifacts {
 		//TODO Gireesh: Refactoring needed
-		mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
+		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
 		if err != nil {
 			mInfo = []byte("[]")
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err)
 		}
 		ciArtifact := &bean2.CiArtifactBean{
-			Id:           wfr.CdWorkflow.CiArtifact.Id,
-			Image:        wfr.CdWorkflow.CiArtifact.Image,
-			ImageDigest:  wfr.CdWorkflow.CiArtifact.ImageDigest,
+			Id:           artifact.Id,
+			Image:        artifact.Image,
+			ImageDigest:  artifact.ImageDigest,
 			MaterialInfo: mInfo,
 			//TODO:LastSuccessfulTriggerOnParent
-			Scanned:              wfr.CdWorkflow.CiArtifact.Scanned,
-			ScanEnabled:          wfr.CdWorkflow.CiArtifact.ScanEnabled,
-			RunningOnParentCd:    wfr.CdWorkflow.CiArtifact.Id == artifactRunningOnParentCd,
-			ExternalCiPipelineId: wfr.CdWorkflow.CiArtifact.ExternalCiPipelineId,
-			ParentCiArtifact:     wfr.CdWorkflow.CiArtifact.ParentCiArtifact,
+			Scanned:              artifact.Scanned,
+			ScanEnabled:          artifact.ScanEnabled,
+			RunningOnParentCd:    artifact.Id == artifactRunningOnParentCd,
+			ExternalCiPipelineId: artifact.ExternalCiPipelineId,
+			ParentCiArtifact:     artifact.ParentCiArtifact,
 		}
-		if wfr.CdWorkflow.CiArtifact.WorkflowId != nil {
-			ciArtifact.CiWorkflowId = *wfr.CdWorkflow.CiArtifact.WorkflowId
+		if artifact.WorkflowId != nil {
+			ciArtifact.CiWorkflowId = *artifact.WorkflowId
 		}
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}

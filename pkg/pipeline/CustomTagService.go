@@ -38,6 +38,9 @@ func (impl *CustomTagServiceImpl) DeactivateImagePathReservation(id int) error {
 }
 
 func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) error {
+	if len(tag.TagPattern) == 0 && tag.Enabled {
+		return fmt.Errorf("tag pattern cannot be empty")
+	}
 	if tag.Enabled {
 		if err := validateTagPattern(tag.TagPattern); err != nil {
 			return err
