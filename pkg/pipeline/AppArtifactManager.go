@@ -146,6 +146,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStage(pipelineId int, sta
 					Latest:                        latest,
 					Scanned:                       wfr.CdWorkflow.CiArtifact.Scanned,
 					ScanEnabled:                   wfr.CdWorkflow.CiArtifact.ScanEnabled,
+					CiPipelineId:                  wfr.CdWorkflow.CiArtifact.PipelineId,
+					CredentialsSourceType:         wfr.CdWorkflow.CiArtifact.CredentialsSourceType,
+					CredentialsSourceValue:        wfr.CdWorkflow.CiArtifact.CredentialSourceValue,
 				}
 				if !parent {
 					ciArtifact.Deployed = true
@@ -185,12 +188,15 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParent(cdPipelineId int, 
 				impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 			}
 			ciArtifacts = append(ciArtifacts, bean2.CiArtifactBean{
-				Id:           artifact.Id,
-				Image:        artifact.Image,
-				ImageDigest:  artifact.ImageDigest,
-				MaterialInfo: mInfo,
-				ScanEnabled:  artifact.ScanEnabled,
-				Scanned:      artifact.Scanned,
+				Id:                     artifact.Id,
+				Image:                  artifact.Image,
+				ImageDigest:            artifact.ImageDigest,
+				MaterialInfo:           mInfo,
+				ScanEnabled:            artifact.ScanEnabled,
+				Scanned:                artifact.Scanned,
+				CiPipelineId:           artifact.PipelineId,
+				CredentialsSourceType:  artifact.CredentialsSourceType,
+				CredentialsSourceValue: artifact.CredentialSourceValue,
 			})
 		}
 	}
@@ -480,7 +486,27 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 			// if external webhook continue
 			continue
 		}
-
+		var dockerRegistryId string
+		if artifact.PipelineId != 0 {
+			ciPipeline, err := impl.CiPipelineRepository.FindById(artifact.PipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
+				return nil, err
+			}
+			dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
+		} else {
+			if artifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+				dockerRegistryId = artifact.CredentialSourceValue
+			}
+		}
+		if len(dockerRegistryId) > 0 {
+			dockerArtifact, err := impl.dockerArtifactRegistry.FindOne(dockerRegistryId)
+			if err != nil {
+				impl.logger.Errorw("error in getting docker registry details", "err", err, "dockerArtifactStoreId", dockerRegistryId)
+			}
+			ciArtifacts[i].RegistryType = string(dockerArtifact.RegistryType)
+			ciArtifacts[i].RegistryName = dockerRegistryId
+		}
 		var ciWorkflow *pipelineConfig.CiWorkflow
 		if artifact.ParentCiArtifact != 0 {
 			ciWorkflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowGitTriggersByArtifactId(artifact.ParentCiArtifact)
