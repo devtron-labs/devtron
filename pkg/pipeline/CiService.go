@@ -52,7 +52,7 @@ import (
 )
 
 type CiService interface {
-	TriggerCiPipeline(trigger Trigger) (int, error)
+	TriggerCiPipeline(trigger types.Trigger) (int, error)
 	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error)
 }
 
@@ -130,7 +130,7 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 	}
 }
 
-func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
+func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if err != nil {
@@ -280,7 +280,7 @@ func (impl *CiServiceImpl) setBuildxK8sDriverData(workflowRequest *types.Workflo
 	return nil
 }
 
-func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger Trigger) (*repository1.Environment, bool, error) {
+func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger) (*repository1.Environment, bool, error) {
 	app, err := impl.appRepository.FindById(pipeline.AppId)
 	if err != nil {
 		impl.Logger.Errorw("could not find app", "err", err)
@@ -303,7 +303,7 @@ func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipel
 	return nil, isJob, nil
 }
 
-func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *types.WorkflowRequest) {
+func (impl *CiServiceImpl) WriteCITriggerEvent(trigger types.Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *types.WorkflowRequest) {
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
 
@@ -319,7 +319,7 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 }
 
 // TODO: Send all trigger data
-func (impl *CiServiceImpl) BuildPayload(trigger Trigger, pipeline *pipelineConfig.CiPipeline) *client.Payload {
+func (impl *CiServiceImpl) BuildPayload(trigger types.Trigger, pipeline *pipelineConfig.CiPipeline) *client.Payload {
 	payload := &client.Payload{}
 	payload.AppName = pipeline.App.AppName
 	payload.PipelineName = pipeline.Name
@@ -383,7 +383,7 @@ func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipeli
 	return ArtifactLocation
 }
 
-func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger Trigger,
+func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow,
 	ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript,
 	preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject) (*types.WorkflowRequest, error) {
