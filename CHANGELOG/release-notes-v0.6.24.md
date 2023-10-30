@@ -1,3 +1,5 @@
+## v0.6.24
+
 ## Bugs
 - fix: nats clients panic in ea-mode (#4162)
 - fix: query number changed (#4163)
@@ -15,3 +17,5 @@
 ## Others
 - chore: moved methods use by workflowdagexecutor to it (#4147)
 - chore: fix sql 181 script  (#4144)
+
+
