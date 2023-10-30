@@ -30,6 +30,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"sort"
+	"strings"
 )
 
 type AppArtifactManager interface {
@@ -1051,8 +1052,14 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 	//we don't need currently deployed artifact for approvalNode explicitly
 	//if no artifact deployed skip adding currentRunningArtifactBean in ciArtifacts arr
 	if !isApprovalNode && currentRunningArtifactBean != nil {
-		ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+		// listingFilterOpts.SearchString is always like %?%
+		searchString := listingFilterOpts.SearchString[1 : len(listingFilterOpts.SearchString)-1]
+		// just send current deployed in approval configured pipeline or this is eligible in search
+		if listingFilterOpts.ApprovalNodeConfigured || strings.Contains(currentRunningArtifactBean.Image, searchString) {
+			ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+		}
 	}
+
 	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, totalCount, nil
 }
 
