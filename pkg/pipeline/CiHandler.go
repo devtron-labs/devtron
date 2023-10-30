@@ -1664,7 +1664,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 
 			restConfig, err := impl.getRestConfig(ciWorkflow)
 			if err != nil {
-
+				return err
 			}
 			//check weather pod is exists or not, if exits check its status
 			wf, err := impl.workflowService.GetWorkflowStatus(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
