@@ -2729,7 +2729,6 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 		return valuesOverrideResponse, err
 	}
 	mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
-	valuesOverrideResponse.MergedValues = string(mergedValues)
 
 	appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 	mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
@@ -2737,6 +2736,7 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 	_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
 	mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, mergedValues)
+	valuesOverrideResponse.MergedValues = string(mergedValues)
 	span.End()
 	if err != nil {
 		return valuesOverrideResponse, err
@@ -3340,9 +3340,9 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(request ConfigM
 	var configMapJson, secretDataJson, configMapJsonApp, secretDataJsonApp, configMapJsonEnv, secretDataJsonEnv string
 
 	var err error
-	var configMapA *chartConfig.ConfigMapAppModel
-	var configMapE *chartConfig.ConfigMapEnvModel
-	var configMapHistory, secretHistory *repository3.ConfigmapAndSecretHistory
+	configMapA := &chartConfig.ConfigMapAppModel{}
+	configMapE := &chartConfig.ConfigMapEnvModel{}
+	configMapHistory, secretHistory := &repository3.ConfigmapAndSecretHistory{}, &repository3.ConfigmapAndSecretHistory{}
 
 	merged := []byte("{}")
 	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
