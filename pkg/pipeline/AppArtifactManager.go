@@ -26,7 +26,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
-	lo "github.com/samber/lo"
 	"go.uber.org/zap"
 	"sort"
 	"strings"
@@ -573,8 +572,8 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	}
 
 	//TODO Gireesh: need to check this behaviour, can we use this instead of below loop ??
-	artifactIds := lo.FlatMap(ciArtifacts, func(artifact bean2.CiArtifactBean, _ int) []int { return []int{artifact.Id} })
-	//artifactIds := make([]int, 0, len(ciArtifacts))
+	//artifactIds := lo.FlatMap(ciArtifacts, func(artifact bean2.CiArtifactBean, _ int) []int { return []int{artifact.Id} })
+	artifactIds := make([]int, 0, len(ciArtifacts))
 	for _, artifact := range ciArtifacts {
 		artifactIds = append(artifactIds, artifact.Id)
 	}
