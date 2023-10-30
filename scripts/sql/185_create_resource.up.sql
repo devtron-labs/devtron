@@ -4,6 +4,7 @@ CREATE TABLE "public"."devtron_resource"
 (
     "id"             int          NOT NULL DEFAULT nextval('id_seq_devtron_resource'::regclass),
     "kind"           varchar(250) NOT NULL,
+    "display_name"   varchar(250) NOT NULL,
     "icon"           text,
     "parent_kind_id" int,
     "deleted"        boolean,
