@@ -2631,11 +2631,14 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 		artifact.ImageDigest = ciArtifact.ImageDigest
 		artifact.MaterialInfo = json.RawMessage(ciArtifact.MaterialInfo)
 		artifact.DataSource = ciArtifact.DataSource
-		artifact.WfrId = *ciArtifact.WorkflowId
 		artifact.Deployed = ciArtifact.Deployed
 		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean2.LayoutRFC3339)
+		if ciArtifact.WorkflowId != nil {
+			artifact.WfrId = *ciArtifact.WorkflowId
+		}
 		ciArtifacts = append(ciArtifacts, artifact)
 	}
+
 	return ciArtifacts, totalCount, err
 }
 
