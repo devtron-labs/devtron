@@ -152,50 +152,12 @@
     create database git_sensor;
     create database lens;
     create database clairv4
-# argocd-cmd-params-cm
-| Key                                    | Value                           | Description                                     |
-|----------------------------------------|---------------------------------|-------------------------------------------------|
-| controller.log.format                 | text                            | Log format for the controller                  |
-| controller.log.level                  | info                            | Log level for the controller                   |
-| controller.operation.processors        | 10                              | Number of processors for controller operations |
-| controller.repo.server.timeout.seconds | 60                              | Timeout in seconds for the repository server   |
-| controller.self.heal.timeout.seconds   | 5                               | Timeout in seconds for self-healing            |
-| controller.status.processors           | 20                              | Number of processors for status updates       |
-| otlp.address                          | ""                              | Address for OTLP (OpenTelemetry Protocol)      |
-| redis.server                          | argocd-redis:6379                | Address for the Redis server                   |
-| repo.server                           | argocd-repo-server:8081          | Address for the repository server               |
-| reposerver.log.format                 | text                            | Log format for the repository server           |
-| reposerver.log.level                  | info                            | Log level for the repository server            |
-| reposerver.parallelism.limit          | 0                               | Parallelism limit for the repository server    |
-| server.basehref                        | /                               | Base URL for the server                         |
-| server.disable.auth                   | "false"                         | Disable authentication for the server          |
-| server.enable.gzip                    | "false"                         | Enable GZIP compression for the server         |
-| server.insecure                       | "false"                         | Enable insecure mode for the server            |
-| server.log.format                     | text                            | Log format for the server                      |
-| server.log.level                      | info                            | Log level for the server                       |
-| server.rootpath                       | ""                              | Root path for the server                       |
-| server.staticassets                   | /shared/app                     | Directory for static assets                    |
-| server.x.frame.options                | sameorigin                      | X-Frame-Options header value                   |
 
 
 # argocd-rbac-cm
 | Key                   | Value      | Description                 |
 |-----------------------|------------|-----------------------------|
 | policy.default        | role:admin | Default role configuration |
-
-
-# argocd-ssh-known-hosts-cm
-| Key                                      | Value                                                     | Description |
-|------------------------------------------|-----------------------------------------------------------|-------------|
-| bitbucket.org                            | ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw?== | SSH Key for bitbucket.org |
-| github.com                               | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg= | ECDSA SSH Key for github.com |
-| github.com                               | ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl | SSH-Ed25519 Key for github.com |
-| github.com                               | ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84Kezm... | SSH-RSA Key for github.com |
-| gitlab.com                               | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFSMqzJeV9rUzU4kWitGjeR4PWSa29SPqJ1fVkhtj3Hw9xjLVXVYrU9QlYWrOLXBpQ6KWjbjTDTdDkoohFzgbEY= | ECDSA SSH Key for gitlab.com |
-| gitlab.com                               | ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf | SSH-Ed25519 Key for gitlab.com |
-| gitlab.com                               | ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCsj2bNKTBSpIYDEGk9KxsGh3mySTRgMtXL583qmBpzeQ+jqCMRgBqB98u3z++J1sKlXHWfM9dyhSevkMwSbhoR8XIq/U0tCNyokEi/ueaBMCvbcTHhO7FcwzY92WK4Yt0aGROY5qX2UKSeOvuP4D6TPqKF1onrSzH9b... | SSH-RSA Key for gitlab.com |
-| ssh.dev.azure.com                        | ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg3... | SSH-RSA Key for ssh.dev.azure.com |
-| vs-ssh.visualstudio.com                 | ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg3... | SSH-RSA Key for vs-ssh.visualstudio.com |
 
 
 
