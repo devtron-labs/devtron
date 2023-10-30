@@ -370,7 +370,7 @@ type WorkflowRequest struct {
 	Pipeline                 *pipelineConfig.Pipeline
 	Env                      *repository2.Environment
 	AppLabels                map[string]string
-	ciPipelineType           string `json:"CiPipelineType"`
+	CiPipelineType           string `json:"ciPipelineType"`
 }
 
 type CiCdTriggerEvent struct {
