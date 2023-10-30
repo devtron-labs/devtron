@@ -32,7 +32,7 @@ func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8s
 func (impl *BlobStorageConfigServiceImpl) FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error) {
 	cmConfig := &bean2.CmBlobStorageConfig{}
 	secretConfig := &bean2.SecretBlobStorageConfig{}
-	_, _, kubeClient, err := impl.k8sUtil.GetK8sConfigAndClients(&k8s.ClusterConfig{})
+	_, _, kubeClient, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.Logger.Errorw("FetchCmAndSecretBlobConfigFromExternalCluster, error in getting kubeClient by cluster config", "err", err)
 		return cmConfig, secretConfig, err
