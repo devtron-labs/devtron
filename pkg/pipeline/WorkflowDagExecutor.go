@@ -225,22 +225,6 @@ type CdStageCompleteEvent struct {
 	CiArtifactDTO    pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
 }
 
-type GitMetadata struct {
-	GitCommitHash  string `json:"GIT_COMMIT_HASH"`
-	GitSourceType  string `json:"GIT_SOURCE_TYPE"`
-	GitSourceValue string `json:"GIT_SOURCE_VALUE"`
-}
-
-type AppLabelMetadata struct {
-	AppLabelKey   string `json:"APP_LABEL_KEY"`
-	AppLabelValue string `json:"APP_LABEL_VALUE"`
-}
-
-type ChildCdMetadata struct {
-	ChildCdEnvName     string `json:"CHILD_CD_ENV_NAME"`
-	ChildCdClusterName string `json:"CHILD_CD_CLUSTER_NAME"`
-}
-
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
@@ -1146,14 +1130,14 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	var webhookAndCiData *gitSensorClient.WebhookAndCiData
 	if ciWf != nil && ciWf.GitTriggers != nil {
 		i := 1
-		var gitCommitEnvVariables []GitMetadata
+		var gitCommitEnvVariables []types.GitMetadata
 
 		for ciPipelineMaterialId, gitTrigger := range ciWf.GitTriggers {
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
 
-			gitCommitEnvVariables = append(gitCommitEnvVariables, GitMetadata{
+			gitCommitEnvVariables = append(gitCommitEnvVariables, types.GitMetadata{
 				GitCommitHash:  gitTrigger.Commit,
 				GitSourceType:  string(gitTrigger.CiConfigureSourceType),
 				GitSourceValue: gitTrigger.CiConfigureSourceValue,
@@ -1204,12 +1188,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("error in getting pipelines by ids", "err", err, "ids", childCdIds)
 			return nil, err
 		}
-		var childCdEnvVariables []ChildCdMetadata
+		var childCdEnvVariables []types.ChildCdMetadata
 		for i, childPipeline := range childPipelines {
 			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_ENV_NAME_PREFIX, i+1)] = childPipeline.Environment.Name
 			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_CLUSTER_NAME_PREFIX, i+1)] = childPipeline.Environment.Cluster.ClusterName
 
-			childCdEnvVariables = append(childCdEnvVariables, ChildCdMetadata{
+			childCdEnvVariables = append(childCdEnvVariables, types.ChildCdMetadata{
 				ChildCdEnvName:     childPipeline.Environment.Name,
 				ChildCdClusterName: childPipeline.Environment.Cluster.ClusterName,
 			})
@@ -1254,11 +1238,11 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
 			return nil, err
 		}
-		var appLabelEnvVariables []AppLabelMetadata
+		var appLabelEnvVariables []types.AppLabelMetadata
 		for i, appLabel := range appLabels {
 			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_KEY_PREFIX, i+1)] = appLabel.Key
 			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_VALUE_PREFIX, i+1)] = appLabel.Value
-			appLabelEnvVariables = append(appLabelEnvVariables, AppLabelMetadata{
+			appLabelEnvVariables = append(appLabelEnvVariables, types.AppLabelMetadata{
 				AppLabelKey:   appLabel.Key,
 				AppLabelValue: appLabel.Value,
 			})
