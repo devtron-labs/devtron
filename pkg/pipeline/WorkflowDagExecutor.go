@@ -3421,7 +3421,7 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(request ConfigM
 		return []byte("{}"), err
 
 	}
-	resolvedCM, resolvedCS, snapshotCM, snapshotCS, err := impl.resolveCMCSTrigger(request.DeploymentWithConfig, request.Scope, configMapA.Id, configMapE.Id, configMapByte, secretDataByte, configMapHistory.Id, secretHistory.Id)
+	resolvedCM, resolvedCS, snapshotCM, snapshotCS, err := impl.scopedVariableManager.ResolveCMCSTrigger(request.DeploymentWithConfig, request.Scope, configMapA.Id, configMapE.Id, configMapByte, secretDataByte, configMapHistory.Id, secretHistory.Id)
 	if err != nil {
 		return []byte("{}"), err
 	}
@@ -3435,22 +3435,6 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(request ConfigM
 	}
 
 	return merged, nil
-}
-
-func (impl *WorkflowDagExecutorImpl) resolveCMCSTrigger(cType bean.DeploymentConfigurationType, scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int, configMapByte []byte, secretDataByte []byte, configMapHistoryId int, secretHistoryId int) (string, string, map[string]string, map[string]string, error) {
-	var resolvedCM, resolvedCS string
-	var cmSnapshot, csSnapshot map[string]string
-	var err error
-	if cType == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		resolvedCM, resolvedCS, cmSnapshot, csSnapshot, err = impl.scopedVariableManager.ResolvedVariableForLastSaved(scope, configMapAppId, configMapEnvId, configMapByte, secretDataByte)
-	}
-	if cType == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
-		resolvedCM, resolvedCS, cmSnapshot, csSnapshot, err = impl.scopedVariableManager.ResolvedVariableForSpecificType(configMapHistoryId, secretHistoryId, configMapByte, secretDataByte)
-	}
-	if err != nil {
-		return "", "", nil, nil, err
-	}
-	return resolvedCM, resolvedCS, cmSnapshot, csSnapshot, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) savePipelineOverride(overrideRequest *bean.ValuesOverrideRequest, envOverrideId int, triggeredAt time.Time) (override *chartConfig.PipelineOverride, err error) {

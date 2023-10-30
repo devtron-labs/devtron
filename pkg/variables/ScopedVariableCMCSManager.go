@@ -27,14 +27,12 @@ type ScopedVariableCMCSManager interface {
 	CreateVariableMappingsForSecretEnv(model *chartConfig.ConfigMapEnvModel) error
 
 	GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository.ConfigType) (map[string]*bean2.ConfigData, error)
+	ResolveCMCSTrigger(cType bean.DeploymentConfigurationType, scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int, configMapByte []byte, secretDataByte []byte, configMapHistoryId int, secretHistoryId int) (string, string, map[string]string, map[string]string, error)
 	ResolveCMCS(
 		scope resourceQualifiers.Scope, configAppLevelId int,
 		configEnvLevelId int,
 		mergedConfigMap map[string]*bean2.ConfigData,
 		mergedSecret map[string]*bean2.ConfigData) (map[string]*bean2.ConfigData, map[string]*bean2.ConfigData, map[string]string, map[string]string, error)
-
-	ResolvedVariableForLastSaved(scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int, configMapByte []byte, secretDataByte []byte) (string, string, map[string]string, map[string]string, error)
-	ResolvedVariableForSpecificType(configMapHistoryId int, secretHistoryId int, configMapByte []byte, secretDataByte []byte) (string, string, map[string]string, map[string]string, error)
 }
 
 type ScopedVariableCMCSManagerImpl struct {
@@ -333,8 +331,6 @@ func (impl *ScopedVariableCMCSManagerImpl) getScopedAndCollectVarNames(scope res
 	return varNamesCM, varNamesCS, scopedVariables, nil
 }
 
-//TODO move to cmcs Manager layer
-
 func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForLastSaved(scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int, configMapByte []byte, secretDataByte []byte) (string, string, map[string]string, map[string]string, error) {
 	var resolvedCS, resolvedCM string
 	var variableSnapshotForCM, variableSnapshotForCS map[string]string
@@ -350,7 +346,6 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForLastSaved(scope re
 			return resolvedCM, string(secretDataByte), variableSnapshotForCM, variableSnapshotForCS, err
 		}
 		variableSnapshotForCM = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
-		//envOverride.VariableSnapshotForCM = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
 	}
 
 	if secretDataByte != nil && len(varNamesCS) > 0 {
@@ -361,7 +356,6 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForLastSaved(scope re
 		}
 		parserRequest := parsers.CreateParserRequest(data, parsers.JsonVariableTemplate, scopedVariables, false)
 		resolvedCSDecoded, err := impl.ParseTemplateWithScopedVariables(parserRequest)
-		//envOverride.VariableSnapshotForCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
 		variableSnapshotForCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
 		resolvedCS, err = ab.GetTransformedDataForSecretData(resolvedCSDecoded, util.EncodeSecret)
 		if err != nil {
@@ -387,33 +381,6 @@ func resolvedCMCS(resolvedCM string, resolvedCS string, secretDataByte []byte, c
 	return "", "", false
 }
 
-//func (impl *ScopedVariableCMCSManagerImpl) GetCMCSScopedVars(scope resourceQualifiers.Scope, configMapA *chartConfig.ConfigMapAppModel, configMapE *chartConfig.ConfigMapEnvModel) ([]string, []string, []*models2.ScopedVariableData, error) {
-//	varNamesCM := make([]string, 0)
-//	varNamesCS := make([]string, 0)
-//	entitiesForCM := util.GetBeans(
-//		repository1.GetEntity(configMapA.Id, repository1.EntityTypeConfigMapAppLevel),
-//		repository1.GetEntity(configMapE.Id, repository1.EntityTypeConfigMapEnvLevel),
-//	)
-//	entitiesForCS := util.GetBeans(
-//		repository1.GetEntity(configMapA.Id, repository1.EntityTypeSecretAppLevel),
-//		repository1.GetEntity(configMapE.Id, repository1.EntityTypeSecretEnvLevel),
-//	)
-//
-//	entityToVariables, err := impl.GetEntityToVariableMapping(append(entitiesForCS, entitiesForCM...))
-//	if err != nil {
-//		return varNamesCM, varNamesCS, nil, err
-//	}
-//
-//	varNamesCM = repository1.CollectVariables(entityToVariables, entitiesForCM)
-//	varNamesCS = CollectVariables(entityToVariables, entitiesForCS)
-//	usedVariablesInCMCS := utils.FilterDuplicatesInStringArray(append(varNamesCM, varNamesCS...))
-//	scopedVariables := make([]*models2.ScopedVariableData, 0)
-//	if len(entityToVariables) > 0 {
-//		scopedVariables, err = impl.scopedVariableManager.GetScopedVariables(scope, usedVariablesInCMCS, true)
-//	}
-//	return varNamesCM, varNamesCS, scopedVariables, nil
-//}
-
 func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForSpecificType(configMapHistoryId int, secretHistoryId int, configMapByte []byte, secretDataByte []byte) (string, string, map[string]string, map[string]string, error) {
 
 	reference := repository1.HistoryReference{
@@ -425,8 +392,6 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForSpecificType(confi
 	if err != nil {
 		return "", "", nil, nil, err
 	}
-	//envOverride.VariableSnapshotForCM = variableMapCM
-
 	reference = repository1.HistoryReference{
 		HistoryReferenceId:   secretHistoryId,
 		HistoryReferenceType: repository1.HistoryReferenceTypeSecret,
@@ -437,10 +402,25 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForSpecificType(confi
 		return "", "", nil, nil, err
 	}
 	variableMapCS, resolvedTemplateCS, err := impl.GetVariableSnapshotAndResolveTemplate(data, reference, true, false)
-	//envOverride.VariableSnapshotForCS = variableMapCS
 	encodedSecretData, err := ab.GetTransformedDataForSecretData(resolvedTemplateCS, util.EncodeSecret)
 	if err != nil {
 		return "", "", nil, nil, err
 	}
 	return resolvedTemplateCM, encodedSecretData, variableMapCM, variableMapCS, nil
+}
+
+func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCSTrigger(cType bean.DeploymentConfigurationType, scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int, configMapByte []byte, secretDataByte []byte, configMapHistoryId int, secretHistoryId int) (string, string, map[string]string, map[string]string, error) {
+	var resolvedCM, resolvedCS string
+	var cmSnapshot, csSnapshot map[string]string
+	var err error
+	if cType == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+		resolvedCM, resolvedCS, cmSnapshot, csSnapshot, err = impl.ResolvedVariableForLastSaved(scope, configMapAppId, configMapEnvId, configMapByte, secretDataByte)
+	}
+	if cType == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+		resolvedCM, resolvedCS, cmSnapshot, csSnapshot, err = impl.ResolvedVariableForSpecificType(configMapHistoryId, secretHistoryId, configMapByte, secretDataByte)
+	}
+	if err != nil {
+		return "", "", nil, nil, err
+	}
+	return resolvedCM, resolvedCS, cmSnapshot, csSnapshot, nil
 }

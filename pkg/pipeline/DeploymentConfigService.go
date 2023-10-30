@@ -260,7 +260,6 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 	if err != nil {
 		return nil, nil, err
 	}
-	//, , err := variables.GetResolvedCMCSList(resolvedCS, resolvedCM)
 
 	var cmConfigsDto []*history.ComponentLevelHistoryDetailDto
 	for _, data := range mergedConfigMap {
