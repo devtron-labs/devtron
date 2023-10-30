@@ -2,9 +2,11 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -239,13 +241,13 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		configMapEnvLevel = configEnvLevel.ConfigMapData
 		secretEnvLevel = configEnvLevel.SecretData
 	}
-	mergedConfigMap, err := impl.scopedVariableManager.GetMergedCMCSConfigMap(configMapAppLevel, configMapEnvLevel, repository2.CONFIGMAP_TYPE)
+	mergedConfigMap, err := impl.GetMergedCMCSConfigMap(configMapAppLevel, configMapEnvLevel, repository2.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
 	}
 
-	mergedSecret, err := impl.scopedVariableManager.GetMergedCMCSConfigMap(secretAppLevel, secretEnvLevel, repository2.SECRET_TYPE)
+	mergedSecret, err := impl.GetMergedCMCSConfigMap(secretAppLevel, secretEnvLevel, repository2.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
@@ -285,4 +287,63 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		secretConfigsDto = append(secretConfigsDto, convertedData)
 	}
 	return cmConfigsDto, secretConfigsDto, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*bean.ConfigData, error) {
+	envLevelMap := make(map[string]*bean.ConfigData, 0)
+	finalMap := make(map[string]*bean.ConfigData, 0)
+	if configType == repository2.CONFIGMAP_TYPE {
+		appLevelConfigMap := &bean.ConfigList{}
+		envLevelConfigMap := &bean.ConfigList{}
+		if len(appLevelConfig) > 0 {
+			err := json.Unmarshal([]byte(appLevelConfig), appLevelConfigMap)
+			if err != nil {
+				impl.logger.Errorw("error in un-marshaling CM app level config", "err", err)
+				return nil, err
+			}
+		}
+		if len(envLevelConfig) > 0 {
+			err := json.Unmarshal([]byte(envLevelConfig), envLevelConfigMap)
+			if err != nil {
+				impl.logger.Errorw("error in un-marshaling CM env level config", "err", err)
+				return nil, err
+			}
+		}
+		for _, data := range envLevelConfigMap.ConfigData {
+			envLevelMap[data.Name] = data
+			finalMap[data.Name] = data
+		}
+		for _, data := range appLevelConfigMap.ConfigData {
+			if _, ok := envLevelMap[data.Name]; !ok {
+				finalMap[data.Name] = data
+			}
+		}
+	} else if configType == repository2.SECRET_TYPE {
+		appLevelSecret := &bean.SecretList{}
+		envLevelSecret := &bean.SecretList{}
+		if len(appLevelConfig) > 0 {
+			err := json.Unmarshal([]byte(appLevelConfig), appLevelSecret)
+			if err != nil {
+				impl.logger.Errorw("error in un-marshaling CS app level config", "err", err)
+				return nil, err
+			}
+		}
+		if len(envLevelConfig) > 0 {
+			err := json.Unmarshal([]byte(envLevelConfig), envLevelSecret)
+			if err != nil {
+				impl.logger.Errorw("error in un-marshaling CS env level config", "err", err)
+				return nil, err
+			}
+		}
+		for _, data := range envLevelSecret.ConfigData {
+			envLevelMap[data.Name] = data
+			finalMap[data.Name] = data
+		}
+		for _, data := range appLevelSecret.ConfigData {
+			if _, ok := envLevelMap[data.Name]; !ok {
+				finalMap[data.Name] = data
+			}
+		}
+	}
+	return finalMap, nil
 }

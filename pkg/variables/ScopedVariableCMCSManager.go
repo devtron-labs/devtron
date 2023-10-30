@@ -26,7 +26,6 @@ type ScopedVariableCMCSManager interface {
 	CreateVariableMappingsForSecretApp(model *chartConfig.ConfigMapAppModel) error
 	CreateVariableMappingsForSecretEnv(model *chartConfig.ConfigMapEnvModel) error
 
-	GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository.ConfigType) (map[string]*bean2.ConfigData, error)
 	ResolveCMCSTrigger(cType bean.DeploymentConfigurationType, scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int, configMapByte []byte, secretDataByte []byte, configMapHistoryId int, secretHistoryId int) (string, string, map[string]string, map[string]string, error)
 	ResolveCMCS(
 		scope resourceQualifiers.Scope, configAppLevelId int,
@@ -247,65 +246,6 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(
 	resolvedSecretList, resolvedConfigList, err := GetResolvedCMCSList(resolvedTemplateCM, encodedSecretData)
 
 	return resolvedConfigList, resolvedSecretList, variableMapCM, variableMapCS, nil
-}
-
-func (impl *ScopedVariableCMCSManagerImpl) GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository.ConfigType) (map[string]*bean2.ConfigData, error) {
-	envLevelMap := make(map[string]*bean2.ConfigData, 0)
-	finalMap := make(map[string]*bean2.ConfigData, 0)
-	if configType == repository.CONFIGMAP_TYPE {
-		appLevelConfigMap := &bean2.ConfigList{}
-		envLevelConfigMap := &bean2.ConfigList{}
-		if len(appLevelConfig) > 0 {
-			err := json.Unmarshal([]byte(appLevelConfig), appLevelConfigMap)
-			if err != nil {
-				impl.logger.Errorw("error in un-marshaling CM app level config", "err", err)
-				return nil, err
-			}
-		}
-		if len(envLevelConfig) > 0 {
-			err := json.Unmarshal([]byte(envLevelConfig), envLevelConfigMap)
-			if err != nil {
-				impl.logger.Errorw("error in un-marshaling CM env level config", "err", err)
-				return nil, err
-			}
-		}
-		for _, data := range envLevelConfigMap.ConfigData {
-			envLevelMap[data.Name] = data
-			finalMap[data.Name] = data
-		}
-		for _, data := range appLevelConfigMap.ConfigData {
-			if _, ok := envLevelMap[data.Name]; !ok {
-				finalMap[data.Name] = data
-			}
-		}
-	} else if configType == repository.SECRET_TYPE {
-		appLevelSecret := &bean2.SecretList{}
-		envLevelSecret := &bean2.SecretList{}
-		if len(appLevelConfig) > 0 {
-			err := json.Unmarshal([]byte(appLevelConfig), appLevelSecret)
-			if err != nil {
-				impl.logger.Errorw("error in un-marshaling CS app level config", "err", err)
-				return nil, err
-			}
-		}
-		if len(envLevelConfig) > 0 {
-			err := json.Unmarshal([]byte(envLevelConfig), envLevelSecret)
-			if err != nil {
-				impl.logger.Errorw("error in un-marshaling CS env level config", "err", err)
-				return nil, err
-			}
-		}
-		for _, data := range envLevelSecret.ConfigData {
-			envLevelMap[data.Name] = data
-			finalMap[data.Name] = data
-		}
-		for _, data := range appLevelSecret.ConfigData {
-			if _, ok := envLevelMap[data.Name]; !ok {
-				finalMap[data.Name] = data
-			}
-		}
-	}
-	return finalMap, nil
 }
 
 func (impl *ScopedVariableCMCSManagerImpl) getScopedAndCollectVarNames(scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int) ([]string, []string, []*models2.ScopedVariableData, error) {
