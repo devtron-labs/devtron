@@ -18,7 +18,7 @@ import (
 
 type ScopedVariableCMCSManager interface {
 	ScopedVariableManager
-	GetResolvedCMCSHistoryDtos(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, secretList bean2.SecretList) (map[string]bean2.ConfigData, map[string]string, error)
+	GetResolvedCMCSHistoryDtos(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, secretList bean2.SecretList) (map[string]bean2.ConfigData, map[string]map[string]string, error)
 	ResolveCMCSHistoryDto(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, componentName string, secretList bean2.SecretList) (map[string]string, string, error)
 
 	CreateVariableMappingsForCMApp(model *chartConfig.ConfigMapAppModel) error
@@ -31,7 +31,7 @@ type ScopedVariableCMCSManager interface {
 		scope resourceQualifiers.Scope, configAppLevelId int,
 		configEnvLevelId int,
 		mergedConfigMap map[string]*bean2.ConfigData,
-		mergedSecret map[string]*bean2.ConfigData) (map[string]*bean2.ConfigData, map[string]*bean2.ConfigData, map[string]string, map[string]string, error)
+		mergedSecret map[string]*bean2.ConfigData) (map[string]*bean2.ConfigData, map[string]*bean2.ConfigData, map[string]map[string]string, map[string]map[string]string, error)
 
 	ResolveForPrePostStageTrigger(scope resourceQualifiers.Scope, configResponse bean.ConfigMapJson, secretResponse bean.ConfigSecretJson, cmAppId int, cmEnvId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 }
@@ -62,22 +62,59 @@ func NewScopedVariableCMCSManagerImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCSHistoryDto(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, componentName string, secretList bean2.SecretList) (map[string]string, string, error) {
-	var variableSnapshotMap map[string]string
+	var variableSnapshotMapGranular map[string]map[string]string
 	var cMCSData map[string]bean2.ConfigData
 	var err error
 	if configType == repository.CONFIGMAP_TYPE {
-		cMCSData, variableSnapshotMap, err = impl.ResolveCMHistoryDto(ctx, configList, history)
+		cMCSData, variableSnapshotMapGranular, err = impl.ResolveCMHistoryDto(ctx, configList, history)
 	} else if configType == repository.SECRET_TYPE {
-		cMCSData, variableSnapshotMap, err = impl.ResolveSecretHistoryDto(ctx, secretList, history)
+		cMCSData, variableSnapshotMapGranular, err = impl.ResolveSecretHistoryDto(ctx, secretList, history)
 	}
 	if err != nil {
 		return nil, "", err
 	}
 
-	return variableSnapshotMap, string(cMCSData[componentName].Data), nil
+	return variableSnapshotMapGranular[componentName], string(cMCSData[componentName].Data), nil
 }
 
-func (impl *ScopedVariableCMCSManagerImpl) ResolveSecretHistoryDto(ctx context.Context, secretList bean2.SecretList, history *repository.ConfigmapAndSecretHistory) (map[string]bean2.ConfigData, map[string]string, error) {
+func (impl *ScopedVariableCMCSManagerImpl) getGranularSnapshotDataForConfigDataList(configList []*bean2.ConfigData, snapshot map[string]string) (map[string]map[string]string, error) {
+
+	expandedVariableSnapshot := make(map[string]map[string]string)
+	for _, config := range configList {
+		configJson, err := json.Marshal(config)
+		if err != nil {
+			return expandedVariableSnapshot, err
+		}
+		usedVariables, err := impl.variableTemplateParser.ExtractVariables(string(configJson), parsers.JsonVariableTemplate)
+		if err != nil {
+			return expandedVariableSnapshot, err
+		}
+		variableSnapshotForConfig := make(map[string]string)
+		for _, variable := range usedVariables {
+
+			variableSnapshotForConfig[variable] = snapshot[variable]
+		}
+		expandedVariableSnapshot[config.Name] = variableSnapshotForConfig
+	}
+	return expandedVariableSnapshot, nil
+}
+
+func (impl *ScopedVariableCMCSManagerImpl) getGranularSnapshotDataForCS(secretList bean2.SecretList, snapshot map[string]string) (map[string]map[string]string, error) {
+	expandedVariableSnapshot := make(map[string]map[string]string)
+	secretListJson, err := json.Marshal(secretList)
+	if err != nil {
+		return expandedVariableSnapshot, err
+	}
+	data, err := secretList.GetTransformedDataForSecret(string(secretListJson), util.DecodeSecret)
+	decodedSecretList := bean2.SecretList{}
+	err = json.Unmarshal([]byte(data), &decodedSecretList)
+	if err != nil {
+		return expandedVariableSnapshot, err
+	}
+	return impl.getGranularSnapshotDataForConfigDataList(decodedSecretList.ConfigData, snapshot)
+}
+
+func (impl *ScopedVariableCMCSManagerImpl) ResolveSecretHistoryDto(ctx context.Context, secretList bean2.SecretList, history *repository.ConfigmapAndSecretHistory) (map[string]bean2.ConfigData, map[string]map[string]string, error) {
 	cMCSData := make(map[string]bean2.ConfigData, 0)
 	secretListJson, err := json.Marshal(secretList)
 	reference := repository1.HistoryReference{
@@ -107,10 +144,14 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveSecretHistoryDto(ctx context.C
 	for i, _ := range resolvedSecretList.ConfigData {
 		cMCSData[resolvedSecretList.ConfigData[i].Name] = *resolvedSecretList.ConfigData[i]
 	}
-	return cMCSData, variableSnapshotMap, nil
+	variableSnapshotMapGranular, err := impl.getGranularSnapshotDataForCS(secretList, variableSnapshotMap)
+	if err != nil {
+		return cMCSData, nil, err
+	}
+	return cMCSData, variableSnapshotMapGranular, nil
 }
 
-func (impl *ScopedVariableCMCSManagerImpl) ResolveCMHistoryDto(ctx context.Context, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory) (map[string]bean2.ConfigData, map[string]string, error) {
+func (impl *ScopedVariableCMCSManagerImpl) ResolveCMHistoryDto(ctx context.Context, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory) (map[string]bean2.ConfigData, map[string]map[string]string, error) {
 	cMCSData := make(map[string]bean2.ConfigData, 0)
 	configListJson, err := json.Marshal(configList)
 	reference := repository1.HistoryReference{
@@ -134,25 +175,31 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMHistoryDto(ctx context.Conte
 	for i, _ := range resolvedConfigList.ConfigData {
 		cMCSData[resolvedConfigList.ConfigData[i].Name] = *resolvedConfigList.ConfigData[i]
 	}
-	return cMCSData, variableSnapshotMap, nil
+
+	variableSnapshotMapGranular, err := impl.getGranularSnapshotDataForConfigDataList(configList.ConfigData, variableSnapshotMap)
+	if err != nil {
+		return cMCSData, nil, err
+	}
+
+	return cMCSData, variableSnapshotMapGranular, nil
 }
 
-func (impl *ScopedVariableCMCSManagerImpl) GetResolvedCMCSHistoryDtos(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, secretList bean2.SecretList) (map[string]bean2.ConfigData, map[string]string, error) {
+func (impl *ScopedVariableCMCSManagerImpl) GetResolvedCMCSHistoryDtos(ctx context.Context, configType repository.ConfigType, configList bean2.ConfigList, history *repository.ConfigmapAndSecretHistory, secretList bean2.SecretList) (map[string]bean2.ConfigData, map[string]map[string]string, error) {
 	resolvedData := make(map[string]bean2.ConfigData, 0)
-	var variableSnapshotMap map[string]string
+	var variableSnapshotMapGranular map[string]map[string]string
 	var err error
 	if configType == repository.CONFIGMAP_TYPE {
-		resolvedData, variableSnapshotMap, err = impl.ResolveCMHistoryDto(ctx, configList, history)
+		resolvedData, variableSnapshotMapGranular, err = impl.ResolveCMHistoryDto(ctx, configList, history)
 		if err != nil {
 			return nil, nil, err
 		}
 	} else if configType == repository.SECRET_TYPE {
-		resolvedData, variableSnapshotMap, err = impl.ResolveSecretHistoryDto(ctx, secretList, history)
+		resolvedData, variableSnapshotMapGranular, err = impl.ResolveSecretHistoryDto(ctx, secretList, history)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	return resolvedData, variableSnapshotMap, nil
+	return resolvedData, variableSnapshotMapGranular, nil
 }
 
 func (impl *ScopedVariableCMCSManagerImpl) CreateVariableMappingsForCMEnv(model *chartConfig.ConfigMapEnvModel) error {
@@ -202,7 +249,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(
 	scope resourceQualifiers.Scope, configAppLevelId int,
 	configEnvLevelId int,
 	mergedConfigMap map[string]*bean2.ConfigData,
-	mergedSecret map[string]*bean2.ConfigData) (map[string]*bean2.ConfigData, map[string]*bean2.ConfigData, map[string]string, map[string]string, error) {
+	mergedSecret map[string]*bean2.ConfigData) (map[string]*bean2.ConfigData, map[string]*bean2.ConfigData, map[string]map[string]string, map[string]map[string]string, error) {
 
 	varNamesCM, varNamesCS, scopedVariables, err := impl.getScopedAndCollectVarNames(scope, configAppLevelId, configEnvLevelId)
 	if err != nil {
@@ -247,7 +294,17 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(
 
 	resolvedConfigList, resolvedSecretList, err := GetResolvedCMCSList(resolvedTemplateCM, encodedSecretData)
 
-	return resolvedConfigList, resolvedSecretList, variableMapCM, variableMapCS, nil
+	granularSnapshotCM, err := impl.getGranularSnapshotDataForConfigDataList(util.GetMapValuesPtr(mergedConfigMap), variableMapCM)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	secretList := bean2.SecretList{ConfigData: util.GetMapValuesPtr(mergedSecret)}
+	granularSnapshotCS, err := impl.getGranularSnapshotDataForCS(secretList, variableMapCS)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return resolvedConfigList, resolvedSecretList, granularSnapshotCM, granularSnapshotCS, nil
 }
 
 func (impl *ScopedVariableCMCSManagerImpl) getScopedAndCollectVarNames(scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int) ([]string, []string, []*models2.ScopedVariableData, error) {

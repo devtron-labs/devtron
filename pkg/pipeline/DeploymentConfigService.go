@@ -270,7 +270,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			impl.logger.Errorw("error in converting cmConfig to componentLevelData", "err", err)
 			return nil, nil, err
 		}
-		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCM
+		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCM[data.Name]
 		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedConfigList[data.Name].Data)
 		cmConfigsDto = append(cmConfigsDto, convertedData)
 	}
@@ -282,7 +282,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			impl.logger.Errorw("error in converting secretConfig to componentLevelData", "err", err)
 			return nil, nil, err
 		}
-		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCS
+		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCS[data.Name]
 		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedSecretList[data.Name].Data)
 		secretConfigsDto = append(secretConfigsDto, convertedData)
 	}

@@ -547,7 +547,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		if err != nil {
 			impl.logger.Errorw("error in converting data to componentLevelData", "err", err)
 		}
-		componentLevelData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableSnapshotMap
+		componentLevelData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableSnapshotMap[config.Name]
 		componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedDataMap[config.Name].Data)
 		componentLevelHistoryData = append(componentLevelHistoryData, componentLevelData)
 	}

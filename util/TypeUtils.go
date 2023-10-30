@@ -48,3 +48,11 @@ func GetBeansPtr[T any](beans ...*T) []*T {
 func GetBeans[T any](beans ...T) []T {
 	return beans
 }
+
+func GetMapValuesPtr[T any](valueMap map[string]*T) []*T {
+	values := make([]*T, 0)
+	for key := range valueMap {
+		values = append(values, valueMap[key])
+	}
+	return values
+}
