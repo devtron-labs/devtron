@@ -80,7 +80,7 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetByRefAndSubject(referenceTyp
 		Where("reference_type = ?", referenceType).
 		Where("reference_id = ?", referenceId).
 		Where("subject_type = ?", subjectType).
-		Where("subject_id = ?", pg.In(subjectId)).
+		Where("subject_id = ?", subjectId).
 		Select()
 	if err == pg.ErrNoRows {
 		return res, nil
