@@ -1150,12 +1150,12 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		if savedWorkflow.Status != WorkflowCancel {
 			savedWorkflow.Status = status
 		}
+		savedWorkflow.PodStatus = podStatus
+		savedWorkflow.Message = message
 		if savedWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
 			savedWorkflow.Message = "workflow shutdown with strategy: Terminate"
 		}
-		savedWorkflow.PodStatus = podStatus
-		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		//savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs" //TODO need to fetch from workflow object
