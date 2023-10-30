@@ -9,8 +9,7 @@ global:
     runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
-#  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.23" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.24"
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -57,12 +56,12 @@ components:
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
-    image: "quay.io/devtron/dashboard:ba04f4f4-325-18824"
+    image: "quay.io/devtron/dashboard:af3d49fd-325-19002"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:65577374-280-18804"
-    cicdImage: "quay.io/devtron/devtron:50ac85e6-434-18829"
+    image: "quay.io/devtron/hyperion:926a9867-280-19016"
+    cicdImage: "quay.io/devtron/devtron:926a9867-434-19019"
     imagePullPolicy: IfNotPresent
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:ad3af321-138-18662"
@@ -95,19 +94,19 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:25052130-318-18795"
+    image: "quay.io/devtron/kubelink:2dbe99a8-564-19001"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
       NATS_MSG_PROCESSING_BATCH_SIZE: "1"
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      RUN_HELM_INSTALL_IN_ASYNC_MODE: "true"
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
       PG_PORT: "5432"
       PG_USER: postgres
+      RUN_HELM_INSTALL_IN_ASYNC_MODE: "false"
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
