@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"strings"
 	"time"
@@ -614,4 +615,10 @@ type WorkflowResponse struct {
 	CustomTag            *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
 	PipelineType         string                                      `json:"pipelineType"`
 	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
+}
+
+type ConfigMapSecretDto struct {
+	Name     string
+	Data     map[string]string
+	OwnerRef v12.OwnerReference
 }
