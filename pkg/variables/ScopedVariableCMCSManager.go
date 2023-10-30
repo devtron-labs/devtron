@@ -141,12 +141,12 @@ func (impl *ScopedVariableCMCSManagerImpl) GetResolvedCMCSHistoryDtos(ctx contex
 	resolvedData := make(map[string]bean2.ConfigData, 0)
 	var variableSnapshotMap map[string]string
 	var err error
-	if configType == repository.SECRET_TYPE {
+	if configType == repository.CONFIGMAP_TYPE {
 		resolvedData, variableSnapshotMap, err = impl.ResolveCMHistoryDto(ctx, configList, history)
 		if err != nil {
 			return nil, nil, err
 		}
-	} else if configType == repository.CONFIGMAP_TYPE {
+	} else if configType == repository.SECRET_TYPE {
 		resolvedData, variableSnapshotMap, err = impl.ResolveSecretHistoryDto(ctx, secretList, history)
 		if err != nil {
 			return nil, nil, err
@@ -245,7 +245,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(
 		return nil, nil, nil, nil, err
 	}
 
-	resolvedSecretList, resolvedConfigList, err := GetResolvedCMCSList(resolvedTemplateCM, encodedSecretData)
+	resolvedConfigList, resolvedSecretList, err := GetResolvedCMCSList(resolvedTemplateCM, encodedSecretData)
 
 	return resolvedConfigList, resolvedSecretList, variableMapCM, variableMapCS, nil
 }
