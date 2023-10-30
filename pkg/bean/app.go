@@ -741,8 +741,8 @@ type CiArtifactBean struct {
 	RegistryType                  string                    `json:"registryType"`
 	RegistryName                  string                    `json:"registryName"`
 	CiPipelineId                  int                       `json:"-"`
-	CredentialsSourceType         string                    `json:"containerRegistryId"`
-	CredentialsSourceValue        string                    `json:"credentialsSourceValue"`
+	CredentialsSourceType         string                    `json:"-"`
+	CredentialsSourceValue        string                    `json:"-"`
 }
 
 type CiArtifactResponse struct {
