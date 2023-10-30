@@ -156,7 +156,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(
 	}
 
 	dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
-	if len(*dockerRegistryId) == 0 {
+	if dockerRegistryId != nil && len(*dockerRegistryId) == 0 {
 		impl.logger.Warn("returning as dockerRegistryId is found empty")
 		return nil, nil
 	}
