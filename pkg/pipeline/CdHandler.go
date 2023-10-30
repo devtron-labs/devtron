@@ -74,7 +74,7 @@ type CdHandler interface {
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
 	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
-	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (WorkflowResponse, error)
+	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
 	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
 	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
@@ -977,13 +977,13 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	return logReader, cleanUp, err
 }
 
-func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (WorkflowResponse, error) {
+func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error) {
 	workflowR, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(buildId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("err", "err", err)
-		return WorkflowResponse{}, err
+		return types.WorkflowResponse{}, err
 	} else if err == pg.ErrNoRows {
-		return WorkflowResponse{}, nil
+		return types.WorkflowResponse{}, nil
 	}
 
 	var userIds []int32
@@ -993,7 +993,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		approvalReqId := workflowR.DeploymentApprovalRequestId
 		approvalUserData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId})
 		if err != nil {
-			return WorkflowResponse{}, err
+			return types.WorkflowResponse{}, err
 		}
 		approvalRequest.DeploymentApprovalUserData = approvalUserData
 		approvalRequestedUserId = approvalRequest.CreatedBy
@@ -1008,7 +1008,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	userInfos, err := impl.userService.GetByIds(userIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
-		return WorkflowResponse{}, err
+		return types.WorkflowResponse{}, err
 	}
 	for _, userInfo := range userInfos {
 		if userInfo.Id == triggeredBy {
@@ -1026,7 +1026,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 		if err != nil {
 			impl.Logger.Errorw("error fetching artifact data", "err", err)
-			return WorkflowResponse{}, err
+			return types.WorkflowResponse{}, err
 		}
 
 		// handling linked ci pipeline
@@ -1037,12 +1037,12 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching ci wf", "artifactId", workflow.CiArtifactId, "err", err)
-		return WorkflowResponse{}, err
+		return types.WorkflowResponse{}, err
 	}
 	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(ciWf.CiPipelineId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
-		return WorkflowResponse{}, err
+		return types.WorkflowResponse{}, err
 	}
 
 	var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
@@ -1078,7 +1078,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		workflowR.CdWorkflow.Pipeline.Environment.Name,
 		imageTag)
 
-	workflowResponse := WorkflowResponse{
+	workflowResponse := types.WorkflowResponse{
 		Id:                   workflow.Id,
 		Name:                 workflow.Name,
 		Status:               workflow.Status,
