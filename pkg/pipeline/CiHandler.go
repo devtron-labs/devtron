@@ -659,12 +659,10 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		impl.Logger.Warn("cannot cancel build, build not in progress")
 		return 0, errors.New("cannot cancel build, build not in progress")
 	}
-	//var isExt bool
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
 	var env *repository3.Environment
 	var restConfig *rest.Config
 	if isExt {
-		//isExt = true
 		restConfig, err = impl.getRestConfig(workflow)
 		if err != nil {
 			return 0, err
