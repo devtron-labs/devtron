@@ -42,7 +42,7 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error)
-	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]repository.CiArtifact, error)
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]repository.CiArtifact, int, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -71,6 +71,7 @@ type CdWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
+	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, int, error)
 
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 }
@@ -379,7 +380,7 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	}
 	return wfrList, err
 }
-func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]repository.CiArtifact, error) {
+func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]repository.CiArtifact, int, error) {
 
 	var ciArtifacts []repository.CiArtifact
 	//TODO Gireesh: why are we extracting artifacts which belongs to current pipeline as it will impact page size of response ??
@@ -410,15 +411,21 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
 		query = query.Where("cd_workflow.ci_artifact_id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
 	}
+
+	totalCount, err := query.Count()
+	if err == pg.ErrNoRows {
+		return ciArtifacts, totalCount, err
+	}
+
 	query = query.
 		Limit(listingFilterOptions.Limit).
 		Offset(listingFilterOptions.Offset)
 
-	err := query.Select()
+	err = query.Select()
 	if err == pg.ErrNoRows {
-		return ciArtifacts, nil
+		return ciArtifacts, totalCount, nil
 	}
-	return ciArtifacts, err
+	return ciArtifacts, totalCount, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error) {
@@ -611,12 +618,13 @@ func (impl *CdWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error
 
 func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
+	searchStringFinal := "%" + searchString + "%"
 	err := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
-		Where("ci_artifact.image ILIKE %?%", searchString).
+		Where("cd_workflow__ci_artifact.image LIKE ?", searchStringFinal).
 		Order("cd_workflow_runner.id DESC").
 		Limit(limit).Offset(offset).
 		Select()
@@ -625,6 +633,36 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId in
 		return nil, err
 	}
 	return wfrList, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, int, error) {
+	var wfrList []CdWorkflowRunner
+	query := impl.dbConnection.
+		Model(&wfrList).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Where("cd_workflow.pipeline_id = ?", listingFilterOptions.PipelineId).
+		Where("cd_workflow_runner.workflow_type = ?", listingFilterOptions.StageType).
+		Where("cd_workflow__ci_artifact.image LIKE ?", listingFilterOptions.SearchString)
+
+	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
+		query = query.Where("cd_workflow__ci_artifact.id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
+	}
+	totalCount, err := query.Count()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting Wfrs count and ci artifacts by pipelineId", "err", err, "pipelineId", listingFilterOptions.PipelineId)
+		return nil, totalCount, err
+	}
+
+	query = query.Order("cd_workflow_runner.id DESC").
+		Limit(listingFilterOptions.Limit).
+		Offset(listingFilterOptions.Offset)
+
+	err = query.Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting Wfrs and ci artifacts by pipelineId", "err", err, "pipelineId", listingFilterOptions.PipelineId)
+		return nil, totalCount, err
+	}
+	return wfrList, totalCount, nil
 }
 
 func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error) {
