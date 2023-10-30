@@ -430,7 +430,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 
 	var wfrList []CdWorkflowRunner
 	query := impl.dbConnection.Model(&wfrList).
-		Column("MAX(cd_workflow_runner.id) AS id").
+		ColumnExpr("MAX(cd_workflow_runner.id) AS id").
 		Join("INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id").
 		Join("INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id").
 		Where("(cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ?) OR (cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.status IN (?))",
@@ -453,22 +453,24 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 		return wfrList, totalCount, err
 	}
 
-	wfIds := make([]int, len(wfrList))
-	for i, wf := range wfrList {
-		wfIds[i] = wf.Id
-	}
 	query = query.
 		Limit(listingFilterOptions.Limit).
 		Offset(listingFilterOptions.Offset)
 
 	err = query.Select()
-	if err == pg.ErrNoRows || len(wfIds) == 0 {
+	if err == pg.ErrNoRows || len(wfrList) == 0 {
 		return wfrList, totalCount, nil
 	}
+	wfIds := make([]int, len(wfrList))
+	for i, wf := range wfrList {
+		wfIds[i] = wf.Id
+	}
+	wfrList = make([]CdWorkflowRunner, 0)
+
 	err = impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
-		Where("cd_workflow_runner IN (?) ", pg.In(wfIds)).
+		Where("cd_workflow_runner.id IN (?) ", pg.In(wfIds)).
 		Select()
 
 	if err == pg.ErrNoRows {

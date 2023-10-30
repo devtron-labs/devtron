@@ -796,6 +796,9 @@ func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pi
 }
 
 func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBean bean2.CiArtifactBean, pipelineId int, stage bean.WorkflowType) bean2.CiArtifactBean {
+	if true {
+		return ciArtifactBean
+	}
 	referenceType := resourceFilter.Pipeline
 	referenceId := pipelineId
 	if stage != bean.CD_WORKFLOW_TYPE_DEPLOY {
