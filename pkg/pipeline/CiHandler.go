@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -146,38 +147,41 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 }
 
 type WorkflowResponse struct {
-	Id                   int                                         `json:"id"`
-	Name                 string                                      `json:"name"`
-	Status               string                                      `json:"status"`
-	PodStatus            string                                      `json:"podStatus"`
-	Message              string                                      `json:"message"`
-	StartedOn            time.Time                                   `json:"startedOn"`
-	FinishedOn           time.Time                                   `json:"finishedOn"`
-	CiPipelineId         int                                         `json:"ciPipelineId"`
-	Namespace            string                                      `json:"namespace"`
-	LogLocation          string                                      `json:"logLocation"`
-	BlobStorageEnabled   bool                                        `json:"blobStorageEnabled"`
-	GitTriggers          map[int]pipelineConfig.GitCommit            `json:"gitTriggers"`
-	CiMaterials          []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
-	TriggeredBy          int32                                       `json:"triggeredBy"`
-	Artifact             string                                      `json:"artifact"`
-	TriggeredByEmail     string                                      `json:"triggeredByEmail"`
-	Stage                string                                      `json:"stage"`
-	ArtifactId           int                                         `json:"artifactId"`
-	IsArtifactUploaded   bool                                        `json:"isArtifactUploaded"`
-	UserApprovalMetadata *pipelineConfig.UserApprovalMetadata        `json:"userApprovalMetadata"`
-	IsVirtualEnvironment bool                                        `json:"IsVirtualEnvironment"`
-	CdWorkflowId         int                                         `json:"cdWorkflowId"`
-	HelmPackageName      string                                      `json:"helmPackageName"`
-	PodName              string                                      `json:"podName"`
-	EnvironmentId        int                                         `json:"environmentId"`
-	EnvironmentName      string                                      `json:"environmentName"`
-	ImageReleaseTags     []*repository2.ImageTag                     `json:"imageReleaseTags"`
-	ImageComment         *repository2.ImageComment                   `json:"imageComment"`
-	AppWorkflowId        int                                         `json:"appWorkflowId"`
-	CustomTag            *bean2.CustomTagErrorResponse               `json:"customTag,omitempty"`
-	PipelineType         string                                      `json:"pipelineType"`
-	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
+	Id                      int                                         `json:"id"`
+	Name                    string                                      `json:"name"`
+	Status                  string                                      `json:"status"`
+	PodStatus               string                                      `json:"podStatus"`
+	Message                 string                                      `json:"message"`
+	StartedOn               time.Time                                   `json:"startedOn"`
+	FinishedOn              time.Time                                   `json:"finishedOn"`
+	CiPipelineId            int                                         `json:"ciPipelineId"`
+	Namespace               string                                      `json:"namespace"`
+	LogLocation             string                                      `json:"logLocation"`
+	BlobStorageEnabled      bool                                        `json:"blobStorageEnabled"`
+	GitTriggers             map[int]pipelineConfig.GitCommit            `json:"gitTriggers"`
+	CiMaterials             []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
+	TriggeredBy             int32                                       `json:"triggeredBy"`
+	Artifact                string                                      `json:"artifact"`
+	TriggeredByEmail        string                                      `json:"triggeredByEmail"`
+	Stage                   string                                      `json:"stage"`
+	ArtifactId              int                                         `json:"artifactId"`
+	IsArtifactUploaded      bool                                        `json:"isArtifactUploaded"`
+	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata        `json:"userApprovalMetadata"`
+	IsVirtualEnvironment    bool                                        `json:"IsVirtualEnvironment"`
+	CdWorkflowId            int                                         `json:"cdWorkflowId"`
+	HelmPackageName         string                                      `json:"helmPackageName"`
+	PodName                 string                                      `json:"podName"`
+	EnvironmentId           int                                         `json:"environmentId"`
+	EnvironmentName         string                                      `json:"environmentName"`
+	ImageReleaseTags        []*repository2.ImageTag                     `json:"imageReleaseTags"`
+	ImageComment            *repository2.ImageComment                   `json:"imageComment"`
+	AppWorkflowId           int                                         `json:"appWorkflowId"`
+	CustomTag               *bean2.CustomTagErrorResponse               `json:"customTag,omitempty"`
+	PipelineType            string                                      `json:"pipelineType"`
+	ReferenceWorkflowId     int                                         `json:"referenceWorkflowId"`
+	AppliedFilters          []*resourceFilter.FilterMetaDataBean        `json:"appliedFilters"`
+	AppliedFiltersState     resourceFilter.FilterState                  `json:"appliedFiltersState"`
+	AppliedFiltersTimestamp *time.Time                                  `json:"appliedFiltersTimestamp"`
 }
 
 type ArtifactsForCiJob struct {

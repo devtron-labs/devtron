@@ -2086,6 +2086,8 @@ func (handler PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	showAppliedFiltersStr := r.URL.Query().Get("SHOW_APPLIED_FILTERS")
+	showAppliedFilters := showAppliedFiltersStr == "true"
 	handler.Logger.Infow("request payload, FetchCdWorkflowDetails", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "buildId", buildId)
 
 	//RBAC CHECK
@@ -2096,7 +2098,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.Respo
 	}
 	//RBAC CHECK
 
-	resp, err := handler.cdHandler.FetchCdWorkflowDetails(appId, environmentId, pipelineId, buildId)
+	resp, err := handler.cdHandler.FetchCdWorkflowDetails(appId, environmentId, pipelineId, buildId, showAppliedFilters)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchCdWorkflowDetails", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "buildId", buildId)
 		if util.IsErrNoRows(err) {

@@ -74,7 +74,7 @@ type CdHandler interface {
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
 	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
-	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (WorkflowResponse, error)
+	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int, showAppliedFilters bool) (WorkflowResponse, error)
 	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
 	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
@@ -995,7 +995,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	return logReader, cleanUp, err
 }
 
-func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (WorkflowResponse, error) {
+func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int, showAppliedFilters bool) (WorkflowResponse, error) {
 	workflowR, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(buildId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("err", "err", err)
@@ -1095,7 +1095,6 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		appName,
 		workflowR.CdWorkflow.Pipeline.Environment.Name,
 		imageTag)
-
 	workflowResponse := WorkflowResponse{
 		Id:                   workflow.Id,
 		Name:                 workflow.Name,
@@ -1119,6 +1118,18 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		HelmPackageName:      helmPackageName,
 		ArtifactId:           workflow.CiArtifactId,
 		CiPipelineId:         ciWf.CiPipelineId,
+	}
+
+	if showAppliedFilters {
+
+		appliedFilters, appliedFiltersTimeStamp, err := impl.resourceFilterService.GetEvaluatedFilters(resourceFilter.Artifact, workflow.CiArtifactId, workflow.Id, resourceFilter.CdWorkflowRunner)
+		if err != nil {
+			// not returning error by choice
+			impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerId", workflow.Id, "err", err)
+		}
+		workflowResponse.AppliedFiltersState = resourceFilter.ALLOW
+		workflowResponse.AppliedFilters = appliedFilters
+		workflowResponse.AppliedFiltersTimestamp = appliedFiltersTimeStamp
 	}
 	return workflowResponse, nil
 
