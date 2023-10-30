@@ -2624,12 +2624,19 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalRequestArtifacts(pipelineId, l
 	}
 
 	for _, request := range deploymentApprovalRequests {
+
+		mInfo, err := parseMaterialInfo([]byte(request.CiArtifact.MaterialInfo), request.CiArtifact.DataSource)
+		if err != nil {
+			mInfo = []byte("[]")
+			impl.logger.Errorw("Error in parsing artifact material info", "err", err)
+		}
+
 		var artifact bean2.CiArtifactBean
 		ciArtifact := request.CiArtifact
 		artifact.Id = ciArtifact.Id
 		artifact.Image = ciArtifact.Image
 		artifact.ImageDigest = ciArtifact.ImageDigest
-		artifact.MaterialInfo = json.RawMessage(ciArtifact.MaterialInfo)
+		artifact.MaterialInfo = mInfo
 		artifact.DataSource = ciArtifact.DataSource
 		artifact.Deployed = ciArtifact.Deployed
 		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean2.LayoutRFC3339)
