@@ -75,7 +75,7 @@ type ValuesOverrideRequest struct {
 	AppName                               string                      `json:"-"`
 	PipelineName                          string                      `json:"-"`
 	DeploymentAppType                     string                      `json:"-"`
-	ImageTag                              string                      `json:"-"`
+	Image                                 string                      `json:"-"`
 }
 
 func (v *ValuesOverrideRequest) SetDeploymentAppTypeForRequestType(rType string) error {

@@ -13,11 +13,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -25,6 +27,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DeploymentHistoryResp struct {
@@ -61,6 +64,8 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetDefaultDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
+	GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request)
+	GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request)
 	EnvConfigOverrideUpdate(w http.ResponseWriter, r *http.Request)
@@ -873,6 +878,81 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 	common.WriteJsonResp(w, err, env, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := r.Header.Get("token")
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	resp, err := handler.deploymentTemplateService.FetchDeploymentsWithChartRefs(appId, envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchDeploymentsWithChartRefs", "err", err, "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+
+	var request generateManifest.DeploymentTemplateRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, GetDeploymentTemplate by API", "err", err, "GetYaluesAndManifest", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		handler.Logger.Errorw("request err, userId", "err", err, "payload", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
+
+	//RBAC enforcer Ends
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	defer cancel()
+	//TODO fix
+	resp, err := handler.deploymentTemplateService.GetDeploymentTemplate(ctx, request)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
 func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -923,7 +1003,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	}
 
 	if pg.ErrNoRows == err {
-		appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+		appOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 		if err != nil {
 			handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -998,7 +1078,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDefaultDeploymentTemplate(w htt
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "unauthorized user", http.StatusForbidden)
 		return
 	}
-	defaultTemplate, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	defaultTemplate, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("error in getting default deployment template, GetDefaultDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1240,7 +1320,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppOverrideForDefaultTemplate(w 
 	}
 	//RBAC
 
-	appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	appOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateCiTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -2278,7 +2358,7 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 		return
 	}
 
-	newAppOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartUpgradeRequest.ChartRefId)
+	newAppOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartUpgradeRequest.ChartRefId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpgradeForAllApps", "err", err, "payload", chartUpgradeRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

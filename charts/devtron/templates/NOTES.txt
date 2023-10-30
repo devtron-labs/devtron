@@ -55,3 +55,5 @@ Please wait for ~1 minute before running any of the following commands.
    2. "Applied" means installation is successful.
 
 {{- end }}
+
+Facing issues? Reach out to our team on Discord https://discord.devtron.ai for immediate assistance!

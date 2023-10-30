@@ -53,7 +53,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d8d774c3-138-16238"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:ad3af321-138-18662"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -94,6 +94,13 @@ data:
   GIT_SENSOR_PROTOCOL: GRPC
   GIT_SENSOR_URL: git-sensor-service.devtroncd:90
   ENABLE_BUILD_CONTEXT: "true"
+  CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE: "1"
+  SKIP_GITOPS_VALIDATION: "false"
+  SKIP_CREATING_ECR_REPO: "false"
+  SCOPED_VARIABLE_ENABLED: "true"
+  SCOPED_VARIABLE_HANDLE_PRIMITIVES: "true"
+  MAX_CI_WORKFLOW_RETRIES: "0"
+  MAX_CD_WORKFLOW_RUNNER_RETRIES: "0"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -162,7 +169,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:3c1ba1ad-434-16260"
+          image: "quay.io/devtron/devtron:926a9867-434-19019"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000

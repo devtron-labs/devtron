@@ -60,6 +60,7 @@ type CiServiceImpl struct {
 	workflowService                WorkflowService
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
+	ciConfig                       *CiConfig
 	eventClient                    client.EventClient
 	eventFactory                   client.EventFactory
 	mergeUtil                      *util.MergeUtil
@@ -71,6 +72,7 @@ type CiServiceImpl struct {
 	appCrudOperationService        app.AppCrudOperationService
 	envRepository                  repository1.EnvironmentRepository
 	appRepository                  appRepository.AppRepository
+	customTagService               CustomTagService
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 	config                         *CiConfig
 }
@@ -84,6 +86,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	userService user.UserService,
 	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	customTagService CustomTagService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                         Logger,
@@ -102,6 +105,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		envRepository:                  envRepository,
 		appRepository:                  appRepository,
 		variableSnapshotHistoryService: variableSnapshotHistoryService,
+		customTagService:               customTagService,
 	}
 	config, err := GetCiConfig()
 	if err != nil {
@@ -193,7 +197,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 			UserMessage: "No tasks are configured in this job pipeline",
 		}
 	}
-	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob)
+	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
 	if err != nil {
 		impl.Logger.Errorw("could not save new workflow", "err", err)
 		return 0, err
@@ -302,31 +306,7 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
 
-	gitTriggers := make(map[int]pipelineConfig.GitCommit)
-
-	for k, v := range trigger.CommitHashes {
-		gitCommit := pipelineConfig.GitCommit{
-			Commit:  v.Commit,
-			Author:  v.Author,
-			Changes: v.Changes,
-			Message: v.Message,
-			Date:    v.Date,
-		}
-
-		// set webhook data in gitTriggers
-		_webhookData := v.WebhookData
-		if _webhookData != nil {
-			gitCommit.WebhookData = pipelineConfig.WebhookData{
-				Id:              _webhookData.Id,
-				EventActionType: _webhookData.EventActionType,
-				Data:            _webhookData.Data,
-			}
-		}
-
-		gitTriggers[k] = gitCommit
-	}
-
-	material.GitTriggers = gitTriggers
+	material.GitTriggers = trigger.CommitHashes
 
 	event.UserId = int(trigger.TriggeredBy)
 	event.CiWorkflowRunnerId = workflowRequest.WorkflowId
@@ -346,43 +326,20 @@ func (impl *CiServiceImpl) BuildPayload(trigger Trigger, pipeline *pipelineConfi
 }
 
 func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, wfConfig *pipelineConfig.CiWorkflowConfig,
-	commitHashes map[int]bean.GitCommit, userId int32, EnvironmentId int, isJob bool) (wf *pipelineConfig.CiWorkflow, error error) {
-	gitTriggers := make(map[int]pipelineConfig.GitCommit)
-	for k, v := range commitHashes {
-		gitCommit := pipelineConfig.GitCommit{
-			Commit:                 v.Commit,
-			Author:                 v.Author,
-			Date:                   v.Date,
-			Message:                v.Message,
-			Changes:                v.Changes,
-			CiConfigureSourceValue: v.CiConfigureSourceValue,
-			CiConfigureSourceType:  v.CiConfigureSourceType,
-			GitRepoUrl:             v.GitRepoUrl,
-			GitRepoName:            v.GitRepoName,
-		}
-		webhookData := v.WebhookData
-		if webhookData != nil {
-			gitCommit.WebhookData = pipelineConfig.WebhookData{
-				Id:              webhookData.Id,
-				EventActionType: webhookData.EventActionType,
-				Data:            webhookData.Data,
-			}
-		}
-
-		gitTriggers[k] = gitCommit
-	}
+	commitHashes map[int]pipelineConfig.GitCommit, userId int32, EnvironmentId int, isJob bool, refCiWorkflowId int) (wf *pipelineConfig.CiWorkflow, error error) {
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
-		Name:               pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:             pipelineConfig.WorkflowStarting,
-		Message:            "",
-		StartedOn:          time.Now(),
-		CiPipelineId:       pipeline.Id,
-		Namespace:          impl.config.GetDefaultNamespace(),
-		BlobStorageEnabled: impl.config.BlobStorageEnabled,
-		GitTriggers:        gitTriggers,
-		LogLocation:        "",
-		TriggeredBy:        userId,
+		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
+		Status:                pipelineConfig.WorkflowStarting,
+		Message:               "",
+		StartedOn:             time.Now(),
+		CiPipelineId:          pipeline.Id,
+		Namespace:             impl.config.GetDefaultNamespace(),
+		BlobStorageEnabled:    impl.config.BlobStorageEnabled,
+		GitTriggers:           commitHashes,
+		LogLocation:           "",
+		TriggeredBy:           userId,
+		ReferenceCiWorkflowId: refCiWorkflowId,
 	}
 	if isJob {
 		ciWorkflow.Namespace = wfConfig.Namespace
@@ -497,7 +454,32 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		refPluginsData = []*bean2.RefPluginObject{}
 	}
 
-	dockerImageTag := impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
+	var dockerImageTag string
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	if customTag.Id != 0 {
+		imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository)
+		if err != nil {
+			if errors.Is(err, bean2.ErrImagePathInUse) {
+				savedWf.Status = pipelineConfig.WorkflowFailed
+				savedWf.Message = bean2.ImageTagUnavailableMessage
+				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+				if err1 != nil {
+					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+				}
+				return nil, err
+			}
+			return nil, err
+		}
+		savedWf.ImagePathReservationId = imagePathReservation.Id
+		//imagePath = docker.io/avd0/dashboard:fd23414b
+		dockerImageTag = strings.Split(imagePathReservation.ImagePath, ":")[1]
+	} else {
+		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
+	}
+
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
 	}
@@ -766,11 +748,11 @@ func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript)
 	return ciSteps
 }
 
-func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id int, wfId int) string {
+func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.GitCommit, id int, wfId int) string {
 	dockerImageTag := ""
 	for _, v := range commitHashes {
 		_truncatedCommit := ""
-		if v.WebhookData == nil {
+		if v.WebhookData.Id == 0 {
 			if v.Commit == "" {
 				continue
 			}
@@ -825,5 +807,4 @@ func _getTruncatedImageTag(imageTag string) string {
 	} else {
 		return imageTag[:_truncatedLength]
 	}
-
 }

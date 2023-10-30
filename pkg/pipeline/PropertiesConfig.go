@@ -759,7 +759,7 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 }
 
 func (impl PropertiesConfigServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32, tx *pg.Tx) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template)
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
 	if err != nil {
 		return err
 	}

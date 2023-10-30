@@ -47,11 +47,10 @@ message CiPipelineMaterial {
   bool active = 5;
   string lastSeenHash = 6;
   string commitAuthor = 7;
-  string commitMessage = 8;
-  google.protobuf.Timestamp commitDate = 9;
-  string commitHistory = 10;
-  bool errored = 11;
-  string errorMsg = 12;
+  google.protobuf.Timestamp commitDate = 8;
+  string commitHistory = 9;
+  bool errored = 10;
+  string errorMsg = 11;
 }
 
 message FetchScmChangesRequest {
