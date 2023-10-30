@@ -32,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -97,7 +96,7 @@ type ConfigMapServiceImpl struct {
 	appRepository               app.AppRepository
 	configMapHistoryService     history2.ConfigMapHistoryService
 	environmentRepository       repository2.EnvironmentRepository
-	scopedVariableManager       variables.ScopedVariableManager
+	scopedVariableManager       variables.ScopedVariableCMCSManager
 }
 
 func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -108,7 +107,7 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	commonService commonService.CommonService, appRepository app.AppRepository,
 	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository2.EnvironmentRepository,
-	scopedVariableManager variables.ScopedVariableManager,
+	scopedVariableManager variables.ScopedVariableCMCSManager,
 ) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
 		chartRepository:             chartRepository,
@@ -125,9 +124,7 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 		scopedVariableManager:       scopedVariableManager,
 	}
 }
-func (impl ConfigMapServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
-	return impl.scopedVariableManager.ExtractAndMapVariables(template, entityId, entityType, userId, nil)
-}
+
 func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
@@ -212,7 +209,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		configMapRequest.Id = configMap.Id
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.EntityTypeConfigMapAppLevel, configMapRequest.UserId)
+	err = impl.scopedVariableManager.CreateVariableMappingsForCMApp(model)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +345,8 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		configMapRequest.Id = configMap.Id
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.EntityTypeConfigMapEnvLevel, configMapRequest.UserId)
+	//err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.EntityTypeConfigMapEnvLevel, configMapRequest.UserId)
+	err = impl.scopedVariableManager.CreateVariableMappingsForCMEnv(model)
 	if err != nil {
 		return nil, err
 	}
@@ -596,12 +594,13 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		configMapRequest.Id = secret.Id
 	}
 	//VARIABLE_MAPPING_UPDATE
-	sl := bean.SecretsList{}
-	data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
-	if err != nil {
-		return nil, err
-	}
-	err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretAppLevel, configMapRequest.UserId)
+	//sl := bean.SecretsList{}
+	//data, err := sl.GetTransformedDataForSecretList(model.SecretData, util2.DecodeSecret)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretAppLevel, configMapRequest.UserId)
+	err = impl.scopedVariableManager.CreateVariableMappingsForSecretApp(model)
 	if err != nil {
 		return nil, err
 	}
@@ -798,12 +797,13 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 		configMapRequest.Id = configMap.Id
 	}
 	//VARIABLE_MAPPING_UPDATE
-	sl := bean.SecretsList{}
-	data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
-	if err != nil {
-		return nil, err
-	}
-	err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretEnvLevel, configMapRequest.UserId)
+	//sl := bean.SecretsList{}
+	//data, err := sl.GetTransformedDataForSecretList(model.SecretData, util2.DecodeSecret)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretEnvLevel, configMapRequest.UserId)
+	err = impl.scopedVariableManager.CreateVariableMappingsForSecretEnv(model)
 	if err != nil {
 		return nil, err
 	}
@@ -1055,7 +1055,7 @@ func (impl ConfigMapServiceImpl) CMGlobalDelete(name string, id int, userId int3
 			impl.logger.Errorw("error while updating at app level", "error", err)
 			return false, err
 		}
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.EntityTypeConfigMapAppLevel, model.UpdatedBy)
+		err = impl.scopedVariableManager.CreateVariableMappingsForCMApp(model)
 		if err != nil {
 			return false, err
 		}
@@ -1106,7 +1106,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 		//VARIABLE_MAPPING_UPDATE
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.EntityTypeConfigMapEnvLevel, model.UpdatedBy)
+		err = impl.scopedVariableManager.CreateVariableMappingsForCMEnv(model)
 		if err != nil {
 			return false, err
 		}
@@ -1160,12 +1160,7 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 		//VARIABLE_MAPPING_UPDATE
-		sl := bean.SecretsList{}
-		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
-		if err != nil {
-			return false, err
-		}
-		err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretAppLevel, model.UpdatedBy)
+		err = impl.scopedVariableManager.CreateVariableMappingsForSecretApp(model)
 		if err != nil {
 			return false, err
 		}
@@ -1220,19 +1215,13 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 		model.SecretData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-		//VARIABLE_MAPPING_UPDATE
-		sl := bean.SecretsList{}
-		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
-		if err != nil {
-			return false, err
-		}
-		err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretEnvLevel, model.UpdatedBy)
-		if err != nil {
-			return false, err
-		}
 		_, err = impl.configMapRepository.UpdateEnvLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at env level ", "error", err)
+			return false, err
+		}
+		err = impl.scopedVariableManager.CreateVariableMappingsForSecretEnv(model)
+		if err != nil {
 			return false, err
 		}
 		err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.SECRET_TYPE)
@@ -1282,7 +1271,7 @@ func (impl ConfigMapServiceImpl) CMGlobalDeleteByAppId(name string, appId int, u
 		model.ConfigMapData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.EntityTypeConfigMapAppLevel, model.UpdatedBy)
+		err = impl.scopedVariableManager.CreateVariableMappingsForCMApp(model)
 		if err != nil {
 			return false, err
 		}
@@ -1332,7 +1321,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDeleteByAppIdAndEnvId(name string,
 		model.ConfigMapData = string(configDataByte)
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.EntityTypeConfigMapEnvLevel, model.UpdatedBy)
+		err = impl.scopedVariableManager.CreateVariableMappingsForCMEnv(model)
 		if err != nil {
 			return false, err
 		}
@@ -1382,12 +1371,7 @@ func (impl ConfigMapServiceImpl) CSGlobalDeleteByAppId(name string, appId int, u
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 		//VARIABLE_MAPPING_UPDATE
-		sl := bean.SecretsList{}
-		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
-		if err != nil {
-			return false, err
-		}
-		err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretAppLevel, model.UpdatedBy)
+		err = impl.scopedVariableManager.CreateVariableMappingsForSecretApp(model)
 		if err != nil {
 			return false, err
 		}
@@ -1438,12 +1422,13 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 		model.UpdatedBy = userId
 		model.UpdatedOn = time.Now()
 		//VARIABLE_MAPPING_UPDATE
-		sl := bean.SecretsList{}
-		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
-		if err != nil {
-			return false, err
-		}
-		err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretEnvLevel, model.UpdatedBy)
+		//sl := bean.SecretsList{}
+		//data, err := sl.GetTransformedDataForSecretList(model.SecretData, util2.DecodeSecret)
+		//if err != nil {
+		//	return false, err
+		//}
+		//err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretEnvLevel, model.UpdatedBy)
+		err = impl.scopedVariableManager.CreateVariableMappingsForSecretEnv(model)
 		if err != nil {
 			return false, err
 		}
@@ -1681,16 +1666,17 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *b
 			return nil, err
 		}
 		//VARIABLE_MAPPING_UPDATE
-		sl := bean.SecretsList{}
-		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
+		err = impl.scopedVariableManager.CreateVariableMappingsForCMApp(model)
 		if err != nil {
 			return nil, err
 		}
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.EntityTypeConfigMapAppLevel, model.UpdatedBy)
-		if err != nil {
-			return nil, err
-		}
-		err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretAppLevel, model.UpdatedBy)
+		//sl := bean.SecretsList{}
+		//data, err := sl.GetTransformedDataForSecretList(model.SecretData, util2.DecodeSecret)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretAppLevel, model.UpdatedBy)
+		err = impl.scopedVariableManager.CreateVariableMappingsForSecretApp(model)
 		if err != nil {
 			return nil, err
 		}
@@ -1785,16 +1771,18 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 			return nil, err
 		}
 		//VARIABLE_MAPPING_UPDATE
-		sl := bean.SecretsList{}
-		data, err := sl.GetTransformedDataForSecret(model.SecretData, util2.DecodeSecret)
+
+		err = impl.scopedVariableManager.CreateVariableMappingsForCMEnv(model)
 		if err != nil {
 			return nil, err
 		}
-		err = impl.extractAndMapVariables(model.ConfigMapData, model.Id, repository5.EntityTypeConfigMapEnvLevel, model.UpdatedBy)
-		if err != nil {
-			return nil, err
-		}
-		err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretEnvLevel, model.UpdatedBy)
+		//sl := bean.SecretsList{}
+		//data, err := sl.GetTransformedDataForSecretList(model.SecretData, util2.DecodeSecret)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretEnvLevel, model.UpdatedBy)
+		err = impl.scopedVariableManager.CreateVariableMappingsForSecretEnv(model)
 		if err != nil {
 			return nil, err
 		}

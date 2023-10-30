@@ -70,7 +70,7 @@ func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigS
 	configSecretJson.Secrets = util.GetReferencedArray(secrets)
 }
 
-func (ConfigSecretRootJson) GetTransformedDataForSecret(data string, mode util.SecretTransformMode) (string, error) {
+func (ConfigSecretRootJson) GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
 	secretsJson := ConfigSecretRootJson{}
 	err := json.Unmarshal([]byte(data), &secretsJson)
 	if err != nil {

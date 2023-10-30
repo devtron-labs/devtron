@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -29,7 +28,7 @@ type ConfigMapHistoryService interface {
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 
 	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*ComponentLevelHistoryDetailDto, error)
-	ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error)
+	ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error)
 }
 
 type ConfigMapHistoryServiceImpl struct {
@@ -38,7 +37,7 @@ type ConfigMapHistoryServiceImpl struct {
 	pipelineRepository         pipelineConfig.PipelineRepository
 	configMapRepository        chartConfig.ConfigMapRepository
 	userService                user.UserService
-	scopedVariableManager      variables.ScopedVariableManager
+	scopedVariableManager      variables.ScopedVariableCMCSManager
 }
 
 func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,
@@ -46,7 +45,7 @@ func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	userService user.UserService,
-	scopedVariableManager variables.ScopedVariableManager,
+	scopedVariableManager variables.ScopedVariableCMCSManager,
 ) *ConfigMapHistoryServiceImpl {
 	return &ConfigMapHistoryServiceImpl{
 		logger:                     logger,
@@ -217,8 +216,8 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 
 func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error) {
 	var err error
-	var appLevelConfigData []*ConfigData
-	var envLevelConfigData []*ConfigData
+	var appLevelConfigData []*bean.ConfigData
+	var envLevelConfigData []*bean.ConfigData
 	if configType == repository.CONFIGMAP_TYPE {
 		var configDataAppLevel string
 		var configDataEnvLevel string
@@ -228,7 +227,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 		if envLevelConfig != nil {
 			configDataEnvLevel = envLevelConfig.ConfigMapData
 		}
-		configListAppLevel := &ConfigList{}
+		configListAppLevel := &bean.ConfigList{}
 		if len(configDataAppLevel) > 0 {
 			err = json.Unmarshal([]byte(configDataAppLevel), configListAppLevel)
 			if err != nil {
@@ -236,7 +235,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 				return "", err
 			}
 		}
-		configListEnvLevel := &ConfigList{}
+		configListEnvLevel := &bean.ConfigList{}
 		if len(configDataEnvLevel) > 0 {
 			err = json.Unmarshal([]byte(configDataEnvLevel), configListEnvLevel)
 			if err != nil {
@@ -255,7 +254,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 		if envLevelConfig != nil {
 			secretDataEnvLevel = envLevelConfig.SecretData
 		}
-		secretListAppLevel := &SecretList{}
+		secretListAppLevel := &bean.SecretList{}
 		if len(secretDataAppLevel) > 0 {
 			err = json.Unmarshal([]byte(secretDataAppLevel), secretListAppLevel)
 			if err != nil {
@@ -263,7 +262,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 				return "", err
 			}
 		}
-		secretListEnvLevel := &SecretList{}
+		secretListEnvLevel := &bean.SecretList{}
 		if len(secretDataEnvLevel) > 0 {
 			err = json.Unmarshal([]byte(secretDataEnvLevel), secretListEnvLevel)
 			if err != nil {
@@ -275,7 +274,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 		envLevelConfigData = secretListEnvLevel.ConfigData
 	}
 
-	var finalConfigs []*ConfigData
+	var finalConfigs []*bean.ConfigData
 	envLevelConfigs := make(map[string]bool)
 	filterNameMap := make(map[string]bool)
 	for _, name := range configMapSecretNames {
@@ -301,7 +300,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 	}
 	var finalConfigDataByte []byte
 	if configType == repository.CONFIGMAP_TYPE {
-		var finalConfigList ConfigList
+		var finalConfigList bean.ConfigList
 		finalConfigList.ConfigData = finalConfigs
 		finalConfigDataByte, err = json.Marshal(finalConfigList)
 		if err != nil {
@@ -309,7 +308,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 			return "", err
 		}
 	} else if configType == repository.SECRET_TYPE {
-		var finalConfigList SecretList
+		var finalConfigList bean.SecretList
 		finalConfigList.ConfigData = finalConfigs
 		finalConfigDataByte, err = json.Marshal(finalConfigList)
 		if err != nil {
@@ -357,9 +356,9 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(p
 	} else if err == pg.ErrNoRows {
 		return history, false, cmCsNames, nil
 	}
-	var configData []*ConfigData
+	var configData []*bean.ConfigData
 	if configType == repository.CONFIGMAP_TYPE {
-		configList := ConfigList{}
+		configList := bean.ConfigList{}
 		if len(history.Data) > 0 {
 			err = json.Unmarshal([]byte(history.Data), &configList)
 			if err != nil {
@@ -369,7 +368,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(p
 		}
 		configData = configList.ConfigData
 	} else if configType == repository.SECRET_TYPE {
-		secretList := SecretList{}
+		secretList := bean.SecretList{}
 		if len(history.Data) > 0 {
 			err = json.Unmarshal([]byte(history.Data), &secretList)
 			if err != nil {
@@ -416,15 +415,11 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 		impl.logger.Errorw("error in getting histories for cm/cs", "err", err, "id", id, "pipelineId", pipelineId)
 		return nil, err
 	}
-	var configData []*ConfigData
-	var variableSnapshotMap map[string]string
-	var resolvedTemplate string
-	isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	var configData []*bean.ConfigData
+	var configList bean.ConfigList
+	var secretList bean.SecretList
 	if configType == repository.CONFIGMAP_TYPE {
-		configList := ConfigList{}
+		configList = bean.ConfigList{}
 		if len(history.Data) > 0 {
 			err := json.Unmarshal([]byte(history.Data), &configList)
 			if err != nil {
@@ -433,29 +428,8 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 			}
 		}
 		configData = configList.ConfigData
-		configListJson, err := json.Marshal(configList)
-		reference := repository6.HistoryReference{
-			HistoryReferenceId:   history.Id,
-			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
-		}
-		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, isSuperAdmin, true)
-		if err != nil {
-			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
-		}
-		resolvedConfigList := ConfigList{}
-		err = json.Unmarshal([]byte(resolvedTemplate), &resolvedConfigList)
-		if err != nil {
-			return nil, err
-		}
-		for _, data := range resolvedConfigList.ConfigData {
-
-			if data.Name == componentName {
-				resolvedTemplate = string(data.Data)
-				break
-			}
-		}
 	} else if configType == repository.SECRET_TYPE {
-		secretList := SecretList{}
+		secretList = bean.SecretList{}
 		if len(history.Data) > 0 {
 			err := json.Unmarshal([]byte(history.Data), &secretList)
 			if err != nil {
@@ -464,37 +438,15 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 			}
 		}
 		configData = secretList.ConfigData
-		secretListJson, err := json.Marshal(secretList)
-		reference := repository6.HistoryReference{
-			HistoryReferenceId:   history.Id,
-			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
-		}
-		data, err := secretList.GetTransformedDataForSecret(string(secretListJson), util.DecodeSecret)
-		if err != nil {
-			return nil, err
-		}
-		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(data, reference, isSuperAdmin, false)
-		if err != nil {
-			impl.logger.Errorw("error while resolving template from history", "err", err, "pipelineID", pipelineId)
-		}
-		resolvedTemplate, err = secretList.GetTransformedDataForSecret(resolvedTemplate, util.EncodeSecret)
-		if err != nil {
-			return nil, err
-		}
 
-		resolvedSecretList := SecretList{}
-		err = json.Unmarshal([]byte(resolvedTemplate), &resolvedSecretList)
-		if err != nil {
-			return nil, err
-		}
-		for _, data := range resolvedSecretList.ConfigData {
-			if data.Name == componentName {
-				resolvedTemplate = string(data.Data)
-				break
-			}
-		}
 	}
-	config := &ConfigData{}
+
+	variableSnapshotMap, resolvedTemplate, err := impl.scopedVariableManager.ResolveCMCSHistoryDto(ctx, configType, configList, history, componentName, secretList)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &bean.ConfigData{}
 	for _, data := range configData {
 		if data.Name == componentName {
 			config = data
@@ -557,16 +509,14 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		impl.logger.Errorw("error in getting histories for cm/cs", "err", err, "wfrId", wfrId, "pipelineId", pipelineId)
 		return nil, err
 	}
-	var configData []*ConfigData
-	cMCSData := make(map[string]ConfigData, 0)
-	var variableSnapshotMap map[string]string
-	var resolvedTemplate string
-	isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
+	var configData []*bean.ConfigData
+	var configList bean.ConfigList
+	var secretList bean.SecretList
 	if err != nil {
 		return nil, err
 	}
 	if configType == repository.CONFIGMAP_TYPE {
-		configList := ConfigList{}
+		configList = bean.ConfigList{}
 		if len(history.Data) > 0 {
 			err := json.Unmarshal([]byte(history.Data), &configList)
 			if err != nil {
@@ -575,26 +525,8 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			}
 		}
 		configData = configList.ConfigData
-		configListJson, err := json.Marshal(configList)
-		reference := repository6.HistoryReference{
-			HistoryReferenceId:   history.Id,
-			HistoryReferenceType: repository6.HistoryReferenceTypeConfigMap,
-		}
-		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, isSuperAdmin, false)
-		if err != nil {
-			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
-		}
-		resolvedConfigList := ConfigList{}
-		err = json.Unmarshal([]byte(resolvedTemplate), &resolvedConfigList)
-		if err != nil {
-			return nil, err
-		}
-		for i, _ := range resolvedConfigList.ConfigData {
-			cMCSData[resolvedConfigList.ConfigData[i].Name] = *resolvedConfigList.ConfigData[i]
-		}
-
 	} else if configType == repository.SECRET_TYPE {
-		secretList := SecretList{}
+		secretList = bean.SecretList{}
 		if len(history.Data) > 0 {
 			err := json.Unmarshal([]byte(history.Data), &secretList)
 			if err != nil {
@@ -603,32 +535,10 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 			}
 		}
 		configData = secretList.ConfigData
-		secretListJson, err := json.Marshal(secretList)
-		reference := repository6.HistoryReference{
-			HistoryReferenceId:   history.Id,
-			HistoryReferenceType: repository6.HistoryReferenceTypeSecret,
-		}
-
-		decodedSecret, err := secretList.GetTransformedDataForSecret(string(secretListJson), util.DecodeSecret)
-		if err != nil {
-			return nil, err
-		}
-		variableSnapshotMap, resolvedTemplate, err = impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(decodedSecret, reference, isSuperAdmin, false)
-		if err != nil {
-			impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
-		}
-		resolvedTemplate, err = secretList.GetTransformedDataForSecret(resolvedTemplate, util.EncodeSecret)
-		if err != nil {
-			return nil, err
-		}
-		resolvedSecretList := SecretList{}
-		err = json.Unmarshal([]byte(resolvedTemplate), &resolvedSecretList)
-		if err != nil {
-			return nil, err
-		}
-		for i, _ := range resolvedSecretList.ConfigData {
-			cMCSData[resolvedSecretList.ConfigData[i].Name] = *resolvedSecretList.ConfigData[i]
-		}
+	}
+	resolvedDataMap, variableSnapshotMap, err := impl.scopedVariableManager.GetResolvedCMCSHistoryDtos(ctx, configType, configList, history, secretList)
+	if err != nil {
+		return nil, err
 	}
 
 	var componentLevelHistoryData []*ComponentLevelHistoryDetailDto
@@ -637,20 +547,14 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		if err != nil {
 			impl.logger.Errorw("error in converting data to componentLevelData", "err", err)
 		}
-		if configType == repository.SECRET_TYPE {
-			componentLevelData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableSnapshotMap
-			componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = string(cMCSData[config.Name].Data)
-		} else if configType == repository.CONFIGMAP_TYPE {
-			componentLevelData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableSnapshotMap
-			componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = string(cMCSData[config.Name].Data)
-		}
-
+		componentLevelData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableSnapshotMap
+		componentLevelData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedDataMap[config.Name].Data)
 		componentLevelHistoryData = append(componentLevelHistoryData, componentLevelData)
 	}
 	return componentLevelHistoryData, nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error) {
+func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error) {
 	historyDto := &HistoryDetailDto{
 		Type:           config.Type,
 		External:       &config.External,

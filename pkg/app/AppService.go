@@ -34,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
-	"github.com/devtron-labs/devtron/pkg/variables"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
@@ -159,7 +158,6 @@ type AppServiceImpl struct {
 	globalEnvVariables                     *util2.GlobalEnvVariables
 	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
 	GitOpsManifestPushService              GitOpsPushService
-	scopedVariableManager                  variables.ScopedVariableManager
 
 	argoClientWrapperService argocdServer.ArgoClientWrapperService
 }
@@ -242,7 +240,6 @@ func NewAppService(
 	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	GitOpsManifestPushService GitOpsPushService,
-	scopedVariableManager variables.ScopedVariableManager,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 ) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
@@ -305,7 +302,6 @@ func NewAppService(
 		helmAppService:                         helmAppService,
 		manifestPushConfigRepository:           manifestPushConfigRepository,
 		GitOpsManifestPushService:              GitOpsManifestPushService,
-		scopedVariableManager:                  scopedVariableManager,
 		argoClientWrapperService:               argoClientWrapperService,
 	}
 	return appServiceImpl

@@ -282,6 +282,9 @@ func InitializeApp() (*App, error) {
 		variables.NewScopedVariableManagerImpl,
 		wire.Bind(new(variables.ScopedVariableManager), new(*variables.ScopedVariableManagerImpl)),
 
+		variables.NewScopedVariableCMCSManagerImpl,
+		wire.Bind(new(variables.ScopedVariableCMCSManager), new(*variables.ScopedVariableCMCSManagerImpl)),
+
 		//end
 
 		chart.NewChartServiceImpl,
