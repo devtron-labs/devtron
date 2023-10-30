@@ -33,7 +33,7 @@ type ScopedVariableServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	scopedVariableRepository repository2.ScopedVariableRepository
 	qualifierMappingService  resourceQualifiers.QualifierMappingService
-	devtronResourceService   devtronResource.DevtronResourceService
+	devtronResourceService   devtronResource.DevtronResourceSearchableKeyService
 	VariableNameConfig       *VariableConfig
 	VariableCache            *cache.VariableCacheObj
 }

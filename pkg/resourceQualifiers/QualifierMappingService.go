@@ -16,10 +16,10 @@ type QualifierMappingService interface {
 type QualifierMappingServiceImpl struct {
 	logger                     *zap.SugaredLogger
 	qualifierMappingRepository QualifiersMappingRepository
-	devtronResourceService     devtronResource.DevtronResourceService
+	devtronResourceService     devtronResource.DevtronResourceSearchableKeyService
 }
 
-func NewQualifierMappingServiceImpl(logger *zap.SugaredLogger, qualifierMappingRepository QualifiersMappingRepository, devtronResourceService devtronResource.DevtronResourceService) (*QualifierMappingServiceImpl, error) {
+func NewQualifierMappingServiceImpl(logger *zap.SugaredLogger, qualifierMappingRepository QualifiersMappingRepository, devtronResourceService devtronResource.DevtronResourceSearchableKeyService) (*QualifierMappingServiceImpl, error) {
 	return &QualifierMappingServiceImpl{
 		logger:                     logger,
 		qualifierMappingRepository: qualifierMappingRepository,

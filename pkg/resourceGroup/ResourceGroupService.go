@@ -46,12 +46,12 @@ type ResourceGroupServiceImpl struct {
 	resourceGroupRepository        resourceGroup.ResourceGroupRepository
 	resourceGroupMappingRepository resourceGroup.ResourceGroupMappingRepository
 	enforcerUtil                   rbac.EnforcerUtil
-	devtronResourceService         devtronResource.DevtronResourceService
+	devtronResourceService         devtronResource.DevtronResourceSearchableKeyService
 }
 
 func NewResourceGroupServiceImpl(logger *zap.SugaredLogger, resourceGroupRepository resourceGroup.ResourceGroupRepository,
 	resourceGroupMappingRepository resourceGroup.ResourceGroupMappingRepository, enforcerUtil rbac.EnforcerUtil,
-	devtronResourceService devtronResource.DevtronResourceService,
+	devtronResourceService devtronResource.DevtronResourceSearchableKeyService,
 ) *ResourceGroupServiceImpl {
 	return &ResourceGroupServiceImpl{
 		logger:                         logger,
