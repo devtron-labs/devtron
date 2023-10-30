@@ -717,7 +717,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	if string(v1alpha1.NodePending) == ciWorkflow.PodStatus {
 		return bufio.NewReader(strings.NewReader("")), nil, nil
 	}
-	ciLogRequest := BuildLogRequest{
+	ciLogRequest := types.BuildLogRequest{
 		PodName:   ciWorkflow.PodName,
 		Namespace: ciWorkflow.Namespace,
 	}
@@ -770,7 +770,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 	if strings.Contains(ciWorkflow.LogLocation, "main.log") {
 		logsFilePath = ciWorkflow.LogLocation
 	}
-	ciLogRequest := BuildLogRequest{
+	ciLogRequest := types.BuildLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
 		PodName:       ciWorkflow.PodName,
@@ -901,7 +901,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	if ciConfig.LogsBucket == "" {
 		ciConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
-	ciLogRequest := BuildLogRequest{
+	ciLogRequest := types.BuildLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
 		PodName:       ciWorkflow.PodName,
