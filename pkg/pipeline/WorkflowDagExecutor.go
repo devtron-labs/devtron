@@ -526,6 +526,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 		if time.Now().After(helmInstalledDevtronApp.GetLastDeployed().AsTime().Add(time.Duration(appServiceConfig.HelmInstallationTimeout) * time.Minute)) {
 			// If release status is in pending-install for more than 5 mins, then mark the deployment as failure
 			wfr.Status = pipelineConfig.WorkflowFailed
+			//TODO Asutosh: use release status instead of PendingInstall
 			wfr.Message = fmt.Sprintf("Deployment Timeout: release is in %s status for more than %d mins", serverBean.HelmReleaseStatusPendingInstall, appServiceConfig.HelmInstallationTimeout)
 			wfr.FinishedOn = time.Now()
 			return true
@@ -619,6 +620,8 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 			impl.logger.Errorw("err on extracting override request, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
 			return
 		}
+		// TODO Asutosh: run below logic in func and wrap that func inside lock block at pipeline level
+
 		overrideRequest := CDAsyncInstallNatsMessage.ValuesOverrideRequest
 		cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(overrideRequest.WfrId)
 		if err != nil {
@@ -632,6 +635,7 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 			return
 		}
 		if exists {
+			//TODO Asutosh: we should update its status, so that we know this has been picked
 			impl.logger.Warnw("skipped deployment as the workflow runner is not the latest one", "cdWfrId", cdWfr.Id)
 			return
 		}
@@ -649,6 +653,7 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 			return
 		}
 
+		//TODO Asutosh: Move this to WorkflowDagExecutor Struct
 		appServiceConfig, err := app.GetAppServiceConfig()
 		if err != nil {
 			impl.logger.Errorw("error in parsing app status config variables, SubscribeDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "err", err)
@@ -2535,6 +2540,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerHelmAsyncRelease(overrideRequest *be
 	err = impl.pubsubClient.Publish(pubsub.DEVTRON_CHART_INSTALL_TOPIC, string(payload))
 	if err != nil {
 		impl.logger.Errorw("failed to publish trigger request event", "topic", pubsub.DEVTRON_CHART_INSTALL_TOPIC, "payload", payload, "err", err)
+		//TODO Asutosh: if failed to publish then need to update status as failed
 	}
 
 	//update workflow runner status, used in app workflow view
