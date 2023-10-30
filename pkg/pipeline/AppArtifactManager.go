@@ -676,6 +676,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			Latest:       true,
 			CreatedTime:  formatDate(currentRunningArtifact.CreatedOn, bean2.LayoutRFC3339),
 		}
+		if currentRunningArtifact.WorkflowId != nil {
+			currentRunningArtifactBean.CiWorkflowId = *currentRunningArtifact.WorkflowId
+		}
 	}
 	//2) get artifact list limited by filterOptions
 	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE || listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
