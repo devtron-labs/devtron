@@ -33,7 +33,6 @@ type ScopedVariableCMCSManager interface {
 		mergedConfigMap map[string]*bean2.ConfigData,
 		mergedSecret map[string]*bean2.ConfigData) (map[string]*bean2.ConfigData, map[string]*bean2.ConfigData, map[string]string, map[string]string, error)
 
-	ResolvedVariableForLastSaved(scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int, configMapByte []byte, secretDataByte []byte) (string, string, map[string]string, map[string]string, error)
 	ResolveForPrePostStageTrigger(scope resourceQualifiers.Scope, configResponse bean.ConfigMapJson, secretResponse bean.ConfigSecretJson, cmAppId int, cmEnvId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 }
 
