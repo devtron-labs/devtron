@@ -29,6 +29,7 @@ import (
 	lo "github.com/samber/lo"
 	"go.uber.org/zap"
 	"sort"
+	"strings"
 )
 
 type AppArtifactManager interface {
@@ -672,6 +673,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			Deployed:     true,
 			DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
 			Latest:       true,
+			CreatedTime:  formatDate(currentRunningArtifact.CreatedOn, bean2.LayoutRFC3339),
 		}
 	}
 	//2) get artifact list limited by filterOptions
@@ -691,8 +693,12 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 
 	//if no artifact deployed skip adding currentRunningArtifactBean in ciArtifacts arr
 	if currentRunningArtifactBean != nil {
-		ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+		searchString := listingFilterOpts.SearchString[1 : len(listingFilterOpts.SearchString)-1]
+		if strings.Contains(currentRunningArtifactBean.Image, searchString) {
+			ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+		}
 	}
+
 	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, nil
 }
 
@@ -735,6 +741,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 			RunningOnParentCd:    wfr.CdWorkflow.CiArtifact.Id == artifactRunningOnParentCd,
 			ExternalCiPipelineId: wfr.CdWorkflow.CiArtifact.ExternalCiPipelineId,
 			ParentCiArtifact:     wfr.CdWorkflow.CiArtifact.ParentCiArtifact,
+			CreatedTime:          formatDate(wfr.CdWorkflow.CiArtifact.CreatedOn, bean2.LayoutRFC3339),
 		}
 		if wfr.CdWorkflow.CiArtifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *wfr.CdWorkflow.CiArtifact.WorkflowId
@@ -772,6 +779,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 			DeployedTime:         formatDate(artifact.DeployedTime, bean2.LayoutRFC3339),
 			ExternalCiPipelineId: artifact.ExternalCiPipelineId,
 			ParentCiArtifact:     artifact.ParentCiArtifact,
+			CreatedTime:          formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId
