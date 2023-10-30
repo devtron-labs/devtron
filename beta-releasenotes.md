@@ -3,3 +3,4 @@
 ## Enhancements
 ## Documentation
 ## Others
+- chore: refactored few type objects (#4171)
