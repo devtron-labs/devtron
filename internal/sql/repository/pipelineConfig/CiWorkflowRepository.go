@@ -241,6 +241,9 @@ func (impl *CiWorkflowRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
 func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
 	impl.logger.Debugw("Updating workflow", "workflow", wf)
 	err := impl.dbConnection.Update(wf)
+	if err != nil {
+		impl.logger.Debugw("error in updating workflow", "error", err)
+	}
 	return err
 }
 
