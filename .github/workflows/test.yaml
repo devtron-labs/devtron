@@ -1,0 +1,30 @@
+name: 'SQL folder misconfiguration checker'
+on:
+  pull_request:
+    paths:
+      - 'scripts/sql/*' # Specify the path to your SQL folder
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check PR Files
+      id: check_files
+      uses: actions/checkout@v2
+    - name: test
+      run: |
+        echo "==========="
+        ls -l
+        pwd
+        echo "==========="
+    - name: Check File Notation
+      run: |
+        for file in $(git diff --name-only); do
+          if [[ "$file" == scripts/sql/*.up.sql || "$file" == scripts/sql/*.down.sql ]]; then
+            echo "File $file follows the notation."
+          else
+            echo "File $file does not follow the notation."
+            exit 1
+          fi
+        done
