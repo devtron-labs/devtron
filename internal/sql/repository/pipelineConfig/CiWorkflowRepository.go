@@ -239,6 +239,7 @@ func (impl *CiWorkflowRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
 }
 
 func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
+	impl.logger.Debugw("Updating workflow", "workflow", wf)
 	err := impl.dbConnection.Update(wf)
 	return err
 }
