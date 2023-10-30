@@ -521,3 +521,16 @@ func (obj Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
 	obj.PipelineType = pipelineType
 
 }
+
+type BuildLogRequest struct {
+	PipelineId        int
+	WorkflowId        int
+	PodName           string
+	LogsFilePath      string
+	Namespace         string
+	CloudProvider     blob_storage.BlobStorageType
+	AwsS3BaseConfig   *blob_storage.AwsS3BaseConfig
+	AzureBlobConfig   *blob_storage.AzureBlobBaseConfig
+	GcpBlobBaseConfig *blob_storage.GcpBlobBaseConfig
+	MinioEndpoint     string
+}
