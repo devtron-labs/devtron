@@ -99,88 +99,118 @@
 | INSTALLATION_THROUGH_HELM                | "True"                                              | Installation through Helm (True or False).          |
 
 
-# DASHBOARD PARAMETER
+# DEVTRON SECRET PARAMETER
+| Key                  | Value                                                     | Description                  |
+|----------------------|-----------------------------------------------------------|------------------------------|
+| ADMIN_PASSWORD       | RUowOFVQczZvdmJpempxVQ==                                 | Admin password.              |
+| DEX_CSTOREKEY        | YTNkNFdHTnViRGM1TkcxVWNrUnNVRVpoVGxWT1ZXTnlURmhKUFFv      | DEX CSTOREKEY.              |
+| DEX_JWTKEY           | UnpZMmVYbHZVMlJyYXk5emVtRk9kR0YyTkFwc2RtFjBiMDlyUFFv      | DEX JWT key.                |
+| DEX_SECRET           | UVdoaldYTTRkR05LU1ZGWU1FSlpZMXBpWm1jNVprbE1ZbkZCUFFv      | DEX secret.                 |
+| EXTERNAL_CI_API_SECRET | VGxOeGJVWk9jMFpMVDBJNWR5OVlaREUwYkdaR0wyMVhjM2RqUFFv      | External CI API secret.     |
+| ORCH_TOKEN           | WTBjMlFuVkdSWGxtT1ROc2RsUk9lUzl2WkVNNWFXMWxSMkpGUFFv      | Orchestrator token.         |
+| PG_PASSWORD          | RVRVa0lZMHlwN3VSNUJTZGgwbHBFcHRvbTdPeWhvSGE=            | PostgreSQL password.        |
+| WEBHOOK_TOKEN        | WVZFMFZYcDJObXRpWXpsVFdXNVRMMk4xTm1WWFRXaFJjbTFyUFFv      | Webhook token.              |
+| admin.password       | JDJhJDEwJFZwUWhOc08zSVlVNEdnZzlCZHVrRk9vZHl2TE52MjBxdnhJMkxYeDlqSHA0THpqQTZpdkJl  | Admin password.              |
+| admin.passwordMtime  | MjAyMy0xMC0zMFQwNzoxNjozN1o=                          | Admin password modification time. |
+| dex.config           | ""                                                        | DEX configuration.           |
+| server.secretkey     | RFVtUkFiVnhTQ1QvS2lydGJ0a0N3NjFEOVNtVFNFOEERaTXdIRlA3cmpZRT0= | Server secret key.           |
+| url                  | ""                                                        | URL (Uniform Resource Locator). |
+| APP                  | orchestrator                                              | Application name.           |
+| MODE                 | PROD                                                      | Operating mode.            |
 
-| Key                               | Value     | Description                                     |
-|-----------------------------------|-----------|-------------------------------------------------|
-| APPLICATION_METRICS_ENABLED        | "true"    | Show application metrics button                |
-| CLUSTER_NAME                       | demo      | Unknown                                         |
-| HIDE_APPLICATION_GROUPS            | "false"   | Hide application group from Devtron UI         |
-| HIDE_DISCORD                       | "true"    | Hide Discord button from UI                    |
-| HIDE_GITOPS_OR_HELM_OPTION         | "false"   | Enable GitOps and Helm option                 |
-| HOTJAR_ENABLED                     | "false"   | Hotjar integration status                      |
-| POSTHOG_ENABLED                    | "true"    | PostHog integration status                     |
-| POSTHOG_TOKEN                      | XXXXXXXX  | PostHog API token                        |
-| SENTRY_ENABLED                     | "false"   | Sentry integration status                      |
-| SENTRY_ENV                         | stage     | Sentry environment                              |
-| USE_V2                             | "true"    | Use the v2 APIs                                 |
-| ENABLE_RESTART_WORKLOAD            | "true"    | Show restart pods option in app details page   |
-| ENABLE_BUILD_CONTEXT               | "true"    | Enable build context in Devtron UI             |
-| FORCE_SECURITY_SCANNING            | "false"   | Force security scanning                         |
-| GA_ENABLED                         | "true"    | Enable Google Analytics (GA)                   |
-| GA_TRACKING_ID                     | G-XXXXXXXX | Google Analytics tracking ID                 |
-
-
-#  KUBELINK PARAMAETER
-
-
-| Key                    | Value                                | Description                                         |
-|-----------------------------------|--------------------------------------|-----------------------------------------------------|
-| ENABLE_HELM_RELEASE_CACHE         | "true"                               | Enable Helm release cache                          |
-| NATS_MSG_PROCESSING_BATCH_SIZE    | "1"                                  | NATS message processing batch size                 |
-| NATS_SERVER_HOST                  | nats://devtron-nats.devtroncd:4222   | NATS server host address                            |
-| RUN_HELM_INSTALL_IN_ASYNC_MODE    | "true"                               | Run Helm install in async mode                     |
-| PG_LOG_QUERY                      | "true"                               | Enable PostgreSQL query logging                     |
-| PG_ADDR                           | postgresql-postgresql.devtroncd      | PostgreSQL server address                           |
-| PG_DATABASE                       | orchestrator                         | PostgreSQL database name                            |
-| PG_PORT                           | "5432"                               | PostgreSQL server port                              |
-| PG_USER                           | postgres                             | PostgreSQL database user                            |
+# devtron-custom-cm
+| Key      | Value           | Description           |
+|----------|-----------------|-----------------------|
+| DEFAULT_CI_IMAGE | quay.io/devtron/ci-runner:ad3af321-138-18662    | Default image for CI pods.     |
 
 
 
-# KUBEWATCH PARAMETER
+# devtron-nats-config
+| Key                          | Value                                | Description                                 |
+|------------------------------|--------------------------------------|---------------------------------------------|
+| pid_file                     | "/var/run/nats/nats.pid"             | PID file shared with configuration reloader.|
+| http                         | 8222                                 | Monitoring HTTP port.                       |
+| server_name                  | $POD_NAME                            | Name of the NATS server.                    |
+| jetstream.max_mem            | 1Gi                                  | Maximum memory for NATS JetStream.          |
+| jetstream.domain             | devtron-jet                          | Domain for NATS JetStream.                  |
+| lame_duck_duration           | 120s                                 | Lame duck duration in seconds.             |
+
+# devtron-cluster-components
+  rollout.yaml: |-
+    rollout:
+      resources:
+        limits:
+          cpu: 250m
+          memory: 200Mi
+        requests:
+          cpu: 50m
+          memory: 100Mi
+
+# postgresql-postgresql-init-scripts
+  db_create.sql: |
+    create database casbin;
+    create database git_sensor;
+    create database lens;
+    create database clairv4
+# argocd-cmd-params-cm
+| Key                                    | Value                           | Description                                     |
+|----------------------------------------|---------------------------------|-------------------------------------------------|
+| controller.log.format                 | text                            | Log format for the controller                  |
+| controller.log.level                  | info                            | Log level for the controller                   |
+| controller.operation.processors        | 10                              | Number of processors for controller operations |
+| controller.repo.server.timeout.seconds | 60                              | Timeout in seconds for the repository server   |
+| controller.self.heal.timeout.seconds   | 5                               | Timeout in seconds for self-healing            |
+| controller.status.processors           | 20                              | Number of processors for status updates       |
+| otlp.address                          | ""                              | Address for OTLP (OpenTelemetry Protocol)      |
+| redis.server                          | argocd-redis:6379                | Address for the Redis server                   |
+| repo.server                           | argocd-repo-server:8081          | Address for the repository server               |
+| reposerver.log.format                 | text                            | Log format for the repository server           |
+| reposerver.log.level                  | info                            | Log level for the repository server            |
+| reposerver.parallelism.limit          | 0                               | Parallelism limit for the repository server    |
+| server.basehref                        | /                               | Base URL for the server                         |
+| server.disable.auth                   | "false"                         | Disable authentication for the server          |
+| server.enable.gzip                    | "false"                         | Enable GZIP compression for the server         |
+| server.insecure                       | "false"                         | Enable insecure mode for the server            |
+| server.log.format                     | text                            | Log format for the server                      |
+| server.log.level                      | info                            | Log level for the server                       |
+| server.rootpath                       | ""                              | Root path for the server                       |
+| server.staticassets                   | /shared/app                     | Directory for static assets                    |
+| server.x.frame.options                | sameorigin                      | X-Frame-Options header value                   |
 
 
-| Variable Name          | Value        | Description                 |
-|------------------------|--------------|-----------------------------|
-| DEFAULT_NAMESPACE      | devtron-ci   | The default namespace for CI |
-| CI_INFORMER            | true         | Enable CI informer           |
-| ACD_INFORMER           | true         | Enable ACD informer          |
-| NATS_STREAM_MAX_AGE    | 10800        | Maximum age for NATS stream  |
-| ACD_NAMESPACE          | devtroncd    | The namespace for ACD        |
-| LOG_LEVEL              | 2            | Logging level                |
+# argocd-rbac-cm
+| Key                   | Value      | Description                 |
+|-----------------------|------------|-----------------------------|
+| policy.default        | role:admin | Default role configuration |
 
 
-
-# IMAGESCANER
-
-
-| Variable Name       | Value                                  | Description                   |
-|---------------------|----------------------------------------|-------------------------------|
-| CLAIR_ADDR          | clair-dcd.devtroncd:6060               | For connecting to Clair if it's enabled |
-| CLIENT_ID           | client-2                               | Client ID                        |
-| NATS_SERVER_HOST    | nats://devtron-nats.devtroncd:4222    | For connecting to NATS         |
-| PG_LOG_QUERY        | "false"                                | PostgreSQL Query Logging (false to disable) |
-| PG_ADDR             | postgresql-postgresql.devtroncd        | PostgreSQL Server Address       |
-| PG_DATABASE         | orchestrator                           | PostgreSQL Database Name       |
-| PG_PORT             | "5432"                                 | PostgreSQL Port Number         |
-| PG_USER             | postgres                               | PostgreSQL User Name           |
+# argocd-ssh-known-hosts-cm
+| Key                                      | Value                                                     | Description |
+|------------------------------------------|-----------------------------------------------------------|-------------|
+| bitbucket.org                            | ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw?== | SSH Key for bitbucket.org |
+| github.com                               | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg= | ECDSA SSH Key for github.com |
+| github.com                               | ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl | SSH-Ed25519 Key for github.com |
+| github.com                               | ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84Kezm... | SSH-RSA Key for github.com |
+| gitlab.com                               | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFSMqzJeV9rUzU4kWitGjeR4PWSa29SPqJ1fVkhtj3Hw9xjLVXVYrU9QlYWrOLXBpQ6KWjbjTDTdDkoohFzgbEY= | ECDSA SSH Key for gitlab.com |
+| gitlab.com                               | ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf | SSH-Ed25519 Key for gitlab.com |
+| gitlab.com                               | ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCsj2bNKTBSpIYDEGk9KxsGh3mySTRgMtXL583qmBpzeQ+jqCMRgBqB98u3z++J1sKlXHWfM9dyhSevkMwSbhoR8XIq/U0tCNyokEi/ueaBMCvbcTHhO7FcwzY92WK4Yt0aGROY5qX2UKSeOvuP4D6TPqKF1onrSzH9b... | SSH-RSA Key for gitlab.com |
+| ssh.dev.azure.com                        | ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg3... | SSH-RSA Key for ssh.dev.azure.com |
+| vs-ssh.visualstudio.com                 | ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg3... | SSH-RSA Key for vs-ssh.visualstudio.com |
 
 
 
 
-# GITSENSOR
+# devtron-operator-cm
+| Key                              | Value      | Description              |
+|----------------------------------|------------|--------------------------|
+| BLOB_STORAGE_PROVIDER            | ""         | Blob storage provider.   |
+| DEVTRON_HELM_RELEASE_NAME        | devtron    | Helm release name for Devtron. |
+| ENABLE_LEGACY_API                | "false"    | Enable legacy API.       |
+| INSTALLATION_THROUGH_HELM        | "True"     | Installation through Helm. |
+| APP                              | orchestrator | Application name.      |
+| MODE                             | PROD      | Operating mode.         |
 
-| Variable Name           | Value                    | Description                                 |
-|------------------------|--------------------------|---------------------------------------------|
-| PG_ADDR                | postgresql-postgresql.devtroncd | Connect to the Postgres database for git-sensor. |
-| PG_USER                | postgres                 | Postgres database username.                 |
-| PG_DATABASE            | git_sensor               | Name of the Postgres database.              |
-| POLL_DURATION          | 1                        | Polling duration in minutes.                |
-| POLL_WORKER            | 2                        | Number of workers for fetching commits.     |
-| PG_LOG_QUERY           | false                    | Enable or disable Postgres query logging.   |
-| COMMIT_STATS_TIMEOUT_IN_SEC | 2                 | Timeout for fetching commit .     |
-| ENABLE_FILE_STATS      | false                    | Enable or disable file stats.               |
-| GIT_HISTORY_COUNT      | 15                       | Number of commits to display in the UI.     |
-| CLONING_MODE           | FULL (or SHALLOW)         | Cloning mode for git repositories.          |
-| PG_PASSWORD            | **************            | Password for connecting to the Postgres database. |
+# migrator-override-cm
+| Key      | Value           | Description             |
+|----------|-----------------|-------------------------|
+| override      | ""    |        |
