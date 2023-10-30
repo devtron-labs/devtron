@@ -1,4 +1,4 @@
-package pipeline
+package executors
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/batch/v1"
@@ -147,7 +146,7 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 			return configMaps, secrets, err
 		}
 		configMapSecretDto := types2.ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
-		configMap := executors.GetConfigMapBody(configMapSecretDto)
+		configMap := GetConfigMapBody(configMapSecretDto)
 		configMaps = append(configMaps, configMap)
 	}
 	secretMaps := workflowTemplate.Secrets
@@ -161,7 +160,7 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 			return configMaps, secrets, err
 		}
 		configMapSecretDto := types2.ConfigMapSecretDto{Name: secretMapData.Name, Data: dataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
-		secretBody := executors.GetSecretBody(configMapSecretDto)
+		secretBody := GetSecretBody(configMapSecretDto)
 		secrets = append(secrets, secretBody)
 	}
 	return configMaps, secrets, nil

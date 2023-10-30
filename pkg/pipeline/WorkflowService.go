@@ -59,8 +59,8 @@ type WorkflowServiceImpl struct {
 	appService             app.AppService
 	envRepository          repository.EnvironmentRepository
 	globalCMCSService      GlobalCMCSService
-	argoWorkflowExecutor   ArgoWorkflowExecutor
-	systemWorkflowExecutor SystemWorkflowExecutor
+	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
+	systemWorkflowExecutor executors.SystemWorkflowExecutor
 	k8sUtil                *k8s.K8sUtil
 	k8sCommonService       k8s2.K8sCommonService
 }
@@ -68,9 +68,9 @@ type WorkflowServiceImpl struct {
 // TODO: Move to bean
 
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
-	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor ArgoWorkflowExecutor,
+	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sUtil,
-	systemWorkflowExecutor SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService) (*WorkflowServiceImpl, error) {
+	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{Logger: Logger,
 		ciCdConfig:             ciCdConfig,
 		appService:             appService,
@@ -264,7 +264,7 @@ func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *types.
 	return nil
 }
 
-func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
+func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) executors.WorkflowExecutor {
 	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
 	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
