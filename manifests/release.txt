@@ -1,1 +1,1 @@
-stable -1 v0.6.23
+stable -1 v0.6.24
