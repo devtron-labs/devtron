@@ -1247,6 +1247,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
+		cdStageWorkflowRequest.ciPipelineType = ciPipeline.PipelineType
 	} else if cdPipeline.AppId > 0 {
 		ciTemplate, err := impl.CiTemplateRepository.FindByAppId(cdPipeline.AppId)
 		if err != nil {
