@@ -567,3 +567,19 @@ type CiCdTriggerEvent struct {
 	Type                  string           `json:"type"`
 	CommonWorkflowRequest *WorkflowRequest `json:"commonWorkflowRequest"`
 }
+
+type GitMetadata struct {
+	GitCommitHash  string `json:"GIT_COMMIT_HASH"`
+	GitSourceType  string `json:"GIT_SOURCE_TYPE"`
+	GitSourceValue string `json:"GIT_SOURCE_VALUE"`
+}
+
+type AppLabelMetadata struct {
+	AppLabelKey   string `json:"APP_LABEL_KEY"`
+	AppLabelValue string `json:"APP_LABEL_VALUE"`
+}
+
+type ChildCdMetadata struct {
+	ChildCdEnvName     string `json:"CHILD_CD_ENV_NAME"`
+	ChildCdClusterName string `json:"CHILD_CD_CLUSTER_NAME"`
+}
