@@ -53,7 +53,7 @@ type PropertiesConfigService interface {
 	GetAppIdByChartEnvId(chartEnvId int) (*chartConfig.EnvConfigOverride, error)
 	GetLatestEnvironmentProperties(appId, environmentId int) (*bean.EnvironmentProperties, error)
 	FindEnvLevelAppMetricsByAppIdAndEnvId(appId int, envId int) (*repository.EnvLevelAppMetrics, error)
-	ResetEnvironmentProperties(id int) (bool, error)
+	ResetEnvironmentProperties(id int, userId int32) (bool, error)
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 
 	EnvMetricsEnableDisable(appMetricRequest *chartService.AppMetricEnableDisableRequest) (*chartService.AppMetricEnableDisableRequest, error)
@@ -573,7 +573,7 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 	return environmentProperties, nil
 }
 
-func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool, error) {
+func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int, userId int32) (bool, error) {
 	envOverride, err := impl.envConfigRepo.Get(id)
 	if err != nil {
 		return false, err
@@ -581,6 +581,8 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 	envOverride.EnvOverrideValues = "{}"
 	envOverride.IsOverride = false
 	envOverride.Latest = false
+	envOverride.UpdatedBy = userId
+	envOverride.UpdatedOn = time.Now()
 	impl.logger.Infow("reset environment override ", "value", envOverride)
 	err = impl.envConfigRepo.UpdateProperties(envOverride)
 	if err != nil {
@@ -598,7 +600,11 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 			return false, err
 		}
 	}
-	//VARIABLES
+	//creating history entry
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, nil, false, 0)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
+	}
 	err = impl.removeMappedVariables(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy)
 	if err != nil {
 		return false, err

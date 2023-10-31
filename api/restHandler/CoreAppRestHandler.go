@@ -723,6 +723,7 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 		ParentAppId:              ciPipeline.ParentAppId,
 		LinkedCount:              ciPipeline.LinkedCount,
 		PipelineType:             string(ciPipeline.PipelineType),
+		DockerConfigOverride:     ciPipeline.DockerConfigOverride,
 	}
 
 	//build ciPipelineMaterial resp

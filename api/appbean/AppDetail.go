@@ -3,6 +3,7 @@ package appbean
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
@@ -91,6 +92,7 @@ type CiPipelineDetails struct {
 	ParentAppId               int                         `json:"parentAppId,omitempty"`
 	LinkedCount               int                         `json:"linkedCount,omitempty"`
 	PipelineType              string                      `json:"pipelineType,omitempty"`
+	DockerConfigOverride      bean2.DockerConfigOverride  `json:"dockerConfigOverride"`
 }
 
 type CiPipelineMaterialConfig struct {

@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
@@ -38,6 +39,8 @@ const (
 	//last deployed wfr which is also a specific trigger
 	DEPLOYMENT_CONFIG_TYPE_LATEST_TRIGGER   DeploymentConfigurationType = "LATEST_TRIGGER_CONFIG"
 	DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER DeploymentConfigurationType = "SPECIFIC_TRIGGER_CONFIG"
+	START                                                               = "START"
+	STOP                                                                = "STOP"
 )
 
 func (workflowType WorkflowType) WorkflowTypeToStageType() repository.PipelineStageType {
@@ -73,6 +76,18 @@ type ValuesOverrideRequest struct {
 	PipelineName                          string                      `json:"-"`
 	DeploymentAppType                     string                      `json:"-"`
 	Image                                 string                      `json:"-"`
+}
+
+func (v *ValuesOverrideRequest) SetDeploymentAppTypeForRequestType(rType string) error {
+	switch rType {
+	case START:
+		v.DeploymentType = models.DEPLOYMENTTYPE_START
+	case STOP:
+		v.DeploymentType = models.DEPLOYMENTTYPE_STOP
+	default:
+		return fmt.Errorf("unsupported operation %s", rType)
+	}
+	return nil
 }
 
 type BulkCdDeployEvent struct {
