@@ -6,6 +6,7 @@ import (
 	"errors"
 	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"time"
 
@@ -59,8 +60,11 @@ type InstallHelmAsyncRequest struct {
 }
 
 func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient, installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService, OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
-	pubSubClient *pubsub_lib.PubSubClientServiceImpl) *AppStoreDeploymentHelmServiceImpl {
+	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient, installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService, OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *AppStoreDeploymentHelmServiceImpl {
+	var pubSubClient *pubsub_lib.PubSubClientServiceImpl
+	if util2.IsFullStack() {
+		pubSubClient = pubsub_lib.NewPubSubClientServiceImpl(logger)
+	}
 	return &AppStoreDeploymentHelmServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,

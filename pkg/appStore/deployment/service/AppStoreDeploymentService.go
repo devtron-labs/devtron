@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env/v6"
-	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
@@ -109,7 +108,6 @@ type AppStoreDeploymentServiceImpl struct {
 	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
 	ChartTemplateService                 util.ChartTemplateService
-	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -121,8 +119,6 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	globalEnvVariables *util2.GlobalEnvVariables,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService,
 	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService,
-	pubSubClient *pubsub_lib.PubSubClientServiceImpl,
-
 ) *AppStoreDeploymentServiceImpl {
 
 	appStoreDeploymentServiceImpl := &AppStoreDeploymentServiceImpl{
@@ -144,14 +140,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
 		ChartTemplateService:                 ChartTemplateService,
-		pubSubClient:                         pubSubClient,
 	}
 	return appStoreDeploymentServiceImpl
-}
-
-type InstallHelmAsyncRequest struct {
-	InstallAppVersionDTO  *appStoreBean.InstallAppVersionDTO `json:"installAppVersionDTO"`
-	InstallReleaseRequest *client.InstallReleaseRequest      `json:"installReleaseRequest"`
 }
 
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, skipAppCreation bool) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -524,6 +514,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(install
 	}
 	return installedAppVersionHistory, nil
 }
+
 func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -1738,53 +1729,6 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistoryStatus(i
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return err
-	}
-	return nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) SubscribeHelmInstall() error {
-
-	callback := func(msg *pubsub_lib.PubSubMsg) {
-
-		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
-		installHelmAsyncRequest := &InstallHelmAsyncRequest{}
-		err := json.Unmarshal([]byte(msg.Data), installHelmAsyncRequest)
-		if err != nil {
-			impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
-			return
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-		installRes, err := impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.InstallAppVersionDTO.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
-		impl.logger.Debugw("Install Release in callback", "installRes", installRes)
-		if err != nil {
-			impl.logger.Errorw("Error in Install Release in callback", "err", err)
-			return
-		}
-		impl.installAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO)
-
-		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId))
-		if err != nil {
-			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-			return
-		}
-		if !installRes.Success {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
-		} else {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-		}
-		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
-		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-		if err != nil {
-			impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-			return
-		}
-	}
-
-	err := impl.pubSubClient.Subscribe(appStoreBean.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, callback)
-	if err != nil {
-		impl.logger.Error(err)
 		return err
 	}
 	return nil

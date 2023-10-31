@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"path"
 	"regexp"
 	"time"
@@ -67,30 +68,31 @@ type AppStoreDeploymentFullModeService interface {
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	GetGitOpsRepoName(appName string, environmentName string) (string, error)
-	SubscribeHelmInstallStatus() error
+	//SubscribeHelmInstallStatus() error
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
-	logger                               *zap.SugaredLogger
-	chartTemplateService                 util.ChartTemplateService
-	refChartDir                          appStoreBean.RefChartProxyDir
-	repositoryService                    repository.ServiceClient
-	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
-	environmentRepository                repository5.EnvironmentRepository
-	acdClient                            application2.ServiceClient
-	ArgoK8sClient                        argocdServer.ArgoK8sClient
-	gitFactory                           *util.GitFactory
-	aCDAuthConfig                        *util2.ACDAuthConfig
-	globalEnvVariables                   *util3.GlobalEnvVariables
-	installedAppRepository               repository4.InstalledAppRepository
-	tokenCache                           *util2.TokenCache
-	argoUserService                      argo.ArgoUserService
-	gitOpsConfigRepository               repository3.GitOpsConfigRepository
-	pipelineStatusTimelineService        status.PipelineStatusTimelineService
-	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	argoClientWrapperService             argocdServer.ArgoClientWrapperService
-	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
-	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
+	logger                               *zap.SugaredLogger                                              `json:"logger,omitempty"`
+	chartTemplateService                 util.ChartTemplateService                                       `json:"chartTemplateService,omitempty"`
+	refChartDir                          appStoreBean.RefChartProxyDir                                   `json:"refChartDir,omitempty"`
+	repositoryService                    repository.ServiceClient                                        `json:"repositoryService,omitempty"`
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository `json:"appStoreApplicationVersionRepository,omitempty"`
+	environmentRepository                repository5.EnvironmentRepository                               `json:"environmentRepository,omitempty"`
+	acdClient                            application2.ServiceClient                                      `json:"acdClient,omitempty"`
+	ArgoK8sClient                        argocdServer.ArgoK8sClient                                      `json:"argoK8SClient,omitempty"`
+	gitFactory                           *util.GitFactory                                                `json:"gitFactory,omitempty"`
+	aCDAuthConfig                        *util2.ACDAuthConfig                                            `json:"ACDAuthConfig,omitempty"`
+	globalEnvVariables                   *util3.GlobalEnvVariables                                       `json:"globalEnvVariables,omitempty"`
+	installedAppRepository               repository4.InstalledAppRepository                              `json:"installedAppRepository,omitempty"`
+	tokenCache                           *util2.TokenCache                                               `json:"tokenCache,omitempty"`
+	argoUserService                      argo.ArgoUserService                                            `json:"argoUserService,omitempty"`
+	gitOpsConfigRepository               repository3.GitOpsConfigRepository                              `json:"gitOpsConfigRepository,omitempty"`
+	pipelineStatusTimelineService        status.PipelineStatusTimelineService                            `json:"pipelineStatusTimelineService,omitempty"`
+	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService        `json:"appStoreDeploymentCommonService,omitempty"`
+	argoClientWrapperService             argocdServer.ArgoClientWrapperService                           `json:"argoClientWrapperService,omitempty"`
+	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl                             `json:"pubSubClient,omitempty"`
+	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository                `json:"installedAppRepositoryHistory,omitempty"`
+	helmAppService                       client.HelmAppService                                           `json:"helmAppService,omitempty"`
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -109,7 +111,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pubSubClient *pubsub_lib.PubSubClientServiceImpl,
 	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
-) *AppStoreDeploymentFullModeServiceImpl {
+	helmAppService client.HelmAppService) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -131,6 +133,11 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		argoClientWrapperService:             argoClientWrapperService,
 		pubSubClient:                         pubSubClient,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		helmAppService:                       helmAppService,
+	}
+	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstall()
+	if err != nil {
+		return nil
 	}
 	return appStoreDeploymentFullModeServiceImpl
 }
@@ -497,40 +504,59 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 	return nil
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() error {
-	//
-	//callback := func(msg *pubsub_lib.PubSubMsg) {
-	//
-	//	impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
-	//	helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
-	//	err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
-	//	if err != nil {
-	//		impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
-	//		return
-	//	}
-	//
-	//	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(helmInstallNatsMessage.InstallAppVersionHistoryId)
-	//	if err != nil {
-	//		impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-	//		return
-	//	}
-	//	if helmInstallNatsMessage.ErrorInInstallation {
-	//		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
-	//	} else {
-	//		installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-	//	}
-	//	installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
-	//	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-	//	if err != nil {
-	//		impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-	//		return
-	//	}
-	//}
-	//
-	//err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback)
-	//if err != nil {
-	//	impl.logger.Error(err)
-	//	return err
-	//}
+func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error {
+	callback := func(msg *pubsub_lib.PubSubMsg) {
+		impl.CallBackForHelmInstall(msg)
+	}
+	err := impl.pubSubClient.Subscribe(appStoreBean.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, callback)
+	if err != nil {
+		impl.logger.Error(err)
+		return err
+	}
 	return nil
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(msg *pubsub_lib.PubSubMsg) {
+	impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
+	installHelmAsyncRequest := &InstallHelmAsyncRequest{}
+	err := json.Unmarshal([]byte(msg.Data), installHelmAsyncRequest)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	installRes, err := impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.InstallAppVersionDTO.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
+	impl.logger.Debugw("Install Release in callback", "installRes", installRes)
+	if err != nil {
+		impl.logger.Errorw("Error in Install Release in callback", "err", err)
+		return
+	}
+	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO)
+
+	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId))
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
+		return
+	}
+	if !installRes.Success {
+		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+	} else {
+		installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+	}
+	installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
+	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+	if err != nil {
+		impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
+		return
+	}
+}
+
+type InstallHelmAsyncRequest struct {
+	InstallAppVersionDTO  *appStoreBean.InstallAppVersionDTO `json:"installAppVersionDTO"`
+	InstallReleaseRequest *client.InstallReleaseRequest      `json:"installReleaseRequest"`
+}
+
+func (impl AppStoreDeploymentFullModeServiceImpl) PublishNatsEvent(data string) {
+	impl.pubSubClient.Publish(appStoreBean.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, data)
 }
