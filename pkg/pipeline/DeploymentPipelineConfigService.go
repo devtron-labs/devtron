@@ -142,6 +142,7 @@ type CdPipelineConfigServiceImpl struct {
 	deploymentConfig                 *DeploymentServiceTypeConfig
 	application                      application.ServiceClient
 	manifestPushConfigRepository     repository5.ManifestPushConfigRepository
+	pipelineConfigListenerService    PipelineConfigListenerService
 
 	devtronAppCMCSService DevtronAppCMCSService
 }
@@ -176,6 +177,7 @@ func NewCdPipelineConfigServiceImpl(
 	variableTemplateParser parsers.VariableTemplateParser,
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
+	pipelineConfigListenerService PipelineConfigListenerService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 
 	devtronAppCMCSService DevtronAppCMCSService) *CdPipelineConfigServiceImpl {
@@ -210,6 +212,7 @@ func NewCdPipelineConfigServiceImpl(
 		deploymentConfig:                 deploymentConfig,
 		application:                      application,
 		manifestPushConfigRepository:     manifestPushConfigRepository,
+		pipelineConfigListenerService:    pipelineConfigListenerService,
 		devtronAppCMCSService:            devtronAppCMCSService,
 	}
 }
@@ -711,6 +714,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		return deleteResponse, err
 	}
 	deleteResponse.DeleteInitiated = true
+	impl.pipelineConfigListenerService.HandleCdPipelineDelete(pipeline.Id, userId)
 	return deleteResponse, nil
 }
 
