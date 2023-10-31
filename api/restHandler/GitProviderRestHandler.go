@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -81,7 +82,7 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.GitRegistry
+	var bean types.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveGitRepoConfig", "err", err, "payload", bean)
@@ -135,7 +136,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	result := make([]pipeline.GitRegistry, 0)
+	result := make([]types.GitRegistry, 0)
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, item)
@@ -174,7 +175,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.GitRegistry
+	var bean types.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "payload", bean)
@@ -213,7 +214,7 @@ func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.GitRegistry
+	var bean types.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteGitRepoConfig", "err", err, "payload", bean)

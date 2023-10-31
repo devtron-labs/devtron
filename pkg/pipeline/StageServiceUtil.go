@@ -6,27 +6,11 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"gopkg.in/yaml.v2"
 	"strings"
 )
-
-type TaskYaml struct {
-	Version          string             `yaml:"version"`
-	CdPipelineConfig []CdPipelineConfig `yaml:"cdPipelineConf"`
-}
-type CdPipelineConfig struct {
-	BeforeTasks []*Task `yaml:"beforeStages"`
-	AfterTasks  []*Task `yaml:"afterStages"`
-}
-type Task struct {
-	Id             int    `json:"id,omitempty"`
-	Index          int    `json:"index,omitempty"`
-	Name           string `json:"name" yaml:"name"`
-	Script         string `json:"script" yaml:"script"`
-	OutputLocation string `json:"outputLocation" yaml:"outputLocation"` // file/dir
-	RunStatus      bool   `json:"-,omitempty"`                          // task run was attempted or not
-}
 
 var globalInputVariableList = []string{DOCKER_IMAGE, DEPLOYMENT_RELEASE_ID, DEPLOYMENT_UNIQUE_ID, DEVTRON_CD_TRIGGER_TIME, DEVTRON_CD_TRIGGERED_BY, CD_PIPELINE_ENV_NAME_KEY, CD_PIPELINE_CLUSTER_NAME_KEY, APP_NAME}
 
@@ -79,13 +63,13 @@ func StageStepsToCdStageAdapter(deployStage *bean.PipelineStageDto) (*bean2.CdSt
 		Name:        deployStage.Name,
 		TriggerType: deployStage.TriggerType,
 	}
-	cdPipelineConfig := make([]CdPipelineConfig, 0)
-	beforeTasks := make([]*Task, 0)
-	afterTasks := make([]*Task, 0)
+	cdPipelineConfig := make([]types.CdPipelineConfig, 0)
+	beforeTasks := make([]*types.Task, 0)
+	afterTasks := make([]*types.Task, 0)
 	for _, step := range deployStage.Steps {
 		if step.InlineStepDetail != nil && checkForOtherParamsInInlineStepDetail(step) {
 			if deployStage.Type == repository2.PIPELINE_STAGE_TYPE_PRE_CD {
-				beforeTask := &Task{
+				beforeTask := &types.Task{
 					Name:           step.Name,
 					Script:         step.InlineStepDetail.Script,
 					OutputLocation: strings.Join(step.OutputDirectoryPath, ","),
@@ -94,7 +78,7 @@ func StageStepsToCdStageAdapter(deployStage *bean.PipelineStageDto) (*bean2.CdSt
 
 			}
 			if deployStage.Type == repository2.PIPELINE_STAGE_TYPE_POST_CD {
-				afterTask := &Task{
+				afterTask := &types.Task{
 					Name:           step.Name,
 					Script:         step.InlineStepDetail.Script,
 					OutputLocation: strings.Join(step.OutputDirectoryPath, ","),
@@ -107,11 +91,11 @@ func StageStepsToCdStageAdapter(deployStage *bean.PipelineStageDto) (*bean2.CdSt
 		}
 
 	}
-	cdPipelineConfig = append(cdPipelineConfig, CdPipelineConfig{
+	cdPipelineConfig = append(cdPipelineConfig, types.CdPipelineConfig{
 		BeforeTasks: beforeTasks,
 		AfterTasks:  afterTasks,
 	})
-	taskYaml := TaskYaml{
+	taskYaml := types.TaskYaml{
 		Version:          "",
 		CdPipelineConfig: cdPipelineConfig,
 	}
@@ -296,8 +280,8 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 	return pipelineStageDto, nil
 }
 
-func ToTaskYaml(yamlFile []byte) (*TaskYaml, error) {
-	taskYaml := &TaskYaml{}
+func ToTaskYaml(yamlFile []byte) (*types.TaskYaml, error) {
+	taskYaml := &types.TaskYaml{}
 	err := yaml.Unmarshal(yamlFile, taskYaml)
 	return taskYaml, err
 }
