@@ -90,7 +90,6 @@ type AppServiceConfig struct {
 	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 	EnableAsyncInstallDevtronChart      bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	DevtronChartInstallRequestTimeout   int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"` //in minutes
-	HelmInstallationTimeout             int    `env:"HELM_INSTALLATION_TIMEOUT" envDefault:"5"`             //in minutes
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
