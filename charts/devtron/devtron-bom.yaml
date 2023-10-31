@@ -25,8 +25,8 @@ components:
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:926a9867-280-19016"
-    cicdImage: "quay.io/devtron/devtron:926a9867-434-19019"
+    image: "quay.io/devtron/hyperion:6822926b-280-19032"
+    cicdImage: "quay.io/devtron/devtron:6822926b-434-19035"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:ad3af321-138-18662"
   argocdDexServer:
