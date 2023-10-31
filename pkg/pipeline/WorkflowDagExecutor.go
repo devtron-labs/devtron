@@ -668,8 +668,7 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 		return
 	}
 
-	timeout := util.GetMaxInteger(impl.appServiceConfig.HelmInstallationTimeout, impl.appServiceConfig.DevtronChartInstallRequestTimeout)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(impl.appServiceConfig.DevtronChartInstallRequestTimeout)*time.Minute)
 	defer cancel()
 
 	impl.UpdateReleaseContextForPipeline(overrideRequest.PipelineId, cdWfr.Id, cancel)
