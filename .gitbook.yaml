@@ -69,3 +69,4 @@ redirects:
     user-guide/use-cases/connect-expressjs-with-mongodb-database: resources/use-cases/connect-expressjs-with-mongodb-database
     user-guide/use-cases/connect-django-with-mysql-database: resources/use-cases/connect-django-with-mysql-database
     user-guide/telemetry: resources/telemetry
+    user-guide/global-configurations/docker-registries: user-guide/global-configurations/container-registries.md
