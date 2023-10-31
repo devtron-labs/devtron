@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	mocks3 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -23,7 +24,7 @@ func TestImageTaggingService(t *testing.T) {
 	assert.True(t, err == nil, err)
 
 	appId, artifactId, ciPipelineId, userId := 1, 3, 1, 2
-	testPayload := &ImageTaggingRequestDTO{
+	testPayload := &types.ImageTaggingRequestDTO{
 		CreateTags: []*repository.ImageTag{{
 			TagName:    "devtron-v1.1.6",
 			AppId:      appId,
@@ -451,7 +452,7 @@ func TestImageTaggingService(t *testing.T) {
 	})
 
 	t.Run("ValidateImageTaggingRequest", func(tt *testing.T) {
-		testImageTaggingRequest := ImageTaggingRequestDTO{
+		testImageTaggingRequest := types.ImageTaggingRequestDTO{
 			ImageComment: repository.ImageComment{
 				Id:      1,
 				Comment: "test Comment",
@@ -584,7 +585,7 @@ func TestImageTaggingService(t *testing.T) {
 
 	t.Run("performTagOperationsAndGetAuditList", func(tt *testing.T) {
 
-		testImageTaggingRequest := ImageTaggingRequestDTO{
+		testImageTaggingRequest := types.ImageTaggingRequestDTO{
 			ImageComment: repository.ImageComment{
 				Id:      1,
 				Comment: "test Comment",
