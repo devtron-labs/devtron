@@ -1,0 +1,1 @@
+ALTER resource_filter_evaluation_audit ADD COLUMN filter_name varchar(300);

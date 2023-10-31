@@ -1,0 +1,1 @@
+ALTER resource_filter_evaluation_audit DROP COLUMN filter_name;
