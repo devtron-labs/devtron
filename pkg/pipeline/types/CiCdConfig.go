@@ -1,6 +1,7 @@
-package pipeline
+package types
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,7 +14,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type CiCdConfig struct {
@@ -193,7 +196,7 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 	return cfg, err
 }
 
-func getNodeLabel(cfg *CiCdConfig, pipelineType bean.WorkflowPipelineType, isExt bool) (map[string]string, error) {
+func GetNodeLabel(cfg *CiCdConfig, pipelineType bean.WorkflowPipelineType, isExt bool) (map[string]string, error) {
 	node := []string{}
 	if pipelineType == bean.CI_WORKFLOW_PIPELINE_TYPE || pipelineType == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		node = cfg.CiNodeLabelSelector
@@ -465,4 +468,101 @@ func getWorkflowVolumeMounts(volumeMountForCi CiVolumeMount) v12.VolumeMount {
 		Name:      volumeMountForCi.Name,
 		MountPath: volumeMountForCi.ContainerMountPath,
 	}
+}
+
+const BLOB_STORAGE_AZURE = "AZURE"
+
+const BLOB_STORAGE_S3 = "S3"
+
+const BLOB_STORAGE_GCP = "GCP"
+
+const BLOB_STORAGE_MINIO = "MINIO"
+
+type ArtifactsForCiJob struct {
+	Artifacts []string `json:"artifacts"`
+}
+
+type GitTriggerInfoResponse struct {
+	CiMaterials      []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
+	TriggeredByEmail string                                      `json:"triggeredByEmail"`
+	LastDeployedTime string                                      `json:"lastDeployedTime,omitempty"`
+	AppId            int                                         `json:"appId"`
+	AppName          string                                      `json:"appName"`
+	EnvironmentId    int                                         `json:"environmentId"`
+	EnvironmentName  string                                      `json:"environmentName"`
+	Default          bool                                        `json:"default,omitempty"`
+	ImageTaggingData ImageTaggingResponseDTO                     `json:"imageTaggingData"`
+	Image            string                                      `json:"image"`
+}
+
+type Trigger struct {
+	PipelineId                int
+	CommitHashes              map[int]pipelineConfig.GitCommit
+	CiMaterials               []*pipelineConfig.CiPipelineMaterial
+	TriggeredBy               int32
+	InvalidateCache           bool
+	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
+	EnvironmentId             int
+	PipelineType              string
+	CiArtifactLastFetch       time.Time
+	ReferenceCiWorkflowId     int
+}
+
+func (obj Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
+	ciMaterials []*pipelineConfig.CiPipelineMaterial, triggeredBy int32,
+	invalidateCache bool, extraEnvironmentVariables map[string]string,
+	pipelineType string) {
+
+	obj.PipelineId = refCiWorkflow.CiPipelineId
+	obj.CommitHashes = refCiWorkflow.GitTriggers
+	obj.CiMaterials = ciMaterials
+	obj.TriggeredBy = triggeredBy
+	obj.InvalidateCache = invalidateCache
+	obj.EnvironmentId = refCiWorkflow.EnvironmentId
+	obj.ReferenceCiWorkflowId = refCiWorkflow.Id
+	obj.InvalidateCache = invalidateCache
+	obj.ExtraEnvironmentVariables = extraEnvironmentVariables
+	obj.PipelineType = pipelineType
+
+}
+
+type BuildLogRequest struct {
+	PipelineId        int
+	WorkflowId        int
+	PodName           string
+	LogsFilePath      string
+	Namespace         string
+	CloudProvider     blob_storage.BlobStorageType
+	AwsS3BaseConfig   *blob_storage.AwsS3BaseConfig
+	AzureBlobConfig   *blob_storage.AzureBlobBaseConfig
+	GcpBlobBaseConfig *blob_storage.GcpBlobBaseConfig
+	MinioEndpoint     string
+}
+
+func (r *BuildLogRequest) SetBuildLogRequest(cmConfig *bean.CmBlobStorageConfig, secretConfig *bean.SecretBlobStorageConfig) {
+	r.CloudProvider = cmConfig.CloudProvider
+	r.AzureBlobConfig.AccountName = cmConfig.AzureAccountName
+	r.AzureBlobConfig.AccountKey = DecodeSecretKey(secretConfig.AzureAccountKey)
+	r.AzureBlobConfig.BlobContainerName = cmConfig.AzureBlobContainerCiLog
+
+	r.GcpBlobBaseConfig.CredentialFileJsonData = DecodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
+	r.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
+
+	r.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
+	r.AwsS3BaseConfig.EndpointUrl = cmConfig.S3Endpoint
+	r.AwsS3BaseConfig.Passkey = DecodeSecretKey(secretConfig.S3SecretKey)
+	isEndpointInSecure, _ := strconv.ParseBool(cmConfig.S3EndpointInsecure)
+	r.AwsS3BaseConfig.IsInSecure = isEndpointInSecure
+	r.AwsS3BaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
+	r.AwsS3BaseConfig.Region = cmConfig.CdDefaultCdLogsBucketRegion
+	s3BucketVersioned, _ := strconv.ParseBool(cmConfig.S3BucketVersioned)
+	r.AwsS3BaseConfig.VersioningEnabled = s3BucketVersioned
+}
+
+func DecodeSecretKey(secretKey string) string {
+	decodedKey, err := base64.StdEncoding.DecodeString(secretKey)
+	if err != nil {
+		fmt.Println("error decoding base64 key:", err)
+	}
+	return string(decodedKey)
 }

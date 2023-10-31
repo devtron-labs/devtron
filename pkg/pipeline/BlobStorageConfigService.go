@@ -2,11 +2,11 @@ package pipeline
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
@@ -18,10 +18,10 @@ type BlobStorageConfigService interface {
 type BlobStorageConfigServiceImpl struct {
 	Logger     *zap.SugaredLogger
 	k8sUtil    *k8s.K8sUtil
-	ciCdConfig *CiCdConfig
+	ciCdConfig *types.CiCdConfig
 }
 
-func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil, ciCdConfig *CiCdConfig) *BlobStorageConfigServiceImpl {
+func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil, ciCdConfig *types.CiCdConfig) *BlobStorageConfigServiceImpl {
 	return &BlobStorageConfigServiceImpl{
 		Logger:     Logger,
 		k8sUtil:    k8sUtil,
@@ -80,7 +80,7 @@ func updateRequestWithExtClusterCmAndSecret(request *blob_storage.BlobStorageReq
 
 	request.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
 	request.AwsS3BaseConfig.EndpointUrl = cmConfig.S3Endpoint
-	request.AwsS3BaseConfig.Passkey = decodeSecretKey(secretConfig.S3SecretKey)
+	request.AwsS3BaseConfig.Passkey = types.DecodeSecretKey(secretConfig.S3SecretKey)
 	isInSecure, _ := strconv.ParseBool(cmConfig.S3EndpointInsecure)
 	request.AwsS3BaseConfig.IsInSecure = isInSecure
 	request.AwsS3BaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
@@ -89,19 +89,11 @@ func updateRequestWithExtClusterCmAndSecret(request *blob_storage.BlobStorageReq
 	request.AwsS3BaseConfig.VersioningEnabled = s3BucketVersioned
 
 	request.AzureBlobBaseConfig.AccountName = cmConfig.AzureAccountName
-	request.AzureBlobBaseConfig.AccountKey = decodeSecretKey(secretConfig.AzureAccountKey)
+	request.AzureBlobBaseConfig.AccountKey = types.DecodeSecretKey(secretConfig.AzureAccountKey)
 	request.AzureBlobBaseConfig.BlobContainerName = cmConfig.AzureBlobContainerCiLog
 
-	request.GcpBlobBaseConfig.CredentialFileJsonData = decodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
+	request.GcpBlobBaseConfig.CredentialFileJsonData = types.DecodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
 	request.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
 
 	return request
-}
-
-func decodeSecretKey(secretKey string) string {
-	decodedKey, err := base64.StdEncoding.DecodeString(secretKey)
-	if err != nil {
-		fmt.Println("error decoding base64 key:", err)
-	}
-	return string(decodedKey)
 }
