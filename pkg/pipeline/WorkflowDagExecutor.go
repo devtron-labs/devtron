@@ -551,9 +551,29 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(releaseErr e
 	releaseErrString := util.GetGRPCErrorDetailedMessage(releaseErr)
 	switch releaseErrString {
 	case context.DeadlineExceeded.Error():
-		if err := impl.MarkCurrentDeploymentFailed(cdWfr, fmt.Errorf("Deployment timeout: release %s took more than %d mins", appIdentifier.ReleaseName, impl.appServiceConfig.DevtronChartInstallRequestTimeout), overrideRequest.UserId); err != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
+		// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
+		if isWfrUpdated := impl.UpdateWorkflowRunnerStatusForDeployment(appIdentifier, cdWfr); !isWfrUpdated {
+			// updating cdWfr to failed
+			if err := impl.MarkCurrentDeploymentFailed(cdWfr, fmt.Errorf("Deployment timeout: release %s took more than %d mins", appIdentifier.ReleaseName, impl.appServiceConfig.DevtronChartInstallRequestTimeout), overrideRequest.UserId); err != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
+			}
 		}
+		cdWfr.UpdatedBy = 1
+		cdWfr.UpdatedOn = time.Now()
+		err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
+		if err != nil {
+			impl.logger.Errorw("error on update cd workflow runner", "wfr", cdWfr, "err", err)
+			return
+		}
+		cdMetrics := util4.CDMetrics{
+			AppName:         cdWfr.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          cdWfr.Status,
+			DeploymentType:  cdWfr.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: cdWfr.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(cdWfr.StartedOn).Seconds() - time.Since(cdWfr.FinishedOn).Seconds(),
+		}
+		util4.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
+		impl.logger.Infow("updated workflow runner status for helm app", "wfr", cdWfr)
 		return
 	case context.Canceled.Error():
 		if err := impl.MarkCurrentDeploymentFailed(cdWfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED), overrideRequest.UserId); err != nil {
