@@ -20,7 +20,6 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	errors3 "errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
