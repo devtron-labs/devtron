@@ -6,6 +6,7 @@ import (
 	"errors"
 	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"time"
@@ -52,11 +53,6 @@ type AppStoreDeploymentHelmServiceImpl struct {
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
 	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
-}
-
-type InstallHelmAsyncRequest struct {
-	InstallAppVersionDTO  *appStoreBean.InstallAppVersionDTO `json:"installAppVersionDTO"`
-	InstallReleaseRequest *client.InstallReleaseRequest      `json:"installReleaseRequest"`
 }
 
 func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
@@ -148,11 +144,11 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 	impl.Logger.Debugw("Helm install HelmInstallAsyncMode", "HelmInstallAsyncMode", installAppVersionRequest.HelmInstallAsyncMode)
 	if installAppVersionRequest.HelmInstallAsyncMode {
 		impl.Logger.Debugw("Helm Install with Async mode")
-		installHelmAsyncRequest := InstallHelmAsyncRequest{
+		installHelmAsyncRequest := appStoreDeploymentFullMode.InstallHelmAsyncRequest{
 			InstallAppVersionDTO:  installAppVersionRequest,
 			InstallReleaseRequest: installReleaseRequest,
 		}
-		data, err := json.Marshal(installHelmAsyncRequest)
+		data, err := json.Marshal(&installHelmAsyncRequest)
 		if err != nil {
 			return nil, err
 		}
