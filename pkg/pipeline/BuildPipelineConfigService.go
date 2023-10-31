@@ -39,6 +39,7 @@ import (
 	"github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -51,6 +52,8 @@ type CiPipelineConfigService interface {
 	//If any errors occur during the retrieval process  CI pipeline configuration remains nil.
 	//If you want less detail of ciPipeline ,Please refer GetCiPipelineMin
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
+	// CheckIfPipelineNameAlreadyExist : checks if pipeline name already exist within the same app
+	CheckIfPipelineNameAlreadyExist(pipelineName string, existingPipelines []*bean.CiPipeline) error
 	//GetCiPipelineById : Retrieve ciPipeline for given ciPipelineId
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 	//GetTriggerViewCiPipeline : retrieves a detailed view of the CI pipelines configured for a specific application (appId).
@@ -683,6 +686,16 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	ciConfig.CiPipelines = ciPipelineResp
 	//--------pipeline population end
 	return ciConfig, err
+}
+
+func (impl *CiPipelineConfigServiceImpl) CheckIfPipelineNameAlreadyExist(pipelineName string, existingPipelines []*bean.CiPipeline) error {
+	for _, pipeline := range existingPipelines {
+		if pipelineName == pipeline.Name {
+			impl.logger.Errorw("cannot use same pipeline within an app", "existing pipelines", existingPipelines, "request pipeline", pipelineName)
+			return &util.ApiError{Code: "400", HttpStatusCode: http.StatusBadRequest, UserMessage: "cannot use same pipeline name within an app", InternalMessage: "duplicate name for pipeline in an app"}
+		}
+	}
+	return nil
 }
 
 func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error) {
