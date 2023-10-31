@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
-	"github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib-private/blob-storage"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -122,6 +122,7 @@ type WorkflowRequest struct {
 	Pipeline                 *pipelineConfig.Pipeline
 	Env                      *repository.Environment
 	AppLabels                map[string]string
+	IsDryRun                 bool `json:"isDryRun"`
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -602,7 +603,10 @@ type WorkflowResponse struct {
 	Stage                string                                      `json:"stage"`
 	ArtifactId           int                                         `json:"artifactId"`
 	IsArtifactUploaded   bool                                        `json:"isArtifactUploaded"`
-	IsVirtualEnvironment bool                                        `json:"isVirtualEnvironment"`
+	UserApprovalMetadata *pipelineConfig.UserApprovalMetadata        `json:"userApprovalMetadata"`
+	IsVirtualEnvironment bool                                        `json:"IsVirtualEnvironment"`
+	CdWorkflowId         int                                         `json:"cdWorkflowId"`
+	HelmPackageName      string                                      `json:"helmPackageName"`
 	PodName              string                                      `json:"podName"`
 	EnvironmentId        int                                         `json:"environmentId"`
 	EnvironmentName      string                                      `json:"environmentName"`

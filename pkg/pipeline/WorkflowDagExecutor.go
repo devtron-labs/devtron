@@ -831,7 +831,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			return err
 		}
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
-			err = impl.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, PRE, pipeline, imageTag, ctx)
+			err = impl.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, types.PRE, pipeline, imageTag, ctx)
 			if err != nil {
 				runner.Status = pipelineConfig.WorkflowFailed
 				runner.UpdatedBy = triggeredBy
@@ -1049,7 +1049,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			return err
 		}
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
-			err = impl.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, POST, pipeline, imageTag, context.Background())
+			err = impl.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, types.POST, pipeline, imageTag, context.Background())
 			if err != nil {
 				runner.Status = pipelineConfig.WorkflowFailed
 				runner.UpdatedBy = triggeredBy
