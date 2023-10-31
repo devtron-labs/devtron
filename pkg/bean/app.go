@@ -764,7 +764,7 @@ type CiArtifactBean struct {
 	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp *time.Time                           `json:"appliedFiltersTimestamp"`
 	CreatedTime             string                               `json:"createdTime"`
-	ExternalCiPipelineId    int                                  `json:"-"`
+	ExternalCiPipelineId    int                                  `json:"externalCiPipelineId"`
 	ParentCiArtifact        int                                  `json:"-"`
 	CiWorkflowId            int                                  `json:"-"`
 }
