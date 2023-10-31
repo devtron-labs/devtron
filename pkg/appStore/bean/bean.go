@@ -19,7 +19,6 @@ package appStoreBean
 
 import (
 	"encoding/json"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
 )
@@ -107,11 +106,6 @@ type InstallAppVersionDTO struct {
 	PerformGitOps                bool `json:"performGitOps"`
 	PerformACDDeployment         bool `json:"performACDDeployment"`
 	PerformHelmDeployment        bool `json:"performHelmDeployment"`
-}
-
-type InstallHelmAsyncRequest struct {
-	InstallAppVersionDTO  *InstallAppVersionDTO         `json:"installAppVersionDTO"`
-	InstallReleaseRequest *client.InstallReleaseRequest `json:"installReleaseRequest"`
 }
 
 type InstalledAppDeleteResponseDTO struct {
