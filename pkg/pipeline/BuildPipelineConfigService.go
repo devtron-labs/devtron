@@ -40,7 +40,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -689,7 +688,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	return ciConfig, err
 }
 
-func (impl *PipelineBuilderImpl) CheckIfPipelineNameAlreadyExist(pipelineName string, existingPipelines []*bean.CiPipeline) error {
+func (impl *CiPipelineConfigServiceImpl) CheckIfPipelineNameAlreadyExist(pipelineName string, existingPipelines []*bean.CiPipeline) error {
 	for _, pipeline := range existingPipelines {
 		if pipelineName == pipeline.Name {
 			impl.logger.Errorw("cannot use same pipeline within an app", "existing pipelines", existingPipelines, "request pipeline", pipelineName)
