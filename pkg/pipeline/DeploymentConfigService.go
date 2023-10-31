@@ -86,7 +86,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	}
 	configResp.StrategyConfig = pipelineStrategyConfig
 
-	configMapConfig, secretConfig, err := impl.GetLatestCMCSConfig(pipeline, userHasAdminAccess)
+	configMapConfig, secretConfig, err := impl.GetLatestCMCSConfig(ctx, pipeline, userHasAdminAccess)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest CM/CS config", "err", err)
 		return nil, err
@@ -217,7 +217,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig(pipelin
 	return pipelineStrategyConfig, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineConfig.Pipeline, userHasAdminAccess bool) ([]*history.ComponentLevelHistoryDetailDto, []*history.ComponentLevelHistoryDetailDto, error) {
+func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline, userHasAdminAccess bool) ([]*history.ComponentLevelHistoryDetailDto, []*history.ComponentLevelHistoryDetailDto, error) {
 
 	configAppLevel, err := impl.configMapRepository.GetByAppIdAppLevel(pipeline.AppId)
 	if err != nil && pg.ErrNoRows != err {
@@ -258,7 +258,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		EnvId:     pipeline.EnvironmentId,
 		ClusterId: pipeline.Environment.ClusterId,
 	}
-	resolvedConfigList, resolvedSecretList, variableMapCM, variableMapCS, err := impl.scopedVariableManager.ResolveCMCS(scope, configAppLevel.Id, configEnvLevel.Id, mergedConfigMap, mergedSecret)
+	resolvedConfigList, resolvedSecretList, variableMapCM, variableMapCS, err := impl.scopedVariableManager.ResolveCMCS(ctx, scope, configAppLevel.Id, configEnvLevel.Id, mergedConfigMap, mergedSecret)
 	if err != nil {
 		return nil, nil, err
 	}
