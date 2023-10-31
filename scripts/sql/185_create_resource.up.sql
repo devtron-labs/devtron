@@ -41,7 +41,7 @@ CREATE TABLE "public"."devtron_resource_object"
     "name"                       VARCHAR(250) NOT NULL,
     "devtron_resource_id"        int,
     "devtron_resource_schema_id" int,
-    "schema"                     jsonb,
+    "object_data"                jsonb,
     "deleted"                    boolean,
     "created_on"                 timestamptz,
     "created_by"                 integer,
