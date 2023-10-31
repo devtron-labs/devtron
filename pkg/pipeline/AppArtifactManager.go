@@ -796,7 +796,7 @@ func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pi
 	return parentId, parentType, parentCdId, err
 }
 
-func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBean bean2.CiArtifactBean, pipelineId int, stage bean.WorkflowType) bean2.CiArtifactBean {
+func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bean2.CiArtifactBean, pipelineId int, stage bean.WorkflowType) []bean2.CiArtifactBean {
 	referenceType := resourceFilter.Pipeline
 	referenceId := pipelineId
 	if stage != bean.CD_WORKFLOW_TYPE_DEPLOY {
@@ -809,20 +809,31 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBean bean2.
 		if err != nil {
 			// not returning error by choice
 			impl.logger.Errorw("error in fetching pipeline Stage", "stageType", stageType, "pipelineId", pipelineId, "err", err)
-			return ciArtifactBean
+			return ciArtifactBeans
 		}
 		referenceId = pipelineStage.Id
 	}
-	appliedFilters, appliedFiltersTimeStamp, err := impl.resourceFilterService.GetEvaluatedFilters(resourceFilter.Artifact, ciArtifactBean.Id, referenceId, referenceType)
+	artifactIds := make([]int, 0, len(ciArtifactBeans))
+	for _, ciArtifactBean := range ciArtifactBeans {
+		//we only want to get evaluated filters for un deployed artifacts
+		if !ciArtifactBean.Deployed {
+			artifactIds = append(artifactIds, ciArtifactBean.Id)
+		}
+	}
+
+	appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, artifactIds, referenceId, referenceType)
 	if err != nil {
 		// not returning error by choice
 		impl.logger.Errorw("error in fetching applied filters when this image was born", "stageType", stage, "pipelineId", pipelineId, "err", err)
-		return ciArtifactBean
+		return ciArtifactBeans
 	}
-	ciArtifactBean.AppliedFilters = appliedFilters
-	ciArtifactBean.AppliedFiltersTimestamp = appliedFiltersTimeStamp
-	ciArtifactBean.AppliedFiltersState = resourceFilter.BLOCK
-	return ciArtifactBean
+	for i, ciArtifactBean := range ciArtifactBeans {
+		ciArtifactBeans[i].AppliedFilters = appliedFiltersMap[ciArtifactBean.Id]
+		ciArtifactBeans[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[ciArtifactBean.Id]
+		ciArtifactBeans[i].AppliedFiltersState = resourceFilter.BLOCK
+	}
+
+	return ciArtifactBeans
 }
 
 func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
@@ -915,9 +926,6 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		}
 		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags)
 		ciArtifacts[i].FilterState = filterState
-		if !isApprovalNode {
-			ciArtifacts[i] = impl.fillAppliedFiltersData(ciArtifacts[i], pipeline.Id, stage)
-		}
 		if artifact.ExternalCiPipelineId != 0 {
 			// if external webhook continue
 			continue
@@ -942,6 +950,9 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
 
+	}
+	if !isApprovalNode {
+		ciArtifacts = impl.fillAppliedFiltersData(ciArtifacts, pipeline.Id, stage)
 	}
 	ciArtifactsResponse.ResourceFilters = filters
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
@@ -996,6 +1007,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
 			Latest:       true,
 			CreatedTime:  formatDate(currentRunningArtifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:   currentRunningArtifact.DataSource,
 		}
 		if currentRunningArtifact.WorkflowId != nil {
 			currentRunningArtifactBean.CiWorkflowId = *currentRunningArtifact.WorkflowId
@@ -1102,6 +1114,7 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts
 			ExternalCiPipelineId: wfr.CdWorkflow.CiArtifact.ExternalCiPipelineId,
 			ParentCiArtifact:     wfr.CdWorkflow.CiArtifact.ParentCiArtifact,
 			CreatedTime:          formatDate(wfr.CdWorkflow.CiArtifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:           wfr.CdWorkflow.CiArtifact.DataSource,
 		}
 		if wfr.CdWorkflow.CiArtifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *wfr.CdWorkflow.CiArtifact.WorkflowId
@@ -1139,6 +1152,7 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCIParentV2(listingFilterOpt
 			ExternalCiPipelineId: artifact.ExternalCiPipelineId,
 			ParentCiArtifact:     artifact.ParentCiArtifact,
 			CreatedTime:          formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:           artifact.DataSource,
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId
@@ -1193,6 +1207,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 			ExternalCiPipelineId: artifact.ExternalCiPipelineId,
 			ParentCiArtifact:     artifact.ParentCiArtifact,
 			CreatedTime:          formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:           artifact.DataSource,
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId

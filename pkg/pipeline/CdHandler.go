@@ -748,18 +748,27 @@ func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg str
 	return savedWorkflow.Status != status || savedWorkflow.PodStatus != podStatus || savedWorkflow.Message != msg || savedWorkflow.FinishedOn != finishedAt
 }
 
-func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifact pipelineConfig.CdWorkflowWithArtifact) pipelineConfig.CdWorkflowWithArtifact {
-	appliedFilters, appliedFiltersTimeStamp, err := impl.resourceFilterService.GetEvaluatedFilters(resourceFilter.Artifact, cdWorkflowArtifact.CiArtifactId, cdWorkflowArtifact.Id, resourceFilter.CdWorkflowRunner)
+func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []pipelineConfig.CdWorkflowWithArtifact) []pipelineConfig.CdWorkflowWithArtifact {
+	artifactIds := make([]int, len(cdWorkflowArtifacts))
+	workflowRunnerIds := make([]int, len(cdWorkflowArtifacts))
+	for i, cdWorkflowArtifact := range cdWorkflowArtifacts {
+		artifactIds[i] = cdWorkflowArtifact.CiArtifactId
+		workflowRunnerIds[i] = cdWorkflowArtifact.Id
+	}
+	appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjectsAndReferenceIds(resourceFilter.Artifact, artifactIds, workflowRunnerIds, resourceFilter.CdWorkflowRunner)
 	if err != nil {
 		// not returning error by choice
-		impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerId", cdWorkflowArtifact.Id, "err", err)
-		return cdWorkflowArtifact
+		impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerIds", workflowRunnerIds, "artifactIds", artifactIds, "err", err)
+		return cdWorkflowArtifacts
 	}
-	cdWorkflowArtifact.AppliedFilters = appliedFilters
-	cdWorkflowArtifact.AppliedFiltersTimestamp = appliedFiltersTimeStamp
-	// we are setting this data in workflow runner list, which means these got triggered because filters are allowed or no filters configured at all
-	cdWorkflowArtifact.AppliedFiltersState = resourceFilter.ALLOW
-	return cdWorkflowArtifact
+	for i, cdWorkflowArtifact := range cdWorkflowArtifacts {
+		artifactWfrKey := fmt.Sprintf("%v-%v", cdWorkflowArtifact.CiArtifactId, cdWorkflowArtifact.Id)
+		cdWorkflowArtifacts[i].AppliedFilters = appliedFiltersMap[artifactWfrKey]
+		cdWorkflowArtifacts[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[artifactWfrKey]
+		// we are setting this data in workflow runner list, which means these got triggered because filters are allowed or no filters configured at all
+		cdWorkflowArtifact.AppliedFiltersState = resourceFilter.ALLOW
+	}
+	return cdWorkflowArtifacts
 }
 
 func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
@@ -884,9 +893,9 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		if imageCommentsDataMap[item.CiArtifactId] != nil {
 			item.ImageComment = imageCommentsDataMap[item.CiArtifactId]
 		}
-		item = impl.fillAppliedFiltersData(item)
 		cdWorkflowArtifact[i] = item
 	}
+	cdWorkflowArtifact = impl.fillAppliedFiltersData(cdWorkflowArtifact)
 	return cdWorkflowArtifact, nil
 }
 
@@ -1122,14 +1131,14 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 
 	if showAppliedFilters {
 
-		appliedFilters, appliedFiltersTimeStamp, err := impl.resourceFilterService.GetEvaluatedFilters(resourceFilter.Artifact, workflow.CiArtifactId, workflow.Id, resourceFilter.CdWorkflowRunner)
+		appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, []int{workflow.CiArtifactId}, workflow.Id, resourceFilter.CdWorkflowRunner)
 		if err != nil {
 			// not returning error by choice
 			impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerId", workflow.Id, "err", err)
 		}
 		workflowResponse.AppliedFiltersState = resourceFilter.ALLOW
-		workflowResponse.AppliedFilters = appliedFilters
-		workflowResponse.AppliedFiltersTimestamp = appliedFiltersTimeStamp
+		workflowResponse.AppliedFilters = appliedFiltersMap[workflow.CiArtifactId]
+		workflowResponse.AppliedFiltersTimestamp = appliedFiltersTimeStampMap[workflow.CiArtifactId]
 	}
 	return workflowResponse, nil
 
