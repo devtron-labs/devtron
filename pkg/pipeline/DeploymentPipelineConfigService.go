@@ -722,6 +722,26 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			return deleteResponse, err
 		}
 	}
+	if cdPipelinePluginDeleteReq.PreDeployStage != nil {
+		tag := bean2.CustomTag{
+			EntityKey:   bean3.EntityTypePreCD,
+			EntityValue: strconv.Itoa(pipeline.Id),
+		}
+		err = impl.customTagService.DeleteCustomTagIfExists(tag)
+		if err != nil {
+			impl.logger.Errorw("error in deleting custom tag for pre-cd stage", "Err", err, "cd-pipeline-id", pipeline.Id)
+		}
+	}
+	if cdPipelinePluginDeleteReq.PostDeployStage != nil {
+		tag := bean2.CustomTag{
+			EntityKey:   bean3.EntityTypePostCD,
+			EntityValue: strconv.Itoa(pipeline.Id),
+		}
+		err = impl.customTagService.DeleteCustomTagIfExists(tag)
+		if err != nil {
+			impl.logger.Errorw("error in deleting custom tag for pre-cd stage", "Err", err, "cd-pipeline-id", pipeline.Id)
+		}
+	}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
