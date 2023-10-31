@@ -1236,6 +1236,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 					return nil, err
 				}
 				ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
+			} else if ciPipeline.PipelineType == bean3.CI_JOB {
+				// This has been done to resolve unmarshalling issue in ci-runner, in case of no commit time(eg- polling container images)
+				ciProjectDetail.CommitTime = time.Time{}.Format(bean2.LayoutRFC3339)
 			} else {
 				impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
 				return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
@@ -1482,6 +1485,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
+		cdStageWorkflowRequest.CiPipelineType = ciPipeline.PipelineType
 	} else if cdPipeline.AppId > 0 {
 		ciTemplate, err := impl.CiTemplateRepository.FindByAppId(cdPipeline.AppId)
 		if err != nil {
