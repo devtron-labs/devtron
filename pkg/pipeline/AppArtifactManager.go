@@ -674,6 +674,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
 			Latest:       true,
 			CreatedTime:  formatDate(currentRunningArtifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:   currentRunningArtifact.DataSource,
 		}
 		if currentRunningArtifact.WorkflowId != nil {
 			currentRunningArtifactBean.CiWorkflowId = *currentRunningArtifact.WorkflowId
@@ -745,6 +746,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 			ExternalCiPipelineId: wfr.CdWorkflow.CiArtifact.ExternalCiPipelineId,
 			ParentCiArtifact:     wfr.CdWorkflow.CiArtifact.ParentCiArtifact,
 			CreatedTime:          formatDate(wfr.CdWorkflow.CiArtifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:           wfr.CdWorkflow.CiArtifact.DataSource,
 		}
 		if wfr.CdWorkflow.CiArtifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *wfr.CdWorkflow.CiArtifact.WorkflowId
@@ -783,6 +785,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 			ExternalCiPipelineId: artifact.ExternalCiPipelineId,
 			ParentCiArtifact:     artifact.ParentCiArtifact,
 			CreatedTime:          formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:           artifact.DataSource,
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId
