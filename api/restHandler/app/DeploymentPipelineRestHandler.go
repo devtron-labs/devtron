@@ -1285,6 +1285,11 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		stage = pipeline.WorklowTypeDeploy
 	}
 
+	if !(stage == string(bean2.CD_WORKFLOW_TYPE_PRE) || stage == string(bean2.CD_WORKFLOW_TYPE_POST) || stage == string(bean2.CD_WORKFLOW_TYPE_DEPLOY)) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid stage param"), nil, http.StatusBadRequest)
+		return
+	}
+
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
 
 	pipeline, err := handler.pipelineBuilder.FindPipelineById(cdPipelineId)
