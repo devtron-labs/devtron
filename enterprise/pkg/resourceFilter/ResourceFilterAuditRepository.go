@@ -17,6 +17,7 @@ type ResourceFilterAudit struct {
 	tableName    struct{}            `sql:"resource_filter_audit" pg:",discard_unknown_columns"`
 	Id           int                 `sql:"id"`
 	FilterId     int                 `sql:"filter_id"`
+	FilterName   string              `sql:"filter_name"`
 	Conditions   string              `sql:"conditions"` //json string
 	TargetObject *FilterTargetObject `sql:"target_object"`
 	Action       *ActionType         `sql:"action"`

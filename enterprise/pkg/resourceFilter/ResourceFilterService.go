@@ -31,7 +31,8 @@ type ResourceFilterService interface {
 	//filter evaluation audit
 	CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
-	GetEvaluatedFilters(subjectType SubjectType, subjectId int, referenceId int, referenceType ReferenceType) ([]*FilterMetaDataBean, *time.Time, error)
+	GetEvaluatedFiltersForSubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int][]*FilterMetaDataBean, map[int]*time.Time, error)
+	GetEvaluatedFiltersForSubjectsAndReferenceIds(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string][]*FilterMetaDataBean, map[string]*time.Time, error)
 }
 
 type ResourceFilterServiceImpl struct {
@@ -730,70 +731,109 @@ func (impl *ResourceFilterServiceImpl) UpdateFilterEvaluationAuditRef(id int, re
 	return impl.resourceFilterEvaluationAuditService.UpdateFilterEvaluationAuditRef(id, refType, refId)
 }
 
-func (impl *ResourceFilterServiceImpl) GetEvaluatedFilters(subjectType SubjectType, subjectId int, referenceId int, referenceType ReferenceType) ([]*FilterMetaDataBean, *time.Time, error) {
+func (impl *ResourceFilterServiceImpl) GetEvaluatedFiltersForSubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int][]*FilterMetaDataBean, map[int]*time.Time, error) {
 
 	//fetch filter history objects
-	filterHistoryStates, err := impl.resourceFilterEvaluationAuditService.GetLastEvaluationFilterHistoryData(subjectType, subjectId, referenceId, referenceType)
+	subjectIdVsFilterHistoryStates, err := impl.resourceFilterEvaluationAuditService.GetLastEvaluationFilterHistoryDataBySubjects(subjectType, subjectIds, referenceId, referenceType)
 	if err != nil {
 		impl.logger.Errorw("error in finding filter history objects ", "subjectType", subjectType, "subjectId", referenceId, "referenceType", referenceType, "err", err)
 		return nil, nil, err
 	}
 
 	//if no filters were evaluated just return
-	if len(filterHistoryStates) == 0 {
+	if len(subjectIdVsFilterHistoryStates) == 0 {
 		return nil, nil, nil
 	}
 
-	filterHistoryIds := make([]int, 0, len(filterHistoryStates))
-	for filterHistoryId, _ := range filterHistoryStates {
-		filterHistoryIds = append(filterHistoryIds, filterHistoryId)
+	filterHistoryIds := make([]int, 0)
+	for _, filterHistoryStates := range subjectIdVsFilterHistoryStates {
+		for filterHistoryId, _ := range filterHistoryStates {
+			filterHistoryIds = append(filterHistoryIds, filterHistoryId)
+		}
 	}
-	filtersAuditList, err := impl.filterAuditRepo.GetByIds(filterHistoryIds)
+
+	allFiltersAuditList, err := impl.filterAuditRepo.GetByIds(filterHistoryIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching filters filterAudit by using their ids", "filterAudit", filterHistoryIds, "err", err)
 		return nil, nil, err
 	}
 
-	//this slice may contain duplicate filterIds
-	filterIds := make([]int, len(filtersAuditList))
-	for i, filterAudit := range filtersAuditList {
-		filterIds[i] = filterAudit.FilterId
+	historyIdVsFilterAuditMap := make(map[int]*ResourceFilterAudit)
+	for _, filtersAudit := range allFiltersAuditList {
+		historyIdVsFilterAuditMap[filtersAudit.Id] = filtersAudit
 	}
 
-	//fetch filters and create map (key:filterId,value:filter)
-	filterIdVsFilterMap := make(map[int]*ResourceFilter)
-	filters, err := impl.resourceFilterRepository.GetByIds(filterIds)
+	return evaluatedFilterResponseGroupedBySubjectId(impl.logger, historyIdVsFilterAuditMap, subjectIdVsFilterHistoryStates)
+}
+
+func evaluatedFilterResponseGroupedBySubjectId[K int | string](logger *zap.SugaredLogger, historyIdVsFilterAuditMap map[int]*ResourceFilterAudit, IdentiferVsFilterHistoryStates map[K]map[int]FilterState) (map[K][]*FilterMetaDataBean, map[K]*time.Time, error) {
+	subjectIdVsFilterAppliedTimeMap := make(map[K]*time.Time)
+	subjectIdVsFilterRespMap := make(map[K][]*FilterMetaDataBean)
+
+	// prepare filter response for all subjects
+	for identifier, filterHistoryStates := range IdentiferVsFilterHistoryStates {
+		var filtersAppliedTime *time.Time
+		filtersAuditList := make([]*ResourceFilterAudit, 0, len(filterHistoryStates))
+		for filterHistoryId, _ := range filterHistoryStates {
+			if filterAudit, ok := historyIdVsFilterAuditMap[filterHistoryId]; ok {
+				filtersAuditList = append(filtersAuditList, filterAudit)
+			}
+		}
+
+		filtersResp := make([]*FilterMetaDataBean, len(filtersAuditList))
+		for i, filterAudit := range filtersAuditList {
+			if filtersAppliedTime == nil {
+				filtersAppliedTime = &filterAudit.CreatedOn
+			}
+			resourceConditions, err := getResourceConditionFromJsonString(filterAudit.Conditions)
+			if err != nil {
+				logger.Errorw("error in unmarshalling ConditionExpression to Conditions", "err", err, "conditionExpression", filterAudit.Conditions, "filterId", filterAudit.Id)
+				return nil, nil, err
+			}
+			filtersResp[i] = &FilterMetaDataBean{
+				Id:           filterAudit.FilterId,
+				TargetObject: filterAudit.TargetObject,
+				Conditions:   resourceConditions,
+				Name:         filterAudit.FilterName,
+			}
+		}
+		subjectIdVsFilterRespMap[identifier] = filtersResp
+		subjectIdVsFilterAppliedTimeMap[identifier] = filtersAppliedTime
+	}
+	return subjectIdVsFilterRespMap, subjectIdVsFilterAppliedTimeMap, nil
+}
+
+func (impl *ResourceFilterServiceImpl) GetEvaluatedFiltersForSubjectsAndReferenceIds(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string][]*FilterMetaDataBean, map[string]*time.Time, error) {
+
+	//fetch filter history objects
+	subjectIdReferenceIdKeyVsFilterHistoryStates, err := impl.resourceFilterEvaluationAuditService.GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType, subjectIds, referenceIds, referenceType)
 	if err != nil {
-		impl.logger.Errorw("error in filters by using their ids", "filterIds", filterIds, "err", err)
+		impl.logger.Errorw("error in finding filter history objects ", "subjectType", subjectType, "subjectIds", referenceIds, "referenceType", referenceType, "err", err)
 		return nil, nil, err
 	}
 
-	//fill the above map
-	for _, filter := range filters {
-		filterIdVsFilterMap[filter.Id] = filter
+	//if no filters were evaluated just return
+	if len(subjectIdReferenceIdKeyVsFilterHistoryStates) == 0 {
+		return nil, nil, nil
 	}
 
-	// prepare filter response
-	var filtersAppliedTime *time.Time
-	filtersResp := make([]*FilterMetaDataBean, len(filtersAuditList))
-	for i, filterAudit := range filtersAuditList {
-		if filtersAppliedTime == nil {
-			filtersAppliedTime = &filterAudit.CreatedOn
-		}
-		resourceConditions, err := getResourceConditionFromJsonString(filterAudit.Conditions)
-		if err != nil {
-			impl.logger.Errorw("error in unmarshalling ConditionExpression to Conditions", "err", err, "conditionExpression", filterAudit.Conditions, "filterId", filterAudit.Id)
-			return nil, nil, err
-		}
-		filtersResp[i] = &FilterMetaDataBean{
-			Id:           filterAudit.FilterId,
-			TargetObject: filterAudit.TargetObject,
-			Conditions:   resourceConditions,
-		}
-		if filterData, ok := filterIdVsFilterMap[filterAudit.FilterId]; ok {
-			filtersResp[i].Description = filterData.Description
-			filtersResp[i].Name = filterData.Name
+	filterHistoryIds := make([]int, 0)
+	for _, filterHistoryStates := range subjectIdReferenceIdKeyVsFilterHistoryStates {
+		for filterHistoryId, _ := range filterHistoryStates {
+			filterHistoryIds = append(filterHistoryIds, filterHistoryId)
 		}
 	}
-	return filtersResp, filtersAppliedTime, err
+
+	allFiltersAuditList, err := impl.filterAuditRepo.GetByIds(filterHistoryIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching filters filterAudit by using their ids", "filterAudit", filterHistoryIds, "err", err)
+		return nil, nil, err
+	}
+
+	historyIdVsFilterAuditMap := make(map[int]*ResourceFilterAudit)
+	for _, filtersAudit := range allFiltersAuditList {
+		historyIdVsFilterAuditMap[filtersAudit.Id] = filtersAudit
+	}
+
+	return evaluatedFilterResponseGroupedBySubjectId(impl.logger, historyIdVsFilterAuditMap, subjectIdReferenceIdKeyVsFilterHistoryStates)
 }
