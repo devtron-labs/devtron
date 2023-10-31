@@ -109,9 +109,11 @@ type CiHandlerImpl struct {
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
 	config                       *types.CiConfig
 	k8sCommonService             k8s2.K8sCommonService
+	clusterService               cluster.ClusterService
+	blobConfigStorageService     BlobStorageConfigService
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService, k8sCommonService k8s2.K8sCommonService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -135,6 +137,8 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		customTagService:             customTagService,
 		appWorkflowRepository:        appWorkflowRepository,
 		k8sCommonService:             k8sCommonService,
+		clusterService:               clusterService,
+		blobConfigStorageService:     blobConfigStorageService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -742,7 +746,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 			return nil, nil, errors.New("logs-not-stored-in-repository")
 		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == WorkflowCancel {
 			impl.Logger.Errorw("err", "err", err)
-			return impl.getLogsFromRepository(pipelineId, ciWorkflow)
+			return impl.getLogsFromRepository(pipelineId, ciWorkflow, clusterConfig, isExt)
 		}
 		impl.Logger.Errorw("err", "err", err)
 		return nil, nil, err
@@ -751,7 +755,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	return logReader, cleanUp, err
 }
 
-func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pipelineConfig.CiWorkflow) (*bufio.Reader, func() error, error) {
+func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pipelineConfig.CiWorkflow, clusterConfig *k8s.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
 	impl.Logger.Debug("getting historic logs")
 
 	ciConfig, err := impl.ciWorkflowRepository.FindConfigByPipelineId(pipelineId)
@@ -796,6 +800,18 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
+	useExternalBlobStorage := isExternalBlobStorageEnabled(isExt, impl.config.UseBlobStorageConfigInCdWorkflow)
+	if useExternalBlobStorage {
+		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
+		//from them else return.
+		cmConfig, secretConfig, err := impl.blobConfigStorageService.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, ciWorkflow.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching config map and secret from external cluster", "err", err, "clusterConfig", clusterConfig)
+			return nil, nil, err
+		}
+		rq := &ciLogRequest
+		rq.SetBuildLogRequest(cmConfig, secretConfig)
+	}
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, ciLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
@@ -811,7 +827,7 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		impl.Logger.Errorw("unable to fetch ciWorkflow", "err", err)
 		return nil, err
 	}
-
+	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCdWorkflow)
 	if !ciWorkflow.BlobStorageEnabled {
 		return nil, errors.New("logs-not-stored-in-repository")
 	}
@@ -868,6 +884,21 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		AwsS3BaseConfig:     awsS3BaseConfig,
 		GcpBlobBaseConfig:   gcpBlobBaseConfig,
 	}
+	if useExternalBlobStorage {
+		clusterConfig, err := impl.clusterService.GetClusterConfigByEnvId(ciWorkflow.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("GetClusterConfigByEnvId, error in fetching clusterConfig by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			return nil, err
+		}
+		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
+		//from them else return.
+		cmConfig, secretConfig, err := impl.blobConfigStorageService.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, ciWorkflow.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching config map and secret from external cluster", "err", err, "clusterConfig", clusterConfig)
+			return nil, err
+		}
+		request = updateRequestWithExtClusterCmAndSecret(request, cmConfig, secretConfig)
+	}
 	_, numBytes, err := blobStorageService.Get(request)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while downloading file", "request", request)
@@ -897,7 +928,6 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 			return nil, err
 		}
 	}
-
 	if ciConfig.LogsBucket == "" {
 		ciConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
@@ -926,6 +956,23 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 			BucketName:             ciConfig.LogsBucket,
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
+	}
+	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCdWorkflow)
+	if useExternalBlobStorage {
+		clusterConfig, err := impl.clusterService.GetClusterConfigByEnvId(ciWorkflow.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("GetClusterConfigByEnvId, error in fetching clusterConfig by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			return nil, err
+		}
+		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
+		//from them else return.
+		cmConfig, secretConfig, err := impl.blobConfigStorageService.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, ciWorkflow.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching config map and secret from external cluster", "err", err, "clusterConfig", clusterConfig)
+			return nil, err
+		}
+		rq := &ciLogRequest
+		rq.SetBuildLogRequest(cmConfig, secretConfig)
 	}
 	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, ciLogRequest)
 	logs, err := ioutil.ReadFile(logsFile.Name())
