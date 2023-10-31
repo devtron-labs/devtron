@@ -145,6 +145,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		InstallAppVersionHistoryId: int32(installAppVersionRequest.InstalledAppVersionHistoryId),
 	}
 
+	impl.Logger.Debugw("Helm install HelmInstallAsyncMode", "HelmInstallAsyncMode", installAppVersionRequest.HelmInstallAsyncMode)
 	if installAppVersionRequest.HelmInstallAsyncMode {
 		impl.Logger.Debugw("Helm Install with Async mode")
 		installHelmAsyncRequest := InstallHelmAsyncRequest{
