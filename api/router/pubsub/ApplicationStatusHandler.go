@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -32,7 +33,6 @@ import (
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
@@ -133,7 +133,7 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 				return
 			}
 		}
-		isSucceeded, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
+		isSucceeded, pipelineOverride, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 			//TODO - check update for charts - fix this call
@@ -152,13 +152,9 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
 		if isSucceeded {
 			impl.logger.Debugw("git hash history", "list", app.Status.History)
-			gitHash := ""
-			if app != nil {
-				gitHash = app.Status.Sync.Revision
-			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride)
 			if err != nil {
-				impl.logger.Errorw("deployment success event error", "gitHash", gitHash, "err", err)
+				impl.logger.Errorw("deployment success event error", "pipelineOverride", pipelineOverride, "err", err)
 				return
 			}
 		}

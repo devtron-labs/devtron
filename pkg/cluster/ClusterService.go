@@ -22,10 +22,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"github.com/devtron-labs/devtron/util/k8s"
 	errors1 "github.com/juju/errors"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -159,6 +159,7 @@ type ClusterService interface {
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
+	FindAllExceptVirtual() ([]*ClusterBean, error)
 	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
 	DeleteFromDb(bean *ClusterBean, userId int32) error
@@ -345,6 +346,19 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
 
 func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	models, err := impl.clusterRepository.FindAllActive()
+	if err != nil {
+		return nil, err
+	}
+	var beans []*ClusterBean
+	for _, model := range models {
+		bean := GetClusterBean(model)
+		beans = append(beans, &bean)
+	}
+	return beans, nil
+}
+
+func (impl *ClusterServiceImpl) FindAllExceptVirtual() ([]*ClusterBean, error) {
+	models, err := impl.clusterRepository.FindAllActiveExceptVirtual()
 	if err != nil {
 		return nil, err
 	}

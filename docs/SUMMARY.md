@@ -21,7 +21,7 @@
   * [Projects](user-guide/global-configurations/projects.md)
   * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
   * [Git Accounts](user-guide/global-configurations/git-accounts.md)
-  * [Container Registries](user-guide/global-configurations/docker-registries.md)
+  * [Container Registries](user-guide/global-configurations/container-registries.md)
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
   * [Custom charts](user-guide/global-configurations/custom-charts.md)
   * [SSO Login Services](user-guide/global-configurations/sso-login.md)
@@ -68,7 +68,7 @@
         * [AWS Secrets Manager](user-guide/creating-application/eso/aws-eso.md)
         * [Google Secrets Manager](user-guide/creating-application/eso/gcp-eso.md)
         * [HashiCorp Vault](user-guide/creating-application/eso/hashicorp-eso.md)
-
+    * [Protect Configuration](user-guide/creating-application/config-approval.md)
     * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
     * [Deleting Application](user-guide/deleting-application.md)
   * [Build and Deploy](user-guide/deploying-application/README.md)
@@ -114,7 +114,7 @@
   * [Connect SpringBoot with Mysql Database](user-guide/use-cases/connect-springboot-with-mysql-database.md)
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
+  * [Pull Helm Charts from OCI Registry](user-guide/use-cases/oci-pull.md)
 * [Telemetry Overview](user-guide/telemetry.md)
 * [Devtron on Graviton](reference/graviton.md)
 * [Release Notes](https://github.com/devtron-labs/devtron/releases)
-

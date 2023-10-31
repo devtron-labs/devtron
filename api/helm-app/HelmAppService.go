@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -138,10 +138,16 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	req := &AppListRequest{}
 	for _, clusterDetail := range clusters {
 		config := &ClusterConfig{
-			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config[k8s.BearerToken],
-			ClusterId:    int32(clusterDetail.Id),
-			ClusterName:  clusterDetail.ClusterName,
+			ApiServerUrl:          clusterDetail.ServerUrl,
+			Token:                 clusterDetail.Config[k8s.BearerToken],
+			ClusterId:             int32(clusterDetail.Id),
+			ClusterName:           clusterDetail.ClusterName,
+			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
+		}
+		if clusterDetail.InsecureSkipTLSVerify == false {
+			config.KeyData = clusterDetail.Config[k8s.TlsKey]
+			config.CertData = clusterDetail.Config[k8s.CertData]
+			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
@@ -263,10 +269,16 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 		return nil, err
 	}
 	config := &ClusterConfig{
-		ApiServerUrl: cluster.ServerUrl,
-		Token:        cluster.Config[k8s.BearerToken],
-		ClusterId:    int32(cluster.Id),
-		ClusterName:  cluster.ClusterName,
+		ApiServerUrl:          cluster.ServerUrl,
+		Token:                 cluster.Config[k8s.BearerToken],
+		ClusterId:             int32(cluster.Id),
+		ClusterName:           cluster.ClusterName,
+		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+	}
+	if cluster.InsecureSkipTLSVerify == false {
+		config.KeyData = cluster.Config[k8s.TlsKey]
+		config.CertData = cluster.Config[k8s.CertData]
+		config.CaData = cluster.Config[k8s.CertificateAuthorityData]
 	}
 	return config, nil
 }
