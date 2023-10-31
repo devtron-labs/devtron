@@ -97,18 +97,21 @@ func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImage
 		AWSAccessKeyId:     registryCredentials.AWSAccessKeyId,
 	}
 
-	registryRepoDetails := strings.Split(destinationInfo, "\n")
-	for _, detail := range registryRepoDetails {
+	destinationRegistryRepoDetails := strings.Split(destinationInfo, "\n")
+	for _, detail := range destinationRegistryRepoDetails {
 		registryRepoSplit := strings.Split(detail, "|")
 		registryName := strings.Trim(registryRepoSplit[0], " ")
 		registryCredentials, err := impl.dockerRegistryConfig.FetchOneDockerAccount(registryName)
 		if err != nil {
 			impl.logger.Errorw("error in fetching registry details by registry name", "err", err)
+			if err == pg.ErrNoRows {
+				return registryDestinationImageMap, registryCredentialsMap, fmt.Errorf("invalid registry name: registry details not found in global container registries")
+			}
 			return registryDestinationImageMap, registryCredentialsMap, err
 		}
 		var destinationImages []string
-		repositoryValues := registryRepoSplit[1]
-		repositoryValuesSplit := strings.Split(repositoryValues, ",")
+		destinationRepositoryValues := registryRepoSplit[1]
+		repositoryValuesSplit := strings.Split(destinationRepositoryValues, ",")
 
 		for _, repositoryName := range repositoryValuesSplit {
 			repositoryName = strings.Trim(repositoryName, " ")
