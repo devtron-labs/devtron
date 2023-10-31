@@ -21,9 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/common-lib/pubsub-lib"
-	client "github.com/devtron-labs/devtron/api/helm-app"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	"path"
 	"regexp"
 	"time"
@@ -93,8 +91,6 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
 	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
-	helmAppService                       client.HelmAppService
-	appStoreDeploymentService            service.AppStoreDeploymentService
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -113,8 +109,6 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pubSubClient *pubsub_lib.PubSubClientServiceImpl,
 	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
-	helmAppService client.HelmAppService,
-	appStoreDeploymentService service.AppStoreDeploymentService,
 ) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
@@ -137,12 +131,6 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		argoClientWrapperService:             argoClientWrapperService,
 		pubSubClient:                         pubSubClient,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		helmAppService:                       helmAppService,
-		appStoreDeploymentService:            appStoreDeploymentService,
-	}
-	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstall()
-	if err != nil {
-		return nil
 	}
 	return appStoreDeploymentFullModeServiceImpl
 }
@@ -544,71 +532,5 @@ func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() e
 	//	impl.logger.Error(err)
 	//	return err
 	//}
-	return nil
-}
-
-func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error {
-
-	callback := func(msg *pubsub_lib.PubSubMsg) {
-
-		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
-		installHelmAsyncRequest := &appStoreBean.InstallHelmAsyncRequest{}
-		err := json.Unmarshal([]byte(msg.Data), installHelmAsyncRequest)
-		if err != nil {
-			impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
-			return
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-		installRes, err := impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.InstallAppVersionDTO.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
-		impl.logger.Debugw("Install Release in callback", "installRes", installRes)
-		if err != nil {
-			impl.logger.Errorw("Error in Install Release in callback", "err", err)
-			return
-		}
-		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
-		if err != nil {
-			impl.logger.Errorw("AppStoreDeployOperationStatusUpdate error in callback", "err", err)
-			return
-		}
-
-		//step 5 create build history first entry for install app version for argocd or helm type deployments
-		if len(installHelmAsyncRequest.InstallAppVersionDTO.GitHash) > 0 {
-			err = impl.appStoreDeploymentService.UpdateInstalledAppVersionHistoryWithGitHash(installHelmAsyncRequest.InstallAppVersionDTO)
-			if err != nil {
-				impl.logger.Errorw("error in installAppPostDbOperation", "err", err)
-				return
-			}
-		}
-		if !installHelmAsyncRequest.InstallAppVersionDTO.HelmInstallASyncMode {
-			err = impl.appStoreDeploymentService.UpdateInstalledAppVersionHistoryWithSync(installHelmAsyncRequest.InstallAppVersionDTO)
-			if err != nil {
-				impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
-				return
-			}
-		}
-		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId))
-		if err != nil {
-			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-			return
-		}
-		if !installRes.Success {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
-		} else {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-		}
-		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
-		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-		if err != nil {
-			impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-			return
-		}
-	}
-
-	err := impl.pubSubClient.Subscribe(appStoreBean.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, callback)
-	if err != nil {
-		impl.logger.Error(err)
-		return err
-	}
 	return nil
 }
