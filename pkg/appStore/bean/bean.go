@@ -383,4 +383,4 @@ type HelmReleaseStatusConfig struct {
 	ErrorInInstallation        bool
 }
 
-const HELM_CHART_INSTALL_STATUS_TOPIC_NEW string = "HELM-CHART-INSTALL-STATUS-TOPIC"
+const HELM_CHART_INSTALL_STATUS_TOPIC_NEW string = "HELM-CHART-INSTALL-STATUS-TOPIC-NEW"

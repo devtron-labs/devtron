@@ -505,10 +505,9 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 }
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error {
-	callback := func(msg *pubsub_lib.PubSubMsg) {
+	err := impl.pubSubClient.Subscribe(appStoreBean.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, func(msg *pubsub_lib.PubSubMsg) {
 		impl.CallBackForHelmInstall(msg)
-	}
-	err := impl.pubSubClient.Subscribe(appStoreBean.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, callback)
+	})
 	if err != nil {
 		impl.logger.Error(err)
 		return err
@@ -555,8 +554,4 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(msg *p
 type InstallHelmAsyncRequest struct {
 	InstallAppVersionDTO  *appStoreBean.InstallAppVersionDTO `json:"installAppVersionDTO"`
 	InstallReleaseRequest *client.InstallReleaseRequest      `json:"installReleaseRequest"`
-}
-
-func (impl AppStoreDeploymentFullModeServiceImpl) PublishNatsEvent(data string) {
-	impl.pubSubClient.Publish(appStoreBean.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, data)
 }
