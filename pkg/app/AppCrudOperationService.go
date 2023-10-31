@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -61,12 +62,14 @@ type AppCrudOperationServiceImpl struct {
 	userRepository         repository.UserRepository
 	installedAppRepository repository2.InstalledAppRepository
 	genericNoteService     genericNotes.GenericNoteService
+	gitMaterialRepository  pipelineConfig.MaterialRepository
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
 	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository,
 	installedAppRepository repository2.InstalledAppRepository,
-	genericNoteService genericNotes.GenericNoteService) *AppCrudOperationServiceImpl {
+	genericNoteService genericNotes.GenericNoteService,
+	gitMaterialRepository pipelineConfig.MaterialRepository) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
@@ -74,6 +77,7 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		userRepository:         userRepository,
 		installedAppRepository: installedAppRepository,
 		genericNoteService:     genericNoteService,
+		gitMaterialRepository:  gitMaterialRepository,
 	}
 }
 
@@ -383,9 +387,40 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 				info.ChartUsed.AppStoreChartName = chartName
 			}
 		}
-
+	} else {
+		//app type not helm type, getting gitMaterials
+		gitMaterials, err := impl.gitMaterialRepository.FindByAppId(appId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting gitMaterials by appId", "err", err, "appId", appId)
+			return nil, err
+		}
+		gitMaterialMetaDtos := make([]*bean.GitMaterialMetaDto, 0, len(gitMaterials))
+		for _, gitMaterial := range gitMaterials {
+			gitMaterialMetaDtos = append(gitMaterialMetaDtos, &bean.GitMaterialMetaDto{
+				DisplayName:    gitMaterial.Name[strings.Index(gitMaterial.Name, "-")+1:],
+				OriginalUrl:    gitMaterial.Url,
+				RedirectionUrl: convertUrlToHttpsIfSshType(gitMaterial.Url),
+			})
+		}
+		info.GitMaterials = gitMaterialMetaDtos
 	}
 	return info, nil
+}
+
+func convertUrlToHttpsIfSshType(url string) string {
+	// Regular expression to match SSH URL patterns
+	sshPattern := `^(git@|ssh:\/\/)([^:]+):(.+)$`
+
+	// Compile the regular expression
+	re := regexp.MustCompile(sshPattern)
+
+	// Check if the input URL matches the SSH pattern, if not already a https one
+	if !re.MatchString(url) {
+		return url
+	}
+	// Replace the SSH parts with HTTPS parts
+	httpsURL := re.ReplaceAllString(url, "https://$2/$3")
+	return httpsURL
 }
 
 func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error) {

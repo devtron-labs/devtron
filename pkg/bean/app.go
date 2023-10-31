@@ -775,7 +775,14 @@ type AppMetaInfoDto struct {
 	Note        *bean2.GenericNoteResponseBean `json:"note"`
 	UserId      int32                          `json:"-"`
 	//below field is only valid for helm apps
-	ChartUsed *ChartUsedDto `json:"chartUsed,omitempty"`
+	ChartUsed    *ChartUsedDto         `json:"chartUsed,omitempty"`
+	GitMaterials []*GitMaterialMetaDto `json:"gitMaterials,omitempty"`
+}
+
+type GitMaterialMetaDto struct {
+	DisplayName    string `json:"displayName"`
+	RedirectionUrl string `json:"redirectionUrl"` // here we are converting ssh urls to https for redirection at FE
+	OriginalUrl    string `json:"originalUrl"`
 }
 
 type ChartUsedDto struct {
