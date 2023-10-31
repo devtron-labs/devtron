@@ -605,10 +605,8 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 			return err
 		}
 		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
-			if len(cdStageCompleteEvent.PluginRegistryArtifactDetails) > 0 {
-				if len(PreCDArtifacts) > 0 {
-					ciArtifact = PreCDArtifacts[0] // deployment will be trigger with artifact copied by plugin
-				}
+			if len(PreCDArtifacts) > 0 {
+				ciArtifact = PreCDArtifacts[0] // deployment will be trigger with artifact copied by plugin
 			}
 			cdWorkflow, err := impl.cdWorkflowRepository.FindById(cdStageCompleteEvent.WorkflowId)
 			if err != nil {
