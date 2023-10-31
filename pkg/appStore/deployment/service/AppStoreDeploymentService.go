@@ -1762,27 +1762,8 @@ func (impl *AppStoreDeploymentServiceImpl) SubscribeHelmInstall() error {
 			impl.logger.Errorw("Error in Install Release in callback", "err", err)
 			return
 		}
-		_, err = impl.AppStoreDeployOperationStatusUpdate(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
-		if err != nil {
-			impl.logger.Errorw("AppStoreDeployOperationStatusUpdate error in callback", "err", err)
-			return
-		}
+		impl.installAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO)
 
-		//step 5 create build history first entry for install app version for argocd or helm type deployments
-		if len(installHelmAsyncRequest.InstallAppVersionDTO.GitHash) > 0 {
-			err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installHelmAsyncRequest.InstallAppVersionDTO)
-			if err != nil {
-				impl.logger.Errorw("error in installAppPostDbOperation", "err", err)
-				return
-			}
-		}
-		if !installHelmAsyncRequest.InstallAppVersionDTO.HelmInstallASyncMode {
-			err = impl.UpdateInstalledAppVersionHistoryWithSync(installHelmAsyncRequest.InstallAppVersionDTO)
-			if err != nil {
-				impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
-				return
-			}
-		}
 		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId))
 		if err != nil {
 			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
