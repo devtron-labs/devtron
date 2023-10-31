@@ -24,6 +24,7 @@ import (
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -38,34 +39,18 @@ type ImageTaggingServiceConfig struct {
 	HideImageTaggingHardDelete bool `env:"HIDE_IMAGE_TAGGING_HARD_DELETE" envDefault:"false"`
 }
 
-type ImageTaggingResponseDTO struct {
-	ImageReleaseTags           []*repository.ImageTag   `json:"imageReleaseTags"`
-	AppReleaseTags             []string                 `json:"appReleaseTags"`
-	ImageComment               *repository.ImageComment `json:"imageComment"`
-	ProdEnvExists              bool                     `json:"tagsEditable"`
-	HideImageTaggingHardDelete bool                     `json:"hideImageTaggingHardDelete"`
-}
-
-type ImageTaggingRequestDTO struct {
-	CreateTags     []*repository.ImageTag  `json:"createTags"`
-	SoftDeleteTags []*repository.ImageTag  `json:"softDeleteTags"`
-	ImageComment   repository.ImageComment `json:"imageComment"`
-	HardDeleteTags []*repository.ImageTag  `json:"hardDeleteTags"`
-	ExternalCi     bool                    `json:"-"`
-}
-
 type ImageTaggingService interface {
 	// GetTagsData returns the following fields in reponse Object
 	//ImageReleaseTags -> this will get the tags of the artifact,
 	//AppReleaseTags -> all the tags of the given appId,
 	//imageComment -> comment of the given artifactId,
 	// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipelineRequest's
-	GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*ImageTaggingResponseDTO, error)
-	CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error)
+	GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*types.ImageTaggingResponseDTO, error)
+	CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *types.ImageTaggingRequestDTO) (*types.ImageTaggingResponseDTO, error)
 	GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error)
 	GetProdEnvByCdPipelineId(pipelineId int) (bool, error)
 	// ValidateImageTaggingRequest validates the requested payload
-	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO, appId, artifactId int) (bool, error)
+	ValidateImageTaggingRequest(imageTaggingRequest *types.ImageTaggingRequestDTO, appId, artifactId int) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error)
 	GetTagNamesByArtifactId(artifactId int) ([]string, error)
 	// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
@@ -116,8 +101,8 @@ func (impl ImageTaggingServiceImpl) GetImageTaggingServiceConfig() ImageTaggingS
 // AppReleaseTags -> all the tags of the given appId,
 // imageComment -> comment of the given artifactId,
 // ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipelineRequest's
-func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*ImageTaggingResponseDTO, error) {
-	resp := &ImageTaggingResponseDTO{}
+func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*types.ImageTaggingResponseDTO, error) {
+	resp := &types.ImageTaggingResponseDTO{}
 	imageComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching image comment using artifactId", "err", err, "artifactId", artifactId)
@@ -214,7 +199,7 @@ func (impl ImageTaggingServiceImpl) GetImageCommentsDataMapByArtifactIds(artifac
 	return result, nil
 }
 
-func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO, appId, artifactId int) (bool, error) {
+func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequest *types.ImageTaggingRequestDTO, appId, artifactId int) (bool, error) {
 	if imageTaggingRequest == nil {
 		return false, errors.New("inValid payload")
 	}
@@ -273,7 +258,7 @@ func tagNameValidation(tag string) error {
 	}
 	return nil
 }
-func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error) {
+func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *types.ImageTaggingRequestDTO) (*types.ImageTaggingResponseDTO, error) {
 
 	tx, err := impl.imageTaggingRepo.StartTx()
 	defer func() {
@@ -345,7 +330,7 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 	return impl.GetTagsData(ciPipelineId, appId, artifactId, imageTaggingRequest.ExternalCi)
 }
 
-func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.Tx, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) ([]*repository.ImageTaggingAudit, error) {
+func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.Tx, appId, artifactId, userId int, imageTaggingRequest *types.ImageTaggingRequestDTO) ([]*repository.ImageTaggingAudit, error) {
 	//first perform delete and then perform create operation.
 	//case : user can delete existing tag and then create a new tag with same name, this is a valid request
 

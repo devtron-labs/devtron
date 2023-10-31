@@ -29,7 +29,7 @@ import (
 
 type Config struct {
 	Addr                   string `env:"PG_ADDR" envDefault:"127.0.0.1"`
-	Port                   string `env:"PG_PORT" envDefault:"5432"`
+	Port                   string `env:"PG_PORT" envDefault:"5431"`
 	User                   string `env:"PG_USER" envDefault:""`
 	Password               string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
 	Database               string `env:"PG_DATABASE" envDefault:"orchestrator"`

@@ -16,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -31,10 +32,10 @@ import (
 const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
 
 type BuildHistoryResponse struct {
-	HideImageTaggingHardDelete bool                        `json:"hideImageTaggingHardDelete"`
-	TagsEditable               bool                        `json:"tagsEditable"`
-	AppReleaseTagNames         []string                    `json:"appReleaseTagNames"` //unique list of tags exists in the app
-	CiWorkflows                []pipeline.WorkflowResponse `json:"ciWorkflows"`
+	HideImageTaggingHardDelete bool                     `json:"hideImageTaggingHardDelete"`
+	TagsEditable               bool                     `json:"tagsEditable"`
+	AppReleaseTagNames         []string                 `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	CiWorkflows                []types.WorkflowResponse `json:"ciWorkflows"`
 }
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
@@ -1896,7 +1897,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	req := &pipeline.ImageTaggingRequestDTO{}
+	req := &types.ImageTaggingRequestDTO{}
 	err = decoder.Decode(&req)
 	if err != nil {
 		handler.Logger.Errorw("request err, CreateUpdateImageTagging", "err", err, "payload", req)
@@ -1955,7 +1956,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 				handler.Logger.Errorw("error occurred in getting unique tags in app", "err", err1, "appId", appId)
 				err = err1
 			}
-			resp = &pipeline.ImageTaggingResponseDTO{}
+			resp = &types.ImageTaggingResponseDTO{}
 			resp.AppReleaseTags = appReleaseTags
 		}
 		handler.Logger.Errorw("error occurred in creating/updating image tagging data", "err", err, "ciPipelineId", ciPipelineId)
