@@ -118,6 +118,8 @@ type CiPipeline struct {
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
 	EnvironmentId            int                    `json:"environmentId,omitempty"`
 	LastTriggeredEnvId       int                    `json:"lastTriggeredEnvId"`
+	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
+	DefaultTag               []string               `json:"defaultTag,omitempty"`
 }
 
 type DockerConfigOverride struct {
@@ -235,6 +237,11 @@ type CiMaterialPatchRequest struct {
 	AppId         int               `json:"appId" validate:"required"`
 	EnvironmentId int               `json:"environmentId" validate:"required"`
 	Source        *SourceTypeConfig `json:"source" validate:"required"`
+}
+
+type CustomTagData struct {
+	TagPattern string `json:"tagPattern"`
+	CounterX   int    `json:"counterX"`
 }
 
 type CiMaterialValuePatchRequest struct {
@@ -552,6 +559,9 @@ type CDPipelineConfigObject struct {
 	ManifestStorageType           string                                 `json:"manifestStorageType"`
 	PreDeployStage                *bean.PipelineStageDto                 `json:"preDeployStage,omitempty"`
 	PostDeployStage               *bean.PipelineStageDto                 `json:"postDeployStage,omitempty"`
+	SourceToNewPipelineId         map[int]int                            `json:"sourceToNewPipelineId,omitempty"`
+	RefPipelineId                 int                                    `json:"refPipelineId,omitempty"`
+	ExternalCiPipelineId          int                                    `json:"externalCiPipelineId,omitempty"`
 }
 
 type PreStageConfigMapSecretNames struct {
