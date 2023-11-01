@@ -39,7 +39,6 @@ import (
 	"github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -52,8 +51,6 @@ type CiPipelineConfigService interface {
 	//If any errors occur during the retrieval process  CI pipeline configuration remains nil.
 	//If you want less detail of ciPipeline ,Please refer GetCiPipelineMin
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
-	// CheckIfPipelineNameAlreadyExist : checks if pipeline name already exist within the same app
-	CheckIfPipelineNameAlreadyExist(pipelineName string, existingPipelines []*bean.CiPipeline) error
 	//GetCiPipelineById : Retrieve ciPipeline for given ciPipelineId
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 	//GetTriggerViewCiPipeline : retrieves a detailed view of the CI pipelines configured for a specific application (appId).
@@ -688,16 +685,6 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	return ciConfig, err
 }
 
-func (impl *CiPipelineConfigServiceImpl) CheckIfPipelineNameAlreadyExist(pipelineName string, existingPipelines []*bean.CiPipeline) error {
-	for _, pipeline := range existingPipelines {
-		if pipelineName == pipeline.Name {
-			impl.logger.Errorw("cannot use same pipeline within an app", "existing pipelines", existingPipelines, "request pipeline", pipelineName)
-			return &util.ApiError{Code: "400", HttpStatusCode: http.StatusBadRequest, UserMessage: "cannot use same pipeline name within an app", InternalMessage: "duplicate name for pipeline in an app"}
-		}
-	}
-	return nil
-}
-
 func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error) {
 	pipeline, err := impl.ciPipelineRepository.FindById(pipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -1317,6 +1304,17 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 	case bean.CREATE:
 		impl.logger.Debugw("create patch request")
 		ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
+
+		pipeline, err := impl.ciPipelineRepository.FindByName(request.CiPipeline.Name)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching pipeline by name, FindByName", "err", err, "patch cipipeline name", request.CiPipeline.Name)
+			return nil, err
+		}
+
+		if pipeline != nil && pipeline.Id > 0 {
+			impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
+			return nil, fmt.Errorf("pipeline name already exist")
+		}
 
 		res, err := impl.addpipelineToTemplate(ciConfig)
 		if err != nil {
