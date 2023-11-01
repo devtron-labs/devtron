@@ -341,11 +341,8 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForLastSaved(scope re
 	}
 
 	if configMapByte != nil && len(varNamesCM) > 0 {
-		parserRequest := parsers.CreateParserRequest(string(configMapByte), parsers.StringVariableTemplate, scopedVariables, false)
+		parserRequest := parsers.CreateParserRequest(string(configMapByte), parsers.StringVariableTemplate, scopedVariables, true)
 		resolvedCM, err = impl.ParseTemplateWithScopedVariables(parserRequest)
-		if err != nil {
-			return resolvedCM, string(secretDataByte), variableSnapshotForCM, variableSnapshotForCS, err
-		}
 		variableSnapshotForCM = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCM)
 	}
 
@@ -355,7 +352,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForLastSaved(scope re
 		if err != nil {
 			return resolvedCM, string(secretDataByte), variableSnapshotForCM, variableSnapshotForCS, err
 		}
-		parserRequest := parsers.CreateParserRequest(data, parsers.StringVariableTemplate, scopedVariables, false)
+		parserRequest := parsers.CreateParserRequest(data, parsers.StringVariableTemplate, scopedVariables, true)
 		resolvedCSDecoded, err := impl.ParseTemplateWithScopedVariables(parserRequest)
 		variableSnapshotForCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
 		resolvedCS, err = ab.GetTransformedDataForSecretData(resolvedCSDecoded, util.EncodeSecret)
@@ -389,7 +386,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForSpecificType(confi
 		HistoryReferenceType: repository1.HistoryReferenceTypeConfigMap,
 	}
 
-	variableMapCM, resolvedTemplateCM, err := impl.GetVariableSnapshotAndResolveTemplate(string(configMapByte), parsers.StringVariableTemplate, reference, true, false)
+	variableMapCM, resolvedTemplateCM, err := impl.GetVariableSnapshotAndResolveTemplate(string(configMapByte), parsers.StringVariableTemplate, reference, true, true)
 	if err != nil {
 		return "", "", nil, nil, err
 	}
@@ -402,7 +399,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForSpecificType(confi
 	if err != nil {
 		return "", "", nil, nil, err
 	}
-	variableMapCS, resolvedTemplateCS, err := impl.GetVariableSnapshotAndResolveTemplate(data, parsers.StringVariableTemplate, reference, true, false)
+	variableMapCS, resolvedTemplateCS, err := impl.GetVariableSnapshotAndResolveTemplate(data, parsers.StringVariableTemplate, reference, true, true)
 	encodedSecretData, err := ab.GetTransformedDataForSecretData(resolvedTemplateCS, util.EncodeSecret)
 	if err != nil {
 		return "", "", nil, nil, err
