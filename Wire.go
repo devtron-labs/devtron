@@ -573,6 +573,9 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
 
+		pipeline.NewBlobStorageConfigServiceImpl,
+		wire.Bind(new(pipeline.BlobStorageConfigService), new(*pipeline.BlobStorageConfigServiceImpl)),
+
 		pipeline.NewWorkflowDagExecutorImpl,
 		wire.Bind(new(pipeline.WorkflowDagExecutor), new(*pipeline.WorkflowDagExecutorImpl)),
 		appClone.NewAppCloneServiceImpl,
