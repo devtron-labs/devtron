@@ -355,7 +355,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForLastSaved(scope re
 		if err != nil {
 			return resolvedCM, string(secretDataByte), variableSnapshotForCM, variableSnapshotForCS, err
 		}
-		parserRequest := parsers.CreateParserRequest(data, parsers.JsonVariableTemplate, scopedVariables, false)
+		parserRequest := parsers.CreateParserRequest(data, parsers.StringVariableTemplate, scopedVariables, false)
 		resolvedCSDecoded, err := impl.ParseTemplateWithScopedVariables(parserRequest)
 		variableSnapshotForCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
 		resolvedCS, err = ab.GetTransformedDataForSecretData(resolvedCSDecoded, util.EncodeSecret)
