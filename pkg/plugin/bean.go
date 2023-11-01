@@ -29,7 +29,7 @@ type PluginMetadataDto struct {
 	Id          int               `json:"id"`
 	Name        string            `json:"name"`
 	Description string            `json:"description"`
-	Type        string            `json:"type"` // SHARED, PRESET etc
+	Type        string            `json:"type" validate:"oneof=SHARED PRESET"` // SHARED, PRESET etc
 	Icon        string            `json:"icon"`
 	Tags        []string          `json:"tags"`
 	Action      int               `json:"action"`
