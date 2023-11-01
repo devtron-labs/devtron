@@ -672,7 +672,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 	var ciArtifactsResp []CiArtifactWithExtraData
 	var ciArtifacts []CiArtifact
 	totalCount := 0
-	finalQuery := BuildQueryForArtifactsForCdStageV2(*listingFilterOptions, isApprovalNode)
+	finalQuery := BuildQueryForArtifactsForCdStage(*listingFilterOptions, isApprovalNode)
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery)
 	if err == pg.ErrNoRows || len(ciArtifactsResp) == 0 {
 		return ciArtifacts, totalCount, nil
