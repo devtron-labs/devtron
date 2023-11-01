@@ -456,7 +456,6 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		Resources: workflowRequest.GetLimitReqCpuMem(config),
 	}
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
-		workflowMainContainer.Name = ""
 		workflowMainContainer.Ports = []v1.ContainerPort{{
 			//exposed for user specific data from ci container
 			Name:          "app-data",
@@ -628,4 +627,8 @@ type ConfigMapSecretDto struct {
 	Name     string
 	Data     map[string]string
 	OwnerRef v12.OwnerReference
+}
+
+type WorkflowStatus struct {
+	WorkflowName, Status, PodStatus, Message, LogLocation, PodName string
 }

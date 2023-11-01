@@ -380,6 +380,7 @@ func (impl *CiServiceImpl) saveNewWorkflowForCITrigger(pipeline *pipelineConfig.
 		LogLocation:           "",
 		TriggeredBy:           userId,
 		ReferenceCiWorkflowId: refCiWorkflowId,
+		ExecutorType:          impl.config.GetWorkflowExecutorType(),
 	}
 	if isJobType {
 		ciWorkflow.Namespace = wfConfig.Namespace
