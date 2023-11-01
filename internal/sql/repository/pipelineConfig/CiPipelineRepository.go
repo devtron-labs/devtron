@@ -373,8 +373,7 @@ func (impl CiPipelineRepositoryImpl) FindByName(pipelineName string) (pipeline *
 func (impl CiPipelineRepositoryImpl) FindByNameAndAppId(pipelineName string, appId int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{}
 	err = impl.dbConnection.Model(pipeline).
-		Column("ci_pipeline.*", "App").
-		Join("inner join app a on ci_pipeline.app_id = a.id").
+		Column("ci_pipeline.*").
 		Where("name = ?", pipelineName).
 		Where("app_id = ?", appId).
 		Where("deleted =? ", false).
