@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -328,7 +329,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 		HistoryReferenceId:   history.Id,
 		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
 	}
-	variableSnapshotMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(history.Template, reference, isSuperAdmin, false)
+	variableSnapshotMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(history.Template, parsers.JsonVariableTemplate, reference, isSuperAdmin, false)
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 	}
@@ -383,7 +384,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 		HistoryReferenceId:   history.Id,
 		HistoryReferenceType: repository6.HistoryReferenceTypeDeploymentTemplate,
 	}
-	variableSnapshotMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(history.Template, reference, isSuperAdmin, false)
+	variableSnapshotMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(history.Template, parsers.JsonVariableTemplate, reference, isSuperAdmin, false)
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "err", err, "id", id, "pipelineID", pipelineId)
 	}

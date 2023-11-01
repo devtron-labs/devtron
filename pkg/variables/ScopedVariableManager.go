@@ -28,7 +28,7 @@ type ScopedVariableManager interface {
 	ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType, unmaskSensitiveData bool, maskUnknownVariable bool) (string, map[string]string, error)
 	GetMappedVariablesAndResolveTemplate(template string, scope resourceQualifiers.Scope, entity repository.Entity, unmaskSensitiveData bool) (string, map[string]string, error)
 	GetMappedVariablesAndResolveTemplateBatch(template string, scope resourceQualifiers.Scope, entities []repository.Entity) (string, map[string]string, error)
-	GetVariableSnapshotAndResolveTemplate(template string, reference repository.HistoryReference, isSuperAdmin bool, ignoreUnknown bool) (map[string]string, string, error)
+	GetVariableSnapshotAndResolveTemplate(template string, templateType parsers.VariableTemplateType, reference repository.HistoryReference, isSuperAdmin bool, ignoreUnknown bool) (map[string]string, string, error)
 }
 
 func (impl ScopedVariableManagerImpl) SaveVariableHistoriesForTrigger(variableHistories []*repository.VariableSnapshotHistoryBean, userId int32) error {
@@ -157,7 +157,7 @@ func (impl ScopedVariableManagerImpl) ExtractAndMapVariables(template string, en
 	return nil
 }
 
-func (impl ScopedVariableManagerImpl) GetVariableSnapshotAndResolveTemplate(template string, reference repository.HistoryReference, isSuperAdmin bool, ignoreUnknown bool) (map[string]string, string, error) {
+func (impl ScopedVariableManagerImpl) GetVariableSnapshotAndResolveTemplate(template string, templateType parsers.VariableTemplateType, reference repository.HistoryReference, isSuperAdmin bool, ignoreUnknown bool) (map[string]string, string, error) {
 	variableSnapshotMap := make(map[string]string)
 	references, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository.HistoryReference{reference})
 	if err != nil {
@@ -185,7 +185,7 @@ func (impl ScopedVariableManagerImpl) GetVariableSnapshotAndResolveTemplate(temp
 	}
 
 	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, varNameToIsSensitive, isSuperAdmin)
-	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData, IgnoreUnknownVariables: ignoreUnknown}
+	request := parsers.VariableParserRequest{Template: template, TemplateType: templateType, Variables: scopedVariableData, IgnoreUnknownVariables: ignoreUnknown}
 
 	resolvedTemplate, err := impl.ParseTemplateWithScopedVariables(request)
 	if err != nil {

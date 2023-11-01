@@ -127,7 +127,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveSecretHistoryDto(ctx context.C
 	}
 	isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
 
-	variableSnapshotMap, resolvedTemplate, err := impl.GetVariableSnapshotAndResolveTemplate(data, reference, isSuperAdmin, false)
+	variableSnapshotMap, resolvedTemplate, err := impl.GetVariableSnapshotAndResolveTemplate(data, parsers.StringVariableTemplate, reference, isSuperAdmin, false)
 	if err != nil {
 		return cMCSData, nil, err
 	}
@@ -162,7 +162,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMHistoryDto(ctx context.Conte
 	if err != nil {
 		return cMCSData, nil, err
 	}
-	variableSnapshotMap, resolvedTemplate, err := impl.GetVariableSnapshotAndResolveTemplate(string(configListJson), reference, isSuperAdmin, true)
+	variableSnapshotMap, resolvedTemplate, err := impl.GetVariableSnapshotAndResolveTemplate(string(configListJson), parsers.StringVariableTemplate, reference, isSuperAdmin, true)
 	if err != nil {
 		return cMCSData, nil, err
 	}
@@ -265,7 +265,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(ctx context.Context,
 		return nil, nil, nil, nil, err
 	}
 
-	parserRequest := parsers.CreateParserRequest(string(mergedConfigMapJson), parsers.JsonVariableTemplate, scopedVariables, true)
+	parserRequest := parsers.CreateParserRequest(string(mergedConfigMapJson), parsers.StringVariableTemplate, scopedVariables, true)
 	resolvedTemplateCM, err = impl.ParseTemplateWithScopedVariables(parserRequest)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -283,7 +283,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(ctx context.Context,
 		return nil, nil, nil, nil, err
 	}
 
-	parserRequest = parsers.CreateParserRequest(decodedSecrets, parsers.JsonVariableTemplate, scopedVariables, true)
+	parserRequest = parsers.CreateParserRequest(decodedSecrets, parsers.StringVariableTemplate, scopedVariables, true)
 	resolvedTemplateCS, err := impl.ParseTemplateWithScopedVariables(parserRequest)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -341,7 +341,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForLastSaved(scope re
 	}
 
 	if configMapByte != nil && len(varNamesCM) > 0 {
-		parserRequest := parsers.CreateParserRequest(string(configMapByte), parsers.JsonVariableTemplate, scopedVariables, false)
+		parserRequest := parsers.CreateParserRequest(string(configMapByte), parsers.StringVariableTemplate, scopedVariables, false)
 		resolvedCM, err = impl.ParseTemplateWithScopedVariables(parserRequest)
 		if err != nil {
 			return resolvedCM, string(secretDataByte), variableSnapshotForCM, variableSnapshotForCS, err
@@ -389,7 +389,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForSpecificType(confi
 		HistoryReferenceType: repository1.HistoryReferenceTypeConfigMap,
 	}
 
-	variableMapCM, resolvedTemplateCM, err := impl.GetVariableSnapshotAndResolveTemplate(string(configMapByte), reference, true, false)
+	variableMapCM, resolvedTemplateCM, err := impl.GetVariableSnapshotAndResolveTemplate(string(configMapByte), parsers.StringVariableTemplate, reference, true, false)
 	if err != nil {
 		return "", "", nil, nil, err
 	}
@@ -402,7 +402,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForSpecificType(confi
 	if err != nil {
 		return "", "", nil, nil, err
 	}
-	variableMapCS, resolvedTemplateCS, err := impl.GetVariableSnapshotAndResolveTemplate(data, reference, true, false)
+	variableMapCS, resolvedTemplateCS, err := impl.GetVariableSnapshotAndResolveTemplate(data, parsers.StringVariableTemplate, reference, true, false)
 	encodedSecretData, err := ab.GetTransformedDataForSecretData(resolvedTemplateCS, util.EncodeSecret)
 	if err != nil {
 		return "", "", nil, nil, err

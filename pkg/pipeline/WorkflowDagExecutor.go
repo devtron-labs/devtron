@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -3090,7 +3091,7 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 			HistoryReferenceId:   deploymentTemplateHistory.Id,
 			HistoryReferenceType: repository5.HistoryReferenceTypeDeploymentTemplate,
 		}
-		variableMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(envOverride.EnvOverrideValues, reference, true, false)
+		variableMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(envOverride.EnvOverrideValues, parsers.JsonVariableTemplate, reference, true, false)
 		envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 		envOverride.VariableSnapshot = variableMap
 		if err != nil {
