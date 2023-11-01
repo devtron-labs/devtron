@@ -382,7 +382,6 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]repository.CiArtifact, int, error) {
 
 	var ciArtifacts []repository.CiArtifact
-
 	query := "SELECT ci_artifact.* FROM ci_artifact" +
 		" LEFT JOIN cd_workflow ON ci_artifact.id = cd_workflow.ci_artifact_id" +
 		" LEFT JOIN cd_workflow_runner ON cd_workflow_runner.cd_workflow_id=cd_workflow.id " +
@@ -401,7 +400,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 			listingFilterOptions.ParentStageType,
 			pg.In([]string{application.Healthy, application.SUCCEEDED}),
 			listingFilterOptions.ParentId,
-			listingFilterOptions.ParentStageType,
+			listingFilterOptions.PluginStage,
 			listingFilterOptions.SearchString,
 			pg.In(listingFilterOptions.ExcludeArtifactIds),
 		)
@@ -418,7 +417,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOpti
 			listingFilterOptions.ParentStageType,
 			pg.In([]string{application.Healthy, application.SUCCEEDED}),
 			listingFilterOptions.ParentId,
-			"pre_cd",
+			listingFilterOptions.PluginStage,
 			listingFilterOptions.SearchString,
 		)
 		if err != nil {

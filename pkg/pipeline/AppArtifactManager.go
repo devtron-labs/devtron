@@ -745,6 +745,11 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			return ciArtifacts, 0, "", totalCount, err
 		}
 	} else {
+		if listingFilterOpts.ParentStageType == PRE {
+			listingFilterOpts.PluginStage = repository.PRE_CD
+		} else if listingFilterOpts.ParentStageType == POST {
+			listingFilterOpts.PluginStage = repository.POST_CD
+		}
 		ciArtifacts, totalCount, err = impl.BuildArtifactsForCdStageV2(listingFilterOpts)
 		if err != nil {
 			impl.logger.Errorw("error in getting ci artifacts for ci/webhook type parent", "pipelineId", listingFilterOpts.PipelineId, "parentPipelineId", listingFilterOpts.ParentId, "parentStageType", listingFilterOpts.ParentStageType, "currentStageType", listingFilterOpts.StageType)

@@ -113,4 +113,7 @@ type ArtifactsListFilterOptions struct {
 
 	//excludeArtifactIds
 	ExcludeArtifactIds []int
+
+	//pluginStage
+	PluginStage string
 }
