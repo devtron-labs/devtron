@@ -1,4 +1,4 @@
-package pipeline
+package executors
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -270,7 +271,7 @@ func (impl *ArgoWorkflowExecutorImpl) appendCMCSToStepAndTemplate(isSecret bool,
 	}
 
 	var cmSecretJson string
-	configMapSecretDto := ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: ArgoWorkflowOwnerRef}
+	configMapSecretDto := types.ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: ArgoWorkflowOwnerRef}
 	if isSecret {
 		cmSecretJson, err = GetSecretJson(configMapSecretDto)
 	} else {

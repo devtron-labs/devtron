@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -119,6 +121,8 @@ type CiCdConfig struct {
 	BaseLogLocationPath            string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	InAppLoggingEnabled            bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
 	BuildxProvenanceMode           string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
+	ExtBlobStorageCmName           string                       `env:"EXTERNAL_BLOB_STORAGE_CM_NAME" envDefault:"blob-storage-cm"`
+	ExtBlobStorageSecretName       string                       `env:"EXTERNAL_BLOB_STORAGE_SECRET_NAME" envDefault:"blob-storage-secret"`
 }
 
 type CiConfig struct {
@@ -535,4 +539,32 @@ type BuildLogRequest struct {
 	AzureBlobConfig   *blob_storage.AzureBlobBaseConfig
 	GcpBlobBaseConfig *blob_storage.GcpBlobBaseConfig
 	MinioEndpoint     string
+}
+
+func (r *BuildLogRequest) SetBuildLogRequest(cmConfig *bean.CmBlobStorageConfig, secretConfig *bean.SecretBlobStorageConfig) {
+	r.CloudProvider = cmConfig.CloudProvider
+	r.AzureBlobConfig.AccountName = cmConfig.AzureAccountName
+	r.AzureBlobConfig.AccountKey = DecodeSecretKey(secretConfig.AzureAccountKey)
+	r.AzureBlobConfig.BlobContainerName = cmConfig.AzureBlobContainerCiLog
+
+	r.GcpBlobBaseConfig.CredentialFileJsonData = DecodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
+	r.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
+
+	r.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
+	r.AwsS3BaseConfig.EndpointUrl = cmConfig.S3Endpoint
+	r.AwsS3BaseConfig.Passkey = DecodeSecretKey(secretConfig.S3SecretKey)
+	isEndpointInSecure, _ := strconv.ParseBool(cmConfig.S3EndpointInsecure)
+	r.AwsS3BaseConfig.IsInSecure = isEndpointInSecure
+	r.AwsS3BaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
+	r.AwsS3BaseConfig.Region = cmConfig.CdDefaultCdLogsBucketRegion
+	s3BucketVersioned, _ := strconv.ParseBool(cmConfig.S3BucketVersioned)
+	r.AwsS3BaseConfig.VersioningEnabled = s3BucketVersioned
+}
+
+func DecodeSecretKey(secretKey string) string {
+	decodedKey, err := base64.StdEncoding.DecodeString(secretKey)
+	if err != nil {
+		fmt.Println("error decoding base64 key:", err)
+	}
+	return string(decodedKey)
 }

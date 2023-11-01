@@ -18,6 +18,7 @@ import (
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
 	v12 "k8s.io/api/core/v1"
@@ -59,7 +60,7 @@ func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(logger, k8sUtil, clusterService)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(dbConnection, logger)
 	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(dbConnection, logger, appStatusRepositoryImpl)
-	argoWorkflowExecutorImpl := NewArgoWorkflowExecutorImpl(logger)
+	argoWorkflowExecutorImpl := executors.NewArgoWorkflowExecutorImpl(logger)
 	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl)
 	return workflowServiceImpl
 }

@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"strings"
 	"time"
@@ -118,6 +119,7 @@ type WorkflowRequest struct {
 	PrePostDeploySteps       []*bean.StepObject                  `json:"prePostDeploySteps"`
 	CiArtifactLastFetch      time.Time                           `json:"ciArtifactLastFetch"`
 	CiPipelineType           string                              `json:"ciPipelineType"`
+	UseExternalClusterBlob   bool                                `json:"useExternalClusterBlob"`
 	Type                     bean.WorkflowPipelineType
 	Pipeline                 *pipelineConfig.Pipeline
 	Env                      *repository.Environment
@@ -149,6 +151,10 @@ func (workflowRequest *WorkflowRequest) CheckBlobStorageConfig(config *CiCdConfi
 		return false
 	}
 
+}
+
+func (workflowRequest *WorkflowRequest) updateUseExternalClusterBlob(config *CiCdConfig) {
+	workflowRequest.UseExternalClusterBlob = !workflowRequest.CheckBlobStorageConfig(config) && workflowRequest.IsExtRun
 }
 
 func (workflowRequest *WorkflowRequest) GetWorkflowTemplate(workflowJson []byte, config *CiCdConfig) bean.WorkflowTemplate {
@@ -185,6 +191,7 @@ func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig
 func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]byte, error) {
 	workflowRequest.updateBlobStorageLogsKey(config)
 	workflowRequest.updateExternalRunMetadata()
+	workflowRequest.updateUseExternalClusterBlob(config)
 	workflowJson, err := workflowRequest.getWorkflowJson()
 	if err != nil {
 		return nil, err
@@ -216,10 +223,6 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() stri
 
 func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdConfig, workflowJson []byte) (containerEnvVariables []v1.EnvVar) {
 	containerEnvVariables = []v1.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: config.ImageScannerEndpoint}}
-	if config.CloudProvider == BLOB_STORAGE_S3 && config.BlobStorageS3AccessKey != "" {
-		miniCred := []v1.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: config.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: config.BlobStorageS3SecretKey}}
-		containerEnvVariables = append(containerEnvVariables, miniCred...)
-	}
 	eventEnv := v1.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v1.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
 	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
@@ -616,4 +619,10 @@ type WorkflowResponse struct {
 	CustomTag            *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
 	PipelineType         string                                      `json:"pipelineType"`
 	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
+}
+
+type ConfigMapSecretDto struct {
+	Name     string
+	Data     map[string]string
+	OwnerRef v12.OwnerReference
 }

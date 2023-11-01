@@ -1,4 +1,4 @@
-package pipeline
+package executors
 
 import (
 	"encoding/json"
@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/util"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,12 +19,6 @@ import (
 )
 
 var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
-
-type ConfigMapSecretDto struct {
-	Name     string
-	Data     map[string]string
-	OwnerRef v1.OwnerReference
-}
 
 func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
 	var volumes []v12.Volume
@@ -70,7 +65,7 @@ func extractVolumesFromConfigSecretMaps(isCm bool, configSecretMaps []bean2.Conf
 	return volumes
 }
 
-func GetConfigMapJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
+func GetConfigMapJson(configMapSecretDto types.ConfigMapSecretDto) (string, error) {
 	configMapBody := GetConfigMapBody(configMapSecretDto)
 	configMapJson, err := json.Marshal(configMapBody)
 	if err != nil {
@@ -79,7 +74,7 @@ func GetConfigMapJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
 	return string(configMapJson), err
 }
 
-func GetConfigMapBody(configMapSecretDto ConfigMapSecretDto) v12.ConfigMap {
+func GetConfigMapBody(configMapSecretDto types.ConfigMapSecretDto) v12.ConfigMap {
 	return v12.ConfigMap{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "ConfigMap",
@@ -93,7 +88,7 @@ func GetConfigMapBody(configMapSecretDto ConfigMapSecretDto) v12.ConfigMap {
 	}
 }
 
-func GetSecretJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
+func GetSecretJson(configMapSecretDto types.ConfigMapSecretDto) (string, error) {
 	secretBody := GetSecretBody(configMapSecretDto)
 	secretJson, err := json.Marshal(secretBody)
 	if err != nil {
@@ -102,7 +97,7 @@ func GetSecretJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
 	return string(secretJson), err
 }
 
-func GetSecretBody(configMapSecretDto ConfigMapSecretDto) v12.Secret {
+func GetSecretBody(configMapSecretDto types.ConfigMapSecretDto) v12.Secret {
 	secretDataMap := make(map[string][]byte)
 
 	// adding handling to get base64 decoded value in map value
@@ -147,7 +142,7 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 	csIndex := 0
 	for _, config := range globalCmCsConfigs {
 		if config.ConfigType == repository.CM_TYPE_CONFIG {
-			cmJson, err := GetConfigMapJson(ConfigMapSecretDto{Name: config.Name, Data: config.Data, OwnerRef: ArgoWorkflowOwnerRef})
+			cmJson, err := GetConfigMapJson(types.ConfigMapSecretDto{Name: config.Name, Data: config.Data, OwnerRef: ArgoWorkflowOwnerRef})
 			if err != nil {
 				return err
 			}
@@ -193,7 +188,7 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 				return err
 			}
 
-			secretJson, err := GetSecretJson(ConfigMapSecretDto{Name: config.Name, Data: encodedSecretDataMap, OwnerRef: ArgoWorkflowOwnerRef})
+			secretJson, err := GetSecretJson(types.ConfigMapSecretDto{Name: config.Name, Data: encodedSecretDataMap, OwnerRef: ArgoWorkflowOwnerRef})
 			if err != nil {
 				return err
 			}
@@ -254,3 +249,6 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
 
 }
+
+const WorkflowCancel = "CANCELLED"
+const POD_DELETED_MESSAGE = "pod deleted"
