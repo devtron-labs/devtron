@@ -560,6 +560,14 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(instal
 func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(installHelmAsyncRequest *InstallHelmAsyncRequest) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
+	// db operations
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.InstalledApps.Environment.ClusterId, installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm application", "err", err)
@@ -568,6 +576,36 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 	if !res.GetSuccess() {
 		return
 	}
+	installedApp := installHelmAsyncRequest.InstalledApps
+	installedApp.Status = appStoreBean.DEPLOY_SUCCESS
+	installedApp.UpdatedOn = time.Now()
+	installedApp, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating installed app", "err", err)
+		return
+	}
+	//STEP 8: finish with return response
+
+	if util.IsAcdApp(installHelmAsyncRequest.InstallAppVersionDTO.DeploymentAppType) {
+		err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithGitHash(installHelmAsyncRequest.InstallAppVersionDTO)
+		if err != nil {
+			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installHelmAsyncRequest.InstallAppVersionDTO.Id)
+			return
+		}
+	} else if util.IsManifestDownload(installHelmAsyncRequest.InstallAppVersionDTO.DeploymentAppType) {
+		err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO, pipelineConfig.WorkflowSucceeded)
+		if err != nil {
+			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
+			return
+		}
+	} else if util.IsHelmApp(installHelmAsyncRequest.InstallAppVersionDTO.DeploymentAppType) && !installHelmAsyncRequest.InstallAppVersionDTO.HelmInstallASyncMode {
+		err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithSync(installHelmAsyncRequest.InstallAppVersionDTO)
+		if err != nil {
+			impl.logger.Errorw("error in updating install app version history on sync", "err", err)
+			return
+		}
+	}
+
 	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId))
 	if err != nil {
 		impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
