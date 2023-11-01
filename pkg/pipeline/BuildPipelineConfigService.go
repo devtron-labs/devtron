@@ -1305,7 +1305,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 		impl.logger.Debugw("create patch request")
 		ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
 
-		pipeline, err := impl.ciPipelineRepository.FindByName(request.CiPipeline.Name)
+		pipeline, err := impl.ciPipelineRepository.FindByNameAndAppId(request.CiPipeline.Name, request.AppId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching pipeline by name, FindByName", "err", err, "patch cipipeline name", request.CiPipeline.Name)
 			return nil, err
