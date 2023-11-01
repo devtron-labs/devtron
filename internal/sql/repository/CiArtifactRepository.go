@@ -84,6 +84,7 @@ type CiArtifactRepository interface {
 	FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
 	FetchApprovedArtifactsForRollback(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CiArtifact, int, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -664,6 +665,33 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWo
 type CiArtifactWithApprovalRequestId struct {
 	ApprovalRequestId int `sql:"approval_request_id"`
 	*CiArtifact
+}
+
+func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CiArtifact, int, error) {
+
+	var ciArtifactsResp []CiArtifactWithExtraData
+	var ciArtifacts []CiArtifact
+	totalCount := 0
+	finalQuery := BuildQueryForArtifactsForCdStageV2(*listingFilterOptions, isApprovalNode)
+	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery)
+	if err == pg.ErrNoRows || len(ciArtifactsResp) == 0 {
+		return ciArtifacts, totalCount, nil
+	}
+	artifactIds := make([]int, len(ciArtifactsResp))
+	for i, af := range ciArtifactsResp {
+		artifactIds[i] = af.Id
+		totalCount = af.TotalCount
+	}
+
+	err = impl.dbConnection.
+		Model(&ciArtifacts).
+		Where("id IN (?) ", pg.In(artifactIds)).
+		Select()
+
+	if err == pg.ErrNoRows {
+		return ciArtifacts, totalCount, nil
+	}
+	return ciArtifacts, totalCount, err
 }
 
 func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error) {
