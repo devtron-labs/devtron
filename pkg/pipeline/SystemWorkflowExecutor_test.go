@@ -8,6 +8,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/batch/v1"
@@ -30,7 +31,7 @@ func TestSystemWorkflowExecute(t *testing.T) {
 	runtimeConfig, err := client.GetRuntimeConfig()
 	assert.Nil(t, err)
 	k8sUtil := k8s.NewK8sUtil(logger, runtimeConfig)
-	workflowExecutorImpl := NewSystemWorkflowExecutorImpl(logger, k8sUtil)
+	workflowExecutorImpl := executors.NewSystemWorkflowExecutorImpl(logger, k8sUtil)
 
 	t.Run("validate not configured blob storage", func(t *testing.T) {
 		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
@@ -151,7 +152,7 @@ func validateSecretTemplates(t *testing.T, templatesList *unstructured.Unstructu
 	}
 }
 
-func executeAndValidateJobTemplate(t *testing.T, workflowExecutorImpl *SystemWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) *unstructured.UnstructuredList {
+func executeAndValidateJobTemplate(t *testing.T, workflowExecutorImpl *executors.SystemWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) *unstructured.UnstructuredList {
 	templatesList, err := workflowExecutorImpl.ExecuteWorkflow(workflowTemplate)
 	assert.Nil(t, err)
 	jobTemplate, err := getJobTemplate(templatesList)
@@ -162,9 +163,9 @@ func executeAndValidateJobTemplate(t *testing.T, workflowExecutorImpl *SystemWor
 
 func validateJobTemplate(t *testing.T, jobTemplate v1.Job, workflowTemplate bean.WorkflowTemplate) {
 	objectMeta := jobTemplate.ObjectMeta
-	assert.True(t, strings.Contains(objectMeta.Name, fmt.Sprintf(WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix)))
+	assert.True(t, strings.Contains(objectMeta.Name, fmt.Sprintf(executors.WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix)))
 	wfLabels := objectMeta.Labels
-	assert.Equal(t, DEVTRON_WORKFLOW_LABEL_VALUE, wfLabels[DEVTRON_WORKFLOW_LABEL_KEY])
+	assert.Equal(t, executors.DEVTRON_WORKFLOW_LABEL_VALUE, wfLabels[executors.DEVTRON_WORKFLOW_LABEL_KEY])
 	jobSpec := jobTemplate.Spec
 	activeDeadlineSeconds := jobSpec.ActiveDeadlineSeconds
 	assert.NotNil(t, activeDeadlineSeconds)

@@ -43,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -1558,8 +1559,8 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 					AuthMode:      gitMaterial.GitProvider.AuthMode,
 				},
 			}
-			if IsShallowClonePossible(m, impl.config.GitProviders, impl.config.CloningMode) {
-				ciProjectDetail.CloningMode = CloningModeShallow
+			if executors.IsShallowClonePossible(m, impl.config.GitProviders, impl.config.CloningMode) {
+				ciProjectDetail.CloningMode = executors.CloningModeShallow
 			}
 
 			if len(ciMaterialCurrent.Modifications) > 0 {

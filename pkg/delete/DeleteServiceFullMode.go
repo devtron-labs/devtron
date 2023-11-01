@@ -13,7 +13,7 @@ import (
 
 type DeleteServiceFullMode interface {
 	DeleteGitProvider(deleteRequest *types.GitRegistry) error
-	DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error
+	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteContainerRegistryConfig(storeId string) bool
 	CanDeleteChartRegistryPushConfig(storeId string) bool
 }
@@ -65,7 +65,7 @@ func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *types.Git
 	return nil
 }
 
-func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error {
+func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error {
 	//finding if docker reg is used in any app, if yes then will not delete
 	ciTemplates, err := impl.ciTemplateRepository.FindByDockerRegistryId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {
