@@ -386,7 +386,7 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 			TaintKey:         config.CiTaintKey,
 			TaintValue:       config.CiTaintValue,
 			NodeLabel:        nodeLabel,
-			SkipNodeSelector: false,
+			SkipNodeSelector: workflowRequest.IsExtRun,
 		}
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return &bean.NodeConstraints{
