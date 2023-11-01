@@ -82,6 +82,7 @@ type CiArtifactRepository interface {
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -653,6 +654,33 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWo
 		return nil, err
 	}
 	return artifacts, err
+}
+
+func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error) {
+
+	var ciArtifactsResp []CiArtifactWithExtraData
+	var ciArtifacts []CiArtifact
+	totalCount := 0
+	finalQuery := BuildQueryForArtifactsForCdStage(*listingFilterOptions)
+	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery)
+	if err == pg.ErrNoRows || len(ciArtifactsResp) == 0 {
+		return ciArtifacts, totalCount, nil
+	}
+	artifactIds := make([]int, len(ciArtifactsResp))
+	for i, af := range ciArtifactsResp {
+		artifactIds[i] = af.Id
+		totalCount = af.TotalCount
+	}
+
+	err = impl.dbConnection.
+		Model(&ciArtifacts).
+		Where("id IN (?) ", pg.In(artifactIds)).
+		Select()
+
+	if err == pg.ErrNoRows {
+		return ciArtifacts, totalCount, nil
+	}
+	return ciArtifacts, totalCount, err
 }
 
 func (impl CiArtifactRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error) {
