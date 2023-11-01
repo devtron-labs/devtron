@@ -417,9 +417,9 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 		impl.Logger.Errorw("error in getting in installedApp", "installedAppId", installAppVersionRequest.InstalledAppId, "err", err)
 		return err
 	}
-	appStoreApplicationVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreApplicationVersionId)
+	appStoreApplicationVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
-		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", installAppVersionRequest.AppStoreApplicationVersionId, "err", err)
+		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", installAppVersionRequest.AppStoreVersion, "err", err)
 		return err
 	}
 	var IsOCIRepo bool
