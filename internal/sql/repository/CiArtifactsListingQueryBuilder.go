@@ -73,8 +73,8 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 	}
 
 	totalCountQuery := "SELECT COUNT(DISTINCT ci_artifact_id) as total_count " + commonQuery
-	selectQuery := fmt.Sprintf("SELECT MAX(cd_workflow_runner.id) AS id, (%v) ", totalCountQuery)
-	GroupByQuery := " GROUP BY cd_workflow.ci_artifact_id "
+	selectQuery := fmt.Sprintf("SELECT cia.id , (%v) ", totalCountQuery)
+	GroupByQuery := " GROUP BY cia.id "
 	limitOffSetQuery := fmt.Sprintf(" LIMIT %v OFFSET %v", listingFilterOptions.Limit, listingFilterOptions.Offset)
 
 	finalQuery := selectQuery + commonQuery + GroupByQuery + limitOffSetQuery
