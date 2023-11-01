@@ -29,7 +29,9 @@ func (impl *AwsS3Blob) UploadBlob(request *BlobStorageRequest, err error) error 
 	if s3BaseConfig.Region != "" {
 		cmdArgs = append(cmdArgs, "--region", s3BaseConfig.Region)
 	}
+
 	command := exec.Command("aws", cmdArgs...)
+	setAWSEnvironmentVariables(s3BaseConfig, command)
 	err = utils.RunCommand(command)
 	return err
 }

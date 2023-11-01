@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/mocks"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"log"
 	"testing"
 
@@ -30,7 +31,7 @@ var (
 	dockerArtifactStoreRepository *repository.DockerArtifactStoreRepositoryImpl
 	helmAppServiceMock            *mocks.HelmAppService
 	storeIds                      = []string{"integration-test-store-1", "integration-test-store-2", "integration-test-store-3"}
-	validInput1                   = DockerArtifactStoreBean{
+	validInput1                   = types.DockerArtifactStoreBean{
 		Id:                     storeIds[0],
 		PluginId:               "cd.go.artifact.docker.registry",
 		RegistryType:           "docker-hub",
@@ -39,7 +40,7 @@ var (
 		Username:               "test-user",
 		Password:               "test-password",
 		IsOCICompliantRegistry: false,
-		DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
+		DockerRegistryIpsConfig: &types.DockerRegistryIpsConfigBean{
 			Id:                   0,
 			CredentialType:       dockerRegistry.IPS_CREDENTIAL_TYPE_SAME_AS_REGISTRY,
 			AppliedClusterIdsCsv: "",
@@ -47,7 +48,7 @@ var (
 			Active:               true,
 		},
 	}
-	validInput2 = DockerArtifactStoreBean{
+	validInput2 = types.DockerArtifactStoreBean{
 		Id:                     storeIds[1],
 		PluginId:               "cd.go.artifact.docker.registry",
 		RegistryType:           "docker-hub",
@@ -62,7 +63,7 @@ var (
 		},
 		IsPublic:       false,
 		RepositoryList: []string{"username/test", "username/chart"},
-		DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
+		DockerRegistryIpsConfig: &types.DockerRegistryIpsConfigBean{
 			Id:                   0,
 			CredentialType:       dockerRegistry.IPS_CREDENTIAL_TYPE_SAME_AS_REGISTRY,
 			AppliedClusterIdsCsv: "",
@@ -70,7 +71,7 @@ var (
 			Active:               true,
 		},
 	}
-	validInput3 = DockerArtifactStoreBean{
+	validInput3 = types.DockerArtifactStoreBean{
 		Id:                     storeIds[2],
 		PluginId:               "cd.go.artifact.docker.registry",
 		RegistryType:           "docker-hub",
@@ -90,7 +91,7 @@ func TestRegistryConfigService_Save(t *testing.T) {
 	}
 	testCases := []struct {
 		name        string
-		input       DockerArtifactStoreBean
+		input       types.DockerArtifactStoreBean
 		expectedErr bool
 	}{
 		{
@@ -235,7 +236,7 @@ func TestRegistryConfigService_Update(t *testing.T) {
 	// define input for update function
 	testCases := []struct {
 		name        string
-		input       DockerArtifactStoreBean
+		input       types.DockerArtifactStoreBean
 		expectedErr bool
 	}{
 		{
