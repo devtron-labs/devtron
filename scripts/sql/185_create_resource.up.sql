@@ -38,6 +38,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource_object;
 CREATE TABLE "public"."devtron_resource_object"
 (
     "id"                         int          NOT NULL DEFAULT nextval('id_seq_devtron_resource_object'::regclass),
+    "old_object_id"              int,
     "name"                       VARCHAR(250) NOT NULL,
     "devtron_resource_id"        int,
     "devtron_resource_schema_id" int,
