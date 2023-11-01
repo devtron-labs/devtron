@@ -196,7 +196,7 @@ func (impl K8sUtil) CreateNsIfNotExists(namespace string, clusterConfig *Cluster
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return err
 	}
-	exists, err := impl.CheckIfNsExists(namespace, v12Client)
+	exists, err := impl.checkIfNsExists(namespace, v12Client)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return err
@@ -210,7 +210,7 @@ func (impl K8sUtil) CreateNsIfNotExists(namespace string, clusterConfig *Cluster
 	return err
 }
 
-func (impl K8sUtil) CheckIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error) {
+func (impl K8sUtil) checkIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error) {
 	ns, err := client.Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	//ns, err := impl.k8sClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	impl.logger.Debugw("ns fetch", "name", namespace, "res", ns)
