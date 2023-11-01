@@ -244,7 +244,33 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 			return 0, err
 		}
 	}
+
+	err = impl.performNotificationConfigActionForVersion(request, draftId)
+	if err != nil {
+		return 0, err
+	}
 	return lastDraftVersionId, nil
+}
+
+func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(request ConfigDraftVersionRequest, draftId int) error {
+	draftData, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
+	if err != nil {
+		return err
+	}
+	config := ConfigDraftRequest{
+		AppId:        draftData.AppId,
+		EnvId:        draftData.EnvId,
+		Resource:     draftData.Resource,
+		ResourceName: draftData.ResourceName,
+		UserComment:  request.UserComment,
+		UserId:       request.UserId,
+	}
+	err = impl.performNotificationConfigAction(config)
+	if err != nil {
+		impl.logger.Errorw("error occurred while performing notification approval action", "ConfigDraftRequest", request, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {

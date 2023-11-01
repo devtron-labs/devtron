@@ -144,13 +144,14 @@ type DraftCountResponse struct {
 }
 
 type ConfigDraftVersionRequest struct {
-	DraftId            int            `json:"draftId" validate:"number,required"`
-	LastDraftVersionId int            `json:"lastDraftVersionId" validate:"number,required"`
-	Action             ResourceAction `json:"action"`
-	Data               string         `json:"data"`
-	UserComment        string         `json:"userComment"`
-	ChangeProposed     bool           `json:"changeProposed"`
-	UserId             int32          `json:"-"`
+	DraftId                   int                       `json:"draftId" validate:"number,required"`
+	LastDraftVersionId        int                       `json:"lastDraftVersionId" validate:"number,required"`
+	Action                    ResourceAction            `json:"action"`
+	Data                      string                    `json:"data"`
+	UserComment               string                    `json:"userComment"`
+	ChangeProposed            bool                      `json:"changeProposed"`
+	UserId                    int32                     `json:"-"`
+	ProtectNotificationConfig ProtectNotificationConfig `json:"protectNotificationConfig"`
 }
 
 func (request ConfigDraftVersionRequest) GetDraftVersionDto(currentTime time.Time) *DraftVersion {
