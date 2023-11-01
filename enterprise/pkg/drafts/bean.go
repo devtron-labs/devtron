@@ -20,6 +20,26 @@ const (
 	DeploymentTemplateResource DraftResourceType = 3
 )
 
+type DraftResourceTypeString string
+
+const (
+	CMDraft            DraftResourceTypeString = "ConfigMap"
+	CSDraft            DraftResourceTypeString = "Secret"
+	DeploymentTemplate DraftResourceTypeString = "DeploymentTemplate"
+)
+
+func (draftType DraftResourceType) getDraftResourceType() DraftResourceTypeString {
+	switch draftType {
+	case CMDraftResource:
+		return CMDraft
+	case CSDraftResource:
+		return CSDraft
+	case DeploymentTemplateResource:
+		return DeploymentTemplate
+	}
+	return ""
+}
+
 type ResourceAction uint8
 
 const (
@@ -46,15 +66,19 @@ func GetNonTerminalDraftStates() []int {
 }
 
 type ConfigDraftRequest struct {
-	AppId          int               `json:"appId" validate:"number,required"`
-	EnvId          int               `json:"envId"`
-	Resource       DraftResourceType `json:"resource"`
-	ResourceName   string            `json:"resourceName"`
-	Action         ResourceAction    `json:"action"`
-	Data           string            `json:"data" validate:"min=1"`
-	UserComment    string            `json:"userComment"`
-	ChangeProposed bool              `json:"changeProposed"`
-	UserId         int32             `json:"-"`
+	AppId                     int                       `json:"appId" validate:"number,required"`
+	EnvId                     int                       `json:"envId"`
+	Resource                  DraftResourceType         `json:"resource"`
+	ResourceName              string                    `json:"resourceName"`
+	Action                    ResourceAction            `json:"action"`
+	Data                      string                    `json:"data" validate:"min=1"`
+	UserComment               string                    `json:"userComment"`
+	ChangeProposed            bool                      `json:"changeProposed"`
+	UserId                    int32                     `json:"-"`
+	ProtectNotificationConfig ProtectNotificationConfig `json:"protectNotificationConfig"`
+}
+type ProtectNotificationConfig struct {
+	EmailIds []string `json:"emailIds"`
 }
 
 func (request ConfigDraftRequest) GetDraftDto() *DraftDto {
