@@ -407,11 +407,11 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 		artifactListingFilterOpts.ExcludeArtifactIds = []int{latestWf[0].CdWorkflow.CiArtifactId}
 	}
 
-	var cdWfrs []pipelineConfig.CdWorkflowRunner
+	var ciArtifacts []repository.CiArtifactWithExtraData
 	if artifactListingFilterOpts.ApprovalNodeConfigured {
-		cdWfrs, totalCount, err = impl.cdWorkflowRepository.FetchApprovedArtifactsForRollback(artifactListingFilterOpts)
+		ciArtifacts, totalCount, err = impl.ciArtifactRepository.FetchApprovedArtifactsForRollback(artifactListingFilterOpts)
 	} else {
-		cdWfrs, totalCount, err = impl.cdWorkflowRepository.FetchArtifactsByCdPipelineIdV2(artifactListingFilterOpts)
+		ciArtifacts, totalCount, err = impl.ciArtifactRepository.FetchArtifactsByCdPipelineIdV2(artifactListingFilterOpts)
 	}
 
 	if err != nil {
@@ -420,7 +420,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 	}
 
 	var ids []int32
-	for _, item := range cdWfrs {
+	for _, item := range ciArtifacts {
 		ids = append(ids, item.TriggeredBy)
 	}
 
@@ -435,26 +435,19 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 
 	artifactIds := make([]int, 0)
 
-	for _, cdWfr := range cdWfrs {
-		ciArtifact := &repository.CiArtifact{}
-		if cdWfr.CdWorkflow != nil && cdWfr.CdWorkflow.CiArtifact != nil {
-			ciArtifact = cdWfr.CdWorkflow.CiArtifact
-		}
-		if ciArtifact == nil {
-			continue
-		}
+	for _, ciArtifact := range ciArtifacts {
 		mInfo, err := parseMaterialInfo([]byte(ciArtifact.MaterialInfo), ciArtifact.DataSource)
 		if err != nil {
 			mInfo = []byte("[]")
 			impl.logger.Errorw("error in parsing ciArtifact material info", "err", err, "ciArtifact", ciArtifact)
 		}
-		userEmail := userEmails[cdWfr.TriggeredBy]
+		userEmail := userEmails[ciArtifact.TriggeredBy]
 		deployedCiArtifacts = append(deployedCiArtifacts, bean2.CiArtifactBean{
 			Id:           ciArtifact.Id,
 			Image:        ciArtifact.Image,
 			MaterialInfo: mInfo,
-			DeployedTime: formatDate(cdWfr.StartedOn, bean2.LayoutRFC3339),
-			WfrId:        cdWfr.Id,
+			DeployedTime: formatDate(ciArtifact.StartedOn, bean2.LayoutRFC3339),
+			WfrId:        ciArtifact.CdWorkflowRunnerId,
 			DeployedBy:   userEmail,
 		})
 		artifactIds = append(artifactIds, ciArtifact.Id)

@@ -31,6 +31,15 @@ import (
 	"go.uber.org/zap"
 )
 
+type CiArtifactWithExtraData struct {
+	CiArtifact
+	PayloadSchema      string
+	TotalCount         int
+	TriggeredBy        int32
+	StartedOn          time.Time
+	CdWorkflowRunnerId int
+}
+
 type CiArtifact struct {
 	tableName            struct{}  `sql:"ci_artifact" pg:",discard_unknown_columns"`
 	Id                   int       `sql:"id,pk"`
@@ -73,6 +82,8 @@ type CiArtifactRepository interface {
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 	FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
+	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
+	FetchApprovedArtifactsForRollback(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -246,78 +257,33 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 }
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*CiArtifact, int, error) {
-	//TODO: refactor query here
-	artifacts := make([]*CiArtifact, 0, listingFilterOpts.Limit)
+
+	if listingFilterOpts.ParentStageType != bean.CI_WORKFLOW_TYPE && listingFilterOpts.ParentStageType != bean.WEBHOOK_WORKFLOW_TYPE {
+		return nil, 0, nil
+	}
+
+	artifactsResp := make([]*CiArtifactWithExtraData, 0, listingFilterOpts.Limit)
+	var artifacts []*CiArtifact
 	totalCount := 0
-	commonPaginatedQueryPart := " cia.image LIKE ?"
-	orderByClause := " ORDER BY cia.id DESC"
-	limitOffsetQueryPart :=
-		" LIMIT ? OFFSET ?;"
-
-	commonApprovalNodeSubQueryPart := fmt.Sprintf("cia.id NOT IN "+
-		" ( "+
-		" SELECT DISTINCT dar.ci_artifact_id "+
-		" FROM deployment_approval_request dar "+
-		" WHERE dar.pipeline_id = %v "+
-		" AND dar.active=true "+
-		" AND dar.artifact_deployment_triggered = false"+
-		" ) AND ", listingFilterOpts.PipelineId)
-
-	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE {
-		selectQuery := " SELECT cia.* "
-		remainingQuery := " FROM ci_artifact cia" +
-			" INNER JOIN ci_pipeline cp ON cp.id=cia.pipeline_id" +
-			" INNER JOIN pipeline p ON p.ci_pipeline_id = cp.id and p.id=?" +
-			" WHERE "
-		if isApprovalNode {
-			remainingQuery += commonApprovalNodeSubQueryPart
-		} else if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
-			remainingQuery += fmt.Sprintf("cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
-		}
-
-		countQuery := " SELECT count(cia.id)  "
-		totalCountQuery := countQuery + remainingQuery + commonPaginatedQueryPart
-		_, err := impl.dbConnection.Query(&totalCount, totalCountQuery, listingFilterOpts.PipelineId, listingFilterOpts.SearchString)
-		if err != nil {
-			return artifacts, totalCount, err
-		}
-
-		finalQuery := selectQuery + remainingQuery + commonPaginatedQueryPart + orderByClause + limitOffsetQueryPart
-		_, err = impl.dbConnection.Query(&artifacts, finalQuery, listingFilterOpts.PipelineId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
-		if err != nil {
-			return artifacts, totalCount, err
-		}
-
-	} else if listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
-		selectQuery := " SELECT cia.* "
-		remainingQuery := " FROM ci_artifact cia " +
-			" WHERE cia.external_ci_pipeline_id = ? AND "
-		if isApprovalNode {
-			remainingQuery += commonApprovalNodeSubQueryPart
-		} else if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
-			remainingQuery += fmt.Sprintf("cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
-		}
-
-		countQuery := " SELECT count(cia.id)  "
-		totalCountQuery := countQuery + remainingQuery + commonPaginatedQueryPart
-		_, err := impl.dbConnection.Query(&totalCount, totalCountQuery, listingFilterOpts.PipelineId, listingFilterOpts.SearchString)
-		if err != nil {
-			return artifacts, totalCount, err
-		}
-
-		finalQuery := selectQuery + remainingQuery + commonPaginatedQueryPart + orderByClause + limitOffsetQueryPart
-
-		_, err = impl.dbConnection.Query(&artifacts, finalQuery, listingFilterOpts.ParentId, listingFilterOpts.SearchString, listingFilterOpts.Limit, listingFilterOpts.Offset)
-		if err != nil {
-			return artifacts, totalCount, err
-		}
-	} else {
-		return artifacts, totalCount, nil
+	finalQuery := BuildQueryForParentTypeCIOrWebhook(*listingFilterOpts, isApprovalNode)
+	_, err := impl.dbConnection.Query(&artifactsResp, finalQuery)
+	if err != nil {
+		return nil, totalCount, err
+	}
+	artifacts = make([]*CiArtifact, len(artifactsResp))
+	for i, _ := range artifactsResp {
+		artifacts[i] = &artifactsResp[i].CiArtifact
+		totalCount = artifactsResp[i].TotalCount
 	}
 
 	if len(artifacts) == 0 {
 		return artifacts, totalCount, nil
 	}
+	artifacts, err = impl.setDeployedDataInArtifacts(artifacts)
+	return artifacts, totalCount, err
+}
+
+func (impl CiArtifactRepositoryImpl) setDeployedDataInArtifacts(artifacts []*CiArtifact) ([]*CiArtifact, error) {
 	//processing
 	artifactsMap := make(map[int]*CiArtifact)
 	artifactsIds := make([]int, 0, len(artifacts))
@@ -337,7 +303,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 
 	_, err := impl.dbConnection.Query(&artifactsDeployed, query, pg.In(artifactsIds))
 	if err != nil {
-		return artifacts, totalCount, nil
+		return artifacts, nil
 	}
 
 	//set deployed time and latest deployed artifact
@@ -349,8 +315,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 		}
 	}
 
-	return artifacts, totalCount, nil
-
+	return artifacts, nil
 }
 
 func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error) {
@@ -702,46 +667,44 @@ type CiArtifactWithApprovalRequestId struct {
 }
 
 func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error) {
-	artifacts := make([]*CiArtifact, 0)
-	withQuery := "WITH " +
-		" approved_images AS " +
-		" ( " +
-		" SELECT approval_request_id,count(approval_request_id) AS approval_count " +
-		" FROM deployment_approval_user_data daud " +
-		" WHERE user_response = 0 " +
-		" GROUP BY approval_request_id " +
-		" ) "
-	countQuery := " SELECT count(cia.created_on) "
-	selectQuery := " SELECT cia.*"
-
-	remainingQueryPart := " FROM deployment_approval_request dar " +
-		" INNER JOIN approved_images ai ON ai.approval_request_id=dar.id AND ai.approval_count >= ? " +
-		" INNER JOIN ci_artifact cia ON cia.id = dar.ci_artifact_id " +
-		" WHERE dar.active=true AND dar.artifact_deployment_triggered = false AND dar.pipeline_id = ? AND " +
-		" cia.image LIKE ? "
-
-	if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
-		remainingQueryPart += fmt.Sprintf(" AND cia.id NOT IN (%s) ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
-	}
-
-	orderByClause := " ORDER BY cia.created_on "
-	limitOffsetQueryPart := " LIMIT ? OFFSET ? "
-
+	artifacts := make([]*CiArtifactWithExtraData, 0)
 	totalCount := 0
-	totalCountQuery := withQuery + countQuery + remainingQueryPart
-	_, err := impl.dbConnection.Query(&totalCount, totalCountQuery,
-		listingFilterOpts.ApproversCount,
-		listingFilterOpts.PipelineId,
-		listingFilterOpts.SearchString)
-	if err != nil {
-		return artifacts, totalCount, err
+
+	finalQuery := BuildApprovedOnlyArtifactsWithFilter(*listingFilterOpts)
+	_, err := impl.dbConnection.Query(&artifacts, finalQuery)
+	artifactsResp := make([]*CiArtifact, len(artifacts))
+	for i, _ := range artifacts {
+		artifactsResp[i] = &artifacts[i].CiArtifact
+		totalCount = artifacts[i].TotalCount
 	}
-	finalQuery := withQuery + selectQuery + remainingQueryPart + orderByClause + limitOffsetQueryPart
-	_, err = impl.dbConnection.Query(&artifacts, finalQuery,
-		listingFilterOpts.ApproversCount,
-		listingFilterOpts.PipelineId,
-		listingFilterOpts.SearchString,
-		listingFilterOpts.Limit,
-		listingFilterOpts.Offset)
-	return artifacts, totalCount, err
+	return artifactsResp, totalCount, err
+}
+
+func (impl CiArtifactRepositoryImpl) FetchApprovedArtifactsForRollback(listingFilterOpts bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error) {
+	var results []CiArtifactWithExtraData
+	totalCount := 0
+	finalQuery := BuildQueryForApprovedArtifactsForRollback(listingFilterOpts)
+	_, err := impl.dbConnection.Query(&results, finalQuery)
+	if err != nil && err != pg.ErrNoRows {
+		return results, totalCount, err
+	}
+	if len(results) > 0 {
+		totalCount = results[0].TotalCount
+	}
+	return results, totalCount, nil
+}
+
+func (impl CiArtifactRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error) {
+	var wfrList []CiArtifactWithExtraData
+	totalCount := 0
+	finalQuery := BuildQueryForArtifactsForRollback(listingFilterOptions)
+	_, err := impl.dbConnection.Query(&wfrList, finalQuery)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting Wfrs and ci artifacts by pipelineId", "err", err, "pipelineId", listingFilterOptions.PipelineId)
+		return nil, totalCount, err
+	}
+	if len(wfrList) > 0 {
+		totalCount = wfrList[0].TotalCount
+	}
+	return wfrList, totalCount, nil
 }
