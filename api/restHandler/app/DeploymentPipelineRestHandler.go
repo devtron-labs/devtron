@@ -16,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -1512,7 +1513,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateMigrationConfig(w http.Respon
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var dbMigrationConfigBean pipeline.DbMigrationConfigBean
+	var dbMigrationConfigBean types.DbMigrationConfigBean
 	err = decoder.Decode(&dbMigrationConfigBean)
 
 	dbMigrationConfigBean.UserId = userId
@@ -1558,7 +1559,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMigrationConfig(w http.Respon
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var dbMigrationConfigBean pipeline.DbMigrationConfigBean
+	var dbMigrationConfigBean types.DbMigrationConfigBean
 	err = decoder.Decode(&dbMigrationConfigBean)
 	dbMigrationConfigBean.UserId = userId
 	if err != nil {

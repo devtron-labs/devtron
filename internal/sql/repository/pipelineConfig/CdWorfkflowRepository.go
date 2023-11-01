@@ -100,6 +100,9 @@ const (
 	WorkflowSucceeded          = "Succeeded"
 	WorkflowTimedOut           = "TimedOut"
 	WorkflowUnableToFetchState = "UnableToFetch"
+	WorkflowTypeDeploy         = "DEPLOY"
+	WorkflowTypePre            = "PRE"
+	WorkflowTypePost           = "POST"
 )
 
 func (a WorkflowStatus) String() string {
@@ -164,6 +167,16 @@ type CdWorkflowRunner struct {
 	RefCdWorkflowRunnerId int                  `sql:"ref_cd_workflow_runner_id,notnull"`
 	CdWorkflow            *CdWorkflow
 	sql.AuditLog
+}
+
+func (c *CdWorkflowRunner) IsExternalRun() bool {
+	var isExtCluster bool
+	if c.WorkflowType == WorkflowTypePre {
+		isExtCluster = c.CdWorkflow.Pipeline.RunPreStageInEnv
+	} else if c.WorkflowType == WorkflowTypePost {
+		isExtCluster = c.CdWorkflow.Pipeline.RunPostStageInEnv
+	}
+	return isExtCluster
 }
 
 type CiPipelineMaterialResponse struct {

@@ -1,4 +1,4 @@
-package pipeline
+package executors
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -144,7 +145,7 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 			impl.logger.Errorw("error occurred while extracting data map", "Data", configSecretMap.Data, "err", err)
 			return configMaps, secrets, err
 		}
-		configMapSecretDto := ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
+		configMapSecretDto := types2.ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
 		configMap := GetConfigMapBody(configMapSecretDto)
 		configMaps = append(configMaps, configMap)
 	}
@@ -158,7 +159,7 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 			impl.logger.Errorw("error occurred while extracting data map", "Data", secretMapData.Data, "err", err)
 			return configMaps, secrets, err
 		}
-		configMapSecretDto := ConfigMapSecretDto{Name: secretMapData.Name, Data: dataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
+		configMapSecretDto := types2.ConfigMapSecretDto{Name: secretMapData.Name, Data: dataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
 		secretBody := GetSecretBody(configMapSecretDto)
 		secrets = append(secrets, secretBody)
 	}

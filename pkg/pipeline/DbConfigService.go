@@ -20,30 +20,18 @@ package pipeline
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
 	"time"
 )
 
-type DbConfigBean struct {
-	Id       int    `json:"id,omitempty" validate:"number"`
-	Name     string `json:"name,omitempty" validate:"required"` //name by which user identifies this db
-	Type     string `json:"type,omitempty" validate:"required"` //type of db, PG, MYsql, MariaDb
-	Host     string `json:"host,omitempty" validate:"host"`
-	Port     string `json:"port,omitempty" validate:"max=4"`
-	DbName   string `json:"dbName,omitempty" validate:"required"` //name of database inside PG
-	UserName string `json:"userName,omitempty"`
-	Password string `json:"password,omitempty"`
-	Active   bool   `json:"active,omitempty"`
-	UserId   int32  `json:"-"`
-}
-
 type DbConfigService interface {
-	Save(dbConfigBean *DbConfigBean) (dbConfig *DbConfigBean, err error)
-	GetAll() (dbConfigs []*DbConfigBean, err error)
-	GetById(id int) (dbConfig *DbConfigBean, err error)
-	Update(dbConfigBean *DbConfigBean) (dbConfig *DbConfigBean, err error)
-	GetForAutocomplete() (dbConfigs []*DbConfigBean, err error)
+	Save(dbConfigBean *types.DbConfigBean) (dbConfig *types.DbConfigBean, err error)
+	GetAll() (dbConfigs []*types.DbConfigBean, err error)
+	GetById(id int) (dbConfig *types.DbConfigBean, err error)
+	Update(dbConfigBean *types.DbConfigBean) (dbConfig *types.DbConfigBean, err error)
+	GetForAutocomplete() (dbConfigs []*types.DbConfigBean, err error)
 }
 type DbConfigServiceImpl struct {
 	configRepo repository.DbConfigRepository
@@ -57,7 +45,7 @@ func NewDbConfigService(configRepo repository.DbConfigRepository,
 		logger:     logger,
 	}
 }
-func (impl DbConfigServiceImpl) Save(dbConfigBean *DbConfigBean) (dbConfig *DbConfigBean, err error) {
+func (impl DbConfigServiceImpl) Save(dbConfigBean *types.DbConfigBean) (dbConfig *types.DbConfigBean, err error) {
 	t := repository.DbType(dbConfigBean.Type)
 	if valid := t.IsValid(); !valid {
 		impl.logger.Errorw("invalid type", "dbType", dbConfigBean.Type)
@@ -88,7 +76,7 @@ func (impl DbConfigServiceImpl) Save(dbConfigBean *DbConfigBean) (dbConfig *DbCo
 	return dbConfigBean, nil
 }
 
-func (impl DbConfigServiceImpl) GetAll() (dbConfigs []*DbConfigBean, err error) {
+func (impl DbConfigServiceImpl) GetAll() (dbConfigs []*types.DbConfigBean, err error) {
 	configs, err := impl.configRepo.GetAll()
 	if err != nil {
 		return nil, err
@@ -99,7 +87,7 @@ func (impl DbConfigServiceImpl) GetAll() (dbConfigs []*DbConfigBean, err error) 
 	}
 	return dbConfigs, err
 }
-func (impl DbConfigServiceImpl) GetById(id int) (dbConfig *DbConfigBean, err error) {
+func (impl DbConfigServiceImpl) GetById(id int) (dbConfig *types.DbConfigBean, err error) {
 	cfg, err := impl.configRepo.GetById(id)
 	if err != nil {
 		return nil, err
@@ -108,7 +96,7 @@ func (impl DbConfigServiceImpl) GetById(id int) (dbConfig *DbConfigBean, err err
 	return dbConfig, nil
 }
 
-func (impl DbConfigServiceImpl) Update(dbConfigBean *DbConfigBean) (dbConfig *DbConfigBean, err error) {
+func (impl DbConfigServiceImpl) Update(dbConfigBean *types.DbConfigBean) (dbConfig *types.DbConfigBean, err error) {
 	var t repository.DbType
 	if dbConfigBean.Type != "" {
 		t = repository.DbType(dbConfigBean.Type)
@@ -137,8 +125,8 @@ func (impl DbConfigServiceImpl) Update(dbConfigBean *DbConfigBean) (dbConfig *Db
 	return dbConfigBean, err
 }
 
-func (impl DbConfigServiceImpl) modelToBeanAdaptor(conf *repository.DbConfig) (bean *DbConfigBean) {
-	bean = &DbConfigBean{
+func (impl DbConfigServiceImpl) modelToBeanAdaptor(conf *repository.DbConfig) (bean *types.DbConfigBean) {
+	bean = &types.DbConfigBean{
 		DbName:   conf.DbName,
 		Active:   conf.Active,
 		Name:     conf.Name,
@@ -152,7 +140,7 @@ func (impl DbConfigServiceImpl) modelToBeanAdaptor(conf *repository.DbConfig) (b
 	return bean
 }
 
-func (impl DbConfigServiceImpl) GetForAutocomplete() (dbConfigs []*DbConfigBean, err error) {
+func (impl DbConfigServiceImpl) GetForAutocomplete() (dbConfigs []*types.DbConfigBean, err error) {
 	dbConf, err := impl.configRepo.GetActiveForAutocomplete()
 	if err != nil {
 		return nil, err
