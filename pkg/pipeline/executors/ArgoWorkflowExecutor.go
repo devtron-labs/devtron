@@ -1,4 +1,4 @@
-package pipeline
+package executors
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,7 +42,7 @@ type WorkflowExecutor interface {
 	ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error)
 	TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error
 	GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error)
-	GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*WorkflowStatus, error)
+	GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*types.WorkflowStatus, error)
 }
 
 type ArgoWorkflowExecutor interface {
@@ -146,12 +147,12 @@ func (impl *ArgoWorkflowExecutorImpl) GetWorkflow(workflowName string, namespace
 	return impl.convertToUnstructured(wf), err
 }
 
-func (impl *ArgoWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*WorkflowStatus, error) {
+func (impl *ArgoWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*types.WorkflowStatus, error) {
 	wf, err := impl.getWorkflow(workflowName, namespace, clusterConfig)
 	if err != nil {
 		return nil, err
 	}
-	wfStatus := &WorkflowStatus{
+	wfStatus := &types.WorkflowStatus{
 		Status:  string(wf.Status.Phase),
 		Message: wf.Status.Message,
 	}
@@ -322,7 +323,7 @@ func (impl *ArgoWorkflowExecutorImpl) appendCMCSToStepAndTemplate(isSecret bool,
 	}
 
 	var cmSecretJson string
-	configMapSecretDto := ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: ArgoWorkflowOwnerRef}
+	configMapSecretDto := types.ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: ArgoWorkflowOwnerRef}
 	if isSecret {
 		cmSecretJson, err = GetSecretJson(configMapSecretDto)
 	} else {

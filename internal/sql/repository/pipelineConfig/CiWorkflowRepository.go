@@ -78,6 +78,10 @@ type CiWorkflow struct {
 	CiPipeline             *CiPipeline
 }
 
+func (r *CiWorkflow) IsExternalRunInJobType() bool {
+	return r.EnvironmentId != 0
+}
+
 type WorkflowWithArtifact struct {
 	Id                     int                  `json:"id"`
 	Name                   string               `json:"name"`

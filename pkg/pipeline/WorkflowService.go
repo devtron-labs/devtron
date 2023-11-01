@@ -30,6 +30,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -40,10 +42,10 @@ import (
 // TODO: move isCi/isJob to workflowRequest
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, error)
+	SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, error)
 	//DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
-	GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*WorkflowStatus, error)
+	GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
 	//ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	//UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
 	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
@@ -52,22 +54,22 @@ type WorkflowService interface {
 type WorkflowServiceImpl struct {
 	Logger                 *zap.SugaredLogger
 	config                 *rest.Config
-	ciCdConfig             *CiCdConfig
+	ciCdConfig             *types.CiCdConfig
 	appService             app.AppService
 	envRepository          repository.EnvironmentRepository
 	globalCMCSService      GlobalCMCSService
-	argoWorkflowExecutor   ArgoWorkflowExecutor
-	systemWorkflowExecutor SystemWorkflowExecutor
+	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
+	systemWorkflowExecutor executors.SystemWorkflowExecutor
 	k8sUtil                *k8s.K8sUtil
 	k8sCommonService       k8s2.K8sCommonService
 }
 
 // TODO: Move to bean
 
-func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *CiCdConfig,
-	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor ArgoWorkflowExecutor,
+func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
+	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sUtil,
-	systemWorkflowExecutor SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService) (*WorkflowServiceImpl, error) {
+	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{Logger: Logger,
 		ciCdConfig:             ciCdConfig,
 		appService:             appService,
@@ -88,20 +90,13 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 }
 
 const (
-	BLOB_STORAGE_AZURE             = "AZURE"
-	BLOB_STORAGE_S3                = "S3"
-	BLOB_STORAGE_GCP               = "GCP"
-	BLOB_STORAGE_MINIO             = "MINIO"
 	CI_NODE_SELECTOR_APP_LABEL_KEY = "devtron.ai/node-selector"
-	CI_NODE_PVC_ALL_ENV            = "devtron.ai/ci-pvc-all"
-	CI_NODE_PVC_PIPELINE_PREFIX    = "devtron.ai/ci-pvc"
-	PRE                            = "PRE"
-	POST                           = "POST"
-	preCdStage                     = "preCD"
-	postCdStage                    = "postCD"
+
+	preCdStage  = "preCD"
+	postCdStage = "postCD"
 )
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*unstructured.UnstructuredList, error) {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, error) {
 	workflowTemplate, err := impl.createWorkflowTemplate(workflowRequest)
 	if err != nil {
 		return nil, err
@@ -114,7 +109,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	return createdWf, err
 }
 
-func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *WorkflowRequest) (bean3.WorkflowTemplate, error) {
+func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
 	workflowJson, err := workflowRequest.GetWorkflowJson(impl.ciCdConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting workflow json", "err", err)
@@ -134,7 +129,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *Workflo
 
 	workflowTemplate.ConfigMaps = workflowConfigMaps
 	workflowTemplate.Secrets = workflowSecrets
-	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
+	workflowTemplate.Volumes = executors.ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
@@ -163,7 +158,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *Workflo
 	return workflowTemplate, nil
 }
 
-func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *WorkflowRequest) (*rest.Config, error) {
+func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.WorkflowRequest) (*rest.Config, error) {
 	env := workflowRequest.Env
 	if workflowRequest.IsExtRun {
 		configMap := env.Cluster.Config
@@ -185,7 +180,7 @@ func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *WorkflowReque
 
 }
 
-func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *WorkflowRequest) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
+func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *types.WorkflowRequest) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
 	var workflowConfigMaps []bean.ConfigSecretMap
 	var workflowSecrets []bean.ConfigSecretMap
 	if !workflowRequest.IsExtRun {
@@ -198,7 +193,7 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *WorkflowReque
 		for i := range globalCmCsConfigs {
 			globalCmCsConfigs[i].Name = strings.ToLower(globalCmCsConfigs[i].Name) + "-" + workflowRequest.GetGlobalCmCsNamePrefix()
 		}
-		workflowConfigMaps, workflowSecrets, err = GetFromGlobalCmCsDtos(globalCmCsConfigs)
+		workflowConfigMaps, workflowSecrets, err = executors.GetFromGlobalCmCsDtos(globalCmCsConfigs)
 		if err != nil {
 			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 			return nil, nil, err
@@ -207,7 +202,7 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *WorkflowReque
 	return workflowConfigMaps, workflowSecrets, nil
 }
 
-func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *WorkflowRequest, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
+func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *types.WorkflowRequest, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
 
 	pipelineLevelConfigMaps, pipelineLevelSecrets, err := workflowRequest.GetConfiguredCmCs()
 	if err != nil {
@@ -242,10 +237,33 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *Work
 			workflowSecrets = append(workflowSecrets, *secret)
 		}
 	}
+
+	//internally inducing BlobStorageCmName and BlobStorageSecretName for getting logs, caches and artifacts from
+	//in-cluster configured blob storage, if USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW = false and isExt = true
+	if workflowRequest.UseExternalClusterBlob {
+		workflowConfigMaps, workflowSecrets = impl.addExtBlobStorageCmCsInResponse(workflowConfigMaps, workflowSecrets)
+	}
+
 	return workflowConfigMaps, workflowSecrets, nil
 }
+func (impl *WorkflowServiceImpl) addExtBlobStorageCmCsInResponse(workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap) {
+	blobDetailsConfigMap := bean.ConfigSecretMap{
+		Name:     impl.ciCdConfig.ExtBlobStorageCmName,
+		Type:     "environment",
+		External: true,
+	}
+	workflowConfigMaps = append(workflowConfigMaps, blobDetailsConfigMap)
 
-func (impl *WorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate) {
+	blobDetailsSecret := bean.ConfigSecretMap{
+		Name:     impl.ciCdConfig.ExtBlobStorageSecretName,
+		Type:     "environment",
+		External: true,
+	}
+	workflowSecrets = append(workflowSecrets, blobDetailsSecret)
+	return workflowConfigMaps, workflowSecrets
+}
+
+func (impl *WorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate) {
 	workflowTemplate.BlobStorageConfigured = workflowRequest.BlobStorageConfigured && (workflowRequest.CheckBlobStorageConfig(impl.ciCdConfig) || !workflowRequest.IsExtRun)
 	workflowTemplate.BlobStorageS3Config = workflowRequest.BlobStorageS3Config
 	workflowTemplate.AzureBlobConfig = workflowRequest.AzureBlobConfig
@@ -253,7 +271,7 @@ func (impl *WorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *Workfl
 	workflowTemplate.CloudStorageKey = workflowRequest.BlobStorageLogsKey
 }
 
-func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *WorkflowRequest) map[string]string {
+func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *types.WorkflowRequest) map[string]string {
 	// node selector
 	if val, ok := workflowRequest.AppLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok && !(workflowRequest.CheckForJob() && workflowRequest.IsExtRun) {
 		var nodeSelectors map[string]string
@@ -268,7 +286,7 @@ func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *Workfl
 	return nil
 }
 
-func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
+func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) executors.WorkflowExecutor {
 	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
 	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
@@ -286,7 +304,7 @@ func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.Workflo
 	return workflowExecutor.GetWorkflow(name, namespace, restConfig)
 }
 
-func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*WorkflowStatus, error) {
+func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error) {
 	impl.Logger.Debug("getting wf", name)
 	workflowExecutor := impl.getWorkflowExecutor(executorType)
 	if restConfig == nil {
@@ -320,7 +338,7 @@ func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *reposi
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
 		return nil, err
 	}
-	wfClient, err := GetClientInstance(restConfig, environment.Namespace)
+	wfClient, err := executors.GetClientInstance(restConfig, environment.Namespace)
 	if err != nil {
 		impl.Logger.Errorw("error in getting wfClient", "err", err)
 		return nil, err
@@ -338,7 +356,7 @@ func (impl *WorkflowServiceImpl) getWfClient(environment *repository.Environment
 			return nil, err
 		}
 	} else {
-		wfClient, err = GetClientInstance(impl.config, namespace)
+		wfClient, err = executors.GetClientInstance(impl.config, namespace)
 		if err != nil {
 			impl.Logger.Errorw("cannot build wf client", "err", err)
 			return nil, err
