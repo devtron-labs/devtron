@@ -62,8 +62,8 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 	commonQuery := " FROM cd_workflow_runner " +
 		" INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id " +
 		" INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id " +
-		" WHERE (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v') " +
-		"       OR (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v' AND cd_workflow_runner.status IN ('Healthy','Succeeded'))" +
+		" WHERE ((cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v') " +
+		"       OR (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v' AND cd_workflow_runner.status IN ('Healthy','Succeeded')))" +
 		" AND cia.image LIKE '%v' "
 	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType, listingFilterOptions.SearchString)
 	if isApprovalNode {
