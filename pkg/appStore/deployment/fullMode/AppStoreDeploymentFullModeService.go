@@ -139,6 +139,10 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	if err != nil {
 		return nil
 	}
+	err = appStoreDeploymentFullModeServiceImpl.SubscribeHelmChartInstall()
+	if err != nil {
+		return nil
+	}
 	return appStoreDeploymentFullModeServiceImpl
 }
 
@@ -518,6 +522,17 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error 
 		} else if installHelmAsyncRequest.Type == "upgrade" {
 			impl.CallBackForHelmUpgrade(installHelmAsyncRequest)
 		}
+	})
+	if err != nil {
+		impl.logger.Error(err)
+		return err
+	}
+	return nil
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmChartInstall() error {
+	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, func(msg *pubsub_lib.PubSubMsg) {
+		impl.logger.Debug("received helm install status event - HELM_CHART_INSTALL_STATUS_TOPIC", "data", msg.Data)
 	})
 	if err != nil {
 		impl.logger.Error(err)
