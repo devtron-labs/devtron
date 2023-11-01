@@ -72,9 +72,13 @@ type CiWorkflow struct {
 	CiBuildType            string            `sql:"ci_build_type"`
 	EnvironmentId          int               `sql:"environment_id"`
 	ImagePathReservationId int               `sql:"image_path_reservation_id"`
-	ReferenceCiWorkflowId int               `sql:"ref_ci_workflow_id"`
-	ParentCiWorkFlowId    int               `sql:"parent_ci_workflow_id"`
-	CiPipeline            *CiPipeline
+	ReferenceCiWorkflowId  int               `sql:"ref_ci_workflow_id"`
+	ParentCiWorkFlowId     int               `sql:"parent_ci_workflow_id"`
+	CiPipeline             *CiPipeline
+}
+
+func (r *CiWorkflow) IsExternalRunInJobType() bool {
+	return r.EnvironmentId != 0
 }
 
 type WorkflowWithArtifact struct {
@@ -101,8 +105,8 @@ type WorkflowWithArtifact struct {
 	EnvironmentId          int               `json:"environmentId"`
 	EnvironmentName        string            `json:"environmentName"`
 	ImagePathReservationId int               `json:"image_path_reservation_id"`
-	RefCiWorkflowId    int               `json:"referenceCiWorkflowId"`
-	ParentCiWorkflowId int               `json:"parent_ci_workflow_id"`
+	RefCiWorkflowId        int               `json:"referenceCiWorkflowId"`
+	ParentCiWorkflowId     int               `json:"parent_ci_workflow_id"`
 }
 
 type GitCommit struct {
