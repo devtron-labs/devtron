@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -883,16 +884,17 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
 		return ciArtifactsResponse, err
 	}
-
+	ciArtifactsResponse.ResourceFilters = filters
 	ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline)
 	if err != nil {
 		impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
 		return ciArtifactsResponse, err
 	}
+
 	if !isApprovalNode {
 		ciArtifacts = impl.fillAppliedFiltersData(ciArtifacts, pipeline.Id, stage)
 	}
-	ciArtifactsResponse.ResourceFilters = filters
+
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
 	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
 	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
@@ -922,51 +924,56 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 		return ciArtifacts, err
 	}
 
-	directArtifactIndexes := make([]int, 0)
-	directWorkflowIds := make([]int, 0)
-	for i, artifact := range ciArtifacts {
+	for i, _ := range ciArtifacts {
 		imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]
 		if imageTaggingResp != nil {
 			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
 		}
-
 		if imageCommentResp := imageCommentsDataMap[ciArtifacts[i].Id]; imageCommentResp != nil {
 			ciArtifacts[i].ImageComment = imageCommentResp
 		}
 
-		releaseTags := make([]string, 0, len(imageTaggingResp))
-		for _, imageTag := range imageTaggingResp {
-			if !imageTag.Deleted {
-				releaseTags = append(releaseTags, imageTag.TagName)
-			}
-		}
-		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags)
-		if err != nil {
-			impl.logger.Errorw("error in evaluating filters for the artifacts", "image", ciArtifacts[i].Image, "releaseTags", releaseTags)
-			//not returning error by choice
-		}
-		ciArtifacts[i].FilterState = filterState
+		ciArtifacts[i].FilterState = impl.getFilerState(imageTaggingResp, filters, ciArtifacts[i].Image)
+
+	}
+	return impl.setGitTriggerData(ciArtifacts)
+
+}
+
+func (impl *AppArtifactManagerImpl) setGitTriggerData(ciArtifacts []bean2.CiArtifactBean) ([]bean2.CiArtifactBean, error) {
+	directArtifactIndexes, directWorkflowIds, artifactsWithParentIndexes, parentArtifactIds := make([]int, 0), make([]int, 0), make([]int, 0), make([]int, 0)
+	for i, artifact := range ciArtifacts {
 		if artifact.ExternalCiPipelineId != 0 {
 			// if external webhook continue
 			continue
 		}
-
-		//TODO: can be optimised
-		var ciWorkflow *pipelineConfig.CiWorkflow
 		//linked ci case
 		if artifact.ParentCiArtifact != 0 {
-			ciWorkflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowGitTriggersByArtifactId(artifact.ParentCiArtifact)
-			if err != nil {
-				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact)
-				return ciArtifacts, err
-			}
-			ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
-			ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
+			artifactsWithParentIndexes = append(artifactsWithParentIndexes, i)
+			parentArtifactIds = append(parentArtifactIds, artifact.ParentCiArtifact)
 		} else {
 			directArtifactIndexes = append(directArtifactIndexes, i)
 			directWorkflowIds = append(directWorkflowIds, artifact.CiWorkflowId)
 		}
+	}
+	ciWorkflowWithArtifacts, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowGitTriggersByArtifactIds(parentArtifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "parentArtifactIds", parentArtifactIds)
+		return ciArtifacts, err
+	}
 
+	parentArtifactIdVsCiWorkflowMap := make(map[int]*pipelineConfig.WorkflowWithArtifact)
+	for _, ciWorkflow := range ciWorkflowWithArtifacts {
+		parentArtifactIdVsCiWorkflowMap[ciWorkflow.CiArtifactId] = ciWorkflow
+	}
+
+	for _, index := range directArtifactIndexes {
+		ciWorkflow := parentArtifactIdVsCiWorkflowMap[ciArtifacts[index].CiWorkflowId]
+		if ciWorkflow != nil {
+			ciArtifacts[index].TriggeredBy = ciWorkflow.TriggeredBy
+			ciArtifacts[index].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
+			ciArtifacts[index].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
+		}
 	}
 
 	ciWorkflows, err := impl.ciWorkflowRepository.FindCiWorkflowGitTriggersByIds(directWorkflowIds)
@@ -981,12 +988,12 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 	for _, index := range directArtifactIndexes {
 		ciWorkflow := ciWorkflowMap[ciArtifacts[index].CiWorkflowId]
 		if ciWorkflow != nil {
+			ciArtifacts[index].TriggeredBy = ciWorkflow.TriggeredBy
 			ciArtifacts[index].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
-			ciArtifacts[index].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciArtifacts[index].CiWorkflowId].CiConfigureSourceValue
+			ciArtifacts[index].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
 		}
 	}
 	return ciArtifacts, nil
-
 }
 
 func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, int, string, int, error) {
@@ -1251,4 +1258,20 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	}
 
 	return ciArtifacts, totalCount, nil
+}
+
+func (impl *AppArtifactManagerImpl) getFilerState(imageTaggingResp []*repository3.ImageTag, filters []*resourceFilter.FilterMetaDataBean, image string) resourceFilter.FilterState {
+
+	releaseTags := make([]string, 0, len(imageTaggingResp))
+	for _, imageTag := range imageTaggingResp {
+		if !imageTag.Deleted {
+			releaseTags = append(releaseTags, imageTag.TagName)
+		}
+	}
+	filterState, _, err := impl.resourceFilterService.CheckForResource(filters, image, releaseTags)
+	if err != nil {
+		impl.logger.Errorw("error in evaluating filters for the artifacts", "image", image, "releaseTags", releaseTags)
+		//not returning error by choice
+	}
+	return filterState
 }
