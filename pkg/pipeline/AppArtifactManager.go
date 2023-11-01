@@ -565,8 +565,24 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		})
 	}
 
-	//TODO Gireesh: need to check this behaviour, can we use this instead of below loop ??
-	//artifactIds := lo.FlatMap(ciArtifacts, func(artifact bean2.CiArtifactBean, _ int) []int { return []int{artifact.Id} })
+	ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, pipeline)
+	if err != nil {
+		impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
+		return ciArtifactsResponse, err
+	}
+
+	ciArtifactsResponse.CdPipelineId = pipeline.Id
+	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
+	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
+	if ciArtifacts == nil {
+		ciArtifacts = []bean2.CiArtifactBean{}
+	}
+	ciArtifactsResponse.CiArtifacts = ciArtifacts
+	ciArtifactsResponse.TotalCount = totalCount
+	return ciArtifactsResponse, nil
+}
+
+func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []bean2.CiArtifactBean, pipeline *pipelineConfig.Pipeline) ([]bean2.CiArtifactBean, error) {
 	artifactIds := make([]int, 0, len(ciArtifacts))
 	for _, artifact := range ciArtifacts {
 		artifactIds = append(artifactIds, artifact.Id)
@@ -575,57 +591,80 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(pipeline.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", pipeline.AppId)
-		return ciArtifactsResponse, err
+		return ciArtifacts, err
 	}
 
 	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", pipeline.AppId, "artifactIds", artifactIds)
-		return ciArtifactsResponse, err
+		return ciArtifacts, err
 	}
 
-	//TODO Gireesh: Create a meaningful func
-	for i, artifact := range ciArtifacts {
-		if imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]; imageTaggingResp != nil {
+	for i, _ := range ciArtifacts {
+		imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]
+		if imageTaggingResp != nil {
 			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
 		}
 		if imageCommentResp := imageCommentsDataMap[ciArtifacts[i].Id]; imageCommentResp != nil {
 			ciArtifacts[i].ImageComment = imageCommentResp
 		}
+	}
+	return impl.setGitTriggerData(ciArtifacts)
 
+}
+
+func (impl *AppArtifactManagerImpl) setGitTriggerData(ciArtifacts []bean2.CiArtifactBean) ([]bean2.CiArtifactBean, error) {
+	directArtifactIndexes, directWorkflowIds, artifactsWithParentIndexes, parentArtifactIds := make([]int, 0), make([]int, 0), make([]int, 0), make([]int, 0)
+	for i, artifact := range ciArtifacts {
 		if artifact.ExternalCiPipelineId != 0 {
 			// if external webhook continue
 			continue
 		}
-
-		//TODO: can be optimised
-		var ciWorkflow *pipelineConfig.CiWorkflow
+		//linked ci case
 		if artifact.ParentCiArtifact != 0 {
-			ciWorkflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowGitTriggersByArtifactId(artifact.ParentCiArtifact)
-			if err != nil {
-				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
-				return ciArtifactsResponse, err
-			}
-
+			artifactsWithParentIndexes = append(artifactsWithParentIndexes, i)
+			parentArtifactIds = append(parentArtifactIds, artifact.ParentCiArtifact)
 		} else {
-			ciWorkflow, err = impl.ciWorkflowRepository.FindCiWorkflowGitTriggersById(artifact.CiWorkflowId)
-			if err != nil {
-				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
-				return ciArtifactsResponse, err
-			}
+			directArtifactIndexes = append(directArtifactIndexes, i)
+			directWorkflowIds = append(directWorkflowIds, artifact.CiWorkflowId)
 		}
-		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
+	}
+	ciWorkflowWithArtifacts, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowGitTriggersByArtifactIds(parentArtifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "parentArtifactIds", parentArtifactIds)
+		return ciArtifacts, err
 	}
 
-	ciArtifactsResponse.CdPipelineId = pipeline.Id
-	ciArtifactsResponse.TotalCount = totalCount
-	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
-	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
-	if ciArtifacts == nil {
-		ciArtifacts = []bean2.CiArtifactBean{}
+	parentArtifactIdVsCiWorkflowMap := make(map[int]*pipelineConfig.WorkflowWithArtifact)
+	for _, ciWorkflow := range ciWorkflowWithArtifacts {
+		parentArtifactIdVsCiWorkflowMap[ciWorkflow.CiArtifactId] = ciWorkflow
 	}
-	ciArtifactsResponse.CiArtifacts = ciArtifacts
-	return ciArtifactsResponse, nil
+
+	for _, index := range directArtifactIndexes {
+		ciWorkflow := parentArtifactIdVsCiWorkflowMap[ciArtifacts[index].CiWorkflowId]
+		if ciWorkflow != nil {
+			ciArtifacts[index].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
+			ciArtifacts[index].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
+		}
+	}
+
+	ciWorkflows, err := impl.ciWorkflowRepository.FindCiWorkflowGitTriggersByIds(directWorkflowIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "ciWorkflowIds", directWorkflowIds)
+		return ciArtifacts, err
+	}
+	ciWorkflowMap := make(map[int]*pipelineConfig.CiWorkflow)
+	for _, ciWorkflow := range ciWorkflows {
+		ciWorkflowMap[ciWorkflow.Id] = ciWorkflow
+	}
+	for _, index := range directArtifactIndexes {
+		ciWorkflow := ciWorkflowMap[ciArtifacts[index].CiWorkflowId]
+		if ciWorkflow != nil {
+			ciArtifacts[index].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
+			ciArtifacts[index].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
+		}
+	}
+	return ciArtifacts, nil
 }
 
 func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*bean2.CiArtifactBean, int, string, int, error) {
