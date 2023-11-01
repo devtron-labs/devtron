@@ -81,10 +81,10 @@ type CiArtifactRepository interface {
 	GetByIds(ids []int) ([]*CiArtifact, error)
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
-	FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
-	FetchApprovedArtifactsForRollback(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
 	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CiArtifact, int, error)
+	FetchApprovedArtifactsForRollback(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
+	FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -662,11 +662,6 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWo
 	return artifacts, err
 }
 
-type CiArtifactWithApprovalRequestId struct {
-	ApprovalRequestId int `sql:"approval_request_id"`
-	*CiArtifact
-}
-
 func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CiArtifact, int, error) {
 
 	var ciArtifactsResp []CiArtifactWithExtraData
@@ -692,6 +687,21 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 		return ciArtifacts, totalCount, nil
 	}
 	return ciArtifacts, totalCount, err
+}
+
+func (impl CiArtifactRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error) {
+	var wfrList []CiArtifactWithExtraData
+	totalCount := 0
+	finalQuery := BuildQueryForArtifactsForRollback(listingFilterOptions)
+	_, err := impl.dbConnection.Query(&wfrList, finalQuery)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting Wfrs and ci artifacts by pipelineId", "err", err, "pipelineId", listingFilterOptions.PipelineId)
+		return nil, totalCount, err
+	}
+	if len(wfrList) > 0 {
+		totalCount = wfrList[0].TotalCount
+	}
+	return wfrList, totalCount, nil
 }
 
 func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error) {
@@ -720,19 +730,4 @@ func (impl CiArtifactRepositoryImpl) FetchApprovedArtifactsForRollback(listingFi
 		totalCount = results[0].TotalCount
 	}
 	return results, totalCount, nil
-}
-
-func (impl CiArtifactRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error) {
-	var wfrList []CiArtifactWithExtraData
-	totalCount := 0
-	finalQuery := BuildQueryForArtifactsForRollback(listingFilterOptions)
-	_, err := impl.dbConnection.Query(&wfrList, finalQuery)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting Wfrs and ci artifacts by pipelineId", "err", err, "pipelineId", listingFilterOptions.PipelineId)
-		return nil, totalCount, err
-	}
-	if len(wfrList) > 0 {
-		totalCount = wfrList[0].TotalCount
-	}
-	return wfrList, totalCount, nil
 }
