@@ -313,19 +313,20 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 
 func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFilterOpts bean.ArtifactsListFilterOptions) ([]bean2.CiArtifactBean, []int, int, error) {
 	var deployedCiArtifacts []bean2.CiArtifactBean
+	totalCount := 0
 
 	//1)get current deployed artifact on this pipeline
 	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(artifactListingFilterOpts.PipelineId, artifactListingFilterOpts.StageType, 1)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", artifactListingFilterOpts.PipelineId, "currentStageType", artifactListingFilterOpts.StageType)
-		return deployedCiArtifacts, nil, 0, err
+		return deployedCiArtifacts, nil, totalCount, err
 	}
 	if len(latestWf) > 0 {
 		//we should never show current deployed artifact in rollback API
 		artifactListingFilterOpts.ExcludeArtifactIds = []int{latestWf[0].CdWorkflow.CiArtifactId}
 	}
 
-	cdWfrs, totalCount, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineIdV2(artifactListingFilterOpts)
+	ciArtifacts, totalCount, err := impl.ciArtifactRepository.FetchArtifactsByCdPipelineIdV2(artifactListingFilterOpts)
 
 	if err != nil {
 		impl.logger.Errorw("error in getting artifacts for rollback by cdPipelineId", "err", err, "cdPipelineId", artifactListingFilterOpts.PipelineId)
@@ -333,7 +334,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 	}
 
 	var ids []int32
-	for _, item := range cdWfrs {
+	for _, item := range ciArtifacts {
 		ids = append(ids, item.TriggeredBy)
 	}
 
@@ -348,26 +349,19 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 
 	artifactIds := make([]int, 0)
 
-	for _, cdWfr := range cdWfrs {
-		ciArtifact := &repository.CiArtifact{}
-		if cdWfr.CdWorkflow != nil && cdWfr.CdWorkflow.CiArtifact != nil {
-			ciArtifact = cdWfr.CdWorkflow.CiArtifact
-		}
-		if ciArtifact == nil {
-			continue
-		}
+	for _, ciArtifact := range ciArtifacts {
 		mInfo, err := parseMaterialInfo([]byte(ciArtifact.MaterialInfo), ciArtifact.DataSource)
 		if err != nil {
 			mInfo = []byte("[]")
 			impl.logger.Errorw("error in parsing ciArtifact material info", "err", err, "ciArtifact", ciArtifact)
 		}
-		userEmail := userEmails[cdWfr.TriggeredBy]
+		userEmail := userEmails[ciArtifact.TriggeredBy]
 		deployedCiArtifacts = append(deployedCiArtifacts, bean2.CiArtifactBean{
 			Id:           ciArtifact.Id,
 			Image:        ciArtifact.Image,
 			MaterialInfo: mInfo,
-			DeployedTime: formatDate(cdWfr.StartedOn, bean2.LayoutRFC3339),
-			WfrId:        cdWfr.Id,
+			DeployedTime: formatDate(ciArtifact.StartedOn, bean2.LayoutRFC3339),
+			WfrId:        ciArtifact.CdWorkflowRunnerId,
 			DeployedBy:   userEmail,
 		})
 		artifactIds = append(artifactIds, ciArtifact.Id)
