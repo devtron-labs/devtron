@@ -639,7 +639,8 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	var otherEnvironments []*bean.Environment
 	query := `select OE.*,B.status as app_status FROM  
 					(SELECT p.environment_id,env.environment_name,env.description, p.last_deployed, 
-					env_app_m.app_metrics, env.default as prod, env_app_m.infra_metrics, p.deployment_app_delete_request, u.email_id as last_deployed_by , ca.image as last_deployed_image from  
+					env_app_m.app_metrics, env.default as prod, env_app_m.infra_metrics, p.deployment_app_delete_request, u.email_id as last_deployed_by , ca.image as last_deployed_image, 
+					 p.id as pipeline_id, cwr.id as latest_cd_workflow_runner_id from  
 						(SELECT distinct on (pl.id) pl.id,pl.app_id,pl.environment_id,pl.deleted, pl.deployment_app_delete_request,MAX(pco.created_on) as last_deployed, pco.ci_artifact_id from 
 						 pipeline pl LEFT JOIN pipeline_config_override pco on pco.pipeline_id = pl.id WHERE pl.app_id = ? and pl.deleted = FALSE GROUP BY pl.id, pco.ci_artifact_id)  
 						 p INNER JOIN environment env on env.id=p.environment_id  
@@ -647,7 +648,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 					     LEFT JOIN cd_workflow_runner cwr on cwr.started_on=p.last_deployed 
 						 LEFT JOIN ci_artifact ca on p.ci_artifact_id=ca.id  
              			 LEFT JOIN users u on cwr.triggered_by=u.id  
-					 where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP BY 1,2,3,4,5,6,7,8,9,10) OE 
+					 where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12) OE 
 		      LEFT JOIN app_status B ON OE.environment_id = B.env_id AND B.app_id = ? ;`
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, appId, appId)
 	if err != nil {

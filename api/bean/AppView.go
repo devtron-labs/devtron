@@ -204,6 +204,8 @@ type Environment struct {
 	Description                string `json:"description" validate:"max=40"`
 	IsVirtualEnvironment       bool   `json:"isVirtualEnvironment"`
 	ClusterId                  int    `json:"clusterId"`
+	PipelineId                 int    `json:"pipelineId"`
+	LatestCdWorkflowRunnerId   int    `json:"latestCdWorkflowRunnerId,omitempty"`
 }
 
 type InstanceDetail struct {
