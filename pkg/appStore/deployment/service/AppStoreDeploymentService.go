@@ -1342,6 +1342,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateDeploymentParametersInRequest(i
 		installAppVersionRequest.PerformACDDeployment = false
 	}
 
+	installAppVersionRequest.HelmInstallAsyncMode = impl.deploymentTypeConfig.HelmInstallAsyncMode
 }
 
 func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -1544,37 +1545,45 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			}
 		}
 	}
-	installedApp.Status = appStoreBean.DEPLOY_SUCCESS
-	installedApp.UpdatedOn = time.Now()
-	installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
-	installedApp, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating installed app", "err", err)
-		return nil, err
-	}
-	//STEP 8: finish with return response
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return nil, err
-	}
+	if impl.deploymentTypeConfig.HelmInstallAsyncMode {
+		installedApp.Status = appStoreBean.DEPLOY_SUCCESS
+		installedApp.UpdatedOn = time.Now()
+		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+		installedApp, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating installed app", "err", err)
+			return nil, err
+		}
+		//STEP 8: finish with return response
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error while committing transaction to db", "error", err)
+			return nil, err
+		}
 
-	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
+		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+			err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
+			if err != nil {
+				impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
+				return nil, err
+			}
+		} else if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
+			err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
+			if err != nil {
+				impl.logger.Errorw("error on creating history for chart deployment", "error", err)
+				return nil, err
+			}
+		} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
+			err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+			if err != nil {
+				impl.logger.Errorw("error in updating install app version history on sync", "err", err)
+				return nil, err
+			}
 		}
-	} else if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
-		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
+	} else {
+		err = tx.Commit()
 		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
-			return nil, err
-		}
-	} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error in updating install app version history on sync", "err", err)
+			impl.logger.Errorw("error while committing transaction to db", "error", err)
 			return nil, err
 		}
 	}

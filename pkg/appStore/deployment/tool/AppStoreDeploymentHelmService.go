@@ -75,7 +75,7 @@ func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppServ
 }
 
 func (impl AppStoreDeploymentHelmServiceImpl) UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error {
-	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml, installedAppVersionHistoryId)
+	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest, installedAppVersionHistoryId)
 	if err != nil {
 		impl.Logger.Errorw("error in updating helm app", "err", err)
 		return err
@@ -147,12 +147,13 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		installHelmAsyncRequest := appStoreDeploymentFullMode.InstallHelmAsyncRequest{
 			InstallAppVersionDTO:  installAppVersionRequest,
 			InstallReleaseRequest: installReleaseRequest,
+			Type:                  "install",
 		}
 		data, err := json.Marshal(&installHelmAsyncRequest)
 		if err != nil {
 			return nil, err
 		}
-		impl.pubSubClient.Publish(appStoreBean.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
+		impl.pubSubClient.Publish(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
 	} else {
 		_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
 	}
@@ -327,7 +328,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) OnUpdateRepoInInstalledApp(ctx co
 		}
 	}
 
-	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.InstalledAppVersionHistoryId)
+	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest, installAppVersionRequest.InstalledAppVersionHistoryId)
 	if err != nil {
 		return installAppVersionRequest, err
 	}
@@ -401,7 +402,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledApp(ctx context.Co
 	}
 	if !noTargetFound {
 		// update chart application already called, hence skipping
-		err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml, 0)
+		err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -409,16 +410,16 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledApp(ctx context.Co
 	return installAppVersionRequest, nil
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ctx context.Context, installedAppId int, appStoreApplicationVersionId int, valuesOverrideYaml string, installAppVersionHistoryId int) error {
+func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installAppVersionHistoryId int) error {
 
-	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
 	if err != nil {
-		impl.Logger.Errorw("error in getting in installedApp", "installedAppId", installedAppId, "err", err)
+		impl.Logger.Errorw("error in getting in installedApp", "installedAppId", installAppVersionRequest.InstalledAppId, "err", err)
 		return err
 	}
-	appStoreApplicationVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreApplicationVersionId)
+	appStoreApplicationVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreApplicationVersionId)
 	if err != nil {
-		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", appStoreApplicationVersionId, "err", err)
+		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", installAppVersionRequest.AppStoreApplicationVersionId, "err", err)
 		return err
 	}
 	var IsOCIRepo bool
@@ -461,7 +462,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 
 	updateReleaseRequest := &client.UpdateApplicationWithChartInfoRequestDto{
 		InstallReleaseRequest: &client.InstallReleaseRequest{
-			ValuesYaml: valuesOverrideYaml,
+			ValuesYaml: installAppVersionRequest.ValuesOverrideYaml,
 			ReleaseIdentifier: &client.ReleaseIdentifier{
 				ReleaseNamespace: installedApp.Environment.Namespace,
 				ReleaseName:      installedApp.App.AppName,
@@ -475,14 +476,30 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 		},
 		SourceAppType: client.SOURCE_HELM_APP,
 	}
-	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest)
-	if err != nil {
-		impl.Logger.Errorw("error in updating helm application", "err", err)
-		return err
+	if installAppVersionRequest.HelmInstallAsyncMode {
+		impl.Logger.Debugw("Helm Install with Async mode")
+		installHelmAsyncRequest := appStoreDeploymentFullMode.InstallHelmAsyncRequest{
+			InstallAppVersionDTO:                     installAppVersionRequest,
+			UpdateApplicationWithChartInfoRequestDto: updateReleaseRequest,
+			Type:                                     "upgrade",
+			InstalledApps:                            installedApp,
+		}
+		data, err := json.Marshal(&installHelmAsyncRequest)
+		if err != nil {
+			return err
+		}
+		impl.pubSubClient.Publish(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
+	} else {
+		res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest)
+		if err != nil {
+			impl.Logger.Errorw("error in updating helm application", "err", err)
+			return err
+		}
+		if !res.GetSuccess() {
+			return errors.New("helm application update unsuccessful")
+		}
 	}
-	if !res.GetSuccess() {
-		return errors.New("helm application update unsuccessful")
-	}
+
 	return nil
 }
 func (impl *AppStoreDeploymentHelmServiceImpl) DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
