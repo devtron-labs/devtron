@@ -33,6 +33,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -149,11 +150,9 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	return cih
 }
 
-const WorkflowCancel = "CANCELLED"
 const DefaultCiWorkflowNamespace = "devtron-ci"
 const Running = "Running"
 const Starting = "Starting"
-const POD_DELETED_MESSAGE = "pod deleted"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -169,7 +168,7 @@ func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowS
 		return err
 	}
 
-	if !CheckIfReTriggerRequired(status, message, ciWorkFlow.Status) {
+	if !executors.CheckIfReTriggerRequired(status, message, ciWorkFlow.Status) {
 		impl.Logger.Debugw("not re-triggering ci", "status", status, "message", message, "ciWorkflowStatus", ciWorkFlow.Status)
 		return nil
 	}
@@ -605,7 +604,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		return 0, err
 	}
 
-	workflow.Status = WorkflowCancel
+	workflow.Status = executors.WorkflowCancel
 	err = impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
 	if err != nil {
 		impl.Logger.Errorw("cannot update deleted workflow status, but wf deleted", "err", err)
@@ -744,7 +743,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
-		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == WorkflowCancel {
+		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == executors.WorkflowCancel {
 			impl.Logger.Errorw("err", "err", err)
 			return impl.getLogsFromRepository(pipelineId, ciWorkflow, clusterConfig, isExt)
 		}
@@ -1087,7 +1086,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 	ciArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWorkflow.Id, savedWorkflow.Id)
 
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
-		if savedWorkflow.Status != WorkflowCancel {
+		if savedWorkflow.Status != executors.WorkflowCancel {
 			savedWorkflow.Status = status
 		}
 		savedWorkflow.PodStatus = podStatus
@@ -1623,7 +1622,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 				}
 
 				//check workflow status,get the status
-				if wf.Status.Phase == v1alpha1.WorkflowFailed && wf.Status.Message == POD_DELETED_MESSAGE {
+				if wf.Status.Phase == v1alpha1.WorkflowFailed && wf.Status.Message == executors.POD_DELETED_MESSAGE {
 					isPodDeleted = true
 				}
 			}
@@ -1632,7 +1631,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			ciWorkflow.Status = "Failed"
 			ciWorkflow.PodStatus = "Failed"
 			if isPodDeleted {
-				ciWorkflow.Message = POD_DELETED_MESSAGE
+				ciWorkflow.Message = executors.POD_DELETED_MESSAGE
 				//error logging handled inside handlePodDeleted
 				impl.handlePodDeleted(ciWorkflow)
 			} else {
