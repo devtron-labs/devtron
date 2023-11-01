@@ -477,7 +477,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 		SourceAppType: client.SOURCE_HELM_APP,
 	}
 	if installAppVersionRequest.HelmInstallAsyncMode {
-		impl.Logger.Debugw("Helm Install with Async mode")
+		impl.Logger.Debugw("Helm Update with Async mode")
 		installHelmAsyncRequest := appStoreDeploymentFullMode.InstallHelmAsyncRequest{
 			InstallAppVersionDTO:                     installAppVersionRequest,
 			UpdateApplicationWithChartInfoRequestDto: updateReleaseRequest,

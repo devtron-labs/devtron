@@ -558,6 +558,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(instal
 }
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(installHelmAsyncRequest *InstallHelmAsyncRequest) {
+	impl.logger.Debugw("CallBackForHelmUpgrade", "installHelmAsyncRequest", installHelmAsyncRequest)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	// db operations
@@ -569,6 +570,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 	// Rollback tx on error.
 	defer tx.Rollback()
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.InstalledApps.Environment.ClusterId, installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto)
+	impl.logger.Debugw("UpdateApplicationWithChartInfo", "res", res)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm application", "err", err)
 		return
@@ -585,7 +587,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 		return
 	}
 	//STEP 8: finish with return response
-
+	tx.Commit()
 	if util.IsAcdApp(installHelmAsyncRequest.InstallAppVersionDTO.DeploymentAppType) {
 		err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithGitHash(installHelmAsyncRequest.InstallAppVersionDTO)
 		if err != nil {
