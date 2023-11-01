@@ -622,6 +622,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		Type:                       bean2.CI_WORKFLOW_PIPELINE_TYPE,
 		CiArtifactLastFetch:        trigger.CiArtifactLastFetch,
 	}
+
 	if dockerRegistry != nil {
 
 		workflowRequest.DockerRegistryId = dockerRegistry.Id
