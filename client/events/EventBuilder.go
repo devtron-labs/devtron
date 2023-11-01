@@ -40,6 +40,7 @@ type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
 	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32) Event
+	BuildExtraProtectConfigData(event Event, userId int32) (Event, *repository2.SESConfig, *repository2.SMTPConfig)
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
 }
@@ -285,19 +286,9 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 	return materialTriggerInfo, nil
 }
 func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, userId int32) Event {
-	defaultSesConfig, err := impl.sesNotificationRepository.FindDefault()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error fetching defaultSesConfig", "defaultSesConfig", defaultSesConfig, "err", err)
-		return event
-
-	}
-	var defaultSmtpConfig *repository2.SMTPConfig
-	if err == pg.ErrNoRows {
-		defaultSmtpConfig, err = impl.smtpNotificationRepository.FindDefault()
-		if err != nil {
-			impl.logger.Errorw("error fetching defaultSmtpConfig", "defaultSmtpConfig", defaultSmtpConfig, "err", err)
-			return event
-		}
+	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
+	if err != nil {
+		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
 	payload := event.Payload
 	if payload == nil {
@@ -359,4 +350,42 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	}
 
 	return event
+}
+func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, userId int32) (Event, *repository2.SESConfig, *repository2.SMTPConfig) {
+	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
+	if err != nil {
+		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
+	}
+	if userId > 0 {
+		user, err := impl.userRepository.GetById(userId)
+		if err != nil {
+			impl.logger.Errorw("found error on getting user data ", "user", user)
+		}
+		payload := event.Payload
+		if payload == nil {
+			payload = &Payload{}
+			event.Payload = payload
+		}
+		event.Payload.TriggeredBy = user.EmailId
+	}
+
+	return event, defaultSesConfig, defaultSmtpConfig
+}
+
+func (impl *EventSimpleFactoryImpl) getDefaultSESOrSMTPConfig() (*repository2.SESConfig, *repository2.SMTPConfig, error) {
+	defaultSesConfig, err := impl.sesNotificationRepository.FindDefault()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching defaultSesConfig", "defaultSesConfig", defaultSesConfig, "err", err)
+		return defaultSesConfig, nil, nil
+
+	}
+	var defaultSmtpConfig *repository2.SMTPConfig
+	if err == pg.ErrNoRows {
+		defaultSmtpConfig, err = impl.smtpNotificationRepository.FindDefault()
+		if err != nil {
+			impl.logger.Errorw("error fetching defaultSmtpConfig", "defaultSmtpConfig", defaultSmtpConfig, "err", err)
+			return defaultSesConfig, defaultSmtpConfig, nil
+		}
+	}
+	return defaultSesConfig, defaultSmtpConfig, nil
 }
