@@ -302,7 +302,7 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArti
 		return workflows, nil
 	}
 	query := "SELECT cw.git_triggers,cw.id,cw.triggered_by,cw.ci_pipeline_id,cia.id as ci_artifact_id" +
-		" FROM ci_workflow cw INNER JOIN ci_artifact cia on cia.ci_workflow_id = ci_workflow.id " +
+		" FROM ci_workflow cw INNER JOIN ci_artifact cia on cia.ci_workflow_id = cw.id " +
 		" WHERE cia.id IN (%s)"
 	query = fmt.Sprintf(query, helper.GetCommaSepratedString(ciArtifactIds))
 	_, err := impl.dbConnection.Query(&workflows, query)
