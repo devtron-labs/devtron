@@ -1265,11 +1265,7 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 		return nil, err
 	}
 	rq := *clusterBean
-	clusterConfig, err := rq.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, err
-	}
+	clusterConfig := rq.GetClusterConfig()
 	return clusterConfig, nil
 }
 

@@ -250,5 +250,7 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 
 }
 
+const CloningModeShallow = "SHALLOW"
+
 const WorkflowCancel = "CANCELLED"
 const POD_DELETED_MESSAGE = "pod deleted"

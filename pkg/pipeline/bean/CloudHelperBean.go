@@ -3,7 +3,7 @@ package bean
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib-private/blob-storage"
 )
 
 type CmBlobStorageConfig struct {
