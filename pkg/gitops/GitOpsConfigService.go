@@ -81,10 +81,11 @@ const (
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
-	SuccessfulStages []string          `json:"successfulStages"`
-	StageErrorMap    map[string]string `json:"stageErrorMap"`
-	ValidatedOn      time.Time         `json:"validatedOn"`
-	DeleteRepoFailed bool              `json:"deleteRepoFailed"`
+	SuccessfulStages  []string          `json:"successfulStages"`
+	StageErrorMap     map[string]string `json:"stageErrorMap"`
+	ValidatedOn       time.Time         `json:"validatedOn"`
+	DeleteRepoFailed  bool              `json:"deleteRepoFailed"`
+	ValidationSkipped bool              `json:"validationSkipped"`
 }
 
 type GitOpsConfigServiceImpl struct {
@@ -198,17 +199,18 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		}
 	}
 	model := &repository.GitOpsConfig{
-		Provider:             strings.ToUpper(request.Provider),
-		Username:             request.Username,
-		Token:                request.Token,
-		GitHubOrgId:          request.GitHubOrgId,
-		GitLabGroupId:        request.GitLabGroupId,
-		Host:                 request.Host,
-		Active:               true,
-		AzureProject:         request.AzureProjectName,
-		BitBucketWorkspaceId: request.BitBucketWorkspaceId,
-		BitBucketProjectKey:  request.BitBucketProjectKey,
-		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		Provider:              strings.ToUpper(request.Provider),
+		Username:              request.Username,
+		Token:                 request.Token,
+		GitHubOrgId:           request.GitHubOrgId,
+		GitLabGroupId:         request.GitLabGroupId,
+		Host:                  request.Host,
+		Active:                true,
+		AzureProject:          request.AzureProjectName,
+		BitBucketWorkspaceId:  request.BitBucketWorkspaceId,
+		BitBucketProjectKey:   request.BitBucketProjectKey,
+		AllowCustomRepository: request.AllowCustomRepository,
+		AuditLog:              sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
 	if err != nil {
@@ -409,6 +411,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	model.AzureProject = request.AzureProjectName
 	model.BitBucketWorkspaceId = request.BitBucketWorkspaceId
 	model.BitBucketProjectKey = request.BitBucketProjectKey
+	model.AllowCustomRepository = request.AllowCustomRepository
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
@@ -539,18 +542,19 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*bean2.GitOpsC
 		return nil, err
 	}
 	config := &bean2.GitOpsConfigDto{
-		Id:                   model.Id,
-		Provider:             model.Provider,
-		GitHubOrgId:          model.GitHubOrgId,
-		GitLabGroupId:        model.GitLabGroupId,
-		Username:             model.Username,
-		Token:                model.Token,
-		Host:                 model.Host,
-		Active:               model.Active,
-		UserId:               model.CreatedBy,
-		AzureProjectName:     model.AzureProject,
-		BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-		BitBucketProjectKey:  model.BitBucketProjectKey,
+		Id:                    model.Id,
+		Provider:              model.Provider,
+		GitHubOrgId:           model.GitHubOrgId,
+		GitLabGroupId:         model.GitLabGroupId,
+		Username:              model.Username,
+		Token:                 model.Token,
+		Host:                  model.Host,
+		Active:                model.Active,
+		UserId:                model.CreatedBy,
+		AzureProjectName:      model.AzureProject,
+		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+		BitBucketProjectKey:   model.BitBucketProjectKey,
+		AllowCustomRepository: model.AllowCustomRepository,
 	}
 
 	return config, err
@@ -565,18 +569,19 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*bean2.GitOpsConfig
 	configs := make([]*bean2.GitOpsConfigDto, 0)
 	for _, model := range models {
 		config := &bean2.GitOpsConfigDto{
-			Id:                   model.Id,
-			Provider:             model.Provider,
-			GitHubOrgId:          model.GitHubOrgId,
-			GitLabGroupId:        model.GitLabGroupId,
-			Username:             model.Username,
-			Token:                "",
-			Host:                 model.Host,
-			Active:               model.Active,
-			UserId:               model.CreatedBy,
-			AzureProjectName:     model.AzureProject,
-			BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-			BitBucketProjectKey:  model.BitBucketProjectKey,
+			Id:                    model.Id,
+			Provider:              model.Provider,
+			GitHubOrgId:           model.GitHubOrgId,
+			GitLabGroupId:         model.GitLabGroupId,
+			Username:              model.Username,
+			Token:                 "",
+			Host:                  model.Host,
+			Active:                model.Active,
+			UserId:                model.CreatedBy,
+			AzureProjectName:      model.AzureProject,
+			BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+			BitBucketProjectKey:   model.BitBucketProjectKey,
+			AllowCustomRepository: model.AllowCustomRepository,
 		}
 		configs = append(configs, config)
 	}
@@ -590,18 +595,19 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 		return nil, err
 	}
 	config := &bean2.GitOpsConfigDto{
-		Id:                   model.Id,
-		Provider:             model.Provider,
-		GitHubOrgId:          model.GitHubOrgId,
-		GitLabGroupId:        model.GitLabGroupId,
-		Username:             model.Username,
-		Token:                model.Token,
-		Host:                 model.Host,
-		Active:               model.Active,
-		UserId:               model.CreatedBy,
-		AzureProjectName:     model.AzureProject,
-		BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-		BitBucketProjectKey:  model.BitBucketProjectKey,
+		Id:                    model.Id,
+		Provider:              model.Provider,
+		GitHubOrgId:           model.GitHubOrgId,
+		GitLabGroupId:         model.GitLabGroupId,
+		Username:              model.Username,
+		Token:                 model.Token,
+		Host:                  model.Host,
+		Active:                model.Active,
+		UserId:                model.CreatedBy,
+		AzureProjectName:      model.AzureProject,
+		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+		BitBucketProjectKey:   model.BitBucketProjectKey,
+		AllowCustomRepository: model.AllowCustomRepository,
 	}
 
 	return config, err
@@ -673,22 +679,25 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 		return nil, err
 	}
 	config := &bean2.GitOpsConfigDto{
-		Id:                   model.Id,
-		Provider:             model.Provider,
-		GitHubOrgId:          model.GitHubOrgId,
-		GitLabGroupId:        model.GitLabGroupId,
-		Active:               model.Active,
-		UserId:               model.CreatedBy,
-		AzureProjectName:     model.AzureProject,
-		BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-		BitBucketProjectKey:  model.BitBucketProjectKey,
+		Id:                    model.Id,
+		Provider:              model.Provider,
+		GitHubOrgId:           model.GitHubOrgId,
+		GitLabGroupId:         model.GitLabGroupId,
+		Active:                model.Active,
+		UserId:                model.CreatedBy,
+		AzureProjectName:      model.AzureProject,
+		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+		BitBucketProjectKey:   model.BitBucketProjectKey,
+		AllowCustomRepository: model.AllowCustomRepository,
 	}
 	return config, err
 }
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
-	if impl.globalEnvVariables.SkipGitOpsValidation {
-		return DetailedErrorGitOpsConfigResponse{}
+	if config.AllowCustomRepository {
+		return DetailedErrorGitOpsConfigResponse{
+			ValidationSkipped: true,
+		}
 	}
 	if config.Token == "" {
 		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
