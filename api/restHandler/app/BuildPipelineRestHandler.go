@@ -397,13 +397,6 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 
 	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
 
-	err = handler.pipelineBuilder.CheckIfPipelineNameAlreadyExist(patchRequest.CiPipeline.Name, ciConf.CiPipelines)
-	if err != nil {
-		handler.Logger.Errorw("pipeline name already exist within same app, CheckIfPipelineNameAlreadyExist", "err", err, "patch cipipeline name", patchRequest.CiPipeline.Name)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
 	var emptyDockerRegistry string
 	if app.AppType == helper.Job && ciConf == nil {
 		ciConfigRequest := bean.CiConfigRequest{}
