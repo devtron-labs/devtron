@@ -54,6 +54,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/strings/slices"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -514,19 +515,22 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 		}
 		wfr.UpdatedBy = 1
 		wfr.UpdatedOn = time.Now()
+		if wfr.Status == pipelineConfig.WorkflowFailed {
+			err = impl.workflowDagExecutor.MarkPipelineStatusTimelineFailed(wfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED))
+			if err != nil {
+				impl.Logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
+				return err
+			}
+		}
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(wfr)
 		if err != nil {
 			impl.Logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
 		}
-		cdMetrics := util3.CDMetrics{
-			AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
-			Status:          wfr.Status,
-			DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
-			EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
-			Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
+		if slices.Contains(pipelineConfig.WfrTerminalStatusList, wfr.Status) {
+			impl.workflowDagExecutor.UpdateTriggerCDMetricsOnFinish(wfr)
 		}
-		util3.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
+
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if wfr.Status == pipelineConfig.WorkflowSucceeded {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)

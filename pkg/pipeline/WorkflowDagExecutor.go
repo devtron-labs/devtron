@@ -110,6 +110,8 @@ type WorkflowDagExecutor interface {
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *client2.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
 	OnDeleteCdPipelineEvent(pipelineId int, triggeredBy int32)
+	MarkPipelineStatusTimelineFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error) error
+	UpdateTriggerCDMetricsOnFinish(runner *pipelineConfig.CdWorkflowRunner)
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -661,6 +663,15 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 		impl.logger.Errorw("err on fetching cd workflow runner, processDevtronAsyncHelmInstallRequest", "err", err)
 		return
 	}
+
+	// skip if the cdWfr.Status is already in a terminal state
+	skipCDWfrStatusList := pipelineConfig.WfrTerminalStatusList
+	skipCDWfrStatusList = append(skipCDWfrStatusList, pipelineConfig.WorkflowInProgress)
+	if slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
+		impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "status", cdWfr.Status)
+		return
+	}
+
 	//skip if the cdWfr is not the latest one
 	exists, err := impl.handleIfPreviousRunnerTriggerRequest(cdWfr, overrideRequest.UserId)
 	if err != nil {
@@ -674,14 +685,6 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 			impl.logger.Errorw("error while updating current runner status to failed, processDevtronAsyncHelmInstallRequest", "cdWfr", cdWfr.Id, "err", err)
 			return
 		}
-		return
-	}
-
-	// skip if the cdWfr.Status is already in a terminal state
-	skipCDWfrStatusList := pipelineConfig.WfrTerminalStatusList
-	skipCDWfrStatusList = append(skipCDWfrStatusList, pipelineConfig.WorkflowInProgress)
-	if slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
-		impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "status", cdWfr.Status)
 		return
 	}
 
@@ -2479,11 +2482,11 @@ func extractTimelineFailedStatusDetails(err error) string {
 	case pipelineConfig.FOUND_VULNERABILITY:
 		return pipelineConfig.TIMELINE_DESCRIPTION_VULNERABLE_IMAGE
 	default:
-		return fmt.Sprintf("Deployment failed: %s", errorString)
+		return util.GetTruncatedMessage(fmt.Sprintf("Deployment failed: %s", errorString), 255)
 	}
 }
 
-func (impl *WorkflowDagExecutorImpl) MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) MarkPipelineStatusTimelineFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error) error {
 	//creating cd pipeline status timeline for deployment failed
 	terminalStatusExists, timelineErr := impl.cdPipelineStatusTimelineRepo.CheckIfTerminalStatusTimelinePresentByWfrId(runner.Id)
 	if timelineErr != nil {
@@ -2509,6 +2512,27 @@ func (impl *WorkflowDagExecutorImpl) MarkCurrentDeploymentFailed(runner *pipelin
 			impl.logger.Errorw("error in creating timeline status for deployment fail", "err", timelineErr, "timeline", timeline)
 		}
 	}
+	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) UpdateTriggerCDMetricsOnFinish(runner *pipelineConfig.CdWorkflowRunner) {
+	cdMetrics := util4.CDMetrics{
+		AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,
+		Status:          runner.Status,
+		DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
+		EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+		Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
+	}
+	util4.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
+	return
+}
+
+func (impl *WorkflowDagExecutorImpl) MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error {
+	err := impl.MarkPipelineStatusTimelineFailed(runner, releaseErr)
+	if err != nil {
+		impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
+		return err
+	}
 	//update current WF with error status
 	impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", runner.Id, "err", releaseErr)
 	runner.Status = pipelineConfig.WorkflowFailed
@@ -2521,14 +2545,7 @@ func (impl *WorkflowDagExecutorImpl) MarkCurrentDeploymentFailed(runner *pipelin
 		impl.logger.Errorw("error updating cd wf runner status", "err", releaseErr, "currentRunner", runner)
 		return err1
 	}
-	cdMetrics := util4.CDMetrics{
-		AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,
-		Status:          runner.Status,
-		DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
-		EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
-		Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
-	}
-	util4.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
+	impl.UpdateTriggerCDMetricsOnFinish(runner)
 	return nil
 }
 
@@ -2596,6 +2613,11 @@ func (impl *WorkflowDagExecutorImpl) TriggerHelmAsyncRelease(overrideRequest *be
 	err = impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInQueue, "")
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, TriggerHelmAsyncRelease", "err", err)
+		return 0, manifest, err
+	}
+	err = impl.UpdatePreviousQueuedRunnerStatus(overrideRequest.WfrId, overrideRequest.PipelineId, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in updating the previous queued workflow runner status, TriggerHelmAsyncRelease", "err", err)
 		return 0, manifest, err
 	}
 	return 0, manifest, nil
@@ -4430,6 +4452,33 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 	return true, nil
 }
 
+func (impl *WorkflowDagExecutorImpl) UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) error {
+	cdWfrs, err := impl.cdWorkflowRepository.UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error on update previous queued cd workflow runner, UpdatePreviousQueuedRunnerStatus", "cdWfrId", cdWfrId, "err", err)
+		return err
+	}
+	for _, cdWfr := range cdWfrs {
+		err = impl.MarkPipelineStatusTimelineFailed(cdWfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED))
+		if err != nil {
+			impl.logger.Errorw("error updating CdPipelineStatusTimeline, UpdatePreviousQueuedRunnerStatus", "err", err)
+			return err
+		}
+		if cdWfr.CdWorkflow == nil {
+			pipeline, err := impl.pipelineRepository.FindById(pipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching cd pipeline, UpdatePreviousQueuedRunnerStatus", "pipelineId", pipelineId, "err", err)
+				return err
+			}
+			cdWfr.CdWorkflow = &pipelineConfig.CdWorkflow{
+				Pipeline: pipeline,
+			}
+		}
+		impl.UpdateTriggerCDMetricsOnFinish(cdWfr)
+	}
+	return nil
+}
+
 func (impl *WorkflowDagExecutorImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, status, message string) error {
 	// In case of terminal status update finished on time
 	isTerminalStatus := slices.Contains(pipelineConfig.WfrTerminalStatusList, status)
@@ -4476,7 +4525,14 @@ func (impl *WorkflowDagExecutorImpl) UpdateCDWorkflowRunnerStatus(ctx context.Co
 		// e.g: Status : Failed --> Progressing (not allowed)
 		if slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
 			impl.logger.Warnw("deployment has already been terminated for workflow runner, UpdateCDWorkflowRunnerStatus", "workflowRunnerId", cdWfr.Id, "err", err)
-			return nil
+			return fmt.Errorf("deployment has already been terminated for workflow runner")
+		}
+		if status == pipelineConfig.WorkflowFailed {
+			err = impl.MarkPipelineStatusTimelineFailed(cdWfr, errors.New(message))
+			if err != nil {
+				impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
+				return err
+			}
 		}
 		cdWfr.Status = status
 		if isTerminalStatus {
@@ -4490,6 +4546,19 @@ func (impl *WorkflowDagExecutorImpl) UpdateCDWorkflowRunnerStatus(ctx context.Co
 			impl.logger.Errorw("error on update cd workflow runner, UpdateCDWorkflowRunnerStatus", "cdWfr", cdWfr, "err", err)
 			return err
 		}
+	}
+	if isTerminalStatus {
+		if cdWfr.CdWorkflow == nil {
+			pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", overrideRequest.PipelineId, "err", err)
+				return err
+			}
+			cdWfr.CdWorkflow = &pipelineConfig.CdWorkflow{
+				Pipeline: pipeline,
+			}
+		}
+		impl.UpdateTriggerCDMetricsOnFinish(cdWfr)
 	}
 	return nil
 }

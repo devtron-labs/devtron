@@ -44,6 +44,7 @@ type CdWorkflowRepository interface {
 
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
+	UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) ([]*CdWorkflowRunner, error)
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
 	UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
@@ -485,8 +486,25 @@ func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) 
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error {
+	wfr.Message = util.GetTruncatedMessage(wfr.Message, 1000)
 	err := impl.dbConnection.Update(wfr)
 	return err
+}
+
+func (impl *CdWorkflowRepositoryImpl) UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) ([]*CdWorkflowRunner, error) {
+	var wfr []*CdWorkflowRunner
+	_, err := impl.dbConnection.Model(&wfr).
+		Set("status = ?", WorkflowFailed).
+		Set("finished_on = ?", time.Now()).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", triggeredBy).
+		Set("message = ?", NEW_DEPLOYMENT_INITIATED).
+		Where("workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
+		Where("cd_workflow_id in (SELECT id from cd_workflow WHERE pipeline_id = ?)", pipelineId).
+		Where("id < ?", cdWfrId).
+		Where("status = ?", WorkflowInQueue).
+		Update()
+	return wfr, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error {
@@ -619,12 +637,17 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 	err := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow.id", "CdWorkflow.pipeline_id", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_name", "CdWorkflow.Pipeline.deployment_app_type", "CdWorkflow.Pipeline.deleted", "CdWorkflow.Pipeline.Environment").
-		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		Join("inner join pipeline p on p.id = wf.pipeline_id").
-		Join("inner join environment e on e.id = p.environment_id").
+		Join("INNER JOIN cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Join("INNER JOIN pipeline p on p.id = wf.pipeline_id").
+		Join("INNER JOIN environment e on e.id = p.environment_id").
 		Where("cd_workflow_runner.workflow_type=?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("cd_workflow_runner.status not in (?)", pg.In(excludedStatusList)).
-		Where("cd_workflow_runner.cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow group by pipeline_id, id order by pipeline_id, id desc)").
+		Where("cd_workflow_runner.cd_workflow_id in"+
+			" (SELECT max(cd_workflow.id) as id from cd_workflow"+
+			" INNER JOIN cd_workflow_runner on cd_workflow.id = cd_workflow_runner.cd_workflow_id"+
+			" WHERE cd_workflow_runner.status != ?"+
+			" GROUP BY cd_workflow.pipeline_id"+
+			" ORDER BY cd_workflow.pipeline_id desc)", WorkflowInQueue).
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
 		Where("cd_workflow_runner.started_on > NOW() - INTERVAL '? hours'", getPipelineDeployedWithinHours).
 		Where("p.deleted=?", false).
