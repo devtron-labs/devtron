@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	chartProviderService "github.com/devtron-labs/devtron/pkg/appStore/chartProvider"
 	deleteService "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"k8s.io/utils/strings/slices"
 	"net/http"
@@ -115,7 +116,7 @@ func NewDockerRegRestHandlerImpl(
 	}
 }
 
-func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBean) bool {
+func ValidateDockerArtifactStoreRequestBean(bean types.DockerArtifactStoreBean) bool {
 	// validating secure connection configs
 	if (bean.Connection == secureWithCert && bean.Cert == "") ||
 		(bean.Connection != secureWithCert && bean.Cert != "") {
@@ -164,7 +165,7 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.DockerArtifactStoreBean
+	var bean types.DockerArtifactStoreBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveDockerRegistryConfig", "err", err, "payload", bean)
@@ -253,7 +254,7 @@ func (impl DockerRegRestHandlerImpl) ValidateDockerRegistryConfig(w http.Respons
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.DockerArtifactStoreBean
+	var bean types.DockerArtifactStoreBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, ValidateDockerRegistryConfig", "err", err, "payload", bean)
@@ -321,7 +322,7 @@ func (impl DockerRegRestHandlerImpl) GetDockerArtifactStore(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	var result []pipeline.DockerArtifactStoreBean
+	var result []types.DockerArtifactStoreBean
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
 			result = append(result, item)
@@ -342,10 +343,10 @@ func (impl DockerRegRestHandlerImpl) FetchAllDockerAccounts(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	var result []pipeline.DockerArtifactStoreBean
+	var result []types.DockerArtifactStoreBean
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
-			item.DisabledFields = make([]pipeline.DisabledFields, 0)
+			item.DisabledFields = make([]types.DisabledFields, 0)
 			if !item.IsPublic {
 				if isEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(item.Id); !(isEditable || item.IsPublic) {
 					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PULL)
@@ -368,10 +369,10 @@ func (impl DockerRegRestHandlerExtendedImpl) FetchAllDockerAccounts(w http.Respo
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	var result []pipeline.DockerArtifactStoreBean
+	var result []types.DockerArtifactStoreBean
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
-			item.DisabledFields = make([]pipeline.DisabledFields, 0)
+			item.DisabledFields = make([]types.DisabledFields, 0)
 			if !item.IsPublic {
 				if isContainerEditable := impl.deleteServiceFullMode.CanDeleteContainerRegistryConfig(item.Id); !(isContainerEditable || item.IsPublic) {
 					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CONTAINER)
@@ -396,7 +397,7 @@ func (impl DockerRegRestHandlerImpl) FetchOneDockerAccounts(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	res.DisabledFields = make([]pipeline.DisabledFields, 0)
+	res.DisabledFields = make([]types.DisabledFields, 0)
 	if !res.IsPublic {
 		if isChartEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isChartEditable || res.IsPublic) {
 			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
@@ -423,7 +424,7 @@ func (impl DockerRegRestHandlerExtendedImpl) FetchOneDockerAccounts(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	res.DisabledFields = make([]pipeline.DisabledFields, 0)
+	res.DisabledFields = make([]types.DisabledFields, 0)
 	if !res.IsPublic {
 		if isContainerEditable := impl.deleteServiceFullMode.CanDeleteContainerRegistryConfig(res.Id); !(isContainerEditable || res.IsPublic) {
 			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
@@ -451,7 +452,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.DockerArtifactStoreBean
+	var bean types.DockerArtifactStoreBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
@@ -559,7 +560,7 @@ func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseW
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.DockerArtifactStoreBean
+	var bean types.DockerArtifactStoreBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
@@ -598,7 +599,7 @@ func (impl DockerRegRestHandlerExtendedImpl) DeleteDockerRegistryConfig(w http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.DockerArtifactStoreBean
+	var bean types.DockerArtifactStoreBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
