@@ -451,14 +451,17 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 	newPluginTagsToCreate := make([]*repository.PluginTag, 0)
 	newPluginTagRelationsToCreate := make([]*repository.PluginTagRelation, 0)
 
-	pluginTagNameToPluginTagFromDb := make(map[string]repository.PluginTag)
+	pluginTagNameToPluginTagFromDb := make(map[string]map[string]repository.PluginTag)
 
 	for _, pluginTagReq := range pluginReq.Tags {
 		tagAlreadyExists := false
 		for _, presentPluginTags := range allPluginTags {
 			if strings.ToLower(pluginTagReq) == strings.ToLower(presentPluginTags.Name) {
 				tagAlreadyExists = true
-				pluginTagNameToPluginTagFromDb[pluginTagReq] = *presentPluginTags
+				if _, ok := pluginTagNameToPluginTagFromDb[repository.EXISTING_TAG_TYPE]; !ok {
+					pluginTagNameToPluginTagFromDb[repository.EXISTING_TAG_TYPE] = make(map[string]repository.PluginTag)
+				}
+				pluginTagNameToPluginTagFromDb[repository.EXISTING_TAG_TYPE][pluginTagReq] = *presentPluginTags
 			}
 		}
 		if !tagAlreadyExists {
@@ -482,22 +485,31 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 		}
 	}
 	for _, newPluginTag := range newPluginTagsToCreate {
-		pluginTagNameToPluginTagFromDb[newPluginTag.Name] = *newPluginTag
+		if _, ok := pluginTagNameToPluginTagFromDb[repository.NEW_TAG_TYPE]; !ok {
+			pluginTagNameToPluginTagFromDb[repository.NEW_TAG_TYPE] = make(map[string]repository.PluginTag)
+		}
+		pluginTagNameToPluginTagFromDb[repository.NEW_TAG_TYPE][newPluginTag.Name] = *newPluginTag
 	}
 
 	for _, tagReq := range pluginReq.Tags {
-		if _, ok := pluginTagNameToPluginTagFromDb[tagReq]; ok {
-			newPluginTagRelation := &repository.PluginTagRelation{
-				TagId:    pluginTagNameToPluginTagFromDb[tagReq].Id,
-				PluginId: pluginReq.Id,
-				AuditLog: sql.AuditLog{
-					CreatedOn: time.Now(),
-					CreatedBy: userId,
-					UpdatedOn: time.Now(),
-					UpdatedBy: userId,
-				},
+		for tagType, tagMapping := range pluginTagNameToPluginTagFromDb {
+			if tagType == repository.EXISTING_TAG_TYPE && pluginReq.Id > 0 {
+				continue
 			}
-			newPluginTagRelationsToCreate = append(newPluginTagRelationsToCreate, newPluginTagRelation)
+			if _, ok := tagMapping[tagReq]; ok {
+				newPluginTagRelation := &repository.PluginTagRelation{
+					TagId:    tagMapping[tagReq].Id,
+					PluginId: pluginReq.Id,
+					AuditLog: sql.AuditLog{
+						CreatedOn: time.Now(),
+						CreatedBy: userId,
+						UpdatedOn: time.Now(),
+						UpdatedBy: userId,
+					},
+				}
+				newPluginTagRelationsToCreate = append(newPluginTagRelationsToCreate, newPluginTagRelation)
+			}
+
 		}
 	}
 

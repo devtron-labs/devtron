@@ -45,12 +45,14 @@ const (
 )
 
 const (
-	CI               = 0
-	CD               = 1
-	CI_CD            = 2
-	CD_STAGE_TYPE    = "cd"
-	CI_STAGE_TYPE    = "ci"
-	CI_CD_STAGE_TYPE = "ci_cd"
+	CI                = 0
+	CD                = 1
+	CI_CD             = 2
+	CD_STAGE_TYPE     = "cd"
+	CI_STAGE_TYPE     = "ci"
+	CI_CD_STAGE_TYPE  = "ci_cd"
+	EXISTING_TAG_TYPE = "existing_tags"
+	NEW_TAG_TYPE      = "new_tags"
 )
 
 type PluginMetadata struct {
