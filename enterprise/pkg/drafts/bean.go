@@ -1,6 +1,9 @@
 package drafts
 
-import "time"
+import (
+	client "github.com/devtron-labs/devtron/client/events"
+	"time"
+)
 
 const (
 	LastVersionOutdated         = "last-version-outdated"
@@ -20,22 +23,14 @@ const (
 	DeploymentTemplateResource DraftResourceType = 3
 )
 
-type DraftResourceTypeString string
-
-const (
-	CMDraft            DraftResourceTypeString = "ConfigMap"
-	CSDraft            DraftResourceTypeString = "Secret"
-	DeploymentTemplate DraftResourceTypeString = "DeploymentTemplate"
-)
-
-func (draftType DraftResourceType) getDraftResourceType() DraftResourceTypeString {
+func (draftType DraftResourceType) GetDraftResourceType() client.DraftType {
 	switch draftType {
 	case CMDraftResource:
-		return CMDraft
+		return client.CMDraft
 	case CSDraftResource:
-		return CSDraft
+		return client.CSDraft
 	case DeploymentTemplateResource:
-		return DeploymentTemplate
+		return client.DeploymentTemplate
 	}
 	return ""
 }
@@ -81,6 +76,23 @@ type ProtectNotificationConfig struct {
 	EmailIds []string `json:"emailIds"`
 }
 
+func (request ConfigDraftRequest) TransformRequestForNotification() client.ConfigDraftDataForNotification {
+	return client.ConfigDraftDataForNotification{
+		AppId:        request.AppId,
+		EnvId:        request.EnvId,
+		Resource:     request.Resource.GetDraftResourceType(),
+		ResourceName: request.ResourceName,
+		UserComment:  request.UserComment,
+		UserId:       request.UserId,
+		EmailIds:     request.ProtectNotificationConfig.GetEmailIdsForProtectConfig(),
+	}
+}
+
+func (protectNotificationConfig ProtectNotificationConfig) GetEmailIdsForProtectConfig() []string {
+	emailIds := make([]string, 0)
+	emailIds = protectNotificationConfig.EmailIds
+	return emailIds
+}
 func (request ConfigDraftRequest) GetDraftDto() *DraftDto {
 	draftState := InitDraftState
 	if proposed := request.ChangeProposed; proposed {

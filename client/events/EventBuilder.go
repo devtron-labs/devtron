@@ -22,10 +22,12 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/event"
@@ -40,7 +42,7 @@ type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
 	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32) Event
-	BuildExtraProtectConfigData(event Event, userId int32) (Event, *repository2.SESConfig, *repository2.SMTPConfig)
+	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDraftDataForNotification) Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
 }
@@ -59,13 +61,17 @@ type EventSimpleFactoryImpl struct {
 	sesNotificationRepository    repository2.SESNotificationRepository
 	smtpNotificationRepository   repository2.SMTPNotificationRepository
 	imageTaggingRepository       repository3.ImageTaggingRepository
+	appRepo                      appRepository.AppRepository
+	envRepository                repository4.EnvironmentRepository
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository, sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository, imageTaggingRepository repository3.ImageTaggingRepository) *EventSimpleFactoryImpl {
+	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository, imageTaggingRepository repository3.ImageTaggingRepository,
+	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
@@ -80,7 +86,27 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		sesNotificationRepository:    sesNotificationRepository,
 		smtpNotificationRepository:   smtpNotificationRepository,
 		imageTaggingRepository:       imageTaggingRepository,
+		appRepo:                      appRepo,
+		envRepository:                envRepository,
 	}
+}
+
+type DraftType string
+
+const (
+	CMDraft            DraftType = "ConfigMap"
+	CSDraft            DraftType = "Secret"
+	DeploymentTemplate DraftType = "DeploymentTemplate"
+)
+
+type ConfigDraftDataForNotification struct {
+	AppId        int
+	EnvId        int
+	Resource     DraftType
+	ResourceName string
+	UserComment  string
+	UserId       int32
+	EmailIds     []string
 }
 
 func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event {
@@ -351,17 +377,29 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 
 	return event
 }
-func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, userId int32) (Event, *repository2.SESConfig, *repository2.SMTPConfig) {
+func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, request ConfigDraftDataForNotification) Event {
 	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 	if err != nil {
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
-	if userId > 0 {
-		user, err := impl.userRepository.GetById(userId)
+	payload := event.Payload
+	if payload == nil {
+		payload = &Payload{}
+		event.Payload = payload
+	}
+	setProviderForNotification(request, defaultSesConfig, defaultSmtpConfig, event)
+
+	err = impl.setEventPayload(request, payload)
+	if err != nil {
+		impl.logger.Errorw("error in setting payload", "error", err)
+		return event
+	}
+	if request.UserId > 0 {
+		user, err := impl.userRepository.GetById(request.UserId)
 		if err != nil {
 			impl.logger.Errorw("found error on getting user data ", "user", user)
 		}
-		payload := event.Payload
+		payload = event.Payload
 		if payload == nil {
 			payload = &Payload{}
 			event.Payload = payload
@@ -369,7 +407,75 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, use
 		event.Payload.TriggeredBy = user.EmailId
 	}
 
-	return event, defaultSesConfig, defaultSmtpConfig
+	return event
+}
+func setProviderForNotification(request ConfigDraftDataForNotification, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, event Event) {
+	for _, emailId := range request.EmailIds {
+		provider := &notifier.Provider{
+			ConfigId:  0,
+			Recipient: emailId,
+		}
+		if defaultSesConfig.Id != 0 {
+			provider.Destination = notifier.SES_CONFIG_TYPE
+		} else if defaultSmtpConfig.Id != 0 {
+			provider.Destination = notifier.SMTP_CONFIG_TYPE
+		}
+		event.Payload.Providers = append(event.Payload.Providers, provider)
+	}
+}
+
+func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDraftDataForNotification, payload *Payload) error {
+
+	protectConfigLink := setProtectConfigLink(request)
+	payload.ProtectConfigLink = protectConfigLink
+	application, err := impl.appRepo.FindById(request.AppId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching application", "err", err)
+		return err
+	}
+	environment := &repository4.Environment{}
+	if request.EnvId != -1 {
+		environment, err = impl.envRepository.FindById(request.EnvId)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching environment", "err", err)
+			return err
+		}
+	}
+	payload.AppName = application.AppName
+	payload.EnvName = environment.Name
+	payload.ProtectConfigFileName = request.ResourceName
+	payload.ProtectConfigComment = request.UserComment
+	payload.ProtectConfigFileType = string(request.Resource)
+	return nil
+}
+func setProtectConfigLink(request ConfigDraftDataForNotification) string {
+	var ProtectConfigLink string
+	var isAppLevel bool
+	if request.EnvId == -1 {
+		isAppLevel = true
+	}
+	switch isAppLevel {
+	case true:
+		switch request.Resource {
+		case CMDraft:
+			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/configmap/%s", request.AppId, request.ResourceName)
+		case CSDraft:
+			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/secrets/%s", request.AppId, request.ResourceName)
+		case DeploymentTemplate:
+			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/deployment-template", request.AppId)
+		}
+	case false:
+		switch request.Resource {
+		case CMDraft:
+			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/configmap/%s", request.AppId, request.EnvId, request.ResourceName)
+		case CSDraft:
+			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/secrets/%s", request.AppId, request.EnvId, request.ResourceName)
+		case DeploymentTemplate:
+			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/deployment-template", request.AppId, request.EnvId)
+
+		}
+	}
+	return ProtectConfigLink
 }
 
 func (impl *EventSimpleFactoryImpl) getDefaultSESOrSMTPConfig() (*repository2.SESConfig, *repository2.SMTPConfig, error) {

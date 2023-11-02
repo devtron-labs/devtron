@@ -4,16 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -103,103 +100,24 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 	if err != nil {
 		return nil, err
 	}
-	if len(request.ProtectNotificationConfig.EmailIds) > 0 {
-		err = impl.performNotificationConfigAction(request)
-		if err != nil {
-			impl.logger.Errorw("error occurred while performing notification approval action", "ConfigDraftRequest", request, "err", err)
-			return draft, nil
-		}
-	}
-
+	go impl.performNotificationConfigAction(request)
 	return draft, err
 
 }
-func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request ConfigDraftRequest) error {
-	var defaultSesConfig *repository.SESConfig
-	var defaultSmtpConfig *repository.SMTPConfig
+
+func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request ConfigDraftRequest) {
+	if len(request.ProtectNotificationConfig.EmailIds) > 0 {
+		return
+	}
 	eventType := util2.ConfigApproval
 	event := impl.eventFactory.Build(eventType, nil, request.AppId, &request.EnvId, "")
-	event, defaultSesConfig, defaultSmtpConfig = impl.eventFactory.BuildExtraProtectConfigData(event, request.UserId)
-	setProviderForNotification(request, defaultSesConfig, defaultSmtpConfig, event)
-	payload := event.Payload
-	if payload == nil {
-		payload = &client.Payload{}
-		event.Payload = payload
-	}
-	err := impl.setEventPayload(request, payload)
-	if err != nil {
-		impl.logger.Errorw("error in setting payload", "error", err)
-		return err
-	}
+	draftRequest := request.TransformRequestForNotification()
+	event = impl.eventFactory.BuildExtraProtectConfigData(event, draftRequest)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
-		impl.logger.Errorw("unable to sent for protect config approval", "error", evtErr)
-		return evtErr
-	}
-	return nil
-}
-
-func (impl *ConfigDraftServiceImpl) setEventPayload(request ConfigDraftRequest, payload *client.Payload) error {
-	protectConfigLink := setProtectConfigLink(request)
-	payload.ProtectConfigLink = protectConfigLink
-	application, err := impl.appRepo.FindById(request.AppId)
-	if err != nil {
-		impl.logger.Errorw("error occurred while fetching application", "err", err)
-		return err
-	}
-	environment := &repository2.Environment{}
-	if request.EnvId != -1 {
-		environment, err = impl.envRepository.FindById(request.EnvId)
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching environment", "err", err)
-			return err
-		}
-	}
-	payload.AppName = application.AppName
-	payload.EnvName = environment.Name
-	payload.ProtectConfigFileName = request.ResourceName
-	payload.ProtectConfigComment = request.UserComment
-	payload.ProtectConfigFileType = string(request.Resource.getDraftResourceType())
-	return nil
-}
-
-func setProviderForNotification(request ConfigDraftRequest, defaultSesConfig *repository.SESConfig, defaultSmtpConfig *repository.SMTPConfig, event client.Event) {
-	for _, emailId := range request.ProtectNotificationConfig.EmailIds {
-		provider := &notifier.Provider{
-			ConfigId:  0,
-			Recipient: emailId,
-		}
-		if defaultSesConfig.Id != 0 {
-			provider.Destination = notifier.SES_CONFIG_TYPE
-		} else if defaultSmtpConfig.Id != 0 {
-			provider.Destination = notifier.SMTP_CONFIG_TYPE
-		}
-		event.Payload.Providers = append(event.Payload.Providers, provider)
+		impl.logger.Errorw("unable to send notification for protect config approval", "error", evtErr)
 	}
 }
-
-func setProtectConfigLink(request ConfigDraftRequest) string {
-	var ProtectConfigLink string
-	switch {
-	case request.EnvId == -1 && request.Resource == CMDraftResource:
-		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/configmap/%s", request.AppId, request.ResourceName)
-	case request.EnvId == -1 && request.Resource == CSDraftResource:
-		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/secrets/%s", request.AppId, request.ResourceName)
-	case request.EnvId == -1 && request.Resource == DeploymentTemplateResource:
-		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/deployment-template", request.AppId)
-	case request.EnvId != -1 && request.Resource == CMDraftResource:
-		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/configmap/%s", request.AppId, request.EnvId, request.ResourceName)
-	case request.EnvId != -1 && request.Resource == CSDraftResource:
-		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/secrets/%s", request.AppId, request.EnvId, request.ResourceName)
-	case request.EnvId != -1 && request.Resource == DeploymentTemplateResource:
-		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/deployment-template", request.AppId, request.EnvId)
-	default:
-		ProtectConfigLink = ""
-	}
-
-	return ProtectConfigLink
-}
-
 func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (int, error) {
 	draftId := request.DraftId
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestDraftVersion(draftId)
@@ -264,14 +182,7 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(re
 		UserComment:  request.UserComment,
 		UserId:       request.UserId,
 	}
-	if len(request.ProtectNotificationConfig.EmailIds) > 0 {
-		err = impl.performNotificationConfigAction(config)
-		if err != nil {
-			impl.logger.Errorw("error occurred while performing notification approval action", "ConfigDraftRequest", request, "err", err)
-			return nil
-		}
-	}
-
+	go impl.performNotificationConfigAction(config)
 	return nil
 }
 
