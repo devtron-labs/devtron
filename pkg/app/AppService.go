@@ -34,8 +34,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
@@ -160,10 +160,7 @@ type AppServiceImpl struct {
 	globalEnvVariables                     *util2.GlobalEnvVariables
 	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
 	GitOpsManifestPushService              GitOpsPushService
-	variableSnapshotHistoryService         variables.VariableSnapshotHistoryService
-	scopedVariableService                  variables.ScopedVariableService
-	variableEntityMappingService           variables.VariableEntityMappingService
-	variableTemplateParser                 parsers.VariableTemplateParser
+	scopedVariableManager                  variables.ScopedVariableCMCSManager
 	argoClientWrapperService               argocdServer.ArgoClientWrapperService
 }
 
@@ -174,7 +171,7 @@ type AppService interface {
 	//TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
-	GetCmSecretNew(appId int, envId int, isJob bool) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
+	GetCmSecretNew(appId int, envId int, isJob bool, scope resourceQualifiers.Scope) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	//MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
@@ -245,11 +242,8 @@ func NewAppService(
 	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	GitOpsManifestPushService GitOpsPushService,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
-	scopedVariableService variables.ScopedVariableService,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+	scopedVariableManager variables.ScopedVariableCMCSManager,
 ) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
@@ -311,11 +305,8 @@ func NewAppService(
 		helmAppService:                         helmAppService,
 		manifestPushConfigRepository:           manifestPushConfigRepository,
 		GitOpsManifestPushService:              GitOpsManifestPushService,
-		variableSnapshotHistoryService:         variableSnapshotHistoryService,
-		scopedVariableService:                  scopedVariableService,
-		variableEntityMappingService:           variableEntityMappingService,
-		variableTemplateParser:                 variableTemplateParser,
 		argoClientWrapperService:               argoClientWrapperService,
+		scopedVariableManager:                  scopedVariableManager,
 	}
 	return appServiceImpl
 }
@@ -1122,7 +1113,7 @@ func (impl *AppServiceImpl) autoHealChartLocationInChart(ctx context.Context, en
 }
 
 // FIXME tmp workaround
-func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int, isJob bool) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
+func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int, isJob bool, scope resourceQualifiers.Scope) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
 	var configMapJson string
 	var secretDataJson string
 	var configMapJsonApp string
@@ -1187,7 +1178,13 @@ func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int, isJob bool) (*b
 			return nil, nil, err
 		}
 	}
-	return &configResponse, &secretResponse, nil
+
+	resolvedConfigResponse, resolvedSecretResponse, err := impl.scopedVariableManager.ResolveForPrePostStageTrigger(scope, configResponse, secretResponse, configMapA.Id, configMapE.Id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resolvedConfigResponse, resolvedSecretResponse, nil
 }
 
 // depricated
