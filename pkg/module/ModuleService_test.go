@@ -3,7 +3,7 @@ package module
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/common-lib-private/utils"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"

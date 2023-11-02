@@ -8,21 +8,21 @@ import (
 )
 
 type AppDetail struct {
-	Metadata                 *AppMetadata                    `json:"metadata,notnull" validate:"required"`
-	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull"`
-	DockerConfig             *DockerConfig                   `json:"dockerConfig"`
-	GlobalDeploymentTemplate *DeploymentTemplate             `json:"globalDeploymentTemplate,notnull"`
-	AppWorkflows             []*AppWorkflow                  `json:"workflows"`
-	GlobalConfigMaps         []*ConfigMap                    `json:"globalConfigMaps"`
-	GlobalSecrets            []*Secret                       `json:"globalSecrets"`
-	EnvironmentOverrides     map[string]*EnvironmentOverride `json:"environmentOverride"`
+	Metadata                 *AppMetadata                    `json:"metadata,notnull" validate:"dive,required"`
+	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull" validate:"dive,min=1"`
+	DockerConfig             *DockerConfig                   `json:"dockerConfig" validate:"dive"`
+	GlobalDeploymentTemplate *DeploymentTemplate             `json:"globalDeploymentTemplate,notnull" validate:"dive"`
+	AppWorkflows             []*AppWorkflow                  `json:"workflows,omitempty" validate:"dive"`
+	GlobalConfigMaps         []*ConfigMap                    `json:"globalConfigMaps,omitempty" validate:"dive"`
+	GlobalSecrets            []*Secret                       `json:"globalSecrets,omitempty" validate:"dive"`
+	EnvironmentOverrides     map[string]*EnvironmentOverride `json:"environmentOverride,omitempty" validate:"dive"`
 }
 
 type AppWorkflowCloneDto struct {
 	AppId                int                             `json:"appId"`
-	AppName              string                          `json:"appName"`
-	AppWorkflows         []*AppWorkflow                  `json:"workflows"`
-	EnvironmentOverrides map[string]*EnvironmentOverride `json:"environmentOverride"`
+	AppName              string                          `json:"appName" validate:"required"`
+	AppWorkflows         []*AppWorkflow                  `json:"workflows,omitempty" validate:"dive"`
+	EnvironmentOverrides map[string]*EnvironmentOverride `json:"environmentOverride,omitempty" validate:"dive"`
 }
 
 type AppMetadata struct {
@@ -71,15 +71,15 @@ type DeploymentTemplate struct {
 }
 
 type AppWorkflow struct {
-	Name        string               `json:"name"`
-	CiPipeline  *CiPipelineDetails   `json:"ciPipeline"`
-	CdPipelines []*CdPipelineDetails `json:"cdPipelines"`
+	Name        string               `json:"name" validate:"required"`
+	CiPipeline  *CiPipelineDetails   `json:"ciPipeline" validate:"dive,required"`
+	CdPipelines []*CdPipelineDetails `json:"cdPipelines,omitempty" validate:"dive"`
 }
 
 type CiPipelineDetails struct {
 	Name                      string                      `json:"name" validate:"required"` //name suffix of corresponding pipeline
-	IsManual                  bool                        `json:"isManual" validate:"required"`
-	CiPipelineMaterialsConfig []*CiPipelineMaterialConfig `json:"ciPipelineMaterialsConfig"`
+	IsManual                  bool                        `json:"isManual"`
+	CiPipelineMaterialsConfig []*CiPipelineMaterialConfig `json:"ciPipelineMaterialsConfig" validate:"dive,min=1"`
 	DockerBuildArgs           map[string]string           `json:"dockerBuildArgs"`
 	BeforeDockerBuildScripts  []*BuildScript              `json:"beforeDockerBuildScripts"`
 	AfterDockerBuildScripts   []*BuildScript              `json:"afterDockerBuildScripts"`
@@ -90,10 +90,11 @@ type CiPipelineDetails struct {
 	ParentCiPipeline          int                         `json:"parentCiPipeline,omitempty"`
 	ParentAppId               int                         `json:"parentAppId,omitempty"`
 	LinkedCount               int                         `json:"linkedCount,omitempty"`
+	PipelineType              string                      `json:"pipelineType,omitempty"`
 }
 
 type CiPipelineMaterialConfig struct {
-	Type          pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
+	Type          pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
 	Value         string                    `json:"value,omitempty" `
 	CheckoutPath  string                    `json:"checkoutPath"`
 	GitMaterialId int                       `json:"gitMaterialId"`
@@ -107,9 +108,9 @@ type BuildScript struct {
 }
 
 type CdPipelineDetails struct {
-	Name                          string                                 `json:"name"` //pipelineName
-	EnvironmentName               string                                 `json:"environmentName" `
-	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType" validate:"required"`
+	Name                          string                                 `json:"name" validate:"required"` //pipelineName
+	EnvironmentName               string                                 `json:"environmentName" validate:"required"`
+	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType" validate:"oneof=AUTOMATIC MANUAL"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
 	DeploymentStrategyType        chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty"` //
 	DeploymentStrategies          []*DeploymentStrategy                  `json:"deploymentStrategies"`

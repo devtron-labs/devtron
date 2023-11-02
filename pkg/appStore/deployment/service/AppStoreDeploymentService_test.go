@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/devtron-labs/authenticator/client"
+	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -12,7 +13,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	util2 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -137,7 +137,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 
 	environmentRepository := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 
-	k8sUtil := util2.NewK8sUtil(sugaredLogger, &client.RuntimeConfig{LocalDevMode: true})
+	k8sUtil := util2.NewK8sUtil(sugaredLogger, &client.RuntimeConfig{LocalDevMode: true}, nil)
 
 	clusterRepository := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
 	defaultAuthPolicyRepositoryImpl := repository4.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)

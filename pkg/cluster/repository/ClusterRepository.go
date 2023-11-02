@@ -49,6 +49,11 @@ type Cluster struct {
 	ErrorInConnecting      string            `sql:"error_in_connecting"`
 	IsVirtualCluster       bool              `sql:"is_virtual_cluster"`
 	InsecureSkipTlsVerify  bool              `sql:"insecure_skip_tls_verify"`
+	ToConnectWithSSHTunnel bool              `sql:"to_connect_with_ssh_tunnel"`
+	SSHTunnelUser          string            `sql:"ssh_tunnel_user"`
+	SSHTunnelPassword      string            `sql:"ssh_tunnel_password"`
+	SSHTunnelAuthKey       string            `sql:"ssh_tunnel_auth_key"`
+	SSHTunnelServerAddress string            `sql:"ssh_tunnel_server_address"`
 	sql.AuditLog
 }
 
@@ -58,6 +63,7 @@ type ClusterRepository interface {
 	FindOneActive(clusterName string) (*Cluster, error)
 	FindAll() ([]Cluster, error)
 	FindAllActive() ([]Cluster, error)
+	FindAllActiveExceptVirtual() ([]Cluster, error)
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
@@ -66,6 +72,8 @@ type ClusterRepository interface {
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
 	FindActiveClusters() ([]Cluster, error)
 	SaveAll(models []*Cluster) error
+	GetAllSSHTunnelConfiguredClusters() ([]*Cluster, error)
+	FindByNames(clusterNames []string) ([]*Cluster, error)
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -134,6 +142,16 @@ func (impl ClusterRepositoryImpl) FindAllActive() ([]Cluster, error) {
 	return clusters, err
 }
 
+func (impl ClusterRepositoryImpl) FindAllActiveExceptVirtual() ([]Cluster, error) {
+	var clusters []Cluster
+	err := impl.dbConnection.
+		Model(&clusters).
+		Where("active=?", true).
+		Where("is_virtual_cluster=?", false).
+		Select()
+	return clusters, err
+}
+
 func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	cluster := &Cluster{}
 	err := impl.dbConnection.
@@ -145,6 +163,15 @@ func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	return cluster, err
 }
 
+func (impl ClusterRepositoryImpl) FindByNames(clusterNames []string) ([]*Cluster, error) {
+	var cluster []*Cluster
+	err := impl.dbConnection.
+		Model(&cluster).
+		Where("cluster_name in (?)", pg.In(clusterNames)).
+		Where("active = ?", true).
+		Select()
+	return cluster, err
+}
 func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 	var cluster []Cluster
 	err := impl.dbConnection.
@@ -174,4 +201,13 @@ func (impl ClusterRepositoryImpl) UpdateClusterConnectionStatus(clusterId int, e
 		Set("error_in_connecting = ?", errorInConnecting).Where("id = ?", clusterId).
 		Update()
 	return err
+}
+
+func (impl ClusterRepositoryImpl) GetAllSSHTunnelConfiguredClusters() ([]*Cluster, error) {
+	var clusters []*Cluster
+	err := impl.dbConnection.Model(&clusters).
+		Where("active = ?", true).
+		Where("to_connect_with_ssh_tunnel = ?", true).
+		Select()
+	return clusters, err
 }

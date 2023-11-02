@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"fmt"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -33,6 +34,7 @@ type CiWorkflowRepository interface {
 	FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error)
 	FindByPipelineId(pipelineId int, offset int, size int) ([]WorkflowWithArtifact, error)
 	FindById(id int) (*CiWorkflow, error)
+	FindRetriedWorkflowCountByReferenceId(id int) (int, error)
 	FindCiWorkflowGitTriggersById(id int) (workflow *CiWorkflow, err error)
 	FindByName(name string) (*CiWorkflow, error)
 
@@ -51,50 +53,60 @@ type CiWorkflowRepositoryImpl struct {
 }
 
 type CiWorkflow struct {
-	tableName          struct{}          `sql:"ci_workflow" pg:",discard_unknown_columns"`
-	Id                 int               `sql:"id,pk"`
-	Name               string            `sql:"name"`
-	Status             string            `sql:"status"`
-	PodStatus          string            `sql:"pod_status"`
-	Message            string            `sql:"message"`
-	StartedOn          time.Time         `sql:"started_on"`
-	FinishedOn         time.Time         `sql:"finished_on"`
-	CiPipelineId       int               `sql:"ci_pipeline_id"`
-	Namespace          string            `sql:"namespace"`
-	BlobStorageEnabled bool              `sql:"blob_storage_enabled,notnull"`
-	LogLocation        string            `sql:"log_file_path"`
-	GitTriggers        map[int]GitCommit `sql:"git_triggers"`
-	TriggeredBy        int32             `sql:"triggered_by"`
-	CiArtifactLocation string            `sql:"ci_artifact_location"`
-	PodName            string            `sql:"pod_name"`
-	CiBuildType        string            `sql:"ci_build_type"`
-	EnvironmentId      int               `sql:"environment_id"`
-	CiPipeline         *CiPipeline
+	tableName              struct{}          `sql:"ci_workflow" pg:",discard_unknown_columns"`
+	Id                     int               `sql:"id,pk"`
+	Name                   string            `sql:"name"`
+	Status                 string            `sql:"status"`
+	PodStatus              string            `sql:"pod_status"`
+	Message                string            `sql:"message"`
+	StartedOn              time.Time         `sql:"started_on"`
+	FinishedOn             time.Time         `sql:"finished_on"`
+	CiPipelineId           int               `sql:"ci_pipeline_id"`
+	Namespace              string            `sql:"namespace"`
+	BlobStorageEnabled     bool              `sql:"blob_storage_enabled,notnull"`
+	LogLocation            string            `sql:"log_file_path"`
+	GitTriggers            map[int]GitCommit `sql:"git_triggers"`
+	TriggeredBy            int32             `sql:"triggered_by"`
+	CiArtifactLocation     string            `sql:"ci_artifact_location"`
+	PodName                string            `sql:"pod_name"`
+	CiBuildType            string            `sql:"ci_build_type"`
+	EnvironmentId          int               `sql:"environment_id"`
+	ImagePathReservationId int               `sql:"image_path_reservation_id"`
+	ReferenceCiWorkflowId  int               `sql:"ref_ci_workflow_id"`
+	ParentCiWorkFlowId     int               `sql:"parent_ci_workflow_id"`
+	CiPipeline             *CiPipeline
+}
+
+func (r *CiWorkflow) IsExternalRunInJobType() bool {
+	return r.EnvironmentId != 0
 }
 
 type WorkflowWithArtifact struct {
-	Id                 int               `json:"id"`
-	Name               string            `json:"name"`
-	PodName            string            `json:"podName"`
-	Status             string            `json:"status"`
-	PodStatus          string            `json:"pod_status"`
-	Message            string            `json:"message"`
-	StartedOn          time.Time         `json:"started_on"`
-	FinishedOn         time.Time         `json:"finished_on"`
-	CiPipelineId       int               `json:"ci_pipeline_id"`
-	Namespace          string            `json:"namespace"`
-	LogFilePath        string            `json:"log_file_path"`
-	GitTriggers        map[int]GitCommit `json:"git_triggers"`
-	TriggeredBy        int32             `json:"triggered_by"`
-	EmailId            string            `json:"email_id"`
-	Image              string            `json:"image"`
-	CiArtifactLocation string            `json:"ci_artifact_location"`
-	CiArtifactId       int               `json:"ci_artifact_d"`
-	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
-	CiBuildType        string            `json:"ci_build_type"`
-	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
-	EnvironmentId      int               `json:"environmentId"`
-	EnvironmentName    string            `json:"environmentName"`
+	Id                     int               `json:"id"`
+	Name                   string            `json:"name"`
+	PodName                string            `json:"podName"`
+	Status                 string            `json:"status"`
+	PodStatus              string            `json:"pod_status"`
+	Message                string            `json:"message"`
+	StartedOn              time.Time         `json:"started_on"`
+	FinishedOn             time.Time         `json:"finished_on"`
+	CiPipelineId           int               `json:"ci_pipeline_id"`
+	Namespace              string            `json:"namespace"`
+	LogFilePath            string            `json:"log_file_path"`
+	GitTriggers            map[int]GitCommit `json:"git_triggers"`
+	TriggeredBy            int32             `json:"triggered_by"`
+	EmailId                string            `json:"email_id"`
+	Image                  string            `json:"image"`
+	CiArtifactLocation     string            `json:"ci_artifact_location"`
+	CiArtifactId           int               `json:"ci_artifact_d"`
+	BlobStorageEnabled     bool              `json:"blobStorageEnabled"`
+	CiBuildType            string            `json:"ci_build_type"`
+	IsArtifactUploaded     bool              `json:"is_artifact_uploaded"`
+	EnvironmentId          int               `json:"environmentId"`
+	EnvironmentName        string            `json:"environmentName"`
+	ImagePathReservationId int               `json:"image_path_reservation_id"`
+	RefCiWorkflowId        int               `json:"referenceCiWorkflowId"`
+	ParentCiWorkflowId     int               `json:"parent_ci_workflow_id"`
 }
 
 type GitCommit struct {
@@ -111,9 +123,9 @@ type GitCommit struct {
 }
 
 type WebhookData struct {
-	Id              int
-	EventActionType string
-	Data            map[string]string
+	Id              int               `json:"id"`
+	EventActionType string            `json:"eventActionType"`
+	Data            map[string]string `json:"data"`
 }
 
 type CiWorkflowConfig struct {
@@ -164,9 +176,10 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 	return ciWorkFlows, err
 }
 
+// FindByPipelineId gets only those workflowWithArtifact whose parent_ci_workflow_id is null, this is done to accommodate multiple ci_artifacts through a single workflow(parent), making child workflows for other ci_artifacts (this has been done due to design understanding and db constraint) single workflow single ci-artifact
 func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
-	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
+	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? and parent_ci_workflow_id is null order by wf.started_on desc offset ? limit ?;"
 	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
 	if err != nil {
 		return nil, err
@@ -190,6 +203,15 @@ func (impl *CiWorkflowRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
 		Where("ci_workflow.id = ? ", id).
 		Select()
 	return workflow, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(id int) (int, error) {
+	retryCount := 0
+	query := fmt.Sprintf("select count(*) "+
+		"from ci_workflow where ref_ci_workflow_id = %v", id)
+
+	_, err := impl.dbConnection.Query(&retryCount, query)
+	return retryCount, err
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciWorkflow *CiWorkflow, err error) {
@@ -283,13 +305,13 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 
 	ciworkflowStatuses := make([]*CiWorkflowStatus, 0)
 
-	query := "SELECT cw1.ci_pipeline_id,cw1.status as ci_status,cw1.blob_storage_enabled as storage_configured " +
-		" FROM ci_workflow cw1 INNER JOIN " +
-		" (SELECT cp.id, max(cw.id) " +
-		" FROM ci_workflow cw INNER JOIN " +
-		" ci_pipeline cp ON cw.ci_pipeline_id = cp.id or cw.ci_pipeline_id = cp.parent_ci_pipeline" +
-		" WHERE cp.app_id=? AND cp.deleted=false " +
-		" GROUP BY cp.id) cw2 " +
+	query := "SELECT cw1.ci_pipeline_id,cw1.status AS ci_status,cw1.blob_storage_enabled AS storage_configured " +
+		" FROM ci_workflow cw1 " +
+		" INNER JOIN " +
+		" (WITH cp AS (SELECT id, parent_ci_pipeline FROM ci_pipeline WHERE app_id = ? AND deleted=false ) " +
+		" SELECT  cw.ci_pipeline_id, max(cw.id) " +
+		" FROM ci_workflow cw WHERE cw.ci_pipeline_id IN (SELECT cp.id FROM cp) OR cw.ci_pipeline_id IN (SELECT cp.parent_ci_pipeline FROM cp) " +
+		" GROUP BY ci_pipeline_id) cw2 " +
 		" ON cw1.id = cw2.max;"
 	_, err := impl.dbConnection.Query(&ciworkflowStatuses, query, appId) //, pg.In(ciPipelineIds))
 	if err != nil {

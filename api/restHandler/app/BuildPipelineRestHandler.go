@@ -13,11 +13,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -30,10 +32,10 @@ import (
 const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
 
 type BuildHistoryResponse struct {
-	HideImageTaggingHardDelete bool                        `json:"hideImageTaggingHardDelete"`
-	TagsEditable               bool                        `json:"tagsEditable"`
-	AppReleaseTagNames         []string                    `json:"appReleaseTagNames"` //unique list of tags exists in the app
-	CiWorkflows                []pipeline.WorkflowResponse `json:"ciWorkflows"`
+	HideImageTaggingHardDelete bool                     `json:"hideImageTaggingHardDelete"`
+	TagsEditable               bool                     `json:"tagsEditable"`
+	AppReleaseTagNames         []string                 `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	CiWorkflows                []types.WorkflowResponse `json:"ciWorkflows"`
 }
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
@@ -44,12 +46,14 @@ type DevtronAppBuildRestHandler interface {
 	GetExternalCiById(w http.ResponseWriter, r *http.Request)
 	PatchCiPipelines(w http.ResponseWriter, r *http.Request)
 	PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request)
+	PatchCiMaterialSourceWithAppIdsAndEnvironmentId(w http.ResponseWriter, r *http.Request)
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
 	HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request)
 	GetBuildLogs(w http.ResponseWriter, r *http.Request)
 	FetchWorkflowDetails(w http.ResponseWriter, r *http.Request)
+	GetArtifactsForCiJob(w http.ResponseWriter, r *http.Request)
 	// CancelWorkflow CancelBuild
 	CancelWorkflow(w http.ResponseWriter, r *http.Request)
 
@@ -249,6 +253,29 @@ func (handler PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.Res
 	return &patchRequest, userId, nil
 }
 
+func (handler PipelineConfigRestHandlerImpl) parseBulkSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialBulkPatchRequest, int32, error) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return nil, 0, err
+	}
+	var patchRequest bean.CiMaterialBulkPatchRequest
+	err = decoder.Decode(&patchRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, BulkPatchCiPipeline", "err", err, "BulkPatchCiPipeline", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, 0, err
+	}
+	err = handler.validator.Struct(patchRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, BulkPatchCiPipeline", "err", err, "BulkPatchCiPipeline", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, 0, err
+	}
+	return &patchRequest, userId, nil
+}
+
 func (handler PipelineConfigRestHandlerImpl) authorizeCiSourceChangeRequest(w http.ResponseWriter, patchRequest *bean.CiMaterialPatchRequest, token string) error {
 	handler.Logger.Debugw("update request ", "req", patchRequest)
 	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
@@ -302,6 +329,23 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndEn
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndEnvironmentId(w http.ResponseWriter, r *http.Request) {
+	bulkPatchRequest, userId, err := handler.parseBulkSourceChangeRequest(w, r)
+	if err != nil {
+		handler.Logger.Errorw("Parse error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", bulkPatchRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	// Here passing the checkAppSpecificAccess func to check RBAC
+	bulkPatchResponse, err := handler.pipelineBuilder.BulkPatchCiMaterialSource(bulkPatchRequest, userId, token, handler.checkAppSpecificAccess)
+	if err != nil {
+		handler.Logger.Errorw("service err, BulkPatchCiPipelines", "err", err, "BulkPatchCiPipelines", bulkPatchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, bulkPatchResponse, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
@@ -369,13 +413,14 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 
 	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
+
 	var emptyDockerRegistry string
 	if app.AppType == helper.Job && ciConf == nil {
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
 		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
-		ciConfigRequest.CiBuildConfig.CiBuildType = "skip-build"
+		ciConfigRequest.CiBuildConfig.CiBuildType = bean1.SKIP_BUILD_TYPE
 		ciConfigRequest.UserId = patchRequest.UserId
 		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
@@ -596,6 +641,11 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	//RBAC ENDS
 	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
+	if errors.Is(err, bean1.ErrImagePathInUse) {
+		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, err, response, http.StatusConflict)
+		return
+	}
 	if err != nil {
 		handler.Logger.Errorw("service err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
@@ -754,6 +804,16 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	envIdsString := v.Get("envIds")
+	envIds := make([]int, 0)
+	if len(envIdsString) > 0 {
+		envIds, err = util2.SplitCommaSeparatedIntValues(envIdsString)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+			return
+		}
+	}
 	//RBAC
 	handler.Logger.Infow("request payload, GetCiPipelineMin", "appId", appId)
 	token := r.Header.Get("token")
@@ -763,7 +823,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWri
 		return
 	}
 	//RBAC
-	ciPipelines, err := handler.pipelineBuilder.GetCiPipelineMin(appId)
+	ciPipelines, err := handler.pipelineBuilder.GetCiPipelineMin(appId, envIds)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipelineMin", "err", err, "appId", appId)
 		if util.IsErrNoRows(err) {
@@ -1101,6 +1161,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	ciPipeline.DefaultTag = []string{"{git_hash}", "{ci_pipeline_id}", "{global_counter}"}
 	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
 }
 
@@ -1561,6 +1622,51 @@ func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respons
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) GetArtifactsForCiJob(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	buildId, err := strconv.Atoi(vars["workflowId"])
+	if err != nil || buildId == 0 {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, GetArtifactsForCiJob", "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
+	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+	resp, err := handler.ciHandler.FetchArtifactsForCiJob(buildId)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchArtifactsForCiJob", "err", err, "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
+		if util.IsErrNoRows(err) {
+			err = &util.ApiError{Code: "404", HttpStatusCode: http.StatusNotFound, UserMessage: "no artifact found"}
+			common.WriteJsonResp(w, err, nil, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
 func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -1603,14 +1709,16 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+
+	request := resourceGroup.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup.APP_GROUP,
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiPipelinesForAppGrouping")
 	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(request)
@@ -1665,14 +1773,15 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironmentMin(w htt
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+	request := resourceGroup.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup.APP_GROUP,
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiPipelinesForAppGrouping")
 	results, err := handler.pipelineBuilder.GetCiPipelineByEnvironmentMin(request)
@@ -1727,14 +1836,15 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.R
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+	request := resourceGroup.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup.APP_GROUP,
+		ResourceIds:       appIds,
+		EmailId:           userEmailId,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchExternalCiPipelinesForAppGrouping")
 	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(request)
@@ -1788,7 +1898,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	req := &pipeline.ImageTaggingRequestDTO{}
+	req := &types.ImageTaggingRequestDTO{}
 	err = decoder.Decode(&req)
 	if err != nil {
 		handler.Logger.Errorw("request err, CreateUpdateImageTagging", "err", err, "payload", req)
@@ -1847,7 +1957,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 				handler.Logger.Errorw("error occurred in getting unique tags in app", "err", err1, "appId", appId)
 				err = err1
 			}
-			resp = &pipeline.ImageTaggingResponseDTO{}
+			resp = &types.ImageTaggingResponseDTO{}
 			resp.AppReleaseTags = appReleaseTags
 		}
 		handler.Logger.Errorw("error occurred in creating/updating image tagging data", "err", err, "ciPipelineId", ciPipelineId)
@@ -1936,4 +2046,20 @@ func (handler PipelineConfigRestHandlerImpl) extractCipipelineMetaForImageTags(a
 		appId = externalCiPipeline.AppId
 	}
 	return externalCi, ciPipelineId, appId, nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, action string, appId int) (bool, error) {
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		return false, err
+	}
+	if app.AppType != helper.CustomApp {
+		return false, errors.New("only custom apps supported")
+	}
+
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, action, resourceName); !ok {
+		return false, errors.New(string(bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE))
+	}
+	return true, nil
 }

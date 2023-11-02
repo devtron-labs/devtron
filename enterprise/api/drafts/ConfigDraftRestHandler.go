@@ -179,15 +179,15 @@ func (impl *ConfigDraftRestHandlerImpl) GetAppDrafts(w http.ResponseWriter, r *h
 		return
 	}
 
-	appId, err := common.ExtractIntQueryParam(w, r, "appId")
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", nil)
 	if err != nil {
 		return
 	}
-	envId, err := common.ExtractIntQueryParam(w, r, "envId")
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
 	if err != nil {
 		return
 	}
-	resourceType, err := common.ExtractIntQueryParam(w, r, "resourceType")
+	resourceType, err := common.ExtractIntQueryParam(w, r, "resourceType", nil)
 	if err != nil {
 		return
 	}
@@ -214,7 +214,7 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftsCount(w http.ResponseWriter, r 
 		return
 	}
 
-	appId, err := common.ExtractIntQueryParam(w, r, "appId")
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", nil)
 	if err != nil {
 		return
 	}
@@ -249,15 +249,15 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftByName(w http.ResponseWriter, r 
 	}
 	queryParams := r.URL.Query()
 	resourceName := queryParams.Get("resourceName")
-	appId, err := common.ExtractIntQueryParam(w, r, "appId")
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", nil)
 	if err != nil {
 		return
 	}
-	envId, err := common.ExtractIntQueryParam(w, r, "envId")
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
 	if err != nil {
 		return
 	}
-	resourceType, err := common.ExtractIntQueryParam(w, r, "resourceType")
+	resourceType, err := common.ExtractIntQueryParam(w, r, "resourceType", nil)
 	if err != nil {
 		return
 	}
@@ -356,12 +356,13 @@ func (impl *ConfigDraftRestHandlerImpl) enforceForAppAndEnv(appId int, envId int
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
 		return false
 	}
-	if envId != -1 {
-		object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, action, object); !ok {
-			return false
-		}
-	}
+	//TODO ignoring env check, to match it with CM/CS Enforcer handling
+	//if envId != -1 {
+	//	object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	//	if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, action, object); !ok {
+	//		return false
+	//	}
+	//}
 	return true
 }
 
@@ -405,11 +406,11 @@ func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	draftId, err := common.ExtractIntQueryParam(w, r, "draftId")
+	draftId, err := common.ExtractIntQueryParam(w, r, "draftId", nil)
 	if err != nil {
 		return
 	}
-	draftCommentId, err := common.ExtractIntQueryParam(w, r, "draftCommentId")
+	draftCommentId, err := common.ExtractIntQueryParam(w, r, "draftCommentId", nil)
 	if err != nil {
 		return
 	}
@@ -432,15 +433,15 @@ func (impl *ConfigDraftRestHandlerImpl) UpdateDraftState(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	draftId, err := common.ExtractIntQueryParam(w, r, "draftId")
+	draftId, err := common.ExtractIntQueryParam(w, r, "draftId", nil)
 	if err != nil {
 		return
 	}
-	draftVersionId, err := common.ExtractIntQueryParam(w, r, "draftVersionId")
+	draftVersionId, err := common.ExtractIntQueryParam(w, r, "draftVersionId", nil)
 	if err != nil {
 		return
 	}
-	state, err := common.ExtractIntQueryParam(w, r, "state")
+	state, err := common.ExtractIntQueryParam(w, r, "state", nil)
 	if err != nil {
 		return
 	}
@@ -463,7 +464,3 @@ func (impl *ConfigDraftRestHandlerImpl) UpdateDraftState(w http.ResponseWriter, 
 	}
 	common.WriteJsonResp(w, err, draftVersion, http.StatusOK)
 }
-
-
-
-

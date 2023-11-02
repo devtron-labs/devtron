@@ -3,15 +3,15 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,11 +32,12 @@ type K8sCommonService interface {
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
+	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
-	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
+	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -46,12 +47,14 @@ type K8sCommonServiceImpl struct {
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 }
+
 type K8sApplicationServiceConfig struct {
 	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
 	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
 }
 
-func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, helmAppService client.HelmAppService, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, clusterService cluster.ClusterService) *K8sCommonServiceImpl {
+func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, helmAppService client.HelmAppService,
+	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, clusterService cluster.ClusterService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -142,8 +145,8 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 
 }
 
-func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{},
-	validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean {
+func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean {
+	validRequests := make([]ResourceRequestBean, 0)
 	kindsToBeFilteredMap := util.ConvertStringSliceToMap(kindsToBeFiltered)
 	resourceTreeNodes, ok := resourceTree["nodes"]
 	if !ok {
@@ -162,8 +165,8 @@ func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resour
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}
 		if kindsToBeFilteredMap[kind] {
-			group := impl.extractResourceValue(resourceItem, Group)
-			version := impl.extractResourceValue(resourceItem, Version)
+			group := impl.extractResourceValue(resourceItem, k8sCommonBean.Group)
+			version := impl.extractResourceValue(resourceItem, k8sCommonBean.Version)
 			req := ResourceRequestBean{
 				AppId:     appId,
 				ClusterId: appDetail.ClusterId,
@@ -228,11 +231,7 @@ func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, 
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)
 		return nil, err, nil
 	}
-	clusterConfig, err := cluster.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", cluster.Id)
-		return nil, err, nil
-	}
+	clusterConfig := cluster.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("Error in getting rest config", "err", err, "clusterId", clusterId)
@@ -261,7 +260,7 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 		namespace := resourceIdentifier.Namespace
 		resourceKind := groupVersionKind.Kind
 		// validate one of deployment, statefulset, daemonSet, Rollout
-		if resourceKind != kube.DeploymentKind && resourceKind != kube.StatefulSetKind && resourceKind != kube.DaemonSetKind && resourceKind != k8s.K8sClusterResourceRolloutKind {
+		if resourceKind != k8sCommonBean.DeploymentKind && resourceKind != k8sCommonBean.StatefulSetKind && resourceKind != k8sCommonBean.DaemonSetKind && resourceKind != k8sCommonBean.K8sClusterResourceRolloutKind {
 			impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
 			containsError = true
 			resourceResponse.ErrorResponse = k8s.RestartingNotSupported
@@ -269,7 +268,7 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 			activitySnapshot := time.Now().Format(time.RFC3339)
 			data := fmt.Sprintf(`{"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}},"spec": {"template": {"metadata": {"annotations": {"devtron.ai/activity": "%s"}}}}}`, activitySnapshot, activitySnapshot)
 			var patchType types.PatchType
-			if resourceKind != k8s.K8sClusterResourceRolloutKind {
+			if resourceKind != k8sCommonBean.K8sClusterResourceRolloutKind {
 				patchType = types.StrategicMergePatchType
 			} else {
 				// rollout does not support strategic merge type
@@ -414,11 +413,7 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 		return nil, nil, err
 	}
 
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, nil, err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	v1Client, err := impl.K8sUtil.GetCoreV1Client(clusterConfig)
 	if err != nil {
 		//not logging clusterConfig as it contains sensitive data
@@ -432,4 +427,210 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 		return nil, v1Client, err
 	}
 	return clientSet, v1Client, nil
+}
+
+func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{} {
+	servicePortMapping := make(map[string]interface{})
+	endpointPortMapping := make(map[string]interface{})
+	endpointSlicePortMapping := make(map[string]interface{})
+
+	for _, portHolder := range resp {
+		if portHolder.ManifestResponse == nil {
+			continue
+		}
+		kind, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Kind]
+		if !ok {
+			impl.logger.Warnw("kind not found in resource tree, unable to extract port no")
+			continue
+		}
+		metadataResp, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.K8sClusterResourceMetadataKey]
+		if !ok {
+			impl.logger.Warnw("metadata not found in resource tree, unable to extract port no")
+			continue
+		}
+		metadata, ok := metadataResp.(map[string]interface{})
+		if !ok {
+			impl.logger.Warnw("metadata not found in resource tree, unable to extract port no")
+			continue
+		}
+		serviceNameResp, ok := metadata[k8sCommonBean.K8sClusterResourceMetadataNameKey]
+		if !ok {
+			impl.logger.Warnw("service name not found in resource tree, unable to extract port no")
+			continue
+		}
+		serviceName, ok := serviceNameResp.(string)
+		if !ok {
+			impl.logger.Warnw("service name not found in resource tree, unable to extract port no")
+			continue
+		}
+		if kind == k8sCommonBean.ServiceKind {
+			specField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Spec]
+			if !ok {
+				impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
+				continue
+			}
+			spec, ok := specField.(map[string]interface{})
+			if !ok {
+				impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
+				continue
+			}
+
+			if spec != nil {
+				ports, ok := spec[k8sCommonBean.Ports]
+				if !ok {
+					impl.logger.Warnw("ports not found in resource tree, unable to extract port no")
+					continue
+				}
+				portList, ok := ports.([]interface{})
+				if !ok {
+					impl.logger.Warnw("portList not found in resource tree, unable to extract port no")
+					continue
+				}
+				servicePorts := make([]int64, 0)
+				for _, portItem := range portList {
+					portItems, ok := portItem.(map[string]interface{})
+					if !ok {
+						impl.logger.Warnw("portItems not found in resource tree, unable to extract port no")
+						continue
+					}
+					if portItems != nil {
+						portNumbers, ok := portItems[k8sCommonBean.Port]
+						if !ok {
+							impl.logger.Warnw("ports number found in resource tree, unable to extract port no")
+							continue
+						}
+						portNumber, ok := portNumbers.(int64)
+						if !ok {
+							impl.logger.Warnw("portNumber(int64) not found in resource tree, unable to extract port no")
+							continue
+						}
+						if portNumber != 0 {
+							servicePorts = append(servicePorts, portNumber)
+						}
+					}
+				}
+				servicePortMapping[serviceName] = servicePorts
+			} else {
+				impl.logger.Warnw("spec doest not contain data", "spec", spec)
+				continue
+			}
+		}
+		if kind == k8sCommonBean.EndpointsKind {
+			subsetsField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Subsets]
+			if !ok {
+				impl.logger.Warnw("spec not found in resource tree, unable to extract port no")
+				continue
+			}
+			if subsetsField != nil {
+				subsets, ok := subsetsField.([]interface{})
+				if !ok {
+					impl.logger.Warnw("subsets not found in resource tree, unable to extract port no")
+					continue
+				}
+				for _, subset := range subsets {
+					subsetObj, ok := subset.(map[string]interface{})
+					if !ok {
+						impl.logger.Warnw("subsetObj not found in resource tree, unable to extract port no")
+						continue
+					}
+					if subsetObj != nil {
+						ports, ok := subsetObj[k8sCommonBean.Ports]
+						if !ok {
+							impl.logger.Warnw("ports not found in resource tree endpoints, unable to extract port no")
+							continue
+						}
+						portsIfs, ok := ports.([]interface{})
+						if !ok {
+							impl.logger.Warnw("portsIfs not found in resource tree, unable to extract port no")
+							continue
+						}
+						endpointPorts := make([]int64, 0)
+						for _, portsIf := range portsIfs {
+							portsIfObj, ok := portsIf.(map[string]interface{})
+							if !ok {
+								impl.logger.Warnw("portsIfObj not found in resource tree, unable to extract port no")
+								continue
+							}
+							if portsIfObj != nil {
+								port, ok := portsIfObj[k8sCommonBean.Port].(int64)
+								if !ok {
+									impl.logger.Warnw("port not found in resource tree, unable to extract port no")
+									continue
+								}
+								endpointPorts = append(endpointPorts, port)
+							}
+						}
+						endpointPortMapping[serviceName] = endpointPorts
+					}
+				}
+			}
+		}
+		if kind == k8sCommonBean.EndPointsSlice {
+			portsField, ok := portHolder.ManifestResponse.Manifest.Object[k8sCommonBean.Ports]
+			if !ok {
+				impl.logger.Warnw("ports not found in resource tree endpoint, unable to extract port no")
+				continue
+			}
+			if portsField != nil {
+				endPointsSlicePorts, ok := portsField.([]interface{})
+				if !ok {
+					impl.logger.Warnw("endPointsSlicePorts not found in resource tree endpoint, unable to extract port no")
+					continue
+				}
+				endpointSlicePorts := make([]int64, 0)
+				for _, val := range endPointsSlicePorts {
+					portNumbers, ok := val.(map[string]interface{})[k8sCommonBean.Port]
+					if !ok {
+						impl.logger.Warnw("endPointsSlicePorts not found in resource tree endpoint, unable to extract port no")
+						continue
+					}
+					portNumber, ok := portNumbers.(int64)
+					if !ok {
+						impl.logger.Warnw("portNumber(int64) not found in resource tree endpoint, unable to extract port no")
+						continue
+					}
+					if portNumber != 0 {
+						endpointSlicePorts = append(endpointSlicePorts, portNumber)
+					}
+				}
+				endpointSlicePortMapping[serviceName] = endpointSlicePorts
+			}
+		}
+	}
+	if val, ok := resourceTree[k8sCommonBean.Nodes]; ok {
+		resourceTreeVal, ok := val.([]interface{})
+		if !ok {
+			impl.logger.Warnw("resourceTreeVal not found in resourceTree, unable to extract port no")
+			return resourceTree
+		}
+		for _, val := range resourceTreeVal {
+			value, ok := val.(map[string]interface{})
+			if !ok {
+				impl.logger.Warnw("value not found in resourceTreeVal, unable to extract port no")
+				continue
+			}
+			serviceNameRes, ok := value[k8sCommonBean.K8sClusterResourceMetadataNameKey]
+			if !ok {
+				impl.logger.Warnw("service name not found in resourceTreeVal, unable to extract port no")
+				continue
+			}
+			serviceName, ok := serviceNameRes.(string)
+			if !ok {
+				impl.logger.Warnw("service name not found in resourceTreeVal, unable to extract port no")
+				continue
+			}
+			for key, _type := range value {
+				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndpointsKind {
+					value[k8sCommonBean.Port] = endpointPortMapping[serviceName]
+				}
+				if key == k8sCommonBean.Kind && _type == k8sCommonBean.ServiceKind {
+					value[k8sCommonBean.Port] = servicePortMapping[serviceName]
+				}
+				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndPointsSlice {
+					value[k8sCommonBean.Port] = endpointSlicePortMapping[serviceName]
+				}
+			}
+		}
+	}
+	return resourceTree
 }

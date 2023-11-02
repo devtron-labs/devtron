@@ -32,6 +32,10 @@ const (
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
 )
 
+const (
+	VALIDATION_FAILED_ERROR_MSG string = "validation failed: group name with , is not allowed"
+)
+
 // custom role const set
 
 const (

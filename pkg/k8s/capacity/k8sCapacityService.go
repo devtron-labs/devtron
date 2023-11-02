@@ -3,11 +3,11 @@ package capacity
 import (
 	"context"
 	"fmt"
+	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity/bean"
-	k8s2 "github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -46,15 +46,19 @@ type K8sCapacityServiceImpl struct {
 	k8sApplicationService application2.K8sApplicationService
 	K8sUtil               *k8s2.K8sUtil
 	k8sCommonService      k8s.K8sCommonService
+	clusterCronService    cluster.ClusterCronService
 }
 
-func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, k8sApplicationService application2.K8sApplicationService, K8sUtil *k8s2.K8sUtil, k8sCommonService k8s.K8sCommonService) *K8sCapacityServiceImpl {
+func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
+	k8sApplicationService application2.K8sApplicationService, K8sUtil *k8s2.K8sUtil,
+	k8sCommonService k8s.K8sCommonService, clusterCronService cluster.ClusterCronService) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
 		clusterService:        clusterService,
 		k8sApplicationService: k8sApplicationService,
 		K8sUtil:               K8sUtil,
 		k8sCommonService:      k8sCommonService,
+		clusterCronService:    clusterCronService,
 	}
 }
 
@@ -63,9 +67,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 	for _, cluster := range clusters {
 		clusterCapacityDetail := &bean.ClusterCapacityDetail{}
 		var err error
-		if cluster.IsVirtualCluster {
-			clusterCapacityDetail.IsVirtualCluster = cluster.IsVirtualCluster
-		} else if len(cluster.ErrorInConnecting) > 0 {
+		if len(cluster.ErrorInConnecting) > 0 {
 			clusterCapacityDetail.ErrorInConnection = cluster.ErrorInConnecting
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)
@@ -301,11 +303,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx co
 }
 
 func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
-	clusterConfig, err := cluster.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", cluster.Id)
-		return nil, nil, nil, err
-	}
+	clusterConfig := cluster.GetClusterConfig()
 	return impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 }
 func (impl *K8sCapacityServiceImpl) getNodeGroupAndTaints(node *corev1.Node) (string, []*bean.LabelAnnotationTaintObject) {

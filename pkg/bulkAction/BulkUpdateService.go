@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -28,6 +29,9 @@ import (
 	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -79,18 +83,20 @@ type BulkUpdateServiceImpl struct {
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
 	workflowDagExecutor              pipeline.WorkflowDagExecutor
-	cdWorkflowRepository      pipelineConfig.CdWorkflowRepository
-	pipelineBuilder           pipeline.PipelineBuilder
-	helmAppService            client.HelmAppService
-	enforcerUtil              rbac.EnforcerUtil
-	enforcerUtilHelm          rbac.EnforcerUtilHelm
-	ciHandler                 pipeline.CiHandler
-	ciPipelineRepository      pipelineConfig.CiPipelineRepository
-	appWorkflowRepository     appWorkflow.AppWorkflowRepository
-	appWorkflowService        appWorkflow2.AppWorkflowService
-	pubsubClient              *pubsub.PubSubClientServiceImpl
-	argoUserService           argo.ArgoUserService
-	resourceProtectionService protect.ResourceProtectionService
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	pipelineBuilder                  pipeline.PipelineBuilder
+	helmAppService                   client.HelmAppService
+	enforcerUtil                     rbac.EnforcerUtil
+	enforcerUtilHelm                 rbac.EnforcerUtilHelm
+	ciHandler                        pipeline.CiHandler
+	ciPipelineRepository             pipelineConfig.CiPipelineRepository
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	appWorkflowService               appWorkflow2.AppWorkflowService
+	pubsubClient                     *pubsub.PubSubClientServiceImpl
+	argoUserService                  argo.ArgoUserService
+	variableEntityMappingService     variables.VariableEntityMappingService
+	variableTemplateParser           parsers.VariableTemplateParser
+	resourceProtectionService        protect.ResourceProtectionService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -120,7 +126,10 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	appWorkflowService appWorkflow2.AppWorkflowService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
-	argoUserService argo.ArgoUserService, resourceProtectionService protect.ResourceProtectionService) (*BulkUpdateServiceImpl, error) {
+	argoUserService argo.ArgoUserService,
+	variableEntityMappingService variables.VariableEntityMappingService,
+	variableTemplateParser parsers.VariableTemplateParser,
+	resourceProtectionService protect.ResourceProtectionService) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -155,6 +164,8 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		pubsubClient:                     pubsubClient,
 		argoUserService:                  argoUserService,
 		resourceProtectionService:        resourceProtectionService,
+		variableTemplateParser:           variableTemplateParser,
+		variableEntityMappingService:     variableEntityMappingService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
@@ -471,6 +482,12 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 							}
+							//VARIABLE_MAPPING_UPDATE
+							//NOTE: this flow is doesn't have the user info, therefore updated by is being set to the last updated by
+							err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.UpdatedBy)
+							if err != nil {
+								return nil
+							}
 						}
 					}
 				}
@@ -552,6 +569,11 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
 							}
+							//VARIABLE_MAPPING_UPDATE
+							err = impl.extractAndMapVariables(chartEnv.EnvOverrideValues, chartEnv.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, chartEnv.UpdatedBy)
+							if err != nil {
+								return nil
+							}
 						}
 					}
 				}
@@ -562,6 +584,21 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 		deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "All matching apps are updated successfully")
 	}
 	return deploymentTemplateBulkUpdateResponse
+}
+
+func (impl BulkUpdateServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
+	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
+	if err != nil {
+		return err
+	}
+	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
+		EntityType: entityType,
+		EntityId:   entityId,
+	}, userId, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpdatePayload) *CmAndSecretBulkUpdateResponse {
@@ -1325,7 +1362,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 		}
 
 		//artifactResponse, err := impl.pipelineBuilder.GetArtifactsByCDPipeline(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
-		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY, SearchString, false)
+		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY, SearchString, 10, false)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
 			//return nil, err
@@ -1343,6 +1380,13 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 		artifact := artifacts[0] // fetch latest approved artifact in case of approval node configured
+		// TODO - SHASHWAT - EXPRESSION EVALUATOR HAS BEEN ADDED ALREADY. CHECK WHETHER THE ARTIFACT IS VALID OR NOT
+		if artifact.FilterState != resourceFilter.ALLOW {
+			if artifact.FilterState == resourceFilter.ERROR {
+				impl.logger.Errorw("service err, GetArtifactsByCDPipeline, error in evaluating filter expression", "cdPipelineId", pipeline.Id)
+			}
+			continue
+		}
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:     pipeline.Id,
 			AppId:          pipeline.AppId,
@@ -1497,7 +1541,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 			var ciMaterials []bean2.CiPipelineMaterial
 			ciMaterials = append(ciMaterials, bean2.CiPipelineMaterial{
 				Id:        materialId,
-				GitCommit: bean2.GitCommit{Commit: commitHash},
+				GitCommit: pipelineConfig.GitCommit{Commit: commitHash},
 			})
 			ciTriggerRequest := bean2.CiTriggerRequest{
 				PipelineId:         ciPipelineId,

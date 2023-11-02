@@ -21,6 +21,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -83,6 +84,8 @@ type ChartTemplateService interface {
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
 	LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, error)
+	LoadChartFromDir(dir string) (*chart.Chart, error)
+	CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -768,7 +771,32 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 		chart.Metadata.Version = chartVersion
 	}
 
-	chartZipPath, err := chartutil.Save(chart, ChartPath)
+	chartBytesArr, err = impl.CreateZipFileForChart(chart, ChartPath)
+	if err != nil {
+		impl.logger.Errorw("error in saving", "err", err, "dir")
+		return chartBytesArr, err
+	}
+
+	if deleteChart {
+		defer impl.CleanDir(ChartPath)
+	}
+
+	return chartBytesArr, err
+}
+
+func (impl ChartTemplateServiceImpl) LoadChartFromDir(dir string) (*chart.Chart, error) {
+	//this function is removed in latest helm release and is replaced by Loader in loader package
+	chart, err := chartutil.LoadDir(dir)
+	if err != nil {
+		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
+		return chart, err
+	}
+	return chart, nil
+}
+
+func (impl ChartTemplateServiceImpl) CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error) {
+	var chartBytesArr []byte
+	chartZipPath, err := chartutil.Save(chart, outputChartPathDir)
 	if err != nil {
 		impl.logger.Errorw("error in saving", "err", err, "dir")
 		return chartBytesArr, err
@@ -776,10 +804,10 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 
 	chartBytesArr, err = ioutil.ReadFile(chartZipPath)
 	if err != nil {
-		return chartBytesArr, err
+		impl.logger.Errorw("There is a problem with os.Open", "err", err)
+		return nil, err
 	}
-
-	return chartBytesArr, err
+	return chartBytesArr, nil
 }
 
 func IsHelmApp(deploymentAppType string) bool {
@@ -796,4 +824,23 @@ func IsManifestDownload(deploymentAppType string) bool {
 
 func IsManifestPush(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH
+}
+
+func IsOCIRegistryChartProvider(ociRegistry dockerRegistryRepository.DockerArtifactStore) bool {
+	if ociRegistry.OCIRegistryConfig == nil ||
+		len(ociRegistry.OCIRegistryConfig) != 1 ||
+		!IsOCIConfigChartProvider(ociRegistry.OCIRegistryConfig[0]) {
+		return false
+	}
+	return true
+}
+
+func IsOCIConfigChartProvider(ociRegistryConfig *dockerRegistryRepository.OCIRegistryConfig) bool {
+	if ociRegistryConfig.RepositoryType == dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART &&
+		(ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL ||
+			ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) &&
+		ociRegistryConfig.RepositoryList != "" {
+		return true
+	}
+	return false
 }

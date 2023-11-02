@@ -43,10 +43,20 @@ func WriteApiJsonResponseStructured(w http.ResponseWriter, apiResponse *ApiRespo
 		util.GetLogger().Error("error in marshaling api response object", err)
 		statusCode = 500
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(CONTENT_TYPE, APPLICATION_JSON)
 	w.WriteHeader(statusCode)
 	_, err = w.Write(apiResponseByteArr)
 	if err != nil {
 		util.GetLogger().Error(err)
 	}
+}
+
+func WriteOctetStreamResp(w http.ResponseWriter, r *http.Request, byteArr []byte, defaultFilename string) {
+	w.WriteHeader(http.StatusOK)
+	if defaultFilename != "" {
+		w.Header().Set(CONTENT_DISPOSITION, "attachment; filename="+defaultFilename)
+	}
+	w.Header().Set(CONTENT_TYPE, "application/octet-stream")
+	w.Header().Set(CONTENT_LENGTH, r.Header.Get(CONTENT_LENGTH))
+	w.Write(byteArr)
 }

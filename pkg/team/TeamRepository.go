@@ -41,6 +41,7 @@ type TeamRepository interface {
 	FindByIds(ids []*int) ([]*Team, error)
 	FindAllActiveTeamNames() ([]string, error)
 	FindAllActiveTeamIds() ([]int, error)
+	FindByNames(teams []string) ([]*Team, error)
 }
 type TeamRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -112,6 +113,12 @@ func (repo TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {
 
 func (repo TeamRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
+}
+
+func (repo TeamRepositoryImpl) FindByNames(teams []string) ([]*Team, error) {
+	var objects []*Team
+	err := repo.dbConnection.Model(&objects).Where("active = ?", true).Where("name in (?)", pg.In(teams)).Select()
+	return objects, err
 }
 
 type TeamRbacObjects struct {

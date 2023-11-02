@@ -29,7 +29,7 @@ import (
 	"strconv"
 )
 
-//use of writeJsonRespStructured is preferable. it api exists due to historical reason
+// use of writeJsonRespStructured is preferable. it api exists due to historical reason
 // err.message is used as internal message for ApiError object in resp
 func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, status int) {
 	response := Response{}
@@ -117,7 +117,7 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 	if status > 299 || err != nil {
 		util.GetLogger().Infow("ERROR RES", "TYPE", "API-ERROR", "RES", response.Code, "ERROR-MSG", response.Errors, "err", err)
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(CONTENT_TYPE, APPLICATION_JSON)
 	w.WriteHeader(status)
 	_, err = w.Write(b)
 	if err != nil {
@@ -126,7 +126,7 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 
 }
 
-//use this method when we have specific api error to be conveyed to api User
+// use this method when we have specific api error to be conveyed to api User
 func writeJsonRespStructured(w http.ResponseWriter, err error, respBody interface{}, status int, apiErrors []*util.ApiError) {
 	response := Response{}
 	response.Code = status
@@ -141,7 +141,7 @@ func writeJsonRespStructured(w http.ResponseWriter, err error, respBody interfac
 		util.GetLogger().Error("error in marshaling err object", err)
 		status = 500
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(CONTENT_TYPE, APPLICATION_JSON)
 	w.WriteHeader(status)
 	_, err = w.Write(b)
 	if err != nil {
@@ -149,7 +149,7 @@ func writeJsonRespStructured(w http.ResponseWriter, err error, respBody interfac
 	}
 }
 
-//global response body used across api
+// global response body used across api
 type Response struct {
 	Code   int              `json:"code,omitempty"`
 	Status string           `json:"status,omitempty"`

@@ -29,7 +29,7 @@ const (
 	PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_GLOBAL   PipelineStageStepVariableValueType  = "GLOBAL"
 	PIPELINE_STAGE_STEP_CONDITION_TYPE_SKIP          PipelineStageStepConditionType      = "SKIP"
 	PIPELINE_STAGE_STEP_CONDITION_TYPE_TRIGGER       PipelineStageStepConditionType      = "TRIGGER"
-	PIPELINE_STAGE_STEP_CONDITION_TYPE_SUCCESS       PipelineStageStepConditionType      = "SUCCESS"
+	PIPELINE_STAGE_STEP_CONDITION_TYPE_SUCCESS       PipelineStageStepConditionType      = "PASS"
 	PIPELINE_STAGE_STEP_CONDITION_TYPE_FAIL          PipelineStageStepConditionType      = "FAIL"
 	PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_STRING  PipelineStageStepVariableFormatType = "STRING"
 	PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_NUMBER  PipelineStageStepVariableFormatType = "NUMBER"
@@ -154,6 +154,7 @@ type PipelineStageRepository interface {
 	UpdatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error)
 	MarkPipelineStageStepsDeletedByStageId(stageId int, updatedBy int32, tx *pg.Tx) error
 	GetAllStepsByStageId(stageId int) ([]*PipelineStageStep, error)
+	GetAllCiPipelineIdsByPluginIdAndStageType(pluginId int, stageType string) ([]int, error)
 	GetStepById(stepId int) (*PipelineStageStep, error)
 	MarkStepsDeletedByStageId(stageId int) error
 	MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq []int, stageId int) error
@@ -381,6 +382,19 @@ func (impl *PipelineStageRepositoryImpl) GetStepById(stepId int) (*PipelineStage
 		return nil, err
 	}
 	return &step, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) GetAllCiPipelineIdsByPluginIdAndStageType(pluginId int, stageType string) ([]int, error) {
+	var ciPipelineIds []int
+	query := "Select ps.ci_pipeline_id from pipeline_stage ps " +
+		"INNER JOIN pipeline_stage_step pss ON pss.pipeline_stage_id = ps.id " +
+		"where pss.ref_plugin_id = ? and ps.type = ? and pss.deleted = false and ps.deleted = false"
+	_, err := impl.dbConnection.Query(&ciPipelineIds, query, pluginId, stageType)
+	if err != nil {
+		impl.logger.Errorw("err in getting ciPipelineIds by PluginId and StepType", "err", err, "pluginId", pluginId, "stageType", stageType)
+		return nil, err
+	}
+	return ciPipelineIds, nil
 }
 
 func (impl *PipelineStageRepositoryImpl) MarkStepsDeletedByStageId(stageId int) error {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	client1 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -86,7 +86,7 @@ func TestAppServiceImpl_UpdateDeploymentStatusAndCheckIsSucceeded(t *testing.T) 
 			wantErr:     wantErr,
 		}
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := appService.UpdateDeploymentStatusAndCheckIsSucceeded(tt.args.app, tt.args.statusTime, false)
+			got, _, err := appService.UpdateDeploymentStatusAndCheckIsSucceeded(tt.args.app, tt.args.statusTime, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateDeploymentStatusAndCheckIsSucceeded() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -143,7 +143,7 @@ func InitAppService() *app2.AppServiceImpl {
 	ciPipelineMaterialRepository := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(dbConnection, logger)
 	userRepository := repository2.NewUserRepositoryImpl(dbConnection, logger)
 	eventFactory := client1.NewEventSimpleFactoryImpl(logger, cdWorkflowRepository, pipelineOverrideRepository, ciWorkflowRepository,
-		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository, nil, nil)
+		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository, nil, nil, nil, nil, nil)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(logger)
 	appListingRepository := repository.NewAppListingRepositoryImpl(logger, dbConnection, appListingRepositoryQueryBuilder, nil)
 	appRepository := app.NewAppRepositoryImpl(dbConnection, logger)
@@ -162,6 +162,6 @@ func InitAppService() *app2.AppServiceImpl {
 		nil, nil, nil, nil, nil, refChartDir, nil,
 		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
 		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return appService
 }

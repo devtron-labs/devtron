@@ -20,11 +20,11 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
+	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
-	util2 "github.com/devtron-labs/devtron/util/k8s"
 	"strconv"
 	"strings"
 	"time"
@@ -81,7 +81,7 @@ type ClusterEnvDto struct {
 	IsVirtualCluster bool      `json:"isVirtualCluster"`
 }
 
-type AppGroupingResponse struct {
+type ResourceGroupingResponse struct {
 	EnvList  []EnvironmentBean `json:"envList"`
 	EnvCount int               `json:"envCount"`
 }
@@ -154,7 +154,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 
 	identifier := clusterBean.ClusterName + "__" + mappings.Namespace
 
-	model, err := impl.environmentRepository.FindByNameOrIdentifier(mappings.Environment, identifier)
+	model, err := impl.environmentRepository.FindByEnvNameOrIdentifierOrNamespace(mappings.Environment, identifier, mappings.Namespace)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err
@@ -183,10 +183,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return mappings, err
 	}
 	if len(model.Namespace) > 0 {
-		cfg, err := clusterBean.GetClusterConfig()
-		if err != nil {
-			return nil, err
-		}
+		cfg := clusterBean.GetClusterConfig()
 		if err := impl.K8sUtil.CreateNsIfNotExists(model.Namespace, cfg); err != nil {
 			impl.logger.Errorw("error in creating ns", "ns", model.Namespace, "err", err)
 		}
@@ -362,10 +359,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 
 	//namespace create if not exist
 	if len(model.Namespace) > 0 {
-		cfg, err := clusterBean.GetClusterConfig()
-		if err != nil {
-			return nil, err
-		}
+		cfg := clusterBean.GetClusterConfig()
 		if err := impl.K8sUtil.CreateNsIfNotExists(model.Namespace, cfg); err != nil {
 			impl.logger.Errorw("error in creating ns", "ns", model.Namespace, "err", err)
 		}
@@ -493,6 +487,8 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				Description:            model.Description,
 				IsVirtualEnvironment:   model.IsVirtualEnvironment,
 				AllowedDeploymentTypes: allowedDeploymentConfigString,
+				ClusterId:              model.ClusterId,
+				Default:                model.Default,
 			})
 		}
 	} else {
@@ -506,6 +502,8 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				ClusterName:           model.Cluster.ClusterName,
 				Description:           model.Description,
 				IsVirtualEnvironment:  model.IsVirtualEnvironment,
+				ClusterId:             model.ClusterId,
+				Default:               model.Default,
 			})
 		}
 	}

@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	util3 "github.com/devtron-labs/devtron/util/k8s"
+	util3 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -74,7 +74,7 @@ type ChartRepositoryService interface {
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
-	TriggerChartSyncManual() error
+	TriggerChartSyncManual(chartProviderConfig *ChartProviderConfig) error
 	DeleteChartRepo(request *ChartRepoDto) error
 	DeleteChartSecret(secretName string) error
 }
@@ -171,11 +171,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
 		return nil, err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err)
-		return nil, err
-	}
+	cfg := clusterBean.GetClusterConfig()
 
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
@@ -270,10 +266,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return nil, err
-	}
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return nil, err
@@ -424,10 +417,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	if err != nil {
 		return err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return err
-	}
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err
@@ -662,7 +652,11 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndCreateChartRepo(request *Char
 	}
 
 	// Trigger chart sync job, ignore error
-	err = impl.TriggerChartSyncManual()
+	chartProviderConfig := &ChartProviderConfig{
+		ChartProviderId: "*",
+		IsOCIRegistry:   true,
+	}
+	err = impl.TriggerChartSyncManual(chartProviderConfig)
 	if err != nil {
 		impl.logger.Errorw("Error in triggering chart sync job manually ", "err", err)
 	}
@@ -681,7 +675,11 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 	}
 
 	// Trigger chart sync job, ignore error
-	err = impl.TriggerChartSyncManual()
+	chartProviderConfig := &ChartProviderConfig{
+		ChartProviderId: "*",
+		IsOCIRegistry:   true,
+	}
+	err = impl.TriggerChartSyncManual(chartProviderConfig)
 	if err != nil {
 		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
 	}
@@ -689,20 +687,16 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 	return chartRepo, nil, validationResult
 }
 
-func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual() error {
+func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConfig *ChartProviderConfig) error {
 	defaultClusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
 		return err
 	}
 
-	defaultClusterConfig, err := defaultClusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", "err", err)
-		return err
-	}
+	defaultClusterConfig := defaultClusterBean.GetClusterConfig()
 
-	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj)
+	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, chartProviderConfig)
 
 	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
 	if err != nil {
@@ -956,10 +950,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartSecret(secretName string) err
 	if err != nil {
 		return err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return err
-	}
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err

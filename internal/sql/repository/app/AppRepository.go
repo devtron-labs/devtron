@@ -67,12 +67,14 @@ type AppRepository interface {
 	FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*App, error)
 	FindIdsByTeamIdsAndTeamNames(teamIds []int, teamNames []string) ([]int, error)
 	FindIdsByNames(appNames []string) ([]int, error)
+	FindByNames(appNames []string) ([]*App, error)
 	FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error)
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
 	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
 	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*App, error)
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
+	FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -349,6 +351,15 @@ func (repo AppRepositoryImpl) FindIdsByNames(appNames []string) ([]int, error) {
 	return ids, err
 }
 
+func (repo AppRepositoryImpl) FindByNames(appNames []string) ([]*App, error) {
+	var appNamesWithIds []*App
+	err := repo.dbConnection.Model(&appNamesWithIds).
+		Where("active=true").
+		Where("app_name in (?)", pg.In(appNames)).
+		Select()
+	return appNamesWithIds, err
+}
+
 func (repo AppRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error) {
 	repo.logger.Debug("reached at Fetch All Active Installed Apps With AppId And Name")
 	var apps []*App
@@ -421,5 +432,19 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 func (repo AppRepositoryImpl) FindAppAndProjectByIdsIn(ids []int) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Column("app.*", "Team").Where("app.active = ?", true).Where("app.id in (?)", pg.In(ids)).Select()
+	return apps, err
+}
+
+func (repo AppRepositoryImpl) FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error) {
+	var apps []*App
+	if len(ids) == 0 {
+		return apps, nil
+	}
+	err := repo.dbConnection.Model(&apps).
+		Column("app.*", "Team").
+		Where("app.active = ?", true).
+		Where("app.id in (?)", pg.In(ids)).
+		Order("app.team_id").
+		Select()
 	return apps, err
 }

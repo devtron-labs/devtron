@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/devtron/api/helm-app/models"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -37,15 +39,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const (
-	API_CALLER_DEVTRON_APP       ApiCallerAppType = "devtron-app"
-	API_CALLER_HELM_APP          ApiCallerAppType = "helm-app"
-	API_CALLER_EXTERNAL_HELM_APP ApiCallerAppType = "external-helm-app"
-	API_CALLER_UNKNOWN           ApiCallerAppType = "unknown"
-)
-
-type ApiCallerAppType string
-
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
@@ -70,6 +63,7 @@ type HelmAppService interface {
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
+	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) bool
 	GetRevisionHistoryMaxValue(appType SourceAppType) int32
 }
 
@@ -144,11 +138,24 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	req := &AppListRequest{}
 	for _, clusterDetail := range clusters {
 		config := &ClusterConfig{
-			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config[k8s.BearerToken],
-			ClusterId:    int32(clusterDetail.Id),
-			ClusterName:  clusterDetail.ClusterName,
-			ProxyUrl:     clusterDetail.ProxyUrl,
+			ApiServerUrl:           clusterDetail.ServerUrl,
+			Token:                  clusterDetail.Config[k8s.BearerToken],
+			ClusterId:              int32(clusterDetail.Id),
+			ClusterName:            clusterDetail.ClusterName,
+			InsecureSkipTLSVerify:  clusterDetail.InsecureSkipTLSVerify,
+			ProxyUrl:               clusterDetail.ProxyUrl,
+			ToConnectWithSSHTunnel: clusterDetail.ToConnectWithSSHTunnel,
+		}
+		if clusterDetail.SSHTunnelConfig != nil {
+			config.SshTunnelAuthKey = clusterDetail.SSHTunnelConfig.AuthKey
+			config.SshTunnelUser = clusterDetail.SSHTunnelConfig.User
+			config.SshTunnelPassword = clusterDetail.SSHTunnelConfig.Password
+			config.SshTunnelServerAddress = clusterDetail.SSHTunnelConfig.SSHServerAddress
+		}
+		if clusterDetail.InsecureSkipTLSVerify == false {
+			config.KeyData = clusterDetail.Config[k8s.TlsKey]
+			config.CertData = clusterDetail.Config[k8s.CertData]
+			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
@@ -279,11 +286,24 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 		}
 	} else {
 		config = ClusterConfig{
-			ApiServerUrl: clusterObj.ServerUrl,
-			Token:        clusterObj.Config[k8s.BearerToken],
-			ClusterId:    int32(clusterObj.Id),
-			ClusterName:  clusterObj.ClusterName,
-			ProxyUrl:     clusterObj.ProxyUrl,
+			ApiServerUrl:           clusterObj.ServerUrl,
+			Token:                  clusterObj.Config[k8s.BearerToken],
+			ClusterId:              int32(clusterObj.Id),
+			ClusterName:            clusterObj.ClusterName,
+			ProxyUrl:               clusterObj.ProxyUrl,
+			ToConnectWithSSHTunnel: clusterObj.ToConnectWithSSHTunnel,
+			InsecureSkipTLSVerify:  clusterObj.InsecureSkipTLSVerify,
+		}
+		if clusterObj.SSHTunnelConfig != nil {
+			config.SshTunnelAuthKey = clusterObj.SSHTunnelConfig.AuthKey
+			config.SshTunnelUser = clusterObj.SSHTunnelConfig.User
+			config.SshTunnelPassword = clusterObj.SSHTunnelConfig.Password
+			config.SshTunnelServerAddress = clusterObj.SSHTunnelConfig.SSHServerAddress
+		}
+		if clusterObj.InsecureSkipTLSVerify == false {
+			config.KeyData = clusterObj.Config[k8s.TlsKey]
+			config.CertData = clusterObj.Config[k8s.CertData]
+			config.CaData = clusterObj.Config[k8s.CertificateAuthorityData]
 		}
 	}
 
@@ -427,6 +447,17 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
 	}
+	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
+	//that case DeleteApplication returned with grpc error and the user was not able to delete the
+	//cd-pipeline after helm app is created in that namespace.
+	exists, err := impl.checkIfNsExists(app)
+	if err != nil {
+		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", app.ClusterId)
+		return nil, err
+	}
+	if !exists {
+		return nil, models.NamespaceNotExistError{Err: fmt.Errorf("namespace %s does not exist", app.Namespace)}
+	}
 
 	req := &ReleaseIdentifier{
 		ClusterConfig:    config,
@@ -444,6 +475,27 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		Success: &deleteApplicationResponse.Success,
 	}
 	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error) {
+	clusterBean, err := impl.clusterService.FindById(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster bean", "error", err, "clusterId", app.ClusterId)
+		return false, err
+	}
+	config := clusterBean.GetClusterConfig()
+	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
+		return false, err
+	}
+	exists, err := impl.K8sUtil.CheckIfNsExists(app.Namespace, v12Client)
+	if err != nil {
+		impl.logger.Errorw("error in checking if namespace exists or not", "error", err, "clusterConfig", config)
+		return false, err
+	}
+
+	return exists, nil
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
@@ -744,21 +796,56 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
 	}
-	installReleaseRequest := &InstallReleaseRequest{
-		ChartName:    appStoreAppVersion.Name,
-		ChartVersion: appStoreAppVersion.Version,
-		ValuesYaml:   *templateChartRequest.ValuesYaml,
-		K8SVersion:   k8sServerVersion.String(),
-		ChartRepository: &ChartRepository{
+	var IsOCIRepo bool
+	var registryCredential *RegistryCredential
+	var chartRepository *ChartRepository
+	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
+	if dockerRegistryId != "" {
+		ociRegistryConfigs := appStoreAppVersion.AppStore.DockerArtifactStore.OCIRegistryConfig
+		if err != nil {
+			impl.logger.Errorw("error in fetching oci registry config", "err", err)
+			return nil, err
+		}
+		var ociRegistryConfig *repository2.OCIRegistryConfig
+		for _, config := range ociRegistryConfigs {
+			if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+				ociRegistryConfig = config
+				break
+			}
+		}
+		IsOCIRepo = true
+		registryCredential = &RegistryCredential{
+			RegistryUrl:  appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:     appStoreAppVersion.AppStore.DockerArtifactStore.Username,
+			Password:     appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType: string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:     appStoreAppVersion.AppStore.Name,
+			IsPublic:     ociRegistryConfig.IsPublic,
+		}
+	} else {
+		chartRepository = &ChartRepository{
 			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
 			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
 			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
-		},
+		}
+	}
+
+	installReleaseRequest := &InstallReleaseRequest{
+		ChartName:       appStoreAppVersion.Name,
+		ChartVersion:    appStoreAppVersion.Version,
+		ValuesYaml:      *templateChartRequest.ValuesYaml,
+		K8SVersion:      k8sServerVersion.String(),
+		ChartRepository: chartRepository,
 		ReleaseIdentifier: &ReleaseIdentifier{
 			ReleaseNamespace: *templateChartRequest.Namespace,
 			ReleaseName:      *templateChartRequest.ReleaseName,
 		},
+		IsOCIRepo:          IsOCIRepo,
+		RegistryCredential: registryCredential,
 	}
 
 	config, err := impl.GetClusterConf(clusterId)
@@ -799,6 +886,15 @@ func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *InstallRe
 	}
 	notesTxt = response.Notes
 	return notesTxt, err
+}
+
+func (impl *HelmAppServiceImpl) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) bool {
+	response, err := impl.helmAppClient.ValidateOCIRegistry(ctx, OCIRegistryRequest)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart", "err", err)
+		return false
+	}
+	return response.IsLoggedIn
 }
 
 type AppIdentifier struct {

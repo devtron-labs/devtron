@@ -91,5 +91,3 @@ func (impl *ResourceProtectionServiceImpl) ResourceProtectionEnabledForEnv(envId
 	}
 	return appVsState
 }
-
-

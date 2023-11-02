@@ -17,6 +17,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/stretchr/testify/assert"
 	"log"
@@ -135,7 +136,7 @@ func InitClusterNoteService() {
 	ciPipelineHistoryRepository := repository4.NewCiPipelineHistoryRepositoryImpl(conn, logger)
 	ciPipelineMaterialRepository := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(conn, logger)
 	GitSensorClient, err := gitSensor.NewGitSensorClient(logger, &gitSensor.ClientConfig{})
-	ciConfig := &CiConfig{}
+	ciConfig := &types.CiCdConfig{}
 	appWorkflowRepository := appWorkflow.NewAppWorkflowRepositoryImpl(logger, conn)
 	envRepository := repository3.NewEnvironmentRepositoryImpl(conn, logger, nil)
 	attributesService := attributes.NewAttributesServiceImpl(logger, nil)
@@ -145,7 +146,7 @@ func InitClusterNoteService() {
 	userAuthService := user.NewUserAuthServiceImpl(nil, nil, nil, nil, nil, nil, nil)
 	prePostCdScriptHistoryService := history.NewPrePostCdScriptHistoryServiceImpl(logger, nil, nil, nil)
 	prePostCiScriptHistoryService := history.NewPrePostCiScriptHistoryServiceImpl(logger, nil)
-	pipelineStageService := NewPipelineStageService(logger, nil, nil, nil)
+	pipelineStageService := NewPipelineStageService(logger, nil, nil, nil, nil, nil, nil)
 	ciTemplateOverrideRepository := pipelineConfig.NewCiTemplateOverrideRepositoryImpl(conn, logger)
 	ciTemplateService := *NewCiTemplateServiceImpl(logger, nil, nil, nil)
 	gitMaterialHistoryService := history.NewGitMaterialHistoryServiceImpl(nil, logger)

@@ -19,7 +19,7 @@ package router
 
 import (
 	"encoding/json"
-	pubsub2 "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubsub2 "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
@@ -122,12 +122,15 @@ type MuxRouter struct {
 	globalCMCSRouter                   GlobalCMCSRouter
 	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
 	ciStatusUpdateCron                 cron.CiStatusUpdateCron
-	appGroupingRouter                  AppGroupingRouter
+	resourceGroupingRouter             ResourceGroupingRouter
 	globalTagRouter                    globalTag.GlobalTagRouter
 	rbacRoleRouter                     user.RbacRoleRouter
 	globalPolicyRouter                 globalPolicy.GlobalPolicyRouter
 	configDraftRouter                  drafts.ConfigDraftRouter
 	resourceProtectionRouter           protect.ResourceProtectionRouter
+	scopedVariableRouter               ScopedVariableRouter
+	ciTriggerCron                      cron.CiTriggerCron
+	resourceFilterRouter               ResourceFilterRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -156,9 +159,11 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter capacity.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
-	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
+	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, resourceGroupingRouter ResourceGroupingRouter,
 	globalTagRouter globalTag.GlobalTagRouter, rbacRoleRouter user.RbacRoleRouter,
-	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter) *MuxRouter {
+	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
+	scopedVariableRouter ScopedVariableRouter, ciTriggerCron cron.CiTriggerCron,
+	resourceFilterRouter ResourceFilterRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -226,18 +231,20 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		userTerminalAccessRouter:           userTerminalAccessRouter,
 		ciStatusUpdateCron:                 ciStatusUpdateCron,
 		JobRouter:                          jobRouter,
-		appGroupingRouter:                  appGroupingRouter,
+		resourceGroupingRouter:             resourceGroupingRouter,
 		globalTagRouter:                    globalTagRouter,
 		rbacRoleRouter:                     rbacRoleRouter,
 		globalPolicyRouter:                 globalPolicyRouter,
+		scopedVariableRouter:               scopedVariableRouter,
+		ciTriggerCron:                      ciTriggerCron,
 		configDraftRouter:                  configDraftRouter,
 		resourceProtectionRouter:           resourceProtectionRouter,
+		resourceFilterRouter:               resourceFilterRouter,
 	}
 	return r
 }
 
 func (r MuxRouter) Init() {
-
 	r.Router.PathPrefix("/orchestrator/api/vi/pod/exec/ws").Handler(terminal.CreateAttachHandler("/orchestrator/api/vi/pod/exec/ws"))
 
 	r.Router.StrictSlash(true)
@@ -288,7 +295,7 @@ func (r MuxRouter) Init() {
 
 	environmentClusterMappingsRouter := r.Router.PathPrefix("/orchestrator/env").Subrouter()
 	r.EnvironmentClusterMappingsRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)
-	r.appGroupingRouter.InitAppGroupingRouter(environmentClusterMappingsRouter)
+	r.resourceGroupingRouter.InitResourceGroupingRouter(environmentClusterMappingsRouter)
 
 	clusterRouter := r.Router.PathPrefix("/orchestrator/cluster").Subrouter()
 	r.ClusterRouter.InitClusterRouter(clusterRouter)
@@ -301,6 +308,9 @@ func (r MuxRouter) Init() {
 
 	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
+
+	resourceFilterRouter := r.Router.PathPrefix("/orchestrator/filters").Subrouter()
+	r.resourceFilterRouter.InitResourceFilterRouter(resourceFilterRouter)
 
 	projectManagementRouter := r.Router.PathPrefix("/orchestrator/project-management").Subrouter()
 	r.ProjectManagementRouter.InitProjectManagementRouter(projectManagementRouter)
@@ -374,6 +384,7 @@ func (r MuxRouter) Init() {
 
 	commonRouter := r.Router.PathPrefix("/orchestrator/global").Subrouter()
 	r.commonRouter.InitCommonRouter(commonRouter)
+	r.scopedVariableRouter.InitScopedVariableRouter(commonRouter)
 
 	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)

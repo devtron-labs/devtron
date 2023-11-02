@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 )
@@ -49,7 +50,7 @@ func NewCiCdPipelineOrchestratorEnterpriseImpl(pipelineGroupRepository app2.AppR
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	GitSensorClient gitSensor.Client, ciConfig *pipeline.CiConfig,
+	GitSensorClient gitSensor.Client, ciConfig *types.CiCdConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,
@@ -67,13 +68,14 @@ func NewCiCdPipelineOrchestratorEnterpriseImpl(pipelineGroupRepository app2.AppR
 	globalTagService globalTag.GlobalTagService,
 	PipelineOverrideRepository chartConfig.PipelineOverrideRepository, CiArtifactRepository repository.CiArtifactRepository, manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	configMapService pipeline.ConfigMapService,
-	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorEnterpriseImpl {
+	genericNoteService genericNotes.GenericNoteService,
+	customTagService pipeline.CustomTagService) *CiCdPipelineOrchestratorEnterpriseImpl {
 	return &CiCdPipelineOrchestratorEnterpriseImpl{
 		CiCdPipelineOrchestratorImpl: pipeline.NewCiCdPipelineOrchestrator(pipelineGroupRepository, logger, materialRepository, pipelineRepository,
 			ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService,
 			appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService,
 			pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService,
-			dockerArtifactStoreRepository, PipelineOverrideRepository, CiArtifactRepository, manifestPushConfigRepository, configMapService, genericNoteService),
+			dockerArtifactStoreRepository, PipelineOverrideRepository, CiArtifactRepository, manifestPushConfigRepository, configMapService, customTagService, genericNoteService),
 		globalTagService: globalTagService,
 	}
 }

@@ -1,9 +1,10 @@
 package bean
 
 import (
-	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	blob_storage "github.com/devtron-labs/common-lib-private/blob-storage"
 	"github.com/devtron-labs/devtron/api/bean"
 	v1 "k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -26,9 +27,53 @@ type WorkflowTemplate struct {
 	AzureBlobConfig        *blob_storage.AzureBlobConfig
 	GcpBlobConfig          *blob_storage.GcpBlobConfig
 	CloudStorageKey        string
-	TerminationGracePeriod int
 	PrePostDeploySteps     []*StepObject
 	RefPlugins             []*RefPluginObject
+	TerminationGracePeriod int
+	WorkflowType           string
+}
+
+const (
+	CI_WORKFLOW_NAME           = "ci"
+	CI_WORKFLOW_WITH_STAGES    = "ci-stages-with-env"
+	CiStage                    = "CI"
+	CdStage                    = "CD"
+	CD_WORKFLOW_NAME           = "cd"
+	CD_WORKFLOW_WITH_STAGES    = "cd-stages-with-env"
+	HELM_JOB_REF_TEMPLATE_NAME = "helm-job-template"
+	JOB_CHART_API_VERSION      = "v2"
+	JOB_CHART_NAME             = "helm-job"
+	JOB_CHART_VERSION          = "0.1.0"
+)
+
+func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
+	switch workflowTemplate.WorkflowType {
+	case CI_WORKFLOW_NAME:
+		return CI_WORKFLOW_WITH_STAGES
+	case CD_WORKFLOW_NAME:
+		return CD_WORKFLOW_WITH_STAGES
+	default:
+		return ""
+	}
+}
+
+func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta {
+
+	switch workflowTemplate.WorkflowType {
+	case CI_WORKFLOW_NAME:
+		return &v12.ObjectMeta{
+			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
+			Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
+		}
+	case CD_WORKFLOW_NAME:
+		return &v12.ObjectMeta{
+			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
+			Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
+			Labels:       map[string]string{"devtron.ai/workflow-purpose": "cd"},
+		}
+	default:
+		return nil
+	}
 }
 
 type JobManifestTemplate struct {
