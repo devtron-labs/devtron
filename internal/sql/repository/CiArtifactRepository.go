@@ -42,6 +42,8 @@ const (
 	WEBHOOK   artifactsSourceType = "ext"
 	PRE_CD    artifactsSourceType = "pre_cd"
 	POST_CD   artifactsSourceType = "post_cd"
+	PRE_CI    artifactsSourceType = "pre_ci"
+	POST_CI   artifactsSourceType = "post_ci"
 )
 
 type CiArtifact struct {

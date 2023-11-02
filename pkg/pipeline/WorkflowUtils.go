@@ -369,11 +369,11 @@ type WorkflowRequest struct {
 	CiArtifactLastFetch         time.Time                             `json:"ciArtifactLastFetch"`
 	RegistryDestinationImageMap map[string][]string                   `json:"registryDestinationImageMap"`
 	RegistryCredentialMap       map[string]plugin.RegistryCredentials `json:"registryCredentialMap"`
-
-	Type      bean.WorkflowPipelineType
-	Pipeline  *pipelineConfig.Pipeline
-	Env       *repository2.Environment
-	AppLabels map[string]string
+	PluginArtifactStage         string                                `json:"pluginArtifactStage"`
+	Type                        bean.WorkflowPipelineType
+	Pipeline                    *pipelineConfig.Pipeline
+	Env                         *repository2.Environment
+	AppLabels                   map[string]string
 }
 
 type CiCdTriggerEvent struct {

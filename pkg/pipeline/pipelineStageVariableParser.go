@@ -3,10 +3,12 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
 	"strings"
 )
 
@@ -23,7 +25,7 @@ const (
 )
 
 type PluginInputVariableParser interface {
-	ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, entityKey int, entityValue string, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error)
+	ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, customTag *repository.CustomTag, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error)
 }
 
 type PluginInputVariableParserImpl struct {
@@ -44,7 +46,7 @@ func NewPluginInputVariableParserImpl(
 	}
 }
 
-func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, entityKey int, entityValue string, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error) {
+func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, customTag *repository.CustomTag, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error) {
 	var DestinationInfo, SourceRegistry, SourceImage string
 	for _, ipVariable := range inputVariables {
 		if ipVariable.Name == DESTINATION_INFO {
@@ -65,7 +67,7 @@ func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(input
 			}
 		}
 	}
-	registryDestinationImageMap, registryCredentialMap, err := impl.getRegistryDetailsAndDestinationImagePathForSkopeo(entityKey, entityValue, SourceImage, SourceRegistry, DestinationInfo)
+	registryDestinationImageMap, registryCredentialMap, err := impl.getRegistryDetailsAndDestinationImagePathForSkopeo(customTag, SourceImage, SourceRegistry, DestinationInfo)
 	if err != nil {
 		impl.logger.Errorw("Error in parsing skopeo input variables")
 		return nil, nil, err
@@ -73,7 +75,7 @@ func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(input
 	return registryDestinationImageMap, registryCredentialMap, nil
 }
 
-func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImagePathForSkopeo(entityKey int, entityValue, sourceImage string, sourceRegistry string, destinationInfo string) (registryDestinationImageMap map[string][]string, registryCredentialsMap map[string]plugin.RegistryCredentials, err error) {
+func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImagePathForSkopeo(tag *repository.CustomTag, sourceImage string, sourceRegistry string, destinationInfo string) (registryDestinationImageMap map[string][]string, registryCredentialsMap map[string]plugin.RegistryCredentials, err error) {
 	registryDestinationImageMap = make(map[string][]string)
 	registryCredentialsMap = make(map[string]plugin.RegistryCredentials)
 
@@ -115,24 +117,24 @@ func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImage
 
 		for _, repositoryName := range repositoryValuesSplit {
 			repositoryName = strings.Trim(repositoryName, " ")
-			customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(entityKey, entityValue)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error in fetching custom tag by entity key and entity value ", "entityKey", entityKey, "entityValue", entityValue)
-				return registryDestinationImageMap, registryCredentialsMap, err
-			}
 			var destinationImage string
-			if customTag != nil && customTag.Id == 0 {
-				destinationImage = fmt.Sprintf("%s/%s:%s", registryCredentials.RegistryURL, repositoryName, sourceImageTag)
+			var tagId int
+			if tag != nil && tag.Id > 0 {
+				tagId = tag.Id
+			}
+			if tagId > 0 {
+				destinationImage = fmt.Sprintf("%s/%s:%s", registryCredentials.RegistryURL, repositoryName, strconv.Itoa(tag.Id))
 			} else {
-				imagePathReservation, err := impl.customTagService.GenerateImagePath(entityKey, entityValue, registryCredentials.RegistryURL, repositoryName)
-				if err != nil {
-					impl.logger.Errorw("error in reserving image path", "err", err)
-					return registryDestinationImageMap, registryCredentialsMap, err
-				}
-				destinationImage = imagePathReservation.ImagePath
+				destinationImage = fmt.Sprintf("%s/%s:%s", registryCredentials.RegistryURL, repositoryName, sourceImageTag)
 			}
 			destinationImages = append(destinationImages, destinationImage)
+			err = impl.customTagService.ReserveImagePath(destinationImage, tagId)
+			if err != nil {
+				impl.logger.Errorw("Error in marking custom tag reserved", "err", err)
+				return registryDestinationImageMap, registryCredentialsMap, err
+			}
 		}
+
 		registryDestinationImageMap[registryName] = destinationImages
 		registryCredentialsMap[registryName] = plugin.RegistryCredentials{
 			RegistryType:       string(registryCredentials.RegistryType),

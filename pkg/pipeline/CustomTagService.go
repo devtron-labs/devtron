@@ -19,6 +19,8 @@ type CustomTagService interface {
 	GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error)
 	DeleteCustomTagIfExists(tag bean.CustomTag) error
 	DeactivateImagePathReservation(id int) error
+	GetCustomTag(entityKey int, entityValue string) (*repository.CustomTag, error)
+	ReserveImagePath(imagePath string, customTagId int) error
 }
 
 type CustomTagServiceImpl struct {
@@ -101,6 +103,7 @@ func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue s
 	tag, err := validateAndConstructTag(customTagData)
 	if err != nil {
 		return nil, err
+		return nil, err
 	}
 	imagePath := fmt.Sprintf(bean2.ImagePathPattern, dockerRegistryURL, dockerRepo, tag)
 	imagePathReservations, err := impl.customTagRepository.FindByImagePath(tx, imagePath)
@@ -171,6 +174,54 @@ func isValidDockerImageTag(tag string) bool {
 	// Define the regular expression for a valid Docker image tag
 	re := regexp.MustCompile(bean2.REGEX_PATTERN_FOR_IMAGE_TAG)
 	return re.MatchString(tag)
+}
+
+func (impl *CustomTagServiceImpl) GetCustomTag(entityKey int, entityValue string) (*repository.CustomTag, error) {
+	connection := impl.customTagRepository.GetConnection()
+	tx, err := connection.Begin()
+	customTag, err := impl.customTagRepository.IncrementAndFetchByEntityKeyAndValue(tx, entityKey, entityValue)
+	if err != nil {
+		return nil, err
+	}
+	if err != nil {
+		return nil, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("Error in fetching custom tag", "err", err)
+		return customTag, err
+	}
+	return customTag, nil
+
+}
+
+func (impl *CustomTagServiceImpl) ReserveImagePath(imagePath string, customTagId int) error {
+	connection := impl.customTagRepository.GetConnection()
+	tx, err := connection.Begin()
+	if err != nil {
+		return nil
+	}
+	imagePathReservations, err := impl.customTagRepository.FindByImagePath(tx, imagePath)
+	if err != nil && err != pg.ErrNoRows {
+		return nil
+	}
+	if len(imagePathReservations) > 0 {
+		return nil
+	}
+	imagePathReservation := &repository.ImagePathReservation{
+		ImagePath:   imagePath,
+		CustomTagId: customTagId,
+	}
+	err = impl.customTagRepository.InsertImagePath(tx, imagePathReservation)
+	if err != nil {
+		return nil
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("Error in fetching custom tag", "err", err)
+		return nil
+	}
+	return err
 }
 
 func validateTag(imageTag string) error {
