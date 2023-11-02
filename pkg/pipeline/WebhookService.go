@@ -221,14 +221,14 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		IsArtifactUploaded: request.IsArtifactUploaded,
 		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
 	}
-	plugin, err := impl.globalPluginRepository.GetPluginByName(bean.IMAGE_SCANNING_PLUGIN)
+	plugin, err := impl.globalPluginRepository.GetPluginByName(bean.VULNERABILITY_SCANNING_PLUGIN)
 	if err != nil || len(plugin) == 0 {
 		impl.logger.Errorw("error in getting image scanning plugin", "err", err)
 		return 0, err
 	}
 	isScanPluginConfigured, err := impl.pipelineStageRepository.CheckPluginExistsInCiPipeline(pipeline.Id, string(repository2.PIPELINE_STAGE_TYPE_POST_CI), plugin[0].Id)
 	if err != nil {
-		impl.logger.Errorw("error in getting ci pipeline plugin", "err", err)
+		impl.logger.Errorw("error in getting ci pipeline plugin", "err", err, "pipelineId", pipeline.Id, "pluginId", plugin[0].Id)
 		return 0, err
 	}
 	if pipeline.ScanEnabled || isScanPluginConfigured {

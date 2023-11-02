@@ -400,9 +400,9 @@ func (impl *PipelineStageRepositoryImpl) GetAllCiPipelineIdsByPluginIdAndStageTy
 
 func (impl *PipelineStageRepositoryImpl) CheckPluginExistsInCiPipeline(pipelineId int, stageType string, pluginId int) (bool, error) {
 	var step PipelineStageStep
-	query := "Select * from pipeline_stage_step pss " +
-		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id " +
-		"where pss.ref_plugin_id = ? and ps.type = ? and pss.deleted = false and ps.deleted = false and ps.ci_pipeline_id= ?"
+	query := `Select * from pipeline_stage_step pss  
+		INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id  
+		where pss.ref_plugin_id = ? and ps.type = ? and pss.deleted = false and ps.deleted = false and ps.ci_pipeline_id= ?;`
 	_, err := impl.dbConnection.Query(&step, query, pluginId, stageType, pipelineId)
 	if err != nil {
 		impl.logger.Errorw("err in getting pipelineStageStep", "err", err, "pluginId", pluginId, "pipelineId", pipelineId, "stageType", stageType)
