@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -86,7 +87,7 @@ func (impl PrePostCdScriptHistoryServiceImpl) GetHistoryForDeployedPrePostCdScri
 	}
 	var historiesDto []*PrePostCdScriptHistoryDto
 	for _, history := range histories {
-		configMapList := ConfigList{}
+		configMapList := bean.ConfigList{}
 		if len(history.ConfigMapData) > 0 {
 			err := json.Unmarshal([]byte(history.ConfigMapData), &configMapList)
 			if err != nil {
@@ -94,7 +95,7 @@ func (impl PrePostCdScriptHistoryServiceImpl) GetHistoryForDeployedPrePostCdScri
 				return nil, err
 			}
 		}
-		secretList := ConfigList{}
+		secretList := bean.ConfigList{}
 		if len(history.SecretData) > 0 {
 			err := json.Unmarshal([]byte(history.SecretData), &secretList)
 			if err != nil {
