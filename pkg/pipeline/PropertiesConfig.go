@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"time"
 
@@ -71,8 +70,7 @@ type PropertiesConfigServiceImpl struct {
 	envLevelAppMetricsRepository     repository.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
-	variableEntityMappingService     variables.VariableEntityMappingService
-	variableTemplateParser           parsers.VariableTemplateParser
+	scopedVariableManager            variables.ScopedVariableManager
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -86,8 +84,8 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser) *PropertiesConfigServiceImpl {
+	scopedVariableManager variables.ScopedVariableManager,
+) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                           logger,
 		envConfigRepo:                    envConfigRepo,
@@ -100,8 +98,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		variableEntityMappingService:     variableEntityMappingService,
-		variableTemplateParser:           variableTemplateParser,
+		scopedVariableManager:            scopedVariableManager,
 	}
 
 }
@@ -388,7 +385,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, err
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(override.EnvOverrideValues, override.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, override.CreatedBy, nil)
+	err = impl.scopedVariableManager.ExtractAndMapVariables(override.EnvOverrideValues, override.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, override.CreatedBy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +483,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 
 		//VARIABLE_MAPPING_UPDATE
 		if envOverride.EnvOverrideValues != "{}" {
-			err = impl.extractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.CreatedBy, tx)
+			err = impl.scopedVariableManager.ExtractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.CreatedBy, tx)
 			if err != nil {
 				return nil, err
 			}
@@ -599,7 +596,7 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 		}
 	}
 	//VARIABLES
-	err = impl.removeMappedVariables(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy)
+	err = impl.scopedVariableManager.RemoveMappedVariables(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, nil)
 	if err != nil {
 		return false, err
 	}
@@ -747,34 +744,5 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", currentChart)
 		return nil, err
 	}
-	//VARIABLE_MAPPING_UPDATE - not needed
-
 	return appMetricRequest, err
-}
-
-func (impl PropertiesConfigServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32, tx *pg.Tx) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-	if err != nil {
-		return err
-	}
-	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
-		EntityType: entityType,
-		EntityId:   entityId,
-	}, userId, tx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (impl PropertiesConfigServiceImpl) removeMappedVariables(entityId int, entityType repository5.EntityType, userId int32) error {
-
-	err := impl.variableEntityMappingService.DeleteMappingsForEntities([]repository5.Entity{{
-		EntityType: entityType,
-		EntityId:   entityId,
-	}}, userId, nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }
