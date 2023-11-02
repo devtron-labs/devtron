@@ -67,14 +67,14 @@ type AppStoreDeploymentCommonService interface {
 	UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 }
 
-type DeploymentServiceTypeConfig struct {
+type DeploymentCommonServiceTypeConfig struct {
 	IsInternalUse        bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 	HelmInstallASyncMode bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
 	HelmInstallAsyncMode bool `env:"HELM_INSTALL_ASYNC_MODE" envDefault:"false"`
 }
 
-func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
-	cfg := &DeploymentServiceTypeConfig{}
+func GetDeploymentCommonServiceTypeConfig() (*DeploymentCommonServiceTypeConfig, error) {
+	cfg := &DeploymentCommonServiceTypeConfig{}
 	err := env.Parse(cfg)
 	return cfg, err
 }
@@ -89,7 +89,7 @@ type AppStoreDeploymentCommonServiceImpl struct {
 	gitFactory                           *util.GitFactory
 	gitOpsConfigRepository               repository3.GitOpsConfigRepository
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	deploymentTypeConfig                 *DeploymentServiceTypeConfig
+	deploymentTypeConfig                 *DeploymentCommonServiceTypeConfig
 }
 
 func NewAppStoreDeploymentCommonServiceImpl(
