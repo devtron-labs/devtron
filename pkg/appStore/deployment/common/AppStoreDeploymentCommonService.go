@@ -102,6 +102,7 @@ func NewAppStoreDeploymentCommonServiceImpl(
 	gitFactory *util.GitFactory,
 	gitOpsConfigRepository repository3.GitOpsConfigRepository,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
+	deploymentTypeConfig *DeploymentCommonServiceTypeConfig,
 ) *AppStoreDeploymentCommonServiceImpl {
 	return &AppStoreDeploymentCommonServiceImpl{
 		logger:                               logger,
@@ -113,6 +114,7 @@ func NewAppStoreDeploymentCommonServiceImpl(
 		gitFactory:                           gitFactory,
 		gitOpsConfigRepository:               gitOpsConfigRepository,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		deploymentTypeConfig:                 deploymentTypeConfig,
 	}
 }
 
