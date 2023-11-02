@@ -646,10 +646,10 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
                      	left join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id 
             			where cwr.workflow_type = ? or cwr.workflow_type is null) pcwrraw  
       				where max_started_on_rank = 1) pcwr 
-         		INNER JOIN environment e on e.id = pcwr.env_id 
+         		INNER JOIN environment e on e.id = pcwr.environment_id 
          		LEFT JOIN ci_artifact ca on ca.id = pcwr.ci_artifact_id 
          		LEFT JOIN users u on u.id = pcwr.triggered_by 
-        		LEFT JOIN env_level_app_metrics elam on pcwr.env_id = elam.env_id and pcwr.app_id = elam.app_id 
+        		LEFT JOIN env_level_app_metrics elam on pcwr.environment_id = elam.env_id and pcwr.app_id = elam.app_id 
         		LEFT JOIN app_status ap ON pcwr.env_id = ap.env_id and pcwr.app_id=ap.app_id;`
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, "DEPLOY")
 	if err != nil {
