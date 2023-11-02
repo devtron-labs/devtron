@@ -634,12 +634,12 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {
 	// other environment tab
 	var otherEnvironments []*bean.Environment
-	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.env_id, pcwr.deployment_app_delete_request,   
-       			e.cluster_id, e.environment_name as env_name, e.default as prod, e.description, ca.image as last_deployed_image, 
+	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
+       			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image, 
       			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status 
     			from (select * 
       				from (select p.id as pipeline_id, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
-                  	 	cw.ci_artifact_id, p.environment_id as env_id, p.deployment_app_delete_request, 
+                  	 	cw.ci_artifact_id, p.environment_id, p.deployment_app_delete_request, 
                   		row_number() over (partition by p.id order by cwr.started_on desc) as max_started_on_rank  
             			from (select * from pipeline where app_id = ?) as p 
                      	left join cd_workflow cw on cw.pipeline_id = p.id 
