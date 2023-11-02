@@ -1740,10 +1740,12 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
 			return err
 		}
-		err = impl.performNotificationApprovalAction(approvalActionRequest, userId)
-		if err != nil {
-			impl.Logger.Errorw("error occurred while performing notification approval action", "approvalActionRequest", approvalActionRequest, "userId", userId, "err", err)
-			return err
+		if len(approvalActionRequest.ApprovalNotificationConfig.EmailIds) > 0 {
+			err = impl.performNotificationApprovalAction(approvalActionRequest, userId)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while performing notification approval action", "approvalActionRequest", approvalActionRequest, "userId", userId, "err", err)
+				return err
+			}
 		}
 
 	} else {

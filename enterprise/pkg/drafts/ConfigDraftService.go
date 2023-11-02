@@ -103,10 +103,12 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 	if err != nil {
 		return nil, err
 	}
-	err = impl.performNotificationConfigAction(request)
-	if err != nil {
-		impl.logger.Errorw("error occurred while performing notification approval action", "ConfigDraftRequest", request, "err", err)
-		return draft, nil
+	if len(request.ProtectNotificationConfig.EmailIds) > 0 {
+		err = impl.performNotificationConfigAction(request)
+		if err != nil {
+			impl.logger.Errorw("error occurred while performing notification approval action", "ConfigDraftRequest", request, "err", err)
+			return draft, nil
+		}
 	}
 
 	return draft, err
@@ -265,11 +267,14 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(re
 		UserComment:  request.UserComment,
 		UserId:       request.UserId,
 	}
-	err = impl.performNotificationConfigAction(config)
-	if err != nil {
-		impl.logger.Errorw("error occurred while performing notification approval action", "ConfigDraftRequest", request, "err", err)
-		return err
+	if len(request.ProtectNotificationConfig.EmailIds) > 0 {
+		err = impl.performNotificationConfigAction(config)
+		if err != nil {
+			impl.logger.Errorw("error occurred while performing notification approval action", "ConfigDraftRequest", request, "err", err)
+			return err
+		}
 	}
+
 	return nil
 }
 
