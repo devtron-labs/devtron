@@ -361,17 +361,6 @@ func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, u
 }
 
 func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
-	if pluginReq.Id > 0 {
-		existingPlugin, err := impl.globalPluginRepository.GetMetaDataByPluginId(pluginReq.Id)
-		if err != nil {
-			impl.logger.Errorw("createPlugin, error in getting plugin metadata by plugin id", "pluginId", pluginReq.Id, "err", err)
-			return nil, err
-		}
-		if existingPlugin != nil {
-			return nil, errors.New("plugin already exists with this plugin id")
-		}
-	}
-
 	dbConnection := impl.globalPluginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
