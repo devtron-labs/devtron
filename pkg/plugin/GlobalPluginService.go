@@ -23,7 +23,7 @@ type GlobalVariable struct {
 
 type GlobalPluginService interface {
 	GetAllGlobalVariables() ([]*GlobalVariable, error)
-	ListAllPlugins(stageType int) ([]*PluginListComponentDto, error)
+	ListAllPlugins(stageTypeReq string) ([]*PluginListComponentDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
 	PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error)
 	GetDetailedPluginInfoByPluginId(pluginId int) (*PluginMetadataDto, error)
@@ -159,14 +159,35 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 	return globalVariables, nil
 }
 
-func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageType int) ([]*PluginListComponentDto, error) {
+func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*PluginListComponentDto, error) {
 	impl.logger.Infow("request received, ListAllPlugins")
 	var pluginDetails []*PluginListComponentDto
+	pluginsMetadata := make([]*repository.PluginMetadata, 0)
+	var err error
+	var stageType int
 	//getting all plugins metadata(without tags)
-	pluginsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(stageType)
-	if err != nil {
-		impl.logger.Errorw("error in getting plugins", "err", err)
-		return nil, err
+	if len(stageTypeReq) == 0 {
+		pluginsMetadata, err = impl.globalPluginRepository.GetMetaDataForAllPlugins()
+		if err != nil {
+			impl.logger.Errorw("error in getting plugins", "err", err)
+			return nil, err
+		}
+	} else {
+		switch stageTypeReq {
+		case repository.CI_STAGE_TYPE:
+			stageType = repository.CI
+		case repository.CD_STAGE_TYPE:
+			stageType = repository.CD
+		case repository.CI_CD_STAGE_TYPE:
+			stageType = repository.CI_CD
+		default:
+			return nil, errors.New("stage type not recognised, please add valid stage type in query parameter")
+		}
+		pluginsMetadata, err = impl.globalPluginRepository.GetMetaDataForPluginWithStageType(stageType)
+		if err != nil {
+			impl.logger.Errorw("error in getting plugins", "err", err)
+			return nil, err
+		}
 	}
 	pluginIdTagsMap, err := impl.getPluginIdTagsMap()
 	if err != nil {

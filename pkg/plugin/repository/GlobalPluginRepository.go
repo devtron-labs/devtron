@@ -45,10 +45,12 @@ const (
 )
 
 const (
-	CI            = 0
-	CD            = 1
-	CI_CD         = 2
-	CD_STAGE_TYPE = "cd"
+	CI               = 0
+	CD               = 1
+	CI_CD            = 2
+	CD_STAGE_TYPE    = "cd"
+	CI_STAGE_TYPE    = "ci"
+	CI_CD_STAGE_TYPE = "ci_cd"
 )
 
 type PluginMetadata struct {
@@ -171,7 +173,8 @@ type PluginStageMapping struct {
 }
 
 type GlobalPluginRepository interface {
-	GetMetaDataForAllPlugins(stageType int) ([]*PluginMetadata, error)
+	GetMetaDataForAllPlugins() ([]*PluginMetadata, error)
+	GetMetaDataForPluginWithStageType(stageType int) ([]*PluginMetadata, error)
 	GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error)
 	GetAllPluginTags() ([]*PluginTag, error)
 	GetAllPluginTagRelations() ([]*PluginTagRelation, error)
@@ -232,7 +235,18 @@ func (impl *GlobalPluginRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 	return impl.dbConnection
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins(stageType int) ([]*PluginMetadata, error) {
+func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMetadata, error) {
+	var plugins []*PluginMetadata
+	err := impl.dbConnection.Model(&plugins).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all plugins", "err", err)
+		return nil, err
+	}
+	return plugins, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetMetaDataForPluginWithStageType(stageType int) ([]*PluginMetadata, error) {
 	var plugins []*PluginMetadata
 	err := impl.dbConnection.Model(&plugins).
 		Join("INNER JOIN plugin_stage_mapping psm on psm.plugin_id=plugin_metadata.id").
