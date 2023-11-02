@@ -634,22 +634,23 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {
 	// other environment tab
 	var otherEnvironments []*bean.Environment
-	query := `select pcwr.*, e.cluster_id, e.environment_name as env_name, e.default as prod, e.description,  
-              ca.image as last_deployed_image, u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status  
-				from (select * 
-      				from (select p.id as pipeline_id, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id, 
-                   		cw.ci_artifact_id, p.environment_id as env_id, p.deployment_app_delete_request,	 
-                   		row_number() over (partition by p.id order by cwr.started_on desc) as max_started_on_rank 
+	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.env_id, pcwr.deployment_app_delete_request,   
+       			e.cluster_id, e.environment_name as env_name, e.default as prod, e.description, ca.image as last_deployed_image, 
+      			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status 
+    			from (select * 
+      				from (select p.id as pipeline_id, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
+                  	 	cw.ci_artifact_id, p.environment_id as env_id, p.deployment_app_delete_request, 
+                  		row_number() over (partition by p.id order by cwr.started_on desc) as max_started_on_rank  
             			from (select * from pipeline where app_id = ?) as p 
                      	left join cd_workflow cw on cw.pipeline_id = p.id 
                      	left join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id 
-            			where cwr.workflow_type = ? or cwr.workflow_type is null) pcwrraw 
-      				where max_started_on_rank = 1) pcwr  
+            			where cwr.workflow_type = ? or cwr.workflow_type is null) pcwrraw  
+      				where max_started_on_rank = 1) pcwr 
          		INNER JOIN environment e on e.id = pcwr.env_id 
-        		LEFT JOIN ci_artifact ca on ca.id = pcwr.ci_artifact_id 
+         		LEFT JOIN ci_artifact ca on ca.id = pcwr.ci_artifact_id 
          		LEFT JOIN users u on u.id = pcwr.triggered_by 
-         		LEFT JOIN env_level_app_metrics elam on pcwr.env_id = elam.env_id and pcwr.app_id = elam.app_id 
-         		LEFT JOIN app_status ap ON pcwr.env_id = ap.env_id and pcwr.app_id=ap.app_id;`
+        		LEFT JOIN env_level_app_metrics elam on pcwr.env_id = elam.env_id and pcwr.app_id = elam.app_id 
+        		LEFT JOIN app_status ap ON pcwr.env_id = ap.env_id and pcwr.app_id=ap.app_id;`
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, "DEPLOY")
 	if err != nil {
 		impl.Logger.Error("error in fetching other environment", "error", err)
