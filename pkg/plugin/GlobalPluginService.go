@@ -360,7 +360,30 @@ func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, u
 	return nil, nil
 }
 
+func (impl *GlobalPluginServiceImpl) validatePluginRequest(pluginReq *PluginMetadataDto) error {
+	if len(pluginReq.Type) == 0 {
+		return errors.New("invalid plugin type, should be of the type PRESET or SHARED")
+	}
+
+	plugins, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	if err != nil {
+		impl.logger.Errorw("error in getting all plugins", "err", err)
+		return err
+	}
+	for _, plugin := range plugins {
+		if plugin.Name == pluginReq.Name {
+			return errors.New("plugin with the same name exists, please choose another name")
+		}
+	}
+	return nil
+}
+
 func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+	err := impl.validatePluginRequest(pluginReq)
+	if err != nil {
+		return nil, err
+	}
+
 	dbConnection := impl.globalPluginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -415,8 +438,8 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 		impl.logger.Errorw("error in saving plugin step data", "err", err)
 		return nil, err
 	}
-
-	err = impl.CreateNewPluginTagsAndRelationsIfRequired(pluginReq, userId, tx)
+	isUpdateReq := false
+	err = impl.CreateNewPluginTagsAndRelationsIfRequired(pluginReq, isUpdateReq, userId, tx)
 	if err != nil {
 		impl.logger.Errorw("createPlugin, error in CreateNewPluginTagsAndRelationsIfRequired", "err", err)
 		return nil, err
@@ -430,7 +453,7 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 	return pluginReq, nil
 }
 
-func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(pluginReq *PluginMetadataDto, userId int32, tx *pg.Tx) error {
+func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(pluginReq *PluginMetadataDto, isUpdateReq bool, userId int32, tx *pg.Tx) error {
 	allPluginTags, err := impl.globalPluginRepository.GetAllPluginTags()
 	if err != nil {
 		impl.logger.Errorw("error in getting all plugin tags", "err", err)
@@ -482,7 +505,7 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 
 	for _, tagReq := range pluginReq.Tags {
 		for tagType, tagMapping := range pluginTagNameToPluginTagFromDb {
-			if tagType == repository.EXISTING_TAG_TYPE && pluginReq.Id > 0 {
+			if tagType == repository.EXISTING_TAG_TYPE && isUpdateReq {
 				continue
 			}
 			if _, ok := tagMapping[tagReq]; ok {
@@ -736,6 +759,10 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 }
 
 func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+	if len(pluginUpdateReq.Type) == 0 {
+		return nil, errors.New("invalid plugin type, should be of the type PRESET or SHARED")
+	}
+
 	dbConnection := impl.globalPluginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -748,7 +775,7 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 		impl.logger.Errorw("updatePlugin, error in getting pluginMetadata, pluginId does not exist", "pluginId", pluginUpdateReq.Id, "err", err)
 		return nil, err
 	}
-	//update entry in plugin_metadata
+	//update entry in plugin_ metadata
 	pluginMetaData.Name = pluginUpdateReq.Name
 	pluginMetaData.Description = pluginUpdateReq.Description
 	pluginMetaData.Type = repository.PluginType(pluginUpdateReq.Type)
@@ -830,8 +857,8 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 			return nil, err
 		}
 	}
-
-	err = impl.CreateNewPluginTagsAndRelationsIfRequired(pluginUpdateReq, userId, tx)
+	isUpdateReq := true
+	err = impl.CreateNewPluginTagsAndRelationsIfRequired(pluginUpdateReq, isUpdateReq, userId, tx)
 	if err != nil {
 		impl.logger.Errorw("updatePlugin, error in CreateNewPluginTagsAndRelationsIfRequired", "err", err)
 		return nil, err
