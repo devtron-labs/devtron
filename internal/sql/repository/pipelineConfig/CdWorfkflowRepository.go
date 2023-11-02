@@ -41,7 +41,6 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error)
-	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]repository.CiArtifact, int, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -70,8 +69,6 @@ type CdWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
-	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, int, error)
-
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 }
 
@@ -144,6 +141,11 @@ type WorkflowExecutorType string
 
 const WORKFLOW_EXECUTOR_TYPE_AWF = "AWF"
 const WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
+
+type CdWorkflowRunnerWithExtraFields struct {
+	CdWorkflowRunner
+	TotalCount int
+}
 
 type CdWorkflowRunner struct {
 	tableName             struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`

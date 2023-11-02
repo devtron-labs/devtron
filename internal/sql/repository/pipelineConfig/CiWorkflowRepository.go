@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -43,7 +44,7 @@ type CiWorkflowRepository interface {
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
-	FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*CiWorkflow, error)
+	FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error)
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
@@ -294,16 +295,16 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArti
 	return workflow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*CiWorkflow, error) {
-	workflows := make([]*CiWorkflow, 0)
+func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error) {
+	workflows := make([]*WorkflowWithArtifact, 0)
 	if len(ciArtifactIds) == 0 {
 		return workflows, nil
 	}
-	err := impl.dbConnection.Model(&workflows).
-		Column("ci_workflow.git_triggers").
-		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
-		Where("cia.id IN (?)", pg.In(ciArtifactIds)).
-		Select()
+	query := "SELECT cw.git_triggers,cw.id,cw.triggered_by,cw.ci_pipeline_id,cia.id as ci_artifact_id" +
+		" FROM ci_workflow cw INNER JOIN ci_artifact cia on cia.ci_workflow_id = cw.id " +
+		" WHERE cia.id IN (%s)"
+	query = fmt.Sprintf(query, helper.GetCommaSepratedString(ciArtifactIds))
+	_, err := impl.dbConnection.Query(&workflows, query)
 	return workflows, err
 }
 
