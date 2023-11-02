@@ -20,6 +20,12 @@ This stands true for both: base configuration and respective environment-level c
 
 ---
 
+## Tutorial
+
+{% embed url="https://www.youtube.com/watch?v=TVLEbY850hI" caption="Protect Configuration and Approval" %}
+
+---
+
 ## Changing the Configuration Values
 
 {% hint style="info" %}
