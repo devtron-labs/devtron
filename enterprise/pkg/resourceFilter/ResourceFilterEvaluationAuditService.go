@@ -16,8 +16,8 @@ type FilterHistoryObject struct {
 type FilterEvaluationAuditService interface {
 	CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
-	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]FilterState, error)
-	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]FilterState, error)
+	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error)
+	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error)
 }
 
 type FilterEvaluationAuditServiceImpl struct {
@@ -62,7 +62,7 @@ func (impl *FilterEvaluationAuditServiceImpl) UpdateFilterEvaluationAuditRef(id 
 	return impl.filterEvaluationAuditRepo.UpdateRefTypeAndRefId(id, refType, refId)
 }
 
-func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]FilterState, error) {
+func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error) {
 
 	// find the evaluation audit
 	resourceFilterEvaluationAudits, err := impl.filterEvaluationAuditRepo.GetByRefAndMultiSubject(referenceType, referenceId, subjectType, subjectIds)
@@ -71,27 +71,28 @@ func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryData
 		return nil, err
 	}
 
-	subjectIdVsfilterHistoryIdVsStateMap := make(map[int]map[int]FilterState)
+	subjectIdVsfilterHistoryIdVsEvaluatedTimeMap := make(map[int]map[int]time.Time)
 
 	for _, resourceFilterEvaluationAudit := range resourceFilterEvaluationAudits {
-		filterHistoryIdVsStateMap, ok := subjectIdVsfilterHistoryIdVsStateMap[resourceFilterEvaluationAudit.SubjectId]
+		filterHistoryIdVsEvaluatedTimeMap, ok := subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[resourceFilterEvaluationAudit.SubjectId]
 		if !ok {
-			filterHistoryIdVsStateMap = make(map[int]FilterState)
+			filterHistoryIdVsEvaluatedTimeMap = make(map[int]time.Time)
 		}
 		filterHistoryObjects, err := getFilterHistoryObjectsFromJsonString(resourceFilterEvaluationAudit.FilterHistoryObjects)
 		if err != nil {
 			impl.logger.Errorw("error in extracting filter history objects from json string", "err", err, "jsonString", resourceFilterEvaluationAudit.FilterHistoryObjects)
 			return nil, err
 		}
+
 		for _, filterHistoryObject := range filterHistoryObjects {
-			filterHistoryIdVsStateMap[filterHistoryObject.FilterHistoryId] = filterHistoryObject.State
+			filterHistoryIdVsEvaluatedTimeMap[filterHistoryObject.FilterHistoryId] = resourceFilterEvaluationAudit.CreatedOn
 		}
-		subjectIdVsfilterHistoryIdVsStateMap[resourceFilterEvaluationAudit.SubjectId] = filterHistoryIdVsStateMap
+		subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[resourceFilterEvaluationAudit.SubjectId] = filterHistoryIdVsEvaluatedTimeMap
 	}
-	return subjectIdVsfilterHistoryIdVsStateMap, nil
+	return subjectIdVsfilterHistoryIdVsEvaluatedTimeMap, nil
 }
 
-func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]FilterState, error) {
+func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error) {
 	// find the evaluation audit
 	resourceFilterEvaluationAudits, err := impl.filterEvaluationAuditRepo.GetByMultiRefAndMultiSubject(referenceType, referenceIds, subjectType, subjectIds)
 	if err != nil {
@@ -99,13 +100,13 @@ func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryData
 		return nil, err
 	}
 
-	subjectIdVsfilterHistoryIdVsStateMap := make(map[string]map[int]FilterState)
+	subjectIdVsfilterHistoryIdVsEvaluatedTimeMap := make(map[string]map[int]time.Time)
 
 	for _, resourceFilterEvaluationAudit := range resourceFilterEvaluationAudits {
 		subjectAndRefKey := fmt.Sprintf("%v-%v", resourceFilterEvaluationAudit.SubjectId, resourceFilterEvaluationAudit.ReferenceId)
-		filterHistoryIdVsStateMap, ok := subjectIdVsfilterHistoryIdVsStateMap[subjectAndRefKey]
+		filterHistoryIdVsEvaluatedTimeMap, ok := subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[subjectAndRefKey]
 		if !ok {
-			filterHistoryIdVsStateMap = make(map[int]FilterState)
+			filterHistoryIdVsEvaluatedTimeMap = make(map[int]time.Time)
 		}
 		filterHistoryObjects, err := getFilterHistoryObjectsFromJsonString(resourceFilterEvaluationAudit.FilterHistoryObjects)
 		if err != nil {
@@ -113,11 +114,11 @@ func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryData
 			return nil, err
 		}
 		for _, filterHistoryObject := range filterHistoryObjects {
-			filterHistoryIdVsStateMap[filterHistoryObject.FilterHistoryId] = filterHistoryObject.State
+			filterHistoryIdVsEvaluatedTimeMap[filterHistoryObject.FilterHistoryId] = resourceFilterEvaluationAudit.CreatedOn
 		}
-		subjectIdVsfilterHistoryIdVsStateMap[subjectAndRefKey] = filterHistoryIdVsStateMap
+		subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[subjectAndRefKey] = filterHistoryIdVsEvaluatedTimeMap
 	}
-	return subjectIdVsfilterHistoryIdVsStateMap, nil
+	return subjectIdVsfilterHistoryIdVsEvaluatedTimeMap, nil
 }
 
 func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (string, error) {

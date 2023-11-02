@@ -181,7 +181,7 @@ type WorkflowResponse struct {
 	ReferenceWorkflowId     int                                         `json:"referenceWorkflowId"`
 	AppliedFilters          []*resourceFilter.FilterMetaDataBean        `json:"appliedFilters"`
 	AppliedFiltersState     resourceFilter.FilterState                  `json:"appliedFiltersState"`
-	AppliedFiltersTimestamp *time.Time                                  `json:"appliedFiltersTimestamp"`
+	AppliedFiltersTimestamp time.Time                                   `json:"appliedFiltersTimestamp"`
 }
 
 type ArtifactsForCiJob struct {

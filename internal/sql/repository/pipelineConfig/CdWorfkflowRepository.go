@@ -221,7 +221,7 @@ type CdWorkflowWithArtifact struct {
 	RefCdWorkflowRunnerId   int                                  `json:"referenceCdWorkflowRunnerId"`
 	AppliedFilters          []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
 	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
-	AppliedFiltersTimestamp *time.Time                           `json:"appliedFiltersTimestamp"`
+	AppliedFiltersTimestamp time.Time                            `json:"appliedFiltersTimestamp"`
 }
 
 type TriggerWorkflowStatus struct {

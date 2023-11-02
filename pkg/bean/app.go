@@ -762,7 +762,7 @@ type CiArtifactBean struct {
 	FilterState             resourceFilter.FilterState           `json:"filterState"`
 	AppliedFilters          []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
 	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
-	AppliedFiltersTimestamp *time.Time                           `json:"appliedFiltersTimestamp"`
+	AppliedFiltersTimestamp time.Time                            `json:"appliedFiltersTimestamp"`
 	CreatedTime             string                               `json:"createdTime"`
 	ExternalCiPipelineId    int                                  `json:"-"`
 	ParentCiArtifact        int                                  `json:"-"`
