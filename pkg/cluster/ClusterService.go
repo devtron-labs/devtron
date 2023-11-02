@@ -182,7 +182,6 @@ type ClusterService interface {
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
-	GetClusterConfigByEnvId(envId int) (*k8s.ClusterConfig, error)
 }
 
 type ClusterServiceImpl struct {
@@ -1109,20 +1108,6 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 	clusterConfig, err := rq.GetClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, err
-	}
-	return clusterConfig, nil
-}
-
-func (impl ClusterServiceImpl) GetClusterConfigByEnvId(envId int) (*k8s.ClusterConfig, error) {
-	envBean, err := impl.environmentService.FindById(envId)
-	if err != nil {
-		impl.logger.Errorw("error in getting envBean by envId", "err", err, "envId", envId)
-		return nil, err
-	}
-	clusterConfig, err := impl.GetClusterConfigByClusterId(envBean.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config by env id", "err", err, "envId", envId)
 		return nil, err
 	}
 	return clusterConfig, nil

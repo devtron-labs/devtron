@@ -114,9 +114,14 @@ type CiHandlerImpl struct {
 	k8sCommonService             k8s2.K8sCommonService
 	clusterService               cluster.ClusterService
 	blobConfigStorageService     BlobStorageConfigService
+	envService                   cluster.EnvironmentService
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
+	ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
+	imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
+	envService cluster.EnvironmentService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -142,6 +147,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		k8sCommonService:             k8sCommonService,
 		clusterService:               clusterService,
 		blobConfigStorageService:     blobConfigStorageService,
+		envService:                   envService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -911,9 +917,14 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		GcpBlobBaseConfig:   gcpBlobBaseConfig,
 	}
 	if useExternalBlobStorage {
-		clusterConfig, err := impl.clusterService.GetClusterConfigByEnvId(ciWorkflow.EnvironmentId)
+		envBean, err := impl.envService.FindById(ciWorkflow.EnvironmentId)
 		if err != nil {
-			impl.Logger.Errorw("GetClusterConfigByEnvId, error in fetching clusterConfig by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			impl.Logger.Errorw("error in getting envBean by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			return nil, err
+		}
+		clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(envBean.ClusterId)
+		if err != nil {
+			impl.Logger.Errorw("GetClusterConfigByClusterId, error in fetching clusterConfig by clusterId", "err", err, "clusterId", envBean.ClusterId)
 			return nil, err
 		}
 		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
@@ -985,9 +996,14 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	}
 	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCdWorkflow)
 	if useExternalBlobStorage {
-		clusterConfig, err := impl.clusterService.GetClusterConfigByEnvId(ciWorkflow.EnvironmentId)
+		envBean, err := impl.envService.FindById(ciWorkflow.EnvironmentId)
 		if err != nil {
-			impl.Logger.Errorw("GetClusterConfigByEnvId, error in fetching clusterConfig by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			impl.Logger.Errorw("error in getting envBean by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			return nil, err
+		}
+		clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(envBean.ClusterId)
+		if err != nil {
+			impl.Logger.Errorw("GetClusterConfigByClusterId, error in fetching clusterConfig by clusterId", "err", err, "clusterId", envBean.ClusterId)
 			return nil, err
 		}
 		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
