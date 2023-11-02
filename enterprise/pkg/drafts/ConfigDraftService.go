@@ -268,7 +268,7 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(re
 		err = impl.performNotificationConfigAction(config)
 		if err != nil {
 			impl.logger.Errorw("error occurred while performing notification approval action", "ConfigDraftRequest", request, "err", err)
-			return err
+			return nil
 		}
 	}
 
