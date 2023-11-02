@@ -42,7 +42,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -147,7 +149,7 @@ type WorkflowDagExecutorImpl struct {
 	helmRepoPushService            app.HelmRepoPushService
 	pipelineStageRepository        repository4.PipelineStageRepository
 	pipelineStageService           PipelineStageService
-	config                         *CdConfig
+	config                         *types.CdConfig
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 	celService                     resourceFilter.CELEvaluatorService
 	resourceFilterService          resourceFilter.ResourceFilterService
@@ -222,17 +224,6 @@ const (
 	DEVTRON_CD_TRIGGER_TIME      = "DEVTRON_CD_TRIGGER_TIME"
 )
 
-type CiArtifactDTO struct {
-	Id                   int    `json:"id"`
-	PipelineId           int    `json:"pipelineId"` //id of the ci pipeline from which this webhook was triggered
-	Image                string `json:"image"`
-	ImageDigest          string `json:"imageDigest"`
-	MaterialInfo         string `json:"materialInfo"` //git material metadata json array string
-	DataSource           string `json:"dataSource"`
-	WorkflowId           *int   `json:"workflowId"`
-	ciArtifactRepository repository.CiArtifactRepository
-}
-
 type CdStageCompleteEvent struct {
 	CiProjectDetails []bean3.CiProjectDetails     `json:"ciProjectDetails"`
 	WorkflowId       int                          `json:"workflowId"`
@@ -243,22 +234,6 @@ type CdStageCompleteEvent struct {
 	ArtifactLocation string                       `json:"artifactLocation"`
 	PipelineName     string                       `json:"pipelineName"`
 	CiArtifactDTO    pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
-}
-
-type GitMetadata struct {
-	GitCommitHash  string `json:"GIT_COMMIT_HASH"`
-	GitSourceType  string `json:"GIT_SOURCE_TYPE"`
-	GitSourceValue string `json:"GIT_SOURCE_VALUE"`
-}
-
-type AppLabelMetadata struct {
-	AppLabelKey   string `json:"APP_LABEL_KEY"`
-	AppLabelValue string `json:"APP_LABEL_VALUE"`
-}
-
-type ChildCdMetadata struct {
-	ChildCdEnvName     string `json:"CHILD_CD_ENV_NAME"`
-	ChildCdClusterName string `json:"CHILD_CD_CLUSTER_NAME"`
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -406,7 +381,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 		imageTaggingService:                 imageTaggingService,
 	}
-	config, err := GetCdConfig()
+	config, err := types.GetCdConfig()
 	if err != nil {
 		return nil
 	}
@@ -822,7 +797,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	if err != nil {
 		return err
 	}
-	cdStageWorkflowRequest.StageType = PRE
+	cdStageWorkflowRequest.StageType = types.PRE
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
@@ -857,7 +832,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			return err
 		}
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
-			err = impl.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, PRE, pipeline, imageTag, ctx)
+			err = impl.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, types.PRE, pipeline, imageTag, ctx)
 			if err != nil {
 				runner.Status = pipelineConfig.WorkflowFailed
 				runner.UpdatedBy = triggeredBy
@@ -1041,7 +1016,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		impl.logger.Errorw("error in building wfRequest", "err", err, "runner", runner, "cdWf", cdWf, "pipeline", pipeline)
 		return err
 	}
-	cdStageWorkflowRequest.StageType = POST
+	cdStageWorkflowRequest.StageType = types.POST
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
@@ -1075,7 +1050,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			return err
 		}
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
-			err = impl.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, POST, pipeline, imageTag, context.Background())
+			err = impl.PushPrePostCDManifest(runner.Id, triggeredBy, jobHelmPackagePath, types.POST, pipeline, imageTag, context.Background())
 			if err != nil {
 				runner.Status = pipelineConfig.WorkflowFailed
 				runner.UpdatedBy = triggeredBy
@@ -1186,7 +1161,7 @@ func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVa
 		}
 	}
 }
-func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*WorkflowRequest, error) {
+func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*types.WorkflowRequest, error) {
 	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -1248,8 +1223,8 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 					AuthMode:      gitMaterial.GitProvider.AuthMode,
 				},
 			}
-			if IsShallowClonePossible(m, impl.config.GitProviders, impl.config.CloningMode) {
-				ciProjectDetail.CloningMode = CloningModeShallow
+			if executors.IsShallowClonePossible(m, impl.config.GitProviders, impl.config.CloningMode) {
+				ciProjectDetail.CloningMode = executors.CloningModeShallow
 			}
 
 			if len(ciMaterialCurrent.Modifications) > 0 {
@@ -1262,6 +1237,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 					return nil, err
 				}
 				ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
+			} else if ciPipeline.PipelineType == bean3.CI_JOB {
+				// This has been done to resolve unmarshalling issue in ci-runner, in case of no commit time(eg- polling container images)
+				ciProjectDetail.CommitTime = time.Time{}.Format(bean2.LayoutRFC3339)
 			} else {
 				impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
 				return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
@@ -1375,7 +1353,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 
-	cdStageWorkflowRequest := &WorkflowRequest{
+	cdStageWorkflowRequest := &types.WorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
 		WorkflowId:            cdWf.Id,
@@ -1389,7 +1367,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CiProjectDetails:      ciProjectDetails,
 		Namespace:             runner.Namespace,
 		ActiveDeadlineSeconds: impl.config.GetDefaultTimeout(),
-		CiArtifactDTO: CiArtifactDTO{
+		CiArtifactDTO: types.CiArtifactDTO{
 			Id:           artifact.Id,
 			PipelineId:   artifact.PipelineId,
 			Image:        artifact.Image,
@@ -1420,14 +1398,14 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	var webhookAndCiData *gitSensorClient.WebhookAndCiData
 	if ciWf != nil && ciWf.GitTriggers != nil {
 		i := 1
-		var gitCommitEnvVariables []GitMetadata
+		var gitCommitEnvVariables []types.GitMetadata
 
 		for ciPipelineMaterialId, gitTrigger := range ciWf.GitTriggers {
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
 
-			gitCommitEnvVariables = append(gitCommitEnvVariables, GitMetadata{
+			gitCommitEnvVariables = append(gitCommitEnvVariables, types.GitMetadata{
 				GitCommitHash:  gitTrigger.Commit,
 				GitSourceType:  string(gitTrigger.CiConfigureSourceType),
 				GitSourceValue: gitTrigger.CiConfigureSourceValue,
@@ -1478,12 +1456,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("error in getting pipelines by ids", "err", err, "ids", childCdIds)
 			return nil, err
 		}
-		var childCdEnvVariables []ChildCdMetadata
+		var childCdEnvVariables []types.ChildCdMetadata
 		for i, childPipeline := range childPipelines {
 			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_ENV_NAME_PREFIX, i+1)] = childPipeline.Environment.Name
 			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_CLUSTER_NAME_PREFIX, i+1)] = childPipeline.Environment.Cluster.ClusterName
 
-			childCdEnvVariables = append(childCdEnvVariables, ChildCdMetadata{
+			childCdEnvVariables = append(childCdEnvVariables, types.ChildCdMetadata{
 				ChildCdEnvName:     childPipeline.Environment.Name,
 				ChildCdClusterName: childPipeline.Environment.Cluster.ClusterName,
 			})
@@ -1508,6 +1486,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
+		cdStageWorkflowRequest.CiPipelineType = ciPipeline.PipelineType
 	} else if cdPipeline.AppId > 0 {
 		ciTemplate, err := impl.CiTemplateRepository.FindByAppId(cdPipeline.AppId)
 		if err != nil {
@@ -1528,11 +1507,11 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
 			return nil, err
 		}
-		var appLabelEnvVariables []AppLabelMetadata
+		var appLabelEnvVariables []types.AppLabelMetadata
 		for i, appLabel := range appLabels {
 			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_KEY_PREFIX, i+1)] = appLabel.Key
 			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_VALUE_PREFIX, i+1)] = appLabel.Value
-			appLabelEnvVariables = append(appLabelEnvVariables, AppLabelMetadata{
+			appLabelEnvVariables = append(appLabelEnvVariables, types.AppLabelMetadata{
 				AppLabelKey:   appLabel.Key,
 				AppLabelValue: appLabel.Value,
 			})
@@ -1570,7 +1549,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 	cdStageWorkflowRequest.BlobStorageConfigured = runner.BlobStorageEnabled
 	switch cdStageWorkflowRequest.CloudProvider {
-	case BLOB_STORAGE_S3:
+	case types.BLOB_STORAGE_S3:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
 		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
 		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
@@ -1590,7 +1569,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			CiLogRegion:                impl.config.GetDefaultCdLogsBucketRegion(),
 			CiLogBucketVersioning:      impl.config.BlobStorageS3BucketVersioned,
 		}
-	case BLOB_STORAGE_GCP:
+	case types.BLOB_STORAGE_GCP:
 		cdStageWorkflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 			ArtifactBucketName:     impl.config.GetDefaultBuildLogsBucket(),
@@ -1598,7 +1577,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWorkflowConfig, cdWf, runner)
 		cdStageWorkflowRequest.CiArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
-	case BLOB_STORAGE_AZURE:
+	case types.BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
 			Enabled:               true,
 			AccountName:           impl.config.AzureAccountName,

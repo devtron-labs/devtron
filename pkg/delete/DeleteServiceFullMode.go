@@ -6,13 +6,14 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type DeleteServiceFullMode interface {
-	DeleteGitProvider(deleteRequest *pipeline.GitRegistry) error
-	DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error
+	DeleteGitProvider(deleteRequest *types.GitRegistry) error
+	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteContainerRegistryConfig(storeId string) bool
 	CanDeleteChartRegistryPushConfig(storeId string) bool
 }
@@ -45,7 +46,7 @@ func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
 		manifestPushConfigRepository: manifestPushConfigRepository,
 	}
 }
-func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *pipeline.GitRegistry) error {
+func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *types.GitRegistry) error {
 	//finding if this git account is used in any git material, if yes then will not delete
 	materials, err := impl.gitMaterialRepository.FindByGitProviderId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -64,7 +65,7 @@ func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *pipeline.
 	return nil
 }
 
-func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error {
+func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error {
 	//finding if docker reg is used in any app, if yes then will not delete
 	ciTemplates, err := impl.ciTemplateRepository.FindByDockerRegistryId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {

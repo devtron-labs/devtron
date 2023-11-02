@@ -2,6 +2,7 @@ package delete
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -19,7 +20,7 @@ type DeleteService interface {
 	DeleteTeam(deleteRequest *team.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error
-	DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error
+	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
 }
 
@@ -110,7 +111,7 @@ func (impl DeleteServiceImpl) DeleteVirtualCluster(bean *cluster.VirtualClusterB
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error {
+func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error {
 	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(deleteRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("error in deleting docker registry", "err", err, "deleteRequest", deleteRequest)
