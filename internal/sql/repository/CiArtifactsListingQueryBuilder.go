@@ -61,11 +61,11 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 	//	" AND cia.image LIKE '%v' "
 	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType, listingFilterOptions.ParentId, listingFilterOptions.PluginStage, listingFilterOptions.SearchString)
 	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
-		commonQuery = commonQuery + fmt.Sprintf(" AND ( cd_workflow.ci_artifact_id NOT IN (%v))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
+		commonQuery = commonQuery + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (%v))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
 	}
 
 	totalCountQuery := "SELECT COUNT(DISTINCT ci_artifact.id) as total_count " + commonQuery
-	selectQuery := fmt.Sprintf("SELECT ci_artifact.id , (%v) ", totalCountQuery)
+	selectQuery := fmt.Sprintf("SELECT DISTINCT(ci_artifact.id) , (%v) ", totalCountQuery)
 	//GroupByQuery := " GROUP BY cia.id "
 	limitOffSetQuery := fmt.Sprintf(" LIMIT %v OFFSET %v", listingFilterOptions.Limit, listingFilterOptions.Offset)
 
