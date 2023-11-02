@@ -133,8 +133,12 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, n
 		}
 		return nil, err
 	}
+	status := ""
+	if len(wf.Status.Conditions) > 0 {
+		status = string(wf.Status.Conditions[0].Type)
+	}
 	wfStatus := &types2.WorkflowStatus{
-		Status: string(wf.Status.Conditions[0].Type),
+		Status: status,
 	}
 	return wfStatus, nil
 }
