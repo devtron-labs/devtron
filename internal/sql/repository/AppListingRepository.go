@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strconv"
@@ -651,7 +650,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
          		LEFT JOIN users u on u.id = pcwr.triggered_by 
          		LEFT JOIN env_level_app_metrics elam on pcwr.env_id = elam.env_id and pcwr.app_id = elam.app_id 
          		LEFT JOIN app_status ap ON pcwr.env_id = ap.env_id and pcwr.app_id=ap.app_id;`
-	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, pipelineConfig.WorkflowTypeDeploy)
+	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, "DEPLOY")
 	if err != nil {
 		impl.Logger.Error("error in fetching other environment", "error", err)
 		return nil, err
