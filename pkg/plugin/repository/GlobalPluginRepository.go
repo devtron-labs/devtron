@@ -45,9 +45,9 @@ const (
 )
 
 const (
-	CI                = 0
-	CD                = 1
-	CI_CD             = 2
+	CI                = 1
+	CD                = 2
+	CI_CD             = 3
 	CD_STAGE_TYPE     = "cd"
 	CI_STAGE_TYPE     = "ci"
 	CI_CD_STAGE_TYPE  = "ci_cd"
