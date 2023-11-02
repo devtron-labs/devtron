@@ -1,5 +1,7 @@
 package utils
 
+import mapset "github.com/deckarep/golang-set"
+
 // ToInterfaceArray converts an array of string to an array of interface{}
 func ToInterfaceArray(arr []string) []interface{} {
 	interfaceArr := make([]interface{}, len(arr))
@@ -16,4 +18,10 @@ func ToStringArray(interfaceArr []interface{}) []string {
 		stringArr[i] = v.(string)
 	}
 	return stringArr
+}
+
+func FilterDuplicatesInStringArray(items []string) []string {
+	itemsSet := mapset.NewSetFromSlice(ToInterfaceArray(items))
+	uniqueItems := ToStringArray(itemsSet.ToSlice())
+	return uniqueItems
 }
