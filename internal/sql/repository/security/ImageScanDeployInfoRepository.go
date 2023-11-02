@@ -145,13 +145,13 @@ func (impl ImageScanDeployInfoRepositoryImpl) FetchListingGroupByObject(size int
 }
 
 func (impl ImageScanDeployInfoRepositoryImpl) FetchByAppIdAndEnvId(appId int, envId int, objectType []string) (*ImageScanDeployInfo, error) {
-	var model *ImageScanDeployInfo
-	err := impl.dbConnection.Model(model).
+	var model ImageScanDeployInfo
+	err := impl.dbConnection.Model(&model).
 		Where("scan_object_meta_id = ?", appId).
 		Where("env_id = ?", envId).Where("object_type in (?)", pg.In(objectType)).
 		Order("created_on desc").Limit(1).
 		Select()
-	return model, err
+	return &model, err
 }
 
 func (impl ImageScanDeployInfoRepositoryImpl) FindByTypeMetaAndTypeId(scanObjectMetaId int, objectType string) (*ImageScanDeployInfo, error) {
