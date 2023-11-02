@@ -110,6 +110,7 @@ type CiPipelineRepository interface {
 	UpdateCiEnvMapping(cienvmapping *CiEnvMapping, tx *pg.Tx) error
 	PipelineExistsByName(names []string) (found []string, err error)
 	FindByName(pipelineName string) (pipeline *CiPipeline, err error)
+	CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error)
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
 
 	FetchParentCiPipelinesForDG() ([]*CiPipelinesMap, error)
@@ -367,6 +368,18 @@ func (impl CiPipelineRepositoryImpl) FindByName(pipelineName string) (pipeline *
 		Select()
 
 	return pipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error) {
+	pipeline := &CiPipeline{}
+	found, err := impl.dbConnection.Model(pipeline).
+		Column("ci_pipeline.*").
+		Where("name = ?", pipelineName).
+		Where("app_id = ?", appId).
+		Where("deleted =? ", false).
+		Exists()
+
+	return found, err
 }
 
 func (impl CiPipelineRepositoryImpl) FetchParentCiPipelinesForDG() ([]*CiPipelinesMap, error) {
