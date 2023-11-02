@@ -584,6 +584,8 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 		handler.logger.Errorw("service err, CreateRoleGroup", "err", err, "payload", request)
 		if _, ok := err.(*util.ApiError); ok {
 			common.WriteJsonResp(w, err, nil, http.StatusOK)
+		} else if err.Error() == bean2.VALIDATION_FAILED_ERROR_MSG {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
