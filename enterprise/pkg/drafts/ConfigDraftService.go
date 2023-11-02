@@ -115,7 +115,6 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 
 }
 func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request ConfigDraftRequest) error {
-	var err error
 	var defaultSesConfig *repository.SESConfig
 	var defaultSmtpConfig *repository.SMTPConfig
 	eventType := util2.ConfigApproval
@@ -127,6 +126,20 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request Conf
 		payload = &client.Payload{}
 		event.Payload = payload
 	}
+	err := impl.setEventPayload(request, payload)
+	if err != nil {
+		impl.logger.Errorw("error in setting payload", "error", err)
+		return err
+	}
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.logger.Errorw("unable to sent for protect config approval", "error", evtErr)
+		return evtErr
+	}
+	return nil
+}
+
+func (impl *ConfigDraftServiceImpl) setEventPayload(request ConfigDraftRequest, payload *client.Payload) error {
 	protectConfigLink := setProtectConfigLink(request)
 	payload.ProtectConfigLink = protectConfigLink
 	application, err := impl.appRepo.FindById(request.AppId)
@@ -142,17 +155,11 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request Conf
 			return err
 		}
 	}
-
 	payload.AppName = application.AppName
 	payload.EnvName = environment.Name
 	payload.ProtectConfigFileName = request.ResourceName
 	payload.ProtectConfigComment = request.UserComment
 	payload.ProtectConfigFileType = string(request.Resource.getDraftResourceType())
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.logger.Errorw("unable to sent for protect config approval", "error", evtErr)
-		return evtErr
-	}
 	return nil
 }
 
@@ -173,31 +180,21 @@ func setProviderForNotification(request ConfigDraftRequest, defaultSesConfig *re
 
 func setProtectConfigLink(request ConfigDraftRequest) string {
 	var ProtectConfigLink string
-	if request.EnvId == -1 {
-		if request.Resource == CMDraftResource {
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/configmap/%s", request.AppId, request.ResourceName)
-		}
-		if request.Resource == CSDraftResource {
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/secrets/%s", request.AppId, request.ResourceName)
-
-		}
-		if request.Resource == DeploymentTemplateResource {
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/deployment-template", request.AppId)
-
-		}
-	} else if request.EnvId != -1 {
-		if request.Resource == CMDraftResource {
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/configmap/%s", request.AppId, request.EnvId, request.ResourceName)
-		}
-		if request.Resource == CSDraftResource {
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/secrets/%s", request.AppId, request.EnvId, request.ResourceName)
-
-		}
-		if request.Resource == DeploymentTemplateResource {
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/deployment-template", request.AppId, request.EnvId)
-
-		}
-
+	switch {
+	case request.EnvId == -1 && request.Resource == CMDraftResource:
+		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/configmap/%s", request.AppId, request.ResourceName)
+	case request.EnvId == -1 && request.Resource == CSDraftResource:
+		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/secrets/%s", request.AppId, request.ResourceName)
+	case request.EnvId == -1 && request.Resource == DeploymentTemplateResource:
+		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/deployment-template", request.AppId)
+	case request.EnvId != -1 && request.Resource == CMDraftResource:
+		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/configmap/%s", request.AppId, request.EnvId, request.ResourceName)
+	case request.EnvId != -1 && request.Resource == CSDraftResource:
+		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/secrets/%s", request.AppId, request.EnvId, request.ResourceName)
+	case request.EnvId != -1 && request.Resource == DeploymentTemplateResource:
+		ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/deployment-template", request.AppId, request.EnvId)
+	default:
+		ProtectConfigLink = ""
 	}
 
 	return ProtectConfigLink
