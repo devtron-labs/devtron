@@ -8,7 +8,6 @@ import (
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -49,14 +48,12 @@ type ConfigDraftServiceImpl struct {
 	envRepository             repository2.EnvironmentRepository
 	eventFactory              client.EventFactory
 	eventClient               client.EventClient
-	pipelineRepository        pipelineConfig.PipelineRepository
 }
 
 func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, configMapService pipeline.ConfigMapService, chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService, resourceProtectionService protect.ResourceProtectionService,
 	userService user.UserService, appRepo app.AppRepository, envRepository repository2.EnvironmentRepository,
-	eventFactory client.EventFactory, eventClient client.EventClient,
-	pipelineRepository pipelineConfig.PipelineRepository) *ConfigDraftServiceImpl {
+	eventFactory client.EventFactory, eventClient client.EventClient) *ConfigDraftServiceImpl {
 	draftServiceImpl := &ConfigDraftServiceImpl{
 		logger:                    logger,
 		configDraftRepository:     configDraftRepository,
@@ -69,7 +66,6 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 		envRepository:             envRepository,
 		eventFactory:              eventFactory,
 		eventClient:               eventClient,
-		pipelineRepository:        pipelineRepository,
 	}
 	resourceProtectionService.RegisterListener(draftServiceImpl)
 	return draftServiceImpl
