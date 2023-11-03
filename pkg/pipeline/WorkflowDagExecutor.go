@@ -774,7 +774,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 				return err
 			}
 			var customTagId int
-			if customTag == nil {
+			if customTag != nil {
 				customTagId = customTag.Id
 			}
 			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, dockerImageTag, customTagId, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
