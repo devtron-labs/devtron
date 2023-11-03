@@ -769,7 +769,16 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 			impl.logger.Errorw("error in fetching pipeline Stage", "stageType", stageType, "pipelineId", pipelineId, "err", err)
 			return ciArtifactBeans
 		}
-		referenceId = pipelineStage.Id
+		//this may happen if PRE-CD/POST-CD not yet migrated to pipeline_stage table
+		if pipelineStage != nil {
+			referenceId = pipelineStage.Id
+		} else {
+			if stageType == repository2.PIPELINE_STAGE_TYPE_PRE_CD {
+				referenceType = resourceFilter.PrePipelineStageYaml
+			} else if stageType == repository2.PIPELINE_STAGE_TYPE_POST_CD {
+				referenceType = resourceFilter.PostPipelineStageYaml
+			}
+		}
 	}
 	artifactIds := make([]int, 0, len(ciArtifactBeans))
 	for _, ciArtifactBean := range ciArtifactBeans {
