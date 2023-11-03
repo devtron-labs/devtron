@@ -618,8 +618,8 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
 	}
-	if len(workflowRunner.ImageReservationIds) > 0 {
-		err := impl.customTagService.DeactivateImagePathReservationByImageIds(workflowRunner.ImageReservationIds)
+	if len(workflowRunner.ImagePathReservationIds) > 0 {
+		err := impl.customTagService.DeactivateImagePathReservationByImageIds(workflowRunner.ImagePathReservationIds)
 		if err != nil {
 			impl.Logger.Errorw("error in deactivating image path reservation ids", "err", err)
 			return 0, err

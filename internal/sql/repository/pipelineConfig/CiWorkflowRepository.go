@@ -77,7 +77,7 @@ type CiWorkflow struct {
 	ImagePathReservationId  int               `sql:"image_path_reservation_id"`
 	ReferenceCiWorkflowId   int               `sql:"ref_ci_workflow_id"`
 	ParentCiWorkFlowId      int               `sql:"parent_ci_workflow_id"`
-	ImagePathReservationIds []int             `json:"image_path_reservation_ids"`
+	ImagePathReservationIds []int             `sql:"image_path_reservation_ids" pg:",array"`
 	CiPipeline              *CiPipeline
 }
 

@@ -125,8 +125,8 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			return
 		}
 		if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-			if len(wfr.ImageReservationIds) > 0 {
-				err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImageReservationIds)
+			if len(wfr.ImagePathReservationIds) > 0 {
+				err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
 				if err != nil {
 					impl.logger.Errorw("error in removing image path reservation ")
 				}

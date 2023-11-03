@@ -783,7 +783,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return err
 			}
-			runner.ImageReservationIds = imagePathReservationIds
+			runner.ImagePathReservationIds = imagePathReservationIds
 			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 			if err != nil {
 				impl.logger.Errorw("error in updating image path reservation ")
@@ -955,7 +955,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		impl.logger.Errorw("error in getting wfr by workflowId and runnerType", "err", err, "wfId", cdWf.Id)
 		return err
 	}
-	wfr.ImageReservationIds = pluginImagePathReservationIds
+	wfr.ImagePathReservationIds = pluginImagePathReservationIds
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
 	if err != nil {
 		impl.logger.Error("error in updating image path reservation ids in cd workflow runner", "err", "err")
