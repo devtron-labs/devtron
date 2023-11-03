@@ -383,7 +383,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
 	payload := &Payload{}
-	setProviderForNotification(request, defaultSesConfig, defaultSmtpConfig, payload)
+	setProviderForNotification(request.EmailIds, defaultSesConfig, defaultSmtpConfig, payload)
 	err = impl.setEventPayload(request, payload)
 	if err != nil {
 		impl.logger.Errorw("error in setting payload", "error", err)
@@ -400,8 +400,8 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 	event.Payload = payload
 	return event
 }
-func setProviderForNotification(request ConfigDataForNotification, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, payload *Payload) {
-	for _, emailId := range request.EmailIds {
+func setProviderForNotification(EmailIds []string, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, payload *Payload) {
+	for _, emailId := range EmailIds {
 		provider := &notifier.Provider{
 			ConfigId:  0,
 			Recipient: emailId,
