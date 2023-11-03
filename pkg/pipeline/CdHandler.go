@@ -1765,7 +1765,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 }
 
 func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean3.UserApprovalActionRequest, userId int32) {
-	if len(approvalActionRequest.ApprovalNotificationConfig.EmailIds) > 0 {
+	if len(approvalActionRequest.ApprovalNotificationConfig.EmailIds) == 0 {
 		return
 	}
 	eventType := util2.Approval

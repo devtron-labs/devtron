@@ -102,7 +102,7 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 }
 
 func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request ConfigDraftRequest) {
-	if len(request.ProtectNotificationConfig.EmailIds) > 0 {
+	if len(request.ProtectNotificationConfig.EmailIds) == 0 {
 		return
 	}
 	eventType := util2.ConfigApproval
