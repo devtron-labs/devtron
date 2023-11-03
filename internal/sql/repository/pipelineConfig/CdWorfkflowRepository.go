@@ -98,6 +98,9 @@ const (
 	WorkflowSucceeded          = "Succeeded"
 	WorkflowTimedOut           = "TimedOut"
 	WorkflowUnableToFetchState = "UnableToFetch"
+	WorkflowTypeDeploy         = "DEPLOY"
+	WorkflowTypePre            = "PRE"
+	WorkflowTypePost           = "POST"
 )
 
 func (a WorkflowStatus) String() string {
@@ -169,6 +172,16 @@ type CdWorkflowRunner struct {
 	sql.AuditLog
 }
 
+func (c *CdWorkflowRunner) IsExternalRun() bool {
+	var isExtCluster bool
+	if c.WorkflowType == WorkflowTypePre {
+		isExtCluster = c.CdWorkflow.Pipeline.RunPreStageInEnv
+	} else if c.WorkflowType == WorkflowTypePost {
+		isExtCluster = c.CdWorkflow.Pipeline.RunPostStageInEnv
+	}
+	return isExtCluster
+}
+
 type CiPipelineMaterialResponse struct {
 	Id              int                    `json:"id"`
 	GitMaterialId   int                    `json:"gitMaterialId"`
@@ -237,6 +250,7 @@ type CiWorkflowStatus struct {
 	CiPipelineName    string `json:"ciPipelineName,omitempty"`
 	CiStatus          string `json:"ciStatus"`
 	StorageConfigured bool   `json:"storageConfigured"`
+	CiWorkflowId      int    `json:"ciWorkflowId,omitempty"`
 }
 
 type AppDeploymentStatus struct {
