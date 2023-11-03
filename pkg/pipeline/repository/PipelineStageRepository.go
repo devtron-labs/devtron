@@ -155,6 +155,7 @@ type PipelineStageRepository interface {
 	MarkPipelineStageStepsDeletedByStageId(stageId int, updatedBy int32, tx *pg.Tx) error
 	GetAllStepsByStageId(stageId int) ([]*PipelineStageStep, error)
 	GetAllCiPipelineIdsByPluginIdAndStageType(pluginId int, stageType string) ([]int, error)
+	CheckPluginExistsInCiPipeline(pipelineId int, stageType string, pluginId int) (bool, error)
 	GetStepById(stepId int) (*PipelineStageStep, error)
 	MarkStepsDeletedByStageId(stageId int) error
 	MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq []int, stageId int) error
@@ -395,6 +396,19 @@ func (impl *PipelineStageRepositoryImpl) GetAllCiPipelineIdsByPluginIdAndStageTy
 		return nil, err
 	}
 	return ciPipelineIds, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) CheckPluginExistsInCiPipeline(pipelineId int, stageType string, pluginId int) (bool, error) {
+	var step PipelineStageStep
+	query := `Select * from pipeline_stage_step pss  
+		INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id  
+		where pss.ref_plugin_id = ? and ps.type = ? and pss.deleted = false and ps.deleted = false and ps.ci_pipeline_id= ?;`
+	_, err := impl.dbConnection.Query(&step, query, pluginId, stageType, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("err in getting pipelineStageStep", "err", err, "pluginId", pluginId, "pipelineId", pipelineId, "stageType", stageType)
+		return false, err
+	}
+	return step.Id != 0, nil
 }
 
 func (impl *PipelineStageRepositoryImpl) MarkStepsDeletedByStageId(stageId int) error {
