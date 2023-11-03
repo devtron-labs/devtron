@@ -641,7 +641,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
       				from (select p.id as pipeline_id, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
                   	 	cw.ci_artifact_id, p.environment_id, p.deployment_app_delete_request, 
                   		row_number() over (partition by p.id order by cwr.started_on desc) as max_started_on_rank  
-            			from (select * from pipeline where app_id = ?) as p 
+            			from (select * from pipeline where app_id = ? and deleted=?) as p 
                      	left join cd_workflow cw on cw.pipeline_id = p.id 
                      	left join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id 
             			where cwr.workflow_type = ? or cwr.workflow_type is null) pcwrraw  
@@ -651,7 +651,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
          		LEFT JOIN users u on u.id = pcwr.triggered_by 
         		LEFT JOIN env_level_app_metrics elam on pcwr.environment_id = elam.env_id and pcwr.app_id = elam.app_id 
         		LEFT JOIN app_status ap ON pcwr.environment_id = ap.env_id and pcwr.app_id=ap.app_id;`
-	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, "DEPLOY")
+	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, false, "DEPLOY")
 	if err != nil {
 		impl.Logger.Error("error in fetching other environment", "error", err)
 		return nil, err
