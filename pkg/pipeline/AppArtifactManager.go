@@ -618,42 +618,37 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
 	if pipeline.ApprovalNodeConfigured() { // for now, we are checking artifacts for deploy stage only
-		ciArtifacts, totalCount, err := impl.workflowDagExecutor.FetchApprovalRequestArtifacts(pipeline.Id, artifactListingFilterOpts.Limit, artifactListingFilterOpts.Offset, artifactListingFilterOpts.SearchString)
-		if err != nil {
-			impl.logger.Errorw("failed to fetch approval request artifacts", "err", err, "cdPipelineId", pipeline.Id)
-			return ciArtifactsResponse, err
-		}
-
 		approvalConfig, err := pipeline.GetApprovalConfig()
 		if err != nil {
 			impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", pipeline.Id, "approvalConfig", approvalConfig)
 			return ciArtifactsResponse, err
 		}
-
-		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
 		requiredApprovals := approvalConfig.RequiredCount
+
+		ciArtifacts, totalCount, err := impl.workflowDagExecutor.FetchApprovalPendingArtifacts(pipeline.Id, artifactListingFilterOpts.Limit, artifactListingFilterOpts.Offset, requiredApprovals, artifactListingFilterOpts.SearchString)
+		if err != nil {
+			impl.logger.Errorw("failed to fetch approval request artifacts", "err", err, "cdPipelineId", pipeline.Id)
+			return ciArtifactsResponse, err
+		}
+
+		//set userApprovalMetaData starts
+		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
 		var artifactIds []int
 		for _, item := range ciArtifacts {
 			artifactIds = append(artifactIds, item.Id)
 		}
-
 		userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, pipeline.Id, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
 		if err != nil {
 			impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", pipeline.Id, "artifactIds", artifactIds, "err", err)
 			return ciArtifactsResponse, err
 		}
 
-		imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(pipeline.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", pipeline.AppId)
-			return ciArtifactsResponse, err
+		for i, artifact := range ciArtifacts {
+			if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok {
+				ciArtifacts[i].UserApprovalMetadata = approvalMetadataForArtifact
+			}
 		}
-
-		imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
-		if err != nil {
-			impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", pipeline.AppId, "artifactIds", artifactIds)
-			return ciArtifactsResponse, err
-		}
+		//set userApprovalMetaData ends
 
 		environment := pipeline.Environment
 		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
@@ -663,41 +658,10 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 			return ciArtifactsResponse, err
 		}
 
-		userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, pipeline.Id, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
+		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline)
 		if err != nil {
-			impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", pipeline.Id, "artifactIds", artifactIds, "err", err)
+			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
 			return ciArtifactsResponse, err
-		}
-
-		for i, artifact := range ciArtifacts {
-			if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok { // either approved or requested
-				artifact.UserApprovalMetadata = approvalMetadataForArtifact
-			}
-			imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]
-			if imageTaggingResp != nil {
-				ciArtifacts[i].ImageReleaseTags = imageTaggingResp
-			}
-
-			if imageCommentResp := imageCommentsDataMap[ciArtifacts[i].Id]; imageCommentResp != nil {
-				ciArtifacts[i].ImageComment = imageCommentResp
-			}
-
-			releaseTags := make([]string, 0, len(imageTaggingResp))
-			for _, imageTag := range imageTaggingResp {
-				if !imageTag.Deleted {
-					releaseTags = append(releaseTags, imageTag.TagName)
-				}
-			}
-
-			if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok {
-				ciArtifacts[i].UserApprovalMetadata = approvalMetadataForArtifact
-			}
-
-			filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags)
-			if err != nil {
-				return ciArtifactsResponse, err
-			}
-			ciArtifacts[i].FilterState = filterState
 		}
 
 		ciArtifactsResponse.CdPipelineId = pipeline.Id
@@ -890,6 +854,11 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
 		return ciArtifactsResponse, err
 	}
+	ciArtifacts, err = impl.setGitTriggerData(ciArtifacts)
+	if err != nil {
+		impl.logger.Errorw("error in setting gitTrigger data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
+		return ciArtifactsResponse, err
+	}
 
 	if !isApprovalNode {
 		ciArtifacts = impl.fillAppliedFiltersData(ciArtifacts, pipeline.Id, stage)
@@ -936,7 +905,7 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 		ciArtifacts[i].FilterState = impl.getFilerState(imageTaggingResp, filters, ciArtifacts[i].Image)
 
 	}
-	return impl.setGitTriggerData(ciArtifacts)
+	return ciArtifacts, nil
 
 }
 

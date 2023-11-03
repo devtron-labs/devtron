@@ -102,7 +102,7 @@ func BuildApprovedOnlyArtifactsWithFilter(listingFilterOpts bean.ArtifactsListFi
 		" ( " +
 		" SELECT approval_request_id,count(approval_request_id) AS approval_count " +
 		" FROM deployment_approval_user_data daud " +
-		" WHERE user_response = 0 " +
+		" WHERE user_response is NULL " +
 		" GROUP BY approval_request_id " +
 		" ) "
 	countQuery := " SELECT count(cia.created_on) as total_count"
@@ -129,11 +129,11 @@ func BuildQueryForApprovedArtifactsForRollback(listingFilterOpts bean.ArtifactsL
 	subQuery := "WITH approved_requests AS " +
 		" (SELECT approval_request_id,count(approval_request_id) AS approval_count " +
 		" FROM deployment_approval_user_data " +
-		" WHERE user_response = %v " +
+		" WHERE user_response is NULL " +
 		" GROUP BY approval_request_id ) " +
 		" SELECT approval_request_id " +
 		" FROM approved_requests WHERE approval_count >= %v "
-	subQuery = fmt.Sprintf(subQuery, 0, listingFilterOpts.ApproversCount)
+	subQuery = fmt.Sprintf(subQuery, listingFilterOpts.ApproversCount)
 	commonQuery := " FROM cd_workflow_runner cdwr " +
 		"   INNER JOIN cd_workflow cdw ON cdw.id=cdwr.cd_workflow_id" +
 		"	INNER JOIN ci_artifact cia ON cia.id=cdw.ci_artifact_id" +
