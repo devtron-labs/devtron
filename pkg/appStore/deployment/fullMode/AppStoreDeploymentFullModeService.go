@@ -623,7 +623,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 		}
 	}
 
-	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId))
+	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto.InstallReleaseRequest.InstallAppVersionHistoryId))
 	if err != nil {
 		impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
 		return
