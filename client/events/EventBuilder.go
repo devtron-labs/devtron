@@ -400,8 +400,8 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 	event.Payload = payload
 	return event
 }
-func setProviderForNotification(EmailIds []string, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, payload *Payload) {
-	for _, emailId := range EmailIds {
+func setProviderForNotification(emailIds []string, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, payload *Payload) {
+	for _, emailId := range emailIds {
 		provider := &notifier.Provider{
 			ConfigId:  0,
 			Recipient: emailId,
