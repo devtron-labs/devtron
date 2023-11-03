@@ -13,6 +13,7 @@ import (
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 type ArgoApplicationService interface {
@@ -82,6 +83,13 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		}
 		resp, _, err := impl.k8sUtil.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces)
 		if err != nil {
+			if errStatus, ok := err.(*errors.StatusError); ok {
+				if errStatus.Status().Code == 404 {
+					//no argo apps found, not sending error
+					impl.logger.Warnw("error in getting external argo app list, no apps found", "err", err, "clusterId", cluster.Id)
+					continue
+				}
+			}
 			impl.logger.Errorw("error in getting resource list", "err", err)
 			return nil, err
 		}
