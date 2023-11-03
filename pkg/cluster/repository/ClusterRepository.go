@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 const (
@@ -34,6 +35,7 @@ type Cluster struct {
 	tableName              struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
 	Id                     int               `sql:"id,pk"`
 	ClusterName            string            `sql:"cluster_name"`
+	Description            string            `sql:"description"`
 	ServerUrl              string            `sql:"server_url"`
 	ProxyUrl               string            `sql:"proxy_url"`
 	PrometheusEndpoint     string            `sql:"prometheus_endpoint"`
@@ -67,6 +69,7 @@ type ClusterRepository interface {
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
+	SetDescription(id int, description string, userId int32) error
 	Delete(model *Cluster) error
 	MarkClusterDeleted(model *Cluster) error
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
@@ -184,6 +187,13 @@ func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 
 func (impl ClusterRepositoryImpl) Update(model *Cluster) error {
 	return impl.dbConnection.Update(model)
+}
+
+func (impl ClusterRepositoryImpl) SetDescription(id int, description string, userId int32) error {
+	_, err := impl.dbConnection.Model((*Cluster)(nil)).
+		Set("description = ?", description).Set("updated_by = ?", userId).Set("updated_on = ?", time.Now()).
+		Where("id = ?", id).Update()
+	return err
 }
 
 func (impl ClusterRepositoryImpl) Delete(model *Cluster) error {
