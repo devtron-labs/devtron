@@ -1233,6 +1233,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 			currentRunningArtifactBean.UserApprovalMetadata = approvalMetadataForArtifact
 		}
 		ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+		totalCount += 1
 	}
 
 	return ciArtifacts, totalCount, nil
