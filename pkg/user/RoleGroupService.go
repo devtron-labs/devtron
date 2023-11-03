@@ -22,6 +22,7 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	util2 "github.com/devtron-labs/devtron/pkg/user/util"
 	"strings"
 	"time"
 
@@ -68,6 +69,11 @@ func NewRoleGroupServiceImpl(userAuthRepository repository2.UserAuthRepository,
 }
 
 func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error) {
+	validationPassed := util2.CheckValidationForRoleGroupCreation(request.Name)
+	if !validationPassed {
+		return nil, errors.New(bean2.VALIDATION_FAILED_ERROR_MSG)
+	}
+
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {

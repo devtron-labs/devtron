@@ -33,6 +33,10 @@ const (
 	EntityJobs                                  = "jobs"
 )
 
+const (
+	VALIDATION_FAILED_ERROR_MSG string = "validation failed: group name with , is not allowed"
+)
+
 type RbacRoleDto struct {
 	Id              int    `json:"id"` // id of the default role
 	RoleName        string `json:"roleName"`

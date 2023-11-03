@@ -1,6 +1,8 @@
 package models
 
-import "github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+import (
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+)
 
 type ScopedVariableData struct {
 	VariableName     string         `json:"variableName"`
