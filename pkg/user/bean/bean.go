@@ -30,6 +30,7 @@ const (
 	ENTITY_APPS                                 = "apps"
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
+	EntityJobs                                  = "jobs"
 )
 
 type RbacRoleDto struct {
@@ -41,6 +42,6 @@ type RbacRoleDto struct {
 }
 
 type RbacPolicyEntityGroupDto struct {
-	Entity     string `json:"entity" validate:"oneof=apps cluster chart-group"`
+	Entity     string `json:"entity" validate:"oneof=apps cluster chart-group jobs"`
 	AccessType string `json:"accessType,omitempty"`
 }
