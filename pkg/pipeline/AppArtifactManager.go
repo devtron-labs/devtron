@@ -1100,6 +1100,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		// just send current deployed in approval configured pipeline or this is eligible in search
 		if listingFilterOpts.ApprovalNodeConfigured || strings.Contains(currentRunningArtifactBean.Image, searchString) {
 			ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+			totalCount += 1
 		}
 	}
 
