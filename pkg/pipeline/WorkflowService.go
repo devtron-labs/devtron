@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
@@ -58,8 +59,8 @@ type WorkflowServiceImpl struct {
 	appService             app.AppService
 	envRepository          repository.EnvironmentRepository
 	globalCMCSService      GlobalCMCSService
-	argoWorkflowExecutor   ArgoWorkflowExecutor
-	systemWorkflowExecutor SystemWorkflowExecutor
+	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
+	systemWorkflowExecutor executors.SystemWorkflowExecutor
 	k8sUtil                *k8s.K8sUtil
 	k8sCommonService       k8s2.K8sCommonService
 }
@@ -67,9 +68,9 @@ type WorkflowServiceImpl struct {
 // TODO: Move to bean
 
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
-	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor ArgoWorkflowExecutor,
+	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sUtil,
-	systemWorkflowExecutor SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService) (*WorkflowServiceImpl, error) {
+	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{Logger: Logger,
 		ciCdConfig:             ciCdConfig,
 		appService:             appService,
@@ -129,7 +130,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 
 	workflowTemplate.ConfigMaps = workflowConfigMaps
 	workflowTemplate.Secrets = workflowSecrets
-	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
+	workflowTemplate.Volumes = executors.ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
@@ -193,7 +194,7 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *types.Workflo
 		for i := range globalCmCsConfigs {
 			globalCmCsConfigs[i].Name = strings.ToLower(globalCmCsConfigs[i].Name) + "-" + workflowRequest.GetGlobalCmCsNamePrefix()
 		}
-		workflowConfigMaps, workflowSecrets, err = GetFromGlobalCmCsDtos(globalCmCsConfigs)
+		workflowConfigMaps, workflowSecrets, err = executors.GetFromGlobalCmCsDtos(globalCmCsConfigs)
 		if err != nil {
 			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 			return nil, nil, err
@@ -212,7 +213,7 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *type
 	isJob := workflowRequest.CheckForJob()
 	allowAll := isJob
 	namePrefix := workflowRequest.GetExistingCmCsNamePrefix()
-	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
+	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob, workflowRequest.Scope)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
 		return nil, nil, err
@@ -237,7 +238,30 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *type
 			workflowSecrets = append(workflowSecrets, *secret)
 		}
 	}
+
+	//internally inducing BlobStorageCmName and BlobStorageSecretName for getting logs, caches and artifacts from
+	//in-cluster configured blob storage, if USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW = false and isExt = true
+	if workflowRequest.UseExternalClusterBlob {
+		workflowConfigMaps, workflowSecrets = impl.addExtBlobStorageCmCsInResponse(workflowConfigMaps, workflowSecrets)
+	}
+
 	return workflowConfigMaps, workflowSecrets, nil
+}
+func (impl *WorkflowServiceImpl) addExtBlobStorageCmCsInResponse(workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap) {
+	blobDetailsConfigMap := bean.ConfigSecretMap{
+		Name:     impl.ciCdConfig.ExtBlobStorageCmName,
+		Type:     "environment",
+		External: true,
+	}
+	workflowConfigMaps = append(workflowConfigMaps, blobDetailsConfigMap)
+
+	blobDetailsSecret := bean.ConfigSecretMap{
+		Name:     impl.ciCdConfig.ExtBlobStorageSecretName,
+		Type:     "environment",
+		External: true,
+	}
+	workflowSecrets = append(workflowSecrets, blobDetailsSecret)
+	return workflowConfigMaps, workflowSecrets
 }
 
 func (impl *WorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate) {
@@ -263,7 +287,7 @@ func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *types.
 	return nil
 }
 
-func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
+func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) executors.WorkflowExecutor {
 	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
 	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
@@ -308,7 +332,7 @@ func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *reposi
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
 		return nil, err
 	}
-	wfClient, err := GetClientInstance(restConfig, environment.Namespace)
+	wfClient, err := executors.GetClientInstance(restConfig, environment.Namespace)
 	if err != nil {
 		impl.Logger.Errorw("error in getting wfClient", "err", err)
 		return nil, err
@@ -326,7 +350,7 @@ func (impl *WorkflowServiceImpl) getWfClient(environment *repository.Environment
 			return nil, err
 		}
 	} else {
-		wfClient, err = GetClientInstance(impl.config, namespace)
+		wfClient, err = executors.GetClientInstance(impl.config, namespace)
 		if err != nil {
 			impl.Logger.Errorw("cannot build wf client", "err", err)
 			return nil, err
