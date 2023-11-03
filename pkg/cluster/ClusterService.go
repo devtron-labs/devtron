@@ -22,10 +22,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"github.com/devtron-labs/devtron/util/k8s"
 	errors1 "github.com/juju/errors"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -101,6 +101,7 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean.K8sVersion = model.K8sVersion
 	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
 	bean.IsVirtualCluster = model.IsVirtualCluster
+	bean.ErrorInConnecting = model.ErrorInConnecting
 	bean.PrometheusAuth = &PrometheusAuth{
 		UserName:      model.PUserName,
 		Password:      model.PPassword,
@@ -158,6 +159,7 @@ type ClusterService interface {
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
+	FindAllExceptVirtual() ([]*ClusterBean, error)
 	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
 	DeleteFromDb(bean *ClusterBean, userId int32) error
@@ -178,6 +180,9 @@ type ClusterService interface {
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
+
+	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
+	GetClusterConfigByEnvId(envId int) (*k8s.ClusterConfig, error)
 }
 
 type ClusterServiceImpl struct {
@@ -188,6 +193,7 @@ type ClusterServiceImpl struct {
 	userAuthRepository  repository2.UserAuthRepository
 	userRepository      repository2.UserRepository
 	roleGroupRepository repository2.RoleGroupRepository
+	*ClusterRbacServiceImpl
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -202,6 +208,9 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		userAuthRepository:  userAuthRepository,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
+		ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
+			logger: logger,
+		},
 	}
 	go clusterService.buildInformer()
 	return clusterService
@@ -340,6 +349,19 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
 
 func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	models, err := impl.clusterRepository.FindAllActive()
+	if err != nil {
+		return nil, err
+	}
+	var beans []*ClusterBean
+	for _, model := range models {
+		bean := GetClusterBean(model)
+		beans = append(beans, &bean)
+	}
+	return beans, nil
+}
+
+func (impl *ClusterServiceImpl) FindAllExceptVirtual() ([]*ClusterBean, error) {
+	models, err := impl.clusterRepository.FindAllActiveExceptVirtual()
 	if err != nil {
 		return nil, err
 	}
@@ -1075,4 +1097,33 @@ func (impl ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBe
 		Config: cdClusterConfig,
 	}
 	return cl
+}
+
+func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error) {
+	clusterBean, err := impl.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster id", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	rq := *clusterBean
+	clusterConfig, err := rq.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return nil, err
+	}
+	return clusterConfig, nil
+}
+
+func (impl ClusterServiceImpl) GetClusterConfigByEnvId(envId int) (*k8s.ClusterConfig, error) {
+	envBean, err := impl.environmentService.FindById(envId)
+	if err != nil {
+		impl.logger.Errorw("error in getting envBean by envId", "err", err, "envId", envId)
+		return nil, err
+	}
+	clusterConfig, err := impl.GetClusterConfigByClusterId(envBean.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config by env id", "err", err, "envId", envId)
+		return nil, err
+	}
+	return clusterConfig, nil
 }

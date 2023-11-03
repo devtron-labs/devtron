@@ -23,8 +23,9 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/caarlos0/env/v6"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	bean2 "github.com/devtron-labs/devtron/api/restHandler/bean"
@@ -42,6 +43,7 @@ import (
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -110,6 +112,7 @@ type AppListingRestHandlerImpl struct {
 	genericNoteService                genericNotes.GenericNoteService
 	cfg                               *bean.Config
 	k8sApplicationService             application3.K8sApplicationService
+	deploymentTemplateService         generateManifest.DeploymentTemplateService
 }
 
 type AppStatus struct {
@@ -140,7 +143,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
 	environmentClusterMappingsService cluster.EnvironmentService,
 	genericNoteService genericNotes.GenericNoteService,
-	k8sApplicationService application3.K8sApplicationService,
+	k8sApplicationService application3.K8sApplicationService, deploymentTemplateService generateManifest.DeploymentTemplateService,
 ) *AppListingRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
@@ -173,6 +176,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		genericNoteService:                genericNoteService,
 		cfg:                               cfg,
 		k8sApplicationService:             k8sApplicationService,
+		deploymentTemplateService:         deploymentTemplateService,
 	}
 	return appListingHandler
 }
@@ -1345,10 +1349,10 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.ResourceTreeAndNotesContainer, installedApps repository.InstalledApps) (bean.ResourceTreeAndNotesContainer, error) {
+func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.AppDetailsContainer, installedApps repository.InstalledApps) (bean.AppDetailsContainer, error) {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	err := handler.installedAppService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps)
+	err := handler.installedAppService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps, "", "")
 	return resourceTreeAndNotesContainer, err
 }
 func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
@@ -1420,7 +1424,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
 		}
-		resourceTreeAndNotesContainer := bean.ResourceTreeAndNotesContainer{}
+		resourceTreeAndNotesContainer := bean.AppDetailsContainer{}
 		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp)
 		if err != nil {
 			common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
@@ -1460,8 +1464,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		return
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
-	validRequests := make([]k8s.ResourceRequestBean, 0)
-	validRequests = handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, appDetail, "", []string{k8s.ServiceKind, k8s.IngressKind})
+	validRequests := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, appDetail, "", []string{k8sCommonBean.ServiceKind, k8sCommonBean.IngressKind})
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for", "appId", appIdParam, "envId", envIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
@@ -1589,9 +1592,11 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		if err != nil {
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 		}
-		if detail != nil {
+		if detail != nil && detail.ReleaseExist {
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			releaseStatus := util2.InterfaceToMapAdapter(detail.ReleaseStatus)
 			applicationStatus := detail.ApplicationStatus
+			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
 			if applicationStatus == application.Healthy {
 				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
@@ -1614,7 +1619,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			resourceTree["serverVersion"] = version.String()
 		}
 	}
-	validRequests := make([]k8s.ResourceRequestBean, 0)
 	k8sAppDetail := bean.AppDetailContainer{
 		DeploymentDetailContainer: bean.DeploymentDetailContainer{
 			ClusterId: cdPipeline.Environment.ClusterId,
@@ -1622,121 +1626,15 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		},
 	}
 	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
-	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
+	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.EndpointsKind, k8sCommonBean.IngressKind})
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
-	newResourceTree, err := handler.PortNumberExtraction(resp, resourceTree, err)
+	if err != nil {
+		handler.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+		return nil, err
+	}
+	newResourceTree := handler.k8sCommonService.PortNumberExtraction(resp, resourceTree)
 	return newResourceTree, nil
 }
-
-func (handler AppListingRestHandlerImpl) PortNumberExtraction(resp []k8s.BatchResourceResponse, resourceTree map[string]interface{}, err error) (map[string]interface{}, error) {
-	portsService := make([]int64, 0)
-	portsEndpoint := make([]int64, 0)
-	portEndpointSlice := make([]int64, 0)
-	for _, portHolder := range resp {
-		if portHolder.ManifestResponse == nil {
-			continue
-		}
-		kind, ok := portHolder.ManifestResponse.Manifest.Object["kind"]
-		if !ok {
-			handler.logger.Errorw("kind not found in resource tree, unable to extract port no")
-			return resourceTree, nil
-		}
-		if kind == k8s.ServiceKind {
-			specField, ok := portHolder.ManifestResponse.Manifest.Object["spec"]
-			if !ok {
-				handler.logger.Errorw("spec not found in resource tree, unable to extract port no")
-				return resourceTree, nil
-			}
-			spec := specField.(map[string]interface{})
-			if spec != nil {
-				ports, ok := spec["ports"]
-				if !ok {
-					handler.logger.Errorw("ports not found in resource tree, unable to extract port no")
-					return resourceTree, nil
-				}
-				portList := ports.([]interface{})
-				for _, portItem := range portList {
-					if portItem.(map[string]interface{}) != nil {
-						portNumbers := portItem.(map[string]interface{})["port"]
-						portNumber := portNumbers.(int64)
-						if portNumber != 0 {
-							portsService = append(portsService, portNumber)
-						}
-					}
-				}
-			} else {
-				handler.logger.Errorw("spec doest not contain data", "err", spec)
-			}
-		}
-		if kind == k8s.EndpointsKind {
-			subsetsField, ok := portHolder.ManifestResponse.Manifest.Object["subsets"]
-			if !ok {
-				handler.logger.Errorw("spec not found in resource tree, unable to extract port no")
-				return resourceTree, nil
-			}
-			if subsetsField != nil {
-				subsets := subsetsField.([]interface{})
-				for _, subset := range subsets {
-					subsetObj := subset.(map[string]interface{})
-					if subsetObj != nil {
-						ports, ok := subsetObj["ports"]
-						if !ok {
-							handler.logger.Errorw("ports not found in resource tree endpoints, unable to extract port no")
-							return resourceTree, nil
-						}
-						portsIfs := ports.([]interface{})
-						for _, portsIf := range portsIfs {
-							portsIfObj := portsIf.(map[string]interface{})
-							if portsIfObj != nil {
-								port := portsIfObj["port"].(int64)
-								portsEndpoint = append(portsEndpoint, port)
-							}
-						}
-					}
-				}
-			}
-		}
-		if kind == "EndpointSlice" {
-			portsField, ok := portHolder.ManifestResponse.Manifest.Object["ports"]
-			if !ok {
-				handler.logger.Errorw("ports not found in resource tree endpoint, unable to extract port no")
-				return resourceTree, nil
-			}
-			if portsField != nil {
-				endPointsSlicePorts := portsField.([]interface{})
-				for _, val := range endPointsSlicePorts {
-					portNumbers := val.(map[string]interface{})["port"]
-					portNumber := portNumbers.(int64)
-					if portNumber != 0 {
-						portEndpointSlice = append(portEndpointSlice, portNumber)
-					}
-				}
-			}
-		}
-	}
-	if err != nil {
-		handler.logger.Errorw("error in fetching manifest", "err", err)
-	}
-	if val, ok := resourceTree["nodes"]; ok {
-		resourceTreeVal := val.([]interface{})
-		for _, val := range resourceTreeVal {
-			value := val.(map[string]interface{})
-			for key, _type := range value {
-				if key == "kind" && _type == k8s.EndpointsKind {
-					value["port"] = portsEndpoint
-				}
-				if key == "kind" && _type == k8s.ServiceKind {
-					value["port"] = portsService
-				}
-				if key == "kind" && _type == "EndpointSlice" {
-					value["port"] = portEndpointSlice
-				}
-			}
-		}
-	}
-	return resourceTree, nil
-}
-
 func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)

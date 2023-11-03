@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/util"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -30,6 +32,7 @@ type HelmAppClient interface {
 	TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error)
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
+	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) (*OCIRegistryResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -168,6 +171,13 @@ func (impl *HelmAppClientImpl) GetDeploymentHistory(ctx context.Context, in *App
 	}
 	history, err := applicationClient.GetDeploymentHistory(ctx, in)
 	if err != nil {
+		if util.GetGRPCErrorDetailedMessage(err) == ErrReleaseNotFound {
+			err = &util.ApiError{
+				Code:            constants.HelmReleaseNotFound,
+				InternalMessage: ErrReleaseNotFound,
+				UserMessage:     fmt.Sprintf("no release found with release name '%s'", in.ReleaseName),
+			}
+		}
 		return nil, err
 	}
 	return history, nil
@@ -317,4 +327,16 @@ func (impl *HelmAppClientImpl) GetNotes(ctx context.Context, in *InstallReleaseR
 	}
 	return response, nil
 
+}
+
+func (impl *HelmAppClientImpl) ValidateOCIRegistry(ctx context.Context, in *RegistryCredential) (*OCIRegistryResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.ValidateOCIRegistry(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }

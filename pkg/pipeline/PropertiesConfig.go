@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"time"
 
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
@@ -68,6 +70,7 @@ type PropertiesConfigServiceImpl struct {
 	envLevelAppMetricsRepository     repository.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	scopedVariableManager            variables.ScopedVariableManager
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -80,7 +83,9 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	application application.ServiceClient,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *PropertiesConfigServiceImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	scopedVariableManager variables.ScopedVariableManager,
+) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                           logger,
 		envConfigRepo:                    envConfigRepo,
@@ -93,6 +98,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		scopedVariableManager:            scopedVariableManager,
 	}
 
 }
@@ -378,6 +384,11 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", override)
 		return nil, err
 	}
+	//VARIABLE_MAPPING_UPDATE
+	err = impl.scopedVariableManager.ExtractAndMapVariables(override.EnvOverrideValues, override.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, override.CreatedBy, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return propertiesRequest, err
 }
@@ -469,6 +480,14 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 			return nil, err
 		}
+
+		//VARIABLE_MAPPING_UPDATE
+		if envOverride.EnvOverrideValues != "{}" {
+			err = impl.scopedVariableManager.ExtractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.CreatedBy, tx)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	return envOverride, nil
 }
@@ -544,6 +563,7 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 			IsBasicViewLocked: envOverride.IsBasicViewLocked,
 			CurrentViewEditor: envOverride.CurrentViewEditor,
 			ChartRefId:        envOverride.Chart.ChartRefId,
+			ClusterId:         env.ClusterId,
 		}
 	}
 
@@ -575,7 +595,11 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 			return false, err
 		}
 	}
-
+	//VARIABLES
+	err = impl.scopedVariableManager.RemoveMappedVariables(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, nil)
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -638,6 +662,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 		Latest:            envOverride.Latest,
 		ChartRefId:        environmentProperties.ChartRefId,
 		IsOverride:        envOverride.IsOverride,
+		ClusterId:         env.ClusterId,
 	}
 	return environmentProperties, nil
 }

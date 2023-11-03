@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -29,9 +30,9 @@ import (
 )
 
 type GitHostConfig interface {
-	GetAll() ([]GitHostRequest, error)
-	GetById(id int) (*GitHostRequest, error)
-	Create(request *GitHostRequest) (int, error)
+	GetAll() ([]types.GitHostRequest, error)
+	GetById(id int) (*types.GitHostRequest, error)
+	Create(request *types.GitHostRequest) (int, error)
 }
 
 type GitHostConfigImpl struct {
@@ -48,29 +49,17 @@ func NewGitHostConfigImpl(gitHostRepo repository.GitHostRepository, logger *zap.
 	}
 }
 
-type GitHostRequest struct {
-	Id              int    `json:"id,omitempty" validate:"number"`
-	Name            string `json:"name,omitempty" validate:"required"`
-	Active          bool   `json:"active"`
-	WebhookUrl      string `json:"webhookUrl"`
-	WebhookSecret   string `json:"webhookSecret"`
-	EventTypeHeader string `json:"eventTypeHeader"`
-	SecretHeader    string `json:"secretHeader"`
-	SecretValidator string `json:"secretValidator"`
-	UserId          int32  `json:"-"`
-}
-
-//get all git hosts
-func (impl GitHostConfigImpl) GetAll() ([]GitHostRequest, error) {
+// get all git hosts
+func (impl GitHostConfigImpl) GetAll() ([]types.GitHostRequest, error) {
 	impl.logger.Debug("get all hosts request")
 	hosts, err := impl.gitHostRepo.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetching all git hosts", "err", err)
 		return nil, err
 	}
-	var gitHosts []GitHostRequest
+	var gitHosts []types.GitHostRequest
 	for _, host := range hosts {
-		hostRes := GitHostRequest{
+		hostRes := types.GitHostRequest{
 			Id:     host.Id,
 			Name:   host.Name,
 			Active: host.Active,
@@ -80,8 +69,8 @@ func (impl GitHostConfigImpl) GetAll() ([]GitHostRequest, error) {
 	return gitHosts, err
 }
 
-//get git host by Id
-func (impl GitHostConfigImpl) GetById(id int) (*GitHostRequest, error) {
+// get git host by Id
+func (impl GitHostConfigImpl) GetById(id int) (*types.GitHostRequest, error) {
 	impl.logger.Debug("get hosts request for Id", id)
 	host, err := impl.gitHostRepo.FindOneById(id)
 	if err != nil {
@@ -104,7 +93,7 @@ func (impl GitHostConfigImpl) GetById(id int) (*GitHostRequest, error) {
 	}
 	webhookUrl := webhookUrlPrepend + host.WebhookUrl
 
-	gitHost := &GitHostRequest{
+	gitHost := &types.GitHostRequest{
 		Id:              host.Id,
 		Name:            host.Name,
 		Active:          host.Active,
@@ -119,7 +108,7 @@ func (impl GitHostConfigImpl) GetById(id int) (*GitHostRequest, error) {
 }
 
 // Create in DB
-func (impl GitHostConfigImpl) Create(request *GitHostRequest) (int, error) {
+func (impl GitHostConfigImpl) Create(request *types.GitHostRequest) (int, error) {
 	impl.logger.Debugw("get git host create request", "req", request)
 	exist, err := impl.gitHostRepo.Exists(request.Name)
 	if err != nil {

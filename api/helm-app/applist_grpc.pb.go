@@ -41,6 +41,7 @@ type ApplicationServiceClient interface {
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest, opts ...grpc.CallOption) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*ChartNotesResponse, error)
 	UpgradeReleaseWithCustomChart(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
+	ValidateOCIRegistry(ctx context.Context, in *RegistryCredential, opts ...grpc.CallOption) (*OCIRegistryResponse, error)
 	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest, opts ...grpc.CallOption) (*ResourceTreeResponse, error)
 }
 
@@ -246,6 +247,15 @@ func (c *applicationServiceClient) UpgradeReleaseWithCustomChart(ctx context.Con
 	return out, nil
 }
 
+func (c *applicationServiceClient) ValidateOCIRegistry(ctx context.Context, in *RegistryCredential, opts ...grpc.CallOption) (*OCIRegistryResponse, error) {
+	out := new(OCIRegistryResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/ValidateOCIRegistry", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *applicationServiceClient) GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest, opts ...grpc.CallOption) (*ResourceTreeResponse, error) {
 	out := new(ResourceTreeResponse)
 	err := c.cc.Invoke(ctx, "/ApplicationService/GetResourceTreeForExternalResources", in, out, opts...)
@@ -278,6 +288,7 @@ type ApplicationServiceServer interface {
 	InstallReleaseWithCustomChart(context.Context, *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(context.Context, *InstallReleaseRequest) (*ChartNotesResponse, error)
 	UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
+	ValidateOCIRegistry(context.Context, *RegistryCredential) (*OCIRegistryResponse, error)
 	GetResourceTreeForExternalResources(context.Context, *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
@@ -342,6 +353,9 @@ func (UnimplementedApplicationServiceServer) GetNotes(context.Context, *InstallR
 }
 func (UnimplementedApplicationServiceServer) UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpgradeReleaseWithCustomChart not implemented")
+}
+func (UnimplementedApplicationServiceServer) ValidateOCIRegistry(context.Context, *RegistryCredential) (*OCIRegistryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateOCIRegistry not implemented")
 }
 func (UnimplementedApplicationServiceServer) GetResourceTreeForExternalResources(context.Context, *ExternalResourceTreeRequest) (*ResourceTreeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetResourceTreeForExternalResources not implemented")
@@ -704,6 +718,24 @@ func _ApplicationService_UpgradeReleaseWithCustomChart_Handler(srv interface{}, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_ValidateOCIRegistry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegistryCredential)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).ValidateOCIRegistry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/ValidateOCIRegistry",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).ValidateOCIRegistry(ctx, req.(*RegistryCredential))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ApplicationService_GetResourceTreeForExternalResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExternalResourceTreeRequest)
 	if err := dec(in); err != nil {
@@ -800,6 +832,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpgradeReleaseWithCustomChart",
 			Handler:    _ApplicationService_UpgradeReleaseWithCustomChart_Handler,
+		},
+		{
+			MethodName: "ValidateOCIRegistry",
+			Handler:    _ApplicationService_ValidateOCIRegistry_Handler,
 		},
 		{
 			MethodName: "GetResourceTreeForExternalResources",

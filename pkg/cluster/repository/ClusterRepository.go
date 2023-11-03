@@ -50,6 +50,7 @@ type ClusterRepository interface {
 	FindOneActive(clusterName string) (*Cluster, error)
 	FindAll() ([]Cluster, error)
 	FindAllActive() ([]Cluster, error)
+	FindAllActiveExceptVirtual() ([]Cluster, error)
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
@@ -58,6 +59,7 @@ type ClusterRepository interface {
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
 	FindActiveClusters() ([]Cluster, error)
 	SaveAll(models []*Cluster) error
+	FindByNames(clusterNames []string) ([]*Cluster, error)
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -126,6 +128,16 @@ func (impl ClusterRepositoryImpl) FindAllActive() ([]Cluster, error) {
 	return clusters, err
 }
 
+func (impl ClusterRepositoryImpl) FindAllActiveExceptVirtual() ([]Cluster, error) {
+	var clusters []Cluster
+	err := impl.dbConnection.
+		Model(&clusters).
+		Where("active=?", true).
+		Where("is_virtual_cluster=?", false).
+		Select()
+	return clusters, err
+}
+
 func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	cluster := &Cluster{}
 	err := impl.dbConnection.
@@ -137,6 +149,15 @@ func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	return cluster, err
 }
 
+func (impl ClusterRepositoryImpl) FindByNames(clusterNames []string) ([]*Cluster, error) {
+	var cluster []*Cluster
+	err := impl.dbConnection.
+		Model(&cluster).
+		Where("cluster_name in (?)", pg.In(clusterNames)).
+		Where("active = ?", true).
+		Select()
+	return cluster, err
+}
 func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 	var cluster []Cluster
 	err := impl.dbConnection.

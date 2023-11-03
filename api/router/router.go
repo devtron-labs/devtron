@@ -119,8 +119,10 @@ type MuxRouter struct {
 	globalCMCSRouter                   GlobalCMCSRouter
 	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
 	ciStatusUpdateCron                 cron.CiStatusUpdateCron
-	appGroupingRouter                  AppGroupingRouter
+	resourceGroupingRouter             ResourceGroupingRouter
 	rbacRoleRouter                     user.RbacRoleRouter
+	scopedVariableRouter               ScopedVariableRouter
+	ciTriggerCron                      cron.CiTriggerCron
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 }
 
@@ -150,8 +152,10 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter capacity.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
-	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
+	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, resourceGroupingRouter ResourceGroupingRouter,
 	rbacRoleRouter user.RbacRoleRouter,
+	scopedVariableRouter ScopedVariableRouter,
+	ciTriggerCron cron.CiTriggerCron,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -220,15 +224,16 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		userTerminalAccessRouter:           userTerminalAccessRouter,
 		ciStatusUpdateCron:                 ciStatusUpdateCron,
 		JobRouter:                          jobRouter,
-		appGroupingRouter:                  appGroupingRouter,
+		resourceGroupingRouter:             resourceGroupingRouter,
 		rbacRoleRouter:                     rbacRoleRouter,
+		scopedVariableRouter:               scopedVariableRouter,
+		ciTriggerCron:                      ciTriggerCron,
 		argoApplicationRouter:              argoApplicationRouter,
 	}
 	return r
 }
 
 func (r MuxRouter) Init() {
-
 	r.Router.PathPrefix("/orchestrator/api/vi/pod/exec/ws").Handler(terminal.CreateAttachHandler("/orchestrator/api/vi/pod/exec/ws"))
 
 	r.Router.StrictSlash(true)
@@ -279,7 +284,7 @@ func (r MuxRouter) Init() {
 
 	environmentClusterMappingsRouter := r.Router.PathPrefix("/orchestrator/env").Subrouter()
 	r.EnvironmentClusterMappingsRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)
-	r.appGroupingRouter.InitAppGroupingRouter(environmentClusterMappingsRouter)
+	r.resourceGroupingRouter.InitResourceGroupingRouter(environmentClusterMappingsRouter)
 
 	clusterRouter := r.Router.PathPrefix("/orchestrator/cluster").Subrouter()
 	r.ClusterRouter.InitClusterRouter(clusterRouter)
@@ -365,6 +370,7 @@ func (r MuxRouter) Init() {
 
 	commonRouter := r.Router.PathPrefix("/orchestrator/global").Subrouter()
 	r.commonRouter.InitCommonRouter(commonRouter)
+	r.scopedVariableRouter.InitScopedVariableRouter(commonRouter)
 
 	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)

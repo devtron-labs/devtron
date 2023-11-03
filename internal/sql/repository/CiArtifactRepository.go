@@ -20,6 +20,7 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"strings"
 	"time"
@@ -59,6 +60,8 @@ type CiArtifactRepository interface {
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error)
 
+	GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error)
+	GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error)
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
 	SaveAll(artifacts []*CiArtifact) error
@@ -68,6 +71,7 @@ type CiArtifactRepository interface {
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
 	GetByIds(ids []int) ([]*CiArtifact, error)
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
+	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -234,6 +238,37 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 		artifactsAll = append(artifactsAll, a)
 	}
 	return artifactsAll, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error) {
+	artifacts := make([]*CiArtifact, 0)
+	query := "select cws.pipeline_id, cws.created_on from " +
+		"(SELECT  pipeline_id, MAX(created_on) created_on " +
+		"FROM ci_artifact " +
+		"GROUP BY pipeline_id) cws " +
+		"where cws.pipeline_id IN (" + helper.GetCommaSepratedString(ciPipelineIds) + "); "
+
+	_, err := impl.dbConnection.Query(&artifacts, query)
+	if err != nil {
+		return nil, err
+	}
+	return artifacts, nil
+}
+
+// GetLatestArtifactTimeByCiPipelineId will fetch latest ci artifact time(created) against that ci pipeline
+func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error) {
+	artifacts := &CiArtifact{}
+	query := "select cws.pipeline_id, cws.created_on from " +
+		"(SELECT  pipeline_id, MAX(created_on) created_on " +
+		"FROM ci_artifact " +
+		"GROUP BY pipeline_id) cws " +
+		"where cws.pipeline_id = ? ; "
+
+	_, err := impl.dbConnection.Query(artifacts, query, ciPipelineId)
+	if err != nil {
+		return nil, err
+	}
+	return artifacts, nil
 }
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error) {
@@ -534,4 +569,16 @@ func (impl CiArtifactRepositoryImpl) GetArtifactByCdWorkflowId(cdWorkflowId int)
 		Where("cdwf.id = ? ", cdWorkflowId).
 		Select()
 	return artifact, err
+}
+
+// GetArtifactsByParentCiWorkflowId will get all artifacts of child workflow sorted by descending order to fetch latest at top, child workflow required for handling container image polling plugin as there can be multiple images from a single parent workflow, which are accommodated in child workflows
+func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error) {
+	var artifacts []string
+	query := "SELECT cia.image FROM ci_artifact cia where cia.ci_workflow_id in (SELECT wf.id from ci_workflow wf where wf.parent_ci_workflow_id = ? ) ORDER BY cia.created_on DESC ;"
+	_, err := impl.dbConnection.Query(&artifacts, query, parentCiWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching artifacts for parent ci workflow id", "err", err)
+		return nil, err
+	}
+	return artifacts, err
 }

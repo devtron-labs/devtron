@@ -120,6 +120,8 @@ type CiPipeline struct {
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
 	EnvironmentId            int                    `json:"environmentId,omitempty"`
 	LastTriggeredEnvId       int                    `json:"lastTriggeredEnvId"`
+	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
+	DefaultTag               []string               `json:"defaultTag,omitempty"`
 }
 
 type DockerConfigOverride struct {
@@ -185,6 +187,7 @@ const (
 	NORMAL   PipelineType = "NORMAL"
 	LINKED   PipelineType = "LINKED"
 	EXTERNAL PipelineType = "EXTERNAL"
+	CI_JOB   PipelineType = "CI_JOB"
 )
 
 const (
@@ -208,6 +211,23 @@ const (
 	WEBHOOK_EVENT_NON_MERGED_ACTION_TYPE string = "non-merged"
 )
 
+type CiPatchStatus string
+
+const (
+	CI_PATCH_SUCCESS        CiPatchStatus = "Succeeded"
+	CI_PATCH_FAILED         CiPatchStatus = "Failed"
+	CI_PATCH_NOT_AUTHORIZED CiPatchStatus = "Not authorised"
+)
+
+type CiPatchMessage string
+
+const (
+	CI_PATCH_NOT_AUTHORIZED_MESSAGE CiPatchMessage = "You don't have permission to change branch"
+	CI_PATCH_MULTI_GIT_ERROR        CiPatchMessage = "Build pipeline is connected to multiple git repositories"
+	CI_PATCH_REGEX_ERROR            CiPatchMessage = "Provided branch does not match regex "
+	CI_BRANCH_TYPE_ERROR            CiPatchMessage = "Branch cannot be changed for pipeline as source type is “Pull request or Tag”"
+)
+
 func (a PatchAction) String() string {
 	return [...]string{"CREATE", "UPDATE_SOURCE", "DELETE", "DEACTIVATE"}[a]
 
@@ -219,6 +239,32 @@ type CiMaterialPatchRequest struct {
 	AppId         int               `json:"appId" validate:"required"`
 	EnvironmentId int               `json:"environmentId" validate:"required"`
 	Source        *SourceTypeConfig `json:"source" validate:"required"`
+}
+
+type CustomTagData struct {
+	TagPattern string `json:"tagPattern"`
+	CounterX   int    `json:"counterX"`
+}
+
+type CiMaterialValuePatchRequest struct {
+	AppId         int `json:"appId" validate:"required"`
+	EnvironmentId int `json:"environmentId" validate:"required"`
+}
+
+type CiMaterialBulkPatchRequest struct {
+	AppIds        []int  `json:"appIds" validate:"required"`
+	EnvironmentId int    `json:"environmentId" validate:"required"`
+	Value         string `json:"value,omitempty" validate:"required"`
+}
+
+type CiMaterialBulkPatchResponse struct {
+	Apps []CiMaterialPatchResponse `json:"apps"`
+}
+
+type CiMaterialPatchResponse struct {
+	AppId   int            `json:"appId"`
+	Status  CiPatchStatus  `json:"status"`
+	Message CiPatchMessage `json:"message"`
 }
 
 type CiPatchRequest struct {
@@ -244,43 +290,26 @@ type GitCiTriggerRequest struct {
 	ExtraEnvironmentVariables map[string]string  `json:"extraEnvironmentVariables"` // extra env variables which will be used for CI
 }
 
-type GitCommit struct {
-	Commit                 string //git hash
-	Author                 string
-	Date                   time.Time
-	Message                string
-	Changes                []string
-	WebhookData            *WebhookData
-	GitRepoUrl             string
-	GitRepoName            string
-	CiConfigureSourceType  pipelineConfig.SourceType
-	CiConfigureSourceValue string
-}
-
-type WebhookData struct {
-	Id              int               `json:"id"`
-	EventActionType string            `json:"eventActionType"`
-	Data            map[string]string `json:"data"`
-}
-
 type SourceType string
 
 type CiPipelineMaterial struct {
-	Id            int       `json:"Id"`
-	GitMaterialId int       `json:"GitMaterialId"`
-	Type          string    `json:"Type"`
-	Value         string    `json:"Value"`
-	Active        bool      `json:"Active"`
-	GitCommit     GitCommit `json:"GitCommit"`
-	GitTag        string    `json:"GitTag"`
+	Id            int                      `json:"Id"`
+	GitMaterialId int                      `json:"GitMaterialId"`
+	Type          string                   `json:"Type"`
+	Value         string                   `json:"Value"`
+	Active        bool                     `json:"Active"`
+	GitCommit     pipelineConfig.GitCommit `json:"GitCommit"`
+	GitTag        string                   `json:"GitTag"`
 }
 
 type CiTriggerRequest struct {
-	PipelineId         int                  `json:"pipelineId"`
-	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
-	TriggeredBy        int32                `json:"triggeredBy"`
-	InvalidateCache    bool                 `json:"invalidateCache"`
-	EnvironmentId      int                  `json:"environmentId"`
+	PipelineId          int                  `json:"pipelineId"`
+	CiPipelineMaterial  []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
+	TriggeredBy         int32                `json:"triggeredBy"`
+	InvalidateCache     bool                 `json:"invalidateCache"`
+	EnvironmentId       int                  `json:"environmentId"`
+	PipelineType        string               `json:"pipelineType"`
+	CiArtifactLastFetch time.Time            `json:"ciArtifactLastFetch"`
 }
 
 type CiTrigger struct {
@@ -331,6 +360,7 @@ type CiPipelineMinResponse struct {
 	AppName          string `json:"appName,omitempty"`
 	ParentCiPipeline int    `json:"parentCiPipeline"`
 	ParentAppId      int    `json:"parentAppId"`
+	PipelineType     string `json:"pipelineType"`
 }
 
 type TestExecutorImageProperties struct {
@@ -531,6 +561,9 @@ type CDPipelineConfigObject struct {
 	ManifestStorageType           string                                 `json:"manifestStorageType"`
 	PreDeployStage                *bean.PipelineStageDto                 `json:"preDeployStage,omitempty"`
 	PostDeployStage               *bean.PipelineStageDto                 `json:"postDeployStage,omitempty"`
+	SourceToNewPipelineId         map[int]int                            `json:"sourceToNewPipelineId,omitempty"`
+	RefPipelineId                 int                                    `json:"refPipelineId,omitempty"`
+	ExternalCiPipelineId          int                                    `json:"externalCiPipelineId,omitempty"`
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -646,6 +679,9 @@ const (
 	INITIATED       Status = "Migration initiated"
 	NOT_YET_DELETED Status = "Not yet deleted"
 )
+
+const RELEASE_NOT_EXIST = "release not exist"
+const NOT_FOUND = "not found"
 
 func (a CdPatchAction) String() string {
 	return [...]string{"CREATE", "DELETE", "CD_UPDATE"}[a]

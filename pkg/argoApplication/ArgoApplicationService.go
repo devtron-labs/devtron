@@ -3,6 +3,8 @@ package argoApplication
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
@@ -10,7 +12,6 @@ import (
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 )
 
@@ -160,24 +161,24 @@ func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(cluste
 func getApplicationListDtos(manifestObj map[string]interface{}, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
 	appLists := make([]*bean.ArgoApplicationListDto, 0)
 	//map of keys and index in row cells, initially set as 0 will be updated by object
-	keysToBeFetchedFromColumnDefinitions := map[string]int{k8s.K8sResourceColumnDefinitionName: 0,
-		k8s.K8sResourceColumnDefinitionHealthStatus: 0, k8s.K8sResourceColumnDefinitionSyncStatus: 0}
-	keysToBeFetchedFromRawObject := []string{k8s.K8sClusterResourceNamespaceKey}
+	keysToBeFetchedFromColumnDefinitions := map[string]int{k8sCommonBean.K8sResourceColumnDefinitionName: 0,
+		k8sCommonBean.K8sResourceColumnDefinitionHealthStatus: 0, k8sCommonBean.K8sResourceColumnDefinitionSyncStatus: 0}
+	keysToBeFetchedFromRawObject := []string{k8sCommonBean.K8sClusterResourceNamespaceKey}
 
-	columnsDataRaw := manifestObj[k8s.K8sClusterResourceColumnDefinitionKey]
+	columnsDataRaw := manifestObj[k8sCommonBean.K8sClusterResourceColumnDefinitionKey]
 	if columnsDataRaw != nil {
 		columnsData := columnsDataRaw.([]interface{})
 		for i, columnData := range columnsData {
 			columnDataMap := columnData.(map[string]interface{})
 			for key := range keysToBeFetchedFromColumnDefinitions {
-				if columnDataMap[k8s.K8sClusterResourceNameKey] == key {
+				if columnDataMap[k8sCommonBean.K8sClusterResourceNameKey] == key {
 					keysToBeFetchedFromColumnDefinitions[key] = i
 				}
 			}
 		}
 	}
 
-	rowsDataRaw := manifestObj[k8s.K8sClusterResourceRowsKey]
+	rowsDataRaw := manifestObj[k8sCommonBean.K8sClusterResourceRowsKey]
 	if rowsDataRaw != nil {
 		rowsData := rowsDataRaw.([]interface{})
 		for _, rowData := range rowsData {
@@ -186,24 +187,24 @@ func getApplicationListDtos(manifestObj map[string]interface{}, clusterName stri
 				ClusterName: clusterName,
 			}
 			rowDataMap := rowData.(map[string]interface{})
-			rowCells := rowDataMap[k8s.K8sClusterResourceCellKey].([]interface{})
+			rowCells := rowDataMap[k8sCommonBean.K8sClusterResourceCellKey].([]interface{})
 			for key, value := range keysToBeFetchedFromColumnDefinitions {
 				resolvedValueFromRowCell := rowCells[value].(string)
 				switch key {
-				case k8s.K8sResourceColumnDefinitionName:
+				case k8sCommonBean.K8sResourceColumnDefinitionName:
 					appListDto.Name = resolvedValueFromRowCell
-				case k8s.K8sResourceColumnDefinitionSyncStatus:
+				case k8sCommonBean.K8sResourceColumnDefinitionSyncStatus:
 					appListDto.SyncStatus = resolvedValueFromRowCell
-				case k8s.K8sResourceColumnDefinitionHealthStatus:
+				case k8sCommonBean.K8sResourceColumnDefinitionHealthStatus:
 					appListDto.HealthStatus = resolvedValueFromRowCell
 				}
 			}
-			rowObject := rowDataMap[k8s.K8sClusterResourceObjectKey].(map[string]interface{})
+			rowObject := rowDataMap[k8sCommonBean.K8sClusterResourceObjectKey].(map[string]interface{})
 			for _, key := range keysToBeFetchedFromRawObject {
 				switch key {
-				case k8s.K8sClusterResourceNamespaceKey:
-					metadata := rowObject[k8s.K8sClusterResourceMetadataKey].(map[string]interface{})
-					appListDto.Namespace = metadata[k8s.K8sClusterResourceNamespaceKey].(string)
+				case k8sCommonBean.K8sClusterResourceNamespaceKey:
+					metadata := rowObject[k8sCommonBean.K8sClusterResourceMetadataKey].(map[string]interface{})
+					appListDto.Namespace = metadata[k8sCommonBean.K8sClusterResourceNamespaceKey].(string)
 				}
 			}
 
@@ -217,39 +218,39 @@ func getHealthSyncStatusAndManagedResourcesForArgoK8sRawObject(obj map[string]in
 	string, []*bean.ArgoManagedResource) {
 	var healthStatus, syncStatus string
 	argoManagedResources := make([]*bean.ArgoManagedResource, 0)
-	if statusObjRaw, ok := obj[k8s.K8sClusterResourceStatusKey]; ok {
+	if statusObjRaw, ok := obj[k8sCommonBean.K8sClusterResourceStatusKey]; ok {
 		statusObj := statusObjRaw.(map[string]interface{})
-		if healthObjRaw, ok2 := statusObj[k8s.K8sClusterResourceHealthKey]; ok2 {
+		if healthObjRaw, ok2 := statusObj[k8sCommonBean.K8sClusterResourceHealthKey]; ok2 {
 			healthObj := healthObjRaw.(map[string]interface{})
-			if healthStatusIf, ok3 := healthObj[k8s.K8sClusterResourceStatusKey]; ok3 {
+			if healthStatusIf, ok3 := healthObj[k8sCommonBean.K8sClusterResourceStatusKey]; ok3 {
 				healthStatus = healthStatusIf.(string)
 			}
 		}
-		if syncObjRaw, ok2 := statusObj[k8s.K8sClusterResourceSyncKey]; ok2 {
+		if syncObjRaw, ok2 := statusObj[k8sCommonBean.K8sClusterResourceSyncKey]; ok2 {
 			syncObj := syncObjRaw.(map[string]interface{})
-			if syncStatusIf, ok3 := syncObj[k8s.K8sClusterResourceStatusKey]; ok3 {
+			if syncStatusIf, ok3 := syncObj[k8sCommonBean.K8sClusterResourceStatusKey]; ok3 {
 				syncStatus = syncStatusIf.(string)
 			}
 		}
-		if resourceObjsRaw, ok2 := statusObj[k8s.K8sClusterResourceResourcesKey]; ok2 {
+		if resourceObjsRaw, ok2 := statusObj[k8sCommonBean.K8sClusterResourceResourcesKey]; ok2 {
 			resourceObjs := resourceObjsRaw.([]interface{})
 			argoManagedResources = make([]*bean.ArgoManagedResource, 0, len(resourceObjs))
 			for _, resourceObjRaw := range resourceObjs {
 				argoManagedResource := &bean.ArgoManagedResource{}
 				resourceObj := resourceObjRaw.(map[string]interface{})
-				if groupRaw, ok := resourceObj[k8s.K8sClusterResourceGroupKey]; ok {
+				if groupRaw, ok := resourceObj[k8sCommonBean.K8sClusterResourceGroupKey]; ok {
 					argoManagedResource.Group = groupRaw.(string)
 				}
-				if kindRaw, ok := resourceObj[k8s.K8sClusterResourceKindKey]; ok {
+				if kindRaw, ok := resourceObj[k8sCommonBean.K8sClusterResourceKindKey]; ok {
 					argoManagedResource.Kind = kindRaw.(string)
 				}
-				if versionRaw, ok := resourceObj[k8s.K8sClusterResourceVersionKey]; ok {
+				if versionRaw, ok := resourceObj[k8sCommonBean.K8sClusterResourceVersionKey]; ok {
 					argoManagedResource.Version = versionRaw.(string)
 				}
-				if nameRaw, ok := resourceObj[k8s.K8sClusterResourceMetadataNameKey]; ok {
+				if nameRaw, ok := resourceObj[k8sCommonBean.K8sClusterResourceMetadataNameKey]; ok {
 					argoManagedResource.Name = nameRaw.(string)
 				}
-				if namespaceRaw, ok := resourceObj[k8s.K8sClusterResourceNamespaceKey]; ok {
+				if namespaceRaw, ok := resourceObj[k8sCommonBean.K8sClusterResourceNamespaceKey]; ok {
 					argoManagedResource.Namespace = namespaceRaw.(string)
 				}
 				argoManagedResources = append(argoManagedResources, argoManagedResource)

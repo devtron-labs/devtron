@@ -1,8 +1,8 @@
 {{- with .Values.components.migrator }}
 ---
-{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
 apiVersion: batch/v1
-{{- else -}}
+{{- else }}
 apiVersion: batch/v1beta1
 {{- end }}
 kind: Job
@@ -18,50 +18,72 @@ spec:
       securityContext:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
+      initContainers:
+        - command:
+            - /bin/sh
+            - -c
+            - cp -r /scripts/. /shared/
+          image: {{ $.Values.components.devtron.image }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          name: init-devtron
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
       containers:
-      - name: postgresql-migrate-devtron
-        image: {{ .image }}
-        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
-        securityContext:
-{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
-        {{- end }}
-        env:
-        - name: GIT_BRANCH
-          value: {{ .envVars.devtron.GIT_BRANCH }}
-        - name: SCRIPT_LOCATION
-          value: {{ .envVars.devtron.SCRIPT_LOCATION }}
-        - name: GIT_REPO_URL
-          value: {{ .envVars.devtron.GIT_REPO_URL }}
-        - name: DB_TYPE
-          value: postgres
-        - name: DB_USER_NAME
-          value: postgres
-        - name: DB_HOST
-          value: postgresql-postgresql.devtroncd
-        - name: DB_PORT
-          value: "5432"
-        - name: DB_NAME
-          value: {{ .envVars.devtron.DB_NAME }}
-        - name: MIGRATE_TO_VERSION
-          value: "0"
-        - name: GIT_HASH
-          value: {{ .envVars.devtron.GIT_HASH }}
-        envFrom:
-          - secretRef:
-              name: postgresql-migrator
-        {{- if .devtron }}
-        {{- if .devtron.resources }}        
-        resources:
-        {{- toYaml .devtron.resources | nindent 10 }}
-        {{- end }}
-        {{- end }}           
+        - command:
+            - /bin/sh
+            - -c
+            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
+          env:
+            - name: SCRIPT_LOCATION
+              value: /shared/sql/
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_USER_NAME
+              value: postgres
+            - name: DB_HOST
+              value: postgresql-postgresql.devtroncd
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: {{ .envVars.devtron.DB_NAME }}
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+          {{- if .image }}        
+          image: {{ .image }}    
+          {{- else }}
+          image: migrate/migrate
+          {{- end }} 
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          name: postgresql-migrate-devtron
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+          {{- if .devtron }}
+          {{- if .devtron.resources }}        
+          resources:
+          {{- toYaml .devtron.resources | nindent 10 }}
+          {{- end }}
+          {{- end }}           
       restartPolicy: OnFailure
+      volumes:
+        - emptyDir: {}
+          name: shared-volume 
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
-{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
 apiVersion: batch/v1
-{{- else -}}
+{{- else }}
 apiVersion: batch/v1beta1
 {{- end }}
 kind: Job
@@ -87,48 +109,270 @@ spec:
         {{- end }}
         {{- end }} 
       initContainers:
-      - name: postgresql-migrate-casbin
-        image: {{ .image }}
+        - command:
+            - /bin/sh
+            - -c
+            - cp -r /scripts/. /shared/
+          image: {{ $.Values.components.devtron.image }}
+          name: init-devtron
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+        - command:
+            - /bin/sh
+            - -c
+            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
+          env:
+            - name: SCRIPT_LOCATION
+              value: /shared/casbin/
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_USER_NAME
+              value: postgres
+            - name: DB_HOST
+              value: postgresql-postgresql.devtroncd
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: {{ .envVars.casbin.DB_NAME }}
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+          {{- if .image }}        
+          image: {{ .image }}    
+          {{- else }}
+          image: migrate/migrate
+          {{- end }} 
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          {{- if .casbin }}
+          {{- if .casbin.initContainer.resources }}        
+          resources:
+{{- toYaml .casbin.initContainer.resources | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          name: postgresql-migrate-casbin
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume  
+      restartPolicy: OnFailure
+      volumes:
+        - emptyDir: {}
+          name: shared-volume 
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+---
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
+apiVersion: batch/v1
+{{- else }}
+apiVersion: batch/v1beta1
+{{- end }}
+kind: Job
+metadata:
+  name: postgresql-migrate-gitsensor-{{ randAlphaNum 5 | lower }}
+spec:
+  template:
+    spec:
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - command:
+            - /bin/sh
+            - -c
+            - cp -r sql /shared/
+          image: {{ $.Values.components.gitsensor.image }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          name: init-git-sensor
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
+          env:
+            - name: SCRIPT_LOCATION
+              value: /shared/sql/
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_USER_NAME
+              value: postgres
+            - name: DB_HOST
+              value: postgresql-postgresql.devtroncd
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: {{ .envVars.gitsensor.DB_NAME }}
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+          {{- if .image }}        
+          image: {{ .image }}    
+          {{- else }}
+          image: migrate/migrate
+          {{- end }} 
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          name: postgresql-migrate-git-sensor
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+          {{- if .gitsensor }}
+          {{- if .gitsensor.resources }}        
+          resources:
+          {{- toYaml .gitsensor.resources | nindent 10 }}
+          {{- end }}
+          {{- end }}
+      restartPolicy: OnFailure
+      volumes:
+        - emptyDir: {}
+          name: shared-volume 
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
+apiVersion: batch/v1
+{{- else }}
+apiVersion: batch/v1beta1
+{{- end }}
+kind: Job
+metadata:
+  name: postgresql-migrate-lens-{{ randAlphaNum 5 | lower }}
+spec:
+  template:
+    spec:
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - command:
+            - /bin/sh
+            - -c
+            - cp -r sql /shared/
+          image: {{ $.Values.components.lens.image }}
+          name: init-lens
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      containers:
+      - name: postgresql-migrate-lens
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
         securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
         {{- end }}
+        command:
+            - /bin/sh
+            - -c
+            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi ' 
         env:
-        - name: SCRIPT_LOCATION
-          value: {{ .envVars.casbin.SCRIPT_LOCATION }}
-        - name: GIT_REPO_URL
-          value: {{ .envVars.casbin.GIT_REPO_URL }}
-        - name: DB_TYPE
-          value: postgres
-        - name: DB_USER_NAME
-          value: postgres
-        - name: DB_HOST
-          value: postgresql-postgresql.devtroncd
-        - name: DB_PORT
-          value: "5432"
-        - name: DB_NAME
-          value: {{ .envVars.casbin.DB_NAME }}
-        - name: MIGRATE_TO_VERSION
-          value: "0"
-        - name: GIT_HASH
-          value: {{ .envVars.casbin.GIT_HASH }}
-        - name: GIT_BRANCH
-          value: {{ .envVars.casbin.GIT_BRANCH }}
+            - name: SCRIPT_LOCATION
+              value: /shared/sql/
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_USER_NAME
+              value: postgres
+            - name: DB_HOST
+              value: postgresql-postgresql.devtroncd
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: {{ .envVars.lens.DB_NAME }}
+            - name: MIGRATE_TO_VERSION
+              value: "0"
         envFrom:
-          - secretRef:
-              name: postgresql-migrator
-        {{- if .casbin }}
-        {{- if .casbin.initContainer.resources }}        
-        resources:
-        {{- toYaml .casbin.initContainer.resources | nindent 10 }}
-        {{- end }}
+        - secretRef:
+            name: postgresql-migrator
+        {{- if .image }}        
+        image: {{ .image }}    
         {{- else }}
+        image: migrate/migrate
+        {{- end }} 
+        {{- if .lens }}
+        {{- if .lens.resources }}        
         resources:
-          requests:
-            cpu: 0.5
-            memory: 500Mi
-        {{- end }}                     
+        {{- toYaml .lens.resources | nindent 10 }}
+        {{- end }} 
+        {{- end }}
+        volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      restartPolicy: OnFailure
+      volumes:
+        - emptyDir: {}
+          name: shared-volume  
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+
+{{- end }}
+---
+apiVersion: batch/v1
+#this job is added for creating new database(clairv4).
+#This database is needed for clair upgrade (v2 to v4), since old database does not support migration for new clair.
+#Without this job, database can be created for new users, but not for existing users.
+kind: Job
+metadata:
+  name: postgresql-miscellaneous
+spec:
+  ttlSecondsAfterFinished: 1000
+  template:
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
+      containers:
+      - name: postgresql-miscellaneous
+        image: quay.io/devtron/postgres:11.9
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-postgresql
+              key: postgresql-password
+        - name: PGHOST
+          value: postgresql-postgresql
+        command:
+          - /bin/sh
+          - -c
+          - psql -Upostgres -f /docker-entrypoint-initdb.d/db_create.sql
+        volumeMounts:
+          - name: custom-init-scripts
+            mountPath: /docker-entrypoint-initdb.d/
+      volumes:
+        - name: custom-init-scripts
+          configMap:
+            name: postgresql-postgresql-init-scripts
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
+{{- end }}
 {{- end }}

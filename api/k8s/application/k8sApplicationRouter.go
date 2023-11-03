@@ -19,7 +19,6 @@ func NewK8sApplicationRouterImpl(k8sApplicationRestHandler K8sApplicationRestHan
 }
 
 func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux.Router) {
-
 	k8sAppRouter.Path("/resource/rotate").Queries("appId", "{appId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.RotatePod).Methods("POST")
 
@@ -76,5 +75,8 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/resources/ephemeralContainers").
 		Queries("identifier", "{identifier}").
 		HandlerFunc(impl.k8sApplicationRestHandler.DeleteEphemeralContainer).Methods("DELETE")
+
+	k8sAppRouter.Path("/api-resources/gvk/{clusterId}").
+		HandlerFunc(impl.k8sApplicationRestHandler.GetAllApiResourceGVKWithoutAuthorization).Methods("GET")
 
 }
