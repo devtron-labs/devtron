@@ -68,8 +68,10 @@ CREATE TABLE "public"."devtron_resource_object_audit"
 );
 
 INSERT INTO devtron_resource(kind,display_name,icon,parent_kind_id,deleted,created_on,created_by,updated_on,updated_by)
-    VALUES('application','Applications','',0,false,now(),1,now(),1),
-          ('devtron-application','Devtron applications','',(select id from devtron_resource where kind='application'),false,now(),1,now(),1),
+    VALUES('application','Applications','',0,false,now(),1,now(),1);
+
+INSERT INTO devtron_resource(kind,display_name,icon,parent_kind_id,deleted,created_on,created_by,updated_on,updated_by)
+    VALUES('devtron-application','Devtron applications','',(select id from devtron_resource where kind='application'),false,now(),1,now(),1),
           ('helm-application','Helm applications','',(select id from devtron_resource where kind='application'),false,now(),1,now(),1),
           ('job','Jobs','',0,false,now(),1,now(),1),
           ('cluster','Clusters','',0,false,now(),1,now(),1);
