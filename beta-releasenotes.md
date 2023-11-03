@@ -4,6 +4,7 @@
 - fix: inducing overridden DockerRegistryId in case docker registry is overridden (#4178)
 - fix: cm cs handling for inheriting type in get sample workflow api (core app routers) (#4189)
 ## Enhancements
+- feat: Description for cluster and apps (#4154)
 - feat: Plugin for image scanning in Pre/Post step (#4021)
 - feat: scoped variable CMCS support and manager layer refactorings (#4174)
 - feat: pre-postcd trigger with plugin (#4176)
