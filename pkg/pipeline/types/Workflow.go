@@ -29,6 +29,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -125,6 +126,7 @@ type WorkflowRequest struct {
 	Env                      *repository.Environment
 	AppLabels                map[string]string
 	IsDryRun                 bool `json:"isDryRun"`
+	Scope                    resourceQualifiers.Scope
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {

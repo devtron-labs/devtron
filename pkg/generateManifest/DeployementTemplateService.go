@@ -16,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -82,6 +83,7 @@ type DeploymentTemplateServiceImpl struct {
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	environmentRepository            repository3.EnvironmentRepository
 	appRepository                    appRepository.AppRepository
+	scopedVariableManager            variables.ScopedVariableManager
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
@@ -97,6 +99,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	environmentRepository repository3.EnvironmentRepository,
 	appRepository appRepository.AppRepository,
+	scopedVariableManager variables.ScopedVariableManager,
 ) *DeploymentTemplateServiceImpl {
 	return &DeploymentTemplateServiceImpl{
 		Logger:                           Logger,
@@ -113,6 +116,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		environmentRepository:            environmentRepository,
 		appRepository:                    appRepository,
+		scopedVariableManager:            scopedVariableManager,
 	}
 }
 
@@ -249,7 +253,7 @@ func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx contex
 	}
 
 	//todo Subhashish solve variable leak
-	return historyObject.CodeEditorValue.Value, historyObject.ResolvedTemplateData, historyObject.VariableSnapshot, nil
+	return historyObject.CodeEditorValue.Value, historyObject.CodeEditorValue.ResolvedValue, historyObject.CodeEditorValue.VariableSnapshot, nil
 }
 
 func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error) {
@@ -263,7 +267,7 @@ func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(ctx context.C
 		return values, nil, err
 	}
 	maskUnknownVariableForHelmGenerate := request.RequestDataMode == Manifest
-	resolvedTemplate, variableSnapshot, err := impl.chartService.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate, isSuperAdmin, maskUnknownVariableForHelmGenerate)
+	resolvedTemplate, variableSnapshot, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplate(scope, values, parsers.StringVariableTemplate, isSuperAdmin, maskUnknownVariableForHelmGenerate)
 	if err != nil {
 		return values, variableSnapshot, err
 	}

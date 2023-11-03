@@ -1,6 +1,9 @@
 package parsers
 
-import "github.com/devtron-labs/devtron/pkg/variables/models"
+import (
+	"github.com/devtron-labs/devtron/pkg/variables/models"
+	"golang.org/x/exp/slices"
+)
 
 const InvalidTemplate = "invalid-template"
 const VariableParsingFailed = "variable-parsing-failed"
@@ -28,6 +31,15 @@ func (request VariableParserRequest) GetEmptyResponse() VariableParserResponse {
 	return VariableParserResponse{
 		Request:          request,
 		ResolvedTemplate: request.Template,
+	}
+}
+
+func CreateParserRequest(template string, templateType VariableTemplateType, variables []*models.ScopedVariableData, ignoreUnknownVariables bool) VariableParserRequest {
+	return VariableParserRequest{
+		TemplateType:           templateType,
+		Template:               template,
+		Variables:              variables,
+		IgnoreUnknownVariables: ignoreUnknownVariables,
 	}
 }
 
@@ -66,4 +78,14 @@ func GetScopedVarData(varData map[string]string, nameToIsSensitive map[string]bo
 		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: &models.VariableValue{Value: models.GetInterfacedValue(finalValue)}})
 	}
 	return scopedVarData
+}
+
+func GetVariableMapForUsedVariables(scopedVariables []*models.ScopedVariableData, usedVars []string) map[string]string {
+	variableMap := make(map[string]string)
+	for _, variable := range scopedVariables {
+		if slices.Contains(usedVars, variable.VariableName) {
+			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+		}
+	}
+	return variableMap
 }

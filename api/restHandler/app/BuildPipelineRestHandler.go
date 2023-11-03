@@ -413,6 +413,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 
 	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
+
 	var emptyDockerRegistry string
 	if app.AppType == helper.Job && ciConf == nil {
 		ciConfigRequest := bean.CiConfigRequest{}

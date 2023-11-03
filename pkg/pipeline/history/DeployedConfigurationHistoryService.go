@@ -134,9 +134,9 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponent
 	} else if historyComponent == string(PIPELINE_STRATEGY_TYPE_HISTORY_COMPONENT) {
 		history, err = impl.strategyHistoryService.GetHistoryForDeployedStrategyById(id, pipelineId)
 	} else if historyComponent == string(CONFIGMAP_TYPE_HISTORY_COMPONENT) {
-		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(id, pipelineId, repository.CONFIGMAP_TYPE, historyComponentName, userHasAdminAccess)
+		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(ctx, id, pipelineId, repository.CONFIGMAP_TYPE, historyComponentName, userHasAdminAccess)
 	} else if historyComponent == string(SECRET_TYPE_HISTORY_COMPONENT) {
-		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(id, pipelineId, repository.SECRET_TYPE, historyComponentName, userHasAdminAccess)
+		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(ctx, id, pipelineId, repository.SECRET_TYPE, historyComponentName, userHasAdminAccess)
 	} else {
 		return nil, errors.New(fmt.Sprintf("history of %s not supported", historyComponent))
 	}
@@ -170,13 +170,13 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetAllDeployedConfiguration
 		return nil, err
 	}
 	//getting history of config map for latest deployment
-	configMapHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(pipelineId, wfrId, repository.CONFIGMAP_TYPE, userHasAdminAccess)
+	configMapHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx, pipelineId, wfrId, repository.CONFIGMAP_TYPE, userHasAdminAccess)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting config map history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
 	//getting history of secret for latest deployment
-	secretHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(pipelineId, wfrId, repository.SECRET_TYPE, userHasAdminAccess)
+	secretHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx, pipelineId, wfrId, repository.SECRET_TYPE, userHasAdminAccess)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting secret history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
