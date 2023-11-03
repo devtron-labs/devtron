@@ -283,11 +283,10 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	}
 	if len(pluginArtifacts) == 0 {
 		ciArtifactArr = append(ciArtifactArr, buildArtifact)
-		go impl.WriteCISuccessEvent(request, pipeline, buildArtifact)
 	} else {
 		ciArtifactArr = append(ciArtifactArr, pluginArtifacts[0])
 	}
-
+	go impl.WriteCISuccessEvent(request, pipeline, buildArtifact)
 	isCiManual := true
 	if request.UserId == 1 {
 		impl.logger.Debugw("Trigger (auto) by system user", "userId", request.UserId)
