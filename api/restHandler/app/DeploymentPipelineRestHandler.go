@@ -1261,7 +1261,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	offsetQueryParam := r.URL.Query().Get("offset")
 	if offsetQueryParam != "" {
 		offset, err = strconv.Atoi(offsetQueryParam)
-		if err != nil {
+		if err != nil || offset < 0 {
 			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
 			common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
 			return
