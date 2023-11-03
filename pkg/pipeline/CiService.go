@@ -487,7 +487,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	} else {
 		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	}
-	registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, err := impl.GetEnvVariablesForSkopeoPlugin(preCiSteps, postCiSteps, customTag, fmt.Sprintf(bean2.ImagePathPattern, pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository, dockerImageTag), pipeline.CiTemplate.DockerRegistry.Id)
+	registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, err := impl.GetEnvVariablesForSkopeoPlugin(
+		preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
+		fmt.Sprintf(bean2.ImagePathPattern, pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository, dockerImageTag), pipeline.CiTemplate.DockerRegistry.Id)
 	if err != nil {
 		impl.Logger.Errorw("error in getting env variables for skopeo plugin")
 		return nil, err
@@ -661,7 +663,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if ciWorkflowConfig.LogsBucket == "" {
 		ciWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
-
+	if len(registryDestinationImageMap) > 0 {
+		workflowRequest.PushImageBeforePostCI = true
+	}
 	switch workflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
@@ -719,7 +723,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	return workflowRequest, nil
 }
 
-func (impl *CiServiceImpl) GetEnvVariablesForSkopeoPlugin(preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, customTag *repository5.CustomTag, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]plugin.RegistryCredentials, string, error) {
+func (impl *CiServiceImpl) GetEnvVariablesForSkopeoPlugin(preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]plugin.RegistryCredentials, string, error) {
 	var registryDestinationImageMap map[string][]string
 	var registryCredentialMap map[string]plugin.RegistryCredentials
 	var pluginArtifactStage string
@@ -731,7 +735,7 @@ func (impl *CiServiceImpl) GetEnvVariablesForSkopeoPlugin(preCiSteps []*bean2.St
 	for _, step := range preCiSteps {
 		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
 			// for Skopeo plugin parse destination images and save its data in image path reservation table
-			registryDestinationImageMap, registryCredentialMap, err = impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, customTag, buildImagePath, buildImagedockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, err = impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, customTag, customTagId, buildImagePath, buildImagedockerRegistryId)
 			if err != nil {
 				impl.Logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, err
@@ -742,7 +746,7 @@ func (impl *CiServiceImpl) GetEnvVariablesForSkopeoPlugin(preCiSteps []*bean2.St
 	for _, step := range postCiSteps {
 		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
 			// for Skopeo plugin parse destination images and save its data in image path reservation table
-			registryDestinationImageMap, registryCredentialMap, err = impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, customTag, buildImagePath, buildImagedockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, err = impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, customTag, customTagId, buildImagePath, buildImagedockerRegistryId)
 			if err != nil {
 				impl.Logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, err

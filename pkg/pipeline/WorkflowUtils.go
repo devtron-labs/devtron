@@ -370,6 +370,7 @@ type WorkflowRequest struct {
 	RegistryDestinationImageMap map[string][]string                   `json:"registryDestinationImageMap"`
 	RegistryCredentialMap       map[string]plugin.RegistryCredentials `json:"registryCredentialMap"`
 	PluginArtifactStage         string                                `json:"pluginArtifactStage"`
+	PushImageBeforePostCI       bool                                  `json:"pushImageBeforePostCI"`
 	Type                        bean.WorkflowPipelineType
 	Pipeline                    *pipelineConfig.Pipeline
 	Env                         *repository2.Environment

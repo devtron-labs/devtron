@@ -3,12 +3,10 @@ package pipeline
 import (
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strconv"
 	"strings"
 )
 
@@ -25,7 +23,7 @@ const (
 )
 
 type PluginInputVariableParser interface {
-	ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, customTag *repository.CustomTag, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error)
+	ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, customTag string, customTagId int, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error)
 }
 
 type PluginInputVariableParserImpl struct {
@@ -46,7 +44,7 @@ func NewPluginInputVariableParserImpl(
 	}
 }
 
-func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, customTag *repository.CustomTag, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error) {
+func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, dockerImageTag string, customTagId int, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error) {
 	var DestinationInfo, SourceRegistry, SourceImage string
 	for _, ipVariable := range inputVariables {
 		if ipVariable.Name == DESTINATION_INFO {
@@ -67,7 +65,7 @@ func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(input
 			}
 		}
 	}
-	registryDestinationImageMap, registryCredentialMap, err := impl.getRegistryDetailsAndDestinationImagePathForSkopeo(customTag, SourceImage, SourceRegistry, DestinationInfo)
+	registryDestinationImageMap, registryCredentialMap, err := impl.getRegistryDetailsAndDestinationImagePathForSkopeo(dockerImageTag, customTagId, SourceImage, SourceRegistry, DestinationInfo)
 	if err != nil {
 		impl.logger.Errorw("Error in parsing skopeo input variables")
 		return nil, nil, err
@@ -75,14 +73,14 @@ func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(input
 	return registryDestinationImageMap, registryCredentialMap, nil
 }
 
-func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImagePathForSkopeo(tag *repository.CustomTag, sourceImage string, sourceRegistry string, destinationInfo string) (registryDestinationImageMap map[string][]string, registryCredentialsMap map[string]plugin.RegistryCredentials, err error) {
+func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImagePathForSkopeo(dockerImageTag string, tagId int, sourceImage string, sourceRegistry string, destinationInfo string) (registryDestinationImageMap map[string][]string, registryCredentialsMap map[string]plugin.RegistryCredentials, err error) {
 	registryDestinationImageMap = make(map[string][]string)
 	registryCredentialsMap = make(map[string]plugin.RegistryCredentials)
 
-	var sourceImageTag string
-	sourceSplit := strings.Split(sourceImage, ":")
-	sourceImageTag = sourceSplit[len(sourceSplit)-1]
-
+	if len(dockerImageTag) == 0 {
+		sourceSplit := strings.Split(sourceImage, ":")
+		dockerImageTag = sourceSplit[len(sourceSplit)-1]
+	}
 	//saving source registry credentials
 	registryCredentials, err := impl.dockerRegistryConfig.FetchOneDockerAccount(sourceRegistry)
 	if err != nil {
@@ -117,16 +115,7 @@ func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImage
 
 		for _, repositoryName := range repositoryValuesSplit {
 			repositoryName = strings.Trim(repositoryName, " ")
-			var destinationImage string
-			var tagId int
-			if tag != nil && tag.Id > 0 {
-				tagId = tag.Id
-			}
-			if tagId > 0 {
-				destinationImage = fmt.Sprintf("%s/%s:%s", registryCredentials.RegistryURL, repositoryName, strconv.Itoa(tag.Id))
-			} else {
-				destinationImage = fmt.Sprintf("%s/%s:%s", registryCredentials.RegistryURL, repositoryName, sourceImageTag)
-			}
+			destinationImage := fmt.Sprintf("%s/%s:%s", registryCredentials.RegistryURL, repositoryName, dockerImageTag)
 			destinationImages = append(destinationImages, destinationImage)
 			err = impl.customTagService.ReserveImagePath(destinationImage, tagId)
 			if err != nil {
@@ -134,7 +123,6 @@ func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImage
 				return registryDestinationImageMap, registryCredentialsMap, err
 			}
 		}
-
 		registryDestinationImageMap[registryName] = destinationImages
 		registryCredentialsMap[registryName] = plugin.RegistryCredentials{
 			RegistryType:       string(registryCredentials.RegistryType),

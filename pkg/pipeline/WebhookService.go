@@ -147,10 +147,20 @@ func (impl WebhookServiceImpl) HandleCiStepFailedEvent(ciPipelineId int, request
 	}
 
 	go func() {
+		//TODO: Ayush - remove plugin images from reservation table
 		err := impl.customTagService.DeactivateImagePathReservation(savedWorkflow.ImagePathReservationId)
 		if err != nil {
 			impl.logger.Errorw("unable to deactivate impage_path_reservation ", err)
 		}
+		for _, images := range request.PluginRegistryArtifactDetails {
+			if len(images) > 0 {
+				err = impl.customTagService.DeactivateImagePathReservationByImagePath(images)
+				if err != nil {
+					impl.logger.Errorw("unable to deactivate impage_path_reservation ", err)
+				}
+			}
+		}
+
 	}()
 
 	go impl.WriteCIStepFailedEvent(pipeline, request, savedWorkflow)
