@@ -287,7 +287,7 @@ func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *types.
 }
 
 func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) executors.WorkflowExecutor {
-	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
+	if executorType == "" || executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
 	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		return impl.systemWorkflowExecutor
@@ -298,6 +298,9 @@ func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig
 func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error) {
 	impl.Logger.Debug("getting wf", name)
 	workflowExecutor := impl.getWorkflowExecutor(executorType)
+	if workflowExecutor == nil {
+		return nil, errors.New("workflow executor not found")
+	}
 	if restConfig == nil {
 		restConfig = impl.config
 	}
@@ -307,6 +310,9 @@ func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.Workflo
 func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error) {
 	impl.Logger.Debug("getting wf", name)
 	workflowExecutor := impl.getWorkflowExecutor(executorType)
+	if workflowExecutor == nil {
+		return nil, errors.New("workflow executor not found")
+	}
 	if restConfig == nil {
 		restConfig = impl.config
 	}
@@ -319,6 +325,9 @@ func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.W
 	var err error
 	if executorType != "" {
 		workflowExecutor := impl.getWorkflowExecutor(executorType)
+		if workflowExecutor == nil {
+			return errors.New("workflow executor not found")
+		}
 		if restConfig == nil {
 			restConfig = impl.config
 		}
