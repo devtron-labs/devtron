@@ -107,7 +107,7 @@ type WorkflowWithArtifact struct {
 	ImagePathReservationId  int               `json:"image_path_reservation_id"`
 	RefCiWorkflowId         int               `json:"referenceCiWorkflowId"`
 	ParentCiWorkflowId      int               `json:"parent_ci_workflow_id"`
-	ImagePathReservationIds []int             `json:"image_path_reservation_ids"`
+	ImagePathReservationIds []int             `json:"image_path_reservation_ids" pg:",array"`
 }
 
 type GitCommit struct {
