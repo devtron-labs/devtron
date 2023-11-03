@@ -79,23 +79,6 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
        '{
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Devtron Application Schema",
-          "references": {
-            "users": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name"
-              ]
-            }
-          },
           "type": "object",
           "properties": {
             "version": {
@@ -108,7 +91,7 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
               "type": "object",
               "properties": {
                 "id": {
-                  "type": "string"
+                  "type": "number"
                 },
                 "name": {
                   "type": "string"
@@ -117,18 +100,18 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
                   "type": "string",
                   "contentEncoding": "base64"
                 },
-                "Description": {
+                "description": {
                   "type": "string"
                 },
-                "Created On": {
+                "createdOn": {
                   "type": "string",
                   "format": "date-time"
                 },
-                "Created By": {
+                "createdBy": {
                   "type": "object",
                   "refType": "#/references/users"
                 },
-                "Tags": {
+                "tags": {
                   "additionalProperties": {
                     "type": "string"
                   }
@@ -214,8 +197,6 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
               },
               "required": [
                 "id",
-                "Created On",
-                "Created By",
                 "metadata"
               ]
             },
@@ -231,29 +212,12 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
             "kind",
             "overview"
           ]
-        }'
-    ,true,now(),1,now(),1),
+        }',
+       true,now(),1,now(),1),
       ((select id from devtron_resource where kind='helm-application'),'v1',
        '{
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Helm Application Schema",
-          "references": {
-            "users": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name"
-              ]
-            }
-          },
           "type": "object",
           "properties": {
             "version": {
@@ -266,7 +230,7 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
               "type": "object",
               "properties": {
                 "id": {
-                  "type": "string"
+                  "type": "number"
                 },
                 "name": {
                   "type": "string"
@@ -275,18 +239,18 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
                   "type": "string",
                   "contentEncoding": "base64"
                 },
-                "Description": {
+                "description": {
                   "type": "string"
                 },
-                "Created On": {
+                "createdOn": {
                   "type": "string",
                   "format": "date-time"
                 },
-                "Created By": {
+                "createdBy": {
                   "type": "object",
                   "refType": "#/references/users"
                 },
-                "Tags": {
+                "tags": {
                   "additionalProperties": {
                     "type": "string"
                   }
@@ -372,8 +336,6 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
               },
               "required": [
                 "id",
-                "Created On",
-                "Created By",
                 "metadata"
               ]
             },
@@ -395,23 +357,6 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
        '{
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Job Schema",
-          "references": {
-            "users": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name"
-              ]
-            }
-          },
           "type": "object",
           "properties": {
             "version": {
@@ -424,7 +369,7 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
               "type": "object",
               "properties": {
                 "id": {
-                  "type": "string"
+                  "type": "number"
                 },
                 "name": {
                   "type": "string"
@@ -433,18 +378,18 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
                   "type": "string",
                   "contentEncoding": "base64"
                 },
-                "Description": {
+                "description": {
                   "type": "string"
                 },
-                "Created On": {
+                "createdOn": {
                   "type": "string",
                   "format": "date-time"
                 },
-                "Created By": {
+                "createdBy": {
                   "type": "object",
                   "refType": "#/references/users"
                 },
-                "Tags": {
+                "tags": {
                   "additionalProperties": {
                     "type": "string"
                   }
@@ -530,8 +475,6 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
               },
               "required": [
                 "id",
-                "Created On",
-                "Created By",
                 "metadata"
               ]
             },
@@ -553,23 +496,6 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
        '{
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Cluster Schema",
-          "references": {
-            "users": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name"
-              ]
-            }
-          },
           "type": "object",
           "properties": {
             "version": {
@@ -582,7 +508,7 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
               "type": "object",
               "properties": {
                 "id": {
-                  "type": "string"
+                  "type": "number"
                 },
                 "name": {
                   "type": "string"
@@ -591,18 +517,18 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
                   "type": "string",
                   "contentEncoding": "base64"
                 },
-                "Description": {
+                "description": {
                   "type": "string"
                 },
-                "Created On": {
+                "createdOn": {
                   "type": "string",
                   "format": "date-time"
                 },
-                "Created By": {
+                "createdBy": {
                   "type": "object",
                   "refType": "#/references/users"
                 },
-                "Tags": {
+                "tags": {
                   "additionalProperties": {
                     "type": "string"
                   }
@@ -624,8 +550,6 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
               },
               "required": [
                 "id",
-                "Created On",
-                "Created By",
                 "metadata"
               ]
             },
@@ -642,4 +566,4 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
             "overview"
           ]
         }',
-       true,now(),1,now(),1),;
+       true,now(),1,now(),1);
