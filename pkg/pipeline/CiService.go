@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"path/filepath"
 	"strconv"
@@ -74,8 +75,8 @@ type CiServiceImpl struct {
 	envRepository                  repository1.EnvironmentRepository
 	appRepository                  appRepository.AppRepository
 	customTagService               CustomTagService
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 	config                         *types.CiConfig
+	scopedVariableManager         variables.ScopedVariableManager
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -86,26 +87,26 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
 	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	scopedVariableManager variables.ScopedVariableManager,
 	customTagService CustomTagService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
-		Logger:                         Logger,
-		workflowService:                workflowService,
-		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
-		ciWorkflowRepository:           ciWorkflowRepository,
-		eventClient:                    eventClient,
-		eventFactory:                   eventFactory,
-		mergeUtil:                      mergeUtil,
-		ciPipelineRepository:           ciPipelineRepository,
-		prePostCiScriptHistoryService:  prePostCiScriptHistoryService,
-		pipelineStageService:           pipelineStageService,
-		userService:                    userService,
-		ciTemplateService:              ciTemplateService,
-		appCrudOperationService:        appCrudOperationService,
-		envRepository:                  envRepository,
-		appRepository:                  appRepository,
-		variableSnapshotHistoryService: variableSnapshotHistoryService,
+		Logger:                        Logger,
+		workflowService:               workflowService,
+		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		eventClient:                   eventClient,
+		eventFactory:                  eventFactory,
+		mergeUtil:                     mergeUtil,
+		ciPipelineRepository:          ciPipelineRepository,
+		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
+		pipelineStageService:          pipelineStageService,
+		userService:                   userService,
+		ciTemplateService:             ciTemplateService,
+		appCrudOperationService:       appCrudOperationService,
+		envRepository:                 envRepository,
+		appRepository:                 appRepository,
+		scopedVariableManager:         scopedVariableManager,
 		customTagService:               customTagService,
 	}
 	config, err := types.GetCiConfig()
@@ -209,6 +210,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return 0, err
 	}
+	workflowRequest.Scope = scope
 
 	if impl.config != nil && impl.config.BuildxK8sDriverOptions != "" {
 		err = impl.setBuildxK8sDriverData(workflowRequest)
@@ -241,16 +243,10 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 	impl.Logger.Debugw("ci triggered", " pipeline ", trigger.PipelineId)
 
-	//Save Scoped VariableSnapshot
-	if len(variableSnapshot) > 0 {
-		variableMapBytes, _ := json.Marshal(variableSnapshot)
-		err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository4.VariableSnapshotHistoryBean{{
-			VariableSnapshot: variableMapBytes,
-			HistoryReference: repository4.HistoryReference{
-				HistoryReferenceId:   savedCiWf.Id,
-				HistoryReferenceType: repository4.HistoryReferenceTypeCIWORKFLOW,
-			},
-		}}, trigger.TriggeredBy)
+	var variableSnapshotHistories = util3.GetBeansPtr(
+		repository4.GetSnapshotBean(savedCiWf.Id, repository4.HistoryReferenceTypeCIWORKFLOW, variableSnapshot))
+	if len(variableSnapshotHistories) > 0 {
+		err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, trigger.TriggeredBy)
 		if err != nil {
 			impl.Logger.Errorf("Not able to save variable snapshot for CI trigger %s", err)
 		}
