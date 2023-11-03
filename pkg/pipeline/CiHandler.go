@@ -832,7 +832,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
-	useExternalBlobStorage := isExternalBlobStorageEnabled(isExt, impl.config.UseBlobStorageConfigInCdWorkflow)
+	useExternalBlobStorage := isExternalBlobStorageEnabled(isExt, impl.config.UseBlobStorageConfigInCiWorkflow)
 	if useExternalBlobStorage {
 		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
 		//from them else return.
@@ -859,7 +859,7 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		impl.Logger.Errorw("unable to fetch ciWorkflow", "err", err)
 		return nil, err
 	}
-	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCdWorkflow)
+	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCiWorkflow)
 	if !ciWorkflow.BlobStorageEnabled {
 		return nil, errors.New("logs-not-stored-in-repository")
 	}
@@ -994,7 +994,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
-	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCdWorkflow)
+	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCiWorkflow)
 	if useExternalBlobStorage {
 		envBean, err := impl.envService.FindById(ciWorkflow.EnvironmentId)
 		if err != nil {
