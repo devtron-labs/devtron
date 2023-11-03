@@ -733,6 +733,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		searchString := listingFilterOpts.SearchString[1 : len(listingFilterOpts.SearchString)-1]
 		if strings.Contains(currentRunningArtifactBean.Image, searchString) {
 			ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+			totalCount += 1
 		}
 	}
 
