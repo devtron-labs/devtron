@@ -29,6 +29,8 @@ import (
 type ClusterDescriptionBean struct {
 	ClusterId        int                              `json:"clusterId" validate:"number"`
 	ClusterName      string                           `json:"clusterName" validate:"required"`
+	Description      string                           `json:"description"`
+	ServerUrl        string                           `json:"serverUrl"`
 	ClusterCreatedBy string                           `json:"clusterCreatedBy" validate:"number"`
 	ClusterCreatedOn time.Time                        `json:"clusterCreatedOn" validate:"required"`
 	ClusterNote      *apiBean.GenericNoteResponseBean `json:"clusterNote,omitempty"`
@@ -71,13 +73,15 @@ func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(clu
 	bean := &ClusterDescriptionBean{
 		ClusterId:        model.ClusterId,
 		ClusterName:      model.ClusterName,
+		Description:      model.ClusterDescription,
+		ServerUrl:        model.ServerUrl,
 		ClusterCreatedBy: clusterCreatedByUser.EmailId,
 		ClusterCreatedOn: model.ClusterCreatedOn,
 	}
 	if model.NoteId > 0 {
 		clusterNote := &apiBean.GenericNoteResponseBean{
 			Id:          model.NoteId,
-			Description: model.Description,
+			Description: model.Note,
 			UpdatedBy:   noteUpdatedByUser.EmailId,
 			UpdatedOn:   model.UpdatedOn,
 		}

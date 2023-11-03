@@ -39,6 +39,7 @@ import (
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
@@ -96,7 +97,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	GitSensorClient               gitSensor.Client
-	ciConfig                      *CiCdConfig
+	ciConfig                      *types.CiCdConfig
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	envRepository                 repository2.EnvironmentRepository
 	attributesService             attributes.AttributesService
@@ -124,7 +125,7 @@ func NewCiCdPipelineOrchestrator(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	GitSensorClient gitSensor.Client, ciConfig *CiCdConfig,
+	GitSensorClient gitSensor.Client, ciConfig *types.CiCdConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,
@@ -994,7 +995,7 @@ func (impl CiCdPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *b
 			return nil
 		}
 		if hostUrl != nil {
-			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, types.ExternalCiWebhookPath)
 		}
 	}
 	accessKey := keyPrefix + "." + apiKey
@@ -1053,13 +1054,13 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, createRequest.AppType, tx)
+	app, err := impl.createAppGroup(createRequest.AppName, createRequest.Description, createRequest.UserId, createRequest.TeamId, createRequest.AppType, tx)
 	if err != nil {
 		return nil, err
 	}
-	err = impl.storeDescription(tx, createRequest, app.Id)
+	err = impl.storeGenericNote(tx, createRequest, app.Id)
 	if err != nil {
-		impl.logger.Errorw("error in saving description", "err", err, "descriptionObj", createRequest.Description, "userId", createRequest.UserId)
+		impl.logger.Errorw("error in saving generic note", "err", err, "genericNoteObj", createRequest.GenericNote, "userId", createRequest.UserId)
 		return nil, err
 	}
 	// create labels and tags with app
@@ -1096,19 +1097,19 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	return createRequest, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) storeDescription(tx *pg.Tx, createRequest *bean.CreateAppDTO, appId int) error {
-	if createRequest.Description != nil && createRequest.Description.Description != "" {
-		descriptionObj := repository3.GenericNote{
-			Description:    createRequest.Description.Description,
+func (impl CiCdPipelineOrchestratorImpl) storeGenericNote(tx *pg.Tx, createRequest *bean.CreateAppDTO, appId int) error {
+	if createRequest.GenericNote != nil && createRequest.GenericNote.Description != "" {
+		genericNoteObj := repository3.GenericNote{
+			Description:    createRequest.GenericNote.Description,
 			IdentifierType: repository3.AppType,
 			Identifier:     appId,
 		}
-		note, err := impl.genericNoteService.Save(tx, &descriptionObj, createRequest.UserId)
+		note, err := impl.genericNoteService.Save(tx, &genericNoteObj, createRequest.UserId)
 		if err != nil {
-			impl.logger.Errorw("error in saving description", "err", err, "descriptionObj", descriptionObj, "userId", createRequest.UserId)
+			impl.logger.Errorw("error in saving description", "err", err, "genericNoteObj", genericNoteObj, "userId", createRequest.UserId)
 			return err
 		}
-		createRequest.Description = note
+		createRequest.GenericNote = note
 	}
 	return nil
 }
@@ -1265,7 +1266,7 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 }
 
 // FIXME: not thread safe
-func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, appType helper.AppType, tx *pg.Tx) (*app2.App, error) {
+func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name, description string, userId int32, teamId int, appType helper.AppType, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -1305,6 +1306,7 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 		Active:      true,
 		AppName:     appName,
 		DisplayName: displayName,
+		Description: description,
 		TeamId:      teamId,
 		AppType:     appType,
 		AuditLog:    sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},

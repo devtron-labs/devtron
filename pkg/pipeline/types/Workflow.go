@@ -1,289 +1,42 @@
-package pipeline
+/*
+ * Copyright (c) 2020 Devtron Labs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package types
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
-	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
-	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/common-lib/blob-storage"
+	bean3 "github.com/devtron-labs/devtron/api/bean"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	bean3 "github.com/devtron-labs/devtron/pkg/bean"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/util"
-	v12 "k8s.io/api/core/v1"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"strings"
 	"time"
 )
-
-var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
-
-type ConfigMapSecretDto struct {
-	Name     string
-	Data     map[string]string
-	OwnerRef v1.OwnerReference
-}
-
-func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
-	var volumes []v12.Volume
-	configMapVolumes := extractVolumesFromConfigSecretMaps(true, configMaps)
-	secretVolumes := extractVolumesFromConfigSecretMaps(false, secrets)
-
-	for _, volume := range configMapVolumes {
-		volumes = append(volumes, volume)
-	}
-	for _, volume := range secretVolumes {
-		volumes = append(volumes, volume)
-	}
-	return volumes
-}
-
-func extractVolumesFromConfigSecretMaps(isCm bool, configSecretMaps []bean2.ConfigSecretMap) []v12.Volume {
-	var volumes []v12.Volume
-	for _, configSecretMap := range configSecretMaps {
-		if configSecretMap.Type != util.ConfigMapSecretUsageTypeVolume {
-			// not volume type so ignoring
-			continue
-		}
-		var volumeSource v12.VolumeSource
-		if isCm {
-			volumeSource = v12.VolumeSource{
-				ConfigMap: &v12.ConfigMapVolumeSource{
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: configSecretMap.Name,
-					},
-				},
-			}
-		} else {
-			volumeSource = v12.VolumeSource{
-				Secret: &v12.SecretVolumeSource{
-					SecretName: configSecretMap.Name,
-				},
-			}
-		}
-		volumes = append(volumes, v12.Volume{
-			Name:         configSecretMap.Name + "-vol",
-			VolumeSource: volumeSource,
-		})
-	}
-	return volumes
-}
-
-func UpdateContainerEnvsFromCmCs(workflowMainContainer *v12.Container, configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) {
-	for _, configMap := range configMaps {
-		updateContainerEnvs(true, workflowMainContainer, configMap)
-	}
-
-	for _, secret := range secrets {
-		updateContainerEnvs(false, workflowMainContainer, secret)
-	}
-}
-
-func updateContainerEnvs(isCM bool, workflowMainContainer *v12.Container, configSecretMap bean2.ConfigSecretMap) {
-	if configSecretMap.Type == repository.VOLUME_CONFIG {
-		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
-			Name:      configSecretMap.Name + "-vol",
-			MountPath: configSecretMap.MountPath,
-		})
-	} else if configSecretMap.Type == repository.ENVIRONMENT_CONFIG {
-		var envFrom v12.EnvFromSource
-		if isCM {
-			envFrom = v12.EnvFromSource{
-				ConfigMapRef: &v12.ConfigMapEnvSource{
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: configSecretMap.Name,
-					},
-				},
-			}
-		} else {
-			envFrom = v12.EnvFromSource{
-				SecretRef: &v12.SecretEnvSource{
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: configSecretMap.Name,
-					},
-				},
-			}
-		}
-		workflowMainContainer.EnvFrom = append(workflowMainContainer.EnvFrom, envFrom)
-	}
-}
-
-func GetConfigMapJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
-	configMapBody := GetConfigMapBody(configMapSecretDto)
-	configMapJson, err := json.Marshal(configMapBody)
-	if err != nil {
-		return "", err
-	}
-	return string(configMapJson), err
-}
-
-func GetConfigMapBody(configMapSecretDto ConfigMapSecretDto) v12.ConfigMap {
-	return v12.ConfigMap{
-		TypeMeta: v1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-		ObjectMeta: v1.ObjectMeta{
-			Name:            configMapSecretDto.Name,
-			OwnerReferences: []v1.OwnerReference{configMapSecretDto.OwnerRef},
-		},
-		Data: configMapSecretDto.Data,
-	}
-}
-
-func GetSecretJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
-	secretBody := GetSecretBody(configMapSecretDto)
-	secretJson, err := json.Marshal(secretBody)
-	if err != nil {
-		return "", err
-	}
-	return string(secretJson), err
-}
-
-func GetSecretBody(configMapSecretDto ConfigMapSecretDto) v12.Secret {
-	secretDataMap := make(map[string][]byte)
-
-	// adding handling to get base64 decoded value in map value
-	cmsDataMarshaled, _ := json.Marshal(configMapSecretDto.Data)
-	json.Unmarshal(cmsDataMarshaled, &secretDataMap)
-
-	return v12.Secret{
-		TypeMeta: v1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: v1.ObjectMeta{
-			Name:            configMapSecretDto.Name,
-			OwnerReferences: []v1.OwnerReference{configMapSecretDto.OwnerRef},
-		},
-		Data: secretDataMap,
-		Type: "Opaque",
-	}
-}
-
-func GetFromGlobalCmCsDtos(globalCmCsConfigs []*bean.GlobalCMCSDto) ([]bean2.ConfigSecretMap, []bean2.ConfigSecretMap, error) {
-	workflowConfigMaps := make([]bean2.ConfigSecretMap, 0, len(globalCmCsConfigs))
-	workflowSecrets := make([]bean2.ConfigSecretMap, 0, len(globalCmCsConfigs))
-
-	for _, config := range globalCmCsConfigs {
-		configSecretMap, err := config.ConvertToConfigSecretMap()
-		if err != nil {
-			return workflowConfigMaps, workflowSecrets, err
-		}
-		if config.ConfigType == repository.CM_TYPE_CONFIG {
-			workflowConfigMaps = append(workflowConfigMaps, configSecretMap)
-		} else {
-			workflowSecrets = append(workflowSecrets, configSecretMap)
-		}
-	}
-	return workflowConfigMaps, workflowSecrets, nil
-}
-
-func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.GlobalCMCSDto, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
-
-	cmIndex := 0
-	csIndex := 0
-	for _, config := range globalCmCsConfigs {
-		if config.ConfigType == repository.CM_TYPE_CONFIG {
-			cmJson, err := GetConfigMapJson(ConfigMapSecretDto{Name: config.Name, Data: config.Data, OwnerRef: ArgoWorkflowOwnerRef})
-			if err != nil {
-				return err
-			}
-			if config.Type == repository.VOLUME_CONFIG {
-				*volumes = append(*volumes, v12.Volume{
-					Name: config.Name + "-vol",
-					VolumeSource: v12.VolumeSource{
-						ConfigMap: &v12.ConfigMapVolumeSource{
-							LocalObjectReference: v12.LocalObjectReference{
-								Name: config.Name,
-							},
-						},
-					},
-				})
-			}
-			*steps = append(*steps, v1alpha1.ParallelSteps{
-				Steps: []v1alpha1.WorkflowStep{
-					{
-						Name:     "create-env-cm-gb-" + strconv.Itoa(cmIndex),
-						Template: "cm-gb-" + strconv.Itoa(cmIndex),
-					},
-				},
-			})
-			*templates = append(*templates, v1alpha1.Template{
-				Name: "cm-gb-" + strconv.Itoa(cmIndex),
-				Resource: &v1alpha1.ResourceTemplate{
-					Action:            "create",
-					SetOwnerReference: true,
-					Manifest:          string(cmJson),
-				},
-			})
-			cmIndex++
-		} else if config.ConfigType == repository.CS_TYPE_CONFIG {
-
-			// special handling for secret data since GetSecretJson expects encoded values in data map
-			encodedSecretData, err := bean.ConvertToEncodedForm(config.Data)
-			if err != nil {
-				return err
-			}
-			var encodedSecretDataMap = make(map[string]string)
-			err = json.Unmarshal(encodedSecretData, &encodedSecretDataMap)
-			if err != nil {
-				return err
-			}
-
-			secretJson, err := GetSecretJson(ConfigMapSecretDto{Name: config.Name, Data: encodedSecretDataMap, OwnerRef: ArgoWorkflowOwnerRef})
-			if err != nil {
-				return err
-			}
-			if config.Type == repository.VOLUME_CONFIG {
-				*volumes = append(*volumes, v12.Volume{
-					Name: config.Name + "-vol",
-					VolumeSource: v12.VolumeSource{
-						Secret: &v12.SecretVolumeSource{
-							SecretName: config.Name,
-						},
-					},
-				})
-			}
-			*steps = append(*steps, v1alpha1.ParallelSteps{
-				Steps: []v1alpha1.WorkflowStep{
-					{
-						Name:     "create-env-sec-gb-" + strconv.Itoa(csIndex),
-						Template: "sec-gb-" + strconv.Itoa(csIndex),
-					},
-				},
-			})
-			*templates = append(*templates, v1alpha1.Template{
-				Name: "sec-gb-" + strconv.Itoa(csIndex),
-				Resource: &v1alpha1.ResourceTemplate{
-					Action:            "create",
-					SetOwnerReference: true,
-					Manifest:          string(secretJson),
-				},
-			})
-			csIndex++
-		}
-	}
-
-	return nil
-}
-
-func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.WorkflowInterface, error) {
-	clientSet, err := versioned.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	wfClient := clientSet.ArgoprojV1alpha1().Workflows(namespace) // create the workflow client
-	return wfClient, nil
-}
 
 type WorkflowRequest struct {
 	WorkflowNamePrefix         string                            `json:"workflowNamePrefix"`
@@ -313,8 +66,8 @@ type WorkflowRequest struct {
 	WorkflowId                 int                               `json:"workflowId"`
 	TriggeredBy                int32                             `json:"triggeredBy"`
 	CacheLimit                 int64                             `json:"cacheLimit"`
-	BeforeDockerBuildScripts   []*bean3.CiScript                 `json:"beforeDockerBuildScripts"`
-	AfterDockerBuildScripts    []*bean3.CiScript                 `json:"afterDockerBuildScripts"`
+	BeforeDockerBuildScripts   []*bean2.CiScript                 `json:"beforeDockerBuildScripts"`
+	AfterDockerBuildScripts    []*bean2.CiScript                 `json:"afterDockerBuildScripts"`
 	CiArtifactLocation         string                            `json:"ciArtifactLocation"`
 	CiArtifactBucket           string                            `json:"ciArtifactBucket"`
 	CiArtifactFileName         string                            `json:"ciArtifactFileName"`
@@ -366,15 +119,13 @@ type WorkflowRequest struct {
 	WorkflowExecutor         pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
 	PrePostDeploySteps       []*bean.StepObject                  `json:"prePostDeploySteps"`
 	CiArtifactLastFetch      time.Time                           `json:"ciArtifactLastFetch"`
+	CiPipelineType           string                              `json:"ciPipelineType"`
+	UseExternalClusterBlob   bool                                `json:"useExternalClusterBlob"`
 	Type                     bean.WorkflowPipelineType
 	Pipeline                 *pipelineConfig.Pipeline
-	Env                      *repository2.Environment
+	Env                      *repository.Environment
 	AppLabels                map[string]string
-}
-
-type CiCdTriggerEvent struct {
-	Type                  string           `json:"type"`
-	CommonWorkflowRequest *WorkflowRequest `json:"commonWorkflowRequest"`
+	Scope                    resourceQualifiers.Scope
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -401,6 +152,10 @@ func (workflowRequest *WorkflowRequest) CheckBlobStorageConfig(config *CiCdConfi
 		return false
 	}
 
+}
+
+func (workflowRequest *WorkflowRequest) updateUseExternalClusterBlob(config *CiCdConfig) {
+	workflowRequest.UseExternalClusterBlob = !workflowRequest.CheckBlobStorageConfig(config) && workflowRequest.IsExtRun
 }
 
 func (workflowRequest *WorkflowRequest) GetWorkflowTemplate(workflowJson []byte, config *CiCdConfig) bean.WorkflowTemplate {
@@ -437,6 +192,7 @@ func (workflowRequest *WorkflowRequest) GetBlobStorageLogsKey(config *CiCdConfig
 func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]byte, error) {
 	workflowRequest.updateBlobStorageLogsKey(config)
 	workflowRequest.updateExternalRunMetadata()
+	workflowRequest.updateUseExternalClusterBlob(config)
 	workflowJson, err := workflowRequest.getWorkflowJson()
 	if err != nil {
 		return nil, err
@@ -466,17 +222,10 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() stri
 	}
 }
 
-func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdConfig, workflowJson []byte) (containerEnvVariables []v12.EnvVar) {
-	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE ||
-		workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
-		containerEnvVariables = []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: config.ImageScannerEndpoint}}
-	}
-	if config.CloudProvider == BLOB_STORAGE_S3 && config.BlobStorageS3AccessKey != "" {
-		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: config.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: config.BlobStorageS3SecretKey}}
-		containerEnvVariables = append(containerEnvVariables, miniCred...)
-	}
-	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
-	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
+func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdConfig, workflowJson []byte) (containerEnvVariables []v1.EnvVar) {
+	containerEnvVariables = []v1.EnvVar{{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint}}
+	eventEnv := v1.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
+	inAppLoggingEnv := v1.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
 	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
 	return containerEnvVariables
 }
@@ -548,14 +297,14 @@ func (workflowRequest *WorkflowRequest) AddNodeConstraintsFromConfig(workflowTem
 	}
 	workflowTemplate.ServiceAccountName = nodeConstraints.ServiceAccount
 	if nodeConstraints.TaintKey != "" || nodeConstraints.TaintValue != "" {
-		workflowTemplate.Tolerations = []v12.Toleration{{Key: nodeConstraints.TaintKey, Value: nodeConstraints.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
+		workflowTemplate.Tolerations = []v1.Toleration{{Key: nodeConstraints.TaintKey, Value: nodeConstraints.TaintValue, Operator: v1.TolerationOpEqual, Effect: v1.TaintEffectNoSchedule}}
 	}
 	// In the future, we will give support for NodeSelector for job currently we need to have a node without dedicated NodeLabel to run job
 	if len(nodeConstraints.NodeLabel) > 0 && !(nodeConstraints.SkipNodeSelector) {
 		workflowTemplate.NodeSelector = nodeConstraints.NodeLabel
 	}
 	workflowTemplate.ArchiveLogs = workflowRequest.BlobStorageConfigured && !workflowRequest.InAppLoggingEnabled
-	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
+	workflowTemplate.RestartPolicy = v1.RestartPolicyNever
 
 }
 
@@ -577,7 +326,7 @@ func (workflowRequest *WorkflowRequest) GetConfiguredCmCs() (map[string]bool, ma
 
 	if workflowRequest.StageType == "PRE" {
 		preStageConfigMapSecretsJson := workflowRequest.Pipeline.PreStageConfigMapSecretNames
-		preStageConfigmapSecrets := bean3.PreStageConfigMapSecretNames{}
+		preStageConfigmapSecrets := bean2.PreStageConfigMapSecretNames{}
 		err := json.Unmarshal([]byte(preStageConfigMapSecretsJson), &preStageConfigmapSecrets)
 		if err != nil {
 			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
@@ -591,7 +340,7 @@ func (workflowRequest *WorkflowRequest) GetConfiguredCmCs() (map[string]bool, ma
 	}
 	if workflowRequest.StageType == "POST" {
 		postStageConfigMapSecretsJson := workflowRequest.Pipeline.PostStageConfigMapSecretNames
-		postStageConfigmapSecrets := bean3.PostStageConfigMapSecretNames{}
+		postStageConfigmapSecrets := bean2.PostStageConfigMapSecretNames{}
 		err := json.Unmarshal([]byte(postStageConfigMapSecretsJson), &postStageConfigmapSecrets)
 		if err != nil {
 			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
@@ -624,7 +373,7 @@ func (workflowRequest *WorkflowRequest) CheckForJob() bool {
 }
 
 func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *bean.NodeConstraints {
-	nodeLabel, err := getNodeLabel(config, workflowRequest.Type, workflowRequest.IsExtRun)
+	nodeLabel, err := GetNodeLabel(config, workflowRequest.Type, workflowRequest.IsExtRun)
 	if err != nil {
 		return nil
 	}
@@ -650,7 +399,7 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) v12.ResourceRequirements {
+func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) v1.ResourceRequirements {
 	limitReqCpuMem := &bean.LimitReqCpuMem{}
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
@@ -668,14 +417,14 @@ func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) v1
 			ReqMem:   config.CdReqMem,
 		}
 	}
-	return v12.ResourceRequirements{
-		Limits: v12.ResourceList{
-			v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.LimitCpu),
-			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
+	return v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceCPU:    resource.MustParse(limitReqCpuMem.LimitCpu),
+			v1.ResourceMemory: resource.MustParse(limitReqCpuMem.LimitMem),
 		},
-		Requests: v12.ResourceList{
-			v12.ResourceCPU:    resource.MustParse(limitReqCpuMem.ReqCpu),
-			v12.ResourceMemory: resource.MustParse(limitReqCpuMem.ReqMem),
+		Requests: v1.ResourceList{
+			v1.ResourceCPU:    resource.MustParse(limitReqCpuMem.ReqCpu),
+			v1.ResourceMemory: resource.MustParse(limitReqCpuMem.ReqMem),
 		},
 	}
 }
@@ -690,27 +439,28 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 		return ""
 	}
 }
-func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean2.ConfigSecretMap, workflowSecrets []bean2.ConfigSecretMap) (v12.Container, error) {
+
+func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
-	workflowMainContainer := v12.Container{
+	workflowMainContainer := v1.Container{
 		Env:   containerEnvVariables,
 		Name:  common.MainContainerName,
 		Image: workflowRequest.getWorkflowImage(),
-		SecurityContext: &v12.SecurityContext{
+		SecurityContext: &v1.SecurityContext{
 			Privileged: &privileged,
 		},
 		Resources: workflowRequest.GetLimitReqCpuMem(config),
 	}
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		workflowMainContainer.Name = ""
-		workflowMainContainer.Ports = []v12.ContainerPort{{
+		workflowMainContainer.Ports = []v1.ContainerPort{{
 			//exposed for user specific data from ci container
 			Name:          "app-data",
 			ContainerPort: 9102,
 		}}
-		err := updateVolumeMountsForCi(config, workflowTemplate, &workflowMainContainer)
+		err := workflowRequest.updateVolumeMountsForCi(config, workflowTemplate, &workflowMainContainer)
 		if err != nil {
 			return workflowMainContainer, err
 		}
@@ -721,25 +471,25 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		buildxPvcCachePath := config.BuildxPvcCachePath
 		defaultPvcCachePath := config.DefaultPvcCachePath
 
-		workflowTemplate.Volumes = append(workflowTemplate.Volumes, v12.Volume{
+		workflowTemplate.Volumes = append(workflowTemplate.Volumes, v1.Volume{
 			Name: "root-vol",
-			VolumeSource: v12.VolumeSource{
-				PersistentVolumeClaim: &v12.PersistentVolumeClaimVolumeSource{
+			VolumeSource: v1.VolumeSource{
+				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
 					ClaimName: pvc,
 					ReadOnly:  false,
 				},
 			},
 		})
 		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts,
-			v12.VolumeMount{
+			v1.VolumeMount{
 				Name:      "root-vol",
 				MountPath: buildPvcCachePath,
 			},
-			v12.VolumeMount{
+			v1.VolumeMount{
 				Name:      "root-vol",
 				MountPath: buildxPvcCachePath,
 			},
-			v12.VolumeMount{
+			v1.VolumeMount{
 				Name:      "root-vol",
 				MountPath: defaultPvcCachePath,
 			})
@@ -748,13 +498,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 	return workflowMainContainer, nil
 }
 
-func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
-	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
-		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
-
-}
-
-func updateVolumeMountsForCi(config *CiCdConfig, workflowTemplate *bean.WorkflowTemplate, workflowMainContainer *v12.Container) error {
+func (workflowRequest *WorkflowRequest) updateVolumeMountsForCi(config *CiCdConfig, workflowTemplate *bean.WorkflowTemplate, workflowMainContainer *v1.Container) error {
 	volume, volumeMounts, err := config.GetWorkflowVolumeAndVolumeMounts()
 	if err != nil {
 		return err
@@ -762,4 +506,121 @@ func updateVolumeMountsForCi(config *CiCdConfig, workflowTemplate *bean.Workflow
 	workflowTemplate.Volumes = volume
 	workflowMainContainer.VolumeMounts = volumeMounts
 	return nil
+}
+
+func UpdateContainerEnvsFromCmCs(workflowMainContainer *v1.Container, configMaps []bean3.ConfigSecretMap, secrets []bean3.ConfigSecretMap) {
+	for _, configMap := range configMaps {
+		updateContainerEnvs(true, workflowMainContainer, configMap)
+	}
+
+	for _, secret := range secrets {
+		updateContainerEnvs(false, workflowMainContainer, secret)
+	}
+}
+
+func updateContainerEnvs(isCM bool, workflowMainContainer *v1.Container, configSecretMap bean3.ConfigSecretMap) {
+	if configSecretMap.Type == repository2.VOLUME_CONFIG {
+		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v1.VolumeMount{
+			Name:      configSecretMap.Name + "-vol",
+			MountPath: configSecretMap.MountPath,
+		})
+	} else if configSecretMap.Type == repository2.ENVIRONMENT_CONFIG {
+		var envFrom v1.EnvFromSource
+		if isCM {
+			envFrom = v1.EnvFromSource{
+				ConfigMapRef: &v1.ConfigMapEnvSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: configSecretMap.Name,
+					},
+				},
+			}
+		} else {
+			envFrom = v1.EnvFromSource{
+				SecretRef: &v1.SecretEnvSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: configSecretMap.Name,
+					},
+				},
+			}
+		}
+		workflowMainContainer.EnvFrom = append(workflowMainContainer.EnvFrom, envFrom)
+	}
+}
+
+const PRE = "PRE"
+
+const POST = "POST"
+
+const CI_NODE_PVC_ALL_ENV = "devtron.ai/ci-pvc-all"
+
+const CI_NODE_PVC_PIPELINE_PREFIX = "devtron.ai/ci-pvc"
+
+type CiArtifactDTO struct {
+	Id                   int    `json:"id"`
+	PipelineId           int    `json:"pipelineId"` //id of the ci pipeline from which this webhook was triggered
+	Image                string `json:"image"`
+	ImageDigest          string `json:"imageDigest"`
+	MaterialInfo         string `json:"materialInfo"` //git material metadata json array string
+	DataSource           string `json:"dataSource"`
+	WorkflowId           *int   `json:"workflowId"`
+	ciArtifactRepository repository2.CiArtifactRepository
+}
+
+type CiCdTriggerEvent struct {
+	Type                  string           `json:"type"`
+	CommonWorkflowRequest *WorkflowRequest `json:"commonWorkflowRequest"`
+}
+
+type GitMetadata struct {
+	GitCommitHash  string `json:"GIT_COMMIT_HASH"`
+	GitSourceType  string `json:"GIT_SOURCE_TYPE"`
+	GitSourceValue string `json:"GIT_SOURCE_VALUE"`
+}
+
+type AppLabelMetadata struct {
+	AppLabelKey   string `json:"APP_LABEL_KEY"`
+	AppLabelValue string `json:"APP_LABEL_VALUE"`
+}
+
+type ChildCdMetadata struct {
+	ChildCdEnvName     string `json:"CHILD_CD_ENV_NAME"`
+	ChildCdClusterName string `json:"CHILD_CD_CLUSTER_NAME"`
+}
+
+type WorkflowResponse struct {
+	Id                   int                                         `json:"id"`
+	Name                 string                                      `json:"name"`
+	Status               string                                      `json:"status"`
+	PodStatus            string                                      `json:"podStatus"`
+	Message              string                                      `json:"message"`
+	StartedOn            time.Time                                   `json:"startedOn"`
+	FinishedOn           time.Time                                   `json:"finishedOn"`
+	CiPipelineId         int                                         `json:"ciPipelineId"`
+	Namespace            string                                      `json:"namespace"`
+	LogLocation          string                                      `json:"logLocation"`
+	BlobStorageEnabled   bool                                        `json:"blobStorageEnabled"`
+	GitTriggers          map[int]pipelineConfig.GitCommit            `json:"gitTriggers"`
+	CiMaterials          []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
+	TriggeredBy          int32                                       `json:"triggeredBy"`
+	Artifact             string                                      `json:"artifact"`
+	TriggeredByEmail     string                                      `json:"triggeredByEmail"`
+	Stage                string                                      `json:"stage"`
+	ArtifactId           int                                         `json:"artifactId"`
+	IsArtifactUploaded   bool                                        `json:"isArtifactUploaded"`
+	IsVirtualEnvironment bool                                        `json:"isVirtualEnvironment"`
+	PodName              string                                      `json:"podName"`
+	EnvironmentId        int                                         `json:"environmentId"`
+	EnvironmentName      string                                      `json:"environmentName"`
+	ImageReleaseTags     []*repository3.ImageTag                     `json:"imageReleaseTags"`
+	ImageComment         *repository3.ImageComment                   `json:"imageComment"`
+	AppWorkflowId        int                                         `json:"appWorkflowId"`
+	CustomTag            *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
+	PipelineType         string                                      `json:"pipelineType"`
+	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
+}
+
+type ConfigMapSecretDto struct {
+	Name     string
+	Data     map[string]string
+	OwnerRef v12.OwnerReference
 }
