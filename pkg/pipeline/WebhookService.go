@@ -217,7 +217,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 			pluginArtifact := &repository.CiArtifact{
 				Image:                 image,
 				ImageDigest:           request.ImageDigest,
-				MaterialInfo:          "",
+				MaterialInfo:          string(materialJson),
 				DataSource:            request.PluginArtifactStage,
 				ComponentId:           pipeline.Id,
 				PipelineId:            pipeline.Id,

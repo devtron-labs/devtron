@@ -644,6 +644,7 @@ func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.
 			pluginArtifact := &repository.CiArtifact{
 				Image:                 artifact,
 				ImageDigest:           ciArtifact.ImageDigest,
+				MaterialInfo:          ciArtifact.MaterialInfo,
 				DataSource:            stage,
 				ComponentId:           pipelineId,
 				CredentialsSourceType: repository.GLOBAL_CONTAINER_REGISTRY,
