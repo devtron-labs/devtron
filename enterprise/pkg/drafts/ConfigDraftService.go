@@ -157,18 +157,15 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 			return 0, err
 		}
 	}
-
-	err = impl.performNotificationConfigActionForVersion(request, draftId)
-	if err != nil {
-		impl.logger.Errorw("error in performing notification event for config draft version ", "err", err)
-	}
+	impl.performNotificationConfigActionForVersion(request, draftId)
 	return lastDraftVersionId, nil
 }
 
-func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(request ConfigDraftVersionRequest, draftId int) error {
+func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(request ConfigDraftVersionRequest, draftId int) {
 	draftData, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
 	if err != nil {
-		return err
+		impl.logger.Errorw("error in performing notification event for config draft version ", "err", err)
+		return
 	}
 	config := ConfigDraftRequest{
 		AppId:        draftData.AppId,
@@ -179,7 +176,7 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(re
 		UserId:       request.UserId,
 	}
 	go impl.performNotificationConfigAction(config)
-	return nil
+
 }
 
 func (impl *ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
