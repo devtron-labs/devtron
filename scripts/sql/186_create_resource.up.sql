@@ -37,9 +37,9 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource_object;
 
 CREATE TABLE "public"."devtron_resource_object"
 (
-    "id"                         int          NOT NULL DEFAULT nextval('id_seq_devtron_resource_object'::regclass),
+    "id"                         int NOT NULL DEFAULT nextval('id_seq_devtron_resource_object'::regclass),
     "old_object_id"              int,
-    "name"                       VARCHAR(250) NOT NULL,
+    "name"                       VARCHAR(250),
     "devtron_resource_id"        int,
     "devtron_resource_schema_id" int,
     "object_data"                jsonb,
@@ -67,18 +67,23 @@ CREATE TABLE "public"."devtron_resource_object_audit"
     PRIMARY KEY ("id")
 );
 
-INSERT INTO devtron_resource(kind,display_name,icon,parent_kind_id,deleted,created_on,created_by,updated_on,updated_by)
-    VALUES('application','Applications','',0,false,now(),1,now(),1);
+INSERT INTO devtron_resource(kind, display_name, icon, parent_kind_id, deleted, created_on, created_by, updated_on,
+                             updated_by)
+VALUES ('application', 'Applications', '', 0, false, now(), 1, now(), 1);
 
-INSERT INTO devtron_resource(kind,display_name,icon,parent_kind_id,deleted,created_on,created_by,updated_on,updated_by)
-    VALUES('devtron-application','Devtron applications','',(select id from devtron_resource where kind='application'),false,now(),1,now(),1),
-          ('helm-application','Helm applications','',(select id from devtron_resource where kind='application'),false,now(),1,now(),1),
-          ('job','Jobs','',0,false,now(),1,now(),1),
-          ('cluster','Clusters','',0,false,now(),1,now(),1);
+INSERT INTO devtron_resource(kind, display_name, icon, parent_kind_id, deleted, created_on, created_by, updated_on,
+                             updated_by)
+VALUES ('devtron-application', 'Devtron applications', '', (select id from devtron_resource where kind = 'application'),
+        false, now(), 1, now(), 1),
+       ('helm-application', 'Helm applications', '', (select id from devtron_resource where kind = 'application'),
+        false, now(), 1, now(), 1),
+       ('job', 'Jobs', '', 0, false, now(), 1, now(), 1),
+       ('cluster', 'Clusters', '', 0, false, now(), 1, now(), 1);
 
-INSERT INTO devtron_resource_schema(devtron_resource_id,version,schema,latest,created_on,created_by,updated_on,updated_by)
-VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
-       '{
+INSERT INTO devtron_resource_schema(devtron_resource_id, version, schema, latest, created_on, created_by, updated_on,
+                                    updated_by)
+VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v1',
+        '{
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Devtron Application Schema",
           "type": "object",
@@ -150,10 +155,7 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
                           "type": "string"
                         },
                         "Language": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "type": "string"
                         },
                         "Map": {
                           "additionalProperties": {
@@ -215,9 +217,9 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
             "overview"
           ]
         }',
-       true,now(),1,now(),1),
-      ((select id from devtron_resource where kind='helm-application'),'v1',
-       '{
+        true, now(), 1, now(), 1),
+       ((select id from devtron_resource where kind = 'helm-application'), 'v1',
+        '{
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Helm Application Schema",
           "type": "object",
@@ -289,10 +291,7 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
                           "type": "string"
                         },
                         "Language": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "type": "string"
                         },
                         "Map": {
                           "additionalProperties": {
@@ -354,9 +353,9 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
             "overview"
           ]
         }',
-       true,now(),1,now(),1),
-      ((select id from devtron_resource where kind='job'),'v1',
-       '{
+        true, now(), 1, now(), 1),
+       ((select id from devtron_resource where kind = 'job'), 'v1',
+        '{
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Job Schema",
           "type": "object",
@@ -428,10 +427,7 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
                           "type": "string"
                         },
                         "Language": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "type": "string"
                         },
                         "Map": {
                           "additionalProperties": {
@@ -493,9 +489,9 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
             "overview"
           ]
         }',
-       true,now(),1,now(),1),
-      ((select id from devtron_resource where kind='cluster'),'v1',
-       '{
+        true, now(), 1, now(), 1),
+       ((select id from devtron_resource where kind = 'cluster'), 'v1',
+        '{
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Cluster Schema",
           "type": "object",
@@ -568,4 +564,4 @@ VALUES((select id from devtron_resource where kind='devtron-application'),'v1',
             "overview"
           ]
         }',
-       true,now(),1,now(),1);
+        true, now(), 1, now(), 1);
