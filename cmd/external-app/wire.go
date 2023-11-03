@@ -94,6 +94,8 @@ func InitializeApp() (*App, error) {
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
 
+		pipelineConfig.NewMaterialRepositoryImpl,
+		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 		//appStatus
 		appStatus.NewAppStatusRepositoryImpl,
 		wire.Bind(new(appStatus.AppStatusRepository), new(*appStatus.AppStatusRepositoryImpl)),
