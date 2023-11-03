@@ -37,6 +37,7 @@ type ImageTagRepository interface {
 	DeactivateImagePathReservation(id int) error
 	FetchActiveCustomTagData(entityKey int, entityValue string) (*CustomTag, error)
 	DeactivateImagePathReservationByImagePaths(tx *pg.Tx, imagePaths []string) error
+	DeactivateImagePathReservationByImagePathReservationIds(tx *pg.Tx, imagePathReservationIds []int) error
 }
 
 type ImageTagRepositoryImpl struct {
@@ -111,6 +112,15 @@ func (impl *ImageTagRepositoryImpl) InsertImagePath(tx *pg.Tx, reservation *Imag
 func (impl *ImageTagRepositoryImpl) DeactivateImagePathReservationByImagePaths(tx *pg.Tx, imagePaths []string) error {
 	query := `UPDATE image_path_reservation set active=false where image_path in (?)`
 	_, err := tx.Exec(query, pg.In(imagePaths))
+	if err != nil && err != pg.ErrNoRows {
+		return err
+	}
+	return nil
+}
+
+func (impl *ImageTagRepositoryImpl) DeactivateImagePathReservationByImagePathReservationIds(tx *pg.Tx, imagePathReservationIds []int) error {
+	query := `UPDATE image_path_reservation set active=false where id in (?)`
+	_, err := tx.Exec(query, pg.In(imagePathReservationIds))
 	if err != nil && err != pg.ErrNoRows {
 		return err
 	}

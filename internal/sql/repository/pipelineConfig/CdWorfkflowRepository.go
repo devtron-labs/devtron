@@ -165,6 +165,7 @@ type CdWorkflowRunner struct {
 	PodName               string               `sql:"pod_name"`
 	BlobStorageEnabled    bool                 `sql:"blob_storage_enabled,notnull"`
 	RefCdWorkflowRunnerId int                  `sql:"ref_cd_workflow_runner_id,notnull"`
+	ImageReservationIds   []int                `sql:"image_reservation_ids"`
 	CdWorkflow            *CdWorkflow
 	sql.AuditLog
 }

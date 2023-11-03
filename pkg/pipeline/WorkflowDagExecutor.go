@@ -778,16 +778,22 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			if customTag != nil {
 				customTagId = customTag.Id
 			}
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, dockerImageTag, customTagId, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, imagePathReservationIds, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, dockerImageTag, customTagId, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return err
+			}
+			runner.ImageReservationIds = imagePathReservationIds
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+			if err != nil {
+				impl.logger.Errorw("error in updating image path reservation ")
 			}
 			cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
 			cdStageWorkflowRequest.RegistryCredentialMap = registryCredentialMap
 			cdStageWorkflowRequest.PluginArtifactStage = repository.PRE_CD
 		}
 	}
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
@@ -913,6 +919,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		impl.logger.Errorw("error in getting skopeo plugin id", "err", err)
 		return err
 	}
+
+	var pluginImagePathReservationIds []int
 	for _, step := range cdStageWorkflowRequest.PostCiSteps {
 		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
 			// for Skopeo plugin parse destination images and save its data in image path reservation table
@@ -925,11 +933,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			if customTag == nil {
 				customTagId = customTag.Id
 			}
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, dockerImageTag, customTagId, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, imagePathReservationIds, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, dockerImageTag, customTagId, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return err
 			}
+			pluginImagePathReservationIds = imagePathReservationIds
 			cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
 			cdStageWorkflowRequest.RegistryCredentialMap = registryCredentialMap
 			cdStageWorkflowRequest.PluginArtifactStage = repository.POST_CD
@@ -945,6 +954,11 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	if err != nil {
 		impl.logger.Errorw("error in getting wfr by workflowId and runnerType", "err", err, "wfId", cdWf.Id)
 		return err
+	}
+	wfr.ImageReservationIds = pluginImagePathReservationIds
+	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
+	if err != nil {
+		impl.logger.Error("error in updating image path reservation ids in cd workflow runner", "err", "err")
 	}
 
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)

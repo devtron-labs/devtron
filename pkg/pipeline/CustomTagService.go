@@ -20,8 +20,9 @@ type CustomTagService interface {
 	DeleteCustomTagIfExists(tag bean.CustomTag) error
 	DeactivateImagePathReservation(id int) error
 	GetCustomTag(entityKey int, entityValue string) (*repository.CustomTag, string, error)
-	ReserveImagePath(imagePath string, customTagId int) error
+	ReserveImagePath(imagePath string, customTagId int) (*repository.ImagePathReservation, error)
 	DeactivateImagePathReservationByImagePath(imagePaths []string) error
+	DeactivateImagePathReservationByImageIds(imagePathReservationIds []int) error
 }
 
 type CustomTagServiceImpl struct {
@@ -197,18 +198,18 @@ func (impl *CustomTagServiceImpl) GetCustomTag(entityKey int, entityValue string
 
 }
 
-func (impl *CustomTagServiceImpl) ReserveImagePath(imagePath string, customTagId int) error {
+func (impl *CustomTagServiceImpl) ReserveImagePath(imagePath string, customTagId int) (*repository.ImagePathReservation, error) {
 	connection := impl.customTagRepository.GetConnection()
 	tx, err := connection.Begin()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	imagePathReservations, err := impl.customTagRepository.FindByImagePath(tx, imagePath)
 	if err != nil && err != pg.ErrNoRows {
-		return nil
+		return nil, err
 	}
 	if len(imagePathReservations) > 0 {
-		return nil
+		return nil, nil
 	}
 	imagePathReservation := &repository.ImagePathReservation{
 		ImagePath:   imagePath,
@@ -216,14 +217,14 @@ func (impl *CustomTagServiceImpl) ReserveImagePath(imagePath string, customTagId
 	}
 	err = impl.customTagRepository.InsertImagePath(tx, imagePathReservation)
 	if err != nil {
-		return nil
+		return imagePathReservation, err
 	}
 	err = tx.Commit()
 	if err != nil {
 		impl.Logger.Errorw("Error in fetching custom tag", "err", err)
-		return err
+		return imagePathReservation, err
 	}
-	return err
+	return imagePathReservation, err
 }
 
 func (impl *CustomTagServiceImpl) DeactivateImagePathReservationByImagePath(imagePaths []string) error {
@@ -233,6 +234,25 @@ func (impl *CustomTagServiceImpl) DeactivateImagePathReservationByImagePath(imag
 		return nil
 	}
 	err = impl.customTagRepository.DeactivateImagePathReservationByImagePaths(tx, imagePaths)
+	if err != nil {
+		impl.Logger.Errorw("error in marking image path unreserved")
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("Error in fetching custom tag", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *CustomTagServiceImpl) DeactivateImagePathReservationByImageIds(imagePathReservationIds []int) error {
+	connection := impl.customTagRepository.GetConnection()
+	tx, err := connection.Begin()
+	if err != nil {
+		return nil
+	}
+	err = impl.customTagRepository.DeactivateImagePathReservationByImagePathReservationIds(tx, imagePathReservationIds)
 	if err != nil {
 		impl.Logger.Errorw("error in marking image path unreserved")
 		return err

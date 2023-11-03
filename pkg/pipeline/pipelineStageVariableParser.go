@@ -23,7 +23,7 @@ const (
 )
 
 type PluginInputVariableParser interface {
-	ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, customTag string, customTagId int, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error)
+	ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, customTag string, customTagId int, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, []int, error)
 }
 
 type PluginInputVariableParserImpl struct {
@@ -44,7 +44,7 @@ func NewPluginInputVariableParserImpl(
 	}
 }
 
-func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, dockerImageTag string, customTagId int, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, error) {
+func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(inputVariables []*bean.VariableObject, dockerImageTag string, customTagId int, pluginTriggerImage string, buildConfigurationRegistry string) (map[string][]string, map[string]plugin.RegistryCredentials, []int, error) {
 	var DestinationInfo, SourceRegistry, SourceImage string
 	for _, ipVariable := range inputVariables {
 		if ipVariable.Name == DESTINATION_INFO {
@@ -53,7 +53,7 @@ func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(input
 			if len(pluginTriggerImage) == 0 {
 				if len(ipVariable.Value) == 0 {
 					impl.logger.Errorw("No image provided in source or during trigger time")
-					return nil, nil, errors.New("no image provided in source or during trigger time")
+					return nil, nil, nil, errors.New("no image provided in source or during trigger time")
 				}
 				SourceInfo := ipVariable.Value
 				SourceInfoSplit := strings.Split(SourceInfo, "|")
@@ -65,18 +65,18 @@ func (impl *PluginInputVariableParserImpl) ParseSkopeoPluginInputVariables(input
 			}
 		}
 	}
-	registryDestinationImageMap, registryCredentialMap, err := impl.getRegistryDetailsAndDestinationImagePathForSkopeo(dockerImageTag, customTagId, SourceImage, SourceRegistry, DestinationInfo)
+	registryDestinationImageMap, registryCredentialMap, imagePathReservationIds, err := impl.getRegistryDetailsAndDestinationImagePathForSkopeo(dockerImageTag, customTagId, SourceImage, SourceRegistry, DestinationInfo)
 	if err != nil {
 		impl.logger.Errorw("Error in parsing skopeo input variables")
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return registryDestinationImageMap, registryCredentialMap, nil
+	return registryDestinationImageMap, registryCredentialMap, imagePathReservationIds, nil
 }
 
-func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImagePathForSkopeo(dockerImageTag string, tagId int, sourceImage string, sourceRegistry string, destinationInfo string) (registryDestinationImageMap map[string][]string, registryCredentialsMap map[string]plugin.RegistryCredentials, err error) {
+func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImagePathForSkopeo(dockerImageTag string, tagId int, sourceImage string, sourceRegistry string, destinationInfo string) (registryDestinationImageMap map[string][]string, registryCredentialsMap map[string]plugin.RegistryCredentials, imagePathReservationIds []int, err error) {
 	registryDestinationImageMap = make(map[string][]string)
 	registryCredentialsMap = make(map[string]plugin.RegistryCredentials)
-
+	imagePathReservationIds = make([]int, 0)
 	if len(dockerImageTag) == 0 {
 		sourceSplit := strings.Split(sourceImage, ":")
 		dockerImageTag = sourceSplit[len(sourceSplit)-1]
@@ -85,7 +85,7 @@ func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImage
 	registryCredentials, err := impl.dockerRegistryConfig.FetchOneDockerAccount(sourceRegistry)
 	if err != nil {
 		impl.logger.Errorw("error in fetching registry details by registry name", "err", err)
-		return registryDestinationImageMap, registryCredentialsMap, err
+		return registryDestinationImageMap, registryCredentialsMap, imagePathReservationIds, err
 	}
 	registryCredentialsMap["SOURCE_REGISTRY_CREDENTIAL"] = plugin.RegistryCredentials{
 		RegistryType:       string(registryCredentials.RegistryType),
@@ -105,9 +105,9 @@ func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImage
 		if err != nil {
 			impl.logger.Errorw("error in fetching registry details by registry name", "err", err)
 			if err == pg.ErrNoRows {
-				return registryDestinationImageMap, registryCredentialsMap, fmt.Errorf("invalid registry name: registry details not found in global container registries")
+				return registryDestinationImageMap, registryCredentialsMap, imagePathReservationIds, fmt.Errorf("invalid registry name: registry details not found in global container registries")
 			}
-			return registryDestinationImageMap, registryCredentialsMap, err
+			return registryDestinationImageMap, registryCredentialsMap, imagePathReservationIds, err
 		}
 		var destinationImages []string
 		destinationRepositoryValues := registryRepoSplit[1]
@@ -117,11 +117,12 @@ func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImage
 			repositoryName = strings.Trim(repositoryName, " ")
 			destinationImage := fmt.Sprintf("%s/%s:%s", registryCredentials.RegistryURL, repositoryName, dockerImageTag)
 			destinationImages = append(destinationImages, destinationImage)
-			err = impl.customTagService.ReserveImagePath(destinationImage, tagId)
+			imagePathReservationData, err := impl.customTagService.ReserveImagePath(destinationImage, tagId)
 			if err != nil {
 				impl.logger.Errorw("Error in marking custom tag reserved", "err", err)
-				return registryDestinationImageMap, registryCredentialsMap, err
+				return registryDestinationImageMap, registryCredentialsMap, imagePathReservationIds, err
 			}
+			imagePathReservationIds = append(imagePathReservationIds, imagePathReservationData.Id)
 		}
 		registryDestinationImageMap[registryName] = destinationImages
 		registryCredentialsMap[registryName] = plugin.RegistryCredentials{
@@ -135,5 +136,5 @@ func (impl *PluginInputVariableParserImpl) getRegistryDetailsAndDestinationImage
 		}
 	}
 	//adding source registry details
-	return registryDestinationImageMap, registryCredentialsMap, nil
+	return registryDestinationImageMap, registryCredentialsMap, imagePathReservationIds, nil
 }
