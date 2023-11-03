@@ -724,6 +724,9 @@ func (impl *ResourceFilterServiceImpl) fetchAppsAndEnvs(appIds []int, envIds []i
 }
 
 func (impl *ResourceFilterServiceImpl) CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
+	if len(filters) == 0 {
+		return nil, nil
+	}
 	return impl.resourceFilterEvaluationAuditService.CreateFilterEvaluation(subjectType, subjectId, refType, refId, filters, filterIdVsState)
 }
 

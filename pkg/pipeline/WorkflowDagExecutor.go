@@ -790,12 +790,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 
-	//update resource_filter_evaluation entry with wfrId and type
-	err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
-	if err != nil {
-		impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
-		return err
+	if filterEvaluationAudit != nil {
+		//update resource_filter_evaluation entry with wfrId and type
+		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+		if err != nil {
+			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+			return err
+		}
 	}
+
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, pipeline, ctx)
 	if err != nil {
@@ -1010,11 +1013,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 
-	//update resource_filter_evaluation entry with wfrId and type
-	err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
-	if err != nil {
-		impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
-		return err
+	if filterEvaluationAudit != nil {
+		//update resource_filter_evaluation entry with wfrId and type
+		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+		if err != nil {
+			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+			return err
+		}
 	}
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(cdWf.CiArtifact, pipeline, context.Background())
@@ -1820,11 +1825,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		return err
 	}
 
-	//update resource_filter_evaluation entry with wfrId and type
-	err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
-	if err != nil {
-		impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
-		return err
+	if filterEvaluationAudit != nil {
+		//update resource_filter_evaluation entry with wfrId and type
+		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+		if err != nil {
+			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+			return err
+		}
 	}
 	if approvalRequestId > 0 {
 		err = impl.deploymentApprovalRepository.ConsumeApprovalRequest(approvalRequestId)
@@ -2379,11 +2386,13 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, "", err
 		}
 
-		//update resource_filter_evaluation entry with wfrId and type
-		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
-		if err != nil {
-			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
-			return 0, "", err
+		if filterEvaluationAudit != nil {
+			//update resource_filter_evaluation entry with wfrId and type
+			err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+			if err != nil {
+				impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+				return 0, "", err
+			}
 		}
 		if approvalRequestId > 0 {
 			err = impl.deploymentApprovalRepository.ConsumeApprovalRequest(approvalRequestId)
