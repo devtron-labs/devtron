@@ -29,6 +29,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -124,6 +125,7 @@ type WorkflowRequest struct {
 	Pipeline                 *pipelineConfig.Pipeline
 	Env                      *repository.Environment
 	AppLabels                map[string]string
+	Scope                    resourceQualifiers.Scope
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -221,10 +223,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() stri
 }
 
 func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdConfig, workflowJson []byte) (containerEnvVariables []v1.EnvVar) {
-	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE ||
-		workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
-		containerEnvVariables = []v1.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: config.ImageScannerEndpoint}}
-	}
+	containerEnvVariables = []v1.EnvVar{{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint}}
 	eventEnv := v1.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v1.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
 	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
