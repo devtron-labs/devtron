@@ -66,7 +66,7 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.Update)
 
-	clusterRouter.Path("/description").
+	clusterRouter.Path("/note").
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.UpdateClusterNote)
 
@@ -89,4 +89,8 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 	clusterRouter.Path("/auth-list").
 		Methods("GET").
 		HandlerFunc(impl.clusterRestHandler.FindAllForClusterPermission)
+
+	clusterRouter.Path("/description").
+		Methods("PUT").
+		HandlerFunc(impl.clusterRestHandler.UpdateClusterDescription)
 }
