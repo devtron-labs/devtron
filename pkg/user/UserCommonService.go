@@ -623,7 +623,7 @@ func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.Ro
 		entityNames := strings.Split(roleFilter.EntityName, ",")
 		environments := strings.Split(roleFilter.Environment, ",")
 		workflows := strings.Split(roleFilter.Workflow, ",")
-		value := math.Max(float64(len(namespaces)*len(groups)*len(kinds)*len(resources)*2), float64(len(entityNames)*len(environments)*len(workflows)*8))
+		value := math.Max(float64(len(namespaces)*len(groups)*len(kinds)*len(resources)*2), math.Max(float64(len(entityNames)*len(environments)*6), float64(len(entityNames)*len(environments)*len(workflows)*8)))
 		m[index] = int(value)
 		capacity += int(value)
 	}
