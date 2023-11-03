@@ -107,7 +107,7 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request Conf
 	}
 	eventType := util2.ConfigApproval
 	event := impl.eventFactory.Build(eventType, nil, request.AppId, &request.EnvId, "")
-	draftRequest := request.TransformRequestForNotification()
+	draftRequest := request.TransformDraftRequestForNotification()
 	event = impl.eventFactory.BuildExtraProtectConfigData(event, draftRequest)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
@@ -160,7 +160,7 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 
 	err = impl.performNotificationConfigActionForVersion(request, draftId)
 	if err != nil {
-		return 0, err
+		impl.logger.Errorw("error in performing notification event for config draft version ", "err", err)
 	}
 	return lastDraftVersionId, nil
 }

@@ -42,7 +42,7 @@ type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
 	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32) Event
-	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDraftDataForNotification) Event
+	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification) Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
 }
@@ -91,18 +91,18 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	}
 }
 
-type DraftType string
+type ResourceType string
 
 const (
-	CMDraft            DraftType = "ConfigMap"
-	CSDraft            DraftType = "Secret"
-	DeploymentTemplate DraftType = "DeploymentTemplate"
+	CM                 ResourceType = "ConfigMap"
+	CS                 ResourceType = "Secret"
+	DeploymentTemplate ResourceType = "DeploymentTemplate"
 )
 
-type ConfigDraftDataForNotification struct {
+type ConfigDataForNotification struct {
 	AppId        int
 	EnvId        int
-	Resource     DraftType
+	Resource     ResourceType
 	ResourceName string
 	UserComment  string
 	UserId       int32
@@ -377,54 +377,45 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 
 	return event
 }
-func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, request ConfigDraftDataForNotification) Event {
+func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, request ConfigDataForNotification) Event {
 	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 	if err != nil {
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
-	payload := event.Payload
-	if payload == nil {
-		payload = &Payload{}
-		event.Payload = payload
-	}
-	setProviderForNotification(request, defaultSesConfig, defaultSmtpConfig, event)
-
+	payload := &Payload{}
+	setProviderForNotification(request, defaultSesConfig, defaultSmtpConfig, payload)
 	err = impl.setEventPayload(request, payload)
 	if err != nil {
 		impl.logger.Errorw("error in setting payload", "error", err)
 		return event
 	}
-	if request.UserId > 0 {
-		user, err := impl.userRepository.GetById(request.UserId)
-		if err != nil {
-			impl.logger.Errorw("found error on getting user data ", "user", user)
-		}
-		payload = event.Payload
-		if payload == nil {
-			payload = &Payload{}
-			event.Payload = payload
-		}
-		event.Payload.TriggeredBy = user.EmailId
+	if request.UserId == 0 {
+		return event
 	}
-
+	user, err := impl.userRepository.GetById(request.UserId)
+	if err != nil {
+		impl.logger.Errorw("found error on getting user data ", "user", user)
+	}
+	payload.TriggeredBy = user.EmailId
+	event.Payload = payload
 	return event
 }
-func setProviderForNotification(request ConfigDraftDataForNotification, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, event Event) {
+func setProviderForNotification(request ConfigDataForNotification, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, payload *Payload) {
 	for _, emailId := range request.EmailIds {
 		provider := &notifier.Provider{
 			ConfigId:  0,
 			Recipient: emailId,
 		}
-		if defaultSesConfig.Id != 0 {
+		if defaultSesConfig != nil && defaultSesConfig.Id != 0 {
 			provider.Destination = notifier.SES_CONFIG_TYPE
-		} else if defaultSmtpConfig.Id != 0 {
+		} else if defaultSmtpConfig != nil && defaultSmtpConfig.Id != 0 {
 			provider.Destination = notifier.SMTP_CONFIG_TYPE
 		}
-		event.Payload.Providers = append(event.Payload.Providers, provider)
+		payload.Providers = append(payload.Providers, provider)
 	}
 }
 
-func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDraftDataForNotification, payload *Payload) error {
+func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDataForNotification, payload *Payload) error {
 
 	protectConfigLink := setProtectConfigLink(request)
 	payload.ProtectConfigLink = protectConfigLink
@@ -448,7 +439,7 @@ func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDraftDataForNo
 	payload.ProtectConfigFileType = string(request.Resource)
 	return nil
 }
-func setProtectConfigLink(request ConfigDraftDataForNotification) string {
+func setProtectConfigLink(request ConfigDataForNotification) string {
 	var ProtectConfigLink string
 	var isAppLevel bool
 	if request.EnvId == -1 {
@@ -457,18 +448,18 @@ func setProtectConfigLink(request ConfigDraftDataForNotification) string {
 	switch isAppLevel {
 	case true:
 		switch request.Resource {
-		case CMDraft:
+		case CM:
 			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/configmap/%s", request.AppId, request.ResourceName)
-		case CSDraft:
+		case CS:
 			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/secrets/%s", request.AppId, request.ResourceName)
 		case DeploymentTemplate:
 			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/deployment-template", request.AppId)
 		}
 	case false:
 		switch request.Resource {
-		case CMDraft:
+		case CM:
 			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/configmap/%s", request.AppId, request.EnvId, request.ResourceName)
-		case CSDraft:
+		case CS:
 			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/secrets/%s", request.AppId, request.EnvId, request.ResourceName)
 		case DeploymentTemplate:
 			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/deployment-template", request.AppId, request.EnvId)
@@ -485,7 +476,7 @@ func (impl *EventSimpleFactoryImpl) getDefaultSESOrSMTPConfig() (*repository2.SE
 		return defaultSesConfig, nil, nil
 
 	}
-	var defaultSmtpConfig *repository2.SMTPConfig
+	defaultSmtpConfig := &repository2.SMTPConfig{}
 	if err == pg.ErrNoRows {
 		defaultSmtpConfig, err = impl.smtpNotificationRepository.FindDefault()
 		if err != nil {

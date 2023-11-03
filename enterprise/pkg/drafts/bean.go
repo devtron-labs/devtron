@@ -23,12 +23,12 @@ const (
 	DeploymentTemplateResource DraftResourceType = 3
 )
 
-func (draftType DraftResourceType) GetDraftResourceType() client.DraftType {
+func (draftType DraftResourceType) GetDraftResourceType() client.ResourceType {
 	switch draftType {
 	case CMDraftResource:
-		return client.CMDraft
+		return client.CM
 	case CSDraftResource:
-		return client.CSDraft
+		return client.CS
 	case DeploymentTemplateResource:
 		return client.DeploymentTemplate
 	}
@@ -76,8 +76,8 @@ type ProtectNotificationConfig struct {
 	EmailIds []string `json:"emailIds"`
 }
 
-func (request ConfigDraftRequest) TransformRequestForNotification() client.ConfigDraftDataForNotification {
-	return client.ConfigDraftDataForNotification{
+func (request ConfigDraftRequest) TransformDraftRequestForNotification() client.ConfigDataForNotification {
+	return client.ConfigDataForNotification{
 		AppId:        request.AppId,
 		EnvId:        request.EnvId,
 		Resource:     request.Resource.GetDraftResourceType(),
@@ -89,9 +89,7 @@ func (request ConfigDraftRequest) TransformRequestForNotification() client.Confi
 }
 
 func (protectNotificationConfig ProtectNotificationConfig) GetEmailIdsForProtectConfig() []string {
-	emailIds := make([]string, 0)
-	emailIds = protectNotificationConfig.EmailIds
-	return emailIds
+	return protectNotificationConfig.EmailIds
 }
 func (request ConfigDraftRequest) GetDraftDto() *DraftDto {
 	draftState := InitDraftState
