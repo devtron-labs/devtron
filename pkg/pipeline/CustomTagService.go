@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -212,7 +213,7 @@ func (impl *CustomTagServiceImpl) ReserveImagePath(imagePath string, customTagId
 		return nil, err
 	}
 	if len(imagePathReservations) > 0 {
-		return nil, nil
+		return nil, errors.New("cannot copy image using skopeo, image with similar name already exist")
 	}
 	imagePathReservation := &repository.ImagePathReservation{
 		ImagePath:   imagePath,

@@ -7,3 +7,5 @@ ALTER TABLE ci_workflow ADD COLUMN image_path_reservation_ids integer[];
 UPDATE ci_workflow set image_path_reservation_ids=ARRAY["image_path_reservation_id"] where image_path_reservation_id is not NULL;
 
 ALTER TABLE cd_workflow_runner ADD COLUMN image_path_reservation_ids integer[];
+
+ALTER TABLE image_path_reservation  DROP CONSTRAINT image_path_reservation_custom_tag_id_fkey;

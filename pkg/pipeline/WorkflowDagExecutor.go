@@ -744,12 +744,20 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 				return err
 			}
 			var customTagId int
-			if customTag != nil && customTagId > 0 {
+			if customTag != nil && customTag.Id > 0 {
 				customTagId = customTag.Id
 			} else {
 				customTagId = -1
 			}
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
+			var sourceDockerRegistryId string
+			if artifact.DataSource == repository.PRE_CD || artifact.DataSource == repository.POST_CD || artifact.DataSource == repository.POST_CI {
+				if artifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+					sourceDockerRegistryId = artifact.CredentialSourceValue
+				}
+			} else {
+				sourceDockerRegistryId = cdStageWorkflowRequest.DockerRegistryId
+			}
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return err
@@ -905,12 +913,20 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 				return err
 			}
 			var customTagId int
-			if customTag != nil {
+			if customTag != nil && customTag.Id > 0 {
 				customTagId = customTag.Id
 			} else {
 				customTagId = -1
 			}
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
+			var sourceDockerRegistryId string
+			if cdWf.CiArtifact.DataSource == repository.PRE_CD || cdWf.CiArtifact.DataSource == repository.POST_CD || cdWf.CiArtifact.DataSource == repository.POST_CI {
+				if cdWf.CiArtifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+					sourceDockerRegistryId = cdWf.CiArtifact.CredentialSourceValue
+				}
+			} else {
+				sourceDockerRegistryId = cdStageWorkflowRequest.DockerRegistryId
+			}
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return err
@@ -967,7 +983,9 @@ func (impl *WorkflowDagExecutorImpl) ReserveImagesGeneratedAtPlugin(customTagId 
 				impl.logger.Errorw("Error in marking custom tag reserved", "err", err)
 				return imagePathReservationIds, err
 			}
-			imagePathReservationIds = append(imagePathReservationIds, imagePathReservationData.Id)
+			if imagePathReservationData != nil {
+				imagePathReservationIds = append(imagePathReservationIds, imagePathReservationData.Id)
+			}
 		}
 	}
 	return imagePathReservationIds, nil
@@ -2871,7 +2889,7 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
-	mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, mergedValues)
+	mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, artifact, pipeline.CiPipelineId, mergedValues)
 	valuesOverrideResponse.MergedValues = string(mergedValues)
 	span.End()
 	if err != nil {
@@ -3723,7 +3741,7 @@ func (impl *WorkflowDagExecutorImpl) mergeAndSave(envOverride *chartConfig.EnvCo
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
-	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, merged)
+	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, artifact, pipeline.CiPipelineId, merged)
 	span.End()
 	if err != nil {
 		return 0, 0, "", err
