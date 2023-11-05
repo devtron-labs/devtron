@@ -189,12 +189,15 @@ func (impl *CustomTagServiceImpl) GetCustomTag(entityKey int, entityValue string
 		impl.Logger.Errorw("Error in fetching custom tag", "err", err)
 		return customTagData, "", err
 	}
-
-	tag, err := validateAndConstructTag(customTagData)
+	var dockerTag string
+	if customTagData != nil && len(customTagData.TagPattern) == 0 {
+		return customTagData, dockerTag, nil
+	}
+	dockerTag, err = validateAndConstructTag(customTagData)
 	if err != nil {
 		return nil, "", err
 	}
-	return customTagData, tag, nil
+	return customTagData, dockerTag, nil
 
 }
 

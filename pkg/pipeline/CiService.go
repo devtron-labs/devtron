@@ -490,13 +490,14 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err := impl.GetWorkflowRequestVariablesForSkopeoPlugin(
 		preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
 		fmt.Sprintf(bean2.ImagePathPattern, pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository, dockerImageTag), pipeline.CiTemplate.DockerRegistry.Id)
-	savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
-	// skopeo plugin logic ends
 
 	if err != nil {
 		impl.Logger.Errorw("error in getting env variables for skopeo plugin")
 		return nil, err
 	}
+
+	savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
+	// skopeo plugin logic ends
 
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
@@ -740,7 +741,7 @@ func (impl *CiServiceImpl) GetWorkflowRequestVariablesForSkopeoPlugin(preCiSteps
 	for _, step := range preCiSteps {
 		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
 			// for Skopeo plugin parse destination images and save its data in image path reservation table
-			registryDestinationImageMap, registryCredentialMap, imagePathReservationIds, err = impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, customTag, customTagId, buildImagePath, buildImagedockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, err = impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, customTag, buildImagePath, buildImagedockerRegistryId)
 			if err != nil {
 				impl.Logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds, err
@@ -751,7 +752,7 @@ func (impl *CiServiceImpl) GetWorkflowRequestVariablesForSkopeoPlugin(preCiSteps
 	for _, step := range postCiSteps {
 		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
 			// for Skopeo plugin parse destination images and save its data in image path reservation table
-			registryDestinationImageMap, registryCredentialMap, imagePathReservationIds, err = impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, customTag, customTagId, buildImagePath, buildImagedockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, err = impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, customTag, buildImagePath, buildImagedockerRegistryId)
 			if err != nil {
 				impl.Logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds, err
@@ -759,7 +760,26 @@ func (impl *CiServiceImpl) GetWorkflowRequestVariablesForSkopeoPlugin(preCiSteps
 			pluginArtifactStage = repository5.POST_CI
 		}
 	}
+	imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
+	if err != nil {
+		return nil, nil, pluginArtifactStage, imagePathReservationIds, nil
+	}
 	return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds, nil
+}
+
+func (impl *CiServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {
+	var imagePathReservationIds []int
+	for _, images := range registryImageMap {
+		for _, image := range images {
+			imagePathReservationData, err := impl.customTagService.ReserveImagePath(image, customTagId)
+			if err != nil {
+				impl.Logger.Errorw("Error in marking custom tag reserved", "err", err)
+				return imagePathReservationIds, err
+			}
+			imagePathReservationIds = append(imagePathReservationIds, imagePathReservationData.Id)
+		}
+	}
+	return imagePathReservationIds, nil
 }
 
 func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {

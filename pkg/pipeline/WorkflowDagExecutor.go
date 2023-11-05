@@ -743,16 +743,19 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 				impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
 				return err
 			}
-			if customTag.Enabled == false {
-				return fmt.Errorf("skopeo plugin configured but custom tag is disabled")
-			}
 			var customTagId int
-			if customTag != nil {
+			if customTag != nil && customTagId > 0 {
 				customTagId = customTag.Id
+			} else {
+				customTagId = -1
 			}
-			registryDestinationImageMap, registryCredentialMap, imagePathReservationIds, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, dockerImageTag, customTagId, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
+				return err
+			}
+			imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
+			if err != nil {
 				return err
 			}
 			runner.ImagePathReservationIds = imagePathReservationIds
@@ -901,16 +904,19 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 				impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
 				return err
 			}
-			if customTag.Enabled == false {
-				return fmt.Errorf("skopeo plugin configured but custom tag is disabled")
-			}
 			var customTagId int
-			if customTag == nil {
+			if customTag != nil {
 				customTagId = customTag.Id
+			} else {
+				customTagId = -1
 			}
-			registryDestinationImageMap, registryCredentialMap, imagePathReservationIds, err := impl.pluginInputVariableParser.ParseSkopeoPluginInputVariables(step.InputVars, dockerImageTag, customTagId, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, cdStageWorkflowRequest.DockerRegistryId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
+				return err
+			}
+			imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
+			if err != nil {
 				return err
 			}
 			pluginImagePathReservationIds = imagePathReservationIds
@@ -951,6 +957,22 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	return nil
 }
+
+func (impl *WorkflowDagExecutorImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {
+	var imagePathReservationIds []int
+	for _, images := range registryImageMap {
+		for _, image := range images {
+			imagePathReservationData, err := impl.customTagService.ReserveImagePath(image, customTagId)
+			if err != nil {
+				impl.logger.Errorw("Error in marking custom tag reserved", "err", err)
+				return imagePathReservationIds, err
+			}
+			imagePathReservationIds = append(imagePathReservationIds, imagePathReservationData.Id)
+		}
+	}
+	return imagePathReservationIds, nil
+}
+
 func (impl *WorkflowDagExecutorImpl) buildArtifactLocationForS3(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) (string, string, string) {
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
 	if cdArtifactLocationFormat == "" {
