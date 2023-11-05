@@ -25,6 +25,7 @@ import (
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 )
@@ -140,7 +141,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				eventType = util.Fail
 			}
 
-			if wfr != nil && pipeline.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
+			if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
 				err = impl.cdHandler.HandleCdStageReTrigger(wfr)
 				if err != nil {
 					//check if this log required or not

@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -109,7 +110,7 @@ type CiPipelineConfigServiceImpl struct {
 	ciTemplateService             CiTemplateService
 	materialRepo                  pipelineConfig.MaterialRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	ciConfig                      *CiCdConfig
+	ciConfig                      *types.CiCdConfig
 	attributesService             attributes.AttributesService
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
@@ -137,7 +138,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ecrConfig *EcrConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	ciConfig *CiCdConfig,
+	ciConfig *types.CiCdConfig,
 	attributesService attributes.AttributesService,
 	pipelineStageService PipelineStageService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -543,7 +544,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			return nil, err
 		}
 		if hostUrl != nil {
-			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, types.ExternalCiWebhookPath)
 		}
 	}
 	//map of ciPipelineId and their templateOverrideConfig
@@ -707,7 +708,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 			return nil, err
 		}
 		if hostUrl != nil {
-			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, types.ExternalCiWebhookPath)
 		}
 	}
 
@@ -936,7 +937,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCi(appId int) (ciConfig []*b
 		return nil, err
 	}
 	if hostUrl != nil {
-		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, types.ExternalCiWebhookPath)
 	}
 
 	externalCiConfigs := make([]*bean.ExternalCiConfig, 0)
@@ -1068,7 +1069,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiById(appId int, externalCi
 		return nil, err
 	}
 	if hostUrl != nil {
-		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, types.ExternalCiWebhookPath)
 	}
 
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
@@ -1306,6 +1307,17 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 	case bean.CREATE:
 		impl.logger.Debugw("create patch request")
 		ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
+
+		pipelineExists, err := impl.ciPipelineRepository.CheckIfPipelineExistsByNameAndAppId(request.CiPipeline.Name, request.AppId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching pipeline by name, FindByName", "err", err, "patch cipipeline name", request.CiPipeline.Name)
+			return nil, err
+		}
+
+		if pipelineExists {
+			impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
+			return nil, fmt.Errorf("pipeline name already exist")
+		}
 
 		res, err := impl.addpipelineToTemplate(ciConfig)
 		if err != nil {
@@ -1607,7 +1619,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 			return nil, err
 		}
 		if hostUrl != nil {
-			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, types.ExternalCiWebhookPath)
 		}
 	}
 
@@ -1894,7 +1906,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiByEnvironment(request reso
 		return nil, err
 	}
 	if hostUrl != nil {
-		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, types.ExternalCiWebhookPath)
 	}
 
 	var externalCiPipelineIds []int

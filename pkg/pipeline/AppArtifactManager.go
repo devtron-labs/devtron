@@ -778,9 +778,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			return ciArtifacts, 0, "", totalCount, err
 		}
 	} else {
-		if listingFilterOpts.ParentStageType == PRE {
+		if listingFilterOpts.ParentStageType == WorklowTypePre {
 			listingFilterOpts.PluginStage = repository.PRE_CD
-		} else if listingFilterOpts.ParentStageType == POST {
+		} else if listingFilterOpts.ParentStageType == WorklowTypePost {
 			listingFilterOpts.PluginStage = repository.POST_CD
 		}
 		ciArtifacts, totalCount, err = impl.BuildArtifactsForCdStageV2(listingFilterOpts)
@@ -795,6 +795,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		searchString := listingFilterOpts.SearchString[1 : len(listingFilterOpts.SearchString)-1]
 		if strings.Contains(currentRunningArtifactBean.Image, searchString) {
 			ciArtifacts = append(ciArtifacts, currentRunningArtifactBean)
+			totalCount += 1
 		}
 	}
 

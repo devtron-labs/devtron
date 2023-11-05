@@ -9,13 +9,13 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.23"
+  release: "v0.6.24"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:ba04f4f4-325-18824"
+    image: "quay.io/devtron/dashboard:94cb7168-325-19078"
     config:
       extraConfigs:
         USE_V2: "true"
@@ -25,8 +25,8 @@ components:
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:65577374-280-18804"
-    cicdImage: "quay.io/devtron/devtron:50ac85e6-434-18829"
+    image: "quay.io/devtron/hyperion:6822926b-280-19032"
+    cicdImage: "quay.io/devtron/devtron:6822926b-434-19035"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:ad3af321-138-18662"
   argocdDexServer:
@@ -34,13 +34,13 @@ components:
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:25052130-318-18795"
+    image: "quay.io/devtron/kubelink:2dbe99a8-564-19001"
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
       NATS_MSG_PROCESSING_BATCH_SIZE: "1"
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      RUN_HELM_INSTALL_IN_ASYNC_MODE: "true"
+      RUN_HELM_INSTALL_IN_ASYNC_MODE: "false"
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"

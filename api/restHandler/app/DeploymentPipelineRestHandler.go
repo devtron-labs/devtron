@@ -16,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -1188,16 +1189,20 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	offsetQueryParam := r.URL.Query().Get("offset")
 	if offsetQueryParam != "" {
 		offset, err = strconv.Atoi(offsetQueryParam)
-		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
-		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+		if err != nil || offset < 1 {
+			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
+			common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+		}
 		return
 	}
 
 	sizeQueryParam := r.URL.Query().Get("size")
 	if sizeQueryParam != "" {
 		limit, err = strconv.Atoi(sizeQueryParam)
-		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
-		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+		if err != nil {
+			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
+			common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+		}
 		return
 	}
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
@@ -1551,7 +1556,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateMigrationConfig(w http.Respon
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var dbMigrationConfigBean pipeline.DbMigrationConfigBean
+	var dbMigrationConfigBean types.DbMigrationConfigBean
 	err = decoder.Decode(&dbMigrationConfigBean)
 
 	dbMigrationConfigBean.UserId = userId
@@ -1597,7 +1602,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMigrationConfig(w http.Respon
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var dbMigrationConfigBean pipeline.DbMigrationConfigBean
+	var dbMigrationConfigBean types.DbMigrationConfigBean
 	err = decoder.Decode(&dbMigrationConfigBean)
 	dbMigrationConfigBean.UserId = userId
 	if err != nil {
