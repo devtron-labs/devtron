@@ -1765,6 +1765,9 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 }
 
 func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean3.UserApprovalActionRequest, userId int32) error {
+	if len(approvalActionRequest.ApprovalNotificationConfig.EmailIds) == 0 {
+		return nil
+	}
 	eventType := util2.Approval
 	pipeline, err := impl.pipelineRepository.FindById(approvalActionRequest.PipelineId)
 	if err != nil {
