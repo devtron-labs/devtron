@@ -14,7 +14,7 @@ type CustomTag struct {
 	AutoIncreasingNumber int      `sql:"auto_increasing_number, notnull"`
 	Active               bool     `sql:"active"`
 	Metadata             string   `sql:"metadata"`
-	Enabled              bool     `sql:"enabled"`
+	Enabled              bool     `sql:"enabled, notnull"`
 }
 
 type ImagePathReservation struct {

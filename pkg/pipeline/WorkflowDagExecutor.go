@@ -41,8 +41,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
-	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -141,9 +141,9 @@ type WorkflowDagExecutorImpl struct {
 	pipelineStageRepository       repository4.PipelineStageRepository
 	pipelineStageService          PipelineStageService
 	config                        *types.CdConfig
-	globalPluginService            plugin.GlobalPluginService
+	globalPluginService           plugin.GlobalPluginService
 
-	scopedVariableManager variables.ScopedVariableCMCSManager
+	scopedVariableManager          variables.ScopedVariableCMCSManager
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
 	pluginInputVariableParser      PluginInputVariableParser
 
@@ -314,8 +314,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		k8sCommonService:              k8sCommonService,
 		pipelineStageService:          pipelineStageService,
 		scopedVariableManager:         scopedVariableManager,
-		globalPluginService:            globalPluginService,
-		pluginInputVariableParser:      pluginInputVariableParser,
+		globalPluginService:           globalPluginService,
+		pluginInputVariableParser:     pluginInputVariableParser,
 
 		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
 		configMapHistoryService:             configMapHistoryService,
@@ -743,6 +743,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 				impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
 				return err
 			}
+			if customTag.Enabled == false {
+				return fmt.Errorf("skopeo plugin configured but custom tag is disabled")
+			}
 			var customTagId int
 			if customTag != nil {
 				customTagId = customTag.Id
@@ -897,6 +900,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
 				return err
+			}
+			if customTag.Enabled == false {
+				return fmt.Errorf("skopeo plugin configured but custom tag is disabled")
 			}
 			var customTagId int
 			if customTag == nil {
