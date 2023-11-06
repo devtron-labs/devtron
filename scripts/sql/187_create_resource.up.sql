@@ -155,10 +155,7 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
                           "type": "string"
                         },
                         "Language": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "type": "string"
                         },
                         "Map": {
                           "additionalProperties": {
