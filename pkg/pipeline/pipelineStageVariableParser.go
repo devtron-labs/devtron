@@ -24,7 +24,7 @@ const (
 )
 
 type PluginInputVariableParser interface {
-	HandleSkopeoPluginInputVariable(inputVariables []*bean.VariableObject, dockerImageTag string, pluginTriggerImage string, buildConfigurationRegistry string) (registryDestinationImageMap map[string][]string, registryCredentialsMap map[string]plugin.RegistryCredentials, err error)
+	HandleSkopeoPluginInputVariable(inputVariables []*bean.VariableObject, dockerImageTag string, pluginTriggerImage string, sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]plugin.RegistryCredentials, err error)
 }
 
 type PluginInputVariableParserImpl struct {
@@ -48,33 +48,27 @@ func NewPluginInputVariableParserImpl(
 func (impl *PluginInputVariableParserImpl) HandleSkopeoPluginInputVariable(inputVariables []*bean.VariableObject,
 	dockerImageTag string,
 	pluginTriggerImage string,
-	buildConfigurationRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]plugin.RegistryCredentials, err error) {
+	sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]plugin.RegistryCredentials, err error) {
 
-	var DestinationInfo, SourceRegistry, SourceImage string
+	var DestinationInfo string
 	for _, ipVariable := range inputVariables {
 		if ipVariable.Name == DESTINATION_INFO {
 			DestinationInfo = ipVariable.Value
-		} else if ipVariable.Name == SOURCE_INFO {
-			if len(ipVariable.Value) > 0 {
-				SourceInfo := ipVariable.Value
-				SourceInfoSplit := strings.Split(SourceInfo, "|")
-				SourceImage = SourceInfoSplit[len(SourceInfoSplit)-1]
-				SourceRegistry = SourceInfoSplit[0]
-			} else if len(pluginTriggerImage) > 0 {
-				SourceImage = pluginTriggerImage
-				SourceRegistry = buildConfigurationRegistry
-			} else {
-				impl.logger.Errorw("No image provided in source or during trigger time")
-				return nil, nil, errors.New("no image provided in source or during trigger time")
-			}
 		}
 	}
-	if len(dockerImageTag) == 0 {
-		sourceSplit := strings.Split(SourceImage, ":")
-		dockerImageTag = sourceSplit[len(sourceSplit)-1]
+
+	if len(pluginTriggerImage) == 0 {
+		return nil, nil, errors.New("no image provided during trigger time")
 	}
+
+	if len(dockerImageTag) == 0 {
+		// case when custom tag is not configured - source image tag will be taken as docker image tag
+		pluginTriggerImageSplit := strings.Split(pluginTriggerImage, ":")
+		dockerImageTag = pluginTriggerImageSplit[len(pluginTriggerImageSplit)-1]
+	}
+
 	registryRepoMapping := impl.getRegistryRepoMapping(DestinationInfo)
-	registryCredentials, err = impl.getRegistryDetails(registryRepoMapping, SourceRegistry)
+	registryCredentials, err = impl.getRegistryDetails(registryRepoMapping, sourceImageDockerRegistry)
 	if err != nil {
 		return nil, nil, err
 	}
