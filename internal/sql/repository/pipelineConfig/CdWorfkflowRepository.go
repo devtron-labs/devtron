@@ -395,63 +395,6 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	}
 	return wfrList, err
 }
-func (impl *CdWorkflowRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]repository.CiArtifact, int, error) {
-
-	var ciArtifacts []repository.CiArtifact
-	query := "SELECT ci_artifact.* FROM ci_artifact" +
-		" LEFT JOIN cd_workflow ON ci_artifact.id = cd_workflow.ci_artifact_id" +
-		" LEFT JOIN cd_workflow_runner ON cd_workflow_runner.cd_workflow_id=cd_workflow.id " +
-		" Where (((cd_workflow_runner.id in (select MAX(cd_workflow_runner.id) OVER (PARTITION BY cd_workflow.ci_artifact_id) FROM cd_workflow_runner inner join cd_workflow on cd_workflow.id=cd_workflow_runner.cd_workflow_id))" +
-		" AND ((cd_workflow.pipeline_id= ? and cd_workflow_runner.workflow_type = ? ) OR (cd_workflow.pipeline_id = ? AND cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.status IN ( ? ) )))" +
-		" OR (ci_artifact.component_id = ?  and ci_artifact.data_source= ? ))" +
-		" AND (ci_artifact.image LIKE ? )"
-	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
-		query = query + " AND (cd_workflow.ci_artifact_id NOT IN (?) )"
-		query = query + fmt.Sprintf(" LIMIT %d", listingFilterOptions.Limit)
-		query = query + fmt.Sprintf(" OFFSET %d", listingFilterOptions.Offset)
-		_, err := impl.dbConnection.Query(&ciArtifacts, query,
-			listingFilterOptions.PipelineId,
-			listingFilterOptions.StageType,
-			listingFilterOptions.ParentId,
-			listingFilterOptions.ParentStageType,
-			pg.In([]string{application.Healthy, application.SUCCEEDED}),
-			listingFilterOptions.ParentId,
-			listingFilterOptions.PluginStage,
-			listingFilterOptions.SearchString,
-			pg.In(listingFilterOptions.ExcludeArtifactIds),
-		)
-		if err != nil {
-			return ciArtifacts, 0, err
-		}
-	} else {
-		query = query + fmt.Sprintf(" LIMIT %d", listingFilterOptions.Limit)
-		query = query + fmt.Sprintf(" OFFSET %d", listingFilterOptions.Offset)
-		_, err := impl.dbConnection.Query(&ciArtifacts, query,
-			listingFilterOptions.PipelineId,
-			listingFilterOptions.StageType,
-			listingFilterOptions.ParentId,
-			listingFilterOptions.ParentStageType,
-			pg.In([]string{application.Healthy, application.SUCCEEDED}),
-			listingFilterOptions.ParentId,
-			listingFilterOptions.PluginStage,
-			listingFilterOptions.SearchString,
-		)
-		if err != nil {
-			return ciArtifacts, 0, err
-		}
-	}
-	//
-	//totalCount, err := query.Count()
-	//if err == pg.ErrNoRows {
-	//	return ciArtifacts, totalCount, err
-	//}
-
-	//err = query.Select()
-	//if err == pg.ErrNoRows {
-	//	return ciArtifacts, totalCount, nil
-	//}
-	return ciArtifacts, 0, nil
-}
 
 func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
