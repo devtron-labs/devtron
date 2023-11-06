@@ -67,7 +67,7 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 	totalCountQuery := "SELECT COUNT(DISTINCT ci_artifact.id) as total_count " + commonQuery
 	selectQuery := fmt.Sprintf("SELECT DISTINCT(ci_artifact.id) , (%v) ", totalCountQuery)
 	//GroupByQuery := " GROUP BY cia.id "
-	limitOffSetQuery := fmt.Sprintf(" LIMIT %v OFFSET %v", listingFilterOptions.Limit, listingFilterOptions.Offset)
+	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id LIMIT %v OFFSET %v", listingFilterOptions.Limit, listingFilterOptions.Offset)
 
 	//finalQuery := selectQuery + commonQuery + GroupByQuery + limitOffSetQuery
 	finalQuery := selectQuery + commonQuery + limitOffSetQuery
