@@ -180,7 +180,6 @@ spec:
 {{ toYaml $.Values.envoyproxy.lifecycle.postStart | indent 14 -}}
            {{- end }}
           {{- end }}
-          
           resources:
 {{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
           ports:

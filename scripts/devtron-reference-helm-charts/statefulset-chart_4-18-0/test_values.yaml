@@ -595,7 +595,7 @@ envoyproxy:
   image: envoyproxy/envoy:v1.14.1
   configMapName: ""
   lifecycle: 
-    enabled: false
+    enabled: true
     preStop:
       exec:
         command: ["sleep","10"]
