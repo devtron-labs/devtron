@@ -1,4 +1,5 @@
 ## Bugs
+- fix: setting cipipelineId to parent ci-pipelines id for linked ci's (#4215)
 - fix: ImageScanDeployInfo not initialized while fetching from db (#4195)
 - fix: Stable dt19 v3 + v4 bugathon bug fixes (#4183)
 - fix: inducing overridden DockerRegistryId in case docker registry is overridden (#4178)
