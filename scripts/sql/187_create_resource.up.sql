@@ -401,14 +401,14 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
                     "Contacts": {
                       "type": "object",
                       "properties": {
-                        "Owner": {
+                        "Owners": {
                           "type": "array",
                           "items": {
                             "type": "object",
                             "refType": "#/references/users"
                           }
                         },
-                        "POC": {
+                        "POCs": {
                           "type": "array",
                           "items": {
                             "type": "object",
@@ -418,20 +418,14 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
                         "Team": {
                           "type": "string"
                         },
-                        "Access manager": {
+                        "Access Managers": {
                           "type": "array",
                           "items": {
                             "type": "object",
                             "refType": "#/references/users"
                           }
                         }
-                      },
-                      "required": [
-                        "Owner",
-                        "POC",
-                        "Team",
-                        "Access manager"
-                      ]
+                      }
                     },
                     "About job": {
                       "type": "object",
@@ -458,17 +452,17 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
                           "type": "string"
                         }
                       }
-                    },
-                    "required": [
-                      "Contacts"
-                    ]
-                  }
-                },
-                "required": [
-                  "id",
-                  "metadata"
-                ]
-              }
+                    }
+                  },
+                  "required": [
+                    "Contacts"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "metadata"
+              ]
             },
             "actions": {
               "type": "object"
