@@ -92,3 +92,7 @@ type PortMap struct {
 	PortOnLocal     int `json:"portOnLocal" validate:"number,gt=0"`
 	PortOnContainer int `json:"portOnContainer" validate:"number,gt=0"`
 }
+
+const (
+	VULNERABILITY_SCANNING_PLUGIN string = "Vulnerability Scanning"
+)
