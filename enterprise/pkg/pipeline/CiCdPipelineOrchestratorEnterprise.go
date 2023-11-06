@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 )
@@ -49,7 +50,7 @@ func NewCiCdPipelineOrchestratorEnterpriseImpl(pipelineGroupRepository app2.AppR
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	GitSensorClient gitSensor.Client, ciConfig *pipeline.CiCdConfig,
+	GitSensorClient gitSensor.Client, ciConfig *types.CiCdConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,

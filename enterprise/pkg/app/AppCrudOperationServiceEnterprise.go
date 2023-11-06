@@ -39,9 +39,9 @@ type AppCrudOperationServiceEnterpriseImpl struct {
 
 func NewAppCrudOperationServiceEnterpriseImpl(appLabelRepository pipelineConfig.AppLabelRepository,
 	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository,
-	globalTagService globalTag.GlobalTagService, teamRepository team.TeamRepository, genericNoteService genericNotes.GenericNoteService) *AppCrudOperationServiceEnterpriseImpl {
+	globalTagService globalTag.GlobalTagService, teamRepository team.TeamRepository, genericNoteService genericNotes.GenericNoteService, gitMaterialRepository pipelineConfig.MaterialRepository) *AppCrudOperationServiceEnterpriseImpl {
 	return &AppCrudOperationServiceEnterpriseImpl{
-		AppCrudOperationServiceImpl: app2.NewAppCrudOperationServiceImpl(appLabelRepository, logger, appRepository, userRepository, installedAppRepository, teamRepository, genericNoteService),
+		AppCrudOperationServiceImpl: app2.NewAppCrudOperationServiceImpl(appLabelRepository, logger, appRepository, userRepository, installedAppRepository, teamRepository, genericNoteService, gitMaterialRepository),
 		logger:                      logger,
 		globalTagService:            globalTagService,
 		appRepository:               appRepository,

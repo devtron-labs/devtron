@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"k8s.io/utils/strings/slices"
@@ -35,62 +36,28 @@ import (
 )
 
 type DockerRegistryConfig interface {
-	Create(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error)
-	ListAllActive() ([]DockerArtifactStoreBean, error)
-	FetchAllDockerAccounts() ([]DockerArtifactStoreBean, error)
-	FetchOneDockerAccount(storeId string) (*DockerArtifactStoreBean, error)
-	Update(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error)
-	UpdateInactive(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error)
+	Create(bean *types.DockerArtifactStoreBean) (*types.DockerArtifactStoreBean, error)
+	ListAllActive() ([]types.DockerArtifactStoreBean, error)
+	FetchAllDockerAccounts() ([]types.DockerArtifactStoreBean, error)
+	FetchOneDockerAccount(storeId string) (*types.DockerArtifactStoreBean, error)
+	Update(bean *types.DockerArtifactStoreBean) (*types.DockerArtifactStoreBean, error)
+	UpdateInactive(bean *types.DockerArtifactStoreBean) (*types.DockerArtifactStoreBean, error)
 	Delete(storeId string) (string, error)
-	DeleteReg(bean *DockerArtifactStoreBean) error
+	DeleteReg(bean *types.DockerArtifactStoreBean) error
 	CheckInActiveDockerAccount(storeId string) (bool, error)
-	ValidateRegistryCredentials(bean *DockerArtifactStoreBean) bool
-	ConfigureOCIRegistry(bean *DockerArtifactStoreBean, isUpdate bool, userId int32, tx *pg.Tx) error
+	ValidateRegistryCredentials(bean *types.DockerArtifactStoreBean) bool
+	ConfigureOCIRegistry(bean *types.DockerArtifactStoreBean, isUpdate bool, userId int32, tx *pg.Tx) error
 	CreateOrUpdateOCIRegistryConfig(ociRegistryConfig *repository.OCIRegistryConfig, userId int32, tx *pg.Tx) error
 	FilterOCIRegistryConfigForSpecificRepoType(ociRegistryConfigList []*repository.OCIRegistryConfig, repositoryType string) *repository.OCIRegistryConfig
-	FilterRegistryBeanListBasedOnStorageTypeAndAction(bean []DockerArtifactStoreBean, storageType string, actionTypes ...string) []DockerArtifactStoreBean
+	FilterRegistryBeanListBasedOnStorageTypeAndAction(bean []types.DockerArtifactStoreBean, storageType string, actionTypes ...string) []types.DockerArtifactStoreBean
 	ValidateRegistryStorageType(registryId string, storageType string, storageActions ...string) bool
 }
 
-type DisabledFields string
-
 const (
-	DISABLED_CONTAINER  DisabledFields = "CONTAINER"
-	DISABLED_CHART_PULL DisabledFields = "CHART_PULL"
-	DISABLED_CHART_PUSH DisabledFields = "CHART_PUSH"
+	DISABLED_CONTAINER  types.DisabledFields = "CONTAINER"
+	DISABLED_CHART_PULL types.DisabledFields = "CHART_PULL"
+	DISABLED_CHART_PUSH types.DisabledFields = "CHART_PUSH"
 )
-
-type DockerArtifactStoreBean struct {
-	Id                      string                       `json:"id" validate:"required"`
-	PluginId                string                       `json:"pluginId,omitempty" validate:"required"`
-	RegistryURL             string                       `json:"registryUrl" validate:"required"`
-	RegistryType            repository.RegistryType      `json:"registryType" validate:"required"`
-	IsOCICompliantRegistry  bool                         `json:"isOCICompliantRegistry"`
-	OCIRegistryConfig       map[string]string            `json:"ociRegistryConfig,omitempty"`
-	IsPublic                bool                         `json:"isPublic"`
-	RepositoryList          []string                     `json:"repositoryList,omitempty"`
-	AWSAccessKeyId          string                       `json:"awsAccessKeyId,omitempty"`
-	AWSSecretAccessKey      string                       `json:"awsSecretAccessKey,omitempty"`
-	AWSRegion               string                       `json:"awsRegion,omitempty"`
-	Username                string                       `json:"username,omitempty"`
-	Password                string                       `json:"password,omitempty"`
-	IsDefault               bool                         `json:"isDefault"`
-	Connection              string                       `json:"connection"`
-	Cert                    string                       `json:"cert"`
-	Active                  bool                         `json:"active"`
-	DisabledFields          []DisabledFields             `json:"disabledFields"`
-	User                    int32                        `json:"-"`
-	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean `json:"ipsConfig,omitempty"`
-}
-
-type DockerRegistryIpsConfigBean struct {
-	Id                   int                                        `json:"id"`
-	CredentialType       repository.DockerRegistryIpsCredentialType `json:"credentialType,omitempty" validate:"oneof=SAME_AS_REGISTRY NAME CUSTOM_CREDENTIAL"`
-	CredentialValue      string                                     `json:"credentialValue,omitempty"`
-	AppliedClusterIdsCsv string                                     `json:"appliedClusterIdsCsv,omitempty"`
-	IgnoredClusterIdsCsv string                                     `json:"ignoredClusterIdsCsv,omitempty"`
-	Active               bool                                       `json:"active,omitempty"`
-}
 
 type DockerRegistryConfigImpl struct {
 	logger                            *zap.SugaredLogger
@@ -111,7 +78,7 @@ func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService clien
 	}
 }
 
-func NewDockerArtifactStore(bean *DockerArtifactStoreBean, isActive bool, createdOn time.Time, updatedOn time.Time, createdBy int32, updateBy int32) *repository.DockerArtifactStore {
+func NewDockerArtifactStore(bean *types.DockerArtifactStoreBean, isActive bool, createdOn time.Time, updatedOn time.Time, createdBy int32, updateBy int32) *repository.DockerArtifactStore {
 	return &repository.DockerArtifactStore{
 		Id:                     bean.Id,
 		PluginId:               bean.PluginId,
@@ -179,8 +146,8 @@ Returns:
   - List of DockerArtifactStoreBean
   - Error: if invalid storageType
 */
-func (impl DockerRegistryConfigImpl) FilterRegistryBeanListBasedOnStorageTypeAndAction(bean []DockerArtifactStoreBean, storageType string, actionTypes ...string) []DockerArtifactStoreBean {
-	var registryConfigs []DockerArtifactStoreBean
+func (impl DockerRegistryConfigImpl) FilterRegistryBeanListBasedOnStorageTypeAndAction(bean []types.DockerArtifactStoreBean, storageType string, actionTypes ...string) []types.DockerArtifactStoreBean {
+	var registryConfigs []types.DockerArtifactStoreBean
 	for _, registryConfig := range bean {
 		// For OCI registries
 		if registryConfig.IsOCICompliantRegistry {
@@ -237,7 +204,7 @@ func (impl DockerRegistryConfigImpl) FilterOCIRegistryConfigForSpecificRepoType(
 }
 
 // ConfigureOCIRegistry Takes DockerArtifactStoreBean, IsUpdate flag and the DB context. It finally creates/updates the OCI config in the DB. Returns Error if any.
-func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactStoreBean, isUpdate bool, userId int32, tx *pg.Tx) error {
+func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *types.DockerArtifactStoreBean, isUpdate bool, userId int32, tx *pg.Tx) error {
 	ociRegistryConfigList, err := impl.ociRegistryConfigRepository.FindByDockerRegistryId(bean.Id)
 	if err != nil && (isUpdate || err != pg.ErrNoRows) {
 		return err
@@ -316,7 +283,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactSt
 }
 
 // Create Takes the DockerArtifactStoreBean and creates the record in DB. Returns Error if any
-func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error) {
+func (impl DockerRegistryConfigImpl) Create(bean *types.DockerArtifactStoreBean) (*types.DockerArtifactStoreBean, error) {
 	impl.logger.Debugw("docker registry create request", "request", bean)
 
 	// 1- initiate DB transaction
@@ -388,16 +355,16 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 }
 
 // ListAllActive Returns the list all active artifact stores
-func (impl DockerRegistryConfigImpl) ListAllActive() ([]DockerArtifactStoreBean, error) {
+func (impl DockerRegistryConfigImpl) ListAllActive() ([]types.DockerArtifactStoreBean, error) {
 	impl.logger.Debug("list docker repo request")
 	stores, err := impl.dockerArtifactStoreRepository.FindAllActiveForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("error in listing artifact", "err", err)
 		return nil, err
 	}
-	var storeBeans []DockerArtifactStoreBean
+	var storeBeans []types.DockerArtifactStoreBean
 	for _, store := range stores {
-		storeBean := DockerArtifactStoreBean{
+		storeBean := types.DockerArtifactStoreBean{
 			Id:                     store.Id,
 			RegistryURL:            store.RegistryURL,
 			IsDefault:              store.IsDefault,
@@ -413,17 +380,17 @@ func (impl DockerRegistryConfigImpl) ListAllActive() ([]DockerArtifactStoreBean,
 }
 
 // FetchAllDockerAccounts method used for getting all registry accounts with complete details
-func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactStoreBean, error) {
+func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]types.DockerArtifactStoreBean, error) {
 	impl.logger.Debug("list docker repo request")
 	stores, err := impl.dockerArtifactStoreRepository.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in listing artifact", "err", err)
 		return nil, err
 	}
-	var storeBeans []DockerArtifactStoreBean
+	var storeBeans []types.DockerArtifactStoreBean
 	for _, store := range stores {
 		ipsConfig := store.IpsConfig
-		storeBean := DockerArtifactStoreBean{
+		storeBean := types.DockerArtifactStoreBean{
 			Id:                     store.Id,
 			PluginId:               store.PluginId,
 			RegistryURL:            store.RegistryURL,
@@ -443,7 +410,7 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 			impl.PopulateOCIRegistryConfig(&store, &storeBean)
 		}
 		if ipsConfig != nil {
-			storeBean.DockerRegistryIpsConfig = &DockerRegistryIpsConfigBean{
+			storeBean.DockerRegistryIpsConfig = &types.DockerRegistryIpsConfigBean{
 				Id:                   ipsConfig.Id,
 				CredentialType:       ipsConfig.CredentialType,
 				CredentialValue:      ipsConfig.CredentialValue,
@@ -459,7 +426,7 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 }
 
 // PopulateOCIRegistryConfig Takes the DB docker_artifact_store response and generates
-func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository.DockerArtifactStore, storeBean *DockerArtifactStoreBean) *DockerArtifactStoreBean {
+func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository.DockerArtifactStore, storeBean *types.DockerArtifactStoreBean) *types.DockerArtifactStoreBean {
 	ociRegistryConfigs := map[string]string{}
 	for _, ociRegistryConfig := range store.OCIRegistryConfig {
 		ociRegistryConfigs[ociRegistryConfig.RepositoryType] = ociRegistryConfig.RepositoryAction
@@ -473,7 +440,7 @@ func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository
 }
 
 // FetchOneDockerAccount this method takes the docker account id and Returns DockerArtifactStoreBean and Error (if any)
-func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*DockerArtifactStoreBean, error) {
+func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*types.DockerArtifactStoreBean, error) {
 	impl.logger.Debug("fetch docker account by id from db")
 	store, err := impl.dockerArtifactStoreRepository.FindOne(storeId)
 	if err != nil {
@@ -482,7 +449,7 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 	}
 
 	ipsConfig := store.IpsConfig
-	storeBean := &DockerArtifactStoreBean{
+	storeBean := &types.DockerArtifactStoreBean{
 		Id:                     store.Id,
 		PluginId:               store.PluginId,
 		RegistryURL:            store.RegistryURL,
@@ -502,7 +469,7 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 		impl.PopulateOCIRegistryConfig(store, storeBean)
 	}
 	if ipsConfig != nil {
-		storeBean.DockerRegistryIpsConfig = &DockerRegistryIpsConfigBean{
+		storeBean.DockerRegistryIpsConfig = &types.DockerRegistryIpsConfigBean{
 			Id:                   ipsConfig.Id,
 			CredentialType:       ipsConfig.CredentialType,
 			CredentialValue:      ipsConfig.CredentialValue,
@@ -515,7 +482,7 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 }
 
 // Update will update the existing registry with the given DockerArtifactStoreBean
-func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error) {
+func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean) (*types.DockerArtifactStoreBean, error) {
 	impl.logger.Debugw("docker registry update request", "request", bean)
 
 	// 1- find by id, if err - return error
@@ -715,7 +682,7 @@ func (impl DockerRegistryConfigImpl) createDockerIpConfig(tx *pg.Tx, ipsConfig *
 }
 
 // UpdateInactive will update the existing soft deleted registry with the given DockerArtifactStoreBean instead of creating one
-func (impl DockerRegistryConfigImpl) UpdateInactive(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error) {
+func (impl DockerRegistryConfigImpl) UpdateInactive(bean *types.DockerArtifactStoreBean) (*types.DockerArtifactStoreBean, error) {
 	impl.logger.Debugw("docker registry update request", "request", bean)
 
 	// 1- find by id, if err - return error
@@ -824,7 +791,7 @@ func (impl DockerRegistryConfigImpl) Delete(storeId string) (string, error) {
 }
 
 // DeleteReg Takes DockerArtifactStoreBean and soft deletes the OCI configs (if exists), finally soft deletes the registry. Returns Error if any.
-func (impl DockerRegistryConfigImpl) DeleteReg(bean *DockerArtifactStoreBean) error {
+func (impl DockerRegistryConfigImpl) DeleteReg(bean *types.DockerArtifactStoreBean) error {
 	// 1- fetching Artifact Registry
 	dockerReg, err := impl.dockerArtifactStoreRepository.FindOne(bean.Id)
 	if err != nil {
@@ -890,7 +857,7 @@ func (impl DockerRegistryConfigImpl) CheckInActiveDockerAccount(storeId string) 
 	return exist, nil
 }
 
-func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *DockerArtifactStoreBean) bool {
+func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.DockerArtifactStoreBean) bool {
 	if bean.IsPublic ||
 		bean.RegistryType == repository.REGISTRYTYPE_GCR ||
 		bean.RegistryType == repository.REGISTRYTYPE_ARTIFACT_REGISTRY ||

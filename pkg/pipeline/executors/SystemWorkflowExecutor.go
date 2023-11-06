@@ -1,4 +1,4 @@
-package pipeline
+package executors
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -97,9 +98,54 @@ func (impl *SystemWorkflowExecutorImpl) TerminateWorkflow(workflowName string, n
 	return err
 }
 
+func (impl *SystemWorkflowExecutorImpl) GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error) {
+	templatesList := &unstructured.UnstructuredList{}
+	_, clientset, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while creating k8s client", "workflowName", workflowName, "namespace", namespace, "err", err)
+		return nil, err
+	}
+	wf, err := clientset.BatchV1().Jobs(namespace).Get(context.Background(), workflowName, v12.GetOptions{})
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			err = fmt.Errorf("cannot find workflow %s", workflowName)
+		}
+		return nil, err
+	}
+	impl.addToUnstructuredList(wf, templatesList)
+	return templatesList, nil
+}
+
+// This will work for
+
+func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*types2.WorkflowStatus, error) {
+
+	_, clientset, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while creating k8s client", "workflowName", workflowName, "namespace", namespace, "err", err)
+		return nil, err
+	}
+	wf, err := clientset.BatchV1().Jobs(namespace).Get(context.Background(), workflowName, v12.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			err = fmt.Errorf("cannot find workflow %s", workflowName)
+		}
+		return nil, err
+	}
+	status := ""
+	if len(wf.Status.Conditions) > 0 {
+		status = string(wf.Status.Conditions[0].Type)
+	}
+	wfStatus := &types2.WorkflowStatus{
+		Status: status,
+	}
+	return wfStatus, nil
+}
+
 func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.WorkflowTemplate) *v1.Job {
 
-	workflowLabels := map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE, "devtron.ai/purpose": "workflow"}
+	workflowLabels := map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE, "devtron.ai/purpose": "workflow", "workflowType": workflowTemplate.WorkflowType}
 
 	//setting TerminationGracePeriodSeconds in PodSpec
 	//which ensures Pod has enough time to execute cleanup on SIGTERM event
@@ -144,7 +190,7 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 			impl.logger.Errorw("error occurred while extracting data map", "Data", configSecretMap.Data, "err", err)
 			return configMaps, secrets, err
 		}
-		configMapSecretDto := ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
+		configMapSecretDto := types2.ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
 		configMap := GetConfigMapBody(configMapSecretDto)
 		configMaps = append(configMaps, configMap)
 	}
@@ -158,7 +204,7 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 			impl.logger.Errorw("error occurred while extracting data map", "Data", secretMapData.Data, "err", err)
 			return configMaps, secrets, err
 		}
-		configMapSecretDto := ConfigMapSecretDto{Name: secretMapData.Name, Data: dataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
+		configMapSecretDto := types2.ConfigMapSecretDto{Name: secretMapData.Name, Data: dataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
 		secretBody := GetSecretBody(configMapSecretDto)
 		secrets = append(secrets, secretBody)
 	}

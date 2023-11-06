@@ -46,12 +46,13 @@ type SourceTypeConfig struct {
 type CreateAppDTO struct {
 	Id          int                            `json:"id,omitempty" validate:"number"`
 	AppName     string                         `json:"appName" validate:"name-component,max=100"`
+	Description string                         `json:"description"`
 	UserId      int32                          `json:"-"` //not exposed to UI
 	Material    []*GitMaterial                 `json:"material" validate:"dive,min=1"`
 	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId  int                            `json:"templateId"`
 	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
-	Description *bean3.GenericNoteResponseBean `json:"description,omitempty"`
+	GenericNote *bean3.GenericNoteResponseBean `json:"genericNote,omitempty"`
 	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
@@ -809,14 +810,32 @@ type Label struct {
 type AppMetaInfoDto struct {
 	AppId       int                            `json:"appId"`
 	AppName     string                         `json:"appName"`
+	Description string                         `json:"description"`
 	ProjectId   int                            `json:"projectId"`
 	ProjectName string                         `json:"projectName"`
 	CreatedBy   string                         `json:"createdBy"`
 	CreatedOn   time.Time                      `json:"createdOn"`
 	Active      bool                           `json:"active,notnull"`
 	Labels      []*Label                       `json:"labels"`
-	Description *bean3.GenericNoteResponseBean `json:"description"`
+	Note        *bean3.GenericNoteResponseBean `json:"note"`
 	UserId      int32                          `json:"-"`
+	//below field is only valid for helm apps
+	ChartUsed    *ChartUsedDto         `json:"chartUsed,omitempty"`
+	GitMaterials []*GitMaterialMetaDto `json:"gitMaterials,omitempty"`
+}
+
+type GitMaterialMetaDto struct {
+	DisplayName    string `json:"displayName"`
+	RedirectionUrl string `json:"redirectionUrl"` // here we are converting ssh urls to https for redirection at FE
+	OriginalUrl    string `json:"originalUrl"`
+}
+
+type ChartUsedDto struct {
+	AppStoreChartName  string `json:"appStoreChartName,omitempty"`
+	AppStoreChartId    int    `json:"appStoreChartId,omitempty"`
+	AppStoreAppName    string `json:"appStoreAppName,omitempty"`
+	AppStoreAppVersion string `json:"appStoreAppVersion,omitempty"`
+	ChartAvatar        string `json:"chartAvatar,omitempty"`
 }
 
 type AppLabelsJsonForDeployment struct {

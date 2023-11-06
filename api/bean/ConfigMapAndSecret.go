@@ -69,3 +69,24 @@ func (configSecretJson ConfigSecretJson) GetDereferencedSecrets() []ConfigSecret
 func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigSecretMap) {
 	configSecretJson.Secrets = util.GetReferencedArray(secrets)
 }
+
+func (ConfigSecretRootJson) GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
+	secretsJson := ConfigSecretRootJson{}
+	err := json.Unmarshal([]byte(data), &secretsJson)
+	if err != nil {
+		return "", err
+	}
+
+	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
+		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	marshal, err := json.Marshal(secretsJson)
+	if err != nil {
+		return "", err
+	}
+	return string(marshal), nil
+}
