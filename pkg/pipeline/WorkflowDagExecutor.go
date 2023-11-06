@@ -656,7 +656,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		}
 	}
 	var err error
-	if cdWf == nil {
+	if cdWf == nil || (cdWf != nil && cdWf.CiArtifactId != artifact.Id) {
+		// (cdWf != nil && cdWf.CiArtifactId != artifact.Id) -> for auto trigger case when cd is triggered with image generated at plugin (like skopeo)
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
@@ -1623,6 +1624,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		if err != nil {
 			return err
 		}
+	} else {
+		//
+		cdWf.CiArtifactId = artifact.Id
 	}
 
 	runner := &pipelineConfig.CdWorkflowRunner{
