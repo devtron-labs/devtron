@@ -21,6 +21,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/casbin/casbin"
+	casbinv2 "github.com/casbin/casbin/v2"
 	"github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/otel"
@@ -29,7 +31,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/casbin/casbin"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/router"
@@ -47,6 +48,7 @@ type App struct {
 	Logger        *zap.SugaredLogger
 	SSE           *sse.SSE
 	Enforcer      *casbin.SyncedEnforcer
+	EnforcerV2    *casbinv2.SyncedEnforcer
 	server        *http.Server
 	db            *pg.DB
 	pubsubClient  *pubsub.PubSubClientServiceImpl
@@ -62,6 +64,7 @@ func NewApp(router *router.MuxRouter,
 	Logger *zap.SugaredLogger,
 	sse *sse.SSE,
 	enforcer *casbin.SyncedEnforcer,
+	enforcerV2 *casbinv2.SyncedEnforcer,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	sessionManager2 *authMiddleware.SessionManager,
@@ -75,6 +78,7 @@ func NewApp(router *router.MuxRouter,
 		Logger:             Logger,
 		SSE:                sse,
 		Enforcer:           enforcer,
+		EnforcerV2:         enforcerV2,
 		db:                 db,
 		pubsubClient:       pubsubClient,
 		serveTls:           false,

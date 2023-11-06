@@ -10,6 +10,9 @@ import (
 	"github.com/casbin/casbin/model"
 	"github.com/casbin/casbin/rbac"
 	"github.com/casbin/casbin/util"
+	casbinv2 "github.com/casbin/casbin/v2"
+	modelv2 "github.com/casbin/casbin/v2/model"
+	rbac2 "github.com/casbin/casbin/v2/rbac"
 	"github.com/devtron-labs/authenticator/middleware"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
@@ -32,12 +35,13 @@ const (
 type EnterpriseEnforcerConfig struct {
 	EnterpriseEnforcerEnabled bool `env:"ENTERPRISE_ENFORCER_ENABLED" envDefault:"true"`
 	UseCustomEnforcer         bool `env:"USE_CUSTOM_ENFORCER" envDefault:"true"`
+	UseCasbinV2               bool `env:"USE_CASBIN_V2" envDefault:"false"`
 }
 
-func NewEnterpriseEnforcerImpl(enforcer *casbin.SyncedEnforcer,
+func NewEnterpriseEnforcerImpl(enforcer *casbin.SyncedEnforcer, enforcerV2 *casbinv2.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger, casbinService casbin2.CasbinService) (*EnterpriseEnforcerImpl, error) {
-	enforcerImpl := casbin2.NewEnforcerImpl(enforcer, sessionManager, logger, casbinService)
+	enforcerImpl := casbin2.NewEnforcerImpl(enforcer, enforcerV2, sessionManager, logger, casbinService)
 	enforcerConfig := &EnterpriseEnforcerConfig{}
 	err := env.Parse(enforcerConfig)
 	if err != nil {
@@ -87,11 +91,24 @@ func (e *EnterpriseEnforcerImpl) EnforceByEmailInBatch(emailId string, resource 
 	return e.EnforcerImpl.EnforceByEmailInBatch(emailId, resource, action, resourceItems)
 }
 func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatch(subject string, resource string, action string, resourceItems []string) (resultArr []bool) {
-	enforcedModel := e.SyncedEnforcer.Enforcer.GetModel()
+	var enforcedModelV1 model.Model
 	if e.Config.UseCustomEnforcer {
+		enforcedModel := CustomEnforcedModel{}
+		if e.Config.UseCasbinV2 {
+			enforcedModelV2 := e.EnforcerV2.Enforcer.GetModel()
+			enforcedModel.modelV2 = enforcedModelV2
+			enforcedModel.version = casbin2.CasbinV2
+		} else {
+			enforcedModelV1 = e.Enforcer.Enforcer.GetModel()
+			enforcedModel.modelV1 = enforcedModelV1
+			enforcedModel.version = casbin2.CasbinV1
+		}
 		return e.EnforceForSubjectInBatchCustom(subject, resource, action, resourceItems, enforcedModel)
 	} else {
-		return e.EnforceForSubjectInBatchCasbin(subject, resource, action, resourceItems, enforcedModel)
+		if !e.Config.UseCasbinV2 {
+			enforcedModelV1 = e.Enforcer.Enforcer.GetModel()
+		}
+		return e.EnforceForSubjectInBatchCasbin(subject, resource, action, resourceItems, enforcedModelV1)
 	}
 }
 
@@ -125,7 +142,10 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCasbin(subject string, 
 	for i, token := range enforcedModel["p"]["p"].Tokens {
 		pTokens[token] = i
 	}
-	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel["p"]["p"].Policy, enforcedModel["g"]["g"].RM)
+	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel["p"]["p"].Policy, CustomRoleManager{
+		rmV1:    enforcedModel["g"]["g"].RM,
+		version: casbin2.CasbinV1,
+	})
 	eft := effect.NewDefaultEffector()
 	for _, resourceItem := range resourceItems {
 		rvals := e.getRval(subject, resource, action, strings.ToLower(resourceItem))
@@ -235,27 +255,28 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCasbin(subject string, 
 	return resultArr
 }
 
-func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCustom(subject string, resource string, action string, resourceItems []string, enforcedModel model.Model) (resultArr []bool) {
+func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCustom(subject string, resource string, action string, resourceItems []string, enforcedModel CustomEnforcedModel) (resultArr []bool) {
 	defer casbin2.HandlePanic()
-	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel["p"]["p"].Policy, enforcedModel["g"]["g"].RM)
+	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel.getPolicy("p"), enforcedModel.getCustomRM("g"))
+
 	for _, resourceItem := range resourceItems {
 		rVals := e.getRvalCustom(subject, resource, action, strings.ToLower(resourceItem))
 		result := false
 		if policyLen := len(filteredPolicies); policyLen != 0 {
-			if len(enforcedModel["r"]["r"].Tokens) != len(rVals) { //will break if our code assumptions for definition check and auth_model.conf mismatch
+			if len(enforcedModel.getTokens("r")) != len(rVals) { //will break if our code assumptions for definition check and auth_model.conf mismatch
 				panic(
 					fmt.Sprintf(
 						"Invalid Request Definition size: expected %d got %d rVals: %v",
-						len(enforcedModel["r"]["r"].Tokens),
+						len(enforcedModel.getTokens("r")),
 						len(rVals),
 						rVals))
 			}
 			for _, pVals := range filteredPolicies {
-				if len(enforcedModel["p"]["p"].Tokens) != len(pVals) { //will break if our code assumptions for definition check and auth_model.conf mismatch
+				if len(enforcedModel.getTokens("p")) != len(pVals) { //will break if our code assumptions for definition check and auth_model.conf mismatch
 					panic(
 						fmt.Sprintf(
 							"Invalid Policy Rule size: expected %d got %d pVals: %v",
-							len(enforcedModel["p"]["p"].Tokens),
+							len(enforcedModel.getTokens("p")),
 							len(pVals),
 							pVals))
 				}
@@ -278,6 +299,60 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCustom(subject string, 
 		resultArr = append(resultArr, result)
 	}
 	return resultArr
+}
+
+type CustomEnforcedModel struct {
+	modelV1 model.Model
+	modelV2 modelv2.Model
+	version casbin2.Version
+}
+
+func (model CustomEnforcedModel) getTokens(tokenKey string) []string {
+	switch model.version {
+	case casbin2.CasbinV2:
+		return model.modelV2[tokenKey][tokenKey].Tokens
+	default:
+		return model.modelV1[tokenKey][tokenKey].Tokens
+	}
+}
+
+func (model CustomEnforcedModel) getPolicy(tokenKey string) [][]string {
+	switch model.version {
+	case casbin2.CasbinV2:
+		return model.modelV2[tokenKey][tokenKey].Policy
+	default:
+		return model.modelV1[tokenKey][tokenKey].Policy
+	}
+}
+
+func (model CustomEnforcedModel) getCustomRM(tokenKey string) CustomRoleManager {
+	switch model.version {
+	case casbin2.CasbinV2:
+		return CustomRoleManager{
+			rmV2:    model.modelV2[tokenKey][tokenKey].RM,
+			version: casbin2.CasbinV2,
+		}
+	default:
+		return CustomRoleManager{
+			rmV1:    model.modelV1[tokenKey][tokenKey].RM,
+			version: casbin2.CasbinV1,
+		}
+	}
+}
+
+type CustomRoleManager struct {
+	rmV1    rbac.RoleManager
+	rmV2    rbac2.RoleManager
+	version casbin2.Version
+}
+
+func (rm CustomRoleManager) hasLink(subject string, role string) (bool, error) {
+	switch rm.version {
+	case casbin2.CasbinV2:
+		return rm.rmV2.HasLink(subject, role)
+	default:
+		return rm.rmV1.HasLink(subject, role)
+	}
 }
 
 func (e *EnterpriseEnforcerImpl) EvaluateDefinitions(t DefinitionType, pVals, rVals []string) bool {
@@ -309,13 +384,14 @@ func (e *EnterpriseEnforcerImpl) getRvalCustom(rVal ...string) []string {
 	return rVal
 }
 
-func (e *EnterpriseEnforcerImpl) GetFilteredPolicies(subject string, resource string, action string, policies [][]string, rm rbac.RoleManager) [][]string {
+func (e *EnterpriseEnforcerImpl) GetFilteredPolicies(subject string, resource string, action string, policies [][]string, rm CustomRoleManager) [][]string {
 	var filteredPolicies [][]string
 	for _, policy := range policies {
 		role := policy[0]
 		policyResource := policy[1]
 		policyAction := policy[2]
-		hasLink, _ := rm.HasLink(subject, role)
+		hasLink, _ := rm.hasLink(subject, role)
+		e.Logger.Debugw("casbin version in use", "version", rm.version)
 		if hasLink {
 			if !casbin2.MatchKeyByPart(action, policyAction) {
 				continue
