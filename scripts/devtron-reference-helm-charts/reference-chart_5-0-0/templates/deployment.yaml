@@ -179,7 +179,7 @@ spec:
             preStop:
 {{ toYaml $.Values.envoyproxy.lifecycle.preStop | indent 14 -}}
            {{- end }}
-          {{- if $.Values.envoyproxy.lifecycle.preStop }}
+          {{- if $.Values.envoyproxy.lifecycle.postStart }}
             postStart:
 {{ toYaml $.Values.envoyproxy.lifecycle.postStart | indent 14 -}}
            {{- end }}
