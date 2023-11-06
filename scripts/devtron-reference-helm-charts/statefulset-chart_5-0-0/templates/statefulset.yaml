@@ -183,7 +183,7 @@ spec:
 {{- if $.Values.appMetrics }}
         - name: envoy
           image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
-          {{- if $.Values.envoyproxy.lifecycle }}
+          {{- if $.Values.envoyproxy.lifecycle.enabled }}
           lifecycle:
           {{- if $.Values.envoyproxy.lifecycle.preStop }}
             preStop:
