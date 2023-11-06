@@ -11,6 +11,7 @@
 - feat: pre-postcd trigger with plugin (#4176)
 - feat: upload and download logs/artifact from blob storage configured in external cluster (#4138)
 ## Documentation
+- doc: GC Index Additions + Fixes (#4214)
 - docs: Scoped Variables Draft + Other Fixes (Ephemeral Doc Alignment) (#3982)
 - docs: Added Videos + Fixed Typos and Navigation (#4169)
 - doc: added a Config.md to expose all the env variables use in this microservice (#4173)
