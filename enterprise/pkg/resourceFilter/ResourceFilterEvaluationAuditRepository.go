@@ -17,6 +17,8 @@ type ReferenceType int
 const Pipeline ReferenceType = 0
 const PipelineStage ReferenceType = 1
 const CdWorkflowRunner ReferenceType = 2
+const PrePipelineStageYaml ReferenceType = 3
+const PostPipelineStageYaml ReferenceType = 4
 
 type ResourceFilterEvaluationAudit struct {
 	tableName            struct{}       `sql:"resource_filter_evaluation_audit" pg:",discard_unknown_columns"`
