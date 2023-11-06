@@ -395,6 +395,7 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 	}
 	deployedCiArtifactsResponse.CiArtifacts = deployedCiArtifacts
 	deployedCiArtifactsResponse.TotalCount = totalCount
+	deployedCiArtifactsResponse.CanApproverDeploy = impl.config.CanApproverDeploy
 	return deployedCiArtifactsResponse, nil
 }
 
