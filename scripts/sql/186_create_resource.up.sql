@@ -369,46 +369,56 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
             "overview": {
               "type": "object",
               "properties": {
-                "id": {
-                  "type": "number"
-                },
-                "name": {
-                  "type": "string"
-                },
-                "icon": {
-                  "type": "string",
-                  "contentEncoding": "base64"
-                },
-                "description": {
-                  "type": "string"
-                },
-                "createdOn": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "createdBy": {
-                  "type": "object",
-                  "refType": "#/references/users"
-                },
-                "tags": {
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                },
                 "metadata": {
                   "type": "object",
                   "properties": {
-                    "Owners & Pager Duty": {
+                    "id": {
+                      "type": "number"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "icon": {
+                      "type": "string",
+                      "contentEncoding": "base64"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "createdOn": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "createdBy": {
+                      "type": "object",
+                      "refType": "#/references/users"
+                    },
+                    "tags": {
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "Contacts": {
                       "type": "object",
                       "properties": {
-                        "On Pager Duty": {
+                        "Owner": {
                           "type": "array",
                           "items": {
                             "type": "object",
                             "refType": "#/references/users"
                           }
                         },
-                        "Code Owners": {
+                        "POC": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "refType": "#/references/users"
+                          }
+                        },
+                        "Team": {
+                          "type": "string"
+                        },
+                        "Access manager": {
                           "type": "array",
                           "items": {
                             "type": "object",
@@ -417,64 +427,48 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
                         }
                       },
                       "required": [
-                        "Code Owners"
+                        "Owner",
+                        "POC",
+                        "Team",
+                        "Access manager"
                       ]
                     },
-                    "Service Details": {
+                    "About job": {
                       "type": "object",
                       "properties": {
-                        "Framework": {
+                        "Type of job": {
                           "type": "string"
                         },
-                        "Language": {
+                        "For environment": {
                           "type": "string"
                         },
-                        "Map": {
-                          "additionalProperties": {
-                            "type": "string"
-                          }
-                        },
-                        "Communication Method": {
+                        "Documentation": {
+                          "type": "string",
+                          "format": "uri"
+                        }
+                      }
+                    },
+                    "Operational schedule": {
+                      "type": "object",
+                      "properties": {
+                        "Preferred run": {
                           "type": "string"
                         },
-                        "Internet Facing": {
-                          "type": "boolean"
-                        },
-                        "Cities": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                        "Maintenance time": {
+                          "type": "string"
                         }
                       }
                     },
-                    "Documentation": {
-                      "type": "object",
-                      "properties": {
-                        "Service Doc": {
-                          "type": "string",
-                          "format": "uri"
-                        },
-                        "API Contract": {
-                          "type": "string",
-                          "format": "uri"
-                        },
-                        "Runbook": {
-                          "type": "string",
-                          "format": "uri"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "Owners & Pager Duty"
-                  ]
-                }
-              },
-              "required": [
-                "id",
-                "metadata"
-              ]
+                    "required": [
+                      "Contacts"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "metadata"
+                ]
+              }
             },
             "actions": {
               "type": "object"
@@ -484,8 +478,6 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
             }
           },
           "required": [
-            "version",
-            "kind",
             "overview"
           ]
         }',
@@ -535,7 +527,11 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
                   "type": "object",
                   "properties": {
                     "POCs": {
-                      "type": "string"
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "refType": "#/references/users"
+                      }
                     },
                     "K8s Version": {
                       "type": "string"
