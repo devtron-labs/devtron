@@ -573,7 +573,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV2(cdPipelineId int
 }
 
 func GetCiMaterialInfo(materialInfo string, source string) ([]CiMaterialInfo, error) {
-	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" && source != "post_ci" {
+	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" && source != "post_ci" && source != "pre_cd" && source != "post_cd" {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
 	var ciMaterials []CiMaterialInfo
