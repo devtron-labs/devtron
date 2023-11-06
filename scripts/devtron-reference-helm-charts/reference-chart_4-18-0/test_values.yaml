@@ -558,7 +558,17 @@ podExtraSpecs: {}
 envoyproxy:
   image: docker.io/envoyproxy/envoy:v1.16.0
   configMapName: ""
-  lifecycle: {}
+  lifecycle: 
+    enabled: true
+    preStop:
+      exec:
+        command: ["sleep","10"]
+    postStart:
+      httpGet:
+        host: envoy.com
+        path: /envoy
+        port: 999
+
   resources:
     limits:
       cpu: 50m
@@ -581,7 +591,7 @@ tolerations: []
   #    value: "value"
 #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
-appMetrics: false
+appMetrics: true
 serviceAccount:
   ## @param serviceAccount.create Enable creation of ServiceAccount for pods
   ##
