@@ -2895,7 +2895,7 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 
 			// For cases where helm release was not found but db flag for deployment app created was true
-			if err != nil && strings.Contains(err.Error(), "release: not found") {
+			if err != nil && (strings.Contains(err.Error(), "release: not found") || strings.Contains(err.Error(), "has no deployed releases")) {
 
 				// retry install
 				_, err = impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
