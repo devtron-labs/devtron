@@ -155,7 +155,10 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
                           "type": "string"
                         },
                         "Language": {
-                          "type": "string"
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
                         },
                         "Map": {
                           "additionalProperties": {
@@ -180,16 +183,13 @@ VALUES ((select id from devtron_resource where kind = 'devtron-application'), 'v
                       "type": "object",
                       "properties": {
                         "Service Doc": {
-                          "type": "string",
-                          "format": "uri"
+                          "type": "string"
                         },
                         "API Contract": {
-                          "type": "string",
-                          "format": "uri"
+                          "type": "string"
                         },
                         "Runbook": {
-                          "type": "string",
-                          "format": "uri"
+                          "type": "string"
                         }
                       }
                     }
