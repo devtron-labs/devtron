@@ -1958,10 +1958,12 @@ func (impl *WorkflowDagExecutorImpl) checkApprovalNodeForDeployment(requestedUse
 			impl.logger.Errorw("not triggering deployment since artifact is not approved", "pipelineId", pipelineId, "artifactId", artifactId)
 			return 0, errors.New("not triggering deployment since artifact is not approved")
 		} else if ok {
-			approvalUsersData := approvalMetadata.ApprovalUsersData
-			for _, approvalData := range approvalUsersData {
-				if approvalData.UserId == requestedUserId {
-					return 0, errors.New("image cannot be deployed by its approver")
+			if !impl.config.CanApproverDeploy {
+				approvalUsersData := approvalMetadata.ApprovalUsersData
+				for _, approvalData := range approvalUsersData {
+					if approvalData.UserId == requestedUserId {
+						return 0, errors.New("image cannot be deployed by its approver")
+					}
 				}
 			}
 			return approvalMetadata.ApprovalRequestId, nil

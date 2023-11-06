@@ -785,6 +785,7 @@ type CiArtifactResponse struct {
 	HideImageTaggingHardDelete bool                                 `json:"hideImageTaggingHardDelete"`
 	ResourceFilters            []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
 	TotalCount                 int                                  `json:"totalCount"`
+	CanApproverDeploy          bool                                 `json:"canApproverDeploy"`
 }
 
 type AppLabelsDto struct {

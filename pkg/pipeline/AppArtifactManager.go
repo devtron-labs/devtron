@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -53,17 +54,17 @@ type AppArtifactManager interface {
 }
 
 type AppArtifactManagerImpl struct {
-	logger                *zap.SugaredLogger
-	cdWorkflowRepository  pipelineConfig.CdWorkflowRepository
-	userService           user.UserService
-	imageTaggingService   ImageTaggingService
-	ciArtifactRepository  repository.CiArtifactRepository
-	ciWorkflowRepository  pipelineConfig.CiWorkflowRepository
-	pipelineStageService  PipelineStageService
-	workflowDagExecutor   WorkflowDagExecutor
-	celService            resourceFilter.CELEvaluatorService
-	resourceFilterService resourceFilter.ResourceFilterService
-
+	logger                  *zap.SugaredLogger
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	userService             user.UserService
+	imageTaggingService     ImageTaggingService
+	ciArtifactRepository    repository.CiArtifactRepository
+	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
+	pipelineStageService    PipelineStageService
+	workflowDagExecutor     WorkflowDagExecutor
+	celService              resourceFilter.CELEvaluatorService
+	resourceFilterService   resourceFilter.ResourceFilterService
+	config                  *types.CdConfig
 	cdPipelineConfigService CdPipelineConfigService
 }
 
@@ -79,7 +80,10 @@ func NewAppArtifactManagerImpl(
 	resourceFilterService resourceFilter.ResourceFilterService,
 	pipelineStageService PipelineStageService,
 	cdPipelineConfigService CdPipelineConfigService) *AppArtifactManagerImpl {
-
+	cdConfig, err := types.GetCdConfig()
+	if err != nil {
+		return nil
+	}
 	return &AppArtifactManagerImpl{
 		logger:                  logger,
 		cdWorkflowRepository:    cdWorkflowRepository,
@@ -92,6 +96,7 @@ func NewAppArtifactManagerImpl(
 		resourceFilterService:   resourceFilterService,
 		cdPipelineConfigService: cdPipelineConfigService,
 		pipelineStageService:    pipelineStageService,
+		config:                  cdConfig,
 	}
 }
 
@@ -880,6 +885,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	}
 	ciArtifactsResponse.CiArtifacts = ciArtifacts
 	ciArtifactsResponse.TotalCount = totalCount
+	ciArtifactsResponse.CanApproverDeploy = impl.config.CanApproverDeploy
 	return ciArtifactsResponse, nil
 }
 
