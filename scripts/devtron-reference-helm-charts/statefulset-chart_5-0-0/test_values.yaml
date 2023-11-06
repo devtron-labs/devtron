@@ -633,7 +633,16 @@ podExtraSpecs: {}
 envoyproxy:
   image: envoyproxy/envoy:v1.14.1
   configMapName: ""
-  lifecycle: {}
+  lifecycle: 
+    enabled: true
+    preStop:
+      exec:
+        command: ["sleep","10"]
+    postStart:
+      httpGet:
+        host: envoy.com
+        path: /envoy
+        port: 9999
   resources:
     limits:
       cpu: 50m
