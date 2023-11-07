@@ -1263,7 +1263,8 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 
 	return originalCiConf, nil
 }
-func (impl *CiPipelineConfigServiceImpl) validateCiPipelineSwitch(oldCiPipelineId int, oldPipelineType string, newPipelineType string) error {
+func (impl *CiPipelineConfigServiceImpl) validateCiPipelineSwitch(switchCiPipelineId, switchExternalCiPipelineId int) error {
+
 	// old ci_pipeline should not contain any linked ci_pipelines.
 
 	// find any builds running on old ci_pipeline, if yes block this conversion with proper message.
@@ -1271,9 +1272,11 @@ func (impl *CiPipelineConfigServiceImpl) validateCiPipelineSwitch(oldCiPipelineI
 	return nil
 }
 
-func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndFetchWorkflowMappingsBeforeSwitching() ([]*appWorkflow.AppWorkflowMapping, error) {
-	//delete the current ci_pipeline
-	//delete the appWorkflowMapping of this Pipeline
+func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, oldCiPipelineId int, oldPipelineType string) (*appWorkflow.AppWorkflowMapping, error) {
+	//delete the current ci_pipeline in tx.
+	//get appWorkflowMapping of current ci_pipeline
+	//delete the appWorkflowMapping of this Pipeline in tx.
+
 }
 
 func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error) {
@@ -1313,7 +1316,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 	switch request.Action {
 	case bean.CREATE:
 		//validate request if it's a switch request
-		//delete old pipeline, create own delete function
+		//delete old pipeline and it's appworkflow mapping
 		impl.logger.Debugw("create patch request")
 		ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
 
