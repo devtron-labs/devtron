@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 type ArgoApplicationService interface {
@@ -159,7 +160,7 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 		//cluster is not added on devtron, need to get server config from secret which argo-cd saved
 		coreV1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
 		secrets, err := coreV1Client.Secrets(bean.AllNamespaces).List(context.Background(), v1.ListOptions{
-			LabelSelector: "managed-by=argocd.argoproj.io",
+			LabelSelector: labels.SelectorFromSet(labels.Set{"argocd.argoproj.io/secret-type": "cluster"}).String(),
 		})
 		if err != nil {
 			impl.logger.Errorw("error in getting resource list, secrets", "err", err)
