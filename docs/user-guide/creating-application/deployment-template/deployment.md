@@ -325,6 +325,36 @@ imagePullSecrets:
 ```
 regcred is the secret that contains the docker credentials that are used for accessing a registry. Devtron will not create this secret automatically, you'll have to create this secret using dt-secrets helm chart in the App store or create one using kubectl. You can follow this documentation Pull an Image from a Private Registry [https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) .
 
+### serviceAccount
+
+```yaml
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Determines whether to create a ServiceAccount for pods or not. If set to `true`, a ServiceAccount will be created. |
+| `name`  | Specifies the name of the ServiceAccount to use. |
+| `annotations` |  Specify annotations for the ServiceAccount. |
+
+### HostAliases
+
+ the hostAliases field is used in a Pod specification to associate additional hostnames with the Pod's IP address. This can be helpful in scenarios where you need to resolve specific hostnames to the Pod's IP within the Pod itself.
+
+```yaml
+  hostAliases:
+  - ip: "192.168.1.10"
+    hostnames:
+    - "hostname1.example.com"
+    - "hostname2.example.com"
+  - ip: "192.168.1.11"
+    hostnames:
+    - "hostname3.example.com"
+```
+
 ### Ingress
 
 This allows public access to the url, please ensure you are using right nginx annotation for nginx class, its default value is nginx
@@ -819,6 +849,56 @@ kedaAutoscaling:
   authenticationRef: 
     name: keda-trigger-auth-kafka-credential
 ```
+
+### NetworkPolicy
+
+Kubernetes NetworkPolicies control pod communication by defining rules for incoming and outgoing traffic.
+
+```yaml
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.17.0.0/16
+            except:
+              - 172.17.1.0/24
+        - namespaceSelector:
+            matchLabels:
+              project: myproject
+        - podSelector:
+            matchLabels:
+              role: frontend
+      ports:
+        - protocol: TCP
+          port: 6379
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24
+      ports:
+        - protocol: TCP
+          port: 5978
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Enable or disable NetworkPolicy. |
+| `annotations` | Additional metadata or information associated with the NetworkPolicy.  |
+| `labels`  | Labels to apply to the NetworkPolicy. 
+| `podSelector`  |  Each NetworkPolicy includes a podSelector which selects the grouping of pods to which the policy applies. The example policy selects pods with the label "role=db". An empty podSelector selects all pods in the namespace.|
+| `policyTypes`  | Each NetworkPolicy includes a policyTypes list which may include either Ingress, Egress, or both. |
+| `Ingress` | Controls incoming traffic to pods. |
+| `Egress`  | Controls outgoing traffic from pods. |
+
 ### Winter-Soldier
 Winter Soldier can be used to
 - cleans up (delete) Kubernetes resources
