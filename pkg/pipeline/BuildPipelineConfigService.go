@@ -1273,9 +1273,9 @@ func (impl *CiPipelineConfigServiceImpl) validateCiPipelineSwitch(switchCiPipeli
 }
 
 func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, oldCiPipelineId int, oldPipelineType string) (*appWorkflow.AppWorkflowMapping, error) {
-	//delete the current ci_pipeline in tx.
+	//delete the current ci_pipeline(active = false) in tx.
 	//get appWorkflowMapping of current ci_pipeline
-	//delete the appWorkflowMapping of this Pipeline in tx.
+	//delete the appWorkflowMapping(active=false) of this Pipeline in tx.
 
 }
 
