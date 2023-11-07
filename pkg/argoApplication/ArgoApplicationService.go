@@ -152,7 +152,9 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 			getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(resp.Manifest.Object)
 	}
 	appDeployedOnClusterId := 0
-	if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
+	if destinationServer == k8s.DefaultClusterUrl {
+		appDeployedOnClusterId = clusterWithApplicationObject.Id
+	} else if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
 		appDeployedOnClusterId = clusterIdFromMap
 	}
 	var configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj
