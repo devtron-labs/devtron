@@ -10,24 +10,29 @@ Before you start creating an application, we recommend to provide basic informat
 
 [Projects](projects.md)
 
-[Cluster And Environments](cluster-and-environments.md)
+[Clusters & Environments](cluster-and-environments.md)
 
 [Git Accounts](git-accounts.md)
 
-[Container Registries](docker-registries.md)
+[Container/OCI Registry](container-registries.md)
 
 [Chart Repositories](chart-repo.md)
 
+[Custom Charts](custom-charts.md)
+
 [SSO Login Services](sso-login.md)
 
-[Authorization](https://docs.devtron.ai/global-configurations/authorization)
+[Authorization](authorization.md)
 
-[Manage Notification](manage-notification.md)
+[Notifications](manage-notification.md)
 
 [External Links](external-links.md)
 
+[Scoped Variables](scoped-variables.md)
 
-You can also refer our youtube video provided here.
+[Tags Policy](tags-policy.md)
+
+You can also refer our YouTube video provided here.
 
 {% embed url="https://www.youtube.com/watch?v=4VFjrjtieMI" caption="" %}
 
