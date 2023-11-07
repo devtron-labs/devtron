@@ -1263,6 +1263,18 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 
 	return originalCiConf, nil
 }
+func (impl *CiPipelineConfigServiceImpl) validateCiPipelineSwitch(oldCiPipelineId int, oldPipelineType string, newPipelineType string) error {
+	// old ci_pipeline should not contain any linked ci_pipelines.
+
+	// find any builds running on old ci_pipeline, if yes block this conversion with proper message.
+
+	return nil
+}
+
+func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndFetchWorkflowMappingsBeforeSwitching() ([]*appWorkflow.AppWorkflowMapping, error) {
+	//delete the current ci_pipeline
+	//delete the appWorkflowMapping of this Pipeline
+}
 
 func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error) {
 	ciConfig, err = impl.getCiTemplateVariables(request.AppId)
@@ -1300,6 +1312,8 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 
 	switch request.Action {
 	case bean.CREATE:
+		//validate request if it's a switch request
+		//delete old pipeline, create own delete function
 		impl.logger.Debugw("create patch request")
 		ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
 
@@ -1319,6 +1333,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 			impl.logger.Errorw("error in adding pipeline to template", "ciConf", ciConfig, "err", err)
 			return nil, err
 		}
+		//go and update all the app workflow mappings of old ci_pipeline with new ci_pipeline_id.
 		return res, nil
 	case bean.UPDATE_SOURCE:
 		return impl.patchCiPipelineUpdateSource(ciConfig, request.CiPipeline)

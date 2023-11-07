@@ -864,6 +864,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		if err != nil && pg.ErrNoRows != err {
 			return createRequest, err
 		}
+		//this appWorkflowMapping should be optional
 		if appWorkflowModel.Id > 0 {
 			appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 				AppWorkflowId: appWorkflowModel.Id,
@@ -878,6 +879,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			if err != nil {
 				return createRequest, err
 			}
+			createRequest.AppWorkflowMappingId = appWorkflowMap.Id
 		}
 		err = tx.Commit()
 		if err != nil {
