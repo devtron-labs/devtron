@@ -1,6 +1,7 @@
 package bean
 
 import (
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -17,6 +18,11 @@ var GvkForArgoApplication = schema.GroupVersionKind{
 	Group:   ArgoGroup,
 	Kind:    ArgoApplicationKind,
 	Version: VersionV1Alpha1,
+}
+
+var GvkForSecret = schema.GroupVersionKind{
+	Kind:    k8sCommonBean.SecretKind,
+	Version: k8sCommonBean.V1VERSION,
 }
 
 type ArgoApplicationListDto struct {
@@ -40,4 +46,11 @@ type ArgoManagedResource struct {
 	Version   string
 	Name      string
 	Namespace string
+}
+
+type ArgoClusterConfigObj struct {
+	BearerToken     string `json:"bearerToken"`
+	TlsClientConfig struct {
+		Insecure bool `json:"insecure"`
+	} `json:"tlsClientConfig"`
 }

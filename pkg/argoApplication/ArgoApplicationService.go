@@ -2,6 +2,7 @@ package argoApplication
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -14,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ArgoApplicationService interface {
@@ -152,10 +154,35 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 	if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
 		appDeployedOnClusterId = clusterIdFromMap
 	}
-	if appDeployedOnClusterId < 1 { //ideally 1 check should also be not sufficient as if external app is deployed on default cluster its server url will not be https://kubernetes.default....
-		return nil, fmt.Errorf("please add cluster on which this app is deployed to devtron")
+	var configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj
+	if appDeployedOnClusterId < 1 {
+		//cluster is not added on devtron, need to get server config from secret which argo-cd saved
+		coreV1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
+		secrets, err := coreV1Client.Secrets(bean.AllNamespaces).List(context.Background(), v1.ListOptions{
+			LabelSelector: "managed-by=argocd.argoproj.io",
+		})
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list, secrets", "err", err)
+			return nil, err
+		}
+		for _, secret := range secrets.Items {
+			if secret.Data != nil {
+				if val, ok := secret.Data["server"]; ok {
+					if string(val) == destinationServer {
+						if config, ok := secret.Data["config"]; ok {
+							err = json.Unmarshal(config, &configOfClusterWhereAppIsDeployed)
+							if err != nil {
+								impl.logger.Errorw("error in unmarshaling", "err", err)
+								return nil, err
+							}
+							break
+						}
+					}
+				}
+			}
+		}
 	}
-	resourceTreeResp, err := impl.getResourceTreeForExternalCluster(appDeployedOnClusterId, argoManagedResources)
+	resourceTreeResp, err := impl.getResourceTreeForExternalCluster(appDeployedOnClusterId, destinationServer, configOfClusterWhereAppIsDeployed, argoManagedResources)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource tree response", "err", err)
 		return nil, err
@@ -164,7 +191,8 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 	return appDetail, nil
 }
 
-func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(clusterId int, argoManagedResources []*bean.ArgoManagedResource) (*client.ResourceTreeResponse, error) {
+func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(clusterId int, destinationServer string,
+	configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj, argoManagedResources []*bean.ArgoManagedResource) (*client.ResourceTreeResponse, error) {
 	var resources []*client.ExternalResourceDetail
 	for _, argoManagedResource := range argoManagedResources {
 		resources = append(resources, &client.ExternalResourceDetail{
@@ -175,7 +203,15 @@ func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(cluste
 			Namespace: argoManagedResource.Namespace,
 		})
 	}
-	resourceTreeResp, err := impl.helmAppService.GetResourceTreeForExternalResources(context.Background(), clusterId, resources)
+	var clusterConfigOfClusterWhereAppIsDeployed *client.ClusterConfig
+	if len(configOfClusterWhereAppIsDeployed.BearerToken) > 0 {
+		clusterConfigOfClusterWhereAppIsDeployed = &client.ClusterConfig{
+			ApiServerUrl:          destinationServer,
+			Token:                 configOfClusterWhereAppIsDeployed.BearerToken,
+			InsecureSkipTLSVerify: configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure,
+		}
+	}
+	resourceTreeResp, err := impl.helmAppService.GetResourceTreeForExternalResources(context.Background(), clusterId, clusterConfigOfClusterWhereAppIsDeployed, resources)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource tree for external resources", "err", err)
 		return nil, err
