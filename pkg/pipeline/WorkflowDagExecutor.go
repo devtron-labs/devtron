@@ -112,47 +112,47 @@ type WorkflowDagExecutor interface {
 }
 
 type WorkflowDagExecutorImpl struct {
-	logger                         *zap.SugaredLogger
-	pipelineRepository             pipelineConfig.PipelineRepository
-	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
-	pubsubClient                   *pubsub.PubSubClientServiceImpl
-	appService                     app.AppService
-	cdWorkflowService              WorkflowService
-	ciPipelineRepository           pipelineConfig.CiPipelineRepository
-	materialRepository             pipelineConfig.MaterialRepository
-	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
-	ciArtifactRepository           repository.CiArtifactRepository
-	user                           user.UserService
-	enforcer                       casbin.Enforcer
-	enforcerUtil                   rbac.EnforcerUtil
-	groupRepository                repository.DeploymentGroupRepository
-	tokenCache                     *util3.TokenCache
-	acdAuthConfig                  *util3.ACDAuthConfig
-	envRepository                  repository2.EnvironmentRepository
-	eventFactory                   client.EventFactory
-	eventClient                    client.EventClient
-	cvePolicyRepository            security.CvePolicyRepository
-	scanResultRepository           security.ImageScanResultRepository
-	appWorkflowRepository          appWorkflow.AppWorkflowRepository
-	prePostCdScriptHistoryService  history2.PrePostCdScriptHistoryService
-	argoUserService                argo.ArgoUserService
-	cdPipelineStatusTimelineRepo   pipelineConfig.PipelineStatusTimelineRepository
-	pipelineStatusTimelineService  status.PipelineStatusTimelineService
-	CiTemplateRepository           pipelineConfig.CiTemplateRepository
-	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
-	appLabelRepository             pipelineConfig.AppLabelRepository
-	gitSensorGrpcClient            gitSensorClient.Client
-	k8sCommonService               k8s.K8sCommonService
-	deploymentApprovalRepository   pipelineConfig.DeploymentApprovalRepository
-	chartTemplateService           util.ChartTemplateService
-	appRepository                  appRepository.AppRepository
-	helmRepoPushService            app.HelmRepoPushService
-	pipelineStageRepository        repository4.PipelineStageRepository
-	pipelineStageService           PipelineStageService
-	config                         *types.CdConfig
-	scopedVariableManager variables.ScopedVariableCMCSManager
-	celService                     resourceFilter.CELEvaluatorService
-	resourceFilterService          resourceFilter.ResourceFilterService
+	logger                        *zap.SugaredLogger
+	pipelineRepository            pipelineConfig.PipelineRepository
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	pubsubClient                  *pubsub.PubSubClientServiceImpl
+	appService                    app.AppService
+	cdWorkflowService             WorkflowService
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	materialRepository            pipelineConfig.MaterialRepository
+	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
+	ciArtifactRepository          repository.CiArtifactRepository
+	user                          user.UserService
+	enforcer                      casbin.Enforcer
+	enforcerUtil                  rbac.EnforcerUtil
+	groupRepository               repository.DeploymentGroupRepository
+	tokenCache                    *util3.TokenCache
+	acdAuthConfig                 *util3.ACDAuthConfig
+	envRepository                 repository2.EnvironmentRepository
+	eventFactory                  client.EventFactory
+	eventClient                   client.EventClient
+	cvePolicyRepository           security.CvePolicyRepository
+	scanResultRepository          security.ImageScanResultRepository
+	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
+	argoUserService               argo.ArgoUserService
+	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
+	pipelineStatusTimelineService status.PipelineStatusTimelineService
+	CiTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	appLabelRepository            pipelineConfig.AppLabelRepository
+	gitSensorGrpcClient           gitSensorClient.Client
+	k8sCommonService              k8s.K8sCommonService
+	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
+	chartTemplateService          util.ChartTemplateService
+	appRepository                 appRepository.AppRepository
+	helmRepoPushService           app.HelmRepoPushService
+	pipelineStageRepository       repository4.PipelineStageRepository
+	pipelineStageService          PipelineStageService
+	config                        *types.CdConfig
+	scopedVariableManager         variables.ScopedVariableCMCSManager
+	celService                    resourceFilter.CELEvaluatorService
+	resourceFilterService         resourceFilter.ResourceFilterService
 
 	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
 	configMapHistoryService             history2.ConfigMapHistoryService
@@ -301,45 +301,45 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	imageTaggingService ImageTaggingService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
-		pipelineRepository:             pipelineRepository,
-		cdWorkflowRepository:           cdWorkflowRepository,
-		pubsubClient:                   pubsubClient,
-		appService:                     appService,
-		cdWorkflowService:              cdWorkflowService,
-		ciPipelineRepository:           ciPipelineRepository,
-		ciArtifactRepository:           ciArtifactRepository,
-		materialRepository:             materialRepository,
-		pipelineOverrideRepository:     pipelineOverrideRepository,
-		user:                           user,
-		enforcer:                       enforcer,
-		enforcerUtil:                   enforcerUtil,
-		groupRepository:                groupRepository,
-		tokenCache:                     tokenCache,
-		acdAuthConfig:                  acdAuthConfig,
-		envRepository:                  envRepository,
-		eventFactory:                   eventFactory,
-		eventClient:                    eventClient,
-		cvePolicyRepository:            cvePolicyRepository,
-		scanResultRepository:           scanResultRepository,
-		appWorkflowRepository:          appWorkflowRepository,
-		prePostCdScriptHistoryService:  prePostCdScriptHistoryService,
-		argoUserService:                argoUserService,
-		cdPipelineStatusTimelineRepo:   cdPipelineStatusTimelineRepo,
-		pipelineStatusTimelineService:  pipelineStatusTimelineService,
-		CiTemplateRepository:           CiTemplateRepository,
-		ciWorkflowRepository:           ciWorkflowRepository,
-		appLabelRepository:             appLabelRepository,
-		gitSensorGrpcClient:            gitSensorGrpcClient,
-		deploymentApprovalRepository:   deploymentApprovalRepository,
-		chartTemplateService:           chartTemplateService,
-		appRepository:                  appRepository,
-		helmRepoPushService:            helmRepoPushService,
-		k8sCommonService:               k8sCommonService,
-		pipelineStageRepository:        pipelineStageRepository,
-		pipelineStageService:           pipelineStageService,
+		pipelineRepository:            pipelineRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		pubsubClient:                  pubsubClient,
+		appService:                    appService,
+		cdWorkflowService:             cdWorkflowService,
+		ciPipelineRepository:          ciPipelineRepository,
+		ciArtifactRepository:          ciArtifactRepository,
+		materialRepository:            materialRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
+		user:                          user,
+		enforcer:                      enforcer,
+		enforcerUtil:                  enforcerUtil,
+		groupRepository:               groupRepository,
+		tokenCache:                    tokenCache,
+		acdAuthConfig:                 acdAuthConfig,
+		envRepository:                 envRepository,
+		eventFactory:                  eventFactory,
+		eventClient:                   eventClient,
+		cvePolicyRepository:           cvePolicyRepository,
+		scanResultRepository:          scanResultRepository,
+		appWorkflowRepository:         appWorkflowRepository,
+		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
+		argoUserService:               argoUserService,
+		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		CiTemplateRepository:          CiTemplateRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		appLabelRepository:            appLabelRepository,
+		gitSensorGrpcClient:           gitSensorGrpcClient,
+		deploymentApprovalRepository:  deploymentApprovalRepository,
+		chartTemplateService:          chartTemplateService,
+		appRepository:                 appRepository,
+		helmRepoPushService:           helmRepoPushService,
+		k8sCommonService:              k8sCommonService,
+		pipelineStageRepository:       pipelineStageRepository,
+		pipelineStageService:          pipelineStageService,
 		scopedVariableManager:         scopedVariableManager,
-		celService:                     celService,
-		resourceFilterService:          resourceFilterService,
+		celService:                    celService,
+		resourceFilterService:         resourceFilterService,
 
 		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
 		configMapHistoryService:             configMapHistoryService,
@@ -554,6 +554,8 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 	return nil
 }
 
+// this function is for internal use only, this doesn't always guarantee pipeline stage even if pre/post-cd stage is configured
+// because for old pipelines their pre-cd and post-cd data is stored in pipeline table in yaml format.
 func (impl *WorkflowDagExecutorImpl) getPipelineStage(pipelineId int, stageType repository4.PipelineStageType) (*repository4.PipelineStage, error) {
 	stage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipelineId, stageType)
 	if err != nil && err != pg.ErrNoRows {
@@ -690,6 +692,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	if err != nil {
 		return err
 	}
+	//this will handle the scenario when post stage yaml is not migrated yet into pipeline stage table
+	pipelineStageType := resourceFilter.PrePipelineStageYaml
+	stageId := pipeline.Id
+	if preStage != nil {
+		pipelineStageType = resourceFilter.PipelineStage
+		stageId = preStage.Id
+	}
+
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
 	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
@@ -710,7 +720,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 
 	//store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, resourceFilter.PipelineStage, preStage.Id, filters, filterIdVsState)
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
 	if err != nil {
 		impl.logger.Errorw("error in creating filter evaluation audit data cd pre stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "preStageId", preStage.Id)
 		return err
@@ -917,6 +927,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	if err != nil {
 		return err
 	}
+	//this will handle the scenario when post stage yaml is not migrated yet into pipeline stage table
+	pipelineStageType := resourceFilter.PostPipelineStageYaml
+	stageId := pipeline.Id
+	if postStage != nil {
+		pipelineStageType = resourceFilter.PipelineStage
+		stageId = postStage.Id
+	}
+
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
 	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
@@ -944,7 +962,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 	//store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, cdWf.CiArtifact.Id, resourceFilter.PipelineStage, postStage.Id, filters, filterIdVsState)
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, cdWf.CiArtifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
 	if err != nil {
 		impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", cdWf.CiArtifact.Id)
 		return err
@@ -1476,6 +1494,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
+		cdStageWorkflowRequest.DockerRegistryId = ciPipeline.CiTemplate.DockerRegistry.Id
 		cdStageWorkflowRequest.CiPipelineType = ciPipeline.PipelineType
 	} else if cdPipeline.AppId > 0 {
 		ciTemplate, err := impl.CiTemplateRepository.FindByAppId(cdPipeline.AppId)
@@ -1493,6 +1512,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.DockerRegistryType = string(ciTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
 		appLabels, err := impl.appLabelRepository.FindAllByAppId(cdPipeline.AppId)
+		cdStageWorkflowRequest.DockerRegistryId = ciPipeline.CiTemplate.DockerRegistry.Id
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
 			return nil, err

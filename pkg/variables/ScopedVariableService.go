@@ -33,12 +33,12 @@ type ScopedVariableService interface {
 }
 
 type ScopedVariableServiceImpl struct {
-	logger                   *zap.SugaredLogger
-	scopedVariableRepository repository2.ScopedVariableRepository
-	qualifierMappingService  resourceQualifiers.QualifierMappingService
-	devtronResourceService   devtronResource.DevtronResourceService
-	VariableNameConfig       *VariableConfig
-	VariableCache            *cache.VariableCacheObj
+	logger                              *zap.SugaredLogger
+	scopedVariableRepository            repository2.ScopedVariableRepository
+	qualifierMappingService             resourceQualifiers.QualifierMappingService
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
+	VariableNameConfig                  *VariableConfig
+	VariableCache                       *cache.VariableCacheObj
 
 	//Enterprise only
 	appRepository         app.AppRepository
@@ -46,7 +46,7 @@ type ScopedVariableServiceImpl struct {
 	clusterRepository     repository.ClusterRepository
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceService devtronResource.DevtronResourceService, clusterRepository repository.ClusterRepository,
+func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
 	qualifierMappingService resourceQualifiers.QualifierMappingService) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,
@@ -55,10 +55,10 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
 
 		//Enterprise only
-		appRepository:          appRepository,
-		environmentRepository:  environmentRepository,
-		devtronResourceService: devtronResourceService,
-		clusterRepository:      clusterRepository,
+		appRepository:                       appRepository,
+		environmentRepository:               environmentRepository,
+		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
+		clusterRepository:                   clusterRepository,
 	}
 	cfg, err := GetVariableNameConfig()
 	if err != nil {
@@ -243,7 +243,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 		impl.logger.Errorw("error in getting  variable AttributeNameToIdMappings", "err", err)
 		return nil, err
 	}
-	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	variableScopes := make([]*models.VariableScope, 0)
 	for _, variable := range payload.Variables {
 
@@ -619,7 +619,7 @@ func (impl *ScopedVariableServiceImpl) GetJsonForVariables() (*models.Payload, e
 		impl.logger.Errorw("error in getting data for json", "err", err)
 		return nil, err
 	}
-	resourceKeyMap := impl.devtronResourceService.GetAllSearchableKeyIdNameMap()
+	resourceKeyMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyIdNameMap()
 
 	payload := &models.Payload{
 		Variables: make([]*models.Variables, 0),

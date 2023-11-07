@@ -1,0 +1,190 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/resource/list:
+    get:
+      description: this api will return all the resources present in database.
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DevtronResourceDto'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/resource/{kind}/{version}:
+    get:
+      description: this api will return the resources manifest
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          description: id of the resource, either this or name is required. Preferred over name.
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: name
+          description: name of the resource, either this or id is required
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: give manifest as response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DevtronResourceObjectDto'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      description: this api will update the schema
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DevtronResourceObjectDto'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# components mentioned below
+components:
+  schemas:
+    DevtronResourceObjectDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          required: true
+        name:
+          type: string
+          required: false
+        schema:
+          type: object
+          description: json object containing the complete schema
+          properties:
+            overview:
+              type: object
+              properties:
+                metadata:
+                  type: object
+                  description: field containing all data of catalogue
+
+    DevtronResourceDto:
+      type: object
+      properties:
+        kind:
+          type: string
+        icon:
+          type: string
+        totalCount:
+          type: integer
+        subKinds:
+          type: array
+          items:
+            properties:
+              subKind:
+                type: string
+              count:
+                type: integer
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message

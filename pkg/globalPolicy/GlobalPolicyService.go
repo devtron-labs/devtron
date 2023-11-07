@@ -39,7 +39,7 @@ type GlobalPolicyServiceImpl struct {
 	logger                                *zap.SugaredLogger
 	globalPolicyRepository                repository.GlobalPolicyRepository
 	globalPolicySearchableFieldRepository repository.GlobalPolicySearchableFieldRepository
-	devtronResourceService                devtronResource.DevtronResourceService
+	devtronResourceSearchableKeyService   devtronResource.DevtronResourceSearchableKeyService
 	ciPipelineRepository                  pipelineConfig.CiPipelineRepository
 	pipelineRepository                    pipelineConfig.PipelineRepository
 	appWorkflowRepository                 appWorkflow.AppWorkflowRepository
@@ -53,7 +53,7 @@ type GlobalPolicyServiceImpl struct {
 func NewGlobalPolicyServiceImpl(logger *zap.SugaredLogger,
 	globalPolicyRepository repository.GlobalPolicyRepository,
 	globalPolicySearchableFieldRepository repository.GlobalPolicySearchableFieldRepository,
-	devtronResourceService devtronResource.DevtronResourceService,
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -66,7 +66,7 @@ func NewGlobalPolicyServiceImpl(logger *zap.SugaredLogger,
 		logger:                                logger,
 		globalPolicyRepository:                globalPolicyRepository,
 		globalPolicySearchableFieldRepository: globalPolicySearchableFieldRepository,
-		devtronResourceService:                devtronResourceService,
+		devtronResourceSearchableKeyService:   devtronResourceSearchableKeyService,
 		ciPipelineRepository:                  ciPipelineRepository,
 		pipelineStageRepository:               pipelineStageRepository,
 		appRepository:                         appRepository,
@@ -223,7 +223,7 @@ func (impl *GlobalPolicyServiceImpl) GetMandatoryPluginsForACiPipeline(ciPipelin
 	ciPipelineEnvClusterObjs, err := impl.getCiPipelineEnvClusterObjs(allCiPipelineIds)
 	haveAnyProductionEnv, ciPipelineIdProductionEnvDetailMap, ciPipelineIdEnvDetailMap, allClusterEnvNames, clusterMap :=
 		getEnvClusterDetailsFromCIPipelineEnvClusterObjs(ciPipelineEnvClusterObjs)
-	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	//getting searchable keyId and value map for filtering all searchable fields in db
 	searchableKeyIdValueMapWhereOrGroup, searchableKeyIdValueMapWhereAndGroup := getSearchableKeyIdValueMapForFilter(allProjectAppNames, allClusterEnvNames, branchValues,
 		haveAnyProductionEnv, toOnlyGetBlockedStatePolicies, searchableKeyNameIdMap)
@@ -233,7 +233,7 @@ func (impl *GlobalPolicyServiceImpl) GetMandatoryPluginsForACiPipeline(ciPipelin
 		impl.logger.Errorw("error in getting searchable fields", "err", err)
 		return nil, nil, err
 	}
-	globalPolicyIds, err := getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldModels, projectMap, clusterMap, branchValues, impl.devtronResourceService.GetAllSearchableKeyIdNameMap())
+	globalPolicyIds, err := getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldModels, projectMap, clusterMap, branchValues, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyIdNameMap())
 	if err != nil {
 		impl.logger.Errorw("error, getFilteredGlobalPolicyIdsFromSearchableFields", "err", err, "searchableFieldModels", searchableFieldModels)
 		return nil, nil, err
@@ -655,7 +655,7 @@ func (impl *GlobalPolicyServiceImpl) createGlobalPolicySearchableFieldsInDbIfNee
 }
 
 func (impl *GlobalPolicyServiceImpl) createGlobalPolicySearchableFieldsInDb(policy *bean.GlobalPolicyDto, tx *pg.Tx) error {
-	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	searchableKeyEntriesTotal := make([]*repository.GlobalPolicySearchableField, 0)
 
 	//no searchable fields in definitions for plugin story, TODO add if needed in further global policies
