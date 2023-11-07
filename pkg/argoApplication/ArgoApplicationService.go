@@ -71,14 +71,15 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 	//TODO: make goroutine and channel for optimization
 	appListFinal := make([]*bean.ArgoApplicationListDto, 0)
 	for _, cluster := range clusters {
-		if cluster.IsVirtualCluster || len(cluster.ErrorInConnecting) != 0 {
+		clusterObj := cluster
+		if clusterObj.IsVirtualCluster || len(clusterObj.ErrorInConnecting) != 0 {
 			continue
 		}
-		clusterBean := cluster2.GetClusterBean(cluster)
+		clusterBean := cluster2.GetClusterBean(clusterObj)
 		clusterConfig, err := clusterBean.GetClusterConfig()
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
-			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", cluster.Id)
+			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterObj.Id)
 			return nil, err
 		}
 		resp, _, err := impl.k8sUtil.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces)
@@ -86,14 +87,14 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 			if errStatus, ok := err.(*errors.StatusError); ok {
 				if errStatus.Status().Code == 404 {
 					//no argo apps found, not sending error
-					impl.logger.Warnw("error in getting external argo app list, no apps found", "err", err, "clusterId", cluster.Id)
+					impl.logger.Warnw("error in getting external argo app list, no apps found", "err", err, "clusterId", clusterObj.Id)
 					continue
 				}
 			}
 			impl.logger.Errorw("error in getting resource list", "err", err)
 			return nil, err
 		}
-		appLists := getApplicationListDtos(resp.Resources.Object, cluster.ClusterName, cluster.Id)
+		appLists := getApplicationListDtos(resp.Resources.Object, clusterObj.ClusterName, clusterObj.Id)
 		appListFinal = append(appListFinal, appLists...)
 	}
 	return appListFinal, nil
