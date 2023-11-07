@@ -71,6 +71,7 @@ type PrometheusAuth struct {
 type ClusterBean struct {
 	Id                      int                        `json:"id" validate:"number"`
 	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
+	Description             string                     `json:"description"`
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
 	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
 	Active                  bool                       `json:"active"`
@@ -93,6 +94,7 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean := ClusterBean{}
 	bean.Id = model.Id
 	bean.ClusterName = model.ClusterName
+	//bean.Note = model.Note
 	bean.ServerUrl = model.ServerUrl
 	bean.PrometheusUrl = model.PrometheusEndpoint
 	bean.AgentInstallationStage = model.AgentInstallationStage
@@ -155,6 +157,7 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	UpdateClusterDescription(bean *ClusterBean, userId int32) error
 	ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
@@ -182,7 +185,6 @@ type ClusterService interface {
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
-	GetClusterConfigByEnvId(envId int) (*k8s.ClusterConfig, error)
 }
 
 type ClusterServiceImpl struct {
@@ -221,6 +223,7 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Cluster
 	model := &repository.Cluster{}
 
 	model.ClusterName = clusterBean.ClusterName
+	//model.Note = clusterBean.Note
 	model.Active = true
 	model.ServerUrl = clusterBean.ServerUrl
 	model.Config = clusterBean.Config
@@ -315,6 +318,18 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	}
 
 	return bean, err
+}
+
+// UpdateClusterDescription is new api service logic to only update description, this should be done in cluster update operation only
+// but not supported currently as per product
+func (impl *ClusterServiceImpl) UpdateClusterDescription(bean *ClusterBean, userId int32) error {
+	//updating description as other fields are not supported yet
+	err := impl.clusterRepository.SetDescription(bean.Id, bean.Description, userId)
+	if err != nil {
+		impl.logger.Errorw("error in setting cluster description", "err", err, "clusterId", bean.Id)
+		return err
+	}
+	return nil
 }
 
 func (impl *ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error) {
@@ -1109,20 +1124,6 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 	clusterConfig, err := rq.GetClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, err
-	}
-	return clusterConfig, nil
-}
-
-func (impl ClusterServiceImpl) GetClusterConfigByEnvId(envId int) (*k8s.ClusterConfig, error) {
-	envBean, err := impl.environmentService.FindById(envId)
-	if err != nil {
-		impl.logger.Errorw("error in getting envBean by envId", "err", err, "envId", envId)
-		return nil, err
-	}
-	clusterConfig, err := impl.GetClusterConfigByClusterId(envBean.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config by env id", "err", err, "envId", envId)
 		return nil, err
 	}
 	return clusterConfig, nil

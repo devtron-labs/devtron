@@ -25,13 +25,16 @@ import (
 	"time"
 )
 
+// TODO: remove this whole repository, nothing different which cannot be included in cluster repository
 type ClusterDescription struct {
-	ClusterId        int       `sql:"cluster_id"`
-	ClusterName      string    `sql:"cluster_name"`
-	ClusterCreatedOn time.Time `sql:"cluster_created_on"`
-	ClusterCreatedBy int32     `sql:"cluster_created_by"`
-	NoteId           int       `sql:"note_id,pk"`
-	Description      string    `sql:"description"`
+	ClusterId          int       `sql:"cluster_id"`
+	ClusterName        string    `sql:"cluster_name"`
+	ClusterDescription string    `sql:"cluster_description"`
+	ServerUrl          string    `sql:"server_url"`
+	ClusterCreatedOn   time.Time `sql:"cluster_created_on"`
+	ClusterCreatedBy   int32     `sql:"cluster_created_by"`
+	NoteId             int       `sql:"note_id,pk"`
+	Note               string    `sql:"note"`
 	sql.AuditLog
 }
 
@@ -53,7 +56,7 @@ type ClusterDescriptionRepositoryImpl struct {
 
 func (impl ClusterDescriptionRepositoryImpl) FindByClusterIdWithClusterDetails(clusterId int) (*ClusterDescription, error) {
 	clusterDescription := &ClusterDescription{}
-	query := "SELECT cl.id AS cluster_id, cl.cluster_name AS cluster_name, cl.created_on AS cluster_created_on, cl.created_by AS cluster_created_by, gn.id AS note_id, gn.description, gn.created_by, gn.created_on, gn.updated_by, gn.updated_on FROM" +
+	query := "SELECT cl.id AS cluster_id, cl.cluster_name AS cluster_name, cl.description AS cluster_description,  cl.server_url, cl.created_on AS cluster_created_on, cl.created_by AS cluster_created_by, gn.id AS note_id, gn.description AS note, gn.created_by, gn.created_on, gn.updated_by, gn.updated_on FROM" +
 		" cluster cl LEFT JOIN" +
 		" generic_note gn " +
 		" ON cl.id=gn.identifier AND (gn.identifier_type = %d OR gn.identifier_type IS NULL)" +
