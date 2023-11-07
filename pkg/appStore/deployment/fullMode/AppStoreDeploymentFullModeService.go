@@ -532,7 +532,30 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error 
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmChartInstall() error {
 	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, func(msg *pubsub_lib.PubSubMsg) {
-		impl.logger.Debug("received helm install status event - HELM_CHART_INSTALL_STATUS_TOPIC", "data", msg.Data)
+		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
+		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
+			return
+		}
+
+		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(helmInstallNatsMessage.InstallAppVersionHistoryId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
+			return
+		}
+		if helmInstallNatsMessage.ErrorInInstallation {
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		} else {
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+		}
+		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
+		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+		if err != nil {
+			impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
+			return
+		}
 	})
 	if err != nil {
 		impl.logger.Error(err)
@@ -543,7 +566,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmChartInstall() e
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(installHelmAsyncRequest *InstallHelmAsyncRequest) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(installHelmAsyncRequest.InstallAppVersionDTO.HelmInstallContextTime)*time.Minute)
 	defer cancel()
 	installRes, err := impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.InstallAppVersionDTO.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
 	impl.logger.Debugw("Install Release in callback", "installRes", installRes)
@@ -574,7 +597,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(instal
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(installHelmAsyncRequest *InstallHelmAsyncRequest) {
 	impl.logger.Debugw("CallBackForHelmUpgrade", "installHelmAsyncRequest", installHelmAsyncRequest)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(installHelmAsyncRequest.InstallAppVersionDTO.HelmInstallContextTime)*time.Minute)
 	defer cancel()
 	// db operations
 	dbConnection := impl.installedAppRepository.GetConnection()

@@ -78,9 +78,10 @@ type AppStoreDeploymentService interface {
 }
 
 type DeploymentServiceTypeConfig struct {
-	IsInternalUse        bool `env:"IS_INTERNAL_USE" envDefault:"false"`
-	HelmInstallASyncMode bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
-	HelmInstallAsyncMode bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"false"`
+	IsInternalUse          bool `env:"IS_INTERNAL_USE" envDefault:"false"`
+	HelmInstallASyncMode   bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
+	HelmInstallAsyncMode   bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"false"`
+	HelmInstallContextTime int  `env:"HELM_INSTALL_CONTEXT_TIME" envDefault:"5"`
 }
 
 func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
@@ -321,6 +322,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	}
 	installAppVersionRequest.HelmInstallAsyncMode = impl.deploymentTypeConfig.HelmInstallAsyncMode
 	installAppVersionRequest.HelmInstallASyncMode = impl.deploymentTypeConfig.HelmInstallASyncMode
+	installAppVersionRequest.HelmInstallContextTime = impl.deploymentTypeConfig.HelmInstallContextTime
 	return installAppVersionRequest, nil
 }
 
@@ -1343,6 +1345,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateDeploymentParametersInRequest(i
 	}
 
 	installAppVersionRequest.HelmInstallAsyncMode = impl.deploymentTypeConfig.HelmInstallAsyncMode
+	installAppVersionRequest.HelmInstallContextTime = impl.deploymentTypeConfig.HelmInstallContextTime
 }
 
 func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -1539,13 +1542,11 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	} else if installAppVersionRequest.PerformHelmDeployment {
 		err = impl.appStoreDeploymentHelmService.UpdateChartInfo(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, installAppVersionRequest.InstalledAppVersionHistoryId, ctx)
 		if err != nil {
-			if err != nil {
-				impl.logger.Errorw("error in helm update request", "err", err)
-				return nil, err
-			}
+			impl.logger.Errorw("error in helm update request", "err", err)
+			return nil, err
 		}
 	}
-	if impl.deploymentTypeConfig.HelmInstallAsyncMode {
+	if !impl.deploymentTypeConfig.HelmInstallAsyncMode {
 		installedApp.Status = appStoreBean.DEPLOY_SUCCESS
 		installedApp.UpdatedOn = time.Now()
 		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId

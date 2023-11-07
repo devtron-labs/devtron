@@ -101,6 +101,7 @@ type InstallAppVersionDTO struct {
 	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
 	HelmInstallAsyncMode         bool                           `json:"helmInstallAsyncMode"`
 	HelmInstallASyncMode         bool                           `json:"helmInstallASyncMode"`
+	HelmInstallContextTime       int                            `json:"helmInstallContextTime"`
 	AppStoreApplicationVersionId int
 	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
 	PerformGitOps                bool `json:"performGitOps"`

@@ -272,6 +272,7 @@ message InstallReleaseRequest {
   bool IsOCIRepo = 9;
   int32 installAppVersionHistoryId = 10;
   ChartContent chartContent = 11;
+  bool IsAsyncInstall = 12;
 }
 
 message InstallReleaseResponse {
