@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -45,6 +46,7 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
+	FindRunningWorkflowCount(ciPipelineId int) (int, error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -320,4 +322,14 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
 	}
 	return ciworkflowStatuses, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindRunningWorkflowCount(ciPipelineId int) (int, error) {
+	cnt, err := impl.dbConnection.Model((*CiWorkflow)(nil)).
+		Where("status IN (?)", pg.In([]string{pipeline.Running, pipeline.Starting})).
+		Count()
+	if err == pg.ErrNoRows {
+		return 0, nil
+	}
+	return cnt, err
 }

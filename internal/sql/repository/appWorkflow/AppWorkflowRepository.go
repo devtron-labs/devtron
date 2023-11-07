@@ -19,6 +19,7 @@ package appWorkflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -61,6 +62,7 @@ type AppWorkflowRepository interface {
 	FindByCDPipelineIds(cdPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindByWorkflowIds(workflowIds []int) ([]*AppWorkflowMapping, error)
 	FindMappingByAppIds(appIds []int) ([]*AppWorkflowMapping, error)
+	UpdateParentComponentDetails(tx *pg.Tx, oldComponentId int, oldComponentType string, newAppWorkflowMappingId int) error
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -460,4 +462,16 @@ func (impl AppWorkflowRepositoryImpl) FindMappingByAppIds(appIds []int) ([]*AppW
 		Where("app_workflow_mapping.active = ?", true).
 		Select()
 	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) UpdateParentComponentDetails(tx *pg.Tx, oldComponentId int, oldComponentType string, newAppWorkflowMappingId int) error {
+	withQuery := "WITH new_app_workflow_mapping as (SELECT * from app_workflow_mapping where id = %v)"
+	withQuery = fmt.Sprintf(withQuery, newAppWorkflowMappingId)
+	updateQuery := fmt.Sprintf("UPDATE app_workflow_mapping "+
+		" SET parent_type = new_app_workflow_mapping.type,parent_id = new_app_workflow_mapping.id where parent_id = %v and parent_type=%v and active = true", oldComponentId, oldComponentType)
+
+	finalQuery := withQuery + updateQuery
+
+	_, err := tx.Query((*AppWorkflowMapping)(nil), finalQuery)
+	return err
 }

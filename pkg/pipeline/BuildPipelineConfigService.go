@@ -1263,20 +1263,154 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 
 	return originalCiConf, nil
 }
-func (impl *CiPipelineConfigServiceImpl) validateCiPipelineSwitch(switchCiPipelineId, switchExternalCiPipelineId int) error {
 
-	// old ci_pipeline should not contain any linked ci_pipelines.
+func (impl *CiPipelineConfigServiceImpl) validateCiPipelineSwitch(switchFromCiPipelineId int, switchFromExternalCiPipelineId int, switchToType, switchFromType bean.PipelineType) error {
+	// this will only allow below conversions
+	// ext -> {ci_job,direct,linked}
+	// direct -> {ci_job,linked}
+	// linked -> {ci_job,direct}
+	// ci_job -> {direct,linked}
 
-	// find any builds running on old ci_pipeline, if yes block this conversion with proper message.
+	if switchFromCiPipelineId != 0 && switchFromExternalCiPipelineId != 0 {
+		return errors.New("invalid request payload, both switchFromCiPipelineId and switchFromExternalCiPipelineId cannot be set in the payload")
+	}
+	if switchToType == switchFromType {
+		return errors.New("cannot convert this pipeline to same type")
+	}
+
+	if switchToType == bean.EXTERNAL {
+		return errors.New("current ci-pipeline cannot be converted to external-webhook type")
+	}
+
+	//if switchToType == bean.EXTERNAL {
+	//	//external pipeline can only exist with cd-pipeline
+	//	pipeline, err := impl.pipelineRepository.FindByCiPipelineId(switchFromCiPipelineId)
+	//	if err != nil {
+	//		return nil
+	//	}
+	//	if len(pipeline) == 0 {
+	//		return errors.New("this ci-pipeline cannot be converted to external-webhook type as there are no cd-pipelines attached to this ci-pipeline")
+	//	}
+	//}
+
+	// we should not check the below logic for external_ci type as builds are not built in devtron and
+	// linked pipelines won't be there as per current external-ci-pipeline architecture
+	if switchFromCiPipelineId > 0 {
+		// old ci_pipeline should not contain any linked ci_pipelines.
+		linkedCiPipelines, err := impl.ciPipelineRepository.FindLinkedCiCount(switchFromCiPipelineId)
+		if err != nil {
+			return nil
+		}
+		if linkedCiPipelines > 0 {
+			return errors.New("cannot convert this ci-pipeline as it contains some linked ci-pipeline's")
+		}
+
+		// find any builds running on old ci_pipeline, if yes block this conversion with proper message.
+		inProgressWorkflows, err := impl.ciWorkflowRepository.FindRunningWorkflowCount(switchFromCiPipelineId)
+		if inProgressWorkflows > 0 {
+			return errors.New("cannot convert this ci-pipeline as some builds of this ci-pipeline are in progressing state")
+		}
+	}
 
 	return nil
 }
 
-func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, oldCiPipelineId int, oldPipelineType string) (*appWorkflow.AppWorkflowMapping, error) {
+func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, externalCiPipelineId int, userId int32) (*appWorkflow.AppWorkflowMapping, error) {
 	//delete the current ci_pipeline(active = false) in tx.
 	//get appWorkflowMapping of current ci_pipeline
 	//delete the appWorkflowMapping(active=false) of this Pipeline in tx.
+	return nil, nil
+}
 
+func (impl *CiPipelineConfigServiceImpl) updateLinkedAppWorkflowMappings(tx *pg.Tx, oldAppWorkflowMapping *appWorkflow.AppWorkflowMapping, newAppWorkflowMappingId int) error {
+	return impl.appWorkflowRepository.UpdateParentComponentDetails(tx, oldAppWorkflowMapping.ComponentId, oldAppWorkflowMapping.Type, newAppWorkflowMappingId)
+}
+
+func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPatchRequest, ciConfig *bean.CiConfigRequest) (*bean.CiConfigRequest, error) {
+	var tx *pg.Tx
+	var oldAppWorkflowMapping *appWorkflow.AppWorkflowMapping
+	defer func() {
+		if tx != nil {
+			impl.ciPipelineRepository.RollbackTx(tx)
+		}
+	}()
+
+	if request.IsSwitchCiPipelineRequest() {
+		if request.SwitchFromCiPipelineId != 0 && request.SwitchFromExternalCiPipelineId != 0 {
+			return nil, errors.New("invalid request payload, both switchFromCiPipelineId and switchFromExternalCiPipelineId cannot be set in the payload")
+		}
+
+		//get the ciPipeline
+		var switchFromType bean.PipelineType
+		var ciPipeline *pipelineConfig.CiPipeline
+		var err error
+		if request.SwitchFromExternalCiPipelineId != 0 {
+			switchFromType = bean.EXTERNAL
+		} else {
+			ciPipeline, err = impl.ciPipelineRepository.FindById(request.SwitchFromCiPipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in finding ci-pipeline by id", "ciPipelineId", request.SwitchFromCiPipelineId, "err", err)
+				return nil, err
+			}
+		}
+
+		//validate request if it's a switch request
+		err = impl.validateCiPipelineSwitch(request.SwitchFromCiPipelineId, request.SwitchFromExternalCiPipelineId, request.CiPipeline.PipelineType, switchFromType)
+		if err != nil {
+			impl.logger.Errorw("error occurred when validating ci-pipeline switch", "err", err)
+			return nil, err
+		}
+
+		//delete old pipeline and it's appworkflow mapping
+		tx, err = impl.ciPipelineRepository.StartTx()
+		if err != nil {
+			impl.logger.Errorw("error in starting transaction", "err", err)
+			return nil, err
+		}
+		oldAppWorkflowMapping, err = impl.deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx, ciPipeline, request.SwitchFromExternalCiPipelineId, request.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting old ci-pipeline and getting the appWorkflow mapping of that", "err", err, "userId", request.UserId)
+			return nil, err
+		}
+	}
+
+	impl.logger.Debugw("create patch request")
+	ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
+
+	pipelineExists, err := impl.ciPipelineRepository.CheckIfPipelineExistsByNameAndAppId(request.CiPipeline.Name, request.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching pipeline by name, FindByName", "err", err, "patch cipipeline name", request.CiPipeline.Name)
+		return nil, err
+	}
+
+	if pipelineExists {
+		impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
+		return nil, fmt.Errorf("pipeline name already exist")
+	}
+
+	res, err := impl.addpipelineToTemplate(ciConfig)
+	if err != nil {
+		impl.logger.Errorw("error in adding pipeline to template", "ciConf", ciConfig, "err", err)
+		return nil, err
+	}
+
+	//go and update all the app workflow mappings of old ci_pipeline with new ci_pipeline_id.
+	if request.IsSwitchCiPipelineRequest() {
+		err = impl.updateLinkedAppWorkflowMappings(tx, oldAppWorkflowMapping, res.AppWorkflowMappingId)
+		if err != nil {
+			impl.logger.Errorw("error in ")
+			return nil, err
+		}
+	}
+
+	if tx != nil {
+		err := impl.ciPipelineRepository.CommitTx(tx)
+		if err != nil {
+			impl.logger.Errorw("error in commiting the transaction")
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error) {
@@ -1312,32 +1446,13 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 	ciConfig.IsJob = request.IsJob
 	// Check for clone job to not create env override again
 	ciConfig.IsCloneJob = request.IsCloneJob
-
 	switch request.Action {
 	case bean.CREATE:
-		//validate request if it's a switch request
-		//delete old pipeline and it's appworkflow mapping
-		impl.logger.Debugw("create patch request")
-		ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
-
-		pipelineExists, err := impl.ciPipelineRepository.CheckIfPipelineExistsByNameAndAppId(request.CiPipeline.Name, request.AppId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching pipeline by name, FindByName", "err", err, "patch cipipeline name", request.CiPipeline.Name)
-			return nil, err
-		}
-
-		if pipelineExists {
-			impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
-			return nil, fmt.Errorf("pipeline name already exist")
-		}
-
-		res, err := impl.addpipelineToTemplate(ciConfig)
+		res, err := impl.handlePipelineCreate(request, ciConfig)
 		if err != nil {
-			impl.logger.Errorw("error in adding pipeline to template", "ciConf", ciConfig, "err", err)
-			return nil, err
+			impl.logger.Errorw("error in creating ci pipeline", "err", err, "request", request, "ciConfig", ciConfig)
 		}
-		//go and update all the app workflow mappings of old ci_pipeline with new ci_pipeline_id.
-		return res, nil
+		return res, err
 	case bean.UPDATE_SOURCE:
 		return impl.patchCiPipelineUpdateSource(ciConfig, request.CiPipeline)
 	case bean.DELETE:

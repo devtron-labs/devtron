@@ -267,15 +267,21 @@ type CiMaterialPatchResponse struct {
 }
 
 type CiPatchRequest struct {
-	CiPipeline                   *CiPipeline `json:"ciPipeline"`
-	AppId                        int         `json:"appId,omitempty"`
-	Action                       PatchAction `json:"action"`
-	AppWorkflowId                int         `json:"appWorkflowId,omitempty"`
-	UserId                       int32       `json:"-"`
-	IsJob                        bool        `json:"-"`
-	IsCloneJob                   bool        `json:"isCloneJob,omitempty"`
-	SwitchFromCiPipelineId       int         `json:"switchFromCiPipelineId"`
-	SwitchFromExternalCiPipeline int         `json:"switchFromExternalCiPipelineId"`
+	CiPipeline                     *CiPipeline  `json:"ciPipeline"`
+	AppId                          int          `json:"appId,omitempty"`
+	Action                         PatchAction  `json:"action"`
+	AppWorkflowId                  int          `json:"appWorkflowId,omitempty"`
+	UserId                         int32        `json:"-"`
+	IsJob                          bool         `json:"-"`
+	IsCloneJob                     bool         `json:"isCloneJob,omitempty"`
+	SwitchFromCiPipelineId         int          `json:"switchFromCiPipelineId"`
+	SwitchFromExternalCiPipelineId int          `json:"switchFromExternalCiPipelineId"`
+	SwitchFromCiPipelineType       PipelineType `json:"-"`
+	SwitchToCiPipelineType         PipelineType `json:"-"`
+}
+
+func (ciPatchRequest CiPatchRequest) IsSwitchCiPipelineRequest() bool {
+	return (ciPatchRequest.SwitchFromCiPipelineId != 0 || ciPatchRequest.SwitchFromExternalCiPipelineId != 0)
 }
 
 type CiRegexPatchRequest struct {
