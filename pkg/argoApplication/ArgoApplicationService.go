@@ -114,7 +114,7 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 		return nil, err
 	}
 	var clusterWithApplicationObject clusterRepository.Cluster
-	clusterServerUrlIdMap := make(map[string]int)
+	clusterServerUrlIdMap := make(map[string]int, len(clusters))
 	for _, cluster := range clusters {
 		if cluster.Id == clusterId {
 			clusterWithApplicationObject = cluster
