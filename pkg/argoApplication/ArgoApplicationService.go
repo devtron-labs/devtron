@@ -108,24 +108,32 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 			ClusterId: clusterId,
 		},
 	}
-	cluster, err := impl.clusterRepository.FindById(clusterId)
+	clusters, err := impl.clusterRepository.FindAllActive()
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster by id", "err", err, "clusterId", clusterId)
+		impl.logger.Errorw("error in getting all active clusters", "err", err)
 		return nil, err
 	}
-	if cluster != nil {
-		appDetail.ClusterName = cluster.ClusterName
+	var clusterWithApplicationObject clusterRepository.Cluster
+	clusterServerUrlIdMap := make(map[string]int)
+	for _, cluster := range clusters {
+		if cluster.Id == clusterId {
+			clusterWithApplicationObject = cluster
+		}
+		clusterServerUrlIdMap[cluster.ServerUrl] = cluster.Id
 	}
-	if cluster.IsVirtualCluster {
+	if clusterWithApplicationObject.Id > 0 {
+		appDetail.ClusterName = clusterWithApplicationObject.ClusterName
+	}
+	if clusterWithApplicationObject.IsVirtualCluster {
 		return appDetail, nil
-	} else if len(cluster.ErrorInConnecting) != 0 {
+	} else if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
 		return nil, fmt.Errorf("error in connecting to cluster")
 	}
-	clusterBean := cluster2.GetClusterBean(*cluster)
+	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
 	clusterConfig, err := clusterBean.GetClusterConfig()
 	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", cluster.Id)
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterWithApplicationObject.Id)
 		return nil, err
 	}
 	resp, err := impl.k8sUtil.GetResource(context.Background(), resourceNamespace, resourceName, bean.GvkForArgoApplication, restConfig)
@@ -133,13 +141,21 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 		impl.logger.Errorw("error in getting resource list", "err", err)
 		return nil, err
 	}
+	var destinationServer string
 	var argoManagedResources []*bean.ArgoManagedResource
 	if resp != nil && resp.Manifest.Object != nil {
 		appDetail.Manifest = resp.Manifest.Object
-		appDetail.HealthStatus, appDetail.SyncStatus, argoManagedResources =
-			getHealthSyncStatusAndManagedResourcesForArgoK8sRawObject(resp.Manifest.Object)
+		appDetail.HealthStatus, appDetail.SyncStatus, destinationServer, argoManagedResources =
+			getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(resp.Manifest.Object)
 	}
-	resourceTreeResp, err := impl.getResourceTreeForExternalCluster(clusterId, argoManagedResources)
+	appDeployedOnClusterId := 0
+	if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
+		appDeployedOnClusterId = clusterIdFromMap
+	}
+	if appDeployedOnClusterId < 1 { //ideally 1 check should also be not sufficient as if external app is deployed on default cluster its server url will not be https://kubernetes.default....
+		return nil, fmt.Errorf("please add cluster on which this app is deployed to devtron")
+	}
+	resourceTreeResp, err := impl.getResourceTreeForExternalCluster(appDeployedOnClusterId, argoManagedResources)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource tree response", "err", err)
 		return nil, err
@@ -223,10 +239,19 @@ func getApplicationListDtos(manifestObj map[string]interface{}, clusterName stri
 	return appLists
 }
 
-func getHealthSyncStatusAndManagedResourcesForArgoK8sRawObject(obj map[string]interface{}) (string,
-	string, []*bean.ArgoManagedResource) {
-	var healthStatus, syncStatus string
+func getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(obj map[string]interface{}) (string,
+	string, string, []*bean.ArgoManagedResource) {
+	var healthStatus, syncStatus, destinationServer string
 	argoManagedResources := make([]*bean.ArgoManagedResource, 0)
+	if specObjRaw, ok := obj[k8sCommonBean.Spec]; ok {
+		specObj := specObjRaw.(map[string]interface{})
+		if destinationObjRaw, ok2 := specObj["destination"]; ok2 {
+			destinationObj := destinationObjRaw.(map[string]interface{})
+			if destinationServerIf, ok3 := destinationObj["server"]; ok3 {
+				destinationServer = destinationServerIf.(string)
+			}
+		}
+	}
 	if statusObjRaw, ok := obj[k8sCommonBean.K8sClusterResourceStatusKey]; ok {
 		statusObj := statusObjRaw.(map[string]interface{})
 		if healthObjRaw, ok2 := statusObj[k8sCommonBean.K8sClusterResourceHealthKey]; ok2 {
@@ -266,5 +291,5 @@ func getHealthSyncStatusAndManagedResourcesForArgoK8sRawObject(obj map[string]in
 			}
 		}
 	}
-	return healthStatus, syncStatus, argoManagedResources
+	return healthStatus, syncStatus, destinationServer, argoManagedResources
 }
