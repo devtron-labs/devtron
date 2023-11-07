@@ -145,13 +145,13 @@ LivenessProbe:
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for liveliness. |
-| `periodSeconds` | It defines the time to check a given container for liveness. |
+| `periodSeconds` | It defines how often (in seconds) to perform the liveness probe. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
-| `timeoutSeconds` | It defines the time for checking timeout. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
+| `timeoutSeconds` | The maximum time (in seconds) for the probe to complete. |
+| `failureThreshold` | The number of consecutive failures required to consider the probe as failed. |
 | `command` | The mentioned command is executed to perform the livenessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
-| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP. |
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 
@@ -204,13 +204,48 @@ ReadinessProbe:
 | :--- | :--- |
 | `Path` | It define the path where the readiness needs to be checked. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for readiness. |
-| `periodSeconds` | It defines the time to check a given container for readiness. |
+| `periodSeconds` | It defines how often (in seconds) to perform the readiness probe. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
-| `timeoutSeconds` | It defines the time for checking timeout. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
+| `timeoutSeconds` | The maximum time (in seconds) for the probe to complete. |
+| `failureThreshold` | The number of consecutive failures required to consider the probe as failed. |
 | `command` | The mentioned command is executed to perform the readinessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
-| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP. |
+| `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+
+
+### Startup Probe
+
+Startup Probe in Kubernetes is a type of probe used to determine when a container within a pod is ready to start accepting traffic. It is specifically designed for applications that have a longer startup time.
+
+```yaml
+StartupProbe:
+  Path: ""
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
+  command:
+    - python
+    - /etc/app/healthcheck.py
+  tcp: false
+```
+
+| Key | Description |
+| :--- | :--- |
+| `Path` | It define the path where the startup needs to be checked. |
+| `initialDelaySeconds` | It defines the time to wait before a given container is checked for startup. |
+| `periodSeconds` | It defines how often (in seconds) to perform the startup probe. |
+| `successThreshold` | The number of consecutive successful probe results required to mark the container as ready. |
+| `timeoutSeconds` | The maximum time (in seconds) for the probe to complete. |
+| `failureThreshold` | The number of consecutive failures required to consider the probe as failed. |
+| `command` | The mentioned command is executed to perform the startup probe. If the command returns a non-zero value, it's equivalent to a failed probe. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 ### Autoscaling
@@ -252,6 +287,22 @@ image:
 
 Image is used to access images in kubernetes, pullpolicy is used to define the instances calling the image, here the image is pulled when the image is not present,it can also be set as "Always".
 
+### serviceAccount
+
+```yaml
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Determines whether to create a ServiceAccount for pods or not. If set to `true`, a ServiceAccount will be created. |
+| `name`  | Specifies the name of the ServiceAccount to use. |
+| `annotations` |  Specify annotations for the ServiceAccount. |
+
+
 ### imagePullSecrets
 
 `imagePullSecrets` contains the docker credentials that are used for accessing a registry. 
@@ -261,6 +312,21 @@ imagePullSecrets:
   - regcred
 ```
 regcred is the secret that contains the docker credentials that are used for accessing a registry. Devtron will not create this secret automatically, you'll have to create this secret using dt-secrets helm chart in the App store or create one using kubectl. You can follow this documentation Pull an Image from a Private Registry [https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) .
+
+### HostAliases
+
+ the hostAliases field is used in a Pod specification to associate additional hostnames with the Pod's IP address. This can be helpful in scenarios where you need to resolve specific hostnames to the Pod's IP within the Pod itself.
+
+```yaml
+  hostAliases:
+  - ip: "192.168.1.10"
+    hostnames:
+    - "hostname1.example.com"
+    - "hostname2.example.com"
+  - ip: "192.168.1.11"
+    hostnames:
+    - "hostname3.example.com"
+```
 
 ### Ingress
 
@@ -873,6 +939,56 @@ kedaAutoscaling:
     name: keda-trigger-auth-kafka-credential
 ```
 
+### NetworkPolicy
+
+Kubernetes NetworkPolicies control pod communication by defining rules for incoming and outgoing traffic.
+
+```yaml
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.17.0.0/16
+            except:
+              - 172.17.1.0/24
+        - namespaceSelector:
+            matchLabels:
+              project: myproject
+        - podSelector:
+            matchLabels:
+              role: frontend
+      ports:
+        - protocol: TCP
+          port: 6379
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24
+      ports:
+        - protocol: TCP
+          port: 5978
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Enable or disable NetworkPolicy. |
+| `annotations` | Additional metadata or information associated with the NetworkPolicy.  |
+| `labels`  | Labels to apply to the NetworkPolicy. 
+| `podSelector`  |  Each NetworkPolicy includes a podSelector which selects the grouping of pods to which the policy applies. The example policy selects pods with the label "role=db". An empty podSelector selects all pods in the namespace.|
+| `policyTypes`  | Each NetworkPolicy includes a policyTypes list which may include either Ingress, Egress, or both. |
+| `Ingress` | Controls incoming traffic to pods. |
+| `Egress`  | Controls outgoing traffic from pods. |
+
+
 ### Winter-Soldier
 Winter Soldier can be used to
 - cleans up (delete) Kubernetes resources
@@ -892,7 +1008,7 @@ winterSoldier:
   targetReplicas: []
   fieldSelector: []
 ```
-Here, 
+
 | Key | values | Description |
 | :--- | :--- | :--- |
 | `enabled` | `fasle`,`true` | decide the enabling factor  |
@@ -931,6 +1047,7 @@ winterSoldier:
   fieldSelector: 
     - AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '10h'), Now())
 ```
+
 Above settings will take action on `Sat` and `Sun` from 00:00 to 23:59:59, and on `Mon`-`Fri` from 00:00 to 08:00 and 20:00 to 23:59:59. If `action:sleep` then runs hibernate at timeFrom and unhibernate at `timeTo`. If `action: delete` then it will delete workloads at `timeFrom` and `timeTo`. Here the `action:scale` thus it scale the number of resource replicas to  `targetReplicas: [1,1,1]`. Here each element of `targetReplicas` array is mapped with the corresponding elments of array `timeRangesWithZone/timeRanges`. Thus make sure the length of both array is equal, otherwise the cnages cannot be observed.
 
 The above example will select the application objects which have been created 10 hours ago across all namespaces excluding application's namespace. Winter soldier exposes following functions to handle time, cpu and memory.
