@@ -146,13 +146,6 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 					// making it non-blocking as it is being done for multiple Role filters and does not want this to be blocking.
 					impl.logger.Errorw("error in creating updating role group for jobs entity", "err", err, "roleFilter", roleFilter)
 				}
-			} else if entity == bean2.EntityJobs {
-				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForJobsEntity(roleFilter, request.UserId, model, nil, "", nil, tx, mapping[index])
-				policies = append(policies, policiesToBeAdded...)
-				if err != nil {
-					// making it non-blocking as it is being done for multiple Role filters and does not want this to be blocking.
-					impl.logger.Errorw("error in creating updating role group for jobs entity", "err", err, "roleFilter", roleFilter)
-				}
 			} else {
 				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForOtherEntity(roleFilter, request, model, nil, "", nil, tx, mapping[index])
 				policies = append(policies, policiesToBeAdded...)
