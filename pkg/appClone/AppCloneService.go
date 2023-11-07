@@ -648,7 +648,7 @@ func (impl *AppCloneServiceImpl) createExternalCiAndAppWorkflowMapping(createWor
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	externalCiPipelineId, err := impl.pipelineBuilder.CreateExternalCiAndAppWorkflowMapping(createWorkflowMappingDto.newAppId, createWorkflowMappingDto.newWfId, createWorkflowMappingDto.userId, tx)
+	externalCiPipelineId, _, err := impl.pipelineBuilder.CreateExternalCiAndAppWorkflowMapping(createWorkflowMappingDto.newAppId, createWorkflowMappingDto.newWfId, createWorkflowMappingDto.userId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
 		return 0, err

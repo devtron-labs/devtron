@@ -532,6 +532,14 @@ type CDSourceObject struct {
 	Metadata    CDMaterialMetadata `json:"metadata"`
 }
 
+type ExternalCiPipelineCreateRequest struct {
+	AppWorkflowId          int   `json:"appWorkflowId" validate:"number,required"`
+	SwitchFromCiPipelineId int   `json:"switchFromCiPipelineId" validate:"number,required"`
+	AppId                  int   `json:"appId" validate:"number,required"`
+	UserId                 int32 `json:"-"`
+	Id                     int   `json:"id"`
+}
+
 type CDPipelineConfigObject struct {
 	Id                            int                                    `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                                    `json:"environmentId,omitempty"  validate:"number,required" `

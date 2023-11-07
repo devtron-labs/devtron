@@ -19,7 +19,6 @@ package pipelineConfig
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -326,7 +325,8 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 
 func (impl *CiWorkflowRepositoryImpl) FindRunningWorkflowCount(ciPipelineId int) (int, error) {
 	cnt, err := impl.dbConnection.Model((*CiWorkflow)(nil)).
-		Where("status IN (?)", pg.In([]string{pipeline.Running, pipeline.Starting})).
+		Where("status IN (?)", pg.In([]string{"Running", "Starting"})).
+		Where("ci_pipeline_id = ?", ciPipelineId).
 		Count()
 	if err == pg.ErrNoRows {
 		return 0, nil
