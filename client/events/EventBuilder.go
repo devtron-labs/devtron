@@ -98,6 +98,8 @@ const (
 	CS                 ResourceType = "Secret"
 	DeploymentTemplate ResourceType = "DeploymentTemplate"
 )
+const AppLevelBaseUrl = "/dashboard/app/%d/edit/"
+const EnvLevelBaseUrl = "/dashboard/app/%d/edit/env-override/%d/"
 
 type ConfigDataForNotification struct {
 	AppId        int
@@ -445,26 +447,35 @@ func setProtectConfigLink(request ConfigDataForNotification) string {
 	if request.EnvId == -1 {
 		isAppLevel = true
 	}
-	switch isAppLevel {
-	case true:
-		switch request.Resource {
-		case CM:
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/configmap/%s", request.AppId, request.ResourceName)
-		case CS:
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/secrets/%s", request.AppId, request.ResourceName)
-		case DeploymentTemplate:
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/deployment-template", request.AppId)
-		}
-	case false:
-		switch request.Resource {
-		case CM:
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/configmap/%s", request.AppId, request.EnvId, request.ResourceName)
-		case CS:
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/secrets/%s", request.AppId, request.EnvId, request.ResourceName)
-		case DeploymentTemplate:
-			ProtectConfigLink = fmt.Sprintf("/dashboard/app/%d/edit/env-override/%d/deployment-template", request.AppId, request.EnvId)
+	if isAppLevel {
+		ProtectConfigLink = getAppLevelUrl(request)
+	} else {
+		ProtectConfigLink = getEnvLevelUrl(request)
+	}
+	return ProtectConfigLink
+}
 
-		}
+func getEnvLevelUrl(request ConfigDataForNotification) (ProtectConfigLink string) {
+	switch request.Resource {
+	case CM:
+		ProtectConfigLink = fmt.Sprintf(EnvLevelBaseUrl+"configmap/%s", request.AppId, request.EnvId, request.ResourceName)
+	case CS:
+		ProtectConfigLink = fmt.Sprintf(EnvLevelBaseUrl+"secrets/%s", request.AppId, request.EnvId, request.ResourceName)
+	case DeploymentTemplate:
+		ProtectConfigLink = fmt.Sprintf(EnvLevelBaseUrl+"deployment-template", request.AppId, request.EnvId)
+
+	}
+	return ProtectConfigLink
+}
+
+func getAppLevelUrl(request ConfigDataForNotification) (ProtectConfigLink string) {
+	switch request.Resource {
+	case CM:
+		ProtectConfigLink = fmt.Sprintf(AppLevelBaseUrl+"configmap/%s", request.AppId, request.ResourceName)
+	case CS:
+		ProtectConfigLink = fmt.Sprintf(AppLevelBaseUrl+"secrets/%s", request.AppId, request.ResourceName)
+	case DeploymentTemplate:
+		ProtectConfigLink = fmt.Sprintf(AppLevelBaseUrl+"deployment-template", request.AppId)
 	}
 	return ProtectConfigLink
 }
