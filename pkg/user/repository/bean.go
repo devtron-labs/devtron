@@ -22,4 +22,6 @@ const (
 	KindObjPValUpdateKey      PValUpdateKey = "KindObj"
 	ResourceObjPValUpdateKey  PValUpdateKey = "ResourceObj"
 	ApproverPValUpdateKey     PValUpdateKey = "Approver"
+	WorkflowPValUpdateKey     PValUpdateKey = "Workflow"
+	WorkflowObjPValUpdateKey  PValUpdateKey = "WorkflowObj"
 )
