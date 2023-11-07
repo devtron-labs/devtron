@@ -138,7 +138,8 @@ helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
---set minio.enabled=true
+--set minio.enabled=true \
+--reuse-values
 ```
 
 {% endtab %}
@@ -152,13 +153,15 @@ Use the following command to configure AWS S3 bucket for storing build logs and 
 
 ```bash
 helm repo update
+
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
---set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--reuse-values
 ```
 
 *  **Configure using access-key and secret-key for aws S3 authentication:**
@@ -174,7 +177,8 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
 --set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
---set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
+--reuse-values
 ```
 
 *  **Configure using S3 compatible storages:**
@@ -191,7 +195,8 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
 --set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
 --set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
---set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint>
+--set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint> \
+--reuse-values
 ```
 
 {% endtab %}
@@ -202,13 +207,15 @@ Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](#az
 
 ```bash
 helm repo update
+
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
 --set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \
 --set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
---set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container
+--set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container \
+--reuse-values
 ```
 
 {% endtab %}
@@ -225,8 +232,26 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set configs.BLOB_STORAGE_PROVIDER=GCP \
 --set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON=eyJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsInByb2plY3RfaWQiOiAiPHlvdXItcHJvamVjdC1pZD4iLCJwcml2YXRlX2tleV9pZCI6ICI8eW91ci1wcml2YXRlLWtleS1pZD4iLCJwcml2YXRlX2tleSI6ICI8eW91ci1wcml2YXRlLWtleT4iLCJjbGllbnRfZW1haWwiOiAiPHlvdXItY2xpZW50LWVtYWlsPiIsImNsaWVudF9pZCI6ICI8eW91ci1jbGllbnQtaWQ+IiwiYXV0aF91cmkiOiAiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJhdXRoX3Byb3ZpZGVyX3g1MDlfY2VydF91cmwiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vb2F1dGgyL3YxL2NlcnRzIiwiY2xpZW50X3g1MDlfY2VydF91cmwiOiAiPHlvdXItY2xpZW50LWNlcnQtdXJsPiJ9Cg== \
 --set configs.DEFAULT_CACHE_BUCKET=cache-bucket \
---set configs.DEFAULT_BUILD_LOGS_BUCKET=log-bucket
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=log-bucket \
+--reuse-values
 ```
+
+**Note:** Encode the contents of the downloaded service account JSON key file as base64 and then pass it to `secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON`.
+
+To encode the content of JSON key, first conevert the JSON file to single lined JSON file. For this you can use following command:
+
+```bash
+jq -c . <file.json> > <new-file.json>
+```
+Replace the placeholders `file.json` and `new-file.json` with actual file names. Also if `jq` is not installed, please install `jq` before ecuting this command.
+
+Once this is done now you can encode the new single lined JSON file by executing following command:
+
+```bash
+cat <new-file.json> | base64
+```
+
+Again, replace the placeholder `new-file.json` with actual file name.
 
 {% endtab %}
 {% endtabs %}

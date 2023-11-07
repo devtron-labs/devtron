@@ -23,6 +23,21 @@ helm install devtron devtron/devtron-operator \
 
 **Note**: If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-duing-installation).
 
+## Install AWS EBS CSI Driver, if require
+
+If you are using EKS version 1.23 or above, you must install [aws-ebs-csi-driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html).
+
+
+Run the following command to install aws ebs csi driver using Helm:
+
+```bash
+helm repo add aws-ebs-csi-driver \
+https://kubernetes-sigs.github.io/aws-ebs-csi-driver \
+helm repo update \
+helm upgrade --install aws-ebs-csi-driver \
+--namespace kube-system aws-ebs-csi-driver/aws-ebs-csi-driver
+```
+
 
 ## Install Multi-Architecture Nodes (ARM and AMD)
 
@@ -169,6 +184,24 @@ helm install devtron devtron/devtron-operator \
 ```
 
 {% endtab %}
+
+**Note:** Encode the contents of the downloaded service account JSON key file as base64 and then pass it to `secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON`.
+
+To encode the content of JSON key, first conevert the JSON file to single lined JSON file. For this you can use following command:
+
+```bash
+jq -c . <file.json> > <new-file.json>
+```
+Replace the placeholders `file.json` and `new-file.json` with actual file names. Also if `jq` is not installed, please install `jq` before ecuting this command.
+
+Once this is done now you can encode the new single lined JSON file by executing following command:
+
+```bash
+cat <new-file.json> | base64
+```
+
+Again, replace the placeholder `new-file.json` with actual file name.
+
 {% endtabs %}
 
 

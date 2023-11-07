@@ -2,6 +2,7 @@
 
 * [Introduction](README.md)
 * [Getting Started](setup/getting-started/getting-started.md)
+* [Devtron Cluster Provision](setup/install/provisioning-k8s-cluster-for-devtron.md)
 * [Install Devtron](setup/install/README.md)
   * [Install Devtron with CI/CD Integration](setup/install/install-devtron-with-cicd.md)
   * [Install Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md)
