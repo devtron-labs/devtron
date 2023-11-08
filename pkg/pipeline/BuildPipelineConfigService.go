@@ -1341,7 +1341,7 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.Ex
 	if ciPipeline == nil || err == pg.ErrNoRows {
 		return createRequest, errors.New("ci pipeline doesn't exist")
 	}
-	oldWorkflowMapping, err := impl.deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx, ciPipeline, externalCiPipelineId, createRequest.UserId)
+	oldWorkflowMapping, err := impl.deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx, ciPipeline, 0, createRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting old ci-pipeline and getting the appWorkflow mapping of that", "err", err, "userId", createRequest.UserId)
 		return createRequest, err
@@ -1355,6 +1355,8 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.Ex
 	return createRequest, nil
 }
 
+// this will delete ci pipeline ciPipeline param is not null
+// if ciPipeline param is null, it will try to delete external-ci-pipeline
 func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, externalCiPipelineId int, userId int32) (*appWorkflow.AppWorkflowMapping, error) {
 	//delete the current ci_pipeline(active = false) in tx.
 	//get appWorkflowMapping of current ci_pipeline
