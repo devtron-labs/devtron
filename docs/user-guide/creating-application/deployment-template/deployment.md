@@ -452,60 +452,6 @@ initContainers:
 ```
 Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image. One can use base image inside initContainer by setting the reuseContainerImage flag to `true`.
 
-### Istio
-
-Istio is a service mesh which simplifies observability, traffic management, security and much more with it's virtual services and gateways.
-
-```yaml
-istio:
-  enable: true
-  gateway:
-    annotations: {}
-    enabled: false
-    host: example.com
-    labels: {}
-    tls:
-      enabled: false
-      secretName: example-tls-secret
-  virtualService:
-    annotations: {}
-    enabled: false
-    gateways: []
-    hosts: []
-    http:
-      - corsPolicy:
-          allowCredentials: false
-          allowHeaders:
-            - x-some-header
-          allowMethods:
-            - GET
-          allowOrigin:
-            - example.com
-          maxAge: 24h
-        headers:
-          request:
-            add:
-              x-some-header: value
-        match:
-          - uri:
-              prefix: /v1
-          - uri:
-              prefix: /v2
-        retries:
-          attempts: 2
-          perTryTimeout: 3s
-        rewriteUri: /
-        route:
-          - destination:
-              host: service1
-              port: 80
-        timeout: 12s
-      - route:
-          - destination:
-              host: service2
-    labels: {}
-```
-
 ### Pause For Seconds Before Switch Active
 ```yaml
 pauseForSecondsBeforeSwitchActive: 30
