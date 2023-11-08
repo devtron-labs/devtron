@@ -1,4 +1,5 @@
 ## Bugs
+- fix: update docker config overridden flag in linked ci's (#4220)
 - fix: setting cipipelineId to parent ci-pipelines id for linked ci's (#4215)
 - fix: ImageScanDeployInfo not initialized while fetching from db (#4195)
 - fix: Stable dt19 v3 + v4 bugathon bug fixes (#4183)
