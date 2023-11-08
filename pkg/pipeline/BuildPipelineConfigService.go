@@ -1333,11 +1333,14 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.Ex
 	}
 	createRequest.Id = externalCiPipelineId
 	ciPipeline, err := impl.ciPipelineRepository.FindById(createRequest.SwitchFromCiPipelineId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding ci-pipeline by id", "ciPipelineId", createRequest.SwitchFromCiPipelineId, "err", err)
 		return createRequest, err
 	}
 
+	if ciPipeline == nil || err == pg.ErrNoRows {
+		return createRequest, errors.New("ci pipeline doesn't exist")
+	}
 	oldWorkflowMapping, err := impl.deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx, ciPipeline, externalCiPipelineId, createRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting old ci-pipeline and getting the appWorkflow mapping of that", "err", err, "userId", createRequest.UserId)
