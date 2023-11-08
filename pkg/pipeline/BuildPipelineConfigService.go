@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -128,6 +129,7 @@ type CiPipelineConfigServiceImpl struct {
 	resourceGroupService          resourceGroup2.ResourceGroupService
 	enforcerUtil                  rbac.EnforcerUtil
 	customTagService              CustomTagService
+	ciPipelineHistoryService      history.CiPipelineHistoryService
 	cdPipelineConfigService       CdPipelineConfigService
 }
 
@@ -151,6 +153,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	resourceGroupService resourceGroup2.ResourceGroupService,
 	customTagService CustomTagService,
+	ciPipelineHistoryService history.CiPipelineHistoryService,
 	cdPipelineConfigService CdPipelineConfigService) *CiPipelineConfigServiceImpl {
 
 	securityConfig := &SecurityConfig{}
@@ -180,6 +183,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		resourceGroupService:          resourceGroupService,
 		securityConfig:                securityConfig,
 		customTagService:              customTagService,
+		ciPipelineHistoryService:      ciPipelineHistoryService,
 		cdPipelineConfigService:       cdPipelineConfigService,
 	}
 }
@@ -1318,6 +1322,117 @@ func (impl *CiPipelineConfigServiceImpl) validateCiPipelineSwitch(switchFromCiPi
 
 	return nil
 }
+func (impl *CiPipelineConfigServiceImpl) deleteCiPipeline(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, externalCiPipelineId int, userId int32) error {
+	if externalCiPipelineId != 0 {
+		err := impl.DeleteExternalCi(tx, externalCiPipelineId, userId)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	err := impl.ciCdPipelineOrchestrator.DeleteCiEnvMapping(tx, ciPipeline, userId)
+	if err != nil {
+		return err
+	}
+	ciPipeline.Deleted = true
+	ciPipeline.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
+	err = impl.ciPipelineRepository.Update(ciPipeline, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating ci pipeline, DeleteCiPipeline", "err", err, "pipelineId", ciPipeline.Id)
+		return err
+	}
+	materialDbObject, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipeline.Id)
+	var materials []*pipelineConfig.CiPipelineMaterial
+	for _, material := range materialDbObject {
+		if err != nil {
+			return err
+		}
+		material.Active = false
+		materials = append(materials, material)
+	}
+	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+	if err != nil {
+		impl.logger.Errorw("error in updating ci pipeline materials, DeleteCiPipeline", "err", err, "pipelineId", ciPipeline.Id)
+		return err
+	}
+	if !ciPipeline.IsDockerConfigOverridden {
+		err = impl.ciCdPipelineOrchestrator.SaveHistoryOfBaseTemplate(userId, ciPipeline, materials)
+		if err != nil {
+			return err
+		}
+	} else {
+		ciTemplate, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipeline.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting ciTemplate ", "err", err, "ciTemplate", ciTemplate.Id)
+			return err
+		}
+		buildConfig, err := bean3.ConvertDbBuildConfigToBean(ciTemplate.CiBuildConfig)
+		if err != nil {
+			impl.logger.Errorw("error in ConvertDbBuildConfigToBean ", "err", err, "buildConfigId", buildConfig.Id)
+			return err
+		}
+		CiTemplateBean := impl.ciCdPipelineOrchestrator.CreateCiTemplateBean(ciPipeline.Id, ciTemplate.DockerRegistry.Id, ciTemplate.DockerRepository, ciTemplate.GitMaterialId, buildConfig, userId)
+		err = impl.ciPipelineHistoryService.SaveHistory(ciPipeline, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
+		if err != nil {
+			impl.logger.Errorw("error in saving delete history for ci pipeline material and ci template overridden", "err", err)
+		}
+	}
+	return err
+
+}
+
+func (impl *CiPipelineConfigServiceImpl) DeleteExternalCi(tx *pg.Tx, externalCiPipelineId int, userId int32) error {
+	externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(externalCiPipelineId)
+	externalCiPipeline.Active = false
+	externalCiPipeline.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
+	_, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+		return err
+	}
+	return nil
+}
+
+//
+//func (impl *CiPipelineConfigServiceImpl) DeleteCiEnvMapping(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error {
+//	CiEnvMappingObject, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(ciPipeline.Id)
+//	if err != nil && err != pg.ErrNoRows {
+//		impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", ciPipeline.Id)
+//		return err
+//	}
+//	if err == nil && CiEnvMappingObject != nil {
+//		CiEnvMappingObject.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
+//		CiEnvMappingObject.Deleted = true
+//		err = impl.ciPipelineRepository.UpdateCiEnvMapping(CiEnvMappingObject, tx)
+//		if err != nil {
+//			impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", CiEnvMappingObject.CiPipelineId)
+//			return err
+//		}
+//	}
+//	return err
+//}
+
+func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, externalCiPipelineId int, userId int32) (*appWorkflow.AppWorkflowMapping, error) {
+	//delete the current ci_pipeline(active = false) in tx.
+	err := impl.deleteCiPipeline(tx, ciPipeline, externalCiPipelineId, userId)
+
+	//get appWorkflowMapping of current ci_pipeline
+	//delete app workflow mapping
+	var appWorkflowMappings *appWorkflow.AppWorkflowMapping
+	if externalCiPipelineId != 0 {
+		appWorkflowMappings, err = impl.appWorkflowRepository.FindWFMappingByComponent(appWorkflow.WEBHOOK, externalCiPipelineId)
+	} else {
+		appWorkflowMappings, err = impl.appWorkflowRepository.FindWFMappingByComponent(appWorkflow.CIPIPELINE, ciPipeline.Id)
+	}
+	//delete the appWorkflowMapping(active=false) of this Pipeline in tx.
+	err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(appWorkflowMappings, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+		return nil, err
+	}
+
+	return appWorkflowMappings, nil
+}
 
 func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.ExternalCiPipelineCreateRequest) (*bean.ExternalCiPipelineCreateRequest, error) {
 	tx, err := impl.ciPipelineRepository.StartTx()
@@ -1353,15 +1468,6 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.Ex
 		return createRequest, err
 	}
 	return createRequest, nil
-}
-
-// this will delete ci pipeline ciPipeline param is not null
-// if ciPipeline param is null, it will try to delete external-ci-pipeline
-func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, externalCiPipelineId int, userId int32) (*appWorkflow.AppWorkflowMapping, error) {
-	//delete the current ci_pipeline(active = false) in tx.
-	//get appWorkflowMapping of current ci_pipeline
-	//delete the appWorkflowMapping(active=false) of this Pipeline in tx.
-	return nil, nil
 }
 
 func (impl *CiPipelineConfigServiceImpl) updateLinkedAppWorkflowMappings(tx *pg.Tx, oldAppWorkflowMapping *appWorkflow.AppWorkflowMapping, newAppWorkflowMappingId int) error {
