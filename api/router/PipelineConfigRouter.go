@@ -152,6 +152,9 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/wf/all/component-names/{appId}").
 		HandlerFunc(router.appWorkflowRestHandler.FindAllWorkflows).Methods("GET")
 
+	configRouter.Path("/app-wf/all").
+		HandlerFunc(router.appWorkflowRestHandler.FindAllWorkflowsForApps).Methods("POST")
+
 	configRouter.Path("/cd-pipeline/workflow/history/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.ListDeploymentHistory).Methods("GET")
 	configRouter.Path("/cd-pipeline/workflow/logs/{appId}/{environmentId}/{pipelineId}/{workflowId}").HandlerFunc(router.restHandler.GetPrePostDeploymentLogs).Methods("GET")
 	configRouter.Path("/cd-pipeline/workflow/trigger-info/{appId}/{environmentId}/{pipelineId}/{workflowRunnerId}").HandlerFunc(router.restHandler.FetchCdWorkflowDetails).Methods("GET")

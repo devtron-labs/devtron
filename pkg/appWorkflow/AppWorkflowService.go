@@ -54,7 +54,7 @@ type AppWorkflowService interface {
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
 	FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest) ([]*AppWorkflowDto, error)
-
+	FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error)
 	FilterWorkflows(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error)
 	FindCdPipelinesByAppId(appId int) (*bean.CdPipelines, error)
 }
@@ -121,6 +121,14 @@ type WorkflowComponentNamesDto struct {
 	CiPipelineId   int      `json:"ciPipelineId"`
 	CiPipelineName string   `json:"ciPipelineName"`
 	CdPipelines    []string `json:"cdPipelines"`
+}
+
+type WorkflowNamesResponse struct {
+	WorkflowNames []string `json:"workflowNames"`
+}
+
+type WorkflowNamesRequest struct {
+	AppIds []int `json:"appIds"`
 }
 
 type WorkflowCloneRequest struct {
@@ -571,7 +579,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 		if err != nil {
 			return nil, err
 		}
-		//override appIds if already provided app group id in request.
+		//override AppIds if already provided app group id in request.
 		request.ResourceIds = appIds
 	}
 	var pipelines []*pipelineConfig.Pipeline
@@ -647,6 +655,22 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 		}
 	}
 	return workflows, err
+}
+
+func (impl AppWorkflowServiceImpl) FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error) {
+	appWorkflows, err := impl.appWorkflowRepository.FindByAppIds(request.AppIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error occurred while fetching app workflows", "AppIds", request.AppIds, "err", err)
+		return nil, err
+	}
+	var workflows []string
+	for _, workflow := range appWorkflows {
+		workflows = append(workflows, workflow.Name)
+	}
+	workflowResp := &WorkflowNamesResponse{
+		WorkflowNames: workflows,
+	}
+	return workflowResp, err
 }
 
 func (impl AppWorkflowServiceImpl) FilterWorkflows(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error) {
