@@ -783,6 +783,147 @@ dbMigrationConfig:
 
 It is used to configure database migration.
 
+### Istio
+
+These Istio configurations collectively provide a comprehensive set of tools for controlling access, authenticating requests, enforcing security policies, and configuring traffic behavior within a microservices architecture. The specific settings you choose would depend on your security and traffic management requirements.
+
+```yaml
+istio:
+  enable: true
+
+  gateway:
+    enabled: true
+    labels:
+      app: my-gateway
+    annotations:
+      description: "Istio Gateway for external traffic"
+    host: "example.com"
+    tls:
+      enabled: true
+      secretName: my-tls-secret
+
+  virtualService:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio VirtualService for routing"
+    gateways:
+      - my-gateway
+    hosts:
+      - "example.com"
+    http:
+      - match:
+          - uri:
+              prefix: /v1
+        route:
+          - destination:
+              host: my-service-v1
+              subset: version-1
+      - match:
+          - uri:
+              prefix: /v2
+        route:
+          - destination:
+              host: my-service-v2
+              subset: version-2
+
+  destinationRule:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio DestinationRule for traffic policies"
+    subsets:
+      - name: version-1
+        labels:
+          version: "v1"
+      - name: version-2
+        labels:
+          version: "v2"
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+      outlierDetection:
+        consecutiveErrors: 5
+        interval: 30s
+        baseEjectionTime: 60s
+
+  peerAuthentication:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio PeerAuthentication for mutual TLS"
+    selector:
+      matchLabels:
+        version: "v1"
+    mtls:
+      mode: STRICT
+    portLevelMtls:
+      8080:
+        mode: DISABLE
+
+  requestAuthentication:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio RequestAuthentication for JWT validation"
+    selector:
+      matchLabels:
+        version: "v1"
+    jwtRules:
+      - issuer: "issuer-1"
+        jwksUri: "https://issuer-1/.well-known/jwks.json"
+
+  authorizationPolicy:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio AuthorizationPolicy for access control"
+    action: ALLOW
+    provider:
+      name: jwt
+      kind: Authorization
+    rules:
+      - from:
+          - source:
+              requestPrincipals: ["*"]
+        to:
+          - operation:
+              methods: ["GET"]
+```
+
+| Key | Description |
+| :--- | :--- |
+| `istio`  | Istio enablement. When `istio.enable` set to true, Istio would be enabled for the specified configurations  |
+| `authorizationPolicy`  | It allows you to define access control policies for service-to-service communication.  | 
+| `action`  |  Determines whether to ALLOW or DENY the request based on the defined rules. |
+| `provider`  | Authorization providers are external systems or mechanisms used to make access control decisions.  | 
+|  `rules` | List of rules defining the authorization policy. Each rule can specify conditions and requirements for allowing or denying access.  |
+| `destinationRule`  | It allows for the fine-tuning of traffic policies and load balancing for specific services. You can define subsets of a service and apply different traffic policies to each subset. | 
+| `subsets`  | Specifies subsets within the service for routing and load balancing.  |
+| `trafficPolicy`  | Policies related to connection pool size, outlier detection, and load balancing.  | 
+| `gateway`  | Allowing external traffic to enter the service mesh through the specified configurations. |
+| `host`  | The external domain through which traffic will be routed into the service mesh.  |
+| `tls`  | Traffic to and from the gateway should be encrypted using TLS.  |
+| `secretName`  |  Specifies the name of the Kubernetes secret that contains the TLS certificate and private key. The TLS certificate is used for securing the communication between clients and the Istio gateway. |
+| `peerAuthentication`  | It allows you to enforce mutual TLS and control the authentication between services.  |
+| `mtls`  | Mutual TLS. Mutual TLS is a security protocol that requires both client and server, to authenticate each other using digital certificates for secure communication.  | 
+| `mode`  | Mutual TLS mode, specifying how mutual TLS should be applied. Modes include STRICT, PERMISSIVE, and DISABLE.  |
+| `portLevelMtls`  | Configures port-specific mTLS settings. Allows for fine-grained control over the application of mutual TLS on specific ports.  | 
+| `selector`  | Configuration for selecting workloads to apply PeerAuthentication.  | 
+| `requestAuthentication`  |  Defines rules for authenticating incoming requests. | 
+| `jwtRules`  | Rules for validating JWTs (JSON Web Tokens). It defines how incoming JWTs should be validated for authentication purposes.  |
+| `selector`  | Specifies the conditions under which the RequestAuthentication rules should be applied.  | 
+|  `virtualService` | Enables the definition of rules for how traffic should be routed to different services within the service mesh.  |
+| `gateways`   |  Specifies the gateways to which the rules defined in the VirtualService apply. | 
+| `hosts`  | List of hosts (domains) to which this VirtualService is applied.  | 
+| `http`  |  Configuration for HTTP routes within the VirtualService. It define routing rules based on HTTP attributes such as URI prefixes, headers, timeouts, and retry policies. | 
+
 
 ### KEDA Autoscaling
 [KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
@@ -918,7 +1059,7 @@ winterSoldier:
   targetReplicas: []
   fieldSelector: []
 ```
-Here, 
+
 | Key | values | Description |
 | :--- | :--- | :--- |
 | `enabled` | `fasle`,`true` | decide the enabling factor  |
