@@ -1309,7 +1309,7 @@ func (impl *CiPipelineConfigServiceImpl) deleteCiPipeline(tx *pg.Tx, ciPipeline 
 		return err
 	}
 	if !ciPipeline.IsDockerConfigOverridden {
-		err = impl.ciCdPipelineOrchestrator.SaveHistoryForNotOverriddenConfig(userId, ciPipeline, materials)
+		err = impl.ciCdPipelineOrchestrator.SaveHistoryOfBaseTemplate(userId, ciPipeline, materials)
 		if err != nil {
 			return err
 		}

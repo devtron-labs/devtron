@@ -74,7 +74,7 @@ type CiCdPipelineOrchestrator interface {
 	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error)
 	DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error
 	DeleteCiEnvMapping(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error
-	SaveHistoryForNotOverriddenConfig(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error
+	SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
@@ -682,7 +682,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		return err
 	}
 	if !request.CiPipeline.IsDockerConfigOverridden || request.CiPipeline.IsExternal { //if pipeline is external or if config is not overridden then ignore override and ciBuildConfig values
-		err = impl.SaveHistoryForNotOverriddenConfig(userId, p, materials)
+		err = impl.SaveHistoryOfBaseTemplate(userId, p, materials)
 		if err != nil {
 			return err
 		}
@@ -720,7 +720,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, 
 	return CiTemplateBean
 }
 
-func (impl CiCdPipelineOrchestratorImpl) SaveHistoryForNotOverriddenConfig(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error {
 	CiTemplateBean := bean2.CiTemplateBean{
 		CiTemplate:         nil,
 		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
