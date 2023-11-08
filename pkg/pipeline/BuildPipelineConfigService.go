@@ -1416,7 +1416,7 @@ func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBefo
 		return nil, err
 	}
 	//getting appWorkflowMapping of current ciPipeline
-	var appWorkflowMappings *appWorkflow.AppWorkflowMapping
+	appWorkflowMappings := &appWorkflow.AppWorkflowMapping{}
 	if externalCiPipelineId != 0 {
 		appWorkflowMappings, err = impl.appWorkflowRepository.FindWFMappingByComponent(appWorkflow.WEBHOOK, externalCiPipelineId)
 		if err != nil {
