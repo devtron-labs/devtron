@@ -11,7 +11,7 @@ INSERT INTO "plugin_stage_mapping" ("plugin_id","stage_type","created_on", "crea
 VALUES ((SELECT id FROM plugin_metadata WHERE name='Skopeo'),0,'now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_pipeline_script" ("id","type","mount_directory_from_host","container_image_path","deleted","created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_pipeline_script'),'CONTAINER_IMAGE','t','quay.io/devtron/test:9ab24450-81-909','f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_pipeline_script'),'CONTAINER_IMAGE','t','quay.io/devtron/test:8d5a6d8d-81-1031','f','now()',1,'now()',1);
 
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Skopeo'),'Step 1','Step 1 - Copy container images','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
@@ -27,7 +27,3 @@ VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metada
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","variable_type", "value_type", "variable_step_index",reference_variable_name, "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Skopeo' and ps."index"=1 and ps.deleted=false), 'REGISTRY_CREDENTIALS','STRING','',false,true,'INPUT','GLOBAL',1 ,'REGISTRY_CREDENTIALS','f','now()', 1, 'now()', 1);
-
-
-SELECT DISTINCT(ci_artifact.id) from ci_artifact LEFT JOIN cd_workflow ON ci_artifact.id = cd_workflow.ci_artifact_id LEFT JOIN cd_workflow_runner ON cd_workflow_runner.cd_workflow_id=cd_workflow.id  Where (((cd_workflow_runner.id in (select MAX(cd_workflow_runner.id) OVER (PARTITION BY cd_workflow.ci_artifact_id) FROM cd_workflow_runner inner join cd_workflow on cd_workflow.id=cd_workflow_runner.cd_workflow_id)) AND ((cd_workflow.pipeline_id= 14 and cd_workflow_runner.workflow_type = 'DEPLOY' ) OR (cd_workflow.pipeline_id = 14 AND cd_workflow_runner.workflow_type = 'PRE' AND cd_workflow_runner.status IN ('Healthy','Succeeded') ))) OR (ci_artifact.component_id = 14  and ci_artifact.data_source= 'pre_cd' )) AND (ci_artifact.image LIKE '%%' ) AND ( ci_artifact.id NOT IN (74)) LIMIT 10 OFFSET 0
-
