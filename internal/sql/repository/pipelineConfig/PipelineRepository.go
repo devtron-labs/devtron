@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -110,6 +111,7 @@ type PipelineRepository interface {
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
+	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 }
 
 type CiArtifactDTO struct {
@@ -669,4 +671,10 @@ func (impl PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cd
 		pipelineIdsMap[pipelineId] = true
 	}
 	return pipelineIdsMap, nil
+}
+
+func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error {
+	query := fmt.Sprintf("UPDATE pipeline SET ci_pipeline_id = %v WHERE ci_pipeline_id = %v", newCiPipelineId, oldCiPipelineId)
+	_, err := tx.Query((*Pipeline)(nil), query)
+	return err
 }

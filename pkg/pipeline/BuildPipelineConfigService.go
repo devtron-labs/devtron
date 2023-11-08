@@ -1551,8 +1551,18 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 	if request.IsSwitchCiPipelineRequest() {
 		err = impl.updateLinkedAppWorkflowMappings(tx, oldAppWorkflowMapping, res.AppWorkflowMappingId)
 		if err != nil {
-			impl.logger.Errorw("error in ")
+			impl.logger.Errorw("error in updating app workflow mappings", "err", err)
 			return nil, err
+		}
+		//we don't store ci-pipeline-id in pipeline table for
+		if request.SwitchFromCiPipelineId > 0 {
+			// ciPipeline id is being set in res object in the addpipelineToTemplate method.
+			//
+			err = impl.pipelineRepository.UpdateOldCiPipelineIdToNewCiPipelineId(tx, request.SwitchFromCiPipelineId, res.CiPipelines[0].Id)
+			if err != nil {
+				impl.logger.Errorw("error in updating pipelines ci_pipeline_ids with new ci_pipelineId", "oldCiPipelineId", request.SwitchFromCiPipelineId, "newCiPipelineId", res.CiPipelines[0].Id)
+				return nil, err
+			}
 		}
 	}
 
