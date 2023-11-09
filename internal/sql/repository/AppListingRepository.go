@@ -132,10 +132,10 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 		" (SELECT pco.pipeline_id,MAX(pco.created_on) as last_deployed_time from pipeline_config_override pco " +
 		" GROUP BY pco.pipeline_id) ld ON ld.pipeline_id = p.id " +
 		" WHERE a.active = true "
-	if status == "Hibernating" {
-		query += fmt.Sprintf(" and aps.status = %v ", status)
+	if status == "hibernating" {
+		query += fmt.Sprintf(" and aps.status = %v ", strings.ToUpper(status))
 	} else {
-		query += fmt.Sprintf(" and aps.status <> %v ", status)
+		query += fmt.Sprintf(" and aps.status <> %v ", strings.ToUpper(status))
 	}
 	query += " ORDER BY a.app_name "
 	if limit > 0 {
