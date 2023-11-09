@@ -176,9 +176,11 @@ type PatchAction int
 type PipelineType string
 
 const (
-	CREATE        PatchAction = iota
-	UPDATE_SOURCE             //update value of SourceTypeConfig
-	DELETE                    //delete this pipeline
+	CREATE PatchAction = iota
+	// TODO Kripansh: Need to check with Kartik
+	UPDATE_PIPELINE //update pipeline
+	DELETE          //delete this pipeline
+	UPDATE_SOURCE   //update value of SourceTypeConfig
 	//DEACTIVATE     //pause/deactivate this pipeline
 )
 

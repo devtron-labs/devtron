@@ -382,13 +382,30 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	emailId, err := handler.userAuthService.GetEmailFromToken(token)
+	if err != nil {
+		handler.Logger.Errorw("error in getting email id from token", "err", err)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
 
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	var ok bool
+	ok := true
 	if app.AppType == helper.Job {
 		ok = isSuperAdmin
 	} else {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+		haveAppLevelAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+		if !haveAppLevelAccess {
+			//user doesn't have app level access, then checking for branch change
+			hasBranchChangeAccess := handler.checkIfHasBranchChangeAccess(emailId, app.AppName, patchRequest.CiPipeline.Id)
+			//user does not have app create permission but has branch change permission and request.action is update_pipeline
+			//downgrading the request to update source only
+			if patchRequest.Action == bean.UPDATE_PIPELINE && hasBranchChangeAccess {
+				patchRequest.Action = bean.UPDATE_SOURCE
+			} else {
+				ok = false
+			}
+		}
 	}
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -434,6 +451,36 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) checkIfHasBranchChangeAccess(emailId, appName string, ciPipelineId int) bool {
+	hasBranchChangeLevelAccess := true
+	//checking if user has branch change access by checking on cd pipelines
+	//checking rbac for cd cdPipelines
+	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciPipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "ciPipelineId", ciPipelineId, "err", err)
+		return hasBranchChangeLevelAccess
+	}
+	if len(cdPipelines) != 0 {
+		rbacObjects := make([]string, len(cdPipelines))
+		for i, cdPipeline := range cdPipelines {
+			envObject := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(cdPipeline.AppId, cdPipeline.EnvironmentId)
+			rbacObjects[i] = envObject
+		}
+		envRbacResultMap := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceCiPipelineSourceValue, casbin.ActionUpdate, rbacObjects)
+		i := 0
+		for _, rbacResultOk := range envRbacResultMap {
+			if !rbacResultOk {
+				hasBranchChangeLevelAccess = false
+				break
+			}
+			i++
+		}
+	} else {
+		noEnvObject := handler.enforcerUtil.GetTeamNoEnvRBACNameByAppName(appName)
+		hasBranchChangeLevelAccess = handler.enforcer.EnforceByEmail(emailId, casbin.ResourceCiPipelineSourceValue, casbin.ActionUpdate, noEnvObject)
+	}
+	return hasBranchChangeLevelAccess
+}
 func (handler PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -1101,7 +1148,8 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(pipelineId) {
 		for _, envId := range environmentIds {
 			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, envId)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+			//TODO Kripansh: Need to check this
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}

@@ -18,16 +18,17 @@
 package casbin
 
 const (
-	ResourceCluster           = "cluster"
-	ResourceGlobalEnvironment = "global-environment"
-	ResourceEnvironment       = "environment"
-	ResourceGit               = "git"
-	ResourceDocker            = "docker"
-	ResourceMigrate           = "migrate"
-	ResourceUser              = "user"
-	ResourceNotification      = "notification"
-	ResourceTemplate          = "template"
-	ResourceTerminal          = "terminal"
+	ResourceCluster               = "cluster"
+	ResourceGlobalEnvironment     = "global-environment"
+	ResourceEnvironment           = "environment"
+	ResourceGit                   = "git"
+	ResourceDocker                = "docker"
+	ResourceMigrate               = "migrate"
+	ResourceUser                  = "user"
+	ResourceNotification          = "notification"
+	ResourceTemplate              = "template"
+	ResourceTerminal              = "terminal"
+	ResourceCiPipelineSourceValue = "ci-pipeline/source-value"
 
 	ResourceProjects     = "projects"
 	ResourceApplications = "applications"

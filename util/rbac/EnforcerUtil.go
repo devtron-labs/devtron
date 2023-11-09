@@ -61,6 +61,7 @@ type EnforcerUtil interface {
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
 	GetAllActiveTeamNames() ([]string, error)
+	GetTeamNoEnvRBACNameByAppName(appName string) string
 	GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string)
 	GetAppRBACNameByAppAndProjectName(projectName, appName string) string
 }
