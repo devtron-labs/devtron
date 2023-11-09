@@ -1,4 +1,5 @@
 ## Bugs
+- fix:post-cd plugin not getting added again, after removing and adding again (#4219)
 - fix: update docker config overridden flag in linked ci's (#4220)
 - fix: setting cipipelineId to parent ci-pipelines id for linked ci's (#4215)
 - fix: ImageScanDeployInfo not initialized while fetching from db (#4195)
