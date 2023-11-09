@@ -1408,6 +1408,14 @@ func (impl *CiPipelineConfigServiceImpl) DeleteExternalCi(tx *pg.Tx, externalCiP
 	}
 	return nil
 }
+
+func (impl *CiPipelineConfigServiceImpl) checkForExternalPipelineAndGetID(externalCiPipelineId int, ciPipelineId int) (string, int) {
+	if externalCiPipelineId != 0 {
+		return appWorkflow.WEBHOOK, externalCiPipelineId
+	}
+	return appWorkflow.CIPIPELINE, ciPipelineId
+}
+
 func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, externalCiPipelineId int, userId int32) (*appWorkflow.AppWorkflowMapping, error) {
 	//deleting ciPipeline in tx
 	err := impl.deleteCiPipeline(tx, ciPipeline, externalCiPipelineId, userId)
@@ -1416,19 +1424,11 @@ func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBefo
 		return nil, err
 	}
 	//getting appWorkflowMapping of current ciPipeline
-	appWorkflowMappings := &appWorkflow.AppWorkflowMapping{}
-	if externalCiPipelineId != 0 {
-		appWorkflowMappings, err = impl.appWorkflowRepository.FindWFMappingByComponent(appWorkflow.WEBHOOK, externalCiPipelineId)
-		if err != nil {
-			impl.logger.Errorw("error in getting  appWorkflowMappings", "err", err)
-			return appWorkflowMappings, err
-		}
-	} else {
-		appWorkflowMappings, err = impl.appWorkflowRepository.FindWFMappingByComponent(appWorkflow.CIPIPELINE, ciPipeline.Id)
-		if err != nil {
-			impl.logger.Errorw("error in getting  appWorkflowMappings", "err", err)
-			return appWorkflowMappings, err
-		}
+	pipelineType, pipelineId := impl.checkForExternalPipelineAndGetID(externalCiPipelineId, ciPipeline.Id)
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFMappingByComponent(pipelineType, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting  appWorkflowMappings", "err", err, "pipelineType", pipelineType, "pipelineId", pipelineId)
+		return appWorkflowMappings, err
 	}
 	//deleting  app workflow mapping in tx
 	err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(appWorkflowMappings, tx)
@@ -1436,7 +1436,6 @@ func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBefo
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 		return appWorkflowMappings, err
 	}
-
 	return appWorkflowMappings, nil
 }
 
