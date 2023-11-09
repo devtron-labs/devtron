@@ -56,6 +56,7 @@ type AppListingRepository interface {
 	FindAppCount(isProd bool) (int, error)
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error)
+	FetchLastDeployedImage(appId, envId int) (*LastDeployed, error)
 }
 
 // below table is deprecated, not being used anywhere
@@ -73,6 +74,11 @@ type DeploymentStatus struct {
 type AppNameTypeIdContainerDBResponse struct {
 	AppName string `sql:"app_name"`
 	AppId   int    `sql:"id"`
+}
+
+type LastDeployed struct {
+	LastDeployedBy    string `sql:"last_deployed_by"`
+	LastDeployedImage string `sql:"last_deployed_image"`
 }
 
 const NewDeployment string = "Deployment Initiated"
@@ -136,6 +142,18 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 	var envContainers []*bean.AppEnvironmentContainer
 	_, err := impl.dbConnection.Query(&envContainers, query, envId, envId)
 	return envContainers, err
+}
+
+func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*LastDeployed, error) {
+	lastDeployed := &LastDeployed{}
+	query := `select ca.image as last_deployed_image, u.email_id as last_deployed_by from pipeline p
+			  	join cd_workflow_runner cwr on cwr.name = p.pipeline_name
+				join cd_workflow cw on cw.id = cwr.cd_workflow_id
+				join ci_artifact ca on ca.id = cw.ci_artifact_id
+				join users u on u.id = cwr.triggered_by
+				where p.app_id = ? and p.environment_id = ? and p.deleted = false order by cwr.created_on desc limit 1;`
+	_, err := impl.dbConnection.Query(lastDeployed, query, appId, envId)
+	return lastDeployed, err
 }
 
 func (impl AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error) {
