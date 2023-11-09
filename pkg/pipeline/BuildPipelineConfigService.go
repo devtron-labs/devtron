@@ -1491,7 +1491,7 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.Ex
 }
 
 func (impl *CiPipelineConfigServiceImpl) updateLinkedAppWorkflowMappings(tx *pg.Tx, oldAppWorkflowMapping *appWorkflow.AppWorkflowMapping, newAppWorkflowMapping *appWorkflow.AppWorkflowMapping) error {
-	return impl.appWorkflowRepository.UpdateParentComponentDetails(tx, oldAppWorkflowMapping.ComponentId, oldAppWorkflowMapping.Type, newAppWorkflowMapping.Id, newAppWorkflowMapping.Type)
+	return impl.appWorkflowRepository.UpdateParentComponentDetails(tx, oldAppWorkflowMapping.ComponentId, oldAppWorkflowMapping.Type, newAppWorkflowMapping.ComponentId, newAppWorkflowMapping.Type)
 }
 
 func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPatchRequest, ciConfig *bean.CiConfigRequest) (*bean.CiConfigRequest, error) {
