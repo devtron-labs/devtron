@@ -63,6 +63,7 @@ type EnforcerUtil interface {
 	GetAllActiveTeamNames() ([]string, error)
 	GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string)
 	GetAppRBACNameByAppAndProjectName(projectName, appName string) string
+	GetRbacObjectNameByAppAndWorkflowId(appName, workflowName string) string
 }
 
 type EnforcerUtilImpl struct {
@@ -607,4 +608,12 @@ func (impl EnforcerUtilImpl) GetAllActiveTeamNames() ([]string, error) {
 
 func (impl EnforcerUtilImpl) GetAppRBACNameByAppAndProjectName(projectName, appName string) string {
 	return fmt.Sprintf("%s/%s", projectName, appName)
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectNameByAppAndWorkflowId(appName, workflowName string) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", appName, workflowName)
+	}
+	return fmt.Sprintf("%s/%s/%s", application.Team.Name, appName, workflowName)
 }

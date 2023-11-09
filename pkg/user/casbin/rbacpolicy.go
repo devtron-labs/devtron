@@ -37,6 +37,10 @@ const (
 	ResourceAutocomplete = "autocomplete"
 	ResourceChartGroup   = "chart-group"
 
+	ResourceJobs     = "jobs"
+	ResourceJobsEnv  = "jobEnv"
+	ResourceWorkflow = "workflow"
+
 	ResourceTeam    = "team"
 	ResourceAdmin   = "admin"
 	ResourceGlobal  = "global-resource"
