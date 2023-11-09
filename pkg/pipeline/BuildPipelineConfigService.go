@@ -1363,10 +1363,14 @@ func (impl *CiPipelineConfigServiceImpl) deleteCiPipeline(tx *pg.Tx, ciPipeline 
 func (impl *CiPipelineConfigServiceImpl) DeleteCiMaterial(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline) ([]*pipelineConfig.CiPipelineMaterial, error) {
 	materialDbObject, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipeline.Id)
 	var materials []*pipelineConfig.CiPipelineMaterial
+	if err != nil && err != pg.ErrNoRows {
+		return materials, err
+	}
+	if len(materialDbObject) == 0 {
+		return materials, nil
+	}
 	for _, material := range materialDbObject {
-		if err != nil {
-			return materials, err
-		}
+
 		material.Active = false
 		materials = append(materials, material)
 	}
