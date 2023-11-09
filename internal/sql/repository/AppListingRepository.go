@@ -82,6 +82,7 @@ type LastDeployed struct {
 }
 
 const NewDeployment string = "Deployment Initiated"
+const Hibernating string = "HIBERNATING"
 
 type AppListingRepositoryImpl struct {
 	dbConnection                     *pg.DB
@@ -132,10 +133,10 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 		" (SELECT pco.pipeline_id,MAX(pco.created_on) as last_deployed_time from pipeline_config_override pco " +
 		" GROUP BY pco.pipeline_id) ld ON ld.pipeline_id = p.id " +
 		" WHERE a.active = true "
-	if status == "hibernating" {
-		query += fmt.Sprintf(" and aps.status = %v ", strings.ToUpper(status))
-	} else {
-		query += fmt.Sprintf(" and aps.status <> %v ", strings.ToUpper(status))
+	if status == strings.ToLower(Hibernating) {
+		query += fmt.Sprintf(" and aps.status = '%v' ", Hibernating)
+	} else if len(status) > 0 {
+		query += fmt.Sprintf(" and aps.status != '%v' ", Hibernating)
 	}
 	query += " ORDER BY a.app_name "
 	if limit > 0 {
