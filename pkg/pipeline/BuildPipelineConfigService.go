@@ -329,7 +329,8 @@ func (impl *CiPipelineConfigServiceImpl) addpipelineToTemplate(createRequest *be
 		impl.logger.Errorw("error in fetching workflow mapping for ci validation", "err", err)
 		return nil, err
 	}
-	if len(workflowMapping) > 0 {
+
+	if !createRequest.IsSwitchCiPipelineRequest() && len(workflowMapping) > 0 {
 		return nil, &util.ApiError{
 			InternalMessage:   "pipeline already exists",
 			UserDetailMessage: fmt.Sprintf("pipeline already exists in workflow"),
@@ -1622,6 +1623,8 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 	}
 
 	ciConfig.IsJob = request.IsJob
+	ciConfig.SwitchFromCiPipelineId = request.SwitchFromCiPipelineId
+	ciConfig.SwitchFromExternalCiPipelineId = request.SwitchFromExternalCiPipelineId
 	// Check for clone job to not create env override again
 	ciConfig.IsCloneJob = request.IsCloneJob
 	switch request.Action {
