@@ -477,8 +477,8 @@ func (impl AppWorkflowRepositoryImpl) FindMappingByAppIds(appIds []int) ([]*AppW
 func (impl AppWorkflowRepositoryImpl) UpdateParentComponentDetails(tx *pg.Tx, oldComponentId int, oldComponentType string, newAppWorkflowMappingId int) error {
 	withQuery := "WITH new_app_workflow_mapping as (SELECT * from app_workflow_mapping where id = %v)"
 	withQuery = fmt.Sprintf(withQuery, newAppWorkflowMappingId)
-	updateQuery := fmt.Sprintf("UPDATE app_workflow_mapping "+
-		" SET parent_type = new_app_workflow_mapping.type,parent_id = new_app_workflow_mapping.id where parent_id = %v and parent_type=%v and active = true", oldComponentId, oldComponentType)
+	updateQuery := fmt.Sprintf(" UPDATE app_workflow_mapping "+
+		" SET parent_type = new_app_workflow_mapping.type,parent_id = new_app_workflow_mapping.id where parent_id = %v and parent_type='%v' and active = true", oldComponentId, oldComponentType)
 
 	finalQuery := withQuery + updateQuery
 
