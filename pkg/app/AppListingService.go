@@ -93,7 +93,7 @@ type AppListingService interface {
 	GetReleaseCount(appId, envId int) (int, error)
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
-	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
+	FetchOverviewAppsByEnvironment(envId, limit, offset int, status string) (*OverviewAppsByEnvironmentBean, error)
 }
 
 const (
@@ -222,7 +222,7 @@ const (
 	NonProduction = "Non-Production"
 )
 
-func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error) {
+func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int, status string) (*OverviewAppsByEnvironmentBean, error) {
 	resp := &OverviewAppsByEnvironmentBean{}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
@@ -244,7 +244,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		return resp, err
 	}
 	resp.CreatedBy = createdBy.EmailId
-	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
+	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset, status)
 	if err != nil {
 		return resp, err
 	}

@@ -53,6 +53,7 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		Methods("POST")
 
 	appListingRouter.Path("/list/group/{env-id}").
+		Queries("status", "{status}").
 		HandlerFunc(router.appListingRestHandler.FetchOverviewAppsByEnvironment).
 		Methods("GET")
 
