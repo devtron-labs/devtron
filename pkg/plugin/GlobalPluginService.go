@@ -72,7 +72,7 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 		{
 			Name:        "DOCKER_REGISTRY_URL",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
-			Description: "Url of the container registry used for this pipeline.",
+			Description: "RedirectionUrl of the container registry used for this pipeline.",
 			Type:        "ci",
 		},
 		{

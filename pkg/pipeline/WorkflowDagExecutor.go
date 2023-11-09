@@ -1385,6 +1385,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
+		cdStageWorkflowRequest.DockerRegistryId = ciPipeline.CiTemplate.DockerRegistry.Id
 		cdStageWorkflowRequest.CiPipelineType = ciPipeline.PipelineType
 		cdStageWorkflowRequest.DockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
 	} else if cdPipeline.AppId > 0 {
@@ -1404,6 +1405,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
 		cdStageWorkflowRequest.DockerRegistryId = *ciTemplate.DockerRegistryId
 		appLabels, err := impl.appLabelRepository.FindAllByAppId(cdPipeline.AppId)
+		cdStageWorkflowRequest.DockerRegistryId = ciPipeline.CiTemplate.DockerRegistry.Id
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
 			return nil, err

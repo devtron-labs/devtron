@@ -42,23 +42,23 @@ type ResourceGroupService interface {
 	DeleteResourceGroup(resourceGroupId int, groupType ResourceGroupType, emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool) (bool, error)
 }
 type ResourceGroupServiceImpl struct {
-	logger                         *zap.SugaredLogger
-	resourceGroupRepository        resourceGroup.ResourceGroupRepository
-	resourceGroupMappingRepository resourceGroup.ResourceGroupMappingRepository
-	enforcerUtil                   rbac.EnforcerUtil
-	devtronResourceService         devtronResource.DevtronResourceService
+	logger                              *zap.SugaredLogger
+	resourceGroupRepository             resourceGroup.ResourceGroupRepository
+	resourceGroupMappingRepository      resourceGroup.ResourceGroupMappingRepository
+	enforcerUtil                        rbac.EnforcerUtil
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
 }
 
 func NewResourceGroupServiceImpl(logger *zap.SugaredLogger, resourceGroupRepository resourceGroup.ResourceGroupRepository,
 	resourceGroupMappingRepository resourceGroup.ResourceGroupMappingRepository, enforcerUtil rbac.EnforcerUtil,
-	devtronResourceService devtronResource.DevtronResourceService,
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
 ) *ResourceGroupServiceImpl {
 	return &ResourceGroupServiceImpl{
-		logger:                         logger,
-		resourceGroupRepository:        resourceGroupRepository,
-		resourceGroupMappingRepository: resourceGroupMappingRepository,
-		enforcerUtil:                   enforcerUtil,
-		devtronResourceService:         devtronResourceService,
+		logger:                              logger,
+		resourceGroupRepository:             resourceGroupRepository,
+		resourceGroupMappingRepository:      resourceGroupMappingRepository,
+		enforcerUtil:                        enforcerUtil,
+		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
 	}
 }
 
@@ -127,17 +127,9 @@ type ResourceGroupDto struct {
 	EnvironmentId int   `json:"environmentId,omitempty"`
 }
 
-//type ApplicationDto struct {
-//	ResourceGroupId int    `json:"appGroupId,omitempty"`
-//	AppId           int    `json:"appId,omitempty"`
-//	AppName         string `json:"appName,omitempty"`
-//	EnvironmentId   int    `json:"environmentId,omitempty"`
-//	Description     string `json:"description,omitempty"`
-//}
-
 func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error) {
 
-	resourceKeyToId := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	resourceKeyToId := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	err := impl.checkAuthForResourceGroup(request, casbin.ActionCreate)
 	if err != nil {
 		return nil, err
@@ -203,7 +195,7 @@ func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroup
 
 func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error) {
 
-	resourceKeyToId := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	resourceKeyToId := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 
 	// fetching existing resourceIds in resource group
 	mappings, err := impl.resourceGroupMappingRepository.FindByResourceGroupId(request.Id)
@@ -291,7 +283,7 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 }
 
 func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool, parentResourceId int, groupType ResourceGroupType) ([]*ResourceGroupDto, error) {
-	resourceKeyToId := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	resourceKeyToId := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	resourceGroupDtos := make([]*ResourceGroupDto, 0)
 	var resourceGroupIds []int
 	resourceGroups, err := impl.resourceGroupRepository.FindActiveListByParentResource(parentResourceId, groupType.getResourceKey(resourceKeyToId))
@@ -350,7 +342,7 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 //	for _, appGroup := range appGroups {
 //		appGroupDto := &ApplicationDto{
 //			AppId:       appGroup.ResourceId,
-//			Description: appGroup.ResourceGroup.Description,
+//			GenericNote: appGroup.ResourceGroup.GenericNote,
 //		}
 //		applications = append(applications, appGroupDto)
 //	}

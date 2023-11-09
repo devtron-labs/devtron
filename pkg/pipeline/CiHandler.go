@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/rest"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -113,9 +114,14 @@ type CiHandlerImpl struct {
 	k8sCommonService             k8s2.K8sCommonService
 	clusterService               cluster.ClusterService
 	blobConfigStorageService     BlobStorageConfigService
+	envService                   cluster.EnvironmentService
 }
 
-func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository, imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService) *CiHandlerImpl {
+func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
+	ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
+	imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
+	envService cluster.EnvironmentService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -141,6 +147,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		k8sCommonService:             k8sCommonService,
 		clusterService:               clusterService,
 		blobConfigStorageService:     blobConfigStorageService,
+		envService:                   envService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -154,6 +161,8 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 const DefaultCiWorkflowNamespace = "devtron-ci"
 const Running = "Running"
 const Starting = "Starting"
+const POD_DELETED_MESSAGE = "pod deleted"
+const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -581,31 +590,28 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		impl.Logger.Warn("cannot cancel build, build not in progress")
 		return 0, errors.New("cannot cancel build, build not in progress")
 	}
-	var isExt bool
+	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
 	var env *repository3.Environment
-	if workflow.Namespace != DefaultCiWorkflowNamespace {
-		isExt = true
-		env, err = impl.envRepository.FindById(workflow.EnvironmentId)
+	var restConfig *rest.Config
+	if isExt {
+		restConfig, err = impl.getRestConfig(workflow)
 		if err != nil {
-			impl.Logger.Errorw("could not fetch stage env", "err", err)
 			return 0, err
 		}
 	}
 
-	runningWf, err := impl.workflowService.GetWorkflow(workflow.Name, workflow.Namespace, isExt, env)
-	if err != nil {
-		impl.Logger.Errorw("cannot find workflow ", "err", err)
-		return 0, errors.New("cannot find workflow " + workflow.Name)
-	}
-
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow("", runningWf.Name, runningWf.Namespace, nil, isExt, env)
+	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, workflow.Name, workflow.Namespace, restConfig, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
 	}
 
 	workflow.Status = executors.WorkflowCancel
+	if workflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+		workflow.PodStatus = "Failed"
+		workflow.Message = TERMINATE_MESSAGE
+	}
 	err = impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
 	if err != nil {
 		impl.Logger.Errorw("cannot update deleted workflow status, but wf deleted", "err", err)
@@ -626,6 +632,28 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		}
 	}
 	return workflow.Id, nil
+}
+
+func (impl *CiHandlerImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*rest.Config, error) {
+	env, err := impl.envRepository.FindById(workflow.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("could not fetch stage env", "err", err)
+		return nil, err
+	}
+
+	clusterBean := cluster.GetClusterBean(*env.Cluster)
+
+	clusterConfig, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return nil, err
+	}
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
+		return nil, err
+	}
+	return restConfig, nil
 }
 
 func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, buildId int) (types.WorkflowResponse, error) {
@@ -812,7 +840,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
-	useExternalBlobStorage := isExternalBlobStorageEnabled(isExt, impl.config.UseBlobStorageConfigInCdWorkflow)
+	useExternalBlobStorage := isExternalBlobStorageEnabled(isExt, impl.config.UseBlobStorageConfigInCiWorkflow)
 	if useExternalBlobStorage {
 		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
 		//from them else return.
@@ -839,7 +867,7 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		impl.Logger.Errorw("unable to fetch ciWorkflow", "err", err)
 		return nil, err
 	}
-	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCdWorkflow)
+	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCiWorkflow)
 	if !ciWorkflow.BlobStorageEnabled {
 		return nil, errors.New("logs-not-stored-in-repository")
 	}
@@ -897,9 +925,14 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		GcpBlobBaseConfig:   gcpBlobBaseConfig,
 	}
 	if useExternalBlobStorage {
-		clusterConfig, err := impl.clusterService.GetClusterConfigByEnvId(ciWorkflow.EnvironmentId)
+		envBean, err := impl.envService.FindById(ciWorkflow.EnvironmentId)
 		if err != nil {
-			impl.Logger.Errorw("GetClusterConfigByEnvId, error in fetching clusterConfig by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			impl.Logger.Errorw("error in getting envBean by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			return nil, err
+		}
+		clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(envBean.ClusterId)
+		if err != nil {
+			impl.Logger.Errorw("GetClusterConfigByClusterId, error in fetching clusterConfig by clusterId", "err", err, "clusterId", envBean.ClusterId)
 			return nil, err
 		}
 		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
@@ -969,11 +1002,16 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
-	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCdWorkflow)
+	useExternalBlobStorage := isExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCiWorkflow)
 	if useExternalBlobStorage {
-		clusterConfig, err := impl.clusterService.GetClusterConfigByEnvId(ciWorkflow.EnvironmentId)
+		envBean, err := impl.envService.FindById(ciWorkflow.EnvironmentId)
 		if err != nil {
-			impl.Logger.Errorw("GetClusterConfigByEnvId, error in fetching clusterConfig by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			impl.Logger.Errorw("error in getting envBean by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			return nil, err
+		}
+		clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(envBean.ClusterId)
+		if err != nil {
+			impl.Logger.Errorw("GetClusterConfigByClusterId, error in fetching clusterConfig by clusterId", "err", err, "clusterId", envBean.ClusterId)
 			return nil, err
 		}
 		//fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
@@ -1104,6 +1142,10 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		}
 		savedWorkflow.PodStatus = podStatus
 		savedWorkflow.Message = message
+		if savedWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == executors.WorkflowCancel {
+			savedWorkflow.PodStatus = "Failed"
+			savedWorkflow.Message = TERMINATE_MESSAGE
+		}
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		//savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs" //TODO need to fetch from workflow object
@@ -1610,8 +1652,13 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		isEligibleToMarkFailed := false
 		isPodDeleted := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
+
+			restConfig, err := impl.getRestConfig(ciWorkflow)
+			if err != nil {
+				return err
+			}
 			//check weather pod is exists or not, if exits check its status
-			wf, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, ciWorkflow.Namespace, isExt, env)
+			wf, err := impl.workflowService.GetWorkflowStatus(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
 			if err != nil {
 				impl.Logger.Warnw("unable to fetch ci workflow", "err", err)
 				statusError, ok := err.(*errors2.StatusError)
@@ -1647,10 +1694,15 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						// skip this and process for next ci workflow
 					}
 				}
-
-				//check workflow status,get the status
-				if wf.Status.Phase == v1alpha1.WorkflowFailed && wf.Status.Message == executors.POD_DELETED_MESSAGE {
-					isPodDeleted = true
+				if ciWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+					if wf.Status == string(v1alpha1.WorkflowFailed) {
+						isPodDeleted = true
+					}
+				} else {
+					//check workflow status,get the status
+					if wf.Status == string(v1alpha1.WorkflowFailed) && wf.Message == POD_DELETED_MESSAGE {
+						isPodDeleted = true
+					}
 				}
 			}
 		}

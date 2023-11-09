@@ -29,7 +29,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
+	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
@@ -63,17 +66,19 @@ type WebhookService interface {
 }
 
 type WebhookServiceImpl struct {
-	ciArtifactRepository repository.CiArtifactRepository
-	ciConfig             *types2.CiConfig
-	logger               *zap.SugaredLogger
-	ciPipelineRepository pipelineConfig.CiPipelineRepository
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository
-	appService           app.AppService
-	eventClient          client.EventClient
-	eventFactory         client.EventFactory
-	workflowDagExecutor  WorkflowDagExecutor
-	ciHandler            CiHandler
-	customTagService     CustomTagService
+	ciArtifactRepository    repository.CiArtifactRepository
+	ciConfig                *types2.CiConfig
+	logger                  *zap.SugaredLogger
+	ciPipelineRepository    pipelineConfig.CiPipelineRepository
+	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
+	appService              app.AppService
+	eventClient             client.EventClient
+	eventFactory            client.EventFactory
+	workflowDagExecutor     WorkflowDagExecutor
+	ciHandler               CiHandler
+	pipelineStageRepository repository2.PipelineStageRepository
+	globalPluginRepository  repository3.GlobalPluginRepository
+	customTagService        CustomTagService
 }
 
 func NewWebhookServiceImpl(
@@ -83,19 +88,23 @@ func NewWebhookServiceImpl(
 	appService app.AppService, eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	customTagService CustomTagService,
-	workflowDagExecutor WorkflowDagExecutor, ciHandler CiHandler) *WebhookServiceImpl {
+	workflowDagExecutor WorkflowDagExecutor, ciHandler CiHandler,
+	pipelineStageRepository repository2.PipelineStageRepository,
+	globalPluginRepository repository3.GlobalPluginRepository,
+	customTagService CustomTagService) *WebhookServiceImpl {
 	webhookHandler := &WebhookServiceImpl{
-		ciArtifactRepository: ciArtifactRepository,
-		logger:               logger,
-		ciPipelineRepository: ciPipelineRepository,
-		appService:           appService,
-		eventClient:          eventClient,
-		eventFactory:         eventFactory,
-		ciWorkflowRepository: ciWorkflowRepository,
-		workflowDagExecutor:  workflowDagExecutor,
-		ciHandler:            ciHandler,
-		customTagService:     customTagService,
+		ciArtifactRepository:    ciArtifactRepository,
+		logger:                  logger,
+		ciPipelineRepository:    ciPipelineRepository,
+		appService:              appService,
+		eventClient:             eventClient,
+		eventFactory:            eventFactory,
+		ciWorkflowRepository:    ciWorkflowRepository,
+		workflowDagExecutor:     workflowDagExecutor,
+		ciHandler:               ciHandler,
+		pipelineStageRepository: pipelineStageRepository,
+		globalPluginRepository:  globalPluginRepository,
+		customTagService:        customTagService,
 	}
 	config, err := types2.GetCiConfig()
 	if err != nil {
@@ -240,8 +249,19 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		IsArtifactUploaded: request.IsArtifactUploaded,
 		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
 	}
-	if pipeline.ScanEnabled {
+	plugin, err := impl.globalPluginRepository.GetPluginByName(bean.VULNERABILITY_SCANNING_PLUGIN)
+	if err != nil || len(plugin) == 0 {
+		impl.logger.Errorw("error in getting image scanning plugin", "err", err)
+		return 0, err
+	}
+	isScanPluginConfigured, err := impl.pipelineStageRepository.CheckPluginExistsInCiPipeline(pipeline.Id, string(repository2.PIPELINE_STAGE_TYPE_POST_CI), plugin[0].Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting ci pipeline plugin", "err", err, "pipelineId", pipeline.Id, "pluginId", plugin[0].Id)
+		return 0, err
+	}
+	if pipeline.ScanEnabled || isScanPluginConfigured{
 		buildArtifact.Scanned = true
+		buildArtifact.ScanEnabled = true
 	}
 	if err = impl.ciArtifactRepository.Save(buildArtifact); err != nil {
 		impl.logger.Errorw("error in saving material", "err", err)
