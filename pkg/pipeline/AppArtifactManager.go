@@ -411,7 +411,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 	}
 	if len(latestWf) > 0 {
 		//we should never show current deployed artifact in rollback API
-		artifactListingFilterOpts.ExcludeArtifactIds = []int{latestWf[0].CdWorkflow.CiArtifactId}
+		artifactListingFilterOpts.ExcludeWfrIds = []int{latestWf[0].Id}
 	}
 
 	var ciArtifacts []repository.CiArtifactWithExtraData

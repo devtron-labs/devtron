@@ -116,6 +116,9 @@ type ArtifactsListFilterOptions struct {
 	//excludeArtifactIds
 	ExcludeArtifactIds []int
 
+	//excludeWfRunners
+	ExcludeWfrIds []int
+
 	//ApprovalNode data
 	ApprovalNodeConfigured bool
 	ApproversCount         int
