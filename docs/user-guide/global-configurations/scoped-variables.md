@@ -7,10 +7,10 @@ In any piece of software or code, variables are used for holding data such as nu
 Devtron offers super-admins the capability to define scoped variables (key-value pairs). It means, while the key remains the same, its value can change depending on the following context: 
 
 * **Global**: Variable values will be universally same for everybody in Devtron.
-* **Cluster**: Variable values might differ for each Kubernetes cluster.
-* **Environment**: Variable values might differ for each environment within a cluster, e.g., staging, dev, prod.
-* **Application**: Variable values might differ for each application.
-* **Environment + Application**: Variable values might differ for each application on a specific environment.
+* **Cluster**: Variable values might differ for each Kubernetes cluster. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+* **Environment**: Variable values might differ for each environment within a cluster, e.g., staging, dev, prod. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+* **Application**: Variable values might differ for each application. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+* **Environment + Application**: Variable values might differ for each application on a specific environment. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 **Advantages of using scoped variables**
 
@@ -157,10 +157,10 @@ It would appear in the following format upon pasting it within an input field: `
 
 When multiple values are associated with a scoped variable, the precedence order is as follows, with the highest priority at the top:
 
-1. Environment + App
-2. App
-3. Environment
-4. Cluster
+1. Environment + App [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+2. App [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+3. Environment [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+4. Cluster [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 5. Global
 
 ### Example
@@ -178,14 +178,14 @@ When multiple values are associated with a scoped variable, the precedence order
 
 ## List of Predefined Variables
 
-There are some variables that exist by default in Devtron that you can readily use if needed:
+There are some system variables that exist by default in Devtron that you can readily use if needed:
 
-* DEVTRON_NAMESPACE
-* DEVTRON_CLUSTER_NAME
-* DEVTRON_ENV_NAME
-* DEVTRON_IMAGE_TAG
-* DEVTRON_IMAGE
-* DEVTRON_APP_NAME
+* **DEVTRON_NAMESPACE**: Provides name of the [namespace](../../reference/glossary.md#namespace)
+* **DEVTRON_CLUSTER_NAME**: Provides name of the [cluster](../global-configurations/cluster-and-environments.md) configured on Devtron
+* **DEVTRON_ENV_NAME**: Provides name of the [environment](../../reference/glossary.md#environment)
+* **DEVTRON_IMAGE_TAG**: Provides [image tag](https://docs.docker.com/engine/reference/commandline/tag/) associated with the [container image](../../reference/glossary.md#image)
+* **DEVTRON_IMAGE**: Provides full image path of the container image, e.g., `gcr.io/k8s-minikube/kicbase:v0.0.39`
+* **DEVTRON_APP_NAME**: Provides name of the [application on Devtron](../create-application.md)
 
 {% hint style="info" %}
 Currently, these variables do not appear in the scoped variable widget, but you may use them. 
