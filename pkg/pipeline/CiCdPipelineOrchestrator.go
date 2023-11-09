@@ -492,15 +492,16 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	for _, ci := range childrenCiPipelines {
 		childrenCiPipelineIds = append(childrenCiPipelineIds, ci.Id)
 		ciPipelineObject := &pipelineConfig.CiPipeline{
-			Version:          createRequest.Version,
-			Id:               ci.Id,
-			DockerArgs:       string(argByte),
-			Active:           createRequest.Active,
-			IsManual:         createRequest.IsManual,
-			IsExternal:       true,
-			Deleted:          createRequest.Deleted,
-			ParentCiPipeline: createRequest.Id,
-			AuditLog:         sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+			Version:                  createRequest.Version,
+			Id:                       ci.Id,
+			DockerArgs:               string(argByte),
+			Active:                   createRequest.Active,
+			IsManual:                 createRequest.IsManual,
+			IsExternal:               true,
+			Deleted:                  createRequest.Deleted,
+			ParentCiPipeline:         createRequest.Id,
+			IsDockerConfigOverridden: createRequest.IsDockerConfigOverridden,
+			AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
 		err = impl.ciPipelineRepository.Update(ciPipelineObject, tx)
 		if err != nil {
