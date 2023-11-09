@@ -741,6 +741,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiEnvMapping(tx *pg.Tx, ciPipelin
 		impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", ciPipeline.Id)
 		return err
 	}
+
 	if err == nil && CiEnvMappingObject != nil {
 		CiEnvMappingObject.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
 		CiEnvMappingObject.Deleted = true
@@ -750,7 +751,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiEnvMapping(tx *pg.Tx, ciPipelin
 			return err
 		}
 	}
-	return err
+	return nil
 }
 func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfigRequest, templateId int) (*bean.CiConfigRequest, error) {
 	//save pipeline in db start

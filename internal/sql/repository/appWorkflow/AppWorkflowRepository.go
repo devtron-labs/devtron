@@ -415,13 +415,13 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId
 	return models, err
 }
 func (impl AppWorkflowRepositoryImpl) FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error) {
-	var model *AppWorkflowMapping
+	model := AppWorkflowMapping{}
 	err := impl.dbConnection.Model(&model).
 		Where("type = ?", componentType).
 		Where("component_id = ?", componentId).
 		Where("active = ?", true).
 		Select()
-	return model, err
+	return &model, err
 }
 
 func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiIdByIdsIn(externalCiId []int) ([]*AppWorkflowMapping, error) {

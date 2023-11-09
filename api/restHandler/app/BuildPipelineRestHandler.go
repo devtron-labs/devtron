@@ -94,7 +94,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateExternalCi(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var createRequest *bean.ExternalCiPipelineCreateRequest
+	createRequest := &bean.ExternalCiPipelineCreateRequest{}
 	err = decoder.Decode(createRequest)
 	createRequest.UserId = userId
 	if err != nil {
