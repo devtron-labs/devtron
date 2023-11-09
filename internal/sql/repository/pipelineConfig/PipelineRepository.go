@@ -18,7 +18,6 @@
 package pipelineConfig
 
 import (
-	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -28,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"strconv"
 	"time"
 )
@@ -674,7 +674,12 @@ func (impl PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cd
 }
 
 func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error {
-	query := fmt.Sprintf("UPDATE pipeline SET ci_pipeline_id = %v WHERE ci_pipeline_id = %v", newCiPipelineId, oldCiPipelineId)
-	_, err := tx.Query((*Pipeline)(nil), query)
+	newCiPipId := pointer.Int(newCiPipelineId)
+	if newCiPipelineId == 0 {
+		newCiPipId = nil
+	}
+	_, err := tx.Model((*Pipeline)(nil)).Set("ci_pipeline_id = ?", newCiPipId).
+		Where("ci_pipeline_id = ? ", oldCiPipelineId).
+		Where("deleted = ?", false).Update()
 	return err
 }

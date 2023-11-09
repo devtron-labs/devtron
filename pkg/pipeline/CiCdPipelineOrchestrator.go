@@ -904,7 +904,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			if err != nil {
 				return createRequest, err
 			}
-			createRequest.AppWorkflowMappingId = appWorkflowMap.Id
+			createRequest.AppWorkflowMapping = appWorkflowMap
 		}
 		err = tx.Commit()
 		if err != nil {

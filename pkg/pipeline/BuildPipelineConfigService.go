@@ -1446,7 +1446,7 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.Ex
 		return createRequest, err
 	}
 	defer tx.Rollback()
-	externalCiPipelineId, appWorkflowMapId, err := impl.cdPipelineConfigService.CreateExternalCiAndAppWorkflowMapping(createRequest.AppId, createRequest.AppWorkflowId, createRequest.UserId, tx)
+	externalCiPipelineId, appWorkflowMapping, err := impl.cdPipelineConfigService.CreateExternalCiAndAppWorkflowMapping(createRequest.AppId, createRequest.AppWorkflowId, createRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating external ci pipeline", "appId", createRequest.AppId, "appWorkflowId", createRequest.AppWorkflowId, "err", err)
 		return createRequest, err
@@ -1467,9 +1467,9 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.Ex
 		return createRequest, err
 	}
 
-	err = impl.updateLinkedAppWorkflowMappings(tx, oldWorkflowMapping, appWorkflowMapId)
+	err = impl.updateLinkedAppWorkflowMappings(tx, oldWorkflowMapping, appWorkflowMapping)
 	if err != nil {
-		impl.logger.Errorw("error in updating linked app-workflow-mappings ", "oldAppWorkflowMappingId", oldWorkflowMapping.Id, "currentAppWorkflowMapId", appWorkflowMapId, "err", err, "userId", createRequest.UserId)
+		impl.logger.Errorw("error in updating linked app-workflow-mappings ", "oldAppWorkflowMappingId", oldWorkflowMapping.Id, "currentAppWorkflowMapId", appWorkflowMapping.Id, "err", err, "userId", createRequest.UserId)
 		return createRequest, err
 	}
 
@@ -1486,8 +1486,8 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.Ex
 	return createRequest, nil
 }
 
-func (impl *CiPipelineConfigServiceImpl) updateLinkedAppWorkflowMappings(tx *pg.Tx, oldAppWorkflowMapping *appWorkflow.AppWorkflowMapping, newAppWorkflowMappingId int) error {
-	return impl.appWorkflowRepository.UpdateParentComponentDetails(tx, oldAppWorkflowMapping.ComponentId, oldAppWorkflowMapping.Type, newAppWorkflowMappingId)
+func (impl *CiPipelineConfigServiceImpl) updateLinkedAppWorkflowMappings(tx *pg.Tx, oldAppWorkflowMapping *appWorkflow.AppWorkflowMapping, newAppWorkflowMapping *appWorkflow.AppWorkflowMapping) error {
+	return impl.appWorkflowRepository.UpdateParentComponentDetails(tx, oldAppWorkflowMapping.ComponentId, oldAppWorkflowMapping.Type, newAppWorkflowMapping.Id, newAppWorkflowMapping.Type)
 }
 
 func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPatchRequest, ciConfig *bean.CiConfigRequest) (*bean.CiConfigRequest, error) {
@@ -1560,7 +1560,7 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 
 	//go and update all the app workflow mappings of old ci_pipeline with new ci_pipeline_id.
 	if request.IsSwitchCiPipelineRequest() {
-		err = impl.updateLinkedAppWorkflowMappings(tx, oldAppWorkflowMapping, res.AppWorkflowMappingId)
+		err = impl.updateLinkedAppWorkflowMappings(tx, oldAppWorkflowMapping, res.AppWorkflowMapping)
 		if err != nil {
 			impl.logger.Errorw("error in updating app workflow mappings", "err", err)
 			return nil, err

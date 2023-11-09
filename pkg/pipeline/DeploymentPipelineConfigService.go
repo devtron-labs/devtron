@@ -108,7 +108,7 @@ type CdPipelineConfigService interface {
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	IsGitopsConfigured() (bool, error)
 	RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error
-	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, int, error)
+	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error)
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -1795,7 +1795,7 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 
 }
 
-func (impl *CdPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, int, error) {
+func (impl *CdPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error) {
 	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
 		AppId:       appId,
 		AccessToken: "",
@@ -1805,7 +1805,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(a
 	externalCiPipeline, err := impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving external ci", "appId", appId, "err", err)
-		return 0, 0, err
+		return 0, nil, err
 	}
 	appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 		AppWorkflowId: appWorkflowId,
@@ -1817,7 +1817,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(a
 	appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving app workflow mapping for external ci", "appId", appId, "appWorkflowId", appWorkflowId, "externalCiPipelineId", externalCiPipeline.Id, "err", err)
-		return 0, 0, err
+		return 0, nil, err
 	}
-	return externalCiPipeline.Id, appWorkflowMap.Id, nil
+	return externalCiPipeline.Id, appWorkflowMap, nil
 }
