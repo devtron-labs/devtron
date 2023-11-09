@@ -1068,6 +1068,12 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 				return ciArtifacts, 0, "", totalCount, err
 			}
 			for i, artifact := range ciArtifacts {
+				if currentRunningArtifactBean != nil && artifact.Id == currentRunningArtifactBean.Id {
+					ciArtifacts[i].Latest = true
+					ciArtifacts[i].Deployed = true
+					ciArtifacts[i].DeployedTime = currentRunningArtifactBean.DeployedTime
+
+				}
 				if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok {
 					ciArtifacts[i].UserApprovalMetadata = approvalMetadataForArtifact
 				}

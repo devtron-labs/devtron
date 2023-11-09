@@ -1322,6 +1322,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	//rbac block ends here
 	var ciArtifactResponse *bean.CiArtifactResponse
 
+	handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 = true
+
 	pendingApprovalParam := r.URL.Query().Get("resource")
 	if isApprovalNode && pendingApprovalParam == "PENDING_APPROVAL" {
 		artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
