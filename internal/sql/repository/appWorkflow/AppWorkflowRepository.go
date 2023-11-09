@@ -478,7 +478,7 @@ func (impl AppWorkflowRepositoryImpl) UpdateParentComponentDetails(tx *pg.Tx, ol
 	withQuery := "WITH new_app_workflow_mapping as (SELECT * from app_workflow_mapping where id = %v)"
 	withQuery = fmt.Sprintf(withQuery, newAppWorkflowMappingId)
 	updateQuery := fmt.Sprintf(" UPDATE app_workflow_mapping "+
-		" SET parent_type = new_app_workflow_mapping.type,parent_id = new_app_workflow_mapping.id where parent_id = %v and parent_type='%v' and active = true", oldComponentId, oldComponentType)
+		" SET parent_type = (select type from new_app_workflow_mapping),parent_id = (select id from new_app_workflow_mapping) where parent_id = %v and parent_type='%v' and active = true", oldComponentId, oldComponentType)
 
 	finalQuery := withQuery + updateQuery
 
