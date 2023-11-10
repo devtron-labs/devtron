@@ -1192,8 +1192,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		if err != nil || offset < 0 {
 			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
 			common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+			return
 		}
-		return
 	}
 
 	sizeQueryParam := r.URL.Query().Get("size")
@@ -1202,8 +1202,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		if err != nil {
 			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
 			common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+			return
 		}
-		return
 	}
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
 
