@@ -126,7 +126,7 @@ type WorkflowComponentNamesDto struct {
 }
 
 type WorkflowNamesResponse struct {
-	AppIdWorkflowNamesMapping map[int][]string `json:"appIdWorkflowNamesMapping"`
+	AppIdWorkflowNamesMapping map[string][]string `json:"appIdWorkflowNamesMapping"`
 }
 
 type WorkflowNamesRequest struct {
@@ -665,7 +665,7 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsForApps(request WorkflowNames
 	if len(request.AppNames) == 0 {
 		return &WorkflowNamesResponse{}, nil
 	}
-	appIds, err := impl.appRepository.FetchAppIdsByDisplaynames(request.AppNames)
+	appIdNameMapping, appIds, err := impl.appRepository.FetchAppIdsByDisplaynames(request.AppNames)
 	if err != nil {
 		impl.Logger.Errorw("error in getting apps by appNames", "err", err, "appNames", request.AppNames)
 		return nil, err
@@ -675,13 +675,13 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsForApps(request WorkflowNames
 		impl.Logger.Errorw("error occurred while fetching app workflows", "AppIds", appIds, "err", err)
 		return nil, err
 	}
-	appIdWorkflowMap := make(map[int][]string)
+	appIdWorkflowMap := make(map[string][]string)
 	for _, workflow := range appWorkflows {
-		if workflows, ok := appIdWorkflowMap[workflow.AppId]; ok {
+		if workflows, ok := appIdWorkflowMap[appIdNameMapping[workflow.AppId]]; ok {
 			workflows = append(workflows, workflow.Name)
-			appIdWorkflowMap[workflow.AppId] = workflows
+			appIdWorkflowMap[appIdNameMapping[workflow.AppId]] = workflows
 		} else {
-			appIdWorkflowMap[workflow.AppId] = []string{workflow.Name}
+			appIdWorkflowMap[appIdNameMapping[workflow.AppId]] = []string{workflow.Name}
 
 		}
 	}
