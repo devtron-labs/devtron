@@ -2621,6 +2621,8 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalPendingArtifacts(pipelineId, l
 		artifact.MaterialInfo = mInfo
 		artifact.DataSource = ciArtifact.DataSource
 		artifact.Deployed = ciArtifact.Deployed
+		artifact.Scanned = ciArtifact.Scanned
+		artifact.ScanEnabled = ciArtifact.ScanEnabled
 		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean2.LayoutRFC3339)
 		if ciArtifact.WorkflowId != nil {
 			artifact.WfrId = *ciArtifact.WorkflowId
