@@ -414,7 +414,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipe
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
 		Where("cd_workflow__ci_artifact.image LIKE ?", searchStringFinal)
 	if len(runnerStatuses) > 0 {
-		query.Where("cd_workflow_runner.status = ?", pg.In(runnerStatuses))
+		query.Where("cd_workflow_runner.status IN (?)", pg.In(runnerStatuses))
 	}
 	err := query.
 		Order("cd_workflow_runner.id DESC").
