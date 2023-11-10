@@ -658,6 +658,9 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 }
 
 func (impl AppWorkflowServiceImpl) FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error) {
+	if len(request.AppIds) == 0 {
+		return &WorkflowNamesResponse{}, nil
+	}
 	appWorkflows, err := impl.appWorkflowRepository.FindByAppIds(request.AppIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error occurred while fetching app workflows", "AppIds", request.AppIds, "err", err)
