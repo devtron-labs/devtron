@@ -20,6 +20,8 @@ package rbac
 import (
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -33,7 +35,7 @@ import (
 
 type EnforcerUtil interface {
 	GetAppRBACName(appName string) string
-	GetRbacObjectsForAllApps() map[int]string
+	GetRbacObjectsForAllApps(appType helper2.AppType) map[int]string
 	GetRbacObjectsForAllAppsWithTeamID(teamID int) map[int]string
 	GetAppRBACNameByAppId(appId int) string
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
@@ -64,6 +66,10 @@ type EnforcerUtil interface {
 	GetTeamNoEnvRBACNameByAppId(appId int) string
 	GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string)
 	GetAppRBACNameByAppAndProjectName(projectName, appName string) string
+	GetRbacObjectNameByAppAndWorkflow(appName, workflowName string) string
+	GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string
+	GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string
+	GetTeamEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string
 }
 
 type EnforcerUtilImpl struct {
@@ -153,9 +159,9 @@ func (impl EnforcerUtilImpl) GetProjectAdminRBACNameBYAppName(appName string) st
 	return fmt.Sprintf("%s/%s", application.Team.Name, "*")
 }
 
-func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps() map[int]string {
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps(appType helper2.AppType) map[int]string {
 	objects := make(map[int]string)
-	result, err := impl.appRepo.FindAllActiveAppsWithTeam()
+	result, err := impl.appRepo.FindAllActiveAppsWithTeam(appType)
 	if err != nil {
 		return objects
 	}
@@ -340,7 +346,7 @@ func (impl EnforcerUtilImpl) GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipel
 func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsAndEnvironments() (map[int]string, map[string]string) {
 	appObjects := make(map[int]string)
 	envObjects := make(map[string]string)
-	apps, err := impl.appRepo.FindAllActiveAppsWithTeam()
+	apps, err := impl.appRepo.FindAllActiveAppsWithTeam(helper2.CustomApp)
 	if err != nil {
 		impl.logger.Errorw("exception while fetching all active apps for rbac objects", "err", err)
 		return appObjects, envObjects
@@ -626,4 +632,46 @@ func (impl EnforcerUtilImpl) GetAllActiveTeamNames() ([]string, error) {
 
 func (impl EnforcerUtilImpl) GetAppRBACNameByAppAndProjectName(projectName, appName string) string {
 	return fmt.Sprintf("%s/%s", projectName, appName)
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectNameByAppAndWorkflow(appName, workflowName string) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", appName, workflowName)
+	}
+	return fmt.Sprintf("%s/%s/%s", application.Team.Name, appName, workflowName)
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", workflowName)
+	}
+	return fmt.Sprintf("%s/%s/%s", application.Team.Name, application.AppName, workflowName)
+}
+
+func (impl EnforcerUtilImpl) GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string {
+	ciPipeline, err := impl.ciPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		impl.logger.Error(err)
+		return ""
+	}
+	return impl.GetRbacObjectNameByAppIdAndWorkflow(ciPipeline.AppId, workflowName)
+}
+
+func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string {
+	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	application, err := impl.appRepo.FindById(ciPipeline.AppId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	appName := application.AppName
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", application.Team.Name, "", appName)
+	}
+	return fmt.Sprintf("%s/%s/%s", application.Team.Name, env.EnvironmentIdentifier, appName)
 }

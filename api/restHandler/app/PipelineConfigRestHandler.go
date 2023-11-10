@@ -25,7 +25,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -217,26 +216,14 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject)
+	if !ok {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionDelete, resourceObject)
 	}
-	if app.AppType == helper.Job {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else {
-		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
+	if !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
 	}
 	err = handler.pipelineBuilder.DeleteApp(appId, userId)
 	if err != nil {
@@ -343,16 +330,6 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if createRequest.AppType == helper.Job {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	}
 	handler.Logger.Infow("request payload, CreateApp", "CreateApp", createRequest)
 	err = handler.validator.Struct(createRequest)
 	if err != nil {
@@ -366,8 +343,17 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	isAuthorised := false
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); ok {
+		isAuthorised = true
+	}
+	if !isAuthorised {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); ok {
+			isAuthorised = true
+		}
+	}
+	if !isAuthorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}

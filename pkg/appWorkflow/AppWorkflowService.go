@@ -54,9 +54,10 @@ type AppWorkflowService interface {
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
 	FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest) ([]*AppWorkflowDto, error)
-
+	FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error)
 	FilterWorkflows(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error)
 	FindCdPipelinesByAppId(appId int) (*bean.CdPipelines, error)
+	FindAppWorkflowByCiPipelineId(ciPipelineId int) ([]*appWorkflow.AppWorkflowMapping, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -123,6 +124,14 @@ type WorkflowComponentNamesDto struct {
 	CiPipelineId   int      `json:"ciPipelineId"`
 	CiPipelineName string   `json:"ciPipelineName"`
 	CdPipelines    []string `json:"cdPipelines"`
+}
+
+type WorkflowNamesResponse struct {
+	AppIdWorkflowNamesMapping map[int][]string `json:"appIdWorkflowNamesMapping"`
+}
+
+type WorkflowNamesRequest struct {
+	AppIds []int `json:"appIds"`
 }
 
 type WorkflowCloneRequest struct {
@@ -574,7 +583,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 		if err != nil {
 			return nil, err
 		}
-		//override appIds if already provided app group id in request.
+		//override AppIds if already provided app group id in request.
 		request.ResourceIds = appIds
 	}
 	var pipelines []*pipelineConfig.Pipeline
@@ -650,6 +659,31 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 		}
 	}
 	return workflows, err
+}
+
+func (impl AppWorkflowServiceImpl) FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error) {
+	if len(request.AppIds) == 0 {
+		return &WorkflowNamesResponse{}, nil
+	}
+	appWorkflows, err := impl.appWorkflowRepository.FindByAppIds(request.AppIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error occurred while fetching app workflows", "AppIds", request.AppIds, "err", err)
+		return nil, err
+	}
+	appIdWorkflowMap := make(map[int][]string)
+	for _, workflow := range appWorkflows {
+		if workflows, ok := appIdWorkflowMap[workflow.AppId]; ok {
+			workflows = append(workflows, workflow.Name)
+			appIdWorkflowMap[workflow.AppId] = workflows
+		} else {
+			appIdWorkflowMap[workflow.AppId] = []string{workflow.Name}
+
+		}
+	}
+	workflowResp := &WorkflowNamesResponse{
+		AppIdWorkflowNamesMapping: appIdWorkflowMap,
+	}
+	return workflowResp, err
 }
 
 func (impl AppWorkflowServiceImpl) FilterWorkflows(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error) {
@@ -773,4 +807,14 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	}
 
 	return cdPipelines, nil
+}
+
+func (impl AppWorkflowServiceImpl) FindAppWorkflowByCiPipelineId(ciPipelineId int) ([]*appWorkflow.AppWorkflowMapping, error) {
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindByComponentId(ciPipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting app workflow mappings from component id", "err", err, "componentId", ciPipelineId)
+		return nil, err
+	}
+	return appWorkflowMapping, nil
+
 }

@@ -47,6 +47,7 @@ type AppWorkflowRestHandler interface {
 	FindAllWorkflows(w http.ResponseWriter, r *http.Request)
 	FindAppWorkflowByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetWorkflowsViewData(w http.ResponseWriter, r *http.Request)
+	FindAllWorkflowsForApps(w http.ResponseWriter, r *http.Request)
 }
 
 type AppWorkflowRestHandlerImpl struct {
@@ -130,11 +131,22 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	appWorkflow, err := handler.appWorkflowService.FindAppWorkflowById(appWorkflowId, appId)
+	if err != nil {
+		handler.Logger.Errorw("bad request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 
 	token := r.Header.Get("token")
 	//rbac block starts from here
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName); !ok {
+	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppIdAndWorkflow(appId, appWorkflow.Name)
+	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName)
+	if !ok {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionDelete, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionDelete, workflowResourceName)
+	}
+	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -252,6 +264,40 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r
 	resp, err := impl.appWorkflowService.FindAllWorkflowsComponentDetails(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting all wf component details by appId", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (impl AppWorkflowRestHandlerImpl) FindAllWorkflowsForApps(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	// RBAC enforcer applying
+	isSuperAdmin, err := impl.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			impl.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	var request appWorkflow.WorkflowNamesRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	resp, err := impl.appWorkflowService.FindAllWorkflowsForApps(request)
+	if err != nil {
+		impl.Logger.Errorw("error in getting all wf component details by appId", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

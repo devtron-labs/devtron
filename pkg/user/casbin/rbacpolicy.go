@@ -53,6 +53,9 @@ const (
 	ActionExec           = "exec"
 	ActionAllPlaceHolder = "all"
 	ActionApprove        = "approve"
+	ResourceJobs     = "jobs"
+	ResourceJobsEnv  = "jobEnv"
+	ResourceWorkflow = "workflow"
 
 	ClusterResourceRegex         = "%s/%s"    // {cluster}/{namespace}
 	ClusterObjectRegex           = "%s/%s/%s" // {groupName}/{kindName}/{objectName}
