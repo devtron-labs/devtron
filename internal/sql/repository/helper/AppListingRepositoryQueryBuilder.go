@@ -327,3 +327,14 @@ func GetCommaSepratedString[T int | string](appIds []T) string {
 	}
 	return appIdsString
 }
+
+func GetCommaSepratedStringWithComma[T int | string](appIds []T) string {
+	appIdsString := ""
+	for i, appId := range appIds {
+		appIdsString += fmt.Sprintf("'%v'", appId)
+		if i != len(appIds)-1 {
+			appIdsString += ","
+		}
+	}
+	return appIdsString
+}
