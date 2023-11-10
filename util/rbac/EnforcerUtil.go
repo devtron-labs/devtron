@@ -20,6 +20,7 @@ package rbac
 import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/util"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -34,7 +35,7 @@ import (
 
 type EnforcerUtil interface {
 	GetAppRBACName(appName string) string
-	GetRbacObjectsForAllApps() map[int]string
+	GetRbacObjectsForAllApps(appType helper.AppType) map[int]string
 	GetRbacObjectsForAllAppsWithTeamID(teamID int) map[int]string
 	GetAppRBACNameByAppId(appId int) string
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
@@ -153,9 +154,9 @@ func (impl EnforcerUtilImpl) GetProjectAdminRBACNameBYAppName(appName string) st
 	return fmt.Sprintf("%s/%s", application.Team.Name, "*")
 }
 
-func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps() map[int]string {
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps(appType helper.AppType) map[int]string {
 	objects := make(map[int]string)
-	result, err := impl.appRepo.FindAllActiveAppsWithTeam()
+	result, err := impl.appRepo.FindAllActiveAppsWithTeam(appType)
 	if err != nil {
 		return objects
 	}
@@ -321,7 +322,7 @@ func (impl EnforcerUtilImpl) GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipel
 func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsAndEnvironments() (map[int]string, map[string]string) {
 	appObjects := make(map[int]string)
 	envObjects := make(map[string]string)
-	apps, err := impl.appRepo.FindAllActiveAppsWithTeam()
+	apps, err := impl.appRepo.FindAllActiveAppsWithTeam(helper.CustomApp)
 	if err != nil {
 		impl.logger.Errorw("exception while fetching all active apps for rbac objects", "err", err)
 		return appObjects, envObjects
