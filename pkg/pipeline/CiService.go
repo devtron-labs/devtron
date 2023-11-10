@@ -493,6 +493,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		fmt.Sprintf(bean2.ImagePathPattern, pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository, dockerImageTag), pipeline.CiTemplate.DockerRegistry.Id)
 	if err != nil {
 		impl.Logger.Errorw("error in getting env variables for skopeo plugin")
+		savedWf.Status = pipelineConfig.WorkflowFailed
+		savedWf.Message = err.Error()
+		err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+		if err1 != nil {
+			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+		}
 		return nil, err
 	}
 

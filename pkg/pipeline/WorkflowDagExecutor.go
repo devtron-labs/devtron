@@ -773,11 +773,16 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			}
 			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
 			if err != nil {
+				runner.Status = pipelineConfig.WorkflowFailed
+				err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return err
 			}
 			imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
 			if err != nil {
+				runner.Status = pipelineConfig.WorkflowFailed
+				runner.Message = err.Error()
+				err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 				return err
 			}
 			runner.ImagePathReservationIds = imagePathReservationIds
@@ -918,7 +923,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 
 	var pluginImagePathReservationIds []int
-	for _, step := range cdStageWorkflowRequest.PostCiSteps {
+	for _, step := range cdStageWorkflowRequest.PrePostDeploySteps {
 		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
 			// for Skopeo plugin parse destination images and save its data in image path reservation table
 			customTag, dockerImageTag, err := impl.customTagService.GetCustomTag(bean3.EntityTypePostCD, strconv.Itoa(pipeline.Id))
@@ -942,11 +947,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			}
 			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
 			if err != nil {
+				runner.Status = pipelineConfig.WorkflowFailed
+				err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return err
 			}
 			imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
 			if err != nil {
+				runner.Status = pipelineConfig.WorkflowFailed
+				err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 				return err
 			}
 			pluginImagePathReservationIds = imagePathReservationIds
