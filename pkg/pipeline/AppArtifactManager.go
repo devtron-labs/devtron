@@ -323,7 +323,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 	}
 	if len(latestWf) > 0 {
 		//we should never show current deployed artifact in rollback API
-		artifactListingFilterOpts.ExcludeArtifactIds = []int{latestWf[0].CdWorkflow.CiArtifactId}
+		artifactListingFilterOpts.ExcludeWfrIds = []int{latestWf[0].Id}
 	}
 
 	ciArtifacts, totalCount, err := impl.ciArtifactRepository.FetchArtifactsByCdPipelineIdV2(artifactListingFilterOpts)
@@ -363,6 +363,8 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 			DeployedTime: formatDate(ciArtifact.StartedOn, bean2.LayoutRFC3339),
 			WfrId:        ciArtifact.CdWorkflowRunnerId,
 			DeployedBy:   userEmail,
+			Scanned:      ciArtifact.Scanned,
+			ScanEnabled:  ciArtifact.ScanEnabled,
 		})
 		artifactIds = append(artifactIds, ciArtifact.Id)
 	}
