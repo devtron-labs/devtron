@@ -124,7 +124,7 @@ type WorkflowComponentNamesDto struct {
 }
 
 type WorkflowNamesResponse struct {
-	WorkflowNames []string `json:"workflowNames"`
+	AppIdWorkflowNamesMapping map[int][]string `json:"appIdWorkflowNamesMapping"`
 }
 
 type WorkflowNamesRequest struct {
@@ -663,12 +663,18 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsForApps(request WorkflowNames
 		impl.Logger.Errorw("error occurred while fetching app workflows", "AppIds", request.AppIds, "err", err)
 		return nil, err
 	}
-	var workflows []string
+	appIdWorkflowMap := make(map[int][]string)
 	for _, workflow := range appWorkflows {
-		workflows = append(workflows, workflow.Name)
+		if workflows, ok := appIdWorkflowMap[workflow.AppId]; ok {
+			workflows = append(workflows, workflow.Name)
+			appIdWorkflowMap[workflow.AppId] = workflows
+		} else {
+			appIdWorkflowMap[workflow.AppId] = []string{workflow.Name}
+
+		}
 	}
 	workflowResp := &WorkflowNamesResponse{
-		WorkflowNames: workflows,
+		AppIdWorkflowNamesMapping: appIdWorkflowMap,
 	}
 	return workflowResp, err
 }
