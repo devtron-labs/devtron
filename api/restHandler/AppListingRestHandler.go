@@ -261,8 +261,10 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	// fetching only those jobs whose access user has by setting valid app Ids.
-	fetchJobListingRequest.AppIds = validAppIds
+	if !isSuperAdmin {
+		// fetching only those jobs whose access user has by setting valid app Ids.
+		fetchJobListingRequest.AppIds = validAppIds
+	}
 	jobs, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchJobs", "err", err, "payload", fetchJobListingRequest)
@@ -294,14 +296,6 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
 	vars := mux.Vars(r)
 	jobId, err := strconv.Atoi(vars["jobId"])
 	if err != nil {
@@ -309,6 +303,14 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(jobId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC ENDS
 	job, err := handler.pipeline.GetApp(jobId)
 	if err != nil || job == nil || job.AppType != helper.Job {
 		handler.logger.Errorw("Job with the given Id does not exist", "err", err, "jobId", jobId)

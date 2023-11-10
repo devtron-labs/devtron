@@ -61,6 +61,7 @@ type AppWorkflowRepository interface {
 	FindByCDPipelineIds(cdPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindByWorkflowIds(workflowIds []int) ([]*AppWorkflowMapping, error)
 	FindMappingByAppIds(appIds []int) ([]*AppWorkflowMapping, error)
+	FindByComponentId(componentId int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -456,6 +457,16 @@ func (impl AppWorkflowRepositoryImpl) FindMappingByAppIds(appIds []int) ([]*AppW
 	var appWorkflowsMapping []*AppWorkflowMapping
 	err := impl.dbConnection.Model(&appWorkflowsMapping).Column("app_workflow_mapping.*", "AppWorkflow").
 		Where("app_workflow.app_id in (?)", pg.In(appIds)).
+		Where("app_workflow.active = ?", true).
+		Where("app_workflow_mapping.active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByComponentId(componentId int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&appWorkflowsMapping).Column("app_workflow_mapping.*", "AppWorkflow").
+		Where("app_workflow_mapping.component_id= ?", componentId).
 		Where("app_workflow.active = ?", true).
 		Where("app_workflow_mapping.active = ?", true).
 		Select()

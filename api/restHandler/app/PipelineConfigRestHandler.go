@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -214,26 +213,14 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject)
+	if !ok {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionDelete, resourceObject)
 	}
-	if app.AppType == helper.Job {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else {
-		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
+	if !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
 	}
 	err = handler.pipelineBuilder.DeleteApp(appId, userId)
 	if err != nil {

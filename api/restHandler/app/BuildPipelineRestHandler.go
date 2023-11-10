@@ -389,7 +389,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppAndWorkflowId(app.AppName, appWorkflow.Name)
+	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppAndWorkflow(app.AppName, appWorkflow.Name)
 	var ok bool
 	ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
 	if !ok {
@@ -454,7 +454,11 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName)
+	if !ok {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, resourceName)
+	}
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -571,8 +575,25 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	appWorkflowMapping, err := handler.appWorkflowService.FindAppWorkflowByCiPipelineId(ciTriggerRequest.PipelineId)
+	if err != nil {
+		handler.Logger.Errorw("err in finding appWorkflowMapping, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	workflowName := ""
+	if len(appWorkflowMapping) > 0 {
+		workflowName = appWorkflowMapping[0].AppWorkflow.Name
+	}
 	appObject := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
-	if appRbacOk := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObject); !appRbacOk {
+	workflowObject := handler.enforcerUtil.GetWorkflowRBACByCiPipelineId(ciTriggerRequest.PipelineId, workflowName)
+	triggerObject := handler.enforcerUtil.GetTeamEnvRBACNameByCiPipelineIdAndEnvId(ciTriggerRequest.PipelineId, ciTriggerRequest.EnvironmentId)
+	appRbacOk := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObject)
+	if !appRbacOk {
+		appRbacOk = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionTrigger, appObject) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionTrigger, workflowObject) && handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionTrigger, triggerObject)
+	}
+
+	if !appRbacOk {
 		handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -923,16 +944,34 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	appWorkflowMapping, err := handler.appWorkflowService.FindAppWorkflowByCiPipelineId(pipelineId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetBuildHistory", "err", err, "pipelineId", pipelineId, "offset", offset)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	//RBAC for build history
 	token := r.Header.Get("token")
+	isAuthorised := false
+	workflowName := ""
+	if len(appWorkflowMapping) > 0 {
+		workflowName = appWorkflowMapping[0].AppWorkflow.Name
+	}
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	workflowResourceObject := handler.enforcerUtil.GetWorkflowRBACByCiPipelineId(pipelineId, workflowName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
+		isAuthorised = true
+	}
+	if !isAuthorised {
+		isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionGet, workflowResourceObject)
+	}
+	if !isAuthorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC
 	//RBAC for edit tag access , user should have build permission in current ci-pipeline
-	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
+	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object) || handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionTrigger, object)
 	//RBAC
 	resp := BuildHistoryResponse{}
 	workflowsResp, err := handler.ciHandler.GetBuildHistory(pipelineId, ciPipeline.AppId, offset, limit)

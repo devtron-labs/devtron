@@ -57,6 +57,7 @@ type AppWorkflowService interface {
 	FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error)
 	FilterWorkflows(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error)
 	FindCdPipelinesByAppId(appId int) (*bean.CdPipelines, error)
+	FindAppWorkflowByCiPipelineId(ciPipelineId int) ([]*appWorkflow.AppWorkflowMapping, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -803,4 +804,14 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	}
 
 	return cdPipelines, nil
+}
+
+func (impl AppWorkflowServiceImpl) FindAppWorkflowByCiPipelineId(ciPipelineId int) ([]*appWorkflow.AppWorkflowMapping, error) {
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindByComponentId(ciPipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting app workflow mappings from component id", "err", err, "componentId", ciPipelineId)
+		return nil, err
+	}
+	return appWorkflowMapping, nil
+
 }

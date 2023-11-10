@@ -131,11 +131,22 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	appWorkflow, err := handler.appWorkflowService.FindAppWorkflowById(appWorkflowId, appId)
+	if err != nil {
+		handler.Logger.Errorw("bad request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 
 	token := r.Header.Get("token")
 	//rbac block starts from here
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName); !ok {
+	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppIdAndWorkflow(appId, appWorkflow.Name)
+	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName)
+	if !ok {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionDelete, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionDelete, workflowResourceName)
+	}
+	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}

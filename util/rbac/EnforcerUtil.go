@@ -64,7 +64,10 @@ type EnforcerUtil interface {
 	GetAllActiveTeamNames() ([]string, error)
 	GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string)
 	GetAppRBACNameByAppAndProjectName(projectName, appName string) string
-	GetRbacObjectNameByAppAndWorkflowId(appName, workflowName string) string
+	GetRbacObjectNameByAppAndWorkflow(appName, workflowName string) string
+	GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string
+	GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string
+	GetTeamEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string
 }
 
 type EnforcerUtilImpl struct {
@@ -611,10 +614,44 @@ func (impl EnforcerUtilImpl) GetAppRBACNameByAppAndProjectName(projectName, appN
 	return fmt.Sprintf("%s/%s", projectName, appName)
 }
 
-func (impl EnforcerUtilImpl) GetRbacObjectNameByAppAndWorkflowId(appName, workflowName string) string {
+func (impl EnforcerUtilImpl) GetRbacObjectNameByAppAndWorkflow(appName, workflowName string) string {
 	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", appName, workflowName)
 	}
 	return fmt.Sprintf("%s/%s/%s", application.Team.Name, appName, workflowName)
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", workflowName)
+	}
+	return fmt.Sprintf("%s/%s/%s", application.Team.Name, application.AppName, workflowName)
+}
+
+func (impl EnforcerUtilImpl) GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string {
+	ciPipeline, err := impl.ciPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		impl.logger.Error(err)
+		return ""
+	}
+	return impl.GetRbacObjectNameByAppIdAndWorkflow(ciPipeline.AppId, workflowName)
+}
+
+func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string {
+	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	application, err := impl.appRepo.FindById(ciPipeline.AppId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	appName := application.AppName
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", application.Team.Name, "", appName)
+	}
+	return fmt.Sprintf("%s/%s/%s", application.Team.Name, env.EnvironmentIdentifier, appName)
 }
