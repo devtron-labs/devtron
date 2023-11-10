@@ -20,6 +20,7 @@ package appWorkflow
 import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -66,6 +67,7 @@ type AppWorkflowServiceImpl struct {
 	ciPipelineRepository     pipelineConfig.CiPipelineRepository
 	pipelineRepository       pipelineConfig.PipelineRepository
 	resourceGroupService     resourceGroup2.ResourceGroupService
+	appRepository            appRepository.AppRepository
 	enforcerUtil             rbac.EnforcerUtil
 }
 
@@ -128,7 +130,7 @@ type WorkflowNamesResponse struct {
 }
 
 type WorkflowNamesRequest struct {
-	AppIds []int `json:"appIds"`
+	AppNames []string `json:"appNames"`
 }
 
 type WorkflowCloneRequest struct {
@@ -146,7 +148,8 @@ type PipelineIdentifier struct {
 
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService) *AppWorkflowServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService,
+	appRepository appRepository.AppRepository) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                   logger,
 		appWorkflowRepository:    appWorkflowRepository,
@@ -155,6 +158,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 		pipelineRepository:       pipelineRepository,
 		enforcerUtil:             enforcerUtil,
 		resourceGroupService:     resourceGroupService,
+		appRepository:            appRepository,
 	}
 }
 
@@ -658,12 +662,17 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 }
 
 func (impl AppWorkflowServiceImpl) FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error) {
-	if len(request.AppIds) == 0 {
+	if len(request.AppNames) == 0 {
 		return &WorkflowNamesResponse{}, nil
 	}
-	appWorkflows, err := impl.appWorkflowRepository.FindByAppIds(request.AppIds)
+	appIds, err := impl.appRepository.FetchAppIdsByDisplaynames(request.AppNames)
+	if err != nil {
+		impl.Logger.Errorw("error in getting apps by appNames", "err", err, "appNames", request.AppNames)
+		return nil, err
+	}
+	appWorkflows, err := impl.appWorkflowRepository.FindByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error occurred while fetching app workflows", "AppIds", request.AppIds, "err", err)
+		impl.Logger.Errorw("error occurred while fetching app workflows", "AppIds", appIds, "err", err)
 		return nil, err
 	}
 	appIdWorkflowMap := make(map[int][]string)
