@@ -4,13 +4,13 @@
 
 In any piece of software or code, variables are used for holding data such as numbers or strings. Variables are created by declaring them, which involves specifying the variable's name and type, followed by assigning it a value.
 
-Devtron offers super-admins the capability to define scoped variables (key-value pairs). It means, while the key remains the same, its value can change depending on the following context: 
+Devtron offers super-admins the capability to define scoped variables (key-value pairs). It means, while the key remains the same, its value may change depending on the following context: 
 
-* **Global**: Variable values will be universally same for everybody in Devtron.
-* **Cluster**: Variable values might differ for each Kubernetes cluster. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
-* **Environment**: Variable values might differ for each environment within a cluster, e.g., staging, dev, prod. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
-* **Application**: Variable values might differ for each application. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
-* **Environment + Application**: Variable values might differ for each application on a specific environment. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+* **Global**: Variable value will be universally same throughout Devtron.
+* **Cluster**: Variable value might differ for each Kubernetes cluster. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+* **Environment**: Variable value might differ for each environment within a cluster, e.g., staging, dev, prod. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+* **Application**: Variable value might differ for each application. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+* **Environment + Application**: Variable value might differ for each application on a specific environment. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 **Advantages of using scoped variables**
 
@@ -113,7 +113,7 @@ Here's a truncated template containing the specification of two variables for yo
 
 ---
 
-## How to Edit an Exiting Scoped Variable
+## How to Edit an Existing Scoped Variable
 
 Only a super-admin can edit existing scoped variables.
 
@@ -135,7 +135,14 @@ Reuploading the YAML file will replace the previous file, so any variable that e
 
 Once a variable is defined, it can be used by your authorized users on Devtron. A scoped variable widget would appear only on the screens that support its usage. 
 
-Currently, the widget is shown only on `Edit build pipeline` and `Edit deployment pipeline` screens under **App Configuration** → **Workflow Editor**.
+Currently, the widget is shown only on the following screens in [App Configuration](../creating-application/README.md): 
+* Workflow Editor → Edit build pipeline → Pre-build stage (tab)
+* Workflow Editor → Edit build pipeline → Post-build stage (tab)
+* Workflow Editor → Edit deployment pipeline → Post-Deployment stage (tab)
+* Workflow Editor → Edit deployment pipeline → Post-Deployment stage (tab)
+* ConfigMaps
+* Secrets
+
 
 ![Figure 8: Unexpanded Widget](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/scoped-variables/widget1.jpg)
 
