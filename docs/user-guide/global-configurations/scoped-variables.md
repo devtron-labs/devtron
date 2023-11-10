@@ -140,9 +140,9 @@ Currently, the widget is shown only on the following screens in [App Configurati
 * Workflow Editor → Edit build pipeline → Post-build stage (tab)
 * Workflow Editor → Edit deployment pipeline → Post-Deployment stage (tab)
 * Workflow Editor → Edit deployment pipeline → Post-Deployment stage (tab)
+* Deployment Template
 * ConfigMaps
 * Secrets
-
 
 ![Figure 8: Unexpanded Widget](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/scoped-variables/widget1.jpg)
 
