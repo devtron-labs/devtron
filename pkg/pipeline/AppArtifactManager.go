@@ -456,6 +456,8 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 			DeployedTime: formatDate(ciArtifact.StartedOn, bean2.LayoutRFC3339),
 			WfrId:        ciArtifact.CdWorkflowRunnerId,
 			DeployedBy:   userEmail,
+			Scanned:      ciArtifact.Scanned,
+			ScanEnabled:  ciArtifact.ScanEnabled,
 		})
 		artifactIds = append(artifactIds, ciArtifact.Id)
 	}
