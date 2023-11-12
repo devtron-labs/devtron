@@ -34,7 +34,7 @@ VALUES ('jobs', '', 'admin', '{
            },
            {
              "res": {
-               "value": "jobEnv",
+               "value": "jobenv",
                "indexKeyMap": {}
              },
              "act": {
@@ -153,7 +153,7 @@ VALUES ('jobs', '', 'admin', '{
            },
            {
              "res": {
-               "value": "jobEnv",
+               "value": "jobenv",
                "indexKeyMap": {}
              },
              "act": {
@@ -171,7 +171,7 @@ VALUES ('jobs', '', 'admin', '{
            },
            {
              "res": {
-               "value": "jobEnv",
+               "value": "jobenv",
                "indexKeyMap": {}
              },
              "act": {
@@ -291,7 +291,7 @@ VALUES ('jobs', '', 'admin', '{
            },
            {
              "res": {
-               "value": "jobEnv",
+               "value": "jobenv",
                "indexKeyMap": {}
              },
              "act": {
@@ -526,7 +526,7 @@ VALUES ('jobs', '', 'admin', 'Admin', 'Can view, run and edit jobs in selected s
 INSERT INTO rbac_policy_resource_detail ("resource", "policy_resource_value", "allowed_actions",
                                          "resource_object", "eligible_entity_access_types", "deleted", "created_on",
                                          "created_by", "updated_on", "updated_by")
-VALUES ('jobEnv', '{ "value": "jobEnv", "indexKeyMap": {}}', ARRAY['get','update','create','delete','trigger'],'{"value": "%/%/%","indexKeyMap": {"0": "TeamObj","2": "EnvObj","4": "AppObj"}}', ARRAY['jobs'],'f','now()', '1', 'now()', '1');
+VALUES ('jobenv', '{ "value": "jobenv", "indexKeyMap": {}}', ARRAY['get','update','create','delete','trigger'],'{"value": "%/%/%","indexKeyMap": {"0": "TeamObj","2": "EnvObj","4": "AppObj"}}', ARRAY['jobs'],'f','now()', '1', 'now()', '1');
 
 INSERT INTO rbac_policy_resource_detail ("resource", "policy_resource_value", "allowed_actions",
                                          "resource_object", "eligible_entity_access_types", "deleted", "created_on",

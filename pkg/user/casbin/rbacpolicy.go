@@ -38,7 +38,7 @@ const (
 	ResourceChartGroup   = "chart-group"
 
 	ResourceJobs     = "jobs"
-	ResourceJobsEnv  = "jobEnv"
+	ResourceJobsEnv  = "jobenv"
 	ResourceWorkflow = "workflow"
 
 	ResourceTeam    = "team"
