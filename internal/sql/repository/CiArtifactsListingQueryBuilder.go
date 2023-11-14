@@ -79,8 +79,8 @@ func BuildQueryForArtifactsForRollback(listingFilterOptions bean.ArtifactsListFi
 		" INNER JOIN ci_artifact cia ON cia.id=cdw.ci_artifact_id " +
 		" WHERE cdw.pipeline_id=%v AND cdwr.workflow_type = '%v' AND cia.image LIKE '%v'"
 	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.SearchString)
-	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
-		commonQuery = fmt.Sprintf(" %s AND cia.id NOT IN (%s)", commonQuery, helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
+	if len(listingFilterOptions.ExcludeWfrIds) > 0 {
+		commonQuery = fmt.Sprintf(" %s AND cdwr.id NOT IN (%s)", commonQuery, helper.GetCommaSepratedString(listingFilterOptions.ExcludeWfrIds))
 	}
 	totalCountQuery := " SELECT COUNT(cia.id) as total_count " + commonQuery
 	orderByQuery := " ORDER BY cdwr.id DESC "
