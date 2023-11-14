@@ -1,9 +1,6 @@
 INSERT INTO "plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_metadata'), 'Skopeo','','PRESET','','f', 'now()', 1, 'now()', 1);
 
-INSERT INTO "plugin_tag" ("id", "name", "deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_tag'), 'CI task','f', 'now()',1, 'now()', 1);
-
 INSERT INTO "plugin_tag_relation" ("id", "tag_id", "plugin_id", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_tag_relation'),(SELECT id FROM plugin_tag WHERE name='CI task') , (SELECT id FROM plugin_metadata WHERE name='Skopeo'),'now()', 1, 'now()', 1);
 
