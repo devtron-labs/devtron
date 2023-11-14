@@ -25,6 +25,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"path"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
@@ -72,27 +73,36 @@ type AppStoreDeploymentFullModeService interface {
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
-	logger                               *zap.SugaredLogger                                              `json:"logger,omitempty"`
-	chartTemplateService                 util.ChartTemplateService                                       `json:"chartTemplateService,omitempty"`
-	refChartDir                          appStoreBean.RefChartProxyDir                                   `json:"refChartDir,omitempty"`
-	repositoryService                    repository.ServiceClient                                        `json:"repositoryService,omitempty"`
-	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository `json:"appStoreApplicationVersionRepository,omitempty"`
-	environmentRepository                repository5.EnvironmentRepository                               `json:"environmentRepository,omitempty"`
-	acdClient                            application2.ServiceClient                                      `json:"acdClient,omitempty"`
-	ArgoK8sClient                        argocdServer.ArgoK8sClient                                      `json:"argoK8SClient,omitempty"`
-	gitFactory                           *util.GitFactory                                                `json:"gitFactory,omitempty"`
-	aCDAuthConfig                        *util2.ACDAuthConfig                                            `json:"ACDAuthConfig,omitempty"`
-	globalEnvVariables                   *util3.GlobalEnvVariables                                       `json:"globalEnvVariables,omitempty"`
-	installedAppRepository               repository4.InstalledAppRepository                              `json:"installedAppRepository,omitempty"`
-	tokenCache                           *util2.TokenCache                                               `json:"tokenCache,omitempty"`
-	argoUserService                      argo.ArgoUserService                                            `json:"argoUserService,omitempty"`
-	gitOpsConfigRepository               repository3.GitOpsConfigRepository                              `json:"gitOpsConfigRepository,omitempty"`
-	pipelineStatusTimelineService        status.PipelineStatusTimelineService                            `json:"pipelineStatusTimelineService,omitempty"`
-	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService        `json:"appStoreDeploymentCommonService,omitempty"`
-	argoClientWrapperService             argocdServer.ArgoClientWrapperService                           `json:"argoClientWrapperService,omitempty"`
-	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl                             `json:"pubSubClient,omitempty"`
-	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository                `json:"installedAppRepositoryHistory,omitempty"`
-	helmAppService                       client.HelmAppService                                           `json:"helmAppService,omitempty"`
+	logger                               *zap.SugaredLogger
+	chartTemplateService                 util.ChartTemplateService
+	refChartDir                          appStoreBean.RefChartProxyDir
+	repositoryService                    repository.ServiceClient
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
+	environmentRepository                repository5.EnvironmentRepository
+	acdClient                            application2.ServiceClient
+	ArgoK8sClient                        argocdServer.ArgoK8sClient
+	gitFactory                           *util.GitFactory
+	aCDAuthConfig                        *util2.ACDAuthConfig
+	globalEnvVariables                   *util3.GlobalEnvVariables
+	installedAppRepository               repository4.InstalledAppRepository
+	tokenCache                           *util2.TokenCache
+	argoUserService                      argo.ArgoUserService
+	gitOpsConfigRepository               repository3.GitOpsConfigRepository
+	pipelineStatusTimelineService        status.PipelineStatusTimelineService
+	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	argoClientWrapperService             argocdServer.ArgoClientWrapperService
+	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
+	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
+	helmAppService                       client.HelmAppService
+	helmAsyncHelmInstallRequestMap       map[int32]bool
+	helmAsyncHelmInstallRequestLock      *sync.Mutex
+	helmAppReleaseContextMap             map[int]HelmAppReleaseContextType
+	helmAppReleaseContextMapLock         *sync.Mutex
+}
+
+type HelmAppReleaseContextType struct {
+	CancelContext       context.CancelFunc
+	AppVersionHistoryId int
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -566,33 +576,72 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmChartInstall() e
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(installHelmAsyncRequest *InstallHelmAsyncRequest) {
 
+	defer impl.cleanUpHelmAppReleaseContextMap(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionId, installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(installHelmAsyncRequest.InstallAppVersionDTO.HelmInstallContextTime)*time.Minute)
 	defer cancel()
-	installRes, err := impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.InstallAppVersionDTO.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
-	impl.logger.Debugw("Install Release in callback", "installRes", installRes)
+	if skip := impl.handleConcurrentRequest(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId); skip {
+		impl.logger.Warnw("concurrent request received, SubscribeHelmAsyncHelmInstallRequest", "WfrId", installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId)
+		return
+	}
+	//skip if the appVersionHistory is not the latest one
+	exists, err := impl.handleIfPreviousRunnerTriggerRequest(installHelmAsyncRequest.InstallAppVersionDTO)
 	if err != nil {
+		impl.logger.Errorw("err in validating latest cd workflow runner, processDevtronAsyncHelmInstallRequest", "err", err)
+		return
+	}
+	if exists {
+		return
+	}
+	impl.UpdateReleaseContextForPipeline(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionId, installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, cancel)
+	impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO, pipelineConfig.WorkflowInProgress, "")
+	installRes, err := impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.InstallAppVersionDTO.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
+	if err != nil {
+		impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO, false)
 		impl.logger.Errorw("Error in Install Release in callback", "err", err)
 		return
 	}
-	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO)
+	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO, installRes.GetSuccess())
+}
 
-	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId))
-	if err != nil {
-		impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-		return
+func (impl *AppStoreDeploymentFullModeServiceImpl) UpdateReleaseContextForPipeline(appVersionId, appVersionHistoryId int, cancel context.CancelFunc) {
+	impl.helmAppReleaseContextMapLock.Lock()
+	defer impl.helmAppReleaseContextMapLock.Unlock()
+	if releaseContext, ok := impl.helmAppReleaseContextMap[appVersionId]; ok {
+		//Abort previous running release
+		impl.logger.Infow("new deployment has been triggered with a running deployment in progress!", "aborting deployment for pipelineId", appVersionHistoryId)
+		releaseContext.CancelContext()
 	}
-	if !installRes.Success {
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
-	} else {
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+	impl.helmAppReleaseContextMap[appVersionId] = HelmAppReleaseContextType{
+		CancelContext:       cancel,
+		AppVersionHistoryId: appVersionHistoryId,
 	}
-	//TODO Ashish:- Add HelmReleaseStatusConfig
-	//installedAppVersionHistory.HelmReleaseStatusConfig =
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-	if err != nil {
-		impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-		return
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) cleanUpHelmAppReleaseContextMap(appVersionId, appVersionHistoryId int) {
+	if impl.isReleaseContextExistsForPipeline(appVersionId, appVersionHistoryId) {
+		impl.helmAppReleaseContextMapLock.Lock()
+		defer impl.helmAppReleaseContextMapLock.Unlock()
+		if _, ok := impl.helmAppReleaseContextMap[appVersionId]; ok {
+			delete(impl.helmAppReleaseContextMap, appVersionId)
+		}
 	}
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) isReleaseContextExistsForPipeline(appVersionId, appVersionHistoryId int) bool {
+	impl.helmAppReleaseContextMapLock.Lock()
+	defer impl.helmAppReleaseContextMapLock.Unlock()
+	if releaseContext, ok := impl.helmAppReleaseContextMap[appVersionId]; ok {
+		return releaseContext.AppVersionHistoryId == appVersionHistoryId
+	}
+	return false
+}
+func (impl *AppStoreDeploymentFullModeServiceImpl) handleIfPreviousRunnerTriggerRequest(installAppVersionDTO *appStoreBean.InstallAppVersionDTO) (bool, error) {
+	exists, err := impl.installedAppRepositoryHistory.IsLatestVersionHistory(installAppVersionDTO.InstalledAppVersionId, installAppVersionDTO.InstalledAppVersionHistoryId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err on fetching latest cd workflow runner, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
+		return false, err
+	}
+	return exists, nil
 }
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(installHelmAsyncRequest *InstallHelmAsyncRequest) {
@@ -633,36 +682,28 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 			return
 		}
 	} else if util.IsManifestDownload(installHelmAsyncRequest.InstallAppVersionDTO.DeploymentAppType) {
-		err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO, pipelineConfig.WorkflowSucceeded)
+		err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO, pipelineConfig.WorkflowSucceeded, "")
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return
 		}
 	} else if util.IsHelmApp(installHelmAsyncRequest.InstallAppVersionDTO.DeploymentAppType) && !installHelmAsyncRequest.InstallAppVersionDTO.HelmInstallASyncMode {
-		err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithSync(installHelmAsyncRequest.InstallAppVersionDTO)
+		err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithSync(installHelmAsyncRequest.InstallAppVersionDTO, false)
 		if err != nil {
 			impl.logger.Errorw("error in updating install app version history on sync", "err", err)
 			return
 		}
 	}
-
-	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto.InstallReleaseRequest.InstallAppVersionHistoryId))
-	if err != nil {
-		impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-		return
+}
+func (impl *AppStoreDeploymentFullModeServiceImpl) handleConcurrentRequest(installAppVersionHistoryId int32) bool {
+	impl.helmAsyncHelmInstallRequestLock.Lock()
+	defer impl.helmAsyncHelmInstallRequestLock.Unlock()
+	if _, exists := impl.helmAsyncHelmInstallRequestMap[installAppVersionHistoryId]; exists {
+		//request is in process already, Skip here
+		return true
 	}
-	if !res.GetSuccess() {
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
-	} else {
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-	}
-	//TODO Ashish:- Add HelmReleaseStatusConfig
-	//installedAppVersionHistory.HelmReleaseStatusConfig =
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-	if err != nil {
-		impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-		return
-	}
+	impl.helmAsyncHelmInstallRequestMap[installAppVersionHistoryId] = true
+	return false
 }
 
 type InstallHelmAsyncRequest struct {

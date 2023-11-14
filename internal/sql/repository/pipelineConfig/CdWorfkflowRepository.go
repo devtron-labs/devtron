@@ -103,6 +103,7 @@ const (
 	WorkflowTypeDeploy         = "DEPLOY"
 	WorkflowTypePre            = "PRE"
 	WorkflowTypePost           = "POST"
+	WorkflowInQueue            = "Queued"
 )
 
 func (a WorkflowStatus) String() string {

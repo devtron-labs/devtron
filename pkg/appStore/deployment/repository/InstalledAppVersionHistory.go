@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -20,7 +21,8 @@ type InstalledAppVersionHistoryRepository interface {
 	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error)
-
+	UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppVersionId int, triggeredBy int32) error
+	IsLatestVersionHistory(installedAppVersionId, installedAppVersionHistoryId int) (bool, error)
 	GetConnection() *pg.DB
 }
 
@@ -91,6 +93,33 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppStoreApplicationVersi
 	query = fmt.Sprintf(query, installedAppVersionHistoryId)
 	_, err := impl.dbConnection.Query(&appStoreApplicationVersionId, query)
 	return appStoreApplicationVersionId, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppVersionId int, triggeredBy int32) error {
+	var model []*InstalledAppVersionHistory
+	_, err := impl.dbConnection.Model(&model).
+		Set("status=?", pipelineConfig.WorkflowFailed).
+		Set("finished_on=?", time.Now()).
+		Set("updated_on=?", time.Now()).
+		Set("updated_by", triggeredBy).
+		Where("id < ?", installedAppVersionHistoryId).
+		Where("installed_app_version_id=?", installedAppVersionId).
+		Where("status=?", pipelineConfig.WorkflowInQueue).
+		Update()
+	return err
+
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) IsLatestVersionHistory(installedAppVersionId, installedAppVersionHistoryId int) (bool, error) {
+	var model *InstalledAppVersionHistory
+	exists, err := impl.dbConnection.Model(&model).
+		Column("installed_app_version_history.*").
+		Where("installed_app_version_id = ?", installedAppVersionId).
+		Order("cd_workflow_runner.id DESC").
+		Where("id > ?", installedAppVersionHistoryId).
+		Exists()
+
+	return exists, err
 }
 
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHistoryByVersionId(installAppVersionId int) ([]*InstalledAppVersionHistory, error) {
