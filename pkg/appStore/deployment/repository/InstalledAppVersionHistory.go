@@ -101,10 +101,10 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersion
 		Set("status=?", pipelineConfig.WorkflowFailed).
 		Set("finished_on=?", time.Now()).
 		Set("updated_on=?", time.Now()).
-		Set("updated_by", triggeredBy).
+		Set("updated_by=?", triggeredBy).
 		Where("id < ?", installedAppVersionHistoryId).
-		Where("installed_app_version_id=?", installedAppVersionId).
-		Where("status=?", pipelineConfig.WorkflowInQueue).
+		Where("installed_app_version_id = ?", installedAppVersionId).
+		Where("status = ?", pipelineConfig.WorkflowInQueue).
 		Update()
 	return err
 
