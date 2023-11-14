@@ -115,7 +115,7 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) IsLatestVersionHistory(inst
 	exists, err := impl.dbConnection.Model(model).
 		Column("installed_app_version_history.*").
 		Where("installed_app_version_id = ?", installedAppVersionId).
-		Order("cd_workflow_runner.id DESC").
+		Order("installed_app_version_history.id DESC").
 		Where("id > ?", installedAppVersionHistoryId).
 		Exists()
 
