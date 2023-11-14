@@ -144,6 +144,10 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		pubSubClient:                         pubSubClient,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		helmAppService:                       helmAppService,
+		helmAsyncHelmInstallRequestMap:       make(map[int32]bool),
+		helmAsyncHelmInstallRequestLock:      &sync.Mutex{},
+		helmAppReleaseContextMap:             make(map[int]HelmAppReleaseContextType),
+		helmAppReleaseContextMapLock:         &sync.Mutex{},
 	}
 	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstall()
 	if err != nil {
