@@ -14,7 +14,11 @@ INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Skopeo'),'Step 1','Step 1 - Copy container images','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Skopeo' and ps."index"=1 and ps.deleted=false), 'DESTINATION_INFO','STRING','Skopeo account username',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Skopeo' and ps."index"=1 and ps.deleted=false), 'DESTINATION_INFO','STRING',
+        'In case of CI, build image will be copied to registry and repository provided in DESTINATION_INFO. In case of PRE-CD/POST-CD, Image used to trigger stage will be copied in DESTINATION_INFO
+        Format:
+            <registry1> | <repo1>,<repo2>',
+        ,true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","variable_type", "value_type", "variable_step_index",reference_variable_name, "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Skopeo' and ps."index"=1 and ps.deleted=false), 'DOCKER_IMAGE','STRING','',false,true,'INPUT','GLOBAL',1 ,'DOCKER_IMAGE','f','now()', 1, 'now()', 1);
