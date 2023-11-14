@@ -784,6 +784,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			EnvironmentId:                 dbPipeline.EnvironmentId,
 			EnvironmentName:               environment.Name,
 			Description:                   environment.Description,
+			IsProdEnv:                     environment.Default,
 			CiPipelineId:                  dbPipeline.CiPipelineId,
 			DeploymentTemplate:            deploymentTemplate,
 			TriggerType:                   dbPipeline.TriggerType,

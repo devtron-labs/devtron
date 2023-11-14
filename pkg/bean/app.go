@@ -587,6 +587,7 @@ type CDPipelineConfigObject struct {
 	SourceToNewPipelineId         map[int]int                            `json:"sourceToNewPipelineId,omitempty"`
 	RefPipelineId                 int                                    `json:"refPipelineId,omitempty"`
 	ExternalCiPipelineId          int                                    `json:"externalCiPipelineId,omitempty"`
+	IsProdEnv                     bool                                   `json:"isProdEnv"`
 }
 
 type PreStageConfigMapSecretNames struct {
