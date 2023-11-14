@@ -1450,6 +1450,11 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
 		return nil, err
 	}
+	err = impl.installedAppRepositoryHistory.UpdatePreviousQueuedVersionHistory(installedAppVersionHistory.Id, installedAppVersion.Id, installAppVersionRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
 	installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
 	_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", tx)
 
