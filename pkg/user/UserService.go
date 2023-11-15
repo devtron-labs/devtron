@@ -864,7 +864,7 @@ func (impl *UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool
 		if len(role.Team) > 0 && role.Entity != bean2.EntityJobs {
 			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
 		} else if role.Entity == bean2.EntityJobs {
-			key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Workflow)
+			key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
 		} else if len(role.Entity) > 0 {
 			if role.Entity == bean.CLUSTER_ENTITIY {
 				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
@@ -1405,7 +1405,7 @@ func (impl *UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]
 		if len(role.Team) > 0 && role.Entity != bean2.EntityJobs {
 			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
 		} else if role.Entity == bean2.EntityJobs {
-			key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Workflow)
+			key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
 		} else if len(role.Entity) > 0 {
 			if role.Entity == bean.CLUSTER_ENTITIY {
 				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
