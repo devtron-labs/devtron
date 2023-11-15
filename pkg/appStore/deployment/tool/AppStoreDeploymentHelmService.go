@@ -139,7 +139,6 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		IsOCIRepo:                  IsOCIRepo,
 		RegistryCredential:         registryCredential,
 		InstallAppVersionHistoryId: int32(installAppVersionRequest.InstalledAppVersionHistoryId),
-		IsAsyncInstall:             installAppVersionRequest.HelmInstallAsyncMode,
 	}
 
 	impl.Logger.Debugw("Helm install HelmInstallAsyncMode", "HelmInstallAsyncMode", installAppVersionRequest.HelmInstallAsyncMode)
