@@ -7,7 +7,10 @@ import (
 )
 
 func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions) string {
-	commonPaginatedQueryPart := fmt.Sprintf(" cia.image LIKE '%v'", listingFilterOpts.SearchString)
+	commonPaginatedQueryPart := ""
+	if listingFilterOpts.SearchString != "%%" {
+		commonPaginatedQueryPart = fmt.Sprintf(" cia.image LIKE '%v' ", listingFilterOpts.SearchString)
+	}
 	orderByClause := " ORDER BY cia.id DESC"
 	limitOffsetQueryPart := fmt.Sprintf(" LIMIT %v OFFSET %v", listingFilterOpts.Limit, listingFilterOpts.Offset)
 	finalQuery := ""
@@ -49,8 +52,12 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 		" INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id " +
 		" INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id " +
 		" WHERE ((cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v') " +
-		"       OR (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v' AND cd_workflow_runner.status IN ('Healthy','Succeeded')))" +
-		" AND cia.image LIKE '%v' "
+		"       OR (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v' AND cd_workflow_runner.status IN ('Healthy','Succeeded'))) "
+
+	if listingFilterOptions.SearchString != "%%" {
+		commonQuery += " AND cia.image LIKE '%v' "
+	}
+
 	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType, listingFilterOptions.SearchString)
 	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
 		commonQuery = commonQuery + fmt.Sprintf(" AND cd_workflow.ci_artifact_id NOT IN (%v)", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
@@ -69,7 +76,10 @@ func BuildQueryForArtifactsForRollback(listingFilterOptions bean.ArtifactsListFi
 	commonQuery := " FROM cd_workflow_runner cdwr " +
 		" INNER JOIN cd_workflow cdw ON cdw.id=cdwr.cd_workflow_id " +
 		" INNER JOIN ci_artifact cia ON cia.id=cdw.ci_artifact_id " +
-		" WHERE cdw.pipeline_id=%v AND cdwr.workflow_type = '%v' AND cia.image LIKE '%v'"
+		" WHERE cdw.pipeline_id=%v AND cdwr.workflow_type = '%v' "
+	if listingFilterOptions.SearchString != "%%" {
+		commonQuery += " AND cia.image LIKE '%v' "
+	}
 	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.SearchString)
 	if len(listingFilterOptions.ExcludeWfrIds) > 0 {
 		commonQuery = fmt.Sprintf(" %s AND cdwr.id NOT IN (%s)", commonQuery, helper.GetCommaSepratedString(listingFilterOptions.ExcludeWfrIds))
