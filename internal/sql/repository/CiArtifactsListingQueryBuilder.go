@@ -6,9 +6,11 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 )
 
+const EmptyLikeRegex = "%%"
+
 func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
 	commonPaginatedQueryPart := ""
-	if listingFilterOpts.SearchString != "%%" {
+	if listingFilterOpts.SearchString != EmptyLikeRegex {
 		commonPaginatedQueryPart = fmt.Sprintf(" cia.image LIKE '%v'", listingFilterOpts.SearchString)
 	}
 	orderByClause := " ORDER BY cia.id DESC"
@@ -67,7 +69,7 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 		" WHERE ((cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v') " +
 		"       OR (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v' AND cd_workflow_runner.status IN ('Healthy','Succeeded')))"
 
-	if listingFilterOptions.SearchString != "%%" {
+	if listingFilterOptions.SearchString != EmptyLikeRegex {
 		commonQuery += " AND cia.image LIKE '%v' "
 	}
 
@@ -92,7 +94,7 @@ func BuildQueryForArtifactsForRollback(listingFilterOptions bean.ArtifactsListFi
 		" INNER JOIN cd_workflow cdw ON cdw.id=cdwr.cd_workflow_id " +
 		" INNER JOIN ci_artifact cia ON cia.id=cdw.ci_artifact_id " +
 		" WHERE cdw.pipeline_id=%v AND cdwr.workflow_type = '%v' "
-	if listingFilterOptions.SearchString != "%%" {
+	if listingFilterOptions.SearchString != EmptyLikeRegex {
 		commonQuery += " AND cia.image LIKE '%v' "
 	}
 	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.SearchString)
@@ -122,7 +124,7 @@ func BuildApprovedOnlyArtifactsWithFilter(listingFilterOpts bean.ArtifactsListFi
 		" INNER JOIN ci_artifact cia ON cia.id = dar.ci_artifact_id " +
 		" WHERE dar.active=true AND dar.artifact_deployment_triggered = false AND dar.pipeline_id = %v "
 
-	if listingFilterOpts.SearchString != "%%" {
+	if listingFilterOpts.SearchString != EmptyLikeRegex {
 		commonQueryPart += " AND cia.image LIKE '%v' "
 	}
 	commonQueryPart = fmt.Sprintf(commonQueryPart, listingFilterOpts.ApproversCount, listingFilterOpts.PipelineId, listingFilterOpts.SearchString)
@@ -153,7 +155,7 @@ func BuildQueryForApprovedArtifactsForRollback(listingFilterOpts bean.ArtifactsL
 		"	INNER JOIN deployment_approval_request dar ON dar.ci_artifact_id = cdw.ci_artifact_id" +
 		"   WHERE dar.id IN (%s) AND cdw.pipeline_id = %v" +
 		"   AND cdwr.workflow_type = '%v'"
-	if listingFilterOpts.SearchString != "%%" {
+	if listingFilterOpts.SearchString != EmptyLikeRegex {
 		commonQuery += " AND cia.image LIKE '%v' "
 	}
 
