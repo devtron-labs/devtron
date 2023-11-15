@@ -1,1 +1,0 @@
-ALTER TABLE resource_filter_audit DROP COLUMN filter_name;
