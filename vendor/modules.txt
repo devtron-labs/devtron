@@ -916,6 +916,9 @@ github.com/robfig/cron/v3
 # github.com/russross/blackfriday v1.5.2
 ## explicit
 github.com/russross/blackfriday
+# github.com/samber/lo v1.38.1
+## explicit; go 1.18
+github.com/samber/lo
 # github.com/satori/go.uuid v1.2.0
 ## explicit
 github.com/satori/go.uuid

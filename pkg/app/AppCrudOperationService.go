@@ -71,7 +71,7 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 	logger *zap.SugaredLogger, appRepository appRepository.AppRepository,
 	userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository,
 	teamRepository team.TeamRepository, genericNoteService genericNotes.GenericNoteService,
-	gitMaterialRepository pipelineConfig.MaterialRepository, ) *AppCrudOperationServiceImpl {
+	gitMaterialRepository pipelineConfig.MaterialRepository) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,

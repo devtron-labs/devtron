@@ -17,6 +17,7 @@ type ResourceFilterAudit struct {
 	tableName    struct{}            `sql:"resource_filter_audit" pg:",discard_unknown_columns"`
 	Id           int                 `sql:"id"`
 	FilterId     int                 `sql:"filter_id"`
+	FilterName   string              `sql:"filter_name"`
 	Conditions   string              `sql:"conditions"` //json string
 	TargetObject *FilterTargetObject `sql:"target_object"`
 	Action       *ActionType         `sql:"action"`
@@ -45,6 +46,7 @@ type FilterAuditRepository interface {
 	GetConnection() *pg.DB
 	CreateResourceFilterAudit(tx *pg.Tx, filter *ResourceFilterAudit) (*ResourceFilterAudit, error)
 	GetLatestResourceFilterAuditByFilterIds(ids []int) ([]*ResourceFilterAudit, error)
+	GetByIds(ids []int) ([]*ResourceFilterAudit, error)
 }
 
 type FilterAuditRepositoryImpl struct {
@@ -84,4 +86,18 @@ func (repo *FilterAuditRepositoryImpl) GetLatestResourceFilterAuditByFilterIds(f
 		"GROUP BY filter_id"
 	_, err := repo.dbConnection.Query(&res, query, pg.In(filterIds))
 	return res, err
+}
+
+func (repo *FilterAuditRepositoryImpl) GetByIds(ids []int) ([]*ResourceFilterAudit, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	resp := make([]*ResourceFilterAudit, 0)
+	err := repo.dbConnection.Model(&resp).
+		Where("id IN (?)", pg.In(ids)).
+		Select()
+	if err == pg.ErrNoRows {
+		return resp, nil
+	}
+	return resp, err
 }
