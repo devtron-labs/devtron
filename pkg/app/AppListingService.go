@@ -209,6 +209,7 @@ type OverviewAppsByEnvironmentBean struct {
 	EnvironmentName string                          `json:"environmentName"`
 	Namespace       string                          `json:"namespace"`
 	ClusterName     string                          `json:"clusterName"`
+	ClusterId       int                             `json:"clusterId"`
 	Type            string                          `json:"environmentType"`
 	Description     string                          `json:"description"`
 	AppCount        int                             `json:"appCount"`
@@ -231,6 +232,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	resp.EnvironmentId = envId
 	resp.EnvironmentName = env.Name
 	resp.ClusterName = env.Cluster.ClusterName
+	resp.ClusterId = env.ClusterId
 	resp.Namespace = env.Namespace
 	resp.CreatedOn = env.CreatedOn.String()
 	if env.Default {
