@@ -743,57 +743,16 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	cdStageWorkflowRequest.StageType = types.PRE
-	// handling plugin specific logic
-	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(SKOPEO)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting skopeo plugin id", "err", err)
+	// handling skopeo plugin specific logic
+	imagePathReservationIds, err := impl.SetSkopeoPluginDataInWorkflowRequest(cdStageWorkflowRequest, pipeline.Id, types.PRE, artifact)
+	if err != nil {
+		runner.Status = pipelineConfig.WorkflowFailed
+		runner.Message = err.Error()
+		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		return err
-	}
-	for _, step := range cdStageWorkflowRequest.PrePostDeploySteps {
-		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
-			// for Skopeo plugin parse destination images and save its data in image path reservation table
-			customTag, dockerImageTag, err := impl.customTagService.GetCustomTag(bean3.EntityTypePreCD, strconv.Itoa(pipeline.Id))
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
-				return err
-			}
-			var customTagId int
-			if customTag != nil && customTag.Id > 0 {
-				customTagId = customTag.Id
-			} else {
-				customTagId = -1
-			}
-			var sourceDockerRegistryId string
-			if artifact.DataSource == repository.PRE_CD || artifact.DataSource == repository.POST_CD || artifact.DataSource == repository.POST_CI {
-				if artifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
-					sourceDockerRegistryId = artifact.CredentialSourceValue
-				}
-			} else {
-				sourceDockerRegistryId = cdStageWorkflowRequest.DockerRegistryId
-			}
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
-			if err != nil {
-				runner.Status = pipelineConfig.WorkflowFailed
-				err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
-				return err
-			}
-			imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
-			if err != nil {
-				runner.Status = pipelineConfig.WorkflowFailed
-				runner.Message = err.Error()
-				err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-				return err
-			}
-			runner.ImagePathReservationIds = imagePathReservationIds
-			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if err != nil {
-				impl.logger.Errorw("error in updating image path reservation ")
-			}
-			cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
-			cdStageWorkflowRequest.RegistryCredentialMap = registryCredentialMap
-			cdStageWorkflowRequest.PluginArtifactStage = repository.PRE_CD
-		}
+	} else {
+		runner.ImagePathReservationIds = imagePathReservationIds
+		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 	}
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
@@ -815,6 +774,66 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) SetSkopeoPluginDataInWorkflowRequest(cdStageWorkflowRequest *types.WorkflowRequest, pipelineId int, pipelineStage string, artifact *repository.CiArtifact) ([]int, error) {
+	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(SKOPEO)
+	var imagePathReservationIds []int
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting skopeo plugin id", "err", err)
+		return imagePathReservationIds, err
+	}
+	for _, step := range cdStageWorkflowRequest.PrePostDeploySteps {
+		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
+			var pipelineStageEntityType int
+			if pipelineStage == types.PRE {
+				pipelineStageEntityType = bean3.EntityTypePreCD
+			} else {
+				pipelineStageEntityType = bean3.EntityTypePostCD
+			}
+			// for Skopeo plugin parse destination images and save its data in image path reservation table
+			customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
+				return imagePathReservationIds, err
+			}
+			var customTagId int
+			if customTagDbObject != nil && customTagDbObject.Id > 0 {
+				customTagId = customTagDbObject.Id
+			} else {
+				customTagId = -1
+			}
+			var sourceDockerRegistryId string
+
+			if artifact.DataSource == repository.PRE_CD || artifact.DataSource == repository.POST_CD || artifact.DataSource == repository.POST_CI {
+				if artifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+					sourceDockerRegistryId = artifact.CredentialSourceValue
+				}
+			} else {
+				sourceDockerRegistryId = cdStageWorkflowRequest.DockerRegistryId
+			}
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, customDockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
+			if err != nil {
+				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
+				return imagePathReservationIds, err
+			}
+			imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
+			if err != nil {
+				impl.logger.Errorw("error in reserving image", "err", err)
+				return imagePathReservationIds, err
+			}
+			cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
+			cdStageWorkflowRequest.RegistryCredentialMap = registryCredentialMap
+			var pluginArtifactStage string
+			if pipelineStage == types.PRE {
+				pluginArtifactStage = repository.PRE_CD
+			} else {
+				pluginArtifactStage = repository.POST_CD
+			}
+			cdStageWorkflowRequest.PluginArtifactStage = pluginArtifactStage
+		}
+	}
+	return imagePathReservationIds, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) sendPreStageNotification(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline) error {
@@ -916,54 +935,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
 	// handling plugin specific logic
-	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(SKOPEO)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting skopeo plugin id", "err", err)
+
+	pluginImagePathReservationIds, err := impl.SetSkopeoPluginDataInWorkflowRequest(cdStageWorkflowRequest, pipeline.Id, types.POST, cdWf.CiArtifact)
+	if err != nil {
+		runner.Status = pipelineConfig.WorkflowFailed
+		runner.Message = err.Error()
+		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		return err
 	}
 
-	var pluginImagePathReservationIds []int
-	for _, step := range cdStageWorkflowRequest.PrePostDeploySteps {
-		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
-			// for Skopeo plugin parse destination images and save its data in image path reservation table
-			customTag, dockerImageTag, err := impl.customTagService.GetCustomTag(bean3.EntityTypePostCD, strconv.Itoa(pipeline.Id))
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
-				return err
-			}
-			var customTagId int
-			if customTag != nil && customTag.Id > 0 {
-				customTagId = customTag.Id
-			} else {
-				customTagId = -1
-			}
-			var sourceDockerRegistryId string
-			if cdWf.CiArtifact.DataSource == repository.PRE_CD || cdWf.CiArtifact.DataSource == repository.POST_CD || cdWf.CiArtifact.DataSource == repository.POST_CI {
-				if cdWf.CiArtifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
-					sourceDockerRegistryId = cdWf.CiArtifact.CredentialSourceValue
-				}
-			} else {
-				sourceDockerRegistryId = cdStageWorkflowRequest.DockerRegistryId
-			}
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
-			if err != nil {
-				runner.Status = pipelineConfig.WorkflowFailed
-				err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
-				return err
-			}
-			imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
-			if err != nil {
-				runner.Status = pipelineConfig.WorkflowFailed
-				err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-				return err
-			}
-			pluginImagePathReservationIds = imagePathReservationIds
-			cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
-			cdStageWorkflowRequest.RegistryCredentialMap = registryCredentialMap
-			cdStageWorkflowRequest.PluginArtifactStage = repository.POST_CD
-		}
-	}
 	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
@@ -1396,7 +1376,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
 		cdStageWorkflowRequest.DockerRegistryId = ciPipeline.CiTemplate.DockerRegistry.Id
 		cdStageWorkflowRequest.CiPipelineType = ciPipeline.PipelineType
-		cdStageWorkflowRequest.DockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
 	} else if cdPipeline.AppId > 0 {
 		ciTemplate, err := impl.CiTemplateRepository.FindByAppId(cdPipeline.AppId)
 		if err != nil {
@@ -1412,7 +1391,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
-		cdStageWorkflowRequest.DockerRegistryId = *ciTemplate.DockerRegistryId
 		appLabels, err := impl.appLabelRepository.FindAllByAppId(cdPipeline.AppId)
 		cdStageWorkflowRequest.DockerRegistryId = ciPipeline.CiTemplate.DockerRegistry.Id
 		if err != nil && err != pg.ErrNoRows {
