@@ -555,6 +555,8 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 	return nil
 }
 
+// this function is for internal use only, this doesn't always guarantee pipeline stage even if pre/post-cd stage is configured
+// because for old pipelines their pre-cd and post-cd data is stored in pipeline table in yaml format.
 func (impl *WorkflowDagExecutorImpl) getPipelineStage(pipelineId int, stageType repository4.PipelineStageType) (*repository4.PipelineStage, error) {
 	stage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipelineId, stageType)
 	if err != nil && err != pg.ErrNoRows {
@@ -691,6 +693,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	if err != nil {
 		return err
 	}
+	//this will handle the scenario when post stage yaml is not migrated yet into pipeline stage table
+	pipelineStageType := resourceFilter.PrePipelineStageYaml
+	stageId := pipeline.Id
+	if preStage != nil {
+		pipelineStageType = resourceFilter.PipelineStage
+		stageId = preStage.Id
+	}
+
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
 	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
@@ -711,7 +721,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 
 	//store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, resourceFilter.PipelineStage, preStage.Id, filters, filterIdVsState)
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
 	if err != nil {
 		impl.logger.Errorw("error in creating filter evaluation audit data cd pre stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "preStageId", preStage.Id)
 		return err
@@ -921,6 +931,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	if err != nil {
 		return err
 	}
+	//this will handle the scenario when post stage yaml is not migrated yet into pipeline stage table
+	pipelineStageType := resourceFilter.PostPipelineStageYaml
+	stageId := pipeline.Id
+	if postStage != nil {
+		pipelineStageType = resourceFilter.PipelineStage
+		stageId = postStage.Id
+	}
+
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
 	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
@@ -948,7 +966,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 	//store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, cdWf.CiArtifact.Id, resourceFilter.PipelineStage, postStage.Id, filters, filterIdVsState)
+	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, cdWf.CiArtifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
 	if err != nil {
 		impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", cdWf.CiArtifact.Id)
 		return err

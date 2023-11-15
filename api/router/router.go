@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
+	"github.com/devtron-labs/devtron/api/devtronResource"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	"github.com/devtron-labs/devtron/api/globalPolicy"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -131,6 +132,7 @@ type MuxRouter struct {
 	scopedVariableRouter               ScopedVariableRouter
 	ciTriggerCron                      cron.CiTriggerCron
 	resourceFilterRouter               ResourceFilterRouter
+	devtronResourceRouter              devtronResource.DevtronResourceRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -163,7 +165,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalTagRouter globalTag.GlobalTagRouter, rbacRoleRouter user.RbacRoleRouter,
 	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
 	scopedVariableRouter ScopedVariableRouter, ciTriggerCron cron.CiTriggerCron,
-	resourceFilterRouter ResourceFilterRouter) *MuxRouter {
+	resourceFilterRouter ResourceFilterRouter,
+	devtronResourceRouter devtronResource.DevtronResourceRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -240,6 +243,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		configDraftRouter:                  configDraftRouter,
 		resourceProtectionRouter:           resourceProtectionRouter,
 		resourceFilterRouter:               resourceFilterRouter,
+		devtronResourceRouter:              devtronResourceRouter,
 	}
 	return r
 }
@@ -466,4 +470,7 @@ func (r MuxRouter) Init() {
 
 	protectRouter := r.Router.PathPrefix("/orchestrator/protect").Subrouter()
 	r.resourceProtectionRouter.InitResourceProtectionRouter(protectRouter)
+
+	devtronResourceRouter := r.Router.PathPrefix("/orchestrator/resource").Subrouter()
+	r.devtronResourceRouter.InitDevtronResourceRouter(devtronResourceRouter)
 }

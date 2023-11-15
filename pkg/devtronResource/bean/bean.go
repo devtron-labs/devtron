@@ -1,5 +1,21 @@
 package bean
 
+type DevtronResourceObjectDescriptorBean struct {
+	Kind        string `json:"kind,omitempty"`
+	SubKind     string `json:"subKind,omitempty"`
+	Version     string `json:"version,omitempty"`
+	OldObjectId int    `json:"id,omitempty"` //here at FE we are still calling this id since id is used everywhere w.r.t resource's own tables
+	Name        string `json:"name,omitempty"`
+}
+
+type DevtronResourceObjectBean struct {
+	*DevtronResourceObjectDescriptorBean
+	Schema            string `json:"schema,omitempty"`
+	ObjectData        string `json:"objectData"`
+	ReferencedObjects string `json:"referencedObjects"`
+	UserId            int32  `json:"-"`
+}
+
 type DevtronResourceSearchableKeyName string
 
 const (
@@ -18,18 +34,18 @@ func (n DevtronResourceSearchableKeyName) ToString() string {
 	return string(n)
 }
 
-type DevtronResourceName string
+type DevtronResourceKind string
 
 const (
-	DEVTRON_RESOURCE_PROJECT     DevtronResourceName = "PROJECT"
-	DEVTRON_RESOURCE_APP         DevtronResourceName = "APP"
-	DEVTRON_RESOURCE_CLUSTER     DevtronResourceName = "CLUSTER"
-	DEVTRON_RESOURCE_ENVIRONMENT DevtronResourceName = "ENVIRONMENT"
-	DEVTRON_RESOURCE_CI_PIPELINE DevtronResourceName = "CI_PIPELINE"
-	DEVTRON_RESOURCE_CD_PIPELINE DevtronResourceName = "CD_PIPELINE"
+	DEVTRON_RESOURCE_APPLICATION         DevtronResourceKind = "application"
+	DEVTRON_RESOURCE_DEVTRON_APPLICATION DevtronResourceKind = "devtron-application"
+	DEVTRON_RESOURCE_HELM_APPLICATION    DevtronResourceKind = "helm-application"
+	DEVTRON_RESOURCE_CLUSTER             DevtronResourceKind = "cluster"
+	DEVTRON_RESOURCE_JOB                 DevtronResourceKind = "job"
+	DEVTRON_RESOURCE_USER                DevtronResourceKind = "users"
 )
 
-func (n DevtronResourceName) ToString() string {
+func (n DevtronResourceKind) ToString() string {
 	return string(n)
 }
 
@@ -69,3 +85,11 @@ const (
 func (v ValueType) ToString() string {
 	return string(v)
 }
+
+const (
+	RefType     string = "refType"
+	RefKind     string = "kind"
+	RefValues   string = "values"
+	RefUserId   string = "id"
+	RefUserName string = "name"
+)

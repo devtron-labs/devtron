@@ -132,13 +132,14 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	syncedEnforcer := casbin.Create()
+	casbinSyncedEnforcer := casbin.CreateV2()
 	casbinClientConfig, err := client2.GetConfig()
 	if err != nil {
 		return nil, err
 	}
 	casbinClientImpl := client2.NewCasbinClientImpl(sugaredLogger, casbinClientConfig)
 	casbinServiceImpl := casbin.NewCasbinServiceImpl(sugaredLogger, casbinClientImpl)
-	enterpriseEnforcerImpl, err := casbin2.NewEnterpriseEnforcerImpl(syncedEnforcer, sessionManager, sugaredLogger, casbinServiceImpl)
+	enterpriseEnforcerImpl, err := casbin2.NewEnterpriseEnforcerImpl(syncedEnforcer, casbinSyncedEnforcer, sessionManager, sugaredLogger, casbinServiceImpl)
 	if err != nil {
 		return nil, err
 	}
