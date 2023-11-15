@@ -882,6 +882,7 @@ func (handler UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWrite
 	common.WriteJsonResp(w, err, flag, http.StatusOK)
 }
 
+// TODO Kripansh: Need to check whether required or not ??
 func (handler UserRestHandlerImpl) UpdateTriggerPolicyForTerminalAccess(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {

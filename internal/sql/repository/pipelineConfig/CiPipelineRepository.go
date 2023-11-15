@@ -18,9 +18,12 @@
 package pipelineConfig
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -125,6 +128,12 @@ type CiPipelineRepository interface {
 	FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error)
 	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
+
+	GetAppAndProjectNameForParentAndAllLinkedCI(ciPipelineId int) ([]*CiPipelineAppProject, error)
+	GetAllCDsEnvAndClusterNameByCiPipelineIds(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
+	GetAllCIAppAndProjectByProjectNames(projectNames []string) ([]*CiPipelineAppProject, error)
+	GetAllCIsClusterAndEnvByCDClusterNames(clusterNames []string, ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
+	GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -543,6 +552,104 @@ func (impl CiPipelineRepositoryImpl) GetExternalCiPipelineByArtifactId(artifactI
 		" WHERE ecp.active=true AND cia.id=?"
 	_, err := impl.dbConnection.Query(ciPipeline, query, artifactId)
 	return ciPipeline, err
+}
+
+type CiPipelineAppProject struct {
+	CiPipelineId   int    `pg:"ci_pipeline_id"`
+	CiPipelineName string `pg:"ci_pipeline_name"`
+	AppName        string `pg:"app_name"`
+	ProjectName    string `pg:"project_name"`
+}
+
+type CiPipelineEnvCluster struct {
+	CiPipelineId    int    `pg:"ci_pipeline_id"`
+	IsProductionEnv bool   `pg:"is_production_env"`
+	EnvName         string `pg:"env_name"`
+	ClusterName     string `pg:"cluster_name"`
+}
+
+func (impl CiPipelineRepositoryImpl) GetAppAndProjectNameForParentAndAllLinkedCI(ciPipelineId int) ([]*CiPipelineAppProject, error) {
+	var models []*CiPipelineAppProject
+	query := `select cp.id as ci_pipeline_id, cp.name as ci_pipeline_name,a.app_name, t.name as project_name from ci_pipeline cp 
+    				inner join app a on a.id=cp.app_id 
+    				inner join team t on t.id=a.team_id
+    					where cp.deleted=? and (cp.id=? or cp.parent_ci_pipeline=?) 
+    						and a.active=? and t.active=? and a.app_type=?`
+	_, err := impl.dbConnection.Query(&models, query, false, ciPipelineId, ciPipelineId, true, true, helper.CustomApp)
+	if err != nil {
+		impl.logger.Errorw("error, GetAppAndProjectNameForParentAndAllLinkedCI", "err", err, "ciPipelineId", ciPipelineId)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllCDsEnvAndClusterNameByCiPipelineIds(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error) {
+	var models []*CiPipelineEnvCluster
+	query := `select cd.ci_pipeline_id, e.default as is_production_env, e.environment_name as env_name, c.cluster_name from pipeline cd 
+    				inner join environment e on e.id=cd.environment_id 
+    				inner join cluster c on c.id=e.cluster_id
+    					where cd.ci_pipeline_id in (?) and cd.deleted=?
+    						and e.active=? and c.active=?`
+	_, err := impl.dbConnection.Query(&models, query, pg.In(ciPipelineIds), false, true, true)
+	if err != nil {
+		impl.logger.Errorw("error, GetAllCDsEnvAndClusterNameByCiPipelineIds", "err", err, "ciPipelineIds", ciPipelineIds)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllCIAppAndProjectByProjectNames(projectNames []string) ([]*CiPipelineAppProject, error) {
+	var models []*CiPipelineAppProject
+	query := `select cp.id as ci_pipeline_id, cp.name as ci_pipeline_name, a.app_name, t.name as project_name from ci_pipeline cp 
+    				inner join app a on a.id=cp.app_id 
+    				inner join team t on t.id=a.team_id
+    					where t.name in (?) and cp.deleted=? and a.active=? and t.active=? and a.app_type=?`
+	_, err := impl.dbConnection.Query(&models, query, pg.In(projectNames), false, true, true, helper.CustomApp)
+	if err != nil {
+		impl.logger.Errorw("error, GetAllCIAppAndProjectByProjectNames", "err", err, "projectNames", projectNames)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error) {
+	var models []*CiPipelineEnvCluster
+	query := `select cd.ci_pipeline_id, e.default as is_production_env, e.environment_name as env_name, c.cluster_name from pipeline cd 
+					inner join app a on a.id=cd.app_id 
+    				inner join environment e on e.id=cd.environment_id 
+    				inner join cluster c on c.id=e.cluster_id
+    					where e.default=? and cd.deleted=?
+							and a.active=? and a.app_type=? 
+    						and e.active=? and c.active=? `
+	if len(ciPipelineIds) > 0 {
+		query += fmt.Sprintf(" and cd.ci_pipeline_id in (%s)", util.GetCommaSeparatedStringsFromIntArray(ciPipelineIds))
+	}
+	_, err := impl.dbConnection.Query(&models, query, true, false, true, helper.CustomApp, true, true)
+	if err != nil {
+		impl.logger.Errorw("error, GetAllCIsClusterAndEnvForAllProductionEnvCD", "err", err)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllCIsClusterAndEnvByCDClusterNames(clusterNames []string, ciPipelineIds []int) ([]*CiPipelineEnvCluster, error) {
+	var models []*CiPipelineEnvCluster
+	query := `select cd.ci_pipeline_id, e.default as is_production_env, e.environment_name as env_name, c.cluster_name from pipeline cd 
+					inner join app a on a.id=cd.app_id
+    				inner join environment e on e.id=cd.environment_id 
+    				inner join cluster c on c.id=e.cluster_id
+    					where c.cluster_name in (?) and cd.deleted=?
+							and a.active=? and a.app_type=? 
+    						and e.active=? and c.active=? `
+	if len(ciPipelineIds) > 0 {
+		query += fmt.Sprintf("and cd.ci_pipeline_id in (%s)", util.GetCommaSeparatedStringsFromIntArray(ciPipelineIds))
+	}
+	_, err := impl.dbConnection.Query(&models, query, pg.In(clusterNames), false, true, helper.CustomApp, true, true)
+	if err != nil {
+		impl.logger.Errorw("error, GetAllCIsClusterAndEnvByCDClusterNames", "err", err, "clusterNames", clusterNames)
+		return nil, err
+	}
+	return models, nil
 }
 
 func (impl CiPipelineRepositoryImpl) FindCiPipelineByAppIdAndEnvIds(appId int, envIds []int) ([]*CiPipeline, error) {
