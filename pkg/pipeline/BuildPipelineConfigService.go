@@ -1336,7 +1336,9 @@ func (impl *CiPipelineConfigServiceImpl) deleteCiPipeline(tx *pg.Tx, ciPipeline 
 		return err
 	}
 	ciPipeline.Deleted = true
-	ciPipeline.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
+	ciPipeline.Active = false
+	ciPipeline.UpdatedOn = time.Now()
+	ciPipeline.UpdatedBy = userId
 	err = impl.ciPipelineRepository.Update(ciPipeline, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating ci pipeline, DeleteCiPipeline", "err", err, "pipelineId", ciPipeline.Id)
@@ -1436,6 +1438,8 @@ func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBefo
 		return appWorkflowMappings, err
 	}
 	//deleting  app workflow mapping in tx
+	appWorkflowMappings.UpdatedBy = userId
+	appWorkflowMappings.UpdatedOn = time.Now()
 	err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(appWorkflowMappings, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
