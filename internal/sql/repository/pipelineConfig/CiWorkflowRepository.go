@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -36,12 +37,14 @@ type CiWorkflowRepository interface {
 	FindById(id int) (*CiWorkflow, error)
 	FindRetriedWorkflowCountByReferenceId(id int) (int, error)
 	FindCiWorkflowGitTriggersById(id int) (workflow *CiWorkflow, err error)
+	FindCiWorkflowGitTriggersByIds(ids []int) ([]*CiWorkflow, error)
 	FindByName(name string) (*CiWorkflow, error)
 
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
+	FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error)
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
@@ -226,6 +229,18 @@ func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciW
 	return workflow, err
 }
 
+func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersByIds(ids []int) ([]*CiWorkflow, error) {
+	workflows := make([]*CiWorkflow, 0)
+	if len(ids) == 0 {
+		return workflows, nil
+	}
+	err := impl.dbConnection.Model(&workflows).
+		Column("ci_workflow.git_triggers").
+		Where("ci_workflow.id IN (?)", pg.In(ids)).
+		Select()
+
+	return workflows, err
+}
 func (impl *CiWorkflowRepositoryImpl) SaveWorkFlowConfig(config *CiWorkflowConfig) error {
 	err := impl.dbConnection.Insert(config)
 	return err
@@ -284,6 +299,19 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArti
 		Select()
 
 	return workflow, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error) {
+	workflows := make([]*WorkflowWithArtifact, 0)
+	if len(ciArtifactIds) == 0 {
+		return workflows, nil
+	}
+	query := "SELECT cw.git_triggers,cw.id,cw.triggered_by,cw.ci_pipeline_id,cia.id as ci_artifact_id" +
+		" FROM ci_workflow cw INNER JOIN ci_artifact cia on cia.ci_workflow_id = cw.id " +
+		" WHERE cia.id IN (%s)"
+	query = fmt.Sprintf(query, helper.GetCommaSepratedString(ciArtifactIds))
+	_, err := impl.dbConnection.Query(&workflows, query)
+	return workflows, err
 }
 
 func (impl *CiWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error) {
