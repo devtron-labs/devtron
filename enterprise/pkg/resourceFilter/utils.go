@@ -81,3 +81,12 @@ func getJsonStringFromFilterHistoryObjects(filterHistoryObjects []*FilterHistory
 	jsonBytes, err := json.Marshal(filterHistoryObjects)
 	return string(jsonBytes), err
 }
+
+func getFilterHistoryObjectsFromJsonString(jsonStr string) ([]*FilterHistoryObject, error) {
+	filterHistoryObjects := make([]*FilterHistoryObject, 0)
+	if jsonStr == "" {
+		return filterHistoryObjects, nil
+	}
+	err := json.Unmarshal([]byte(jsonStr), &filterHistoryObjects)
+	return filterHistoryObjects, err
+}

@@ -108,51 +108,52 @@ type WorkflowDagExecutor interface {
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
+	FetchApprovalPendingArtifacts(pipelineId, limit, offset, requiredApprovals int, searchString string) ([]bean2.CiArtifactBean, int, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 }
 
 type WorkflowDagExecutorImpl struct {
-	logger                         *zap.SugaredLogger
-	pipelineRepository             pipelineConfig.PipelineRepository
-	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
-	pubsubClient                   *pubsub.PubSubClientServiceImpl
-	appService                     app.AppService
-	cdWorkflowService              WorkflowService
-	ciPipelineRepository           pipelineConfig.CiPipelineRepository
-	materialRepository             pipelineConfig.MaterialRepository
-	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
-	ciArtifactRepository           repository.CiArtifactRepository
-	user                           user.UserService
-	enforcer                       casbin.Enforcer
-	enforcerUtil                   rbac.EnforcerUtil
-	groupRepository                repository.DeploymentGroupRepository
-	tokenCache                     *util3.TokenCache
-	acdAuthConfig                  *util3.ACDAuthConfig
-	envRepository                  repository2.EnvironmentRepository
-	eventFactory                   client.EventFactory
-	eventClient                    client.EventClient
-	cvePolicyRepository            security.CvePolicyRepository
-	scanResultRepository           security.ImageScanResultRepository
-	appWorkflowRepository          appWorkflow.AppWorkflowRepository
-	prePostCdScriptHistoryService  history2.PrePostCdScriptHistoryService
-	argoUserService                argo.ArgoUserService
-	cdPipelineStatusTimelineRepo   pipelineConfig.PipelineStatusTimelineRepository
-	pipelineStatusTimelineService  status.PipelineStatusTimelineService
-	CiTemplateRepository           pipelineConfig.CiTemplateRepository
-	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
-	appLabelRepository             pipelineConfig.AppLabelRepository
-	gitSensorGrpcClient            gitSensorClient.Client
-	k8sCommonService               k8s.K8sCommonService
-	deploymentApprovalRepository   pipelineConfig.DeploymentApprovalRepository
-	chartTemplateService           util.ChartTemplateService
-	appRepository                  appRepository.AppRepository
-	helmRepoPushService            app.HelmRepoPushService
-	pipelineStageRepository        repository4.PipelineStageRepository
-	pipelineStageService           PipelineStageService
-	config                         *types.CdConfig
-	scopedVariableManager variables.ScopedVariableCMCSManager
-	celService                     resourceFilter.CELEvaluatorService
-	resourceFilterService          resourceFilter.ResourceFilterService
+	logger                        *zap.SugaredLogger
+	pipelineRepository            pipelineConfig.PipelineRepository
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	pubsubClient                  *pubsub.PubSubClientServiceImpl
+	appService                    app.AppService
+	cdWorkflowService             WorkflowService
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	materialRepository            pipelineConfig.MaterialRepository
+	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
+	ciArtifactRepository          repository.CiArtifactRepository
+	user                          user.UserService
+	enforcer                      casbin.Enforcer
+	enforcerUtil                  rbac.EnforcerUtil
+	groupRepository               repository.DeploymentGroupRepository
+	tokenCache                    *util3.TokenCache
+	acdAuthConfig                 *util3.ACDAuthConfig
+	envRepository                 repository2.EnvironmentRepository
+	eventFactory                  client.EventFactory
+	eventClient                   client.EventClient
+	cvePolicyRepository           security.CvePolicyRepository
+	scanResultRepository          security.ImageScanResultRepository
+	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
+	argoUserService               argo.ArgoUserService
+	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
+	pipelineStatusTimelineService status.PipelineStatusTimelineService
+	CiTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	appLabelRepository            pipelineConfig.AppLabelRepository
+	gitSensorGrpcClient           gitSensorClient.Client
+	k8sCommonService              k8s.K8sCommonService
+	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
+	chartTemplateService          util.ChartTemplateService
+	appRepository                 appRepository.AppRepository
+	helmRepoPushService           app.HelmRepoPushService
+	pipelineStageRepository       repository4.PipelineStageRepository
+	pipelineStageService          PipelineStageService
+	config                        *types.CdConfig
+	scopedVariableManager         variables.ScopedVariableCMCSManager
+	celService                    resourceFilter.CELEvaluatorService
+	resourceFilterService         resourceFilter.ResourceFilterService
 
 	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
 	configMapHistoryService             history2.ConfigMapHistoryService
@@ -301,45 +302,45 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	imageTaggingService ImageTaggingService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
-		pipelineRepository:             pipelineRepository,
-		cdWorkflowRepository:           cdWorkflowRepository,
-		pubsubClient:                   pubsubClient,
-		appService:                     appService,
-		cdWorkflowService:              cdWorkflowService,
-		ciPipelineRepository:           ciPipelineRepository,
-		ciArtifactRepository:           ciArtifactRepository,
-		materialRepository:             materialRepository,
-		pipelineOverrideRepository:     pipelineOverrideRepository,
-		user:                           user,
-		enforcer:                       enforcer,
-		enforcerUtil:                   enforcerUtil,
-		groupRepository:                groupRepository,
-		tokenCache:                     tokenCache,
-		acdAuthConfig:                  acdAuthConfig,
-		envRepository:                  envRepository,
-		eventFactory:                   eventFactory,
-		eventClient:                    eventClient,
-		cvePolicyRepository:            cvePolicyRepository,
-		scanResultRepository:           scanResultRepository,
-		appWorkflowRepository:          appWorkflowRepository,
-		prePostCdScriptHistoryService:  prePostCdScriptHistoryService,
-		argoUserService:                argoUserService,
-		cdPipelineStatusTimelineRepo:   cdPipelineStatusTimelineRepo,
-		pipelineStatusTimelineService:  pipelineStatusTimelineService,
-		CiTemplateRepository:           CiTemplateRepository,
-		ciWorkflowRepository:           ciWorkflowRepository,
-		appLabelRepository:             appLabelRepository,
-		gitSensorGrpcClient:            gitSensorGrpcClient,
-		deploymentApprovalRepository:   deploymentApprovalRepository,
-		chartTemplateService:           chartTemplateService,
-		appRepository:                  appRepository,
-		helmRepoPushService:            helmRepoPushService,
-		k8sCommonService:               k8sCommonService,
-		pipelineStageRepository:        pipelineStageRepository,
-		pipelineStageService:           pipelineStageService,
+		pipelineRepository:            pipelineRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		pubsubClient:                  pubsubClient,
+		appService:                    appService,
+		cdWorkflowService:             cdWorkflowService,
+		ciPipelineRepository:          ciPipelineRepository,
+		ciArtifactRepository:          ciArtifactRepository,
+		materialRepository:            materialRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
+		user:                          user,
+		enforcer:                      enforcer,
+		enforcerUtil:                  enforcerUtil,
+		groupRepository:               groupRepository,
+		tokenCache:                    tokenCache,
+		acdAuthConfig:                 acdAuthConfig,
+		envRepository:                 envRepository,
+		eventFactory:                  eventFactory,
+		eventClient:                   eventClient,
+		cvePolicyRepository:           cvePolicyRepository,
+		scanResultRepository:          scanResultRepository,
+		appWorkflowRepository:         appWorkflowRepository,
+		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
+		argoUserService:               argoUserService,
+		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		CiTemplateRepository:          CiTemplateRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		appLabelRepository:            appLabelRepository,
+		gitSensorGrpcClient:           gitSensorGrpcClient,
+		deploymentApprovalRepository:  deploymentApprovalRepository,
+		chartTemplateService:          chartTemplateService,
+		appRepository:                 appRepository,
+		helmRepoPushService:           helmRepoPushService,
+		k8sCommonService:              k8sCommonService,
+		pipelineStageRepository:       pipelineStageRepository,
+		pipelineStageService:          pipelineStageService,
 		scopedVariableManager:         scopedVariableManager,
-		celService:                     celService,
-		resourceFilterService:          resourceFilterService,
+		celService:                    celService,
+		resourceFilterService:         resourceFilterService,
 
 		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
 		configMapHistoryService:             configMapHistoryService,
@@ -768,12 +769,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 
-	//update resource_filter_evaluation entry with wfrId and type
-	err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
-	if err != nil {
-		impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
-		return err
+	if filterEvaluationAudit != nil {
+		//update resource_filter_evaluation entry with wfrId and type
+		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+		if err != nil {
+			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+			return err
+		}
 	}
+
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, pipeline, ctx)
 	if err != nil {
@@ -996,11 +1000,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 
-	//update resource_filter_evaluation entry with wfrId and type
-	err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
-	if err != nil {
-		impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
-		return err
+	if filterEvaluationAudit != nil {
+		//update resource_filter_evaluation entry with wfrId and type
+		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+		if err != nil {
+			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+			return err
+		}
 	}
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(cdWf.CiArtifact, pipeline, context.Background())
@@ -1808,11 +1814,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		return err
 	}
 
-	//update resource_filter_evaluation entry with wfrId and type
-	err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
-	if err != nil {
-		impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
-		return err
+	if filterEvaluationAudit != nil {
+		//update resource_filter_evaluation entry with wfrId and type
+		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+		if err != nil {
+			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+			return err
+		}
 	}
 	if approvalRequestId > 0 {
 		err = impl.deploymentApprovalRepository.ConsumeApprovalRequest(approvalRequestId)
@@ -1968,10 +1976,12 @@ func (impl *WorkflowDagExecutorImpl) checkApprovalNodeForDeployment(requestedUse
 			impl.logger.Errorw("not triggering deployment since artifact is not approved", "pipelineId", pipelineId, "artifactId", artifactId)
 			return 0, errors.New("not triggering deployment since artifact is not approved")
 		} else if ok {
-			approvalUsersData := approvalMetadata.ApprovalUsersData
-			for _, approvalData := range approvalUsersData {
-				if approvalData.UserId == requestedUserId {
-					return 0, errors.New("image cannot be deployed by its approver")
+			if !impl.config.CanApproverDeploy {
+				approvalUsersData := approvalMetadata.ApprovalUsersData
+				for _, approvalData := range approvalUsersData {
+					if approvalData.UserId == requestedUserId {
+						return 0, errors.New("image cannot be deployed by its approver")
+					}
 				}
 			}
 			return approvalMetadata.ApprovalRequestId, nil
@@ -2367,11 +2377,13 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, "", err
 		}
 
-		//update resource_filter_evaluation entry with wfrId and type
-		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
-		if err != nil {
-			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
-			return 0, "", err
+		if filterEvaluationAudit != nil {
+			//update resource_filter_evaluation entry with wfrId and type
+			err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+			if err != nil {
+				impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+				return 0, "", err
+			}
 		}
 		if approvalRequestId > 0 {
 			err = impl.deploymentApprovalRepository.ConsumeApprovalRequest(approvalRequestId)
@@ -2587,6 +2599,81 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 		}
 	}
 	return nil, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) FetchApprovalPendingArtifacts(pipelineId, limit, offset, requiredApprovals int, searchString string) ([]bean2.CiArtifactBean, int, error) {
+
+	var ciArtifacts []bean2.CiArtifactBean
+	deploymentApprovalRequests, totalCount, err := impl.deploymentApprovalRepository.FetchApprovalPendingArtifacts(pipelineId, limit, offset, requiredApprovals, searchString)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching approval request data", "pipelineId", pipelineId, "err", err)
+		return ciArtifacts, 0, err
+	}
+
+	var artifactIds []int
+	for _, request := range deploymentApprovalRequests {
+		artifactIds = append(artifactIds, request.ArtifactId)
+	}
+
+	if len(artifactIds) > 0 {
+		deploymentApprovalRequests, err = impl.getLatestDeploymentByArtifactIds(pipelineId, deploymentApprovalRequests, artifactIds)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching FetchLatestDeploymentByArtifactIds", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
+			return nil, 0, err
+		}
+	}
+
+	for _, request := range deploymentApprovalRequests {
+
+		mInfo, err := parseMaterialInfo([]byte(request.CiArtifact.MaterialInfo), request.CiArtifact.DataSource)
+		if err != nil {
+			mInfo = []byte("[]")
+			impl.logger.Errorw("Error in parsing artifact material info", "err", err)
+		}
+
+		var artifact bean2.CiArtifactBean
+		ciArtifact := request.CiArtifact
+		artifact.Id = ciArtifact.Id
+		artifact.Image = ciArtifact.Image
+		artifact.ImageDigest = ciArtifact.ImageDigest
+		artifact.MaterialInfo = mInfo
+		artifact.DataSource = ciArtifact.DataSource
+		artifact.Deployed = ciArtifact.Deployed
+		artifact.Scanned = ciArtifact.Scanned
+		artifact.ScanEnabled = ciArtifact.ScanEnabled
+		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean2.LayoutRFC3339)
+		if ciArtifact.WorkflowId != nil {
+			artifact.WfrId = *ciArtifact.WorkflowId
+		}
+		ciArtifacts = append(ciArtifacts, artifact)
+	}
+
+	return ciArtifacts, totalCount, err
+}
+
+func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId int, deploymentApprovalRequests []*pipelineConfig.DeploymentApprovalRequest, artifactIds []int) ([]*pipelineConfig.DeploymentApprovalRequest, error) {
+	var latestDeployedArtifacts []*pipelineConfig.DeploymentApprovalRequest
+	var err error
+	if len(artifactIds) > 0 {
+		latestDeployedArtifacts, err = impl.deploymentApprovalRepository.FetchLatestDeploymentByArtifactIds(pipelineId, artifactIds)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching FetchLatestDeploymentByArtifactIds", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
+			return nil, err
+		}
+	}
+	latestDeployedArtifactsMap := make(map[int]time.Time, 0)
+	for _, artifact := range latestDeployedArtifacts {
+		latestDeployedArtifactsMap[artifact.ArtifactId] = artifact.AuditLog.CreatedOn
+	}
+
+	for _, request := range deploymentApprovalRequests {
+		if deployedTime, ok := latestDeployedArtifactsMap[request.ArtifactId]; ok {
+			request.CiArtifact.Deployed = true
+			request.CiArtifact.DeployedTime = deployedTime
+		}
+	}
+
+	return deploymentApprovalRequests, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
