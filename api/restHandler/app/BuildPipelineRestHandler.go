@@ -388,15 +388,18 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-
+	appWorkflowName := ""
+	if patchRequest.AppWorkflowId != 0 {
 	appWorkflow, err := handler.appWorkflowService.FindAppWorkflowById(patchRequest.AppWorkflowId, app.Id)
 	if err != nil {
 		handler.Logger.Errorw("error in getting app workflow", "err", err, "workflowId", patchRequest.AppWorkflowId, "appId", app.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+		appWorkflowName = appWorkflow.Name
+	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppAndWorkflow(app.AppName, appWorkflow.Name)
+	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppAndWorkflow(app.AppName, appWorkflowName)
 	ok := true
 	if app.AppType == helper.Job {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)

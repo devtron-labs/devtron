@@ -54,7 +54,7 @@ const (
 	ActionAllPlaceHolder = "all"
 	ActionApprove        = "approve"
 	ResourceJobs     = "jobs"
-	ResourceJobsEnv  = "jobEnv"
+	ResourceJobsEnv  = "jobenv"
 	ResourceWorkflow = "workflow"
 
 	ClusterResourceRegex         = "%s/%s"    // {cluster}/{namespace}

@@ -19,7 +19,7 @@ import (
 )
 
 type UserCommonService interface {
-	GetPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource string, approver bool) map[repository2.PValUpdateKey]string
+	GetPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource string, approver bool, workflow string) map[repository2.PValUpdateKey]string
 	GetRenderedRoleData(defaultRoleData repository2.RoleCacheDetailObj, pValUpdateMap map[repository2.PValUpdateKey]string) *repository2.RoleModel
 	GetRenderedPolicy(defaultPolicy repository2.PolicyCacheDetailObj, pValUpdateMap map[repository2.PValUpdateKey]string) []casbin.Policy
 	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string, userId int32) (bool, error, []casbin.Policy)
