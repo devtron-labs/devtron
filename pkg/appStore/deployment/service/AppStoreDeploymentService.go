@@ -79,7 +79,6 @@ type AppStoreDeploymentService interface {
 
 type DeploymentServiceTypeConfig struct {
 	IsInternalUse          bool `env:"IS_INTERNAL_USE" envDefault:"false"`
-	HelmInstallASyncMode   bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
 	HelmInstallAsyncMode   bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"false"`
 	HelmInstallContextTime int  `env:"HELM_INSTALL_CONTEXT_TIME" envDefault:"5"`
 }
@@ -119,8 +118,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	globalEnvVariables *util2.GlobalEnvVariables,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService,
-	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService,
-) *AppStoreDeploymentServiceImpl {
+	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService) *AppStoreDeploymentServiceImpl {
 
 	appStoreDeploymentServiceImpl := &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
@@ -326,7 +324,6 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		}
 	}
 	installAppVersionRequest.HelmInstallAsyncMode = impl.deploymentTypeConfig.HelmInstallAsyncMode
-	installAppVersionRequest.HelmInstallASyncMode = impl.deploymentTypeConfig.HelmInstallASyncMode
 	installAppVersionRequest.HelmInstallContextTime = impl.deploymentTypeConfig.HelmInstallContextTime
 	return installAppVersionRequest, nil
 }
@@ -1056,12 +1053,10 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 			return err
 		}
 	}
-	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
-			return err
-		}
+	err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+	if err != nil {
+		impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
+		return err
 	}
 	return nil
 }
@@ -1583,7 +1578,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 				impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 				return nil, err
 			}
-		} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
+		} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
 			err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
 			if err != nil {
 				impl.logger.Errorw("error in updating install app version history on sync", "err", err)
@@ -1644,12 +1639,10 @@ func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequ
 		impl.logger.Errorw("error while installing app via helm", "error", err)
 		return installAppVersionRequest, err
 	}
-	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error in updating installed app version history with sync", "err", err)
-			return installAppVersionRequest, err
-		}
+	err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+	if err != nil {
+		impl.logger.Errorw("error in updating installed app version history with sync", "err", err)
+		return installAppVersionRequest, err
 	}
 	return installAppVersionRequest, nil
 }

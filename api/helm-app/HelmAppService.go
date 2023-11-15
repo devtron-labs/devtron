@@ -548,6 +548,7 @@ func (impl *HelmAppServiceImpl) InstallRelease(ctx context.Context, clusterId in
 		impl.logger.Errorw("error in installing release", "err", err)
 		return nil, err
 	}
+
 	return installReleaseResponse, nil
 }
 

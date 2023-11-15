@@ -69,7 +69,6 @@ type AppStoreDeploymentCommonService interface {
 
 type DeploymentCommonServiceTypeConfig struct {
 	IsInternalUse        bool `env:"IS_INTERNAL_USE" envDefault:"false"`
-	HelmInstallASyncMode bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
 	HelmInstallAsyncMode bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"false"`
 }
 
@@ -665,13 +664,12 @@ func (impl AppStoreDeploymentCommonServiceImpl) InstallAppPostDbOperation(instal
 			return err
 		}
 	}
-	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, isSuccess)
-		if err != nil {
-			impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
-			return err
-		}
+	err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, isSuccess)
+	if err != nil {
+		impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
+		return err
 	}
+
 	return nil
 }
 
