@@ -145,13 +145,13 @@ LivenessProbe:
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for liveliness. |
-| `periodSeconds` | It defines the time to check a given container for liveness. |
+| `periodSeconds` | It defines how often (in seconds) to perform the liveness probe. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
-| `timeoutSeconds` | It defines the time for checking timeout. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
+| `timeoutSeconds` | The maximum time (in seconds) for the probe to complete. |
+| `failureThreshold` | The number of consecutive failures required to consider the probe as failed. |
 | `command` | The mentioned command is executed to perform the livenessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
-| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP. |
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 
@@ -204,13 +204,48 @@ ReadinessProbe:
 | :--- | :--- |
 | `Path` | It define the path where the readiness needs to be checked. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for readiness. |
-| `periodSeconds` | It defines the time to check a given container for readiness. |
+| `periodSeconds` | It defines how often (in seconds) to perform the readiness probe. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
-| `timeoutSeconds` | It defines the time for checking timeout. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
+| `timeoutSeconds` | The maximum time (in seconds) for the probe to complete. |
+| `failureThreshold` | The number of consecutive failures required to consider the probe as failed. |
 | `command` | The mentioned command is executed to perform the readinessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
-| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP. |
+| `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+
+
+### Startup Probe
+
+Startup Probe in Kubernetes is a type of probe used to determine when a container within a pod is ready to start accepting traffic. It is specifically designed for applications that have a longer startup time.
+
+```yaml
+StartupProbe:
+  Path: ""
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
+  command:
+    - python
+    - /etc/app/healthcheck.py
+  tcp: false
+```
+
+| Key | Description |
+| :--- | :--- |
+| `Path` | It define the path where the startup needs to be checked. |
+| `initialDelaySeconds` | It defines the time to wait before a given container is checked for startup. |
+| `periodSeconds` | It defines how often (in seconds) to perform the startup probe. |
+| `successThreshold` | The number of consecutive successful probe results required to mark the container as ready. |
+| `timeoutSeconds` | The maximum time (in seconds) for the probe to complete. |
+| `failureThreshold` | The number of consecutive failures required to consider the probe as failed. |
+| `command` | The mentioned command is executed to perform the startup probe. If the command returns a non-zero value, it's equivalent to a failed probe. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 ### Autoscaling
@@ -252,6 +287,22 @@ image:
 
 Image is used to access images in kubernetes, pullpolicy is used to define the instances calling the image, here the image is pulled when the image is not present,it can also be set as "Always".
 
+### serviceAccount
+
+```yaml
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Determines whether to create a ServiceAccount for pods or not. If set to `true`, a ServiceAccount will be created. |
+| `name`  | Specifies the name of the ServiceAccount to use. |
+| `annotations` |  Specify annotations for the ServiceAccount. |
+
+
 ### imagePullSecrets
 
 `imagePullSecrets` contains the docker credentials that are used for accessing a registry. 
@@ -261,6 +312,21 @@ imagePullSecrets:
   - regcred
 ```
 regcred is the secret that contains the docker credentials that are used for accessing a registry. Devtron will not create this secret automatically, you'll have to create this secret using dt-secrets helm chart in the App store or create one using kubectl. You can follow this documentation Pull an Image from a Private Registry [https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) .
+
+### HostAliases
+
+ the hostAliases field is used in a Pod specification to associate additional hostnames with the Pod's IP address. This can be helpful in scenarios where you need to resolve specific hostnames to the Pod's IP within the Pod itself.
+
+```yaml
+  hostAliases:
+  - ip: "192.168.1.10"
+    hostnames:
+    - "hostname1.example.com"
+    - "hostname2.example.com"
+  - ip: "192.168.1.11"
+    hostnames:
+    - "hostname3.example.com"
+```
 
 ### Ingress
 
@@ -621,6 +687,152 @@ dbMigrationConfig:
 
 It is used to configure database migration.
 
+### Istio
+
+These Istio configurations collectively provide a comprehensive set of tools for controlling access, authenticating requests, enforcing security policies, and configuring traffic behavior within a microservices architecture. The specific settings you choose would depend on your security and traffic management requirements.
+
+
+### Istio
+
+These Istio configurations collectively provide a comprehensive set of tools for controlling access, authenticating requests, enforcing security policies, and configuring traffic behavior within a microservices architecture. The specific settings you choose would depend on your security and traffic management requirements.
+
+```yaml
+istio:
+  enable: true
+
+  gateway:
+    enabled: true
+    labels:
+      app: my-gateway
+    annotations:
+      description: "Istio Gateway for external traffic"
+    host: "example.com"
+    tls:
+      enabled: true
+      secretName: my-tls-secret
+
+  virtualService:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio VirtualService for routing"
+    gateways:
+      - my-gateway
+    hosts:
+      - "example.com"
+    http:
+      - match:
+          - uri:
+              prefix: /v1
+        route:
+          - destination:
+              host: my-service-v1
+              subset: version-1
+      - match:
+          - uri:
+              prefix: /v2
+        route:
+          - destination:
+              host: my-service-v2
+              subset: version-2
+
+  destinationRule:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio DestinationRule for traffic policies"
+    subsets:
+      - name: version-1
+        labels:
+          version: "v1"
+      - name: version-2
+        labels:
+          version: "v2"
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+      outlierDetection:
+        consecutiveErrors: 5
+        interval: 30s
+        baseEjectionTime: 60s
+
+  peerAuthentication:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio PeerAuthentication for mutual TLS"
+    selector:
+      matchLabels:
+        version: "v1"
+    mtls:
+      mode: STRICT
+    portLevelMtls:
+      8080:
+        mode: DISABLE
+
+  requestAuthentication:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio RequestAuthentication for JWT validation"
+    selector:
+      matchLabels:
+        version: "v1"
+    jwtRules:
+      - issuer: "issuer-1"
+        jwksUri: "https://issuer-1/.well-known/jwks.json"
+
+  authorizationPolicy:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio AuthorizationPolicy for access control"
+    action: ALLOW
+    provider:
+      name: jwt
+      kind: Authorization
+    rules:
+      - from:
+          - source:
+              requestPrincipals: ["*"]
+        to:
+          - operation:
+              methods: ["GET"]
+```
+
+| Key | Description |
+| :--- | :--- |
+| `istio`  | Istio enablement. When `istio.enable` set to true, Istio would be enabled for the specified configurations  |
+| `authorizationPolicy`  | It allows you to define access control policies for service-to-service communication.  | 
+| `action`  |  Determines whether to ALLOW or DENY the request based on the defined rules. |
+| `provider`  | Authorization providers are external systems or mechanisms used to make access control decisions.  | 
+|  `rules` | List of rules defining the authorization policy. Each rule can specify conditions and requirements for allowing or denying access.  |
+| `destinationRule`  | It allows for the fine-tuning of traffic policies and load balancing for specific services. You can define subsets of a service and apply different traffic policies to each subset. | 
+| `subsets`  | Specifies subsets within the service for routing and load balancing.  |
+| `trafficPolicy`  | Policies related to connection pool size, outlier detection, and load balancing.  | 
+| `gateway`  | Allowing external traffic to enter the service mesh through the specified configurations. |
+| `host`  | The external domain through which traffic will be routed into the service mesh.  |
+| `tls`  | Traffic to and from the gateway should be encrypted using TLS.  |
+| `secretName`  |  Specifies the name of the Kubernetes secret that contains the TLS certificate and private key. The TLS certificate is used for securing the communication between clients and the Istio gateway. |
+| `peerAuthentication`  | It allows you to enforce mutual TLS and control the authentication between services.  |
+| `mtls`  | Mutual TLS. Mutual TLS is a security protocol that requires both client and server, to authenticate each other using digital certificates for secure communication.  | 
+| `mode`  | Mutual TLS mode, specifying how mutual TLS should be applied. Modes include STRICT, PERMISSIVE, and DISABLE.  |
+| `portLevelMtls`  | Configures port-specific mTLS settings. Allows for fine-grained control over the application of mutual TLS on specific ports.  | 
+| `selector`  | Configuration for selecting workloads to apply PeerAuthentication.  | 
+| `requestAuthentication`  |  Defines rules for authenticating incoming requests. | 
+| `jwtRules`  | Rules for validating JWTs (JSON Web Tokens). It defines how incoming JWTs should be validated for authentication purposes.  |
+| `selector`  | Specifies the conditions under which the RequestAuthentication rules should be applied.  | 
+|  `virtualService` | Enables the definition of rules for how traffic should be routed to different services within the service mesh.  |
+| `gateways`   |  Specifies the gateways to which the rules defined in the VirtualService apply. | 
+| `hosts`  | List of hosts (domains) to which this VirtualService is applied.  | 
+| `http`  |  Configuration for HTTP routes within the VirtualService. It define routing rules based on HTTP attributes such as URI prefixes, headers, timeouts, and retry policies. | 
+
 ### Application Metrics
 
 Application metrics can be enabled to see your application's metrics-CPU Service Monitor usage, Memory Usage, Status, Throughput and Latency.
@@ -873,6 +1085,56 @@ kedaAutoscaling:
     name: keda-trigger-auth-kafka-credential
 ```
 
+### NetworkPolicy
+
+Kubernetes NetworkPolicies control pod communication by defining rules for incoming and outgoing traffic.
+
+```yaml
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.17.0.0/16
+            except:
+              - 172.17.1.0/24
+        - namespaceSelector:
+            matchLabels:
+              project: myproject
+        - podSelector:
+            matchLabels:
+              role: frontend
+      ports:
+        - protocol: TCP
+          port: 6379
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24
+      ports:
+        - protocol: TCP
+          port: 5978
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Enable or disable NetworkPolicy. |
+| `annotations` | Additional metadata or information associated with the NetworkPolicy.  |
+| `labels`  | Labels to apply to the NetworkPolicy. 
+| `podSelector`  |  Each NetworkPolicy includes a podSelector which selects the grouping of pods to which the policy applies. The example policy selects pods with the label "role=db". An empty podSelector selects all pods in the namespace.|
+| `policyTypes`  | Each NetworkPolicy includes a policyTypes list which may include either Ingress, Egress, or both. |
+| `Ingress` | Controls incoming traffic to pods. |
+| `Egress`  | Controls outgoing traffic from pods. |
+
+
 ### Winter-Soldier
 Winter Soldier can be used to
 - cleans up (delete) Kubernetes resources
@@ -892,7 +1154,7 @@ winterSoldier:
   targetReplicas: []
   fieldSelector: []
 ```
-Here, 
+
 | Key | values | Description |
 | :--- | :--- | :--- |
 | `enabled` | `fasle`,`true` | decide the enabling factor  |
@@ -931,6 +1193,7 @@ winterSoldier:
   fieldSelector: 
     - AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '10h'), Now())
 ```
+
 Above settings will take action on `Sat` and `Sun` from 00:00 to 23:59:59, and on `Mon`-`Fri` from 00:00 to 08:00 and 20:00 to 23:59:59. If `action:sleep` then runs hibernate at timeFrom and unhibernate at `timeTo`. If `action: delete` then it will delete workloads at `timeFrom` and `timeTo`. Here the `action:scale` thus it scale the number of resource replicas to  `targetReplicas: [1,1,1]`. Here each element of `targetReplicas` array is mapped with the corresponding elments of array `timeRangesWithZone/timeRanges`. Thus make sure the length of both array is equal, otherwise the cnages cannot be observed.
 
 The above example will select the application objects which have been created 10 hours ago across all namespaces excluding application's namespace. Winter soldier exposes following functions to handle time, cpu and memory.
