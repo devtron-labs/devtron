@@ -21,6 +21,7 @@
 - docs: Added Videos + Fixed Typos and Navigation (#4169)
 - doc: added a Config.md to expose all the env variables use in this microservice (#4173)
 ## Others
+- chore: artifact api refactoring (#4137)
 - chore: resource sql migration script (#4175)
 - chore: refactored few type objects (#4171)
 - chore: struct type refactored (#4180)
