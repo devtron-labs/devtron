@@ -14,6 +14,7 @@
 - feat: pre-postcd trigger with plugin (#4176)
 - feat: upload and download logs/artifact from blob storage configured in external cluster (#4138)
 ## Documentation
+- docs: Updated chart parameters in doc for deployment and rollout deployment chart (#4218)
 - doc: ENT+OSS Bifurcation + Descriptions for System Variables (#4230)
 - doc: GC Index Additions + Fixes (#4214)
 - docs: Scoped Variables Draft + Other Fixes (Ephemeral Doc Alignment) (#3982)
