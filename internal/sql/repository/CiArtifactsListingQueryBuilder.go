@@ -6,9 +6,11 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 )
 
+const EmptyLikeRegex = "%%"
+
 func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions) string {
 	commonPaginatedQueryPart := ""
-	if listingFilterOpts.SearchString != "%%" {
+	if listingFilterOpts.SearchString != EmptyLikeRegex {
 		commonPaginatedQueryPart = fmt.Sprintf(" cia.image LIKE '%v' ", listingFilterOpts.SearchString)
 	}
 	orderByClause := " ORDER BY cia.id DESC"
@@ -54,7 +56,7 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 		" WHERE ((cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v') " +
 		"       OR (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v' AND cd_workflow_runner.status IN ('Healthy','Succeeded'))) "
 
-	if listingFilterOptions.SearchString != "%%" {
+	if listingFilterOptions.SearchString != EmptyLikeRegex {
 		commonQuery += " AND cia.image LIKE '%v' "
 	}
 
@@ -77,7 +79,7 @@ func BuildQueryForArtifactsForRollback(listingFilterOptions bean.ArtifactsListFi
 		" INNER JOIN cd_workflow cdw ON cdw.id=cdwr.cd_workflow_id " +
 		" INNER JOIN ci_artifact cia ON cia.id=cdw.ci_artifact_id " +
 		" WHERE cdw.pipeline_id=%v AND cdwr.workflow_type = '%v' "
-	if listingFilterOptions.SearchString != "%%" {
+	if listingFilterOptions.SearchString != EmptyLikeRegex {
 		commonQuery += " AND cia.image LIKE '%v' "
 	}
 	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.SearchString)
