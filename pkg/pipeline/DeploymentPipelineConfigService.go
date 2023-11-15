@@ -428,11 +428,11 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 }
 
 func (impl *CdPipelineConfigServiceImpl) CDPipelineCustomTagDBOperations(pipeline *bean.CDPipelineConfigObject) error {
-	if !pipeline.EnableCustomTag {
-		return nil
-	}
-	if pipeline.EnableCustomTag && len(pipeline.CustomTagObject.TagPattern) == 0 {
+	if pipeline.EnableCustomTag && (pipeline.CustomTagObject != nil && len(pipeline.CustomTagObject.TagPattern) == 0) {
 		return fmt.Errorf("please provide custom tag data if tag is enabled")
+	}
+	if pipeline.CustomTagObject != nil && pipeline.CustomTagObject.CounterX < 0 {
+		return fmt.Errorf("value of {x} cannot be negative")
 	}
 	if pipeline.CustomTagObject == nil && pipeline.CustomTagStage == nil {
 		// delete custom tag if removed from request
