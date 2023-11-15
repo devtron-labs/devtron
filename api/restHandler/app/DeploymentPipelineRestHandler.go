@@ -25,7 +25,6 @@ import (
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"io"
-	"k8s.io/utils/pointer"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1257,9 +1256,27 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	if len(search) != 0 {
 		searchString = search
 	}
-	count, err := common.ExtractIntQueryParam(w, r, "count", pointer.Int(DefaultMinArtifactCount))
-	if err != nil {
-		return
+
+	offset := 0
+	limit := 10
+	offsetQueryParam := r.URL.Query().Get("offset")
+	if offsetQueryParam != "" {
+		offset, err = strconv.Atoi(offsetQueryParam)
+		if err != nil || offset < 0 {
+			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
+			common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+			return
+		}
+	}
+
+	sizeQueryParam := r.URL.Query().Get("size")
+	if sizeQueryParam != "" {
+		limit, err = strconv.Atoi(sizeQueryParam)
+		if err != nil {
+			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
+			common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+			return
+		}
 	}
 
 	isApprovalNode := false
@@ -1267,6 +1284,11 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	if stage == pipeline.WorkflowApprovalNode {
 		isApprovalNode = true
 		stage = pipeline.WorklowTypeDeploy
+	}
+
+	if !(stage == string(bean2.CD_WORKFLOW_TYPE_PRE) || stage == string(bean2.CD_WORKFLOW_TYPE_POST) || stage == string(bean2.CD_WORKFLOW_TYPE_DEPLOY)) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid stage param"), nil, http.StatusBadRequest)
+		return
 	}
 
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
@@ -1298,8 +1320,28 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		return
 	}
 	//rbac block ends here
+	var ciArtifactResponse *bean.CiArtifactResponse
 
-	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, count, isApprovalNode)
+	pendingApprovalParam := r.URL.Query().Get("resource")
+	if isApprovalNode && pendingApprovalParam == "PENDING_APPROVAL" {
+		artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
+			Limit:        limit,
+			Offset:       offset,
+			SearchString: searchString,
+		}
+		ciArtifactResponse, err = handler.pipelineBuilder.FetchApprovalPendingArtifacts(pipeline, artifactsListFilterOptions)
+	} else {
+		if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
+			artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
+				Limit:        limit,
+				Offset:       offset,
+				SearchString: searchString,
+			}
+			ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions, isApprovalNode)
+		} else {
+			ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, limit, isApprovalNode)
+		}
+	}
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1563,9 +1605,14 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 	}
 	//rbac block ends here
 	//rbac for edit tags access
+	var ciArtifactResponse bean.CiArtifactResponse
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
+	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
+		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollbackV2(cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
+	} else {
+		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
+	}
 
-	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, "unable to fetch artifacts", http.StatusInternalServerError)
@@ -2045,6 +2092,8 @@ func (handler PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	showAppliedFiltersStr := r.URL.Query().Get("SHOW_APPLIED_FILTERS")
+	showAppliedFilters := showAppliedFiltersStr == "true"
 	handler.Logger.Infow("request payload, FetchCdWorkflowDetails", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "buildId", buildId)
 
 	//RBAC CHECK
@@ -2055,7 +2104,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.Respo
 	}
 	//RBAC CHECK
 
-	resp, err := handler.cdHandler.FetchCdWorkflowDetails(appId, environmentId, pipelineId, buildId)
+	resp, err := handler.cdHandler.FetchCdWorkflowDetails(appId, environmentId, pipelineId, buildId, showAppliedFilters)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchCdWorkflowDetails", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "buildId", buildId)
 		if util.IsErrNoRows(err) {

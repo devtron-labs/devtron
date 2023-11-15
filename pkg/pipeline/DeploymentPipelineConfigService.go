@@ -348,6 +348,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	return cdPipeline, err
 }
 
+// use this
 func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
 	//Validation for checking deployment App type
@@ -1487,7 +1488,9 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+	//can AppWorkflowId can be non zero
 	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
+		//make it conditional
 		wf := &appWorkflow.AppWorkflow{
 			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
 			AppId:    app.Id,
@@ -1499,6 +1502,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			impl.logger.Errorw("error in saving app workflow", "appId", app.Id, "err", err)
 			return 0, err
 		}
+		//
 		externalCiPipelineId, err := impl.CreateExternalCiAndAppWorkflowMapping(app.Id, savedAppWf.Id, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "appId", app.Id, "err", err)

@@ -754,13 +754,20 @@ type CiArtifactBean struct {
 	WfrId                         int             `json:"wfrId"`
 	DeployedBy                    string          `json:"deployedBy"`
 	//TriggeredByEmail              string                               `json:"triggeredByEmail"`
-	TriggeredBy            int32                                `json:"triggeredBy"`
-	CiConfigureSourceType  pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
-	CiConfigureSourceValue string                               `json:"ciConfigureSourceValue"`
-	UserApprovalMetadata   *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
-	ImageReleaseTags       []*repository2.ImageTag              `json:"imageReleaseTags"`
-	ImageComment           *repository2.ImageComment            `json:"imageComment"`
-	FilterState            resourceFilter.FilterState           `json:"filterState"`
+	TriggeredBy             int32                                `json:"triggeredBy"`
+	CiConfigureSourceType   pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue  string                               `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
+	ImageReleaseTags        []*repository2.ImageTag              `json:"imageReleaseTags"`
+	ImageComment            *repository2.ImageComment            `json:"imageComment"`
+	FilterState             resourceFilter.FilterState           `json:"filterState"`
+	AppliedFilters          []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
+	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
+	AppliedFiltersTimestamp time.Time                            `json:"appliedFiltersTimestamp"`
+	CreatedTime             string                               `json:"createdTime"`
+	ExternalCiPipelineId    int                                  `json:"-"`
+	ParentCiArtifact        int                                  `json:"-"`
+	CiWorkflowId            int                                  `json:"-"`
 }
 
 type CiArtifactResponse struct {
@@ -777,6 +784,8 @@ type CiArtifactResponse struct {
 	AppReleaseTagNames         []string                             `json:"appReleaseTagNames"` //unique list of tags exists in the app
 	HideImageTaggingHardDelete bool                                 `json:"hideImageTaggingHardDelete"`
 	ResourceFilters            []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
+	TotalCount                 int                                  `json:"totalCount"`
+	CanApproverDeploy          bool                                 `json:"canApproverDeploy"`
 }
 
 type AppLabelsDto struct {

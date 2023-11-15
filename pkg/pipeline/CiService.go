@@ -69,25 +69,25 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                         *zap.SugaredLogger
-	workflowService                WorkflowService
-	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
-	ciConfig                       *types.CiConfig
-	eventClient                    client.EventClient
-	eventFactory                   client.EventFactory
-	mergeUtil                      *util.MergeUtil
-	ciPipelineRepository           pipelineConfig.CiPipelineRepository
-	prePostCiScriptHistoryService  history.PrePostCiScriptHistoryService
-	pipelineStageService           PipelineStageService
-	userService                    user.UserService
-	ciTemplateService              CiTemplateService
-	appCrudOperationService        app.AppCrudOperationService
-	globalPolicyService            globalPolicy.GlobalPolicyService
-	envRepository                  repository1.EnvironmentRepository
-	appRepository                  appRepository.AppRepository
-	customTagService               CustomTagService
-	config                         *types.CiConfig
+	Logger                        *zap.SugaredLogger
+	workflowService               WorkflowService
+	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	ciConfig                      *types.CiConfig
+	eventClient                   client.EventClient
+	eventFactory                  client.EventFactory
+	mergeUtil                     *util.MergeUtil
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
+	pipelineStageService          PipelineStageService
+	userService                   user.UserService
+	ciTemplateService             CiTemplateService
+	appCrudOperationService       app.AppCrudOperationService
+	globalPolicyService           globalPolicy.GlobalPolicyService
+	envRepository                 repository1.EnvironmentRepository
+	appRepository                 appRepository.AppRepository
+	customTagService              CustomTagService
+	config                        *types.CiConfig
 	scopedVariableManager         variables.ScopedVariableManager
 }
 
@@ -105,26 +105,26 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
 	customTagService CustomTagService,
-	) *CiServiceImpl {
+) *CiServiceImpl {
 	cis := &CiServiceImpl{
-		Logger:                         Logger,
-		workflowService:                workflowService,
-		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
-		ciWorkflowRepository:           ciWorkflowRepository,
-		eventClient:                    eventClient,
-		eventFactory:                   eventFactory,
-		mergeUtil:                      mergeUtil,
-		ciPipelineRepository:           ciPipelineRepository,
-		prePostCiScriptHistoryService:  prePostCiScriptHistoryService,
-		pipelineStageService:           pipelineStageService,
-		userService:                    userService,
-		ciTemplateService:              ciTemplateService,
-		appCrudOperationService:        appCrudOperationService,
-		globalPolicyService:            globalPolicyService,
-		envRepository:                  envRepository,
-		appRepository:                  appRepository,
+		Logger:                        Logger,
+		workflowService:               workflowService,
+		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		eventClient:                   eventClient,
+		eventFactory:                  eventFactory,
+		mergeUtil:                     mergeUtil,
+		ciPipelineRepository:          ciPipelineRepository,
+		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
+		pipelineStageService:          pipelineStageService,
+		userService:                   userService,
+		ciTemplateService:             ciTemplateService,
+		appCrudOperationService:       appCrudOperationService,
+		globalPolicyService:           globalPolicyService,
+		envRepository:                 envRepository,
+		appRepository:                 appRepository,
 		scopedVariableManager:         scopedVariableManager,
-		customTagService:               customTagService,
+		customTagService:              customTagService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
