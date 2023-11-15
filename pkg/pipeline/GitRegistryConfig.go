@@ -192,14 +192,14 @@ func (impl GitRegistryConfigImpl) Update(request *types.GitRegistry) (*types.Git
 	impl.logger.Debugw("get repo create request", "req", request)
 
 	/*
-		exist, err := impl.gitProviderRepo.ProviderExists(request.Url)
+		exist, err := impl.gitProviderRepo.ProviderExists(request.RedirectionUrl)
 		if err != nil {
-			impl.logger.Errorw("error in fetch ", "url", request.Url, "err", err)
+			impl.logger.Errorw("error in fetch ", "url", request.RedirectionUrl, "err", err)
 			return nil, err
 		}
 		if exist {
-			impl.logger.Infow("repo already exists", "url", request.Url)
-			return nil, errors.NewAlreadyExists(err, request.Url)
+			impl.logger.Infow("repo already exists", "url", request.RedirectionUrl)
+			return nil, errors.NewAlreadyExists(err, request.RedirectionUrl)
 		}
 	*/
 
