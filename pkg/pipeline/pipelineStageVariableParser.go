@@ -3,9 +3,12 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/go-pg/pg"
+	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -77,6 +80,12 @@ func (impl *PluginInputVariableParserImpl) HandleSkopeoPluginInputVariable(input
 		return nil, nil, err
 	}
 	registryDestinationImageMap = impl.getRegistryDestinationImageMapping(registryRepoMapping, dockerImageTag, registryCredentials)
+
+	err = impl.createEcrRepoIfRequired(registryCredentials, registryRepoMapping)
+	if err != nil {
+		impl.logger.Errorw("error in creating ecr repo", "err", err)
+		return registryDestinationImageMap, registryCredentials, err
+	}
 
 	return registryDestinationImageMap, registryCredentials, nil
 }
@@ -163,4 +172,25 @@ func (impl *PluginInputVariableParserImpl) getRegistryDestinationImageMapping(
 	}
 
 	return registryDestinationImageMapping
+}
+
+func (impl *PluginInputVariableParserImpl) createEcrRepoIfRequired(registryCredentials map[string]plugin.RegistryCredentials, registryRepoMapping map[string][]string) error {
+	for registry, registryCredential := range registryCredentials {
+		if registryCredential.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
+			repositories := registryRepoMapping[registry]
+			for _, dockerRepo := range repositories {
+				err := util.CreateEcrRepo(dockerRepo, registryCredential.AWSRegion, registryCredential.AWSAccessKeyId, registryCredential.AWSSecretAccessKey)
+				if err != nil {
+					if errors1.IsAlreadyExists(err) {
+						impl.logger.Warnw("this repo already exists!!, skipping repo creation", "repo", dockerRepo)
+					} else {
+						impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external "+
+							"dependency. please create repo manually before triggering ci", "repo", dockerRepo, "err", err)
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
