@@ -61,6 +61,10 @@ func (impl *PluginInputVariableParserImpl) HandleSkopeoPluginInputVariable(input
 		return nil, nil, errors.New("no image provided during trigger time")
 	}
 
+	if len(DestinationInfo) == 0 {
+		return nil, nil, errors.New("destination info now")
+	}
+
 	if len(dockerImageTag) == 0 {
 		// case when custom tag is not configured - source image tag will be taken as docker image tag
 		pluginTriggerImageSplit := strings.Split(pluginTriggerImage, ":")

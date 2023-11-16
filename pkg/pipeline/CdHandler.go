@@ -787,6 +787,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		var newCiArtifactIds []int
 		for _, ciArtifact := range ciArtifacts {
 			if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
+				// parent ci artifact ID can be greater than zero when pipeline is linked or when image is copied at plugin level from some other image
 				isLinked = true
 				newCiArtifactIds = append(newCiArtifactIds, ciArtifact.ParentCiArtifact)
 				parentCiArtifact[ciArtifact.Id] = ciArtifact.ParentCiArtifact

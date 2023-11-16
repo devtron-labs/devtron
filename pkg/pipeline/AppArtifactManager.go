@@ -644,17 +644,17 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			ciArtifacts[i].ImageComment = imageCommentResp
 		}
 		var dockerRegistryId string
-		if ciArtifacts[i].CiPipelineId != 0 {
+		if ciArtifacts[i].DataSource == repository.POST_CI || ciArtifacts[i].DataSource == repository.PRE_CD || ciArtifacts[i].DataSource == repository.POST_CD {
+			if ciArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
+			}
+		} else {
 			ciPipeline, err := impl.CiPipelineRepository.FindById(ciArtifacts[i].CiPipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
 				return nil, err
 			}
 			dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
-		} else {
-			if ciArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
-				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
-			}
 		}
 		if len(dockerRegistryId) > 0 {
 			dockerArtifact, err := impl.dockerArtifactRegistry.FindOne(dockerRegistryId)

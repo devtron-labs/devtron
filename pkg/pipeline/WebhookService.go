@@ -213,30 +213,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	if !imagePushedAt.IsZero() {
 		createdOn = *imagePushedAt
 	}
-	var pluginArtifacts []*repository.CiArtifact
-	for registry, artifacts := range request.PluginRegistryArtifactDetails {
-		for _, image := range artifacts {
-			pluginArtifact := &repository.CiArtifact{
-				Image:                 image,
-				ImageDigest:           request.ImageDigest,
-				MaterialInfo:          string(materialJson),
-				DataSource:            request.PluginArtifactStage,
-				ComponentId:           pipeline.Id,
-				PipelineId:            pipeline.Id,
-				AuditLog:              sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
-				CredentialsSourceType: repository.GLOBAL_CONTAINER_REGISTRY,
-				CredentialSourceValue: registry,
-			}
-			pluginArtifacts = append(pluginArtifacts, pluginArtifact)
-		}
-	}
-	if len(pluginArtifacts) > 0 {
-		err = impl.ciArtifactRepository.SaveAll(pluginArtifacts)
-		if err != nil {
-			impl.logger.Errorw("error while saving ci artifacts", "err", err)
-			return 0, err
-		}
-	}
+
 	buildArtifact := &repository.CiArtifact{
 		Image:              request.Image,
 		ImageDigest:        request.ImageDigest,
@@ -259,13 +236,41 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		impl.logger.Errorw("error in getting ci pipeline plugin", "err", err, "pipelineId", pipeline.Id, "pluginId", plugin[0].Id)
 		return 0, err
 	}
-	if pipeline.ScanEnabled || isScanPluginConfigured{
+	if pipeline.ScanEnabled || isScanPluginConfigured {
 		buildArtifact.Scanned = true
 		buildArtifact.ScanEnabled = true
 	}
 	if err = impl.ciArtifactRepository.Save(buildArtifact); err != nil {
 		impl.logger.Errorw("error in saving material", "err", err)
 		return 0, err
+	}
+
+	var pluginArtifacts []*repository.CiArtifact
+	for registry, artifacts := range request.PluginRegistryArtifactDetails {
+		for _, image := range artifacts {
+			pluginArtifact := &repository.CiArtifact{
+				Image:                 image,
+				ImageDigest:           request.ImageDigest,
+				MaterialInfo:          string(materialJson),
+				DataSource:            request.PluginArtifactStage,
+				ComponentId:           pipeline.Id,
+				PipelineId:            pipeline.Id,
+				AuditLog:              sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
+				CredentialsSourceType: repository.GLOBAL_CONTAINER_REGISTRY,
+				CredentialSourceValue: registry,
+				ParentCiArtifact:      buildArtifact.Id,
+				Scanned:               buildArtifact.Scanned,
+				ScanEnabled:           buildArtifact.ScanEnabled,
+			}
+			pluginArtifacts = append(pluginArtifacts, pluginArtifact)
+		}
+	}
+	if len(pluginArtifacts) > 0 {
+		err = impl.ciArtifactRepository.SaveAll(pluginArtifacts)
+		if err != nil {
+			impl.logger.Errorw("error while saving ci artifacts", "err", err)
+			return 0, err
+		}
 	}
 
 	childrenCi, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipelineId)

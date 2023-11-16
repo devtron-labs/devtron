@@ -615,7 +615,12 @@ func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.
 	for _, artifact := range saveArtifacts {
 		PipelineArtifacts[artifact.Image] = true
 	}
-
+	var parentCiArtifactId int
+	if ciArtifact.ParentCiArtifact > 0 {
+		parentCiArtifactId = ciArtifact.ParentCiArtifact
+	} else {
+		parentCiArtifactId = ciArtifact.Id
+	}
 	var CDArtifacts []*repository.CiArtifact
 	for registry, artifacts := range pluginArtifactsDetail {
 		// artifacts are list of images
@@ -638,6 +643,7 @@ func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.
 					UpdatedOn: time.Now(),
 					UpdatedBy: DEVTRON_SYSTEM_USER_ID,
 				},
+				ParentCiArtifact: parentCiArtifactId,
 			}
 			CDArtifacts = append(CDArtifacts, pluginArtifact)
 		}
@@ -816,6 +822,22 @@ func (impl *WorkflowDagExecutorImpl) SetSkopeoPluginDataInWorkflowRequest(cdStag
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return imagePathReservationIds, err
+			}
+			var destinationImages []string
+			for _, images := range registryDestinationImageMap {
+				for _, image := range images {
+					destinationImages = append(destinationImages, image)
+				}
+			}
+			// fetch already saved artifacts to check if they are already present
+			savedCIArtifacts, err := impl.ciArtifactRepository.FindCiArtifactByImagePaths(destinationImages)
+			if err != nil {
+				impl.logger.Errorw("error in fetching artifacts by image path", "err", err)
+				return imagePathReservationIds, err
+			}
+			if len(savedCIArtifacts) > 0 {
+				// if already present in ci artifact, return "image path already in use error"
+				return imagePathReservationIds, bean3.ErrImagePathInUse
 			}
 			imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
 			if err != nil {

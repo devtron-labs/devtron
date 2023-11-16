@@ -329,6 +329,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		CustomTagObject:               customTag,
 		CustomTagStage:                &customTagStage,
 		EnableCustomTag:               customTagEnabled,
+		AppId:                         dbPipeline.AppId,
 	}
 	var preDeployStage *bean3.PipelineStageDto
 	var postDeployStage *bean3.PipelineStageDto
@@ -417,11 +418,6 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				impl.logger.Errorw("error in creating post-cd stage", "err", err, "postCdStage", pipeline.PostDeployStage, "pipelineId", id)
 				return nil, err
 			}
-		}
-		// save custom tag data
-		err = impl.CDPipelineCustomTagDBOperations(pipeline)
-		if err != nil {
-			return nil, err
 		}
 	}
 	return pipelineCreateRequest, nil
@@ -1726,7 +1722,11 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		}
 
 	}
-
+	// save custom tag data
+	err = impl.CDPipelineCustomTagDBOperations(pipeline)
+	if err != nil {
+		return pipelineId, err
+	}
 	err = tx.Commit()
 	if err != nil {
 		return 0, err

@@ -761,6 +761,14 @@ func (impl *CiServiceImpl) GetWorkflowRequestVariablesForSkopeoPlugin(preCiSteps
 			pluginArtifactStage = repository5.POST_CI
 		}
 	}
+	for _, images := range registryDestinationImageMap {
+		for _, image := range images {
+			if image == buildImagePath {
+				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds,
+					fmt.Errorf("source image cannot be same as destination image")
+			}
+		}
+	}
 	imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
 	if err != nil {
 		return nil, nil, pluginArtifactStage, imagePathReservationIds, err
