@@ -581,11 +581,11 @@ type CDPipelineConfigObject struct {
 	RefPipelineId                 int                                    `json:"refPipelineId,omitempty"`
 	ExternalCiPipelineId          int                                    `json:"externalCiPipelineId,omitempty"`
 	IsProdEnv                     bool                                   `json:"isProdEnv"`
-	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId" validate:"number,required"`
+	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
 }
 
 func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
-	return cdpipelineConfig.SwitchFromCiPipelineId > 0
+	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0
 }
 
 type PreStageConfigMapSecretNames struct {
