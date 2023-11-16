@@ -73,8 +73,6 @@ type AppStoreDeploymentService interface {
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
 	UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error)
 	UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
-	UpdateInstallAppVersionHistoryStatus(installedAppVersionHistoryId int, status string) error
-	UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -456,37 +454,13 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	}
 	err = tx.Commit()
 	if !impl.deploymentTypeConfig.HelmInstallAsyncMode {
-		err = impl.installAppPostDbOperation(installAppVersionRequest)
+		err = impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersionRequest, true)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	return installAppVersionRequest, nil
-}
-
-func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string) error {
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
-	savedInstalledAppVersionHistory.Status = status
-
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return err
-	}
-	return nil
 }
 
 func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*repository.InstalledAppVersionHistory, error) {
@@ -1028,7 +1002,7 @@ func (impl AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(instal
 	}
 	// STEP-3 install app DB post operations
 	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-	err = impl.installAppPostDbOperation(installAppVersionRequest)
+	err = impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersionRequest, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1037,66 +1011,6 @@ func (impl AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(instal
 	return res, nil
 }
 
-func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
-	//step 4 db operation status update to deploy success
-	_, err := impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
-	if err != nil {
-		impl.logger.Errorw(" error", "err", err)
-		return err
-	}
-
-	//step 5 create build history first entry for install app version for argocd or helm type deployments
-	if len(installAppVersionRequest.GitHash) > 0 {
-		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error in installAppPostDbOperation", "err", err)
-			return err
-		}
-	}
-	err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
-	if err != nil {
-		impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
-		return err
-	}
-	return nil
-}
-
-func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
-	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-		err := impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
-			return err
-		}
-	}
-
-	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-			return err
-		}
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-		helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{
-			InstallAppVersionHistoryId: installedAppVersionHistory.Id,
-			Message:                    "Release Installed",
-			IsReleaseInstalled:         true,
-			ErrorInInstallation:        false,
-		}
-		data, err := json.Marshal(helmInstallStatus)
-		if err != nil {
-			impl.logger.Errorw("error in marshalling helmInstallStatus message")
-			return err
-		}
-		installedAppVersionHistory.HelmReleaseStatusConfig = string(data)
-		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-		if err != nil {
-			impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-			return err
-		}
-	}
-	return nil
-}
 func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.DeploymentHistoryAndInstalledAppInfo, error) {
 	result := &client.DeploymentHistoryAndInstalledAppInfo{}
 	var err error
@@ -1456,7 +1370,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	manifest, err := impl.appStoreDeploymentCommonService.GenerateManifest(installAppVersionRequest)
 	if err != nil {
 		impl.logger.Errorw("error in generating manifest for helm apps", "err", err)
-		_ = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowFailed)
+		_ = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowFailed, "")
 		return nil, err
 	}
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
@@ -1573,13 +1487,13 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 				return nil, err
 			}
 		} else if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
-			err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
+			err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowSucceeded, "")
 			if err != nil {
 				impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 				return nil, err
 			}
 		} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
-			err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+			err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, true)
 			if err != nil {
 				impl.logger.Errorw("error in updating install app version history on sync", "err", err)
 				return nil, err
@@ -1639,7 +1553,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequ
 		impl.logger.Errorw("error while installing app via helm", "error", err)
 		return installAppVersionRequest, err
 	}
-	err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+	err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, true)
 	if err != nil {
 		impl.logger.Errorw("error in updating installed app version history with sync", "err", err)
 		return installAppVersionRequest, err
@@ -1720,29 +1634,6 @@ func (impl AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppSt
 	if err1 != nil {
 		impl.logger.Errorw("error in updating previous deployment status for appStore", "err", err1, "installAppVersionRequest", installAppVersionRequest)
 		return err1
-	}
-	return nil
-}
-
-func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistoryStatus(installedAppVersionHistoryId int, status string) error {
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
-	savedInstalledAppVersionHistory.Status = status
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return err
 	}
 	return nil
 }
