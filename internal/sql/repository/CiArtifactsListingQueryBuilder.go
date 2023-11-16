@@ -10,9 +10,9 @@ const EmptyLikeRegex = "%%"
 
 func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
 	commonPaginatedQueryPart := ""
-	if listingFilterOpts.SearchString != EmptyLikeRegex {
-		commonPaginatedQueryPart = fmt.Sprintf(" cia.image LIKE '%v'", listingFilterOpts.SearchString)
-	}
+	//if listingFilterOpts.SearchString != EmptyLikeRegex {
+	commonPaginatedQueryPart = fmt.Sprintf(" cia.image LIKE '%v'", listingFilterOpts.SearchString)
+	//}
 	orderByClause := " ORDER BY cia.id DESC"
 	limitOffsetQueryPart := fmt.Sprintf(" LIMIT %v OFFSET %v", listingFilterOpts.Limit, listingFilterOpts.Offset)
 	finalQuery := ""
