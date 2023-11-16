@@ -1421,8 +1421,10 @@ func (impl *CiPipelineConfigServiceImpl) DeleteExternalCi(tx *pg.Tx, externalCiP
 func (impl *CiPipelineConfigServiceImpl) checkForExternalPipelineAndGetID(externalCiPipelineId int, ciPipeline *pipelineConfig.CiPipeline) (string, int) {
 	if externalCiPipelineId != 0 {
 		return appWorkflow.WEBHOOK, externalCiPipelineId
+	} else if ciPipeline.PipelineType == string(bean.LINKED_CD) {
+		return appWorkflow.LINKED_CD, ciPipeline.Id
 	}
-	return appWorkflow.CIPIPELINE, ciPipeline.Id
+	return appWorkflow.LINKED_CD, ciPipeline.Id
 }
 
 func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, externalCiPipelineId int, userId int32) (*appWorkflow.AppWorkflowMapping, error) {

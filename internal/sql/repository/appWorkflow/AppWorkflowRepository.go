@@ -78,6 +78,7 @@ const (
 	CIPIPELINE string = "CI_PIPELINE"
 	CDPIPELINE string = "CD_PIPELINE"
 	WEBHOOK    string = "WEBHOOK"
+	LINKED_CD  string = "LINKED_CD"
 )
 
 type AppWorkflow struct {
