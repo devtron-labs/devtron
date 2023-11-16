@@ -836,13 +836,16 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 			ImageDigest:  artifact.ImageDigest,
 			MaterialInfo: mInfo,
 			//TODO:LastSuccessfulTriggerOnParent
-			Scanned:              artifact.Scanned,
-			ScanEnabled:          artifact.ScanEnabled,
-			RunningOnParentCd:    artifact.Id == artifactRunningOnParentCd,
-			ExternalCiPipelineId: artifact.ExternalCiPipelineId,
-			ParentCiArtifact:     artifact.ParentCiArtifact,
-			CreatedTime:          formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
-			DataSource:           artifact.DataSource,
+			Scanned:                artifact.Scanned,
+			ScanEnabled:            artifact.ScanEnabled,
+			RunningOnParentCd:      artifact.Id == artifactRunningOnParentCd,
+			ExternalCiPipelineId:   artifact.ExternalCiPipelineId,
+			ParentCiArtifact:       artifact.ParentCiArtifact,
+			CreatedTime:            formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:             artifact.DataSource,
+			CiPipelineId:           artifact.PipelineId,
+			CredentialsSourceType:  artifact.CredentialsSourceType,
+			CredentialsSourceValue: artifact.CredentialSourceValue,
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId
