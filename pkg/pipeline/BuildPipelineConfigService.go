@@ -1327,12 +1327,14 @@ func (impl *CiPipelineConfigServiceImpl) deleteCiPipeline(tx *pg.Tx, ciPipeline 
 	if externalCiPipelineId != 0 {
 		err := impl.DeleteExternalCi(tx, externalCiPipelineId, userId)
 		if err != nil {
+			impl.logger.Errorw("error in deleting external ci pipeline", "externalCiPipelineId", externalCiPipelineId, "err", err)
 			return err
 		}
 		return nil
 	}
 	err := impl.ciCdPipelineOrchestrator.DeleteCiEnvMapping(tx, ciPipeline, userId)
 	if err != nil {
+		impl.logger.Errorw("error in deleting ci-env mappings", "ciPipelineId", ciPipeline.Id, "err", err)
 		return err
 	}
 	ciPipeline.Deleted = true
@@ -1353,7 +1355,7 @@ func (impl *CiPipelineConfigServiceImpl) deleteCiPipeline(tx *pg.Tx, ciPipeline 
 		if err != nil {
 			return err
 		}
-	} else {
+	} else if ciPipeline.ParentCiPipeline == 0 {
 		err = impl.saveHistoryOfOverriddenTemplate(ciPipeline, userId, materials)
 		if err != nil {
 			return err
