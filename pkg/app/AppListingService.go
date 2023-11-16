@@ -270,6 +270,7 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
 		Environments:  fetchJobListingRequest.Environments,
+		AppIds:        fetchJobListingRequest.AppIds,
 	}
 	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {

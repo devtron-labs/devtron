@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/util"
+	"strings"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -165,7 +166,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps(appType helper.AppType) ma
 	}
 	for _, item := range result {
 		if _, ok := objects[item.Id]; !ok {
-			objects[item.Id] = fmt.Sprintf("%s/%s", item.Team.Name, item.AppName)
+			objects[item.Id] = fmt.Sprintf("%s/%s", item.Team.Name, strings.ToLower(item.AppName))
 		}
 	}
 	return objects

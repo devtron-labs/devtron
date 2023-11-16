@@ -223,7 +223,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	validAppIds := make([]int, 0)
+	var validAppIds []int
 	//for non super admin users
 	if !isSuperAdmin {
 		userEmailId := strings.ToLower(user.EmailId)
@@ -259,10 +259,10 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if !isSuperAdmin {
-		// fetching only those jobs whose access user has by setting valid app Ids.
-		fetchJobListingRequest.AppIds = validAppIds
-	}
+
+	// fetching only those jobs whose access user has by setting valid app Ids.
+	fetchJobListingRequest.AppIds = validAppIds
+
 	jobs, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchJobs", "err", err, "payload", fetchJobListingRequest)
