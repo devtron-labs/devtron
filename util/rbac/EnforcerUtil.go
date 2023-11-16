@@ -69,6 +69,7 @@ type EnforcerUtil interface {
 	GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string
 	GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string
 	GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string
+	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 }
 
 type EnforcerUtilImpl struct {
@@ -658,4 +659,18 @@ func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPi
 		return fmt.Sprintf("%s/%s/%s", application.Team.Name, "", appName)
 	}
 	return fmt.Sprintf("%s/%s/%s", application.Team.Name, env.EnvironmentIdentifier, appName)
+}
+
+func (impl EnforcerUtilImpl) GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return nil
+	}
+	appName := strings.ToLower(application.AppName)
+	teamName := application.Team.Name
+	objects := make(map[int]string, len(workflowNames))
+	for index, wfName := range workflowNames {
+		objects[workflowIds[index]] = fmt.Sprintf("%s/%s/%s", teamName, appName, wfName)
+	}
+	return objects
 }

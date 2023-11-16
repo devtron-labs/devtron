@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -195,7 +196,11 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	// RBAC enforcer applying
 	object := impl.enforcerUtil.GetAppRBACName(app.AppName)
 	impl.Logger.Debugw("rbac object for other environment list", "object", object)
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
+	if !ok {
+		ok = impl.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
+	}
+	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
@@ -231,7 +236,42 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 
 	workflows["appId"] = app.Id
 	workflows["appName"] = app.AppName
-	if len(workflowsList) > 0 {
+	if len(workflowsList) > 0 && app.AppType == helper.Job {
+		// RBAC
+		userEmailId, err := impl.userAuthService.GetEmailFromToken(token)
+		if err != nil {
+			impl.Logger.Errorw("error in getting user emailId from token", "err", err)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
+		}
+
+		var workflowNames []string
+		var workflowIds []int
+		var updatedWorkflowList []appWorkflow.AppWorkflowDto
+		var rbacObjects []string
+		workNameObjectMap := make(map[string]appWorkflow.AppWorkflowDto)
+
+		for _, workflow := range workflowsList {
+			workflowNames = append(workflowNames, workflow.Name)
+			workflowIds = append(workflowIds, workflow.Id)
+		}
+		workflowIdToObjectMap := impl.enforcerUtil.GetAllWorkflowRBACObjectsByAppId(appId, workflowNames, workflowIds)
+		itr := 0
+		for _, val := range workflowIdToObjectMap {
+			rbacObjects = append(rbacObjects, val)
+			workNameObjectMap[val] = workflowsList[itr]
+			itr++
+		}
+
+		enforcedMap := impl.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceWorkflow, casbin.ActionGet, rbacObjects)
+		for obj, passed := range enforcedMap {
+			if passed {
+				updatedWorkflowList = append(updatedWorkflowList, workNameObjectMap[obj])
+			}
+		}
+
+		workflows["workflows"] = updatedWorkflowList
+	} else if len(workflowsList) > 0 {
 		workflows["workflows"] = workflowsList
 	} else {
 		workflows["workflows"] = []appWorkflow.AppWorkflowDto{}
