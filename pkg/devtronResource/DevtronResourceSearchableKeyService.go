@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type DevtronResourceService interface {
+type DevtronResourceSearchableKeyService interface {
 	GetAllSearchableKeyNameIdMap() map[bean.DevtronResourceSearchableKeyName]int
 	GetAllSearchableKeyIdNameMap() map[int]bean.DevtronResourceSearchableKeyName
 }
