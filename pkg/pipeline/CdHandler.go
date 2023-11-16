@@ -680,7 +680,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 	return savedWorkflow.Id, savedWorkflow.Status, nil
 }
 
-func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) *WorkflowStatus {
+func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) *types.WorkflowStatus {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := "Pending"
@@ -708,7 +708,7 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 			break
 		}
 	}
-	workflowStatusRes := &WorkflowStatus{
+	workflowStatusRes := &types.WorkflowStatus{
 		WorkflowName: workflowName,
 		Status:       status,
 		PodStatus:    podStatus,
@@ -717,10 +717,6 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 		PodName:      podName,
 	}
 	return workflowStatusRes
-}
-
-type WorkflowStatus struct {
-	WorkflowName, Status, PodStatus, Message, LogLocation, PodName string
 }
 
 func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg string,

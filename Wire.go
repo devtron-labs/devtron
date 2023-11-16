@@ -281,6 +281,12 @@ func InitializeApp() (*App, error) {
 		variables.NewVariableSnapshotHistoryServiceImpl,
 		wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
 
+		variables.NewScopedVariableManagerImpl,
+		wire.Bind(new(variables.ScopedVariableManager), new(*variables.ScopedVariableManagerImpl)),
+
+		variables.NewScopedVariableCMCSManagerImpl,
+		wire.Bind(new(variables.ScopedVariableCMCSManager), new(*variables.ScopedVariableCMCSManagerImpl)),
+
 		//end
 
 		chart.NewChartServiceImpl,
@@ -954,7 +960,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
 
 		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
-		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+		wire.Bind(new(devtronResource.DevtronResourceSearchableKeyService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
 
 		argocdServer.NewArgoClientWrapperServiceImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),

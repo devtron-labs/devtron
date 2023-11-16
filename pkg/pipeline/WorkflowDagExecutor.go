@@ -115,42 +115,44 @@ type WorkflowDagExecutor interface {
 }
 
 type WorkflowDagExecutorImpl struct {
-	logger                             *zap.SugaredLogger
-	pipelineRepository                 pipelineConfig.PipelineRepository
-	cdWorkflowRepository               pipelineConfig.CdWorkflowRepository
-	pubsubClient                       *pubsub.PubSubClientServiceImpl
-	appService                         app.AppService
-	cdWorkflowService                  WorkflowService
-	ciPipelineRepository               pipelineConfig.CiPipelineRepository
-	materialRepository                 pipelineConfig.MaterialRepository
-	pipelineOverrideRepository         chartConfig.PipelineOverrideRepository
-	ciArtifactRepository               repository.CiArtifactRepository
-	user                               user.UserService
-	enforcer                           casbin.Enforcer
-	enforcerUtil                       rbac.EnforcerUtil
-	groupRepository                    repository.DeploymentGroupRepository
-	tokenCache                         *util3.TokenCache
-	acdAuthConfig                      *util3.ACDAuthConfig
-	envRepository                      repository2.EnvironmentRepository
-	eventFactory                       client.EventFactory
-	eventClient                        client.EventClient
-	cvePolicyRepository                security.CvePolicyRepository
-	scanResultRepository               security.ImageScanResultRepository
-	appWorkflowRepository              appWorkflow.AppWorkflowRepository
-	prePostCdScriptHistoryService      history2.PrePostCdScriptHistoryService
-	argoUserService                    argo.ArgoUserService
-	cdPipelineStatusTimelineRepo       pipelineConfig.PipelineStatusTimelineRepository
-	pipelineStatusTimelineService      status.PipelineStatusTimelineService
-	CiTemplateRepository               pipelineConfig.CiTemplateRepository
-	ciWorkflowRepository               pipelineConfig.CiWorkflowRepository
-	appLabelRepository                 pipelineConfig.AppLabelRepository
-	gitSensorGrpcClient                gitSensorClient.Client
-	k8sCommonService                   k8s.K8sCommonService
-	pipelineStageRepository            repository4.PipelineStageRepository
-	pipelineStageService               PipelineStageService
-	config                             *types.CdConfig
-	appServiceConfig                   *app.AppServiceConfig
-	variableSnapshotHistoryService     variables.VariableSnapshotHistoryService
+	logger                        *zap.SugaredLogger
+	pipelineRepository            pipelineConfig.PipelineRepository
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	pubsubClient                  *pubsub.PubSubClientServiceImpl
+	appService                    app.AppService
+	cdWorkflowService             WorkflowService
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	materialRepository            pipelineConfig.MaterialRepository
+	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
+	ciArtifactRepository          repository.CiArtifactRepository
+	user                          user.UserService
+	enforcer                      casbin.Enforcer
+	enforcerUtil                  rbac.EnforcerUtil
+	groupRepository               repository.DeploymentGroupRepository
+	tokenCache                    *util3.TokenCache
+	acdAuthConfig                 *util3.ACDAuthConfig
+	envRepository                 repository2.EnvironmentRepository
+	eventFactory                  client.EventFactory
+	eventClient                   client.EventClient
+	cvePolicyRepository           security.CvePolicyRepository
+	scanResultRepository          security.ImageScanResultRepository
+	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
+	argoUserService               argo.ArgoUserService
+	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
+	pipelineStatusTimelineService status.PipelineStatusTimelineService
+	CiTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	appLabelRepository            pipelineConfig.AppLabelRepository
+	gitSensorGrpcClient           gitSensorClient.Client
+	k8sCommonService              k8s.K8sCommonService
+	pipelineStageRepository       repository4.PipelineStageRepository
+	pipelineStageService          PipelineStageService
+	config                        *types.CdConfig
+	appServiceConfig              *app.AppServiceConfig
+
+	scopedVariableManager variables.ScopedVariableCMCSManager
+
 	devtronAsyncHelmInstallRequestMap  map[int]bool
 	devtronAsyncHelmInstallRequestLock *sync.Mutex
 	devtronAppReleaseContextMap        map[int]DevtronAppReleaseContextType
@@ -187,10 +189,7 @@ type WorkflowDagExecutorImpl struct {
 	gitOpsConfigRepository              repository.GitOpsConfigRepository
 	gitFactory                          *util.GitFactory
 	acdClient                           application2.ServiceClient
-	variableEntityMappingService        variables.VariableEntityMappingService
-	variableTemplateParser              parsers.VariableTemplateParser
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
-	scopedVariableService               variables.ScopedVariableService
 	pipelineConfigListenerService       PipelineConfigListenerService
 }
 
@@ -269,7 +268,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	scopedVariableManager variables.ScopedVariableCMCSManager,
 
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
@@ -302,49 +301,48 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	gitFactory *util.GitFactory,
 	acdClient application2.ServiceClient,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
-	scopedVariableService variables.ScopedVariableService,
 	pipelineConfigListenerService PipelineConfigListenerService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
-		pipelineRepository:                  pipelineRepository,
-		cdWorkflowRepository:                cdWorkflowRepository,
-		pubsubClient:                        pubsubClient,
-		appService:                          appService,
-		cdWorkflowService:                   cdWorkflowService,
-		ciPipelineRepository:                ciPipelineRepository,
-		ciArtifactRepository:                ciArtifactRepository,
-		materialRepository:                  materialRepository,
-		pipelineOverrideRepository:          pipelineOverrideRepository,
-		user:                                user,
-		enforcer:                            enforcer,
-		enforcerUtil:                        enforcerUtil,
-		groupRepository:                     groupRepository,
-		tokenCache:                          tokenCache,
-		acdAuthConfig:                       acdAuthConfig,
-		envRepository:                       envRepository,
-		eventFactory:                        eventFactory,
-		eventClient:                         eventClient,
-		cvePolicyRepository:                 cvePolicyRepository,
-		scanResultRepository:                scanResultRepository,
-		appWorkflowRepository:               appWorkflowRepository,
-		prePostCdScriptHistoryService:       prePostCdScriptHistoryService,
-		argoUserService:                     argoUserService,
-		cdPipelineStatusTimelineRepo:        cdPipelineStatusTimelineRepo,
-		pipelineStatusTimelineService:       pipelineStatusTimelineService,
-		CiTemplateRepository:                CiTemplateRepository,
-		ciWorkflowRepository:                ciWorkflowRepository,
-		appLabelRepository:                  appLabelRepository,
-		gitSensorGrpcClient:                 gitSensorGrpcClient,
-		k8sCommonService:                    k8sCommonService,
-		pipelineStageService:                pipelineStageService,
-		variableSnapshotHistoryService:      variableSnapshotHistoryService,
-		devtronAsyncHelmInstallRequestMap:   make(map[int]bool),
-		devtronAsyncHelmInstallRequestLock:  &sync.Mutex{},
-		devtronAppReleaseContextMap:         make(map[int]DevtronAppReleaseContextType),
-		devtronAppReleaseContextMapLock:     &sync.Mutex{},
+		pipelineRepository:            pipelineRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		pubsubClient:                  pubsubClient,
+		appService:                    appService,
+		cdWorkflowService:             cdWorkflowService,
+		ciPipelineRepository:          ciPipelineRepository,
+		ciArtifactRepository:          ciArtifactRepository,
+		materialRepository:            materialRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
+		user:                          user,
+		enforcer:                      enforcer,
+		enforcerUtil:                  enforcerUtil,
+		groupRepository:               groupRepository,
+		tokenCache:                    tokenCache,
+		acdAuthConfig:                 acdAuthConfig,
+		envRepository:                 envRepository,
+		eventFactory:                  eventFactory,
+		eventClient:                   eventClient,
+		cvePolicyRepository:           cvePolicyRepository,
+		scanResultRepository:          scanResultRepository,
+		appWorkflowRepository:         appWorkflowRepository,
+		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
+		argoUserService:               argoUserService,
+		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		CiTemplateRepository:          CiTemplateRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		appLabelRepository:            appLabelRepository,
+		gitSensorGrpcClient:           gitSensorGrpcClient,
+		k8sCommonService:              k8sCommonService,
+		pipelineStageService:          pipelineStageService,
+		scopedVariableManager:         scopedVariableManager,
+
+		devtronAsyncHelmInstallRequestMap:  make(map[int]bool),
+		devtronAsyncHelmInstallRequestLock: &sync.Mutex{},
+		devtronAppReleaseContextMap:        make(map[int]DevtronAppReleaseContextType),
+		devtronAppReleaseContextMapLock:    &sync.Mutex{},
+
 		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
 		configMapHistoryService:             configMapHistoryService,
 		pipelineStrategyHistoryService:      pipelineStrategyHistoryService,
@@ -376,10 +374,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		gitOpsConfigRepository:              gitOpsConfigRepository,
 		gitFactory:                          gitFactory,
 		acdClient:                           acdClient,
-		variableEntityMappingService:        variableEntityMappingService,
-		variableTemplateParser:              variableTemplateParser,
 		argoClientWrapperService:            argoClientWrapperService,
-		scopedVariableService:               scopedVariableService,
 		pipelineConfigListenerService:       pipelineConfigListenerService,
 	}
 	config, err := types.GetCdConfig()
@@ -1346,21 +1341,21 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		return nil, err
 	}
 
+	//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
+	//since user sees the environment of the CD pipeline
+	scope := resourceQualifiers.Scope{
+		AppId:     cdPipeline.App.Id,
+		EnvId:     env.Id,
+		ClusterId: env.ClusterId,
+		SystemMetadata: &resourceQualifiers.SystemMetadata{
+			EnvironmentName: env.Name,
+			ClusterName:     env.Cluster.ClusterName,
+			Namespace:       env.Namespace,
+			Image:           artifact.Image,
+			ImageTag:        util3.GetImageTagFromImage(artifact.Image),
+		},
+	}
 	if pipelineStage != nil {
-		//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
-		//since user sees the environment of the CD pipeline
-		scope := resourceQualifiers.Scope{
-			AppId:     cdPipeline.App.Id,
-			EnvId:     env.Id,
-			ClusterId: env.ClusterId,
-			SystemMetadata: &resourceQualifiers.SystemMetadata{
-				EnvironmentName: env.Name,
-				ClusterName:     env.Cluster.ClusterName,
-				Namespace:       env.Namespace,
-				Image:           artifact.Image,
-				ImageTag:        util3.GetImageTagFromImage(artifact.Image),
-			},
-		}
 		var variableSnapshot map[string]string
 		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 			//preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
@@ -1392,15 +1387,10 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 
 		//Save Scoped VariableSnapshot
-		if len(variableSnapshot) > 0 {
-			variableMapBytes, _ := json.Marshal(variableSnapshot)
-			err := impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository5.VariableSnapshotHistoryBean{{
-				VariableSnapshot: variableMapBytes,
-				HistoryReference: repository5.HistoryReference{
-					HistoryReferenceId:   runner.Id,
-					HistoryReferenceType: repository5.HistoryReferenceTypeCDWORKFLOWRUNNER,
-				},
-			}}, runner.TriggeredBy)
+		var variableSnapshotHistories = util4.GetBeansPtr(
+			repository5.GetSnapshotBean(runner.Id, repository5.HistoryReferenceTypeCDWORKFLOWRUNNER, variableSnapshot))
+		if len(variableSnapshotHistories) > 0 {
+			err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, runner.TriggeredBy)
 			if err != nil {
 				impl.logger.Errorf("Not able to save variable snapshot for CD trigger %s %d %s", err, runner.Id, variableSnapshot)
 			}
@@ -1450,6 +1440,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CloudProvider:     impl.config.CloudProvider,
 		WorkflowExecutor:  workflowExecutor,
 		RefPlugins:        refPluginsData,
+		Scope:             scope,
 	}
 
 	extraEnvVariables := make(map[string]string)
@@ -2663,6 +2654,43 @@ func (impl *WorkflowDagExecutorImpl) validateAndTrigger(p *pipelineConfig.Pipeli
 	return err
 }
 
+func (impl *WorkflowDagExecutorImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
+	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
+
+	pipeline, err := impl.pipelineRepository.FindById(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
+		return err
+	}
+
+	request := &bean.ValuesOverrideRequest{
+		PipelineId:           pipeline.Id,
+		UserId:               artifact.CreatedBy,
+		CiArtifactId:         artifact.Id,
+		AppId:                pipeline.AppId,
+		CdWorkflowId:         cdWorkflowId,
+		ForceTrigger:         true,
+		DeploymentWithConfig: bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED,
+		WfrId:                wfrId,
+	}
+	impl.SetPipelineFieldsInOverrideRequest(request, pipeline)
+
+	ctx, err := impl.buildACDContext()
+	if err != nil {
+		impl.logger.Errorw("error in creating acd sync context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
+		return err
+	}
+	//setting deployedBy as 1(system user) since case of auto trigger
+	id, _, err := impl.HandleCDTriggerRelease(request, ctx, triggeredAt, 1)
+	if err != nil {
+		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
+	} else {
+		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
+	}
+	return err
+
+}
+
 func (impl *WorkflowDagExecutorImpl) SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
 	overrideRequest.PipelineId = pipeline.Id
 	overrideRequest.PipelineName = pipeline.Name
@@ -2694,6 +2722,61 @@ func (impl *WorkflowDagExecutorImpl) GetTriggerEvent(deploymentAppType string, t
 		triggerEvent.DeploymentAppType = bean2.Helm
 	}
 	return triggerEvent
+}
+
+// write integration/unit test for each function
+func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, manifest []byte, err error) {
+	isRequestValid, err := impl.ValidateTriggerEvent(triggerEvent)
+	if !isRequestValid {
+		return releaseNo, manifest, err
+	}
+
+	if triggerEvent.PerformChartPush {
+		manifestPushTemplate, err := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
+		if err != nil {
+			impl.logger.Errorw("error in building manifest push template", "err", err)
+			return releaseNo, manifest, err
+		}
+		manifestPushService := impl.GetManifestPushService(triggerEvent)
+		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
+		if manifestPushResponse.Error != nil {
+			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
+			return releaseNo, manifest, err
+		}
+		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
+			Id:                     valuesOverrideResponse.PipelineOverride.Id,
+			GitHash:                manifestPushResponse.CommitHash,
+			CommitTime:             manifestPushResponse.CommitTime,
+			EnvConfigOverrideId:    valuesOverrideResponse.EnvOverride.Id,
+			PipelineOverrideValues: valuesOverrideResponse.ReleaseOverrideJSON,
+			PipelineId:             overrideRequest.PipelineId,
+			CiArtifactId:           overrideRequest.CiArtifactId,
+			PipelineMergedValues:   valuesOverrideResponse.MergedValues,
+			AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggerdAt, UpdatedBy: overrideRequest.UserId},
+		}
+		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
+		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
+		span.End()
+	}
+
+	if triggerEvent.PerformDeploymentOnCluster {
+		err = impl.DeployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in deploying app", "err", err)
+			return releaseNo, manifest, err
+		}
+	}
+
+	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
+	_ = impl.MarkImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled)
+	span.End()
+
+	middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
+
+	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, manifest, nil
+
 }
 
 func (impl *WorkflowDagExecutorImpl) ValidateTriggerEvent(triggerEvent bean.TriggerEvent) (bool, error) {
@@ -2744,7 +2827,7 @@ func (impl *WorkflowDagExecutorImpl) CreateHistoriesForDeploymentTrigger(pipelin
 		impl.logger.Errorw("error in creating deployment template history for deployment trigger", "err", err)
 		return err
 	}
-	err = impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
+	cmId, csId, err := impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
 	if err != nil {
 		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
 		return err
@@ -2756,17 +2839,14 @@ func (impl *WorkflowDagExecutorImpl) CreateHistoriesForDeploymentTrigger(pipelin
 			return err
 		}
 	}
-	//VARIABLE_SNAPSHOT_SAVE
-	if envOverride.VariableSnapshot != nil && len(envOverride.VariableSnapshot) > 0 {
-		variableMapBytes, _ := json.Marshal(envOverride.VariableSnapshot)
-		variableSnapshotHistory := &repository5.VariableSnapshotHistoryBean{
-			VariableSnapshot: variableMapBytes,
-			HistoryReference: repository5.HistoryReference{
-				HistoryReferenceId:   deploymentTemplateHistory.Id,
-				HistoryReferenceType: repository5.HistoryReferenceTypeDeploymentTemplate,
-			},
-		}
-		err = impl.variableSnapshotHistoryService.SaveVariableHistoriesForTrigger([]*repository5.VariableSnapshotHistoryBean{variableSnapshotHistory}, deployedBy)
+
+	var variableSnapshotHistories = util4.GetBeansPtr(
+		repository5.GetSnapshotBean(deploymentTemplateHistory.Id, repository5.HistoryReferenceTypeDeploymentTemplate, envOverride.VariableSnapshot),
+		repository5.GetSnapshotBean(cmId, repository5.HistoryReferenceTypeConfigMap, envOverride.VariableSnapshotForCM),
+		repository5.GetSnapshotBean(csId, repository5.HistoryReferenceTypeSecret, envOverride.VariableSnapshotForCS),
+	)
+	if len(variableSnapshotHistories) > 0 {
+		err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, deployedBy)
 		if err != nil {
 			return err
 		}
@@ -2879,6 +2959,259 @@ func (impl *WorkflowDagExecutorImpl) WriteCDTriggerEvent(overrideRequest *bean.V
 	}
 }
 
+func (impl *WorkflowDagExecutorImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error {
+	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
+	executionHistory, err := impl.imageScanHistoryRepository.FindByImageDigest(imageDigest)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching execution history", "err", err)
+		return err
+	}
+	if executionHistory == nil || executionHistory.Id == 0 {
+		impl.logger.Errorw("no execution history found for digest", "digest", imageDigest)
+		return fmt.Errorf("no execution history found for digest - %s", imageDigest)
+	}
+	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "executionHistory", executionHistory)
+	var ids []int
+	ids = append(ids, executionHistory.Id)
+
+	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
+
+	if err == pg.ErrNoRows && !isScanEnabled {
+		//ignoring if no rows are found and scan is disabled
+		return nil
+	}
+
+	if err != nil && err != pg.ErrNoRows {
+		return err
+	} else if err == pg.ErrNoRows && isScanEnabled {
+		imageScanDeployInfo := &security.ImageScanDeployInfo{
+			ImageScanExecutionHistoryId: ids,
+			ScanObjectMetaId:            appId,
+			ObjectType:                  security.ScanObjectType_APP,
+			EnvId:                       envId,
+			ClusterId:                   clusterId,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: 1,
+				UpdatedOn: time.Now(),
+				UpdatedBy: 1,
+			},
+		}
+		impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageScanDeployInfo", imageScanDeployInfo)
+		err = impl.imageScanDeployInfoRepository.Save(imageScanDeployInfo)
+		if err != nil {
+			impl.logger.Errorw("error in creating deploy info", "err", err)
+		}
+	} else {
+		// Updating Execution history for Latest Deployment to fetch out security Vulnerabilities for latest deployed info
+		if isScanEnabled {
+			ot.ImageScanExecutionHistoryId = ids
+		} else {
+			arr := []int{-1}
+			ot.ImageScanExecutionHistoryId = arr
+		}
+		err = impl.imageScanDeployInfoRepository.Update(ot)
+		if err != nil {
+			impl.logger.Errorw("error in updating deploy info for latest deployed image", "err", err)
+		}
+	}
+	return err
+}
+
+func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error) {
+	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
+		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
+	}
+	if len(overrideRequest.DeploymentWithConfig) == 0 {
+		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED
+	}
+	valuesOverrideResponse := &app.ValuesOverrideResponse{}
+	isPipelineOverrideCreated := overrideRequest.PipelineOverrideId > 0
+	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	valuesOverrideResponse.Pipeline = pipeline
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by pipeline id", "err", err, "pipeline-id-", overrideRequest.PipelineId)
+		return valuesOverrideResponse, err
+	}
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
+	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
+	valuesOverrideResponse.Artifact = artifact
+	span.End()
+	if err != nil {
+		return valuesOverrideResponse, err
+	}
+	overrideRequest.Image = artifact.Image
+
+	strategy, err := impl.GetDeploymentStrategyByTriggerType(overrideRequest, ctx)
+	valuesOverrideResponse.PipelineStrategy = strategy
+	if err != nil {
+		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
+		return valuesOverrideResponse, err
+	}
+
+	envOverride, err := impl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
+	valuesOverrideResponse.EnvOverride = envOverride
+	if err != nil {
+		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
+		return valuesOverrideResponse, err
+	}
+	appMetrics, err := impl.GetAppMetricsByTriggerType(overrideRequest, ctx)
+	valuesOverrideResponse.AppMetrics = appMetrics
+	if err != nil {
+		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
+		return valuesOverrideResponse, err
+	}
+	var (
+		pipelineOverride                                     *chartConfig.PipelineOverride
+		dbMigrationOverride, configMapJson, appLabelJsonByte []byte
+	)
+
+	// Conditional Block based on PipelineOverrideCreated --> start
+	if !isPipelineOverrideCreated {
+		_, span = otel.Tracer("orchestrator").Start(ctx, "savePipelineOverride")
+		pipelineOverride, err = impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
+		span.End()
+		if err != nil {
+			return valuesOverrideResponse, err
+		}
+		overrideRequest.PipelineOverrideId = pipelineOverride.Id
+	} else {
+		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(overrideRequest.PipelineOverrideId)
+		if err != nil {
+			impl.logger.Errorw("error in getting pipelineOverride for valuesOverrideResponse", "PipelineOverrideId", overrideRequest.PipelineOverrideId)
+			return nil, err
+		}
+	}
+	// Conditional Block based on PipelineOverrideCreated --> end
+	valuesOverrideResponse.PipelineOverride = pipelineOverride
+
+	//TODO: check status and apply lock
+	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
+	valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson
+	if err != nil {
+		return valuesOverrideResponse, err
+	}
+
+	// Conditional Block based on PipelineOverrideCreated --> start
+	if !isPipelineOverrideCreated {
+		_, span = otel.Tracer("orchestrator").Start(ctx, "getDbMigrationOverride")
+		//FIXME: how to determine rollback
+		//we can't depend on ciArtifact ID because CI pipeline can be manually triggered in any order regardless of sourcecode status
+		dbMigrationOverride, err = impl.getDbMigrationOverride(overrideRequest, artifact, false)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
+			return valuesOverrideResponse, err
+		}
+		chartVersion := envOverride.Chart.ChartVersion
+		_, span = otel.Tracer("orchestrator").Start(ctx, "getConfigMapAndSecretJsonV2")
+		scope := getScopeForVariables(overrideRequest, envOverride)
+		request := createConfigMapAndSecretJsonRequest(overrideRequest, envOverride, chartVersion, scope)
+
+		configMapJson, err = impl.getConfigMapAndSecretJsonV2(request, envOverride)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("error in fetching config map n secret ", "err", err)
+			configMapJson = nil
+		}
+		_, span = otel.Tracer("orchestrator").Start(ctx, "appCrudOperationService.GetLabelsByAppIdForDeployment")
+		appLabelJsonByte, err = impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
+			appLabelJsonByte = nil
+		}
+
+		mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
+		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
+		mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+
+		_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
+		// handle image pull secret if access given
+		mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, mergedValues)
+		span.End()
+		if err != nil {
+			return valuesOverrideResponse, err
+		}
+
+		pipelineOverride.PipelineMergedValues = string(mergedValues)
+		valuesOverrideResponse.MergedValues = string(mergedValues)
+		err = impl.pipelineOverrideRepository.Update(pipelineOverride)
+		if err != nil {
+			return valuesOverrideResponse, err
+		}
+		valuesOverrideResponse.PipelineOverride = pipelineOverride
+	} else {
+		valuesOverrideResponse.MergedValues = pipelineOverride.PipelineMergedValues
+	}
+	// Conditional Block based on PipelineOverrideCreated --> end
+	return valuesOverrideResponse, err
+}
+
+func createConfigMapAndSecretJsonRequest(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, chartVersion string, scope resourceQualifiers.Scope) ConfigMapAndSecretJsonV2 {
+	request := ConfigMapAndSecretJsonV2{
+		AppId:                                 overrideRequest.AppId,
+		EnvId:                                 envOverride.TargetEnvironment,
+		PipeLineId:                            overrideRequest.PipelineId,
+		ChartVersion:                          chartVersion,
+		DeploymentWithConfig:                  overrideRequest.DeploymentWithConfig,
+		wfrIdForDeploymentWithSpecificTrigger: overrideRequest.WfrIdForDeploymentWithSpecificTrigger,
+		Scope:                                 scope,
+	}
+	return request
+}
+
+func getScopeForVariables(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride) resourceQualifiers.Scope {
+	scope := resourceQualifiers.Scope{
+		AppId:     overrideRequest.AppId,
+		EnvId:     envOverride.TargetEnvironment,
+		ClusterId: envOverride.Environment.Id,
+		SystemMetadata: &resourceQualifiers.SystemMetadata{
+			EnvironmentName: envOverride.Environment.Name,
+			ClusterName:     envOverride.Environment.Cluster.ClusterName,
+			Namespace:       envOverride.Environment.Namespace,
+			ImageTag:        util3.GetImageTagFromImage(overrideRequest.Image),
+			AppName:         overrideRequest.AppName,
+			Image:           overrideRequest.Image,
+		},
+	}
+	return scope
+}
+
+func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
+
+	impl.logger.Debugw("new pipeline found", "pipeline", valuesOverrideResponse.Pipeline)
+	_, span := otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
+	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
+		return err
+	}
+	impl.logger.Debugw("argocd application created", "name", name)
+
+	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
+	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, ctx)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("error in updating argocd app ", "err", err)
+		return err
+	}
+	if updateAppInArgocd {
+		impl.logger.Debug("argo-cd successfully updated")
+	} else {
+		impl.logger.Debug("argo-cd failed to update, ignoring it")
+	}
+	//update workflow runner status, used in app workflow view
+	err = impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
+	if err != nil {
+		impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
+		return err
+	}
+	return nil
+}
+
 func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
 	//repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
@@ -2923,6 +3256,126 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 		}
 		return argoAppName, nil
 	}
+}
+
+func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) (bool, error) {
+
+	pipeline := valuesOverrideResponse.Pipeline
+	envOverride := valuesOverrideResponse.EnvOverride
+	mergeAndSave := valuesOverrideResponse.MergedValues
+
+	chartMetaData := &chart.Metadata{
+		Name:    pipeline.App.AppName,
+		Version: envOverride.Chart.ChartVersion,
+	}
+	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+
+	if util.IsHelmApp(pipeline.DeploymentAppType) {
+		referenceChartByte := envOverride.Chart.ReferenceChart
+		// here updating reference chart into database.
+		if len(envOverride.Chart.ReferenceChart) == 0 {
+			refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
+			if err != nil {
+				impl.logger.Errorw("ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+				return false, err
+			}
+			ch := envOverride.Chart
+			ch.ReferenceChart = refChartByte
+			ch.UpdatedOn = time.Now()
+			ch.UpdatedBy = overrideRequest.UserId
+			err = impl.chartRepository.Update(ch)
+			if err != nil {
+				impl.logger.Errorw("chart update error", "err", err, "req", overrideRequest)
+				return false, err
+			}
+			referenceChartByte = refChartByte
+		}
+
+		releaseName := pipeline.DeploymentAppName
+		cluster := envOverride.Environment.Cluster
+		bearerToken := cluster.Config[util5.BearerToken]
+		clusterConfig := &client2.ClusterConfig{
+			ClusterName:           cluster.ClusterName,
+			Token:                 bearerToken,
+			ApiServerUrl:          cluster.ServerUrl,
+			InsecureSkipTLSVerify: cluster.InsecureSkipTlsVerify,
+		}
+		if cluster.InsecureSkipTlsVerify == false {
+			clusterConfig.KeyData = cluster.Config[util5.TlsKey]
+			clusterConfig.CertData = cluster.Config[util5.CertData]
+			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
+		}
+		releaseIdentifier := &client2.ReleaseIdentifier{
+			ReleaseName:      releaseName,
+			ReleaseNamespace: envOverride.Namespace,
+			ClusterConfig:    clusterConfig,
+		}
+
+		if pipeline.DeploymentAppCreated {
+			req := &client2.UpgradeReleaseRequest{
+				ReleaseIdentifier: releaseIdentifier,
+				ValuesYaml:        mergeAndSave,
+				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.SOURCE_DEVTRON_APP),
+				ChartContent:      &client2.ChartContent{Content: referenceChartByte},
+			}
+			if impl.appService.IsDevtronAsyncInstallModeEnabled(bean2.Helm) {
+				req.RunInCtx = true
+			}
+			// For cases where helm release was not found, kubelink will install the same configuration
+			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
+			if err != nil {
+				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
+				if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
+					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
+				}
+				return false, err
+			} else {
+				impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
+			}
+
+		} else {
+
+			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
+
+			// For connection related errors, no need to update the db
+			if err != nil && strings.Contains(err.Error(), "connection error") {
+				impl.logger.Errorw("error in helm install custom chart", "err", err)
+				return false, err
+			}
+
+			if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
+				err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
+			}
+			// IMP: update cd pipeline to mark deployment app created, even if helm install fails
+			// If the helm install fails, it still creates the app in failed state, so trying to
+			// re-create the app results in error from helm that cannot re-use name which is still in use
+			_, pgErr := impl.updatePipeline(pipeline, overrideRequest.UserId)
+
+			if err != nil {
+				impl.logger.Errorw("error in helm install custom chart", "err", err)
+
+				if pgErr != nil {
+					impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
+				}
+				return false, err
+			}
+
+			if pgErr != nil {
+				impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
+				return false, err
+			}
+
+			impl.logger.Debugw("received helm release response", "helmResponse", helmResponse, "isSuccess", helmResponse.Success)
+		}
+
+		//update workflow runner status, used in app workflow view
+		err := impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
+		if err != nil {
+			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
+			return false, err
+		}
+	}
+	return true, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
@@ -3024,8 +3477,11 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 		//updating historical data in envConfigOverride and appMetrics flag
 		envOverride.IsOverride = true
 		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
-
-		resolvedTemplate, variableMap, err := impl.getResolvedTemplateWithSnapshot(deploymentTemplateHistory.Id, envOverride.EnvOverrideValues)
+		reference := repository5.HistoryReference{
+			HistoryReferenceId:   deploymentTemplateHistory.Id,
+			HistoryReferenceType: repository5.HistoryReferenceTypeDeploymentTemplate,
+		}
+		variableMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(envOverride.EnvOverrideValues, parsers.JsonVariableTemplate, reference, true, false)
 		envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 		envOverride.VariableSnapshot = variableMap
 		if err != nil {
@@ -3107,28 +3563,11 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 			return nil, err
 		}
 		envOverride.Environment = env
-
-		//VARIABLE different cases for variable resolution
-		scope := resourceQualifiers.Scope{
-			AppId:     overrideRequest.AppId,
-			EnvId:     overrideRequest.EnvId,
-			ClusterId: overrideRequest.ClusterId,
-			SystemMetadata: &resourceQualifiers.SystemMetadata{
-				EnvironmentName: env.Name,
-				ClusterName:     env.Cluster.ClusterName,
-				Namespace:       env.Namespace,
-				AppName:         overrideRequest.AppName,
-				Image:           overrideRequest.Image,
-				ImageTag:        util3.GetImageTagFromImage(overrideRequest.Image),
-			},
-		}
-
+		scope := getScopeForVariables(overrideRequest, envOverride)
 		if envOverride.IsOverride {
 
-			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, envOverride.EnvOverrideValues, repository5.Entity{
-				EntityType: repository5.EntityTypeDeploymentTemplateEnvLevel,
-				EntityId:   envOverride.Id,
-			})
+			entity := repository5.GetEntity(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel)
+			resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(envOverride.EnvOverrideValues, scope, entity, true)
 			envOverride.ResolvedEnvOverrideValues = resolvedTemplate
 			envOverride.VariableSnapshot = variableMap
 			if err != nil {
@@ -3136,10 +3575,8 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 			}
 
 		} else {
-			resolvedTemplate, variableMap, err := impl.extractVariablesAndResolveTemplate(scope, chart.GlobalOverride, repository5.Entity{
-				EntityType: repository5.EntityTypeDeploymentTemplateAppLevel,
-				EntityId:   chart.Id,
-			})
+			entity := repository5.GetEntity(chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel)
+			resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(chart.GlobalOverride, scope, entity, true)
 			envOverride.Chart.ResolvedGlobalOverride = resolvedTemplate
 			envOverride.VariableSnapshot = variableMap
 			if err != nil {
@@ -3253,21 +3690,28 @@ func (impl *WorkflowDagExecutorImpl) getDbMigrationOverride(overrideRequest *bea
 	return confByte, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pipelineId int, chartVersion string, deploymentWithConfig bean.DeploymentConfigurationType, wfrIdForDeploymentWithSpecificTrigger int) ([]byte, error) {
+type ConfigMapAndSecretJsonV2 struct {
+	AppId                                 int
+	EnvId                                 int
+	PipeLineId                            int
+	ChartVersion                          string
+	DeploymentWithConfig                  bean.DeploymentConfigurationType
+	wfrIdForDeploymentWithSpecificTrigger int
+	Scope                                 resourceQualifiers.Scope
+}
 
-	var configMapJson string
-	var secretDataJson string
-	var configMapJsonApp string
-	var secretDataJsonApp string
-	var configMapJsonEnv string
-	var secretDataJsonEnv string
+func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(request ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride) ([]byte, error) {
+
+	var configMapJson, secretDataJson, configMapJsonApp, secretDataJsonApp, configMapJsonEnv, secretDataJsonEnv string
+
 	var err error
-	//var configMapJsonPipeline string
-	//var secretDataJsonPipeline string
+	configMapA := &chartConfig.ConfigMapAppModel{}
+	configMapE := &chartConfig.ConfigMapEnvModel{}
+	configMapHistory, secretHistory := &repository3.ConfigmapAndSecretHistory{}, &repository3.ConfigmapAndSecretHistory{}
 
 	merged := []byte("{}")
-	if deploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
+	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+		configMapA, err = impl.configMapRepository.GetByAppIdAppLevel(request.AppId)
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
 		}
@@ -3275,7 +3719,8 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envI
 			configMapJsonApp = configMapA.ConfigMapData
 			secretDataJsonApp = configMapA.SecretData
 		}
-		configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
+
+		configMapE, err = impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(request.AppId, request.EnvId)
 		if err != nil && pg.ErrNoRows != err {
 			return []byte("{}"), err
 		}
@@ -3283,17 +3728,20 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envI
 			configMapJsonEnv = configMapE.ConfigMapData
 			secretDataJsonEnv = configMapE.SecretData
 		}
-	} else if deploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+
+	} else if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+
 		//fetching history and setting envLevelConfig and not appLevelConfig because history already contains merged appLevel and envLevel configs
-		configMapHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
+		configMapHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.wfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
 		if err != nil {
-			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", pipelineId, "wfrid", wfrIdForDeploymentWithSpecificTrigger)
+			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrid", request.wfrIdForDeploymentWithSpecificTrigger)
 			return []byte("{}"), err
 		}
 		configMapJsonEnv = configMapHistory.Data
-		secretHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
+
+		secretHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.wfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
 		if err != nil {
-			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", pipelineId, "wfrid", wfrIdForDeploymentWithSpecificTrigger)
+			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrid", request.wfrIdForDeploymentWithSpecificTrigger)
 			return []byte("{}"), err
 		}
 		secretDataJsonEnv = secretHistory.Data
@@ -3302,7 +3750,7 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envI
 	if err != nil {
 		return []byte("{}"), err
 	}
-	chartMajorVersion, chartMinorVersion, err := util4.ExtractChartVersion(chartVersion)
+	chartMajorVersion, chartMinorVersion, err := util4.ExtractChartVersion(request.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return []byte("{}"), err
@@ -3337,12 +3785,21 @@ func (impl *WorkflowDagExecutorImpl) getConfigMapAndSecretJsonV2(appId int, envI
 	secretDataByte, err := json.Marshal(secretResponseR)
 	if err != nil {
 		return []byte("{}"), err
-	}
 
-	merged, err = impl.mergeUtil.JsonPatch(configMapByte, secretDataByte)
+	}
+	resolvedCM, resolvedCS, snapshotCM, snapshotCS, err := impl.scopedVariableManager.ResolveCMCSTrigger(request.DeploymentWithConfig, request.Scope, configMapA.Id, configMapE.Id, configMapByte, secretDataByte, configMapHistory.Id, secretHistory.Id)
 	if err != nil {
 		return []byte("{}"), err
 	}
+	envOverride.VariableSnapshotForCM = snapshotCM
+	envOverride.VariableSnapshotForCS = snapshotCS
+
+	merged, err = impl.mergeUtil.JsonPatch([]byte(resolvedCM), []byte(resolvedCS))
+
+	if err != nil {
+		return []byte("{}"), err
+	}
+
 	return merged, nil
 }
 
@@ -3790,77 +4247,19 @@ func (impl *WorkflowDagExecutorImpl) updatePipeline(pipeline *pipelineConfig.Pip
 	return true, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) getResolvedTemplateWithSnapshot(deploymentTemplateHistoryId int, template string) (string, map[string]string, error) {
+// helmInstallReleaseWithCustomChart performs helm install with custom chart
+func (impl *WorkflowDagExecutorImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *client2.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*client2.HelmInstallCustomResponse, error) {
 
-	variableSnapshotMap := make(map[string]string)
-	reference := repository5.HistoryReference{
-		HistoryReferenceId:   deploymentTemplateHistoryId,
-		HistoryReferenceType: repository5.HistoryReferenceTypeDeploymentTemplate,
+	helmInstallRequest := client2.HelmInstallCustomRequest{
+		ValuesYaml:        valuesYaml,
+		ChartContent:      &client2.ChartContent{Content: referenceChartByte},
+		ReleaseIdentifier: releaseIdentifier,
 	}
-	variableSnapshot, err := impl.variableSnapshotHistoryService.GetVariableHistoryForReferences([]repository5.HistoryReference{reference})
-	if err != nil {
-		return template, variableSnapshotMap, err
+	if impl.appService.IsDevtronAsyncInstallModeEnabled(bean2.Helm) {
+		helmInstallRequest.RunInCtx = true
 	}
-
-	if _, ok := variableSnapshot[reference]; !ok {
-		return template, variableSnapshotMap, nil
-	}
-
-	err = json.Unmarshal(variableSnapshot[reference].VariableSnapshot, &variableSnapshotMap)
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-
-	if len(variableSnapshotMap) == 0 {
-		return template, variableSnapshotMap, nil
-	}
-	scopedVariableData := parsers.GetScopedVarData(variableSnapshotMap, make(map[string]bool), true)
-	request := parsers.VariableParserRequest{Template: template, TemplateType: parsers.JsonVariableTemplate, Variables: scopedVariableData}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(request)
-	err = parserResponse.Error
-	if err != nil {
-		return template, variableSnapshotMap, err
-	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableSnapshotMap, nil
-}
-
-func (impl *WorkflowDagExecutorImpl) extractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, entity repository5.Entity) (string, map[string]string, error) {
-
-	variableMap := make(map[string]string)
-	entityToVariables, err := impl.variableEntityMappingService.GetAllMappingsForEntities([]repository5.Entity{entity})
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	if vars, ok := entityToVariables[entity]; !ok || len(vars) == 0 {
-		return template, variableMap, nil
-	}
-
-	// pre-populating variable map with variable so that the variables which don't have any resolved data
-	// is saved in snapshot
-	for _, variable := range entityToVariables[entity] {
-		variableMap[variable] = impl.scopedVariableService.GetFormattedVariableForName(variable)
-	}
-
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, entityToVariables[entity], true)
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	for _, variable := range scopedVariables {
-		variableMap[variable.VariableName] = variable.VariableValue.StringValue()
-	}
-
-	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: parsers.JsonVariableTemplate}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err = parserResponse.Error
-	if err != nil {
-		return template, variableMap, err
-	}
-
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, variableMap, nil
+	// Request exec
+	return impl.helmAppClient.InstallReleaseWithCustomChart(ctx, &helmInstallRequest)
 }
 
 type EnvironmentOverride struct {
@@ -4019,439 +4418,6 @@ func (impl *WorkflowDagExecutorImpl) extractParamValue(inputMap map[string]inter
 	return floatNumber, err
 }
 
-func (impl *WorkflowDagExecutorImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
-	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
-
-	pipeline, err := impl.pipelineRepository.FindById(pipeline.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
-		return err
-	}
-
-	request := &bean.ValuesOverrideRequest{
-		PipelineId:           pipeline.Id,
-		UserId:               artifact.CreatedBy,
-		CiArtifactId:         artifact.Id,
-		AppId:                pipeline.AppId,
-		CdWorkflowId:         cdWorkflowId,
-		ForceTrigger:         true,
-		DeploymentWithConfig: bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED,
-		WfrId:                wfrId,
-	}
-	impl.SetPipelineFieldsInOverrideRequest(request, pipeline)
-
-	ctx, err := impl.buildACDContext()
-	if err != nil {
-		impl.logger.Errorw("error in creating acd sync context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
-		return err
-	}
-	//setting deployedBy as 1(system user) since case of auto trigger
-	id, _, err := impl.HandleCDTriggerRelease(request, ctx, triggeredAt, 1)
-	if err != nil {
-		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
-	} else {
-		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
-	}
-	return err
-
-}
-
-func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error) {
-	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
-		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
-	}
-	if len(overrideRequest.DeploymentWithConfig) == 0 {
-		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED
-	}
-	valuesOverrideResponse := &app.ValuesOverrideResponse{}
-	isPipelineOverrideCreated := overrideRequest.PipelineOverrideId > 0
-	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
-	valuesOverrideResponse.Pipeline = pipeline
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by pipeline id", "err", err, "pipeline-id-", overrideRequest.PipelineId)
-		return valuesOverrideResponse, err
-	}
-
-	_, span := otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
-	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
-	valuesOverrideResponse.Artifact = artifact
-	span.End()
-	if err != nil {
-		return valuesOverrideResponse, err
-	}
-	overrideRequest.Image = artifact.Image
-
-	strategy, err := impl.GetDeploymentStrategyByTriggerType(overrideRequest, ctx)
-	valuesOverrideResponse.PipelineStrategy = strategy
-	if err != nil {
-		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
-		return valuesOverrideResponse, err
-	}
-
-	envOverride, err := impl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
-	valuesOverrideResponse.EnvOverride = envOverride
-	if err != nil {
-		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
-		return valuesOverrideResponse, err
-	}
-	appMetrics, err := impl.GetAppMetricsByTriggerType(overrideRequest, ctx)
-	valuesOverrideResponse.AppMetrics = appMetrics
-	if err != nil {
-		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
-		return valuesOverrideResponse, err
-	}
-	var (
-		pipelineOverride                                     *chartConfig.PipelineOverride
-		dbMigrationOverride, configMapJson, appLabelJsonByte []byte
-	)
-
-	// Conditional Block based on PipelineOverrideCreated --> start
-	if !isPipelineOverrideCreated {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "savePipelineOverride")
-		pipelineOverride, err = impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
-		span.End()
-		if err != nil {
-			return valuesOverrideResponse, err
-		}
-		overrideRequest.PipelineOverrideId = pipelineOverride.Id
-	} else {
-		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(overrideRequest.PipelineOverrideId)
-		if err != nil {
-			impl.logger.Errorw("error in getting pipelineOverride for valuesOverrideResponse", "PipelineOverrideId", overrideRequest.PipelineOverrideId)
-			return nil, err
-		}
-	}
-	// Conditional Block based on PipelineOverrideCreated --> end
-	valuesOverrideResponse.PipelineOverride = pipelineOverride
-
-	//TODO: check status and apply lock
-	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
-	valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson
-	if err != nil {
-		return valuesOverrideResponse, err
-	}
-
-	// Conditional Block based on PipelineOverrideCreated --> start
-	if !isPipelineOverrideCreated {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "getDbMigrationOverride")
-		//FIXME: how to determine rollback
-		//we can't depend on ciArtifact ID because CI pipeline can be manually triggered in any order regardless of sourcecode status
-		dbMigrationOverride, err = impl.getDbMigrationOverride(overrideRequest, artifact, false)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
-			return valuesOverrideResponse, err
-		}
-		chartVersion := envOverride.Chart.ChartVersion
-		_, span = otel.Tracer("orchestrator").Start(ctx, "getConfigMapAndSecretJsonV2")
-		configMapJson, err = impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in fetching config map n secret ", "err", err)
-			configMapJson = nil
-		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "appCrudOperationService.GetLabelsByAppIdForDeployment")
-		appLabelJsonByte, err = impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
-			appLabelJsonByte = nil
-		}
-
-		mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
-		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
-		mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
-
-		_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
-		// handle image pull secret if access given
-		mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, mergedValues)
-		span.End()
-		if err != nil {
-			return valuesOverrideResponse, err
-		}
-
-		pipelineOverride.PipelineMergedValues = string(mergedValues)
-		valuesOverrideResponse.MergedValues = string(mergedValues)
-		err = impl.pipelineOverrideRepository.Update(pipelineOverride)
-		if err != nil {
-			return valuesOverrideResponse, err
-		}
-		valuesOverrideResponse.PipelineOverride = pipelineOverride
-	} else {
-		valuesOverrideResponse.MergedValues = pipelineOverride.PipelineMergedValues
-	}
-	// Conditional Block based on PipelineOverrideCreated --> end
-	return valuesOverrideResponse, err
-}
-
-func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
-
-	impl.logger.Debugw("new pipeline found", "pipeline", valuesOverrideResponse.Pipeline)
-	_, span := otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
-	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
-		return err
-	}
-	impl.logger.Debugw("argocd application created", "name", name)
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, ctx)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error in updating argocd app ", "err", err)
-		return err
-	}
-	if updateAppInArgocd {
-		impl.logger.Debug("argo-cd successfully updated")
-	} else {
-		impl.logger.Debug("argo-cd failed to update, ignoring it")
-	}
-	//update workflow runner status, used in app workflow view
-	err = impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
-	if err != nil {
-		impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
-		return err
-	}
-	return nil
-}
-
-// write integration/unit test for each function
-func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, manifest []byte, err error) {
-	isRequestValid, err := impl.ValidateTriggerEvent(triggerEvent)
-	if !isRequestValid {
-		return releaseNo, manifest, err
-	}
-
-	if triggerEvent.PerformChartPush {
-		manifestPushTemplate, err := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
-		if err != nil {
-			impl.logger.Errorw("error in building manifest push template", "err", err)
-			return releaseNo, manifest, err
-		}
-		manifestPushService := impl.GetManifestPushService(triggerEvent)
-		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
-		if manifestPushResponse.Error != nil {
-			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
-			return releaseNo, manifest, err
-		}
-		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
-			Id:                     valuesOverrideResponse.PipelineOverride.Id,
-			GitHash:                manifestPushResponse.CommitHash,
-			CommitTime:             manifestPushResponse.CommitTime,
-			EnvConfigOverrideId:    valuesOverrideResponse.EnvOverride.Id,
-			PipelineOverrideValues: valuesOverrideResponse.ReleaseOverrideJSON,
-			PipelineId:             overrideRequest.PipelineId,
-			CiArtifactId:           overrideRequest.CiArtifactId,
-			PipelineMergedValues:   valuesOverrideResponse.MergedValues,
-			AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggerdAt, UpdatedBy: overrideRequest.UserId},
-		}
-		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
-		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
-		span.End()
-	}
-
-	if triggerEvent.PerformDeploymentOnCluster {
-		err = impl.DeployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in deploying app", "err", err)
-			return releaseNo, manifest, err
-		}
-	}
-
-	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
-
-	_, span := otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
-	_ = impl.MarkImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled)
-	span.End()
-
-	middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
-
-	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, manifest, nil
-
-}
-
-func (impl *WorkflowDagExecutorImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error {
-	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
-	executionHistory, err := impl.imageScanHistoryRepository.FindByImageDigest(imageDigest)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching execution history", "err", err)
-		return err
-	}
-	if executionHistory == nil || executionHistory.Id == 0 {
-		impl.logger.Errorw("no execution history found for digest", "digest", imageDigest)
-		return fmt.Errorf("no execution history found for digest - %s", imageDigest)
-	}
-	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "executionHistory", executionHistory)
-	var ids []int
-	ids = append(ids, executionHistory.Id)
-
-	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
-	switch err {
-	case nil:
-		// Updating Execution history for Latest Deployment to fetch out security Vulnerabilities for latest deployed info
-		if isScanEnabled {
-			ot.ImageScanExecutionHistoryId = ids
-		} else {
-			arr := []int{-1}
-			ot.ImageScanExecutionHistoryId = arr
-		}
-		err = impl.imageScanDeployInfoRepository.Update(ot)
-		if err != nil {
-			impl.logger.Errorw("error in updating deploy info for latest deployed image", "err", err)
-			return err
-		}
-		return nil
-	case pg.ErrNoRows:
-		if isScanEnabled {
-			imageScanDeployInfo := &security.ImageScanDeployInfo{
-				ImageScanExecutionHistoryId: ids,
-				ScanObjectMetaId:            appId,
-				ObjectType:                  security.ScanObjectType_APP,
-				EnvId:                       envId,
-				ClusterId:                   clusterId,
-				AuditLog: sql.AuditLog{
-					CreatedOn: time.Now(),
-					CreatedBy: 1,
-					UpdatedOn: time.Now(),
-					UpdatedBy: 1,
-				},
-			}
-			impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageScanDeployInfo", imageScanDeployInfo)
-			err = impl.imageScanDeployInfoRepository.Save(imageScanDeployInfo)
-			if err != nil {
-				impl.logger.Errorw("error in creating deploy info", "err", err)
-				return err
-			}
-		}
-		return nil
-	default:
-		impl.logger.Errorw("error in getting image scan info", "appId", appId, "envId", envId, "err", err)
-		return err
-	}
-}
-
-func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) (bool, error) {
-
-	pipeline := valuesOverrideResponse.Pipeline
-	envOverride := valuesOverrideResponse.EnvOverride
-	mergeAndSave := valuesOverrideResponse.MergedValues
-
-	chartMetaData := &chart.Metadata{
-		Name:    pipeline.App.AppName,
-		Version: envOverride.Chart.ChartVersion,
-	}
-	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
-
-	if util.IsHelmApp(pipeline.DeploymentAppType) {
-		referenceChartByte := envOverride.Chart.ReferenceChart
-		// here updating reference chart into database.
-		if len(envOverride.Chart.ReferenceChart) == 0 {
-			refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
-			if err != nil {
-				impl.logger.Errorw("ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
-				return false, err
-			}
-			ch := envOverride.Chart
-			ch.ReferenceChart = refChartByte
-			ch.UpdatedOn = time.Now()
-			ch.UpdatedBy = overrideRequest.UserId
-			err = impl.chartRepository.Update(ch)
-			if err != nil {
-				impl.logger.Errorw("chart update error", "err", err, "req", overrideRequest)
-				return false, err
-			}
-			referenceChartByte = refChartByte
-		}
-
-		releaseName := pipeline.DeploymentAppName
-		cluster := envOverride.Environment.Cluster
-		bearerToken := cluster.Config[util5.BearerToken]
-		clusterConfig := &client2.ClusterConfig{
-			ClusterName:           cluster.ClusterName,
-			Token:                 bearerToken,
-			ApiServerUrl:          cluster.ServerUrl,
-			InsecureSkipTLSVerify: cluster.InsecureSkipTlsVerify,
-		}
-		if cluster.InsecureSkipTlsVerify == false {
-			clusterConfig.KeyData = cluster.Config[util5.TlsKey]
-			clusterConfig.CertData = cluster.Config[util5.CertData]
-			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
-		}
-		releaseIdentifier := &client2.ReleaseIdentifier{
-			ReleaseName:      releaseName,
-			ReleaseNamespace: envOverride.Namespace,
-			ClusterConfig:    clusterConfig,
-		}
-
-		if pipeline.DeploymentAppCreated {
-			req := &client2.UpgradeReleaseRequest{
-				ReleaseIdentifier: releaseIdentifier,
-				ValuesYaml:        mergeAndSave,
-				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.SOURCE_DEVTRON_APP),
-				ChartContent:      &client2.ChartContent{Content: referenceChartByte},
-			}
-			if impl.appService.IsDevtronAsyncInstallModeEnabled(bean2.Helm) {
-				req.RunInCtx = true
-			}
-			// For cases where helm release was not found, kubelink will install the same configuration
-			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
-			if err != nil {
-				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
-				if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
-					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
-				}
-				return false, err
-			} else {
-				impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
-			}
-
-		} else {
-
-			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
-
-			// For connection related errors, no need to update the db
-			if err != nil && strings.Contains(err.Error(), "connection error") {
-				impl.logger.Errorw("error in helm install custom chart", "err", err)
-				return false, err
-			}
-
-			if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
-				err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
-			}
-			// IMP: update cd pipeline to mark deployment app created, even if helm install fails
-			// If the helm install fails, it still creates the app in failed state, so trying to
-			// re-create the app results in error from helm that cannot re-use name which is still in use
-			_, pgErr := impl.updatePipeline(pipeline, overrideRequest.UserId)
-
-			if err != nil {
-				impl.logger.Errorw("error in helm install custom chart", "err", err)
-
-				if pgErr != nil {
-					impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
-				}
-				return false, err
-			}
-
-			if pgErr != nil {
-				impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
-				return false, err
-			}
-
-			impl.logger.Debugw("received helm release response", "helmResponse", helmResponse, "isSuccess", helmResponse.Success)
-		}
-
-		//update workflow runner status, used in app workflow view
-		err := impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
-		if err != nil {
-			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
-			return false, err
-		}
-	}
-	return true, nil
-}
-
 func (impl *WorkflowDagExecutorImpl) UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) error {
 	cdWfrs, err := impl.cdWorkflowRepository.UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId, triggeredBy)
 	if err != nil {
@@ -4561,19 +4527,4 @@ func (impl *WorkflowDagExecutorImpl) UpdateCDWorkflowRunnerStatus(ctx context.Co
 		impl.UpdateTriggerCDMetricsOnFinish(cdWfr)
 	}
 	return nil
-}
-
-// helmInstallReleaseWithCustomChart performs helm install with custom chart
-func (impl *WorkflowDagExecutorImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *client2.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*client2.HelmInstallCustomResponse, error) {
-
-	helmInstallRequest := client2.HelmInstallCustomRequest{
-		ValuesYaml:        valuesYaml,
-		ChartContent:      &client2.ChartContent{Content: referenceChartByte},
-		ReleaseIdentifier: releaseIdentifier,
-	}
-	if impl.appService.IsDevtronAsyncInstallModeEnabled(bean2.Helm) {
-		helmInstallRequest.RunInCtx = true
-	}
-	// Request exec
-	return impl.helmAppClient.InstallReleaseWithCustomChart(ctx, &helmInstallRequest)
 }

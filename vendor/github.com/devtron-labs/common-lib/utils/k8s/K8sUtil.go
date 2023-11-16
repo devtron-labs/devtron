@@ -196,7 +196,7 @@ func (impl K8sUtil) CreateNsIfNotExists(namespace string, clusterConfig *Cluster
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return err
 	}
-	exists, err := impl.checkIfNsExists(namespace, v12Client)
+	exists, err := impl.CheckIfNsExists(namespace, v12Client)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return err
@@ -210,7 +210,7 @@ func (impl K8sUtil) CreateNsIfNotExists(namespace string, clusterConfig *Cluster
 	return err
 }
 
-func (impl K8sUtil) checkIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error) {
+func (impl K8sUtil) CheckIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error) {
 	ns, err := client.Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	//ns, err := impl.k8sClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	impl.logger.Debugw("ns fetch", "name", namespace, "res", ns)
@@ -438,6 +438,15 @@ func (impl K8sUtil) GetK8sInClusterConfigAndDynamicClients() (*rest.Config, *htt
 		return nil, nil, nil, err
 	}
 	return restConfig, k8sHttpClient, dynamicClientSet, nil
+}
+
+func (impl K8sUtil) GetK8sDynamicClient(restConfig *rest.Config, k8sHttpClient *http.Client) (dynamic.Interface, error) {
+	dynamicClientSet, err := dynamic.NewForConfigAndClient(restConfig, k8sHttpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config for in cluster", "err", err)
+		return nil, err
+	}
+	return dynamicClientSet, nil
 }
 
 func (impl K8sUtil) GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
@@ -1108,7 +1117,7 @@ func (impl K8sUtil) ListEvents(restConfig *rest.Config, namespace string, groupV
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "resource", name)
 		return nil, err
 	}
-	groupVersionKind.Kind = "List"
+
 	if !namespaced {
 		namespace = "default"
 	}
@@ -1124,10 +1133,10 @@ func (impl K8sUtil) ListEvents(restConfig *rest.Config, namespace string, groupV
 	}
 	eventsIf := eventsClient.Events(namespace)
 	eventsExp := eventsIf.(v12.EventExpansion)
-	fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(name), pointer.StringPtr(namespace), nil, nil)
+	fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(name), pointer.StringPtr(namespace), pointer.StringPtr(groupVersionKind.Kind), nil)
 	listOptions := metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       groupVersionKind.Kind,
+			Kind:       "List",
 			APIVersion: groupVersionKind.GroupVersion().String(),
 		},
 		FieldSelector: fieldSelector.String(),
@@ -1324,6 +1333,11 @@ func (impl K8sUtil) GetApiResources(restConfig *rest.Config, includeOnlyVerb str
 						Group:   group,
 						Version: version,
 						Kind:    apiResourceFromK8s.Kind,
+					},
+					Gvr: schema.GroupVersionResource{
+						Group:    group,
+						Version:  version,
+						Resource: apiResourceFromK8s.Name,
 					},
 					Namespaced: apiResourceFromK8s.Namespaced,
 				})
