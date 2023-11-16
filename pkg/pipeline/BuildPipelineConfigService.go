@@ -104,7 +104,8 @@ type CiPipelineConfigService interface {
 	//GetExternalCiByEnvironment : lists externalCi for given environmentId and appIds
 	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
-	CreateExternalCi(createRequest *bean.ExternalCiPipelineCreateRequest) (*bean.ExternalCiPipelineCreateRequest, error)
+	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error)
+	SwitchToExternalCi(tx *pg.Tx, appWorkflowMapping *appWorkflow.AppWorkflowMapping, switchFromCiPipelineId int, userId int32) error
 }
 
 type CiPipelineConfigServiceImpl struct {
@@ -130,7 +131,6 @@ type CiPipelineConfigServiceImpl struct {
 	enforcerUtil                  rbac.EnforcerUtil
 	customTagService              CustomTagService
 	ciPipelineHistoryService      history.CiPipelineHistoryService
-	cdPipelineConfigService       CdPipelineConfigService
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -154,7 +154,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	resourceGroupService resourceGroup2.ResourceGroupService,
 	customTagService CustomTagService,
 	ciPipelineHistoryService history.CiPipelineHistoryService,
-	cdPipelineConfigService CdPipelineConfigService) *CiPipelineConfigServiceImpl {
+) *CiPipelineConfigServiceImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -184,7 +184,6 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		securityConfig:                securityConfig,
 		customTagService:              customTagService,
 		ciPipelineHistoryService:      ciPipelineHistoryService,
-		cdPipelineConfigService:       cdPipelineConfigService,
 	}
 }
 
@@ -1452,51 +1451,36 @@ func (impl *CiPipelineConfigServiceImpl) deleteOldPipelineAndWorkflowMappingBefo
 	return appWorkflowMappings, nil
 }
 
-func (impl *CiPipelineConfigServiceImpl) CreateExternalCi(createRequest *bean.ExternalCiPipelineCreateRequest) (*bean.ExternalCiPipelineCreateRequest, error) {
-	tx, err := impl.ciPipelineRepository.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in creating external ci pipeline", "createRequest", createRequest, "err", err)
-		return createRequest, err
-	}
-	defer tx.Rollback()
-	externalCiPipelineId, appWorkflowMapping, err := impl.cdPipelineConfigService.CreateExternalCiAndAppWorkflowMapping(createRequest.AppId, createRequest.AppWorkflowId, createRequest.UserId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in creating external ci pipeline", "appId", createRequest.AppId, "appWorkflowId", createRequest.AppWorkflowId, "err", err)
-		return createRequest, err
-	}
-	createRequest.Id = externalCiPipelineId
-	ciPipeline, err := impl.ciPipelineRepository.FindById(createRequest.SwitchFromCiPipelineId)
+func (impl *CiPipelineConfigServiceImpl) SwitchToExternalCi(tx *pg.Tx, appWorkflowMapping *appWorkflow.AppWorkflowMapping, switchFromCiPipelineId int, userId int32) error {
+
+	ciPipeline, err := impl.ciPipelineRepository.FindById(switchFromCiPipelineId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in finding ci-pipeline by id", "ciPipelineId", createRequest.SwitchFromCiPipelineId, "err", err)
-		return createRequest, err
+		impl.logger.Errorw("error in finding ci-pipeline by id", "ciPipelineId", switchFromCiPipelineId, "err", err)
+		return err
 	}
 
 	if ciPipeline == nil || err == pg.ErrNoRows {
-		return createRequest, errors.New("ci pipeline doesn't exist")
+		return errors.New("ci pipeline doesn't exist")
 	}
-	oldWorkflowMapping, err := impl.deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx, ciPipeline, 0, createRequest.UserId)
+	oldWorkflowMapping, err := impl.deleteOldPipelineAndWorkflowMappingBeforeSwitch(tx, ciPipeline, 0, userId)
 	if err != nil {
-		impl.logger.Errorw("error in deleting old ci-pipeline and getting the appWorkflow mapping of that", "err", err, "userId", createRequest.UserId)
-		return createRequest, err
+		impl.logger.Errorw("error in deleting old ci-pipeline and getting the appWorkflow mapping of that", "err", err, "userId", userId)
+		return err
 	}
 
 	err = impl.updateLinkedAppWorkflowMappings(tx, oldWorkflowMapping, appWorkflowMapping)
 	if err != nil {
-		impl.logger.Errorw("error in updating linked app-workflow-mappings ", "oldAppWorkflowMappingId", oldWorkflowMapping.Id, "currentAppWorkflowMapId", appWorkflowMapping.Id, "err", err, "userId", createRequest.UserId)
-		return createRequest, err
+		impl.logger.Errorw("error in updating linked app-workflow-mappings ", "oldAppWorkflowMappingId", oldWorkflowMapping.Id, "currentAppWorkflowMapId", appWorkflowMapping.Id, "err", err, "userId", userId)
+		return err
 	}
 
-	err = impl.pipelineRepository.UpdateOldCiPipelineIdToNewCiPipelineId(tx, createRequest.SwitchFromCiPipelineId, 0)
+	err = impl.pipelineRepository.UpdateOldCiPipelineIdToNewCiPipelineId(tx, switchFromCiPipelineId, 0)
 	if err != nil {
-		impl.logger.Errorw("error in updating pipelines ci_pipeline_ids with new ci_pipelineId", "oldCiPipelineId", createRequest.SwitchFromCiPipelineId)
-		return nil, err
+		impl.logger.Errorw("error in updating pipelines ci_pipeline_ids with new ci_pipelineId", "oldCiPipelineId", switchFromCiPipelineId)
+		return err
 	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error in committing db transaction", "err", err)
-		return nil, err
-	}
-	return createRequest, nil
+
+	return nil
 }
 
 func (impl *CiPipelineConfigServiceImpl) updateLinkedAppWorkflowMappings(tx *pg.Tx, oldAppWorkflowMapping *appWorkflow.AppWorkflowMapping, newAppWorkflowMapping *appWorkflow.AppWorkflowMapping) error {
@@ -2403,4 +2387,31 @@ func (impl *CiPipelineConfigServiceImpl) DeleteCiPipeline(request *bean.CiPatchR
 	//delete pipeline
 	//delete scm
 
+}
+
+func (impl *CiPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error) {
+	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
+		AppId:       appId,
+		AccessToken: "",
+		Active:      true,
+		AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+	}
+	externalCiPipeline, err := impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving external ci", "appId", appId, "err", err)
+		return 0, nil, err
+	}
+	appWorkflowMap := &appWorkflow.AppWorkflowMapping{
+		AppWorkflowId: appWorkflowId,
+		ComponentId:   externalCiPipeline.Id,
+		Type:          "WEBHOOK",
+		Active:        true,
+		AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+	}
+	appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving app workflow mapping for external ci", "appId", appId, "appWorkflowId", appWorkflowId, "externalCiPipelineId", externalCiPipeline.Id, "err", err)
+		return 0, nil, err
+	}
+	return externalCiPipeline.Id, appWorkflowMap, nil
 }

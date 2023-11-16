@@ -108,7 +108,6 @@ type CdPipelineConfigService interface {
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	IsGitopsConfigured() (bool, error)
 	RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error
-	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error)
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -141,7 +140,8 @@ type CdPipelineConfigServiceImpl struct {
 	deploymentConfig                 *DeploymentServiceTypeConfig
 	application                      application.ServiceClient
 
-	devtronAppCMCSService DevtronAppCMCSService
+	devtronAppCMCSService   DevtronAppCMCSService
+	ciPipelineConfigService CiPipelineConfigService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -174,7 +174,8 @@ func NewCdPipelineConfigServiceImpl(
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
 
-	devtronAppCMCSService DevtronAppCMCSService) *CdPipelineConfigServiceImpl {
+	devtronAppCMCSService DevtronAppCMCSService,
+	ciPipelineConfigService CiPipelineConfigService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -205,6 +206,7 @@ func NewCdPipelineConfigServiceImpl(
 		deploymentConfig:                 deploymentConfig,
 		application:                      application,
 		devtronAppCMCSService:            devtronAppCMCSService,
+		ciPipelineConfigService:          ciPipelineConfigService,
 	}
 }
 
@@ -1383,25 +1385,33 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
-		wf := &appWorkflow.AppWorkflow{
-			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
-			AppId:    app.Id,
-			Active:   true,
-			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+	if pipeline.ParentPipelineType == "WEBHOOK" {
+		if pipeline.AppWorkflowId == 0 {
+			wf := &appWorkflow.AppWorkflow{
+				Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
+				AppId:    app.Id,
+				Active:   true,
+				AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			}
+			savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving app workflow", "appId", app.Id, "err", err)
+				return 0, err
+			}
+			pipeline.AppWorkflowId = savedAppWf.Id
 		}
-		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
-		if err != nil {
-			impl.logger.Errorw("error in saving app workflow", "appId", app.Id, "err", err)
-			return 0, err
-		}
-		externalCiPipelineId, _, err := impl.CreateExternalCiAndAppWorkflowMapping(app.Id, savedAppWf.Id, userId, tx)
+		externalCiPipelineId, appWorkflowMapping, err := impl.ciPipelineConfigService.CreateExternalCiAndAppWorkflowMapping(app.Id, pipeline.AppWorkflowId, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "appId", app.Id, "err", err)
 			return 0, err
 		}
+		if pipeline.IsSwitchCiPipelineRequest() {
+			err = impl.ciPipelineConfigService.SwitchToExternalCi(tx, appWorkflowMapping, pipeline.SwitchFromCiPipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in switching external ci", "appId", app.Id, "switchFromExternalCiPipelineId", pipeline.SwitchFromCiPipelineId, "userId", userId, "err", err)
+			}
+		}
 		pipeline.ParentPipelineId = externalCiPipelineId
-		pipeline.AppWorkflowId = savedAppWf.Id
 	}
 
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
@@ -1794,31 +1804,4 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 	}
 	return respDtos
 
-}
-
-func (impl *CdPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error) {
-	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-		AppId:       appId,
-		AccessToken: "",
-		Active:      true,
-		AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-	}
-	externalCiPipeline, err := impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving external ci", "appId", appId, "err", err)
-		return 0, nil, err
-	}
-	appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-		AppWorkflowId: appWorkflowId,
-		ComponentId:   externalCiPipeline.Id,
-		Type:          "WEBHOOK",
-		Active:        true,
-		AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-	}
-	appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving app workflow mapping for external ci", "appId", appId, "appWorkflowId", appWorkflowId, "externalCiPipelineId", externalCiPipeline.Id, "err", err)
-		return 0, nil, err
-	}
-	return externalCiPipeline.Id, appWorkflowMap, nil
 }

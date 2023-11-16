@@ -61,7 +61,6 @@ type DevtronAppBuildRestHandler interface {
 	GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request)
 	GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request)
-	CreateExternalCi(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -85,49 +84,6 @@ type DevtronAppBuildHistoryRestHandler interface {
 type ImageTaggingRestHandler interface {
 	CreateUpdateImageTagging(w http.ResponseWriter, r *http.Request)
 	GetImageTaggingData(w http.ResponseWriter, r *http.Request)
-}
-
-func (handler PipelineConfigRestHandlerImpl) CreateExternalCi(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	createRequest := &bean.ExternalCiPipelineCreateRequest{}
-	err = decoder.Decode(createRequest)
-	createRequest.UserId = userId
-	if err != nil {
-		handler.Logger.Errorw("request err, create ci config", "err", err, "create request", createRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Infow("request payload, create ci config", "create request", createRequest)
-	err = handler.validator.Struct(createRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err, create ci config", "err", err, "create request", createRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(createRequest.AppId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-
-	createRequest, err = handler.pipelineBuilder.CreateExternalCi(createRequest)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	common.WriteJsonResp(w, err, createRequest, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWriter, r *http.Request) {
