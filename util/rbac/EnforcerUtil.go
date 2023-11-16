@@ -67,7 +67,7 @@ type EnforcerUtil interface {
 	GetRbacObjectNameByAppAndWorkflow(appName, workflowName string) string
 	GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string
 	GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string
-	GetTeamEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string
+	GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string
 }
 
 type EnforcerUtilImpl struct {
@@ -639,16 +639,19 @@ func (impl EnforcerUtilImpl) GetWorkflowRBACByCiPipelineId(pipelineId int, workf
 	return impl.GetRbacObjectNameByAppIdAndWorkflow(ciPipeline.AppId, workflowName)
 }
 
-func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string {
+func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string {
 	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	application, err := impl.appRepo.FindById(ciPipeline.AppId)
+	application, err := impl.appRepo.FindAppAndProjectByAppId(ciPipeline.AppId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	appName := application.AppName
+	if len(envName) != 0 {
+		return fmt.Sprintf("%s/%s/%s", application.Team.Name, envName, appName)
+	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", application.Team.Name, "", appName)
