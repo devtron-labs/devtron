@@ -977,7 +977,7 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 			return err
 		}
 		// filtering(if steps/variables/conditions are updated or newly added) and performing relevant actions on update request
-		err = impl.FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq, userId)
+		err = impl.FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq, stageType, pipelineId, userId)
 		if err != nil {
 			impl.logger.Errorw("error in filtering and performing actions on steps in pipelineStage update request", "err", err, "stageReq", stageReq)
 			return err
@@ -1033,7 +1033,7 @@ func (impl *PipelineStageServiceImpl) deletePipelineStageWithTx(stageReq *bean.P
 	return err
 }
 
-func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq *bean.PipelineStageDto, userId int32) error {
+func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, pipelineId int, userId int32) error {
 	//getting all stepIds for current active (steps not deleted) steps
 	activeStepIds, err := impl.pipelineStageRepository.GetStepIdsByStageId(stageReq.Id)
 	if err != nil {
@@ -1068,6 +1068,7 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRe
 			stepsToBeCreated = append(stepsToBeCreated, step)
 		}
 	}
+	stageDeleted := false
 	if len(activeStepIdsPresentInReq) > 0 {
 		// deleting all steps which are currently active but not present in update request
 		err = impl.pipelineStageRepository.MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq, stageReq.Id)
@@ -1082,8 +1083,19 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRe
 			impl.logger.Errorw("error in marking all steps deleted by stageId", "err", err, "stageId", stageReq.Id)
 			return err
 		}
+		stageDeleted = true
 	}
 	if len(stepsToBeCreated) > 0 {
+		if stageDeleted {
+			//create new stage and set stageReq.Id to newly created stage
+			stageReq.Id = 0
+			stageReq.Steps = nil
+			err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
+				return err
+			}
+		}
 		//creating new steps
 		err = impl.CreateStageSteps(stepsToBeCreated, stageReq.Id, userId, indexNameString, nil)
 		if err != nil {

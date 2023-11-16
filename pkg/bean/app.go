@@ -754,6 +754,10 @@ type CiArtifactBean struct {
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
 	ImageReleaseTags              []*repository2.ImageTag   `json:"imageReleaseTags"`
 	ImageComment                  *repository2.ImageComment `json:"imageComment"`
+	CreatedTime                   string                    `json:"createdTime"`
+	ExternalCiPipelineId          int                       `json:"-"`
+	ParentCiArtifact              int                       `json:"-"`
+	CiWorkflowId                  int                       `json:"-"`
 }
 
 type CiArtifactResponse struct {
@@ -765,6 +769,7 @@ type CiArtifactResponse struct {
 	TagsEditable               bool             `json:"tagsEditable"`
 	AppReleaseTagNames         []string         `json:"appReleaseTagNames"` //unique list of tags exists in the app
 	HideImageTaggingHardDelete bool             `json:"hideImageTaggingHardDelete"`
+	TotalCount                 int              `json:"totalCount"`
 }
 
 type AppLabelsDto struct {
