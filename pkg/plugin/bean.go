@@ -37,6 +37,16 @@ type PluginMetadataDto struct {
 	PluginSteps []*PluginStepsDto `json:"pluginSteps,omitempty"`
 }
 
+func (r *PluginMetadataDto) getPluginMetadataSqlObj(userId int32) *repository.PluginMetadata {
+	return &repository.PluginMetadata{
+		Name:        r.Name,
+		Description: r.Description,
+		Type:        repository.PluginType(r.Type),
+		Icon:        r.Icon,
+		AuditLog:    NewDefaultAuditLog(userId),
+	}
+}
+
 type PluginStepsDto struct {
 	Id                   int                       `json:"id,pk"`
 	Name                 string                    `json:"name"`

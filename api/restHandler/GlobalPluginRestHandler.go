@@ -90,7 +90,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetDetailedPluginInfoByPluginId(w ht
 	vars := mux.Vars(r)
 	pluginId, err := strconv.Atoi(vars["pluginId"])
 	if err != nil {
-		handler.logger.Errorw("error in converting from string to integer", "userId", userId, "err", err)
+		handler.logger.Errorw("error in converting from string to integer", "pluginId", pluginId, "userId", userId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
