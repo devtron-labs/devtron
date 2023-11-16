@@ -23,12 +23,14 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib-private/blob-storage"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -125,6 +127,7 @@ type WorkflowRequest struct {
 	Env                      *repository.Environment
 	AppLabels                map[string]string
 	IsDryRun                 bool `json:"isDryRun"`
+	Scope                    resourceQualifiers.Scope
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -222,10 +225,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() stri
 }
 
 func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdConfig, workflowJson []byte) (containerEnvVariables []v1.EnvVar) {
-	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE ||
-		workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
-		containerEnvVariables = []v1.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: config.ImageScannerEndpoint}}
-	}
+	containerEnvVariables = []v1.EnvVar{{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint}}
 	eventEnv := v1.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v1.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
 	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
@@ -386,7 +386,7 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 			TaintKey:         config.CiTaintKey,
 			TaintValue:       config.CiTaintValue,
 			NodeLabel:        nodeLabel,
-			SkipNodeSelector: false,
+			SkipNodeSelector: workflowRequest.IsExtRun,
 		}
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return &bean.NodeConstraints{
@@ -456,7 +456,6 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		Resources: workflowRequest.GetLimitReqCpuMem(config),
 	}
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
-		workflowMainContainer.Name = ""
 		workflowMainContainer.Ports = []v1.ContainerPort{{
 			//exposed for user specific data from ci container
 			Name:          "app-data",
@@ -590,42 +589,49 @@ type ChildCdMetadata struct {
 }
 
 type WorkflowResponse struct {
-	Id                   int                                         `json:"id"`
-	Name                 string                                      `json:"name"`
-	Status               string                                      `json:"status"`
-	PodStatus            string                                      `json:"podStatus"`
-	Message              string                                      `json:"message"`
-	StartedOn            time.Time                                   `json:"startedOn"`
-	FinishedOn           time.Time                                   `json:"finishedOn"`
-	CiPipelineId         int                                         `json:"ciPipelineId"`
-	Namespace            string                                      `json:"namespace"`
-	LogLocation          string                                      `json:"logLocation"`
-	BlobStorageEnabled   bool                                        `json:"blobStorageEnabled"`
-	GitTriggers          map[int]pipelineConfig.GitCommit            `json:"gitTriggers"`
-	CiMaterials          []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
-	TriggeredBy          int32                                       `json:"triggeredBy"`
-	Artifact             string                                      `json:"artifact"`
-	TriggeredByEmail     string                                      `json:"triggeredByEmail"`
-	Stage                string                                      `json:"stage"`
-	ArtifactId           int                                         `json:"artifactId"`
-	IsArtifactUploaded   bool                                        `json:"isArtifactUploaded"`
-	UserApprovalMetadata *pipelineConfig.UserApprovalMetadata        `json:"userApprovalMetadata"`
-	IsVirtualEnvironment bool                                        `json:"IsVirtualEnvironment"`
-	CdWorkflowId         int                                         `json:"cdWorkflowId"`
-	HelmPackageName      string                                      `json:"helmPackageName"`
-	PodName              string                                      `json:"podName"`
-	EnvironmentId        int                                         `json:"environmentId"`
-	EnvironmentName      string                                      `json:"environmentName"`
-	ImageReleaseTags     []*repository3.ImageTag                     `json:"imageReleaseTags"`
-	ImageComment         *repository3.ImageComment                   `json:"imageComment"`
-	AppWorkflowId        int                                         `json:"appWorkflowId"`
-	CustomTag            *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
-	PipelineType         string                                      `json:"pipelineType"`
-	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
+	Id                      int                                         `json:"id"`
+	Name                    string                                      `json:"name"`
+	Status                  string                                      `json:"status"`
+	PodStatus               string                                      `json:"podStatus"`
+	Message                 string                                      `json:"message"`
+	StartedOn               time.Time                                   `json:"startedOn"`
+	FinishedOn              time.Time                                   `json:"finishedOn"`
+	CiPipelineId            int                                         `json:"ciPipelineId"`
+	Namespace               string                                      `json:"namespace"`
+	LogLocation             string                                      `json:"logLocation"`
+	BlobStorageEnabled      bool                                        `json:"blobStorageEnabled"`
+	GitTriggers             map[int]pipelineConfig.GitCommit            `json:"gitTriggers"`
+	CiMaterials             []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
+	TriggeredBy             int32                                       `json:"triggeredBy"`
+	Artifact                string                                      `json:"artifact"`
+	TriggeredByEmail        string                                      `json:"triggeredByEmail"`
+	Stage                   string                                      `json:"stage"`
+	ArtifactId              int                                         `json:"artifactId"`
+	IsArtifactUploaded      bool                                        `json:"isArtifactUploaded"`
+	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata        `json:"userApprovalMetadata"`
+	IsVirtualEnvironment    bool                                        `json:"IsVirtualEnvironment"`
+	CdWorkflowId            int                                         `json:"cdWorkflowId"`
+	HelmPackageName         string                                      `json:"helmPackageName"`
+	PodName                 string                                      `json:"podName"`
+	EnvironmentId           int                                         `json:"environmentId"`
+	EnvironmentName         string                                      `json:"environmentName"`
+	ImageReleaseTags        []*repository3.ImageTag                     `json:"imageReleaseTags"`
+	ImageComment            *repository3.ImageComment                   `json:"imageComment"`
+	AppWorkflowId           int                                         `json:"appWorkflowId"`
+	CustomTag               *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
+	PipelineType            string                                      `json:"pipelineType"`
+	ReferenceWorkflowId     int                                         `json:"referenceWorkflowId"`
+	AppliedFilters          []*resourceFilter.FilterMetaDataBean        `json:"appliedFilters"`
+	AppliedFiltersState     resourceFilter.FilterState                  `json:"appliedFiltersState"`
+	AppliedFiltersTimestamp time.Time                                   `json:"appliedFiltersTimestamp"`
 }
 
 type ConfigMapSecretDto struct {
 	Name     string
 	Data     map[string]string
 	OwnerRef v12.OwnerReference
+}
+
+type WorkflowStatus struct {
+	WorkflowName, Status, PodStatus, Message, LogLocation, PodName string
 }

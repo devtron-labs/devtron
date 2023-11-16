@@ -19,18 +19,29 @@ package casbin
 
 import (
 	"fmt"
-	xormadapter "github.com/casbin/xorm-adapter"
-	"log"
-	"strings"
-
 	"github.com/casbin/casbin"
+	casbinv2 "github.com/casbin/casbin/v2"
+	xormadapter "github.com/casbin/xorm-adapter"
+	xormadapter2 "github.com/casbin/xorm-adapter/v2"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"log"
+	"os"
+	"strings"
+)
+
+type Version string
+
+const (
+	CasbinV1 Version = "V1"
+	CasbinV2 Version = "V2"
 )
 
 var e *casbin.SyncedEnforcer
+var e2 *casbinv2.SyncedEnforcer
 var enforcerImplRef *EnforcerImpl
 var casbinService CasbinService
+var casbinVersion Version
 
 type Subject string
 type Resource string
@@ -38,7 +49,25 @@ type Action string
 type Object string
 type PolicyType string
 
+func isV2() bool {
+	return casbinVersion == CasbinV2
+}
+
+func setCasbinVersion() {
+	version := os.Getenv("USE_CASBIN_V2")
+	if version == "true" {
+		casbinVersion = CasbinV2
+		return
+	}
+	casbinVersion = CasbinV1
+}
+
 func Create() *casbin.SyncedEnforcer {
+	setCasbinVersion()
+	if isV2() {
+		return nil
+	}
+
 	metav1.Now()
 	config, err := sql.GetConfig() //FIXME: use this from wire
 	if err != nil {
@@ -50,6 +79,7 @@ func Create() *casbin.SyncedEnforcer {
 		log.Fatal(err)
 	}
 	auth, err1 := casbin.NewSyncedEnforcerSafe("./auth_model.conf", a)
+
 	if err1 != nil {
 		log.Fatal(err1)
 	}
@@ -62,6 +92,39 @@ func Create() *casbin.SyncedEnforcer {
 	//adding our key matching func - MatchKeyFunc, to enforcer
 	e.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return e
+}
+
+func CreateV2() *casbinv2.SyncedEnforcer {
+	setCasbinVersion()
+	if !isV2() {
+		return nil
+	}
+
+	metav1.Now()
+	config, err := sql.GetConfig() //FIXME: use this from wire
+	if err != nil {
+		log.Fatal(err)
+	}
+	dataSource := fmt.Sprintf("user=%s password=%s host=%s port=%s sslmode=disable", config.User, config.Password, config.Addr, config.Port)
+	a, err := xormadapter2.NewAdapter("postgres", dataSource, false) // Your driver and data source.
+	if err != nil {
+		log.Fatal(err)
+	}
+	//Adapter
+
+	auth, err1 := casbinv2.NewSyncedEnforcer("./auth_model.conf", a)
+	if err1 != nil {
+		log.Fatal(err1)
+	}
+	e2 = auth
+	err = e2.LoadPolicy()
+	log.Println("v2 casbin Policies Loaded Successfully")
+	if err != nil {
+		log.Fatal(err)
+	}
+	//adding our key matching func - MatchKeyFunc, to enforcer
+	e2.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
+	return e2
 }
 
 func setEnforcerImpl(ref *EnforcerImpl) {
@@ -82,11 +145,15 @@ func AddPolicy(policies []Policy) error {
 
 func LoadPolicy() {
 	defer HandlePanic()
-	err := enforcerImplRef.ReloadPolicy()
+	isCasbinV2, err := enforcerImplRef.ReloadPolicy()
 	if err != nil {
 		fmt.Println("error in reloading policies", err)
 	} else {
-		fmt.Println("policy reloaded successfully")
+		if isCasbinV2 {
+			fmt.Println("V2 policy reloaded successfully")
+		} else {
+			fmt.Println("policy reloaded successfully")
+		}
 	}
 }
 
@@ -99,23 +166,41 @@ func RemovePolicy(policies []Policy) []Policy {
 }
 
 func GetAllSubjects() []string {
+	if isV2() {
+		return e2.GetAllSubjects()
+	}
 	return e.GetAllSubjects()
 }
 
 func DeleteRoleForUser(user string, role string) bool {
 	user = strings.ToLower(user)
-	response := e.DeleteRoleForUser(user, role)
+	var response bool
+	var err error
+	if isV2() {
+		response, err = e2.DeleteRoleForUser(user, role)
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		response = e.DeleteRoleForUser(user, role)
+	}
 	enforcerImplRef.InvalidateCache(user)
 	return response
 }
 
 func GetRolesForUser(user string) ([]string, error) {
 	user = strings.ToLower(user)
+	if isV2() {
+		return e2.GetRolesForUser(user)
+	}
 	return e.GetRolesForUser(user)
 }
 
 func GetUserByRole(role string) ([]string, error) {
 	role = strings.ToLower(role)
+	if isV2() {
+		return e2.GetUsersForRole(role)
+	}
 	return e.GetUsersForRole(role)
 }
 

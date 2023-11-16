@@ -46,6 +46,10 @@ type EnvConfigOverride struct {
 	sql.AuditLog
 	ResolvedEnvOverrideValues string            `sql:"-"`
 	VariableSnapshot          map[string]string `sql:"-"`
+	//ResolvedEnvOverrideValuesForCM string            `sql:"-"`
+	VariableSnapshotForCM map[string]string `sql:"-"`
+	//ResolvedEnvOverrideValuesForCS string            `sql:"-"`
+	VariableSnapshotForCS map[string]string `sql:"-"`
 }
 
 type EnvConfigOverrideRepository interface {

@@ -33,6 +33,7 @@ type UserRepository interface {
 	GetById(id int32) (*UserModel, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
+	GetAllActiveUsers() ([]UserModel, error)
 	//GetAllUserRoleMappingsForRoleId(roleId int) ([]UserRoleModel, error)
 	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
 	FetchUserDetailByEmail(email string) (bean.UserInfo, error)
@@ -109,6 +110,14 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 		Where("active = ?", true).
 		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
 		Order("updated_on desc").Select()
+	return userModel, err
+}
+
+func (impl UserRepositoryImpl) GetAllActiveUsers() ([]UserModel, error) {
+	var userModel []UserModel
+	err := impl.dbConnection.Model(&userModel).
+		Where("active = ?", true).
+		Order("email_id").Select()
 	return userModel, err
 }
 

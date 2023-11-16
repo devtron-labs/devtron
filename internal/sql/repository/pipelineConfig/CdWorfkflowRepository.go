@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -40,8 +41,7 @@ type CdWorkflowRepository interface {
 	FindById(wfId int) (*CdWorkflow, error)
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
-	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int) ([]CdWorkflowRunner, error)
-
+	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int, runnerStatuses []string) ([]CdWorkflowRunner, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) ([]*CdWorkflowRunner, error)
@@ -73,7 +73,6 @@ type CdWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
-
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 }
 
@@ -158,6 +157,11 @@ const (
 	FOUND_VULNERABILITY           = "Found vulnerability on image"
 )
 
+type CdWorkflowRunnerWithExtraFields struct {
+	CdWorkflowRunner
+	TotalCount int
+}
+
 type CdWorkflowRunner struct {
 	tableName                   struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
 	Id                          int                  `sql:"id,pk"`
@@ -212,32 +216,35 @@ type CiPipelineMaterialResponse struct {
 }
 
 type CdWorkflowWithArtifact struct {
-	Id                    int                          `json:"id"`
-	CdWorkflowId          int                          `json:"cd_workflow_id"`
-	Name                  string                       `json:"name"`
-	Status                string                       `json:"status"`
-	PodStatus             string                       `json:"pod_status"`
-	Message               string                       `json:"message"`
-	StartedOn             time.Time                    `json:"started_on"`
-	FinishedOn            time.Time                    `json:"finished_on"`
-	PipelineId            int                          `json:"pipeline_id"`
-	Namespace             string                       `json:"namespace"`
-	LogFilePath           string                       `json:"log_file_path"`
-	TriggeredBy           int32                        `json:"triggered_by"`
-	EmailId               string                       `json:"email_id"`
-	Image                 string                       `json:"image"`
-	MaterialInfo          string                       `json:"material_info,omitempty"`
-	DataSource            string                       `json:"data_source,omitempty"`
-	CiArtifactId          int                          `json:"ci_artifact_id,omitempty"`
-	WorkflowType          string                       `json:"workflow_type,omitempty"`
-	ExecutorType          string                       `json:"executor_type,omitempty"`
-	BlobStorageEnabled    bool                         `json:"blobStorageEnabled"`
-	UserApprovalMetadata  *UserApprovalMetadata        `json:"userApprovalMetadata"`
-	GitTriggers           map[int]GitCommit            `json:"gitTriggers"`
-	CiMaterials           []CiPipelineMaterialResponse `json:"ciMaterials"`
-	ImageReleaseTags      []*repository2.ImageTag      `json:"imageReleaseTags"`
-	ImageComment          *repository2.ImageComment    `json:"imageComment"`
-	RefCdWorkflowRunnerId int                          `json:"referenceCdWorkflowRunnerId"`
+	Id                      int                                  `json:"id"`
+	CdWorkflowId            int                                  `json:"cd_workflow_id"`
+	Name                    string                               `json:"name"`
+	Status                  string                               `json:"status"`
+	PodStatus               string                               `json:"pod_status"`
+	Message                 string                               `json:"message"`
+	StartedOn               time.Time                            `json:"started_on"`
+	FinishedOn              time.Time                            `json:"finished_on"`
+	PipelineId              int                                  `json:"pipeline_id"`
+	Namespace               string                               `json:"namespace"`
+	LogFilePath             string                               `json:"log_file_path"`
+	TriggeredBy             int32                                `json:"triggered_by"`
+	EmailId                 string                               `json:"email_id"`
+	Image                   string                               `json:"image"`
+	MaterialInfo            string                               `json:"material_info,omitempty"`
+	DataSource              string                               `json:"data_source,omitempty"`
+	CiArtifactId            int                                  `json:"ci_artifact_id,omitempty"`
+	WorkflowType            string                               `json:"workflow_type,omitempty"`
+	ExecutorType            string                               `json:"executor_type,omitempty"`
+	BlobStorageEnabled      bool                                 `json:"blobStorageEnabled"`
+	UserApprovalMetadata    *UserApprovalMetadata                `json:"userApprovalMetadata"`
+	GitTriggers             map[int]GitCommit                    `json:"gitTriggers"`
+	CiMaterials             []CiPipelineMaterialResponse         `json:"ciMaterials"`
+	ImageReleaseTags        []*repository2.ImageTag              `json:"imageReleaseTags"`
+	ImageComment            *repository2.ImageComment            `json:"imageComment"`
+	RefCdWorkflowRunnerId   int                                  `json:"referenceCdWorkflowRunnerId"`
+	AppliedFilters          []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
+	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
+	AppliedFiltersTimestamp time.Time                            `json:"appliedFiltersTimestamp"`
 }
 
 type TriggerWorkflowStatus struct {
@@ -407,15 +414,19 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int) ([]CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int, runnerStatuses []string) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	searchStringFinal := "%" + searchString + "%"
-	err := impl.dbConnection.
+	query := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
-		Where("cd_workflow__ci_artifact.image LIKE ?", searchStringFinal).
+		Where("cd_workflow__ci_artifact.image LIKE ?", searchStringFinal)
+	if len(runnerStatuses) > 0 {
+		query.Where("cd_workflow_runner.status IN (?)", pg.In(runnerStatuses))
+	}
+	err := query.
 		Order("cd_workflow_runner.id DESC").
 		Limit(limit).
 		Select()

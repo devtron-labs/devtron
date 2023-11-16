@@ -31,6 +31,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client2 "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -76,7 +77,7 @@ type CdHandler interface {
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
 	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
-	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
+	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int, showAppliedFilters bool) (types.WorkflowResponse, error)
 	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
 	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
@@ -126,6 +127,7 @@ type CdHandlerImpl struct {
 	eventFactory                           client2.EventFactory
 	k8sUtil                                *k8s.K8sUtil
 	workflowService                        WorkflowService
+	resourceFilterService                  resourceFilter.ResourceFilterService
 	config                                 *types.CdConfig
 	clusterService                         cluster.ClusterService
 	blobConfigStorageService               BlobStorageConfigService
@@ -133,7 +135,8 @@ type CdHandlerImpl struct {
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	eventFactory client2.EventFactory) *CdHandlerImpl {
+	eventFactory client2.EventFactory,
+	resourceFilterService resourceFilter.ResourceFilterService) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
 		userService:                            userService,
@@ -171,6 +174,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		workflowService:                        workflowService,
 		clusterService:                         clusterService,
 		blobConfigStorageService:               blobConfigStorageService,
+		resourceFilterService:                  resourceFilterService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -686,7 +690,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 	return savedWorkflow.Id, savedWorkflow.Status, nil
 }
 
-func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) *WorkflowStatus {
+func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) *types.WorkflowStatus {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := "Pending"
@@ -714,7 +718,7 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 			break
 		}
 	}
-	workflowStatusRes := &WorkflowStatus{
+	workflowStatusRes := &types.WorkflowStatus{
 		WorkflowName: workflowName,
 		Status:       status,
 		PodStatus:    podStatus,
@@ -725,13 +729,32 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	return workflowStatusRes
 }
 
-type WorkflowStatus struct {
-	WorkflowName, Status, PodStatus, Message, LogLocation, PodName string
-}
-
 func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg string,
 	finishedAt time.Time, savedWorkflow *pipelineConfig.CdWorkflowRunner) bool {
 	return savedWorkflow.Status != status || savedWorkflow.PodStatus != podStatus || savedWorkflow.Message != msg || savedWorkflow.FinishedOn != finishedAt
+}
+
+func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []pipelineConfig.CdWorkflowWithArtifact) []pipelineConfig.CdWorkflowWithArtifact {
+	artifactIds := make([]int, len(cdWorkflowArtifacts))
+	workflowRunnerIds := make([]int, len(cdWorkflowArtifacts))
+	for i, cdWorkflowArtifact := range cdWorkflowArtifacts {
+		artifactIds[i] = cdWorkflowArtifact.CiArtifactId
+		workflowRunnerIds[i] = cdWorkflowArtifact.Id
+	}
+	appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjectsAndReferenceIds(resourceFilter.Artifact, artifactIds, workflowRunnerIds, resourceFilter.CdWorkflowRunner)
+	if err != nil {
+		// not returning error by choice
+		impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerIds", workflowRunnerIds, "artifactIds", artifactIds, "err", err)
+		return cdWorkflowArtifacts
+	}
+	for i, cdWorkflowArtifact := range cdWorkflowArtifacts {
+		artifactWfrKey := fmt.Sprintf("%v-%v", cdWorkflowArtifact.CiArtifactId, cdWorkflowArtifact.Id)
+		cdWorkflowArtifacts[i].AppliedFilters = appliedFiltersMap[artifactWfrKey]
+		cdWorkflowArtifacts[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[artifactWfrKey]
+		// we are setting this data in workflow runner list, which means these got triggered because filters are allowed or no filters configured at all
+		cdWorkflowArtifact.AppliedFiltersState = resourceFilter.ALLOW
+	}
+	return cdWorkflowArtifacts
 }
 
 func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
@@ -858,6 +881,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 		cdWorkflowArtifact[i] = item
 	}
+	cdWorkflowArtifact = impl.fillAppliedFiltersData(cdWorkflowArtifact)
 	return cdWorkflowArtifact, nil
 }
 
@@ -983,7 +1007,7 @@ func isExternalBlobStorageEnabled(isExternalRun bool, useBlobStorageConfigInCdWo
 	return isExternalRun && !useBlobStorageConfigInCdWorkflow
 }
 
-func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error) {
+func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int, showAppliedFilters bool) (types.WorkflowResponse, error) {
 	workflowR, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(buildId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("err", "err", err)
@@ -1107,6 +1131,18 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		HelmPackageName:      helmPackageName,
 		ArtifactId:           workflow.CiArtifactId,
 		CiPipelineId:         ciWf.CiPipelineId,
+	}
+
+	if showAppliedFilters {
+
+		appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, []int{workflow.CiArtifactId}, workflow.Id, resourceFilter.CdWorkflowRunner)
+		if err != nil {
+			// not returning error by choice
+			impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerId", workflow.Id, "err", err)
+		}
+		workflowResponse.AppliedFiltersState = resourceFilter.ALLOW
+		workflowResponse.AppliedFilters = appliedFiltersMap[workflow.CiArtifactId]
+		workflowResponse.AppliedFiltersTimestamp = appliedFiltersTimeStampMap[workflow.CiArtifactId]
 	}
 	return workflowResponse, nil
 
@@ -1753,6 +1789,9 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 }
 
 func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean3.UserApprovalActionRequest, userId int32) error {
+	if len(approvalActionRequest.ApprovalNotificationConfig.EmailIds) == 0 {
+		return nil
+	}
 	eventType := util2.Approval
 	pipeline, err := impl.pipelineRepository.FindById(approvalActionRequest.PipelineId)
 	if err != nil {

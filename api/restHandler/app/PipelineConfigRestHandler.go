@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
@@ -62,6 +63,10 @@ import (
 	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
 )
+
+type PipelineRestHandlerEnvConfig struct {
+	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2"`
+}
 
 type DevtronAppRestHandler interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
@@ -126,6 +131,7 @@ type PipelineConfigRestHandlerImpl struct {
 	imageTaggingService          pipeline.ImageTaggingService
 	resourceProtectionService    protect.ResourceProtectionService
 	deploymentTemplateService    generateManifest.DeploymentTemplateService
+	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -150,6 +156,11 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingService pipeline.ImageTaggingService, resourceProtectionService protect.ResourceProtectionService) *PipelineConfigRestHandlerImpl {
+	envConfig := &PipelineRestHandlerEnvConfig{}
+	err := env.Parse(envConfig)
+	if err != nil {
+		Logger.Errorw("error in parsing PipelineRestHandlerEnvConfig", "err", err)
+	}
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -181,6 +192,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		imageTaggingService:          imageTaggingService,
 		resourceProtectionService:    resourceProtectionService,
 		deploymentTemplateService:    deploymentTemplateService,
+		pipelineRestHandlerEnvConfig: envConfig,
 	}
 }
 

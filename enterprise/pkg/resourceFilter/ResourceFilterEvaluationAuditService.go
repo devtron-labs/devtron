@@ -16,7 +16,8 @@ type FilterHistoryObject struct {
 type FilterEvaluationAuditService interface {
 	CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
-	GetFilterEvaluationAudits()
+	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error)
+	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error)
 }
 
 type FilterEvaluationAuditServiceImpl struct {
@@ -61,8 +62,63 @@ func (impl *FilterEvaluationAuditServiceImpl) UpdateFilterEvaluationAuditRef(id 
 	return impl.filterEvaluationAuditRepo.UpdateRefTypeAndRefId(id, refType, refId)
 }
 
-func (impl *FilterEvaluationAuditServiceImpl) GetFilterEvaluationAudits() {
+func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error) {
 
+	// find the evaluation audit
+	resourceFilterEvaluationAudits, err := impl.filterEvaluationAuditRepo.GetByRefAndMultiSubject(referenceType, referenceId, subjectType, subjectIds)
+	if err != nil {
+		impl.logger.Errorw("error in finding resource filters evaluation audit data", "referenceType", referenceType, "referenceId", referenceId, "subjectType", subjectType, "subjectIds", subjectIds)
+		return nil, err
+	}
+
+	subjectIdVsfilterHistoryIdVsEvaluatedTimeMap := make(map[int]map[int]time.Time)
+
+	for _, resourceFilterEvaluationAudit := range resourceFilterEvaluationAudits {
+		filterHistoryIdVsEvaluatedTimeMap, ok := subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[resourceFilterEvaluationAudit.SubjectId]
+		if !ok {
+			filterHistoryIdVsEvaluatedTimeMap = make(map[int]time.Time)
+		}
+		filterHistoryObjects, err := getFilterHistoryObjectsFromJsonString(resourceFilterEvaluationAudit.FilterHistoryObjects)
+		if err != nil {
+			impl.logger.Errorw("error in extracting filter history objects from json string", "err", err, "jsonString", resourceFilterEvaluationAudit.FilterHistoryObjects)
+			return nil, err
+		}
+
+		for _, filterHistoryObject := range filterHistoryObjects {
+			filterHistoryIdVsEvaluatedTimeMap[filterHistoryObject.FilterHistoryId] = resourceFilterEvaluationAudit.CreatedOn
+		}
+		subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[resourceFilterEvaluationAudit.SubjectId] = filterHistoryIdVsEvaluatedTimeMap
+	}
+	return subjectIdVsfilterHistoryIdVsEvaluatedTimeMap, nil
+}
+
+func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error) {
+	// find the evaluation audit
+	resourceFilterEvaluationAudits, err := impl.filterEvaluationAuditRepo.GetByMultiRefAndMultiSubject(referenceType, referenceIds, subjectType, subjectIds)
+	if err != nil {
+		impl.logger.Errorw("error in finding resource filters evaluation audit data", "referenceType", referenceType, "referenceIds", referenceIds, "subjectType", subjectType, "subjectIds", subjectIds)
+		return nil, err
+	}
+
+	subjectIdVsfilterHistoryIdVsEvaluatedTimeMap := make(map[string]map[int]time.Time)
+
+	for _, resourceFilterEvaluationAudit := range resourceFilterEvaluationAudits {
+		subjectAndRefKey := fmt.Sprintf("%v-%v", resourceFilterEvaluationAudit.SubjectId, resourceFilterEvaluationAudit.ReferenceId)
+		filterHistoryIdVsEvaluatedTimeMap, ok := subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[subjectAndRefKey]
+		if !ok {
+			filterHistoryIdVsEvaluatedTimeMap = make(map[int]time.Time)
+		}
+		filterHistoryObjects, err := getFilterHistoryObjectsFromJsonString(resourceFilterEvaluationAudit.FilterHistoryObjects)
+		if err != nil {
+			impl.logger.Errorw("error in extracting filter history objects from json string", "err", err, "jsonString", resourceFilterEvaluationAudit.FilterHistoryObjects)
+			return nil, err
+		}
+		for _, filterHistoryObject := range filterHistoryObjects {
+			filterHistoryIdVsEvaluatedTimeMap[filterHistoryObject.FilterHistoryId] = resourceFilterEvaluationAudit.CreatedOn
+		}
+		subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[subjectAndRefKey] = filterHistoryIdVsEvaluatedTimeMap
+	}
+	return subjectIdVsfilterHistoryIdVsEvaluatedTimeMap, nil
 }
 
 func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (string, error) {

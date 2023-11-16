@@ -310,7 +310,7 @@ func TestGetGenericNotesForAppIds(t *testing.T) {
 
 	})
 
-	t.Run("Test Success, Get Newly edited/created Description and old descriptions", func(tt *testing.T) {
+	t.Run("Test Success, Get Newly edited/created GenericNote and old descriptions", func(tt *testing.T) {
 		genericNoteSvc, mockedNoteRepo, _, mockedUserRepo := initGenericNoteService(t)
 
 		mockedNoteRepo.On("GetGenericNotesForAppIds", mock.AnythingOfType("[]int")).Return(getGenericNotesForAppIdsResp, nil)
