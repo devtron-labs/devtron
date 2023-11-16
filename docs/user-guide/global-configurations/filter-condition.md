@@ -35,11 +35,11 @@ Using filter conditions, you can control the progression of events. Here are a f
     * **Filter Condition**: You can specify either a pass condition, fail condition, or both the conditions:
         * **Pass Condition**: Only those events that satisfy the condition will be directed through your pipeline.
         * **Fail Condition**: Events that fail the condition will not be directed through your pipeline..
-    * **Use CEL Expression**: You can use `Common Expression Language` (CEL) to define the conditions. Currently, you can create conditions around the following criteria:
-        * **containerImage**: Package that contains all the necessary files and instructions to run an application in a container, e.g., gcr.io/k8s-minikube/kicbase:v0.0.39
+    * **Use CEL Expression**: You can use `Common Expression Language` (CEL) to define the conditions. Currently, you can create conditions with the help of following variables:
+        * **containerImage**: Package that contains all the necessary files and instructions to run an application in a container, e.g., gcr.io/k8s-minikube/kicbase:v0.0.39. It returns a string value in the following format: `<registry>/<repository>:<tag>`
         * **containerRepository**: Storage location for container images, e.g., kicbase
         * **containerImageTag**: Versioning of image to indicate its release, e.g., v0.0.39
-        * **imageLabels**: The label you assign to an image in the CD pipeline e.g., PROD
+        * **imageLabels**: The label(s) you assign to an image in the CD pipeline, e.g., ["PROD","Stage"]. It returns an array of strings.
 
         Click **View filter criteria** to check the supported criteria. You get a copy button and a description of each criterion upon hovering. Moreover, you can go to **CEL expression** to learn more about the rules and supported syntax. Check [Examples](#examples) to know more.
 
