@@ -70,6 +70,7 @@ type EnforcerUtil interface {
 	GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string
 	GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
+	GetEnvRBACArrayByAppIdForJobs(appId int) []string
 }
 
 type EnforcerUtilImpl struct {
@@ -673,4 +674,19 @@ func (impl EnforcerUtilImpl) GetAllWorkflowRBACObjectsByAppId(appId int, workflo
 		objects[workflowIds[index]] = fmt.Sprintf("%s/%s/%s", teamName, appName, wfName)
 	}
 	return objects
+}
+
+func (impl EnforcerUtilImpl) GetEnvRBACArrayByAppIdForJobs(appId int) []string {
+	var rbacObjects []string
+
+	pipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	if err != nil {
+		impl.logger.Error(err)
+		return rbacObjects
+	}
+	for _, item := range pipelines {
+		rbacObjects = append(rbacObjects, impl.GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(item.Id, item.EnvironmentId, ""))
+	}
+
+	return rbacObjects
 }
