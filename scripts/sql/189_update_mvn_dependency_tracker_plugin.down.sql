@@ -29,4 +29,4 @@ then
         --form \"autoCreate=true\" \                                   
         --form "projectVersion=$DTrackProjectVersion" \                 
         --form "bom=@\"bom.json\""                                       
-fi'  WHERE id=5;
+fi'  WHERE id=(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Dependency track for Maven & Gradle' and ps."index"=1 and ps.deleted=false);
