@@ -13,21 +13,20 @@ import (
 	"strings"
 )
 
-type SkopeoInputVariable = string
+type copyContainerImagePluginInputVariable = string
 type RefPluginName = string
 
 const (
-	SKOPEO RefPluginName = "Skopeo"
+	COPY_CONTAINER_IMAGE RefPluginName = "Copy container image"
 )
 
 const (
-	DESTINATION_INFO                SkopeoInputVariable = "DESTINATION_INFO"
-	SOURCE_INFO                     SkopeoInputVariable = "SOURCE_INFO"
-	SOURCE_REGISTRY_CREDENTIALS_KEY                     = "SOURCE_REGISTRY_CREDENTIAL"
+	DESTINATION_INFO                copyContainerImagePluginInputVariable = "DESTINATION_INFO"
+	SOURCE_REGISTRY_CREDENTIALS_KEY                                       = "SOURCE_REGISTRY_CREDENTIAL"
 )
 
 type PluginInputVariableParser interface {
-	HandleSkopeoPluginInputVariable(inputVariables []*bean.VariableObject, dockerImageTag string, pluginTriggerImage string, sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]plugin.RegistryCredentials, err error)
+	HandleCopyContainerImagePluginInputVariables(inputVariables []*bean.VariableObject, dockerImageTag string, pluginTriggerImage string, sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]plugin.RegistryCredentials, err error)
 }
 
 type PluginInputVariableParserImpl struct {
@@ -48,7 +47,7 @@ func NewPluginInputVariableParserImpl(
 	}
 }
 
-func (impl *PluginInputVariableParserImpl) HandleSkopeoPluginInputVariable(inputVariables []*bean.VariableObject,
+func (impl *PluginInputVariableParserImpl) HandleCopyContainerImagePluginInputVariables(inputVariables []*bean.VariableObject,
 	dockerImageTag string,
 	pluginTriggerImage string,
 	sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]plugin.RegistryCredentials, err error) {

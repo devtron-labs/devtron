@@ -749,8 +749,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	cdStageWorkflowRequest.StageType = types.PRE
-	// handling skopeo plugin specific logic
-	imagePathReservationIds, err := impl.SetSkopeoPluginDataInWorkflowRequest(cdStageWorkflowRequest, pipeline.Id, types.PRE, artifact)
+	// handling copyContainerImage plugin specific logic
+	imagePathReservationIds, err := impl.SetCopyContainerImagePluginDataInWorkflowRequest(cdStageWorkflowRequest, pipeline.Id, types.PRE, artifact)
 	if err != nil {
 		runner.Status = pipelineConfig.WorkflowFailed
 		runner.Message = err.Error()
@@ -782,15 +782,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) SetSkopeoPluginDataInWorkflowRequest(cdStageWorkflowRequest *types.WorkflowRequest, pipelineId int, pipelineStage string, artifact *repository.CiArtifact) ([]int, error) {
-	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(SKOPEO)
+func (impl *WorkflowDagExecutorImpl) SetCopyContainerImagePluginDataInWorkflowRequest(cdStageWorkflowRequest *types.WorkflowRequest, pipelineId int, pipelineStage string, artifact *repository.CiArtifact) ([]int, error) {
+	copyContainerImagePluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(COPY_CONTAINER_IMAGE)
 	var imagePathReservationIds []int
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting skopeo plugin id", "err", err)
+		impl.logger.Errorw("error in getting copyContainerImage plugin id", "err", err)
 		return imagePathReservationIds, err
 	}
 	for _, step := range cdStageWorkflowRequest.PrePostDeploySteps {
-		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
+		if copyContainerImagePluginId != 0 && step.RefPluginId == copyContainerImagePluginId {
 			var pipelineStageEntityType int
 			if pipelineStage == types.PRE {
 				pipelineStageEntityType = bean3.EntityTypePreCD
@@ -809,7 +809,7 @@ func (impl *WorkflowDagExecutorImpl) SetSkopeoPluginDataInWorkflowRequest(cdStag
 			if !customTag.Enabled {
 				DockerImageTag = ""
 			} else {
-				// for Skopeo plugin parse destination images and save its data in image path reservation table
+				// for copyContainerImage plugin parse destination images and save its data in image path reservation table
 				customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
 				if err != nil && err != pg.ErrNoRows {
 					impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
@@ -829,9 +829,9 @@ func (impl *WorkflowDagExecutorImpl) SetSkopeoPluginDataInWorkflowRequest(cdStag
 			} else {
 				sourceDockerRegistryId = cdStageWorkflowRequest.DockerRegistryId
 			}
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, DockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleCopyContainerImagePluginInputVariables(step.InputVars, DockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
 			if err != nil {
-				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
+				impl.logger.Errorw("error in parsing copyContainerImage input variable", "err", err)
 				return imagePathReservationIds, err
 			}
 			var destinationImages []string
@@ -969,7 +969,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
 	// handling plugin specific logic
 
-	pluginImagePathReservationIds, err := impl.SetSkopeoPluginDataInWorkflowRequest(cdStageWorkflowRequest, pipeline.Id, types.POST, cdWf.CiArtifact)
+	pluginImagePathReservationIds, err := impl.SetCopyContainerImagePluginDataInWorkflowRequest(cdStageWorkflowRequest, pipeline.Id, types.POST, cdWf.CiArtifact)
 	if err != nil {
 		runner.Status = pipelineConfig.WorkflowFailed
 		runner.Message = err.Error()
