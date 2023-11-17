@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 )
 
 const (
@@ -43,7 +44,7 @@ func (r *PluginMetadataDto) getPluginMetadataSqlObj(userId int32) *repository.Pl
 		Description: r.Description,
 		Type:        repository.PluginType(r.Type),
 		Icon:        r.Icon,
-		AuditLog:    NewDefaultAuditLog(userId),
+		AuditLog:    sql.NewDefaultAuditLog(userId),
 	}
 }
 

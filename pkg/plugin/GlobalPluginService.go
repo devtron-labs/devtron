@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -405,7 +406,7 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 	pluginStageMapping := &repository.PluginStageMapping{
 		PluginId:  pluginMetadata.Id,
 		StageType: pluginStage,
-		AuditLog:  NewDefaultAuditLog(userId),
+		AuditLog:  sql.NewDefaultAuditLog(userId),
 	}
 	_, err = impl.globalPluginRepository.SavePluginStageMapping(pluginStageMapping, tx)
 	if err != nil {
@@ -459,7 +460,7 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 		if !tagAlreadyExists {
 			newPluginTag := &repository.PluginTag{
 				Name:     pluginTagReq,
-				AuditLog: NewDefaultAuditLog(userId),
+				AuditLog: sql.NewDefaultAuditLog(userId),
 			}
 			newPluginTagsToCreate = append(newPluginTagsToCreate, newPluginTag)
 		}
@@ -487,7 +488,7 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 				newPluginTagRelation := &repository.PluginTagRelation{
 					TagId:    tagMapping[tagReq].Id,
 					PluginId: pluginReq.Id,
-					AuditLog: NewDefaultAuditLog(userId),
+					AuditLog: sql.NewDefaultAuditLog(userId),
 				}
 				newPluginTagRelationsToCreate = append(newPluginTagRelationsToCreate, newPluginTagRelation)
 			}
@@ -535,7 +536,7 @@ func (impl *GlobalPluginServiceImpl) CreateScriptPathArgPortMappingForPluginInli
 				FilePathOnContainer: scriptPathArgPortMapping.FilePathOnContainer,
 				ScriptId:            pluginPipelineScriptId,
 				Deleted:             false,
-				AuditLog:            NewDefaultAuditLog(userId),
+				AuditLog:            sql.NewDefaultAuditLog(userId),
 			}
 			scriptMap = append(scriptMap, repositoryEntry)
 		}
@@ -546,7 +547,7 @@ func (impl *GlobalPluginServiceImpl) CreateScriptPathArgPortMappingForPluginInli
 				Args:          scriptPathArgPortMapping.Args,
 				ScriptId:      pluginPipelineScriptId,
 				Deleted:       false,
-				AuditLog:      NewDefaultAuditLog(userId),
+				AuditLog:      sql.NewDefaultAuditLog(userId),
 			}
 			scriptMap = append(scriptMap, repositoryEntry)
 		}
@@ -557,7 +558,7 @@ func (impl *GlobalPluginServiceImpl) CreateScriptPathArgPortMappingForPluginInli
 				PortOnContainer: scriptPathArgPortMapping.PortOnContainer,
 				ScriptId:        pluginPipelineScriptId,
 				Deleted:         false,
-				AuditLog:        NewDefaultAuditLog(userId),
+				AuditLog:        sql.NewDefaultAuditLog(userId),
 			}
 			scriptMap = append(scriptMap, repositoryEntry)
 		}
@@ -608,7 +609,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 			RefPluginId:         pluginStep.RefPluginId,
 			OutputDirectoryPath: pluginStep.OutputDirectoryPath,
 			DependentOnStep:     pluginStep.DependentOnStep,
-			AuditLog:            NewDefaultAuditLog(userId),
+			AuditLog:            sql.NewDefaultAuditLog(userId),
 		}
 		//get the script saved for this plugin step
 		if pluginStep.PluginPipelineScript != nil {
@@ -624,7 +625,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 				ContainerImagePath:       pluginStep.PluginPipelineScript.ContainerImagePath,
 				ImagePullSecretType:      pluginStep.PluginPipelineScript.ImagePullSecretType,
 				ImagePullSecret:          pluginStep.PluginPipelineScript.ImagePullSecret,
-				AuditLog:                 NewDefaultAuditLog(userId),
+				AuditLog:                 sql.NewDefaultAuditLog(userId),
 			}
 			pluginPipelineScript, err := impl.globalPluginRepository.SavePluginPipelineScript(pluginPipelineScript, tx)
 			if err != nil {
@@ -663,7 +664,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 				VariableStepIndex:         pluginStepVariable.VariableStepIndex,
 				VariableStepIndexInPlugin: pluginStepVariable.VariableStepIndexInPlugin,
 				ReferenceVariableName:     pluginStepVariable.ReferenceVariableName,
-				AuditLog:                  NewDefaultAuditLog(userId),
+				AuditLog:                  sql.NewDefaultAuditLog(userId),
 			}
 			pluginStepVariableData, err = impl.globalPluginRepository.SavePluginStepVariables(pluginStepVariableData, tx)
 			if err != nil {
@@ -679,7 +680,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 					ConditionType:       pluginStepCondition.ConditionType,
 					ConditionalOperator: pluginStepCondition.ConditionalOperator,
 					ConditionalValue:    pluginStepCondition.ConditionalValue,
-					AuditLog:            NewDefaultAuditLog(userId),
+					AuditLog:            sql.NewDefaultAuditLog(userId),
 				}
 				pluginStepConditionData, err = impl.globalPluginRepository.SavePluginStepConditions(pluginStepConditionData, tx)
 				if err != nil {
@@ -951,7 +952,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepStepVariableConditionsData(pluginSt
 			ConditionType:       pluginStepCondition.ConditionType,
 			ConditionalOperator: pluginStepCondition.ConditionalOperator,
 			ConditionalValue:    pluginStepCondition.ConditionalValue,
-			AuditLog:            NewDefaultAuditLog(userId),
+			AuditLog:            sql.NewDefaultAuditLog(userId),
 		}
 		pluginStepConditionData, err := impl.globalPluginRepository.SavePluginStepConditions(pluginStepConditionData, tx)
 		if err != nil {
@@ -1138,7 +1139,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepVariableData(pluginStepId
 			VariableStepIndex:         pluginStepVariable.VariableStepIndex,
 			VariableStepIndexInPlugin: pluginStepVariable.VariableStepIndexInPlugin,
 			ReferenceVariableName:     pluginStepVariable.ReferenceVariableName,
-			AuditLog:                  NewDefaultAuditLog(userId),
+			AuditLog:                  sql.NewDefaultAuditLog(userId),
 		}
 		pluginStepVariableData, err := impl.globalPluginRepository.SavePluginStepVariables(pluginStepVariableData, tx)
 		if err != nil {
@@ -1153,7 +1154,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepVariableData(pluginStepId
 				ConditionType:       pluginStepCondition.ConditionType,
 				ConditionalOperator: pluginStepCondition.ConditionalOperator,
 				ConditionalValue:    pluginStepCondition.ConditionalValue,
-				AuditLog:            NewDefaultAuditLog(userId),
+				AuditLog:            sql.NewDefaultAuditLog(userId),
 			}
 			pluginStepConditionData, err = impl.globalPluginRepository.SavePluginStepConditions(pluginStepConditionData, tx)
 			if err != nil {
