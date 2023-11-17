@@ -76,7 +76,7 @@
     * [Deleting Application](user-guide/deleting-application.md)
   * [Build and Deploy](user-guide/deploying-application/README.md)
     * [Triggering CI](user-guide/deploying-application/triggering-ci.md)
-    * [Triggering CD](user-guide/deploying-application/triggering-cd.md)~
+    * [Triggering CD](user-guide/deploying-application/triggering-cd.md)
     * [Rollback Deployment](user-guide/deploying-application/rollback-deployment.md)
   * [App Details](user-guide/creating-application/app-details.md)
     * [Debugging Deployment And Monitoring](user-guide/debugging-deployment-and-monitoring.md)
