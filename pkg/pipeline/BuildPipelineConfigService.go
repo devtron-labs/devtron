@@ -1474,6 +1474,7 @@ func (impl *CiPipelineConfigServiceImpl) SwitchToExternalCi(tx *pg.Tx, appWorkfl
 		return err
 	}
 
+	//setting new ci_pipeline_id to 0 because we dont store ci_pipeline_id if the ci_pipeline is external/webhook type.
 	err = impl.pipelineRepository.UpdateOldCiPipelineIdToNewCiPipelineId(tx, switchFromCiPipelineId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipelines ci_pipeline_ids with new ci_pipelineId", "oldCiPipelineId", switchFromCiPipelineId)

@@ -214,11 +214,14 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		return
 	}
 	for _, deploymentPipeline := range cdPipeline.Pipelines {
-		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, deploymentPipeline.EnvironmentId)
-		handler.Logger.Debugw("Triggered Request By:", "object", object)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
+		//if pipeline is of switch ci , then conform how to enforce rbac
+		if deploymentPipeline.EnvironmentId > 0 {
+			object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, deploymentPipeline.EnvironmentId)
+			handler.Logger.Debugw("Triggered Request By:", "object", object)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
 		}
 	}
 	//RBAC

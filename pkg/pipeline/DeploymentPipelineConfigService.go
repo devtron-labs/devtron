@@ -315,6 +315,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	isGitOpsConfigured, err := impl.IsGitopsConfigured()
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		// skip creation of pipeline if envId is not set
+		if pipeline.EnvironmentId == 0 {
+			continue
+		}
 		// if no deployment app type sent from user then we'll not validate
 		deploymentConfig, err := impl.devtronAppCMCSService.GetDeploymentConfigMap(pipeline.EnvironmentId)
 		if err != nil {
@@ -1093,7 +1097,7 @@ func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateReq
 
 	haveAtLeastOneGitOps := false
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		if pipeline.EnvironmentId > 0 && pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			haveAtLeastOneGitOps = true
 		}
 	}
