@@ -1859,7 +1859,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			timelines = append(timelines, timeline)
 		}
 
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunnersWithTxn(previousNonTerminalRunners, tx)
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunners(previousNonTerminalRunners)
 		if err != nil {
 			impl.logger.Errorw("error updating cd wf runner status", "err", err, "previousNonTerminalRunners", previousNonTerminalRunners)
 			return err

@@ -168,7 +168,7 @@ type CdWorkflowRunner struct {
 	PodName                 string               `sql:"pod_name"`
 	BlobStorageEnabled      bool                 `sql:"blob_storage_enabled,notnull"`
 	RefCdWorkflowRunnerId   int                  `sql:"ref_cd_workflow_runner_id,notnull"`
-	ImagePathReservationIds []int                `sql:"image_path_reservation_ids" pg:",array"`
+	ImagePathReservationIds []int                `sql:"image_path_reservation_ids" pg:",array,notnull"`
 	CdWorkflow              *CdWorkflow
 	sql.AuditLog
 }
@@ -483,13 +483,19 @@ func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error {
-	_, err := tx.Model(&wfrs).WherePK().Update()
+	_, err := tx.Model(&wfrs).Update()
 	return err
 }
 
-func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error {
-	_, err := impl.dbConnection.Model(&wfr).Update()
-	return err
+func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunners(wfrs []*CdWorkflowRunner) error {
+	for _, wfr := range wfrs {
+		err := impl.dbConnection.Update(wfr)
+		if err != nil {
+			impl.logger.Errorw("error in updating wfr", "err", err)
+			return err
+		}
+	}
+	return nil
 }
 func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error) {
 	var wfr []*CdWorkflowRunner

@@ -296,6 +296,29 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		if ci.ScanEnabled {
 			ciArtifact.Scanned = true
 		}
+		for registry, artifacts := range request.PluginRegistryArtifactDetails {
+			for _, image := range artifacts {
+				pluginArtifact := &repository.CiArtifact{
+					Image:                 image,
+					ImageDigest:           request.ImageDigest,
+					MaterialInfo:          string(materialJson),
+					DataSource:            request.PluginArtifactStage,
+					ComponentId:           ci.Id,
+					PipelineId:            ci.Id,
+					AuditLog:              sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
+					CredentialsSourceType: repository.GLOBAL_CONTAINER_REGISTRY,
+					CredentialSourceValue: registry,
+					ParentCiArtifact:      buildArtifact.Id,
+					ScanEnabled:           ci.ScanEnabled,
+				}
+				pluginArtifacts = append(pluginArtifacts, pluginArtifact)
+			}
+		}
+		if len(pluginArtifacts) == 0 {
+			ciArtifactArr = append(ciArtifactArr, buildArtifact)
+		} else {
+			ciArtifactArr = append(ciArtifactArr, pluginArtifacts[0])
+		}
 		ciArtifactArr = append(ciArtifactArr, ciArtifact)
 	}
 
