@@ -1008,13 +1008,13 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
 	}
-	response := make(map[string]map[string]bool)
+	response := make(map[string]map[string]any)
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
 		success := true
 		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]bool)
+			pResponse := make(map[string]any)
 			pResponse[pipelineKey] = false
 			response[appKey] = pResponse
 		}
@@ -1025,6 +1025,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse["authError"] = true
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1041,6 +1042,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse["error"] = hibernateReqError
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1122,13 +1124,13 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
 	}
-	response := make(map[string]map[string]bool)
+	response := make(map[string]map[string]any)
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
 		success := true
 		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]bool)
+			pResponse := make(map[string]any)
 			pResponse[pipelineKey] = false
 			response[appKey] = pResponse
 		}
@@ -1139,6 +1141,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse["authError"] = true
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1155,6 +1158,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse["error"] = hibernateReqError
 			response[appKey] = pipelineResponse
 			//return nil, err
 		}
@@ -1238,13 +1242,13 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 	//authorization block ends here
 
-	response := make(map[string]map[string]bool)
+	response := make(map[string]map[string]any)
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
 		success := true
 		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]bool)
+			pResponse := make(map[string]any)
 			pResponse[pipelineKey] = false
 			response[appKey] = pResponse
 		}
@@ -1443,7 +1447,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 		}
 	}
 
-	response := make(map[string]map[string]bool)
+	response := make(map[string]map[string]any)
 	for _, pipeline := range pipelines {
 		ciCompleted := ciCompletedStatus[pipeline.CiPipelineId]
 		if !ciCompleted {
@@ -1451,7 +1455,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 			pipelineKey := fmt.Sprintf("%d", pipeline.CiPipelineId)
 			success := true
 			if _, ok := response[appKey]; !ok {
-				pResponse := make(map[string]bool)
+				pResponse := make(map[string]any)
 				pResponse[pipelineKey] = false
 				response[appKey] = pResponse
 			}

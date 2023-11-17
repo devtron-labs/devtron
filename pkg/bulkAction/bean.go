@@ -94,7 +94,7 @@ type BulkApplicationForEnvironmentPayload struct {
 
 type BulkApplicationForEnvironmentResponse struct {
 	BulkApplicationForEnvironmentPayload
-	Response map[string]map[string]bool `json:"response"`
+	Response map[string]map[string]any `json:"response"`
 }
 
 type CdBulkAction int
