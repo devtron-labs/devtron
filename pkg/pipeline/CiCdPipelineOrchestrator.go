@@ -871,17 +871,13 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		if err != nil && pg.ErrNoRows != err {
 			return createRequest, err
 		}
-		awmType := "CI_PIPELINE"
-		if ciPipeline.PipelineType == bean.LINKED_CD {
-			awmType = string(bean.LINKED_CD)
-		}
 
 		if appWorkflowModel.Id > 0 {
 			appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 				AppWorkflowId: appWorkflowModel.Id,
 				ParentId:      0,
 				ComponentId:   ciPipeline.Id,
-				Type:          awmType,
+				Type:          "CI_PIPELINE",
 				Active:        true,
 				ParentType:    "",
 				AuditLog:      sql.AuditLog{CreatedBy: createRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: createRequest.UserId},

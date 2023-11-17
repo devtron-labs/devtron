@@ -666,7 +666,7 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 	var cdMappings []appWorkflow.AppWorkflowMappingDto
 	var webhookMappings []appWorkflow.AppWorkflowMappingDto
 	for _, appWf := range refWfMappings {
-		if appWf.Type == appWorkflow2.CIPIPELINE || appWf.Type == appWorkflow2.LINKED_CD {
+		if appWf.Type == appWorkflow2.CIPIPELINE {
 			ciMapping = append(ciMapping, appWf)
 		} else if appWf.Type == appWorkflow2.CDPIPELINE {
 			cdMappings = append(cdMappings, appWf)
