@@ -408,7 +408,7 @@ func (r MuxRouter) Init() {
 	pProfListenerRouter := r.Router.PathPrefix("/orchestrator/debug/pprof").Subrouter()
 	r.pProfRouter.initPProfRouter(pProfListenerRouter)
 
-	globalPluginRouter := r.Router.PathPrefix("/orchestrator/plugin").Subrouter()
+	globalPluginRouter := r.Router.PathPrefix("/orchestrator/plugin/global").Subrouter()
 	r.globalPluginRouter.initGlobalPluginRouter(globalPluginRouter)
 
 	//  deployment router starts
