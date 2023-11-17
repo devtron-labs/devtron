@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"strings"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -69,7 +70,9 @@ type EnforcerUtil interface {
 	GetRbacObjectNameByAppAndWorkflow(appName, workflowName string) string
 	GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string
 	GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string
-	GetTeamEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string
+	GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string
+	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
+	GetEnvRBACArrayByAppIdForJobs(appId int) []string
 }
 
 type EnforcerUtilImpl struct {
@@ -167,7 +170,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps(appType helper2.AppType) m
 	}
 	for _, item := range result {
 		if _, ok := objects[item.Id]; !ok {
-			objects[item.Id] = fmt.Sprintf("%s/%s", item.Team.Name, item.AppName)
+			objects[item.Id] = fmt.Sprintf("%s/%s", item.Team.Name, strings.ToLower(item.AppName))
 		}
 	}
 	return objects
@@ -659,19 +662,51 @@ func (impl EnforcerUtilImpl) GetWorkflowRBACByCiPipelineId(pipelineId int, workf
 	return impl.GetRbacObjectNameByAppIdAndWorkflow(ciPipeline.AppId, workflowName)
 }
 
-func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string {
+func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string {
 	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	application, err := impl.appRepo.FindById(ciPipeline.AppId)
+	application, err := impl.appRepo.FindAppAndProjectByAppId(ciPipeline.AppId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	appName := application.AppName
+	if len(envName) != 0 {
+		return fmt.Sprintf("%s/%s/%s", application.Team.Name, envName, appName)
+	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", application.Team.Name, "", appName)
 	}
 	return fmt.Sprintf("%s/%s/%s", application.Team.Name, env.EnvironmentIdentifier, appName)
+}
+
+func (impl EnforcerUtilImpl) GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return nil
+	}
+	appName := strings.ToLower(application.AppName)
+	teamName := application.Team.Name
+	objects := make(map[int]string, len(workflowNames))
+	for index, wfName := range workflowNames {
+		objects[workflowIds[index]] = fmt.Sprintf("%s/%s/%s", teamName, appName, wfName)
+	}
+	return objects
+}
+
+func (impl EnforcerUtilImpl) GetEnvRBACArrayByAppIdForJobs(appId int) []string {
+	var rbacObjects []string
+
+	pipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	if err != nil {
+		impl.logger.Error(err)
+		return rbacObjects
+	}
+	for _, item := range pipelines {
+		rbacObjects = append(rbacObjects, impl.GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(item.Id, item.EnvironmentId, ""))
+	}
+
+	return rbacObjects
 }

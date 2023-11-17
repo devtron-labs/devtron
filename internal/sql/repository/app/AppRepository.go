@@ -421,6 +421,9 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 	if len(jobListingFilter.Teams) > 0 {
 		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
 	}
+	if len(jobListingFilter.AppIds) > 0 {
+		whereCondition += " and id in (" + helper.GetCommaSepratedString(jobListingFilter.AppIds) + ")"
+	}
 
 	if len(jobListingFilter.AppNameSearch) > 0 {
 		whereCondition += " and display_name like '%" + jobListingFilter.AppNameSearch + "%' "
