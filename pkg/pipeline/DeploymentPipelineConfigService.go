@@ -451,6 +451,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	if len(clusterBean.ErrorInConnecting) > 0 {
 		deleteResponse.ClusterReachable = false
 	}
+
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {

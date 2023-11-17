@@ -73,8 +73,9 @@ type CiArtifactRepository interface {
 	GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error)
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
-	SaveAll(artifacts []*CiArtifact) error
+	SaveAll(artifacts []*CiArtifact) ([]*CiArtifact, error)
 	GetArtifactsByCiPipelineId(ciPipelineId int) ([]CiArtifact, error)
+	GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error)
 	FinDByParentCiArtifactAndCiId(parentCiArtifact int, ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatest(cdPipelineId int) (int, error)
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
@@ -83,6 +84,7 @@ type CiArtifactRepository interface {
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
 	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
+	UpdateLatestTimestamp(artifactIds []int) error
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -94,7 +96,7 @@ func NewCiArtifactRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger)
 	return &CiArtifactRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl CiArtifactRepositoryImpl) SaveAll(artifacts []*CiArtifact) error {
+func (impl CiArtifactRepositoryImpl) SaveAll(artifacts []*CiArtifact) ([]*CiArtifact, error) {
 	err := impl.dbConnection.RunInTransaction(func(tx *pg.Tx) error {
 		for _, ciArtifact := range artifacts {
 			r, err := tx.Model(ciArtifact).Insert()
@@ -105,6 +107,14 @@ func (impl CiArtifactRepositoryImpl) SaveAll(artifacts []*CiArtifact) error {
 		}
 		return nil
 	})
+	return artifacts, err
+}
+
+func (impl CiArtifactRepositoryImpl) UpdateLatestTimestamp(artifactIds []int) error {
+	_, err := impl.dbConnection.Model(&CiArtifact{}).
+		Set("updated_on = ?", time.Now()).
+		Where("id IN (?)", pg.In(artifactIds)).
+		Update()
 	return err
 }
 
@@ -574,6 +584,20 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineId(ciPipelineId int
 		Column("ci_artifact.*").
 		Join("INNER JOIN ci_pipeline cp on cp.id=ci_artifact.pipeline_id").
 		Where("cp.id = ?", ciPipelineId).
+		Where("cp.deleted = ?", false).
+		Order("ci_artifact.id DESC").
+		Select()
+
+	return artifacts, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error) {
+	var artifacts []CiArtifact
+	err := impl.dbConnection.
+		Model(&artifacts).
+		Column("ci_artifact.*").
+		Join("INNER JOIN ci_pipeline cp on cp.id=ci_artifact.pipeline_id").
+		Where("cp.id in (?)", pg.In(ciPipelineIds)).
 		Where("cp.deleted = ?", false).
 		Order("ci_artifact.id DESC").
 		Select()

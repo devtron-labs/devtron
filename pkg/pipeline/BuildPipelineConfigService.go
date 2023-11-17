@@ -127,6 +127,7 @@ type CiPipelineConfigServiceImpl struct {
 	resourceGroupService          resourceGroup2.ResourceGroupService
 	enforcerUtil                  rbac.EnforcerUtil
 	customTagService              CustomTagService
+	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -148,7 +149,9 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	resourceGroupService resourceGroup2.ResourceGroupService,
-	customTagService CustomTagService) *CiPipelineConfigServiceImpl {
+	customTagService CustomTagService,
+	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
+) *CiPipelineConfigServiceImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -177,6 +180,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		resourceGroupService:          resourceGroupService,
 		securityConfig:                securityConfig,
 		customTagService:              customTagService,
+		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
 	}
 }
 
@@ -329,14 +333,14 @@ func (impl *CiPipelineConfigServiceImpl) addpipelineToTemplate(createRequest *be
 	}
 
 	//pipeline name validation
-	var pipelineNames []string
-	for _, pipeline := range createRequest.CiPipelines {
-		pipelineNames = append(pipelineNames, pipeline.Name)
-	}
-	if err != nil {
-		impl.logger.Errorw("error in creating pipeline group", "err", err)
-		return nil, err
-	}
+	//var pipelineNames []string
+	//for _, pipeline := range createRequest.CiPipelines {
+	//	pipelineNames = append(pipelineNames, pipeline.Name)
+	//}
+	//if err != nil {
+	//	impl.logger.Errorw("error in creating pipeline group", "err", err)
+	//	return nil, err
+	//}
 	createRequest, err = impl.ciCdPipelineOrchestrator.CreateCiConf(createRequest, createRequest.Id)
 	if err != nil {
 		return nil, err

@@ -76,6 +76,7 @@ const (
 	CIPIPELINE string = "CI_PIPELINE"
 	CDPIPELINE string = "CD_PIPELINE"
 	WEBHOOK    string = "WEBHOOK"
+	LINKED_CD  string = "LINKED_CD"
 )
 
 type AppWorkflow struct {
@@ -245,7 +246,7 @@ func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByWorkflowId(workflowId int
 
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("app_workflow_id = ?", workflowId).
-		Where("type = ?", CIPIPELINE).
+		Where("type in (?)", pg.In([]string{CIPIPELINE, LINKED_CD})).
 		Where("active = ?", true).
 		Select()
 	return appWorkflowsMapping, err
@@ -265,7 +266,7 @@ func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineId(ciPipelineId
 	var appWorkflowsMapping []*AppWorkflowMapping
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("component_id = ?", ciPipelineId).
-		Where("type = ?", CIPIPELINE).
+		Where("type in (?)", pg.In([]string{CIPIPELINE, LINKED_CD})).
 		Where("active = ?", true).
 		Select()
 	return appWorkflowsMapping, err
@@ -276,7 +277,7 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCIPipelineId(ciPipelineId
 
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("parent_id = ?", ciPipelineId).
-		Where("parent_type = ?", CIPIPELINE).
+		Where("parent_type in (?)", pg.In([]string{CIPIPELINE, LINKED_CD})).
 		Where("type = ?", CDPIPELINE).
 		Where("active = ?", true).
 		Select()
@@ -288,7 +289,7 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCIPipelineIds(ciPipelineI
 
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("parent_id in (?) ", pg.In(ciPipelineIds)).
-		Where("parent_type = ?", CIPIPELINE).
+		Where("parent_type in (?)", pg.In([]string{CIPIPELINE, LINKED_CD})).
 		Where("type = ?", CDPIPELINE).
 		Where("active = ?", true).
 		Select()

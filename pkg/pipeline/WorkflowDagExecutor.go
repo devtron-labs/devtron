@@ -1385,6 +1385,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(pipelineOverri
 }
 
 func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error {
+
 	// finding children cd by pipeline id
 	cdPipelinesMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(cdPipelineId)
 	if err != nil {
@@ -1410,7 +1411,9 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 		}
 		//finding ci artifact by ciPipelineID and pipelineId
 		//TODO : confirm values for applyAuth, async & triggeredBy
-		err = impl.triggerStage(nil, pipeline, ciArtifact, applyAuth, triggeredBy)
+
+		triggerArtifact := ciArtifact
+		err = impl.triggerStage(nil, pipeline, triggerArtifact, applyAuth, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd pipeline after successful post stage", "err", err, "pipelineId", pipeline.Id)
 			return err
