@@ -797,20 +797,31 @@ func (impl *WorkflowDagExecutorImpl) SetSkopeoPluginDataInWorkflowRequest(cdStag
 			} else {
 				pipelineStageEntityType = bean3.EntityTypePostCD
 			}
-			// for Skopeo plugin parse destination images and save its data in image path reservation table
-			customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
+			customTagId := -1
+			var DockerImageTag string
+
+			customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineStageEntityType, strconv.Itoa(pipelineId))
 			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
+				impl.logger.Errorw("error in fetching custom tag data", "err", err)
 				return imagePathReservationIds, err
 			}
-			var customTagId int
-			if customTagDbObject != nil && customTagDbObject.Id > 0 {
-				customTagId = customTagDbObject.Id
-			} else {
-				customTagId = -1
-			}
-			var sourceDockerRegistryId string
 
+			if !customTag.Enabled {
+				DockerImageTag = ""
+			} else {
+				// for Skopeo plugin parse destination images and save its data in image path reservation table
+				customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
+					return imagePathReservationIds, err
+				}
+				if customTagDbObject != nil && customTagDbObject.Id > 0 {
+					customTagId = customTagDbObject.Id
+				}
+				DockerImageTag = customDockerImageTag
+			}
+
+			var sourceDockerRegistryId string
 			if artifact.DataSource == repository.PRE_CD || artifact.DataSource == repository.POST_CD || artifact.DataSource == repository.POST_CI {
 				if artifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
 					sourceDockerRegistryId = artifact.CredentialSourceValue
@@ -818,7 +829,7 @@ func (impl *WorkflowDagExecutorImpl) SetSkopeoPluginDataInWorkflowRequest(cdStag
 			} else {
 				sourceDockerRegistryId = cdStageWorkflowRequest.DockerRegistryId
 			}
-			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, customDockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, DockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
 				return imagePathReservationIds, err

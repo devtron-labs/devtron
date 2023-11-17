@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 )
+
 const EmptyLikeRegex = "%%"
 
 func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions) string {
@@ -80,9 +81,9 @@ func BuildQueryForArtifactsForRollback(listingFilterOptions bean.ArtifactsListFi
 		" INNER JOIN ci_artifact cia ON cia.id=cdw.ci_artifact_id " +
 		" WHERE cdw.pipeline_id=%v AND cdwr.workflow_type = '%v' "
 	if listingFilterOptions.SearchString != EmptyLikeRegex {
-		commonQuery += " AND cia.image LIKE '%v' "
+		commonQuery += fmt.Sprintf(" AND cia.image LIKE '%v' ", listingFilterOptions.SearchString)
 	}
-	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.SearchString)
+	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType)
 	if len(listingFilterOptions.ExcludeWfrIds) > 0 {
 		commonQuery = fmt.Sprintf(" %s AND cdwr.id NOT IN (%s)", commonQuery, helper.GetCommaSepratedString(listingFilterOptions.ExcludeWfrIds))
 	}
