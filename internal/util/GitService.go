@@ -58,6 +58,7 @@ type GitClient interface {
 	DeleteRepository(config *bean2.GitOpsConfigDto) error
 	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)
 	GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
+	GetCommitsCount(repoName, projectName string) (int, error)
 }
 
 type GitFactory struct {

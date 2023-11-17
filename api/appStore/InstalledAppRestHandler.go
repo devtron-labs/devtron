@@ -34,7 +34,9 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -63,6 +65,7 @@ type InstalledAppRestHandler interface {
 	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request)
 	FetchNotesForArgoInstalledApp(w http.ResponseWriter, r *http.Request)
+	ValidateGitOpsConfigForHelmApp(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -82,6 +85,7 @@ type InstalledAppRestHandlerImpl struct {
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	installedAppRepository           repository.InstalledAppRepository
 	K8sApplicationService            application2.K8sApplicationService
+	gitOpsService                    gitops.GitOpsConfigService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -91,6 +95,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	argoUserService argo.ArgoUserService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
+	gitOpsService gitops.GitOpsConfigService,
 ) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                           Logger,
@@ -108,6 +113,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		argoUserService:                  argoUserService,
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
 		installedAppRepository:           installedAppRepository,
+		gitOpsService:                    gitOpsService,
 	}
 }
 
@@ -797,4 +803,46 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTreeWithHibernateForACD
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	handler.installedAppService.FetchResourceTreeWithHibernateForACD(ctx, cn, appDetail)
+}
+
+func (handler *InstalledAppRestHandlerImpl) ValidateGitOpsConfigForHelmApp(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	var gitOpsConfigRequest chart.HelmAppGitOpsConfigRequest
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&gitOpsConfigRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, ValidateGitOpsConfigForHelmApp", "error", err, "payload", gitOpsConfigRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	err = handler.validator.Struct(gitOpsConfigRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, ValidateGitOpsConfigForHelmApp", "err", err, "payload", gitOpsConfigRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//rbac block starts from here
+	token := r.Header.Get("token")
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(gitOpsConfigRequest.TeamId, gitOpsConfigRequest.EnvironmentId)
+
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject2)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rbac block ends here
+
+	isValidConfig, err := handler.gitOpsService.ValidateCustomGitRepoURL(gitOpsConfigRequest.GitRepoURL, userId, false)
+	if !isValidConfig {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, "RepoURL validated successfully", http.StatusOK)
 }

@@ -263,3 +263,13 @@ func (impl GitHubClient) GetCommits(repoName, projectName string) ([]*GitCommitD
 	}
 	return gitCommitsDto, nil
 }
+
+func (impl GitHubClient) GetCommitsCount(repoName, projectName string) (int, error) {
+	githubClient := impl.client
+	gitCommits, _, err := githubClient.Repositories.ListCommits(context.Background(), impl.org, repoName, &github.CommitsListOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
+		return 0, err
+	}
+	return len(gitCommits), nil
+}

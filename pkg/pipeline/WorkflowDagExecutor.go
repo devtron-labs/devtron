@@ -3554,7 +3554,7 @@ func (impl *WorkflowDagExecutorImpl) mergeAndSave(envOverride *chartConfig.EnvCo
 	commitHash := ""
 	commitTime := time.Time{}
 	if util.IsAcdApp(pipeline.DeploymentAppType) {
-		chartRepoName := impl.chartTemplateService.GetGitOpsRepoNameFromUrl(envOverride.Chart.GitRepoUrl)
+		chartRepoName := util.GetGitOpsRepoNameFromUrl(envOverride.Chart.GitRepoUrl)
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
 		//getting username & emailId for commit author data
 		userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)

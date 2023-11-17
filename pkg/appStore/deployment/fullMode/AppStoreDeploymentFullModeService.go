@@ -410,7 +410,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName stri
 	}
 	if application != nil {
 		gitOpsRepoUrl := application.Spec.Source.RepoURL
-		gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
+		gitOpsRepoName = util.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
 	}
 	return gitOpsRepoName, nil
 }

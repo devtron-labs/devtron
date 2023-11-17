@@ -300,3 +300,32 @@ func (impl GitBitbucketClient) GetCommits(repoName, projectName string) ([]*GitC
 	}
 	return gitCommitsDto, nil
 }
+
+func (impl GitBitbucketClient) GetCommitsCount(repoName, projectName string) (int, error) {
+	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket = &repository.GitOpsConfig{}
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+			gitOpsConfigBitbucket.BitBucketProjectKey = ""
+		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
+			return 0, err
+		}
+	}
+	bitbucketWorkspaceId := gitOpsConfigBitbucket.BitBucketWorkspaceId
+	bitbucketClient := impl.client
+	getCommitsOptions := &bitbucket.CommitsOptions{
+		RepoSlug:    repoName,
+		Owner:       bitbucketWorkspaceId,
+		Branchortag: "master",
+	}
+	gitCommitsIf, err := bitbucketClient.Repositories.Commits.GetCommits(getCommitsOptions)
+	if err != nil {
+		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
+		return 0, err
+	}
+
+	gitCommits := gitCommitsIf.(map[string]interface{})["values"].([]interface{})
+	return len(gitCommits), nil
+}

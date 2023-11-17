@@ -74,7 +74,6 @@ type ChartTemplateService interface {
 	CleanDir(dir string)
 	GetUserEmailIdAndNameForGitOpsCommit(userId int32) (emailId, name string)
 	GetGitOpsRepoName(appName string) string
-	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
 	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
@@ -657,12 +656,6 @@ func (impl ChartTemplateServiceImpl) GetGitOpsRepoName(appName string) string {
 		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
 	}
 	return repoName
-}
-
-func (impl ChartTemplateServiceImpl) GetGitOpsRepoNameFromUrl(gitRepoUrl string) string {
-	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
-	gitRepoUrl = strings.ReplaceAll(gitRepoUrl, ".git", "")
-	return gitRepoUrl
 }
 
 // GetByteArrayRefChart this method will be used for getting byte array from reference chart to store in db

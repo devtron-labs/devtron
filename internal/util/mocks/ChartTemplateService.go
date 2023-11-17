@@ -285,20 +285,6 @@ func (_m *ChartTemplateService) GetGitOpsRepoName(appName string) string {
 	return r0
 }
 
-// GetGitOpsRepoNameFromUrl provides a mock function with given fields: gitRepoUrl
-func (_m *ChartTemplateService) GetGitOpsRepoNameFromUrl(gitRepoUrl string) string {
-	ret := _m.Called(gitRepoUrl)
-
-	var r0 string
-	if rf, ok := ret.Get(0).(func(string) string); ok {
-		r0 = rf(gitRepoUrl)
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-
-	return r0
-}
-
 // GetUserEmailIdAndNameForGitOpsCommit provides a mock function with given fields: userId
 func (_m *ChartTemplateService) GetUserEmailIdAndNameForGitOpsCommit(userId int32) (string, string) {
 	ret := _m.Called(userId)
