@@ -61,6 +61,7 @@ type UserAuthRepository interface {
 	//GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
+	GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -991,4 +992,16 @@ func (impl UserAuthRepositoryImpl) GetRolesByUserIdAndEntityType(userId int32, e
 		return models, err
 	}
 	return models, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).Where("workflow = ?", workflow).
+		Where("entity_name = ?", entityName).
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles for team", "err", err, "workflow", workflow)
+		return nil, err
+	}
+	return roles, nil
 }

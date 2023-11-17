@@ -18,6 +18,7 @@
 package appWorkflow
 
 import (
+	"errors"
 	"fmt"
 	mapset "github.com/deckarep/golang-set"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -28,6 +29,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
+	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -70,6 +73,7 @@ type AppWorkflowServiceImpl struct {
 	resourceGroupService     resourceGroup2.ResourceGroupService
 	appRepository            appRepository.AppRepository
 	enforcerUtil             rbac.EnforcerUtil
+	userAuthService          user.UserAuthService
 }
 
 type AppWorkflowDto struct {
@@ -150,7 +154,7 @@ type PipelineIdentifier struct {
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService,
-	appRepository appRepository.AppRepository) *AppWorkflowServiceImpl {
+	appRepository appRepository.AppRepository, userAuthService user.UserAuthService) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                   logger,
 		appWorkflowRepository:    appWorkflowRepository,
@@ -160,6 +164,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 		enforcerUtil:             enforcerUtil,
 		resourceGroupService:     resourceGroupService,
 		appRepository:            appRepository,
+		userAuthService:          userAuthService,
 	}
 }
 
@@ -180,6 +185,15 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 		}
 		savedAppWf, err = impl.appWorkflowRepository.UpdateAppWorkflow(wf)
 	} else {
+		workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(req.Name, req.AppId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error in finding workflow by app id and name", "name", req.Name, "appId", req.AppId)
+			return req, err
+		}
+		if workflow.Id != 0 {
+			impl.Logger.Errorw("workflow with this name already exist", "err", err)
+			return req, errors.New("workflow with this name already exist in this app")
+		}
 		wf := &appWorkflow.AppWorkflow{
 			Name:   req.Name,
 			AppId:  req.AppId,
@@ -258,6 +272,11 @@ func (impl AppWorkflowServiceImpl) DeleteAppWorkflow(appWorkflowId int, userId i
 		impl.Logger.Errorw("err", err)
 		return err
 	}
+	app, err := impl.appRepository.FindById(wf.AppId)
+	if err != nil {
+		impl.Logger.Errorw("error in finding app by app id", "err", err, "appId", wf.AppId)
+		return err
+	}
 
 	mappingForCI, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(wf.Id)
 	if err != nil {
@@ -293,6 +312,11 @@ func (impl AppWorkflowServiceImpl) DeleteAppWorkflow(appWorkflowId int, userId i
 			impl.Logger.Errorw("error in deleting workflow mapping", "err", err)
 			return err
 		}
+	}
+	err = impl.userAuthService.DeleteRoles(bean3.WorkflowType, app.AppName, tx, "", wf.Name)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting auth roles", "err", err)
+		return err
 	}
 
 	err = tx.Commit()

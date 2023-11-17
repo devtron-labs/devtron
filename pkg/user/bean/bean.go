@@ -6,6 +6,7 @@ const (
 	PROJECT_TYPE                                = "team"
 	ENV_TYPE                                    = "environment"
 	APP_TYPE                                    = "app"
+	WorkflowType                                = "workflow"
 	CHART_GROUP_TYPE                            = "chart-group"
 	MANAGER_TYPE                       RoleType = "manager"
 	ADMIN_TYPE                         RoleType = "admin"
