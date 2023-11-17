@@ -1,4 +1,5 @@
 ## Bugs
+- fix: deleted service showing port as missing fix (#4240)
 - fix: kubernetes events fix for resources (#4247)
 - fix:post-cd plugin not getting added again, after removing and adding again (#4219)
 - fix: update docker config overridden flag in linked ci's (#4220)
