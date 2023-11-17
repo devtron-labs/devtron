@@ -164,6 +164,11 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	return impl, err
 }
 
+const (
+	AuthorizationError = "authError"
+	Error              = "error"
+)
+
 func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateSeeExampleResponse, error) {
 	bulkUpdateReadme, err := impl.bulkUpdateRepository.FindBulkUpdateReadme(operation)
 	response := &BulkUpdateSeeExampleResponse{}
@@ -1025,7 +1030,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			pipelineResponse["authError"] = true
+			pipelineResponse[AuthorizationError] = true
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1042,7 +1047,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			pipelineResponse["error"] = hibernateReqError
+			pipelineResponse[Error] = hibernateReqError
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1141,7 +1146,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			pipelineResponse["authError"] = true
+			pipelineResponse[AuthorizationError] = true
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1158,7 +1163,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			pipelineResponse["error"] = hibernateReqError
+			pipelineResponse[Error] = hibernateReqError
 			response[appKey] = pipelineResponse
 			//return nil, err
 		}
