@@ -316,7 +316,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		// skip creation of pipeline if envId is not set
-		if pipeline.EnvironmentId == 0 {
+		if pipeline.EnvironmentId <= 0 {
 			continue
 		}
 		// if no deployment app type sent from user then we'll not validate
