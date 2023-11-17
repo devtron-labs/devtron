@@ -1391,6 +1391,9 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	// Rollback tx on error.
 	defer tx.Rollback()
 	if pipeline.ParentPipelineType == "WEBHOOK" {
+		if !pipeline.IsSwitchCiPipelineRequest() && pipeline.AppWorkflowId > 0 {
+			return 0, errors2.New("cannot create webhook ci in existing app workflow")
+		}
 		if pipeline.AppWorkflowId == 0 {
 			wf := &appWorkflow.AppWorkflow{
 				Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
