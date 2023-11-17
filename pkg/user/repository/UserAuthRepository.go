@@ -317,7 +317,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 		_, err = impl.dbConnection.Query(&model, query, entity, act)
 	} else if entity == bean2.EntityJobs {
 		if len(team) > 0 && len(act) > 0 {
-			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.action=? "
+			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.action=? AND role.entity=? "
 			if len(env) == 0 {
 				query = query + " AND role.environment is NULL"
 			} else {
@@ -333,7 +333,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 			} else {
 				query += " AND role.workflow='" + workflow + "';"
 			}
-			_, err = impl.dbConnection.Query(&model, query, team, act)
+			_, err = impl.dbConnection.Query(&model, query, team, act, entity)
 		} else {
 			return model, nil
 		}
