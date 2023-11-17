@@ -10,9 +10,9 @@ const EmptyLikeRegex = "%%"
 
 func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
 	commonPaginatedQueryPart := ""
-	if listingFilterOpts.SearchString != EmptyLikeRegex {
-		commonPaginatedQueryPart = fmt.Sprintf(" cia.image LIKE '%v'", listingFilterOpts.SearchString)
-	}
+	//if listingFilterOpts.SearchString != EmptyLikeRegex {
+	commonPaginatedQueryPart = fmt.Sprintf(" cia.image LIKE '%v'", listingFilterOpts.SearchString)
+	//}
 	orderByClause := " ORDER BY cia.id DESC"
 	limitOffsetQueryPart := fmt.Sprintf(" LIMIT %v OFFSET %v", listingFilterOpts.Limit, listingFilterOpts.Offset)
 	finalQuery := ""
@@ -70,10 +70,10 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 		"       OR (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v' AND cd_workflow_runner.status IN ('Healthy','Succeeded')))"
 
 	if listingFilterOptions.SearchString != EmptyLikeRegex {
-		commonQuery += " AND cia.image LIKE '%v' "
+		commonQuery += fmt.Sprintf(" AND cia.image LIKE '%v' ", listingFilterOptions.SearchString)
 	}
 
-	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType, listingFilterOptions.SearchString)
+	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType)
 	if isApprovalNode {
 		commonQuery = commonQuery + fmt.Sprintf(" AND cd_workflow.ci_artifact_id NOT IN (SELECT DISTINCT dar.ci_artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = %v AND dar.active=true AND dar.artifact_deployment_triggered = false)", listingFilterOptions.PipelineId)
 	} else if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
@@ -95,9 +95,9 @@ func BuildQueryForArtifactsForRollback(listingFilterOptions bean.ArtifactsListFi
 		" INNER JOIN ci_artifact cia ON cia.id=cdw.ci_artifact_id " +
 		" WHERE cdw.pipeline_id=%v AND cdwr.workflow_type = '%v' "
 	if listingFilterOptions.SearchString != EmptyLikeRegex {
-		commonQuery += " AND cia.image LIKE '%v' "
+		commonQuery += fmt.Sprintf(" AND cia.image LIKE '%v' ", listingFilterOptions.SearchString)
 	}
-	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.SearchString)
+	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType)
 	if len(listingFilterOptions.ExcludeWfrIds) > 0 {
 		commonQuery = fmt.Sprintf(" %s AND cdwr.id NOT IN (%s)", commonQuery, helper.GetCommaSepratedString(listingFilterOptions.ExcludeWfrIds))
 	}
@@ -125,9 +125,9 @@ func BuildApprovedOnlyArtifactsWithFilter(listingFilterOpts bean.ArtifactsListFi
 		" WHERE dar.active=true AND dar.artifact_deployment_triggered = false AND dar.pipeline_id = %v "
 
 	if listingFilterOpts.SearchString != EmptyLikeRegex {
-		commonQueryPart += " AND cia.image LIKE '%v' "
+		commonQueryPart += fmt.Sprintf(" AND cia.image LIKE '%v' ", listingFilterOpts.SearchString)
 	}
-	commonQueryPart = fmt.Sprintf(commonQueryPart, listingFilterOpts.ApproversCount, listingFilterOpts.PipelineId, listingFilterOpts.SearchString)
+	commonQueryPart = fmt.Sprintf(commonQueryPart, listingFilterOpts.ApproversCount, listingFilterOpts.PipelineId)
 	if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
 		commonQueryPart += fmt.Sprintf(" AND cia.id NOT IN (%s) ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
 	}
@@ -156,10 +156,10 @@ func BuildQueryForApprovedArtifactsForRollback(listingFilterOpts bean.ArtifactsL
 		"   WHERE dar.id IN (%s) AND cdw.pipeline_id = %v" +
 		"   AND cdwr.workflow_type = '%v'"
 	if listingFilterOpts.SearchString != EmptyLikeRegex {
-		commonQuery += " AND cia.image LIKE '%v' "
+		commonQuery += fmt.Sprintf(" AND cia.image LIKE '%v' ", listingFilterOpts.SearchString)
 	}
 
-	commonQuery = fmt.Sprintf(commonQuery, subQuery, listingFilterOpts.PipelineId, listingFilterOpts.StageType, listingFilterOpts.SearchString)
+	commonQuery = fmt.Sprintf(commonQuery, subQuery, listingFilterOpts.PipelineId, listingFilterOpts.StageType)
 	if len(listingFilterOpts.ExcludeWfrIds) > 0 {
 		commonQuery = fmt.Sprintf(" %s AND cdwr.id NOT IN (%s)", commonQuery, helper.GetCommaSepratedString(listingFilterOpts.ExcludeWfrIds))
 	}
