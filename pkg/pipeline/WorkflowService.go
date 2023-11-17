@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -35,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 	"strings"
@@ -46,7 +44,8 @@ import (
 type WorkflowService interface {
 	SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, error)
 	//DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(name string, namespace string, isExt bool, environment *repository.Environment) (*v1alpha1.Workflow, error)
+	GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
+	GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
 	//ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	//UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
 	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
@@ -150,8 +149,8 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	}
 	if workflowRequest.Type == bean3.CD_WORKFLOW_PIPELINE_TYPE {
 		workflowTemplate.WfControllerInstanceID = impl.ciCdConfig.WfControllerInstanceID
-		workflowTemplate.TerminationGracePeriod = impl.ciCdConfig.TerminationGracePeriod
 	}
+	workflowTemplate.TerminationGracePeriod = impl.ciCdConfig.TerminationGracePeriod
 
 	clusterConfig, err := impl.getClusterConfig(workflowRequest)
 	workflowTemplate.ClusterConfig = clusterConfig
@@ -213,7 +212,7 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *type
 	isJob := workflowRequest.CheckForJob()
 	allowAll := isJob
 	namePrefix := workflowRequest.GetExistingCmCsNamePrefix()
-	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
+	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob, workflowRequest.Scope)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
 		return nil, nil, err
@@ -288,7 +287,7 @@ func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *types.
 }
 
 func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) executors.WorkflowExecutor {
-	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
+	if executorType == "" || executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
 	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		return impl.systemWorkflowExecutor
@@ -296,16 +295,29 @@ func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig
 	impl.Logger.Warnw("workflow executor not found", "type", executorType)
 	return nil
 }
-func (impl *WorkflowServiceImpl) GetWorkflow(name string, namespace string, isExt bool, environment *repository.Environment) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error) {
 	impl.Logger.Debug("getting wf", name)
-	wfClient, err := impl.getWfClient(environment, namespace, isExt)
-
-	if err != nil {
-		return nil, err
+	workflowExecutor := impl.getWorkflowExecutor(executorType)
+	if workflowExecutor == nil {
+		return nil, errors.New("workflow executor not found")
 	}
+	if restConfig == nil {
+		restConfig = impl.config
+	}
+	return workflowExecutor.GetWorkflow(name, namespace, restConfig)
+}
 
-	workflow, err := wfClient.Get(context.Background(), name, v1.GetOptions{})
-	return workflow, err
+func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error) {
+	impl.Logger.Debug("getting wf", name)
+	workflowExecutor := impl.getWorkflowExecutor(executorType)
+	if workflowExecutor == nil {
+		return nil, errors.New("workflow executor not found")
+	}
+	if restConfig == nil {
+		restConfig = impl.config
+	}
+	wfStatus, err := workflowExecutor.GetWorkflowStatus(name, namespace, restConfig)
+	return wfStatus, err
 }
 
 func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error {
@@ -313,6 +325,9 @@ func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.W
 	var err error
 	if executorType != "" {
 		workflowExecutor := impl.getWorkflowExecutor(executorType)
+		if workflowExecutor == nil {
+			return errors.New("workflow executor not found")
+		}
 		if restConfig == nil {
 			restConfig = impl.config
 		}

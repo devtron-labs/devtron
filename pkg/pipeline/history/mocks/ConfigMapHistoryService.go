@@ -4,6 +4,7 @@ package mocks
 
 import (
 	chartConfig "github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	history "github.com/devtron-labs/devtron/pkg/pipeline/history"
 
 	mock "github.com/stretchr/testify/mock"
@@ -21,15 +22,15 @@ type ConfigMapHistoryService struct {
 }
 
 // ConvertConfigDataToComponentLevelDto provides a mock function with given fields: config, configType, userHasAdminAccess
-func (_m *ConfigMapHistoryService) ConvertConfigDataToComponentLevelDto(config *history.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*history.ComponentLevelHistoryDetailDto, error) {
+func (_m *ConfigMapHistoryService) ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*history.ComponentLevelHistoryDetailDto, error) {
 	ret := _m.Called(config, configType, userHasAdminAccess)
 
 	var r0 *history.ComponentLevelHistoryDetailDto
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*history.ConfigData, repository.ConfigType, bool) (*history.ComponentLevelHistoryDetailDto, error)); ok {
+	if rf, ok := ret.Get(0).(func(*bean.ConfigData, repository.ConfigType, bool) (*history.ComponentLevelHistoryDetailDto, error)); ok {
 		return rf(config, configType, userHasAdminAccess)
 	}
-	if rf, ok := ret.Get(0).(func(*history.ConfigData, repository.ConfigType, bool) *history.ComponentLevelHistoryDetailDto); ok {
+	if rf, ok := ret.Get(0).(func(*bean.ConfigData, repository.ConfigType, bool) *history.ComponentLevelHistoryDetailDto); ok {
 		r0 = rf(config, configType, userHasAdminAccess)
 	} else {
 		if ret.Get(0) != nil {
@@ -37,7 +38,7 @@ func (_m *ConfigMapHistoryService) ConvertConfigDataToComponentLevelDto(config *
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*history.ConfigData, repository.ConfigType, bool) error); ok {
+	if rf, ok := ret.Get(1).(func(*bean.ConfigData, repository.ConfigType, bool) error); ok {
 		r1 = rf(config, configType, userHasAdminAccess)
 	} else {
 		r1 = ret.Error(1)

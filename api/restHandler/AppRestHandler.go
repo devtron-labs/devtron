@@ -43,7 +43,7 @@ type AppRestHandler interface {
 	UpdateApp(w http.ResponseWriter, r *http.Request)
 	UpdateProjectForApps(w http.ResponseWriter, r *http.Request)
 	GetAppListByTeamIds(w http.ResponseWriter, r *http.Request)
-	UpdateAppDescription(w http.ResponseWriter, r *http.Request)
+	UpdateAppNote(w http.ResponseWriter, r *http.Request)
 }
 
 type AppRestHandlerImpl struct {
@@ -123,7 +123,7 @@ func (handler AppRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.
 	}
 	//rback implementation ends here
 
-	res, err := handler.appService.GetAppMetaInfo(appId)
+	res, err := handler.appService.GetAppMetaInfo(appId, app.ZERO_INSTALLED_APP_ID, app.ZERO_ENVIRONMENT_ID)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -343,7 +343,7 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, err, projectWiseApps, http.StatusOK)
 }
 
-func (handler AppRestHandlerImpl) UpdateAppDescription(w http.ResponseWriter, r *http.Request) {
+func (handler AppRestHandlerImpl) UpdateAppNote(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)

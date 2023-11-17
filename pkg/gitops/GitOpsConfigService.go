@@ -70,7 +70,7 @@ const (
 	CommitOnRestStage     = "Commit On Rest"
 	PushStage             = "Push"
 	CloneStage            = "Clone"
-	GetRepoUrlStage       = "Get Repo Url"
+	GetRepoUrlStage       = "Get Repo RedirectionUrl"
 	CreateRepoStage       = "Create Repo"
 	CloneHttp             = "Clone Http"
 	CreateReadmeStage     = "Create Readme"

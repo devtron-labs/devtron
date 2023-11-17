@@ -38,7 +38,7 @@ import (
 
 const (
 	GIT_WORKING_DIR       = "/tmp/gitops/"
-	GetRepoUrlStage       = "Get Repo Url"
+	GetRepoUrlStage       = "Get Repo RedirectionUrl"
 	CreateRepoStage       = "Create Repo"
 	CloneHttpStage        = "Clone Http"
 	CreateReadmeStage     = "Create Readme"
