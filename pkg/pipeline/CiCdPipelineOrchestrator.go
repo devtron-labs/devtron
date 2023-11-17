@@ -1179,7 +1179,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(bean3.APP_TYPE, app.AppName, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean3.APP_TYPE, app.AppName, tx, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err

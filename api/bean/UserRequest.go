@@ -67,7 +67,7 @@ type RoleFilter struct {
 	Group     string `json:"group"`
 	Kind      string `json:"kind"`
 	Resource  string `json:"resource"`
-	Workflow  string `json:"workflow"`
+	Workflow  string `json:"workflow,omitempty"`
 }
 
 type Role struct {

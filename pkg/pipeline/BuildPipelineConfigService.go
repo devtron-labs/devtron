@@ -1473,6 +1473,7 @@ func (impl *CiPipelineConfigServiceImpl) CreateCiPipeline(createRequest *bean.Ci
 	}
 	//--ecr config
 	createRequest.AppName = app.AppName
+	createRequest.IsJob = app.AppType == helper.Job
 	if !createRequest.IsJob {
 		store, err := impl.getDefaultArtifactStore(createRequest.DockerRegistry)
 		if err != nil {
