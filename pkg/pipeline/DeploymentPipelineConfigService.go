@@ -424,15 +424,16 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 }
 
 func (impl *CdPipelineConfigServiceImpl) CDPipelineCustomTagDBOperations(pipeline *bean.CDPipelineConfigObject) error {
+
 	if pipeline.EnableCustomTag && (pipeline.CustomTagObject != nil && len(pipeline.CustomTagObject.TagPattern) == 0) {
 		return fmt.Errorf("please provide custom tag data if tag is enabled")
 	}
 	if pipeline.CustomTagObject != nil && pipeline.CustomTagObject.CounterX < 0 {
 		return fmt.Errorf("value of {x} cannot be negative")
 	}
-	if pipeline.CustomTagObject == nil && pipeline.CustomTagStage == nil {
-		// delete custom tag if removed from request
-		err := impl.DeleteCustomTag(pipeline)
+	if !pipeline.EnableCustomTag {
+		// disable custom tag if exist
+		err := impl.DisableCustomTag(pipeline)
 		if err != nil {
 			return err
 		}
@@ -475,8 +476,34 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCustomTag(pipeline *bean.CDPipeli
 	return nil
 }
 
+func (impl *CdPipelineConfigServiceImpl) DisableCustomTag(pipeline *bean.CDPipelineConfigObject) error {
+	preStage := repository5.PIPELINE_STAGE_TYPE_PRE_CD
+	postStage := repository5.PIPELINE_STAGE_TYPE_POST_CD
+	err := impl.DisableCustomTagByPipelineStageType(&preStage, pipeline.Id)
+	if err != nil {
+		return err
+	}
+	err = impl.DisableCustomTagByPipelineStageType(&postStage, pipeline.Id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (impl *CdPipelineConfigServiceImpl) DeleteCustomTagByPipelineStageType(pipelineStageType *repository5.PipelineStageType, pipelineId int) error {
 	err := impl.customTagService.DeleteCustomTagIfExists(
+		bean2.CustomTag{EntityKey: getEntityTypeByPipelineStageType(*pipelineStageType),
+			EntityValue: fmt.Sprintf("%d", pipelineId),
+		})
+	if err != nil {
+		impl.logger.Errorw("error in deleting custom tag for pre stage", "err", err, "pipeline-id", pipelineId)
+		return err
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DisableCustomTagByPipelineStageType(pipelineStageType *repository5.PipelineStageType, pipelineId int) error {
+	err := impl.customTagService.DisableCustomTagIfExist(
 		bean2.CustomTag{EntityKey: getEntityTypeByPipelineStageType(*pipelineStageType),
 			EntityValue: fmt.Sprintf("%d", pipelineId),
 		})

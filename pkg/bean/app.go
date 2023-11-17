@@ -744,6 +744,7 @@ type CiArtifactBean struct {
 	CiPipelineId                  int                       `json:"-"`
 	CredentialsSourceType         string                    `json:"-"`
 	CredentialsSourceValue        string                    `json:"-"`
+
 }
 
 type CiArtifactResponse struct {

@@ -60,28 +60,27 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                         *zap.SugaredLogger
-	workflowService                WorkflowService
-	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
-	ciConfig                       *types.CiConfig
-	eventClient                    client.EventClient
-	eventFactory                   client.EventFactory
-	mergeUtil                      *util.MergeUtil
-	ciPipelineRepository           pipelineConfig.CiPipelineRepository
-	prePostCiScriptHistoryService  history.PrePostCiScriptHistoryService
-	pipelineStageService           PipelineStageService
-	userService                    user.UserService
-	ciTemplateService              CiTemplateService
-	appCrudOperationService        app.AppCrudOperationService
-	envRepository                  repository1.EnvironmentRepository
-	appRepository                  appRepository.AppRepository
-	customTagService               CustomTagService
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
-	config                         *types.CiConfig
-	pluginInputVariableParser      PluginInputVariableParser
-	globalPluginService            plugin.GlobalPluginService
-	scopedVariableManager          variables.ScopedVariableManager
+	Logger                        *zap.SugaredLogger
+	workflowService               WorkflowService
+	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	ciConfig                      *types.CiConfig
+	eventClient                   client.EventClient
+	eventFactory                  client.EventFactory
+	mergeUtil                     *util.MergeUtil
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
+	pipelineStageService          PipelineStageService
+	userService                   user.UserService
+	ciTemplateService             CiTemplateService
+	appCrudOperationService       app.AppCrudOperationService
+	envRepository                 repository1.EnvironmentRepository
+	appRepository                 appRepository.AppRepository
+	customTagService              CustomTagService
+	config                        *types.CiConfig
+	scopedVariableManager         variables.ScopedVariableManager
+	pluginInputVariableParser     PluginInputVariableParser
+	globalPluginService           plugin.GlobalPluginService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -765,7 +764,7 @@ func (impl *CiServiceImpl) GetWorkflowRequestVariablesForSkopeoPlugin(preCiSteps
 		for _, image := range images {
 			if image == buildImagePath {
 				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds,
-					fmt.Errorf("source image cannot be same as destination image")
+					bean2.ErrImagePathInUse
 			}
 		}
 	}

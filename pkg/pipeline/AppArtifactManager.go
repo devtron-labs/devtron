@@ -672,7 +672,7 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 func (impl *AppArtifactManagerImpl) setGitTriggerData(ciArtifacts []bean2.CiArtifactBean) ([]bean2.CiArtifactBean, error) {
 	directArtifactIndexes, directWorkflowIds, artifactsWithParentIndexes, parentArtifactIds := make([]int, 0), make([]int, 0), make([]int, 0), make([]int, 0)
 	for i, artifact := range ciArtifacts {
-		if artifact.ExternalCiPipelineId != 0 || artifact.CiWorkflowId == 0 {
+		if artifact.ExternalCiPipelineId != 0 {
 			// if external webhook continue
 			continue
 		}
@@ -763,8 +763,8 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			DeployedTime:           formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
 			Latest:                 true,
 			CreatedTime:            formatDate(currentRunningArtifact.CreatedOn, bean2.LayoutRFC3339),
-			CiPipelineId:           currentRunningArtifact.PipelineId,
 			DataSource:             currentRunningArtifact.DataSource,
+			CiPipelineId:           currentRunningArtifact.PipelineId,
 			CredentialsSourceType:  currentRunningArtifact.CredentialsSourceType,
 			CredentialsSourceValue: currentRunningArtifact.CredentialSourceValue,
 		}
@@ -887,7 +887,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 			CiPipelineId:           artifact.PipelineId,
 			DataSource:             artifact.DataSource,
 			CredentialsSourceType:  artifact.CredentialsSourceType,
-			CiConfigureSourceValue: artifact.CredentialSourceValue,
+			CredentialsSourceValue: artifact.CredentialSourceValue,
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId

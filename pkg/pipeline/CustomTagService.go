@@ -23,6 +23,7 @@ type CustomTagService interface {
 	ReserveImagePath(imagePath string, customTagId int) (*repository.ImagePathReservation, error)
 	DeactivateImagePathReservationByImagePath(imagePaths []string) error
 	DeactivateImagePathReservationByImageIds(imagePathReservationIds []int) error
+	DisableCustomTagIfExist(tag bean.CustomTag) error
 }
 
 type CustomTagServiceImpl struct {
@@ -42,6 +43,7 @@ func (impl *CustomTagServiceImpl) DeactivateImagePathReservation(id int) error {
 }
 
 func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) error {
+
 	if len(tag.TagPattern) == 0 && tag.Enabled {
 		return fmt.Errorf("tag pattern cannot be empty")
 	}
@@ -60,7 +62,6 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 		Active:               true,
 		Enabled:              true,
 	}
-
 	oldTagObject, err := impl.customTagRepository.FetchCustomTagData(customTagData.EntityKey, customTagData.EntityValue)
 	if err != nil && err != pg.ErrNoRows {
 		return err
@@ -70,11 +71,6 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 	} else {
 		customTagData.Id = oldTagObject.Id
 		customTagData.Active = true
-		if !tag.Enabled {
-			customTagData.TagPattern = oldTagObject.TagPattern
-			customTagData.AutoIncreasingNumber = oldTagObject.AutoIncreasingNumber
-			customTagData.Enabled = false
-		}
 		return impl.customTagRepository.UpdateImageTag(&customTagData)
 	}
 }
@@ -266,4 +262,8 @@ func (impl *CustomTagServiceImpl) DeactivateImagePathReservationByImageIds(image
 		return err
 	}
 	return nil
+}
+
+func (impl *CustomTagServiceImpl) DisableCustomTagIfExist(tag bean.CustomTag) error {
+	return impl.customTagRepository.DisableCustomTag(tag.EntityKey, tag.EntityValue)
 }

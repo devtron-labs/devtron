@@ -38,6 +38,7 @@ type ImageTagRepository interface {
 	FetchActiveCustomTagData(entityKey int, entityValue string) (*CustomTag, error)
 	DeactivateImagePathReservationByImagePaths(tx *pg.Tx, imagePaths []string) error
 	DeactivateImagePathReservationByImagePathReservationIds(tx *pg.Tx, imagePathReservationIds []int) error
+	DisableCustomTag(entityKey int, entityValue string) error
 }
 
 type ImageTagRepositoryImpl struct {
@@ -125,4 +126,10 @@ func (impl *ImageTagRepositoryImpl) DeactivateImagePathReservationByImagePathRes
 		return err
 	}
 	return nil
+}
+
+func (impl *ImageTagRepositoryImpl) DisableCustomTag(entityKey int, entityValue string) error {
+	query := `update custom_tag set enabled = false where entity_key = ? and entity_value = ?`
+	_, err := impl.dbConnection.Exec(query, entityKey, entityValue)
+	return err
 }
