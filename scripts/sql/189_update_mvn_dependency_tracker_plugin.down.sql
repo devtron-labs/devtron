@@ -1,4 +1,4 @@
-DELETE FROM plugin_step_variable WHERE NAME='SkipBuildTest';
+DELETE FROM plugin_step_variable WHERE NAME='ExcludeBuildTest';
 UPDATE plugin_pipeline_script SET script=E'mkdir $HOME/outDTrack                                                   
 OutDirDTrack=$HOME/outDTrack                                            
 cd /devtroncd/$CheckoutPath                                             

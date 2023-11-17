@@ -1,5 +1,5 @@
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
-VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Dependency track for Maven & Gradle' and ps."index"=1 and ps.deleted=false),'SkipBuildTest','BOOL','If Enable, this will skips compiling the tests i.e. it skips building the test artifacts','t','t','f',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Dependency track for Maven & Gradle' and ps."index"=1 and ps.deleted=false),'ExcludeBuildTest','BOOL','If Enable, this will skips compiling the tests i.e. it skips building the test artifacts','t','t','f',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
 UPDATE plugin_pipeline_script SET script=E'mkdir $HOME/outDTrack
 OutDirDTrack=$HOME/outDTrack
@@ -7,7 +7,7 @@ cd /devtroncd/$CheckoutPath
 ToUploadBom=YES
 
 # Convert SkipBuildTest to lowercase for case-insensitive comparison
-SkipBuildTestLower=$(echo "$SkipBuildTest" | tr "[:upper:]" "[:lower:]")
+SkipBuildTestLower=$(echo "$ExcludeBuildTest" | tr "[:upper:]" "[:lower:]")
 
 if [ $BuildToolType == "GRADLE" ]
 then
