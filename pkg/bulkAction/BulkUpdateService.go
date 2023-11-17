@@ -38,6 +38,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"sort"
+	"strings"
 )
 
 type BulkUpdateService interface {
@@ -49,8 +50,8 @@ type BulkUpdateService interface {
 	BulkUpdateSecret(bulkUpdatePayload *BulkUpdatePayload) *CmAndSecretBulkUpdateResponse
 	BulkUpdate(bulkUpdateRequest *BulkUpdatePayload) (bulkUpdateResponse *BulkUpdateResponse)
 
-	BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
-	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
+	BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
+	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
 	BulkDeploy(request *BulkApplicationForEnvironmentPayload, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error)
 	BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 
@@ -999,7 +1000,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *BulkUpdatePayloa
 	return bulkUpdateResponse
 }
 
-func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
+func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes) > 0 {
@@ -1055,9 +1056,28 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		pipelineResponse[pipelineKey] = success
 		response[appKey] = pipelineResponse
 	}
-	bulkOperationResponse := &BulkApplicationForEnvironmentResponse{}
+	var responseArray []map[string]interface{}
+	for appKey, pipelineResponse := range response {
+		appMap := make(map[string]interface{})
+		appKeySplit := strings.Split(appKey, "_")
+		appId := appKeySplit[0]
+		appName := strings.Join(appKeySplit[1:], "_")
+		appMap["id"] = appId
+		appMap["appName"] = appName
+		for key, value := range pipelineResponse {
+			if key == "authError" {
+				appMap["authError"] = value
+			} else if key == "error" {
+				appMap["error"] = value
+			} else {
+				appMap["success"] = value
+			}
+		}
+		responseArray = append(responseArray, appMap)
+	}
+	bulkOperationResponse := &BulkApplicationHibernateUnhibernateForEnvironmentResponse{}
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
-	bulkOperationResponse.Response = response
+	bulkOperationResponse.Response = responseArray
 	return bulkOperationResponse, nil
 }
 
@@ -1115,7 +1135,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 	}
 	return appIdentifier, hibernateRequest, nil
 }
-func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
+func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes) > 0 {
@@ -1171,9 +1191,28 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		pipelineResponse[pipelineKey] = success
 		response[appKey] = pipelineResponse
 	}
-	bulkOperationResponse := &BulkApplicationForEnvironmentResponse{}
+	var responseArray []map[string]interface{}
+	for appKey, pipelineResponse := range response {
+		appMap := make(map[string]interface{})
+		appKeySplit := strings.Split(appKey, "_")
+		appId := appKeySplit[0]
+		appName := strings.Join(appKeySplit[1:], "_")
+		appMap["id"] = appId
+		appMap["appName"] = appName
+		for key, value := range pipelineResponse {
+			if key == "authError" {
+				appMap["authError"] = value
+			} else if key == "error" {
+				appMap["error"] = value
+			} else {
+				appMap["success"] = value
+			}
+		}
+		responseArray = append(responseArray, appMap)
+	}
+	bulkOperationResponse := &BulkApplicationHibernateUnhibernateForEnvironmentResponse{}
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
-	bulkOperationResponse.Response = response
+	bulkOperationResponse.Response = responseArray
 	return bulkOperationResponse, nil
 }
 
@@ -1247,13 +1286,13 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 	//authorization block ends here
 
-	response := make(map[string]map[string]any)
+	response := make(map[string]map[string]bool)
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
 		success := true
 		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]any)
+			pResponse := make(map[string]bool)
 			pResponse[pipelineKey] = false
 			response[appKey] = pResponse
 		}
@@ -1452,7 +1491,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 		}
 	}
 
-	response := make(map[string]map[string]any)
+	response := make(map[string]map[string]bool)
 	for _, pipeline := range pipelines {
 		ciCompleted := ciCompletedStatus[pipeline.CiPipelineId]
 		if !ciCompleted {
@@ -1460,7 +1499,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 			pipelineKey := fmt.Sprintf("%d", pipeline.CiPipelineId)
 			success := true
 			if _, ok := response[appKey]; !ok {
-				pResponse := make(map[string]any)
+				pResponse := make(map[string]bool)
 				pResponse[pipelineKey] = false
 				response[appKey] = pResponse
 			}
