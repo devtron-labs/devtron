@@ -429,15 +429,6 @@ func (impl *CdPipelineConfigServiceImpl) PatchCdPipelines(cdPipelines *bean.CDPa
 	}
 }
 
-func (impl *CdPipelineConfigServiceImpl) hasLinkedCDWorkflowMappings(cdPipelineId int) (bool, error) {
-	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(bean.LINKED_CD))
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in finding linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
-		return true, err
-	}
-	return len(linkedPipelines) != 0, nil
-}
-
 func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, deleteFromAcd bool, userId int32) (*bean.AppDeleteResponseDTO, error) {
 	cascadeDelete := true
 	forceDelete := false
@@ -461,11 +452,6 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		deleteResponse.ClusterReachable = false
 	}
 
-	//getting linked CD pipelines
-	hasLinkedCDPipelines, err := impl.hasLinkedCDWorkflowMappings(pipeline.Id)
-	if err != nil {
-		return deleteResponse, err
-	}
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -474,9 +460,6 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	} else if len(childNodes) > 0 {
 		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
 		return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
-	} else if hasLinkedCDPipelines {
-		impl.logger.Debugw("cannot delete cd pipeline, contains linked CD")
-		return deleteResponse, fmt.Errorf("Please delete linked CD pipelines before deleting this pipeline.")
 	}
 	//getting deployment group for this pipeline
 	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)

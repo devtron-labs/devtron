@@ -1397,14 +1397,6 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 		impl.logger.Errorw("error in finding artifact by cd workflow id", "err", err, "cdWorkflowId", cdWorkflowId)
 		return err
 	}
-
-	linkedMappings, linkedArtifactsMap, err := impl.getLinkedCDPipelinesAndSaveArtifacts(cdPipelineId, ciArtifact, triggeredBy)
-	if err != nil {
-		return err
-	}
-
-	cdPipelinesMapping = append(cdPipelinesMapping, linkedMappings...)
-
 	//TODO : confirm about this logic used for applyAuth
 	applyAuth := false
 	if triggeredBy != 1 {
@@ -1421,10 +1413,6 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 		//TODO : confirm values for applyAuth, async & triggeredBy
 
 		triggerArtifact := ciArtifact
-		if artifact, ok := linkedArtifactsMap[cdPipelineMapping.ParentId]; ok {
-			triggerArtifact = artifact
-		}
-
 		err = impl.triggerStage(nil, pipeline, triggerArtifact, applyAuth, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd pipeline after successful post stage", "err", err, "pipelineId", pipeline.Id)
@@ -1432,90 +1420,6 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 		}
 	}
 	return nil
-}
-
-func (impl *WorkflowDagExecutorImpl) getLinkedCDPipelinesAndSaveArtifacts(cdPipelineId int, ciArtifact *repository.CiArtifact, triggeredBy int32) ([]*appWorkflow.AppWorkflowMapping, map[int]*repository.CiArtifact, error) {
-	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(bean2.LINKED_CD))
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in finding linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
-		return nil, nil, err
-	}
-	linkedCDMappings := make([]*appWorkflow.AppWorkflowMapping, 0)
-	ciPipelineIdToArtifacts := make(map[int]*repository.CiArtifact)
-
-	if len(linkedPipelines) == 0 {
-		return linkedCDMappings, ciPipelineIdToArtifacts, nil
-	}
-
-	ciPipelineIds := make([]int, 0)
-	for _, pipeline := range linkedPipelines {
-		ciPipelineIds = append(ciPipelineIds, pipeline.Id)
-	}
-
-	existingArtifacts, err := impl.ciArtifactRepository.GetArtifactsByCiPipelineIds(ciPipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error while fetching ci artifacts for linked CD pipelines", "err", err, "ciPipelineIds", ciPipelineIds)
-		return nil, nil, err
-	}
-
-	ciIdToExistingArtifact := make(map[int]repository.CiArtifact)
-	for _, artifact := range existingArtifacts {
-		if ciArtifact.ImageDigest == artifact.ImageDigest {
-			ciIdToExistingArtifact[artifact.PipelineId] = artifact
-		}
-	}
-
-	var newCiArtifactArr []*repository.CiArtifact
-	var existingCiArtifactArr []*repository.CiArtifact
-	var existingArtifactsIds []int
-	for _, pipeline := range linkedPipelines {
-
-		if existingArtifact, ok := ciIdToExistingArtifact[pipeline.Id]; !ok {
-			artifact := &repository.CiArtifact{
-				Image:              ciArtifact.Image,
-				ImageDigest:        ciArtifact.ImageDigest,
-				MaterialInfo:       ciArtifact.MaterialInfo,
-				DataSource:         ciArtifact.DataSource,
-				ScanEnabled:        ciArtifact.ScanEnabled,
-				Scanned:            ciArtifact.Scanned,
-				IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
-				ParentCiArtifact:   ciArtifact.Id,
-				PipelineId:         pipeline.Id,
-				AuditLog:           sql.AuditLog{CreatedBy: triggeredBy, UpdatedBy: triggeredBy, CreatedOn: time.Now(), UpdatedOn: time.Now()},
-			}
-			newCiArtifactArr = append(newCiArtifactArr, artifact)
-		} else {
-			existingCiArtifactArr = append(existingCiArtifactArr, &existingArtifact)
-			existingArtifactsIds = append(existingArtifactsIds, existingArtifact.Id)
-		}
-	}
-
-	savedCIArtifacts, err := impl.ciArtifactRepository.SaveAll(newCiArtifactArr)
-	if err != nil {
-		impl.logger.Errorw("error while saving ci artifacts for linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
-		return nil, nil, err
-	}
-
-	err = impl.ciArtifactRepository.UpdateLatestTimestamp(existingArtifactsIds)
-	if err != nil {
-		impl.logger.Errorw("error while updating ci artifacts for linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
-		return nil, nil, err
-	}
-
-	allArtifacts := append(savedCIArtifacts, existingCiArtifactArr...)
-	for _, artifact := range allArtifacts {
-		ciPipelineIdToArtifacts[artifact.PipelineId] = artifact
-	}
-
-	mappings, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineIds(ciPipelineIds)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error while fetching linked CD pipelines for parent CI", "err", err, "ciPipelineIds", ciPipelineIds)
-		return nil, nil, err
-	}
-
-	//will return empty if mappings is nil
-	linkedCDMappings = append(linkedCDMappings, mappings...)
-	return linkedCDMappings, ciPipelineIdToArtifacts, nil
 }
 
 // Only used for auto trigger
