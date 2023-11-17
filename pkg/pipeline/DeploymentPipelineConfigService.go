@@ -1433,7 +1433,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 
 		// Get pipeline override based on Deployment strategy
 		//TODO: mark as created in our db
-		pipelineId, err := impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
+		pipelineId, err = impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
 		if err != nil {
 			impl.logger.Errorw("error in creating cd pipeline", "appId", app.Id, "pipeline", pipeline)
 			return 0, err
