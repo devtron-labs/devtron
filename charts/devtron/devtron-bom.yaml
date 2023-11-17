@@ -25,7 +25,7 @@ components:
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:30122dbc-280-19483"
+    image: "quay.io/devtron/hyperion:92fbb5d1-280-19489"
     cicdImage: "quay.io/devtron/devtron:30122dbc-434-19487"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:cd7f1673-138-19195"
