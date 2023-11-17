@@ -1320,7 +1320,11 @@ func (handler AppListingRestHandlerImpl) FetchMinDetailOtherEnvironment(w http.R
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
+	if !ok {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
+	}
+	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
