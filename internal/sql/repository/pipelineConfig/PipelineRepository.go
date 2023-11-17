@@ -223,6 +223,22 @@ func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (p
 	return pipelines, nil
 }
 
+//func (impl PipelineRepositoryImpl) FindByParentCiPipelineIdAndType(ciPipelineId int, pipelineType string) (pipelines []*Pipeline, err error) {
+//	err = impl.dbConnection.Model(&pipelines).
+//		Column("pipeline.*").
+//		Join("INNER JOIN app_workflow_mapping awm on awm.component_id = pipeline.id").
+//		Where("pipeline.ci_pipeline_id =?", ciPipelineId).
+//		Where("awm.parent_type =?", appWorkflow.CIPIPELINE).
+//		Where("pipeline.deleted =?", false).
+//		Select()
+//	if err != nil && util.IsErrNoRows(err) {
+//		return make([]*Pipeline, 0), nil
+//	} else if err != nil {
+//		return nil, err
+//	}
+//	return pipelines, nil
+//}
+
 func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment").

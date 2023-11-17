@@ -45,6 +45,7 @@ type CiPipeline struct {
 	ScanEnabled              bool   `sql:"scan_enabled,notnull"`
 	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden, notnull"`
 	PipelineType             string `sql:"ci_pipeline_type"`
+	ParentIdentifier         int    `sql:"parent_identifier"`
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
@@ -112,6 +113,7 @@ type CiPipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *CiPipeline, err error)
 	CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error)
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
+	FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error)
 
 	FetchParentCiPipelinesForDG() ([]*CiPipelinesMap, error)
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
@@ -142,6 +144,16 @@ func (impl CiPipelineRepositoryImpl) FindByParentCiPipelineId(parentCiPipelineId
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&ciPipelines).
 		Where("parent_ci_pipeline = ?", parentCiPipelineId).
+		Where("active = ?", true).
+		Select()
+	return ciPipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error) {
+	var ciPipelines []*CiPipeline
+	err := impl.dbConnection.Model(&ciPipelines).
+		Where("parent_ci_pipeline = ?", parentCiPipelineId).
+		Where("ci_pipeline_type = ?", pipelineType).
 		Where("active = ?", true).
 		Select()
 	return ciPipelines, err

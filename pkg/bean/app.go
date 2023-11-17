@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -183,10 +184,11 @@ const (
 )
 
 const (
-	NORMAL   PipelineType = "NORMAL"
-	LINKED   PipelineType = "LINKED"
-	EXTERNAL PipelineType = "EXTERNAL"
-	CI_JOB   PipelineType = "CI_JOB"
+	NORMAL    PipelineType = "NORMAL"
+	LINKED    PipelineType = "LINKED"
+	EXTERNAL  PipelineType = "EXTERNAL"
+	CI_JOB    PipelineType = "CI_JOB"
+	LINKED_CD PipelineType = "LINKED_CD"
 )
 
 const (
@@ -274,6 +276,9 @@ type CiPatchRequest struct {
 	UserId        int32       `json:"-"`
 	IsJob         bool        `json:"-"`
 	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
+
+	ParentCDPipeline int `json:"parentCDPipeline"`
+	DeployEnvId      int `json:"deployEnvId"`
 }
 
 type CiRegexPatchRequest struct {
@@ -351,6 +356,7 @@ type CiConfigRequest struct {
 	IsJob             bool                    `json:"-"`
 	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
 	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
+	Artifact          *repository.CiArtifact  `json:"-"`
 }
 
 type CiPipelineMinResponse struct {

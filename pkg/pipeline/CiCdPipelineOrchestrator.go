@@ -113,6 +113,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	gitMaterialHistoryService     history3.GitMaterialHistoryService
 	ciPipelineHistoryService      history3.CiPipelineHistoryService
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	CiArtifactRepository          repository.CiArtifactRepository
 	configMapService              ConfigMapService
 	genericNoteService            genericNotes.GenericNoteService
 	customTagService              CustomTagService
@@ -140,6 +141,7 @@ func NewCiCdPipelineOrchestrator(
 	ciPipelineHistoryService history3.CiPipelineHistoryService,
 	ciTemplateService CiTemplateService,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	CiArtifactRepository repository.CiArtifactRepository,
 	configMapService ConfigMapService,
 	customTagService CustomTagService,
 	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorImpl {
@@ -166,6 +168,7 @@ func NewCiCdPipelineOrchestrator(
 		ciPipelineHistoryService:      ciPipelineHistoryService,
 		ciTemplateService:             ciTemplateService,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
+		CiArtifactRepository:          CiArtifactRepository,
 		configMapService:              configMapService,
 		genericNoteService:            genericNoteService,
 		customTagService:              customTagService,
@@ -683,12 +686,14 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 			return err
 		}
 	}
-
-	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
-	if err != nil {
-		impl.logger.Errorw("error in updating ci pipeline materials, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
-		return err
+	if len(materials) > 0 {
+		err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+		if err != nil {
+			impl.logger.Errorw("error in updating ci pipeline materials, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
+			return err
+		}
 	}
+
 	if !request.CiPipeline.IsDockerConfigOverridden || request.CiPipeline.IsExternal { //if pipeline is external or if config is not overridden then ignore override and ciBuildConfig values
 		CiTemplateBean := bean2.CiTemplateBean{
 			CiTemplate:         nil,
@@ -747,13 +752,14 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		defer tx.Rollback()
 
 		ciPipelineObject := &pipelineConfig.CiPipeline{
-			AppId:                    createRequest.AppId,
-			IsManual:                 ciPipeline.IsManual,
-			IsExternal:               ciPipeline.IsExternal,
-			CiTemplateId:             templateId,
-			Version:                  ciPipeline.Version,
-			Name:                     ciPipeline.Name,
-			ParentCiPipeline:         ciPipeline.ParentCiPipeline,
+			AppId:            createRequest.AppId,
+			IsManual:         ciPipeline.IsManual,
+			IsExternal:       ciPipeline.IsExternal,
+			CiTemplateId:     templateId,
+			Version:          ciPipeline.Version,
+			Name:             ciPipeline.Name,
+			ParentCiPipeline: ciPipeline.ParentCiPipeline,
+			//ParentIdentifier:         ciPipeline.ParentIdentifier,
 			DockerArgs:               string(argByte),
 			Active:                   true,
 			Deleted:                  false,
@@ -865,12 +871,17 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		if err != nil && pg.ErrNoRows != err {
 			return createRequest, err
 		}
+		awmType := "CI_PIPELINE"
+		if ciPipeline.PipelineType == bean.LINKED_CD {
+			awmType = string(bean.LINKED_CD)
+		}
+
 		if appWorkflowModel.Id > 0 {
 			appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 				AppWorkflowId: appWorkflowModel.Id,
 				ParentId:      0,
 				ComponentId:   ciPipeline.Id,
-				Type:          "CI_PIPELINE",
+				Type:          awmType,
 				Active:        true,
 				ParentType:    "",
 				AuditLog:      sql.AuditLog{CreatedBy: createRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: createRequest.UserId},
@@ -884,6 +895,15 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		if err != nil {
 			return nil, err
 		}
+		if createRequest.Artifact != nil {
+			createRequest.Artifact.PipelineId = ciPipeline.Id
+			_, err := impl.CiArtifactRepository.SaveAll([]*repository.CiArtifact{createRequest.Artifact})
+			if err != nil {
+				impl.logger.Errorw("error in saving artifacts for CI pipeline", "artifact", createRequest, "err", err)
+				return nil, err
+			}
+		}
+
 		ciTemplateBean := &bean2.CiTemplateBean{}
 		if ciPipeline.IsDockerConfigOverridden {
 			//creating template override

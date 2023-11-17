@@ -349,6 +349,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndE
 }
 
 func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -395,6 +396,40 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		return
 	}
 
+	var cdPipeline *bean.CDPipelineConfigObject
+	if patchRequest.ParentCDPipeline > 0 {
+
+		cdPipeline, err = handler.pipelineBuilder.GetCdPipelineById(patchRequest.ParentCDPipeline)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		}
+
+		parentCi, err := handler.pipelineBuilder.GetCiPipelineById(cdPipeline.CiPipelineId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+
+		if parentCi.PipelineType == bean.LINKED_CD {
+			common.WriteJsonResp(w, fmt.Errorf("invalid operation"), "cannot use linked cd as source for workflow", http.StatusBadRequest)
+		}
+
+		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, cdPipeline.EnvironmentId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		suggestedName := fmt.Sprintf("%s-%d-%d-%s", "linked-cd", app.Id, patchRequest.ParentCDPipeline, util2.Generate(4))
+
+		patchRequest.CiPipeline = &bean.CiPipeline{
+			//IsExternal:       false,
+			//ParentIdentifier: cdPipeline.Id,
+			ParentCiPipeline: cdPipeline.Id,
+			PipelineType:     bean.LINKED_CD,
+			Name:             suggestedName,
+			DockerArgs:       make(map[string]string),
+		}
+	}
+
 	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
 
 	var emptyDockerRegistry string
@@ -431,6 +466,31 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	if createResp != nil && app != nil {
 		createResp.AppName = app.AppName
 	}
+
+	if patchRequest.DeployEnvId > 0 {
+		suggestedName := fmt.Sprintf("%s-%d-%s", "cd", app.Id, util2.Generate(4))
+		newCdPipeline := &bean.CdPipelines{
+			Pipelines: []*bean.CDPipelineConfigObject{{
+				Name:               suggestedName,
+				AppWorkflowId:      createResp.AppWorkflowId,
+				CiPipelineId:       createResp.CiPipelines[0].Id,
+				ParentPipelineType: string(bean.LINKED_CD),
+				ParentPipelineId:   createResp.CiPipelines[0].Id,
+				TriggerType:        "AUTOMATIC",
+				EnvironmentId:      patchRequest.DeployEnvId,
+				Strategies:         cdPipeline.Strategies,
+			}},
+			AppId:  createResp.AppId,
+			UserId: createResp.UserId,
+		}
+		_, err := handler.pipelineBuilder.CreateCdPipelines(newCdPipeline, ctx)
+		if err != nil {
+			handler.Logger.Errorw("service err, CreateCdPipelines", "err", err, "CreateCdPipelines", patchRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
