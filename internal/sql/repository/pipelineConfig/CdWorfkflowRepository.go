@@ -40,8 +40,7 @@ type CdWorkflowRepository interface {
 	FindById(wfId int) (*CdWorkflow, error)
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
-	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error)
-
+	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int, runnerStatuses []string) ([]CdWorkflowRunner, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -69,8 +68,7 @@ type CdWorkflowRepository interface {
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
 	ExistsByStatus(status string) (bool, error)
 
-	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error)
-
+	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 }
 
@@ -146,6 +144,11 @@ type WorkflowExecutorType string
 
 const WORKFLOW_EXECUTOR_TYPE_AWF = "AWF"
 const WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
+
+type CdWorkflowRunnerWithExtraFields struct {
+	CdWorkflowRunner
+	TotalCount int
+}
 
 type CdWorkflowRunner struct {
 	tableName             struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
@@ -392,19 +395,18 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int, runnerStatuses []string) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
-	err := impl.dbConnection.
+	query := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
-		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType)
+	if len(runnerStatuses) > 0 {
+		query.Where("cd_workflow_runner.status IN (?)", pg.In(runnerStatuses))
+	}
+	err := query.
 		Order("cd_workflow_runner.id DESC").
-		//Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		//Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
-		//Join("inner join pipeline p on p.id = wf.pipeline_id").
-		//Join("left join users u on u.id = wfr.triggered_by").
-		//Order("ORDER BY cd_workflow_runner.started_on DESC").
 		Limit(limit).
 		Select()
 	if err != nil {
@@ -585,13 +587,15 @@ func (impl *CdWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error
 	return exists, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
+	searchStringFinal := "%" + searchString + "%"
 	err := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("cd_workflow__ci_artifact.image LIKE ?", searchStringFinal).
 		Order("cd_workflow_runner.id DESC").
 		Limit(limit).Offset(offset).
 		Select()
