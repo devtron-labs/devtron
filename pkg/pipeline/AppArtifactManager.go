@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -66,6 +67,8 @@ type AppArtifactManagerImpl struct {
 	resourceFilterService   resourceFilter.ResourceFilterService
 	config                  *types.CdConfig
 	cdPipelineConfigService CdPipelineConfigService
+	dockerArtifactRegistry  dockerArtifactStoreRegistry.DockerArtifactStoreRepository
+	CiPipelineRepository    pipelineConfig.CiPipelineRepository
 }
 
 func NewAppArtifactManagerImpl(
@@ -79,7 +82,9 @@ func NewAppArtifactManagerImpl(
 	celService resourceFilter.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService,
 	pipelineStageService PipelineStageService,
-	cdPipelineConfigService CdPipelineConfigService) *AppArtifactManagerImpl {
+	cdPipelineConfigService CdPipelineConfigService,
+	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
+	CiPipelineRepository pipelineConfig.CiPipelineRepository) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
 		return nil
@@ -97,6 +102,8 @@ func NewAppArtifactManagerImpl(
 		cdPipelineConfigService: cdPipelineConfigService,
 		pipelineStageService:    pipelineStageService,
 		config:                  cdConfig,
+		dockerArtifactRegistry:  dockerArtifactRegistry,
+		CiPipelineRepository:    CiPipelineRepository,
 	}
 }
 
@@ -158,6 +165,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStage(pipelineId int, sta
 					Latest:                        latest,
 					Scanned:                       wfr.CdWorkflow.CiArtifact.Scanned,
 					ScanEnabled:                   wfr.CdWorkflow.CiArtifact.ScanEnabled,
+					CiPipelineId:                  wfr.CdWorkflow.CiArtifact.PipelineId,
+					CredentialsSourceType:         wfr.CdWorkflow.CiArtifact.CredentialsSourceType,
+					CredentialsSourceValue:        wfr.CdWorkflow.CiArtifact.CredentialSourceValue,
 				}
 				if wfr.DeploymentApprovalRequest != nil {
 					ciArtifact.UserApprovalMetadata = wfr.DeploymentApprovalRequest.ConvertToApprovalMetadata()
@@ -200,12 +210,15 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParent(cdPipelineId int, 
 				impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 			}
 			ciArtifacts = append(ciArtifacts, bean2.CiArtifactBean{
-				Id:           artifact.Id,
-				Image:        artifact.Image,
-				ImageDigest:  artifact.ImageDigest,
-				MaterialInfo: mInfo,
-				ScanEnabled:  artifact.ScanEnabled,
-				Scanned:      artifact.Scanned,
+				Id:                     artifact.Id,
+				Image:                  artifact.Image,
+				ImageDigest:            artifact.ImageDigest,
+				MaterialInfo:           mInfo,
+				ScanEnabled:            artifact.ScanEnabled,
+				Scanned:                artifact.Scanned,
+				CiPipelineId:           artifact.PipelineId,
+				CredentialsSourceType:  artifact.CredentialsSourceType,
+				CredentialsSourceValue: artifact.CredentialSourceValue,
 			})
 		}
 	}
@@ -582,7 +595,27 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 			// if external webhook continue
 			continue
 		}
-
+		var dockerRegistryId string
+		if artifact.PipelineId != 0 {
+			ciPipeline, err := impl.CiPipelineRepository.FindById(artifact.PipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
+				return nil, err
+			}
+			dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
+		} else {
+			if artifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+				dockerRegistryId = artifact.CredentialSourceValue
+			}
+		}
+		if len(dockerRegistryId) > 0 {
+			dockerArtifact, err := impl.dockerArtifactRegistry.FindOne(dockerRegistryId)
+			if err != nil {
+				impl.logger.Errorw("error in getting docker registry details", "err", err, "dockerArtifactStoreId", dockerRegistryId)
+			}
+			ciArtifacts[i].RegistryType = string(dockerArtifact.RegistryType)
+			ciArtifacts[i].RegistryName = dockerRegistryId
+		}
 		var ciWorkflow *pipelineConfig.CiWorkflow
 		if artifact.ParentCiArtifact != 0 {
 			ciWorkflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowGitTriggersByArtifactId(artifact.ParentCiArtifact)
@@ -921,6 +954,27 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 
 		ciArtifacts[i].FilterState = impl.getFilerState(imageTaggingResp, filters, ciArtifacts[i].Image)
 
+		var dockerRegistryId string
+		if ciArtifacts[i].DataSource == repository.POST_CI || ciArtifacts[i].DataSource == repository.PRE_CD || ciArtifacts[i].DataSource == repository.POST_CD {
+			if ciArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
+			}
+		} else {
+			ciPipeline, err := impl.CiPipelineRepository.FindById(ciArtifacts[i].CiPipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
+				return nil, err
+			}
+			dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
+		}
+		if len(dockerRegistryId) > 0 {
+			dockerArtifact, err := impl.dockerArtifactRegistry.FindOne(dockerRegistryId)
+			if err != nil {
+				impl.logger.Errorw("error in getting docker registry details", "err", err, "dockerArtifactStoreId", dockerRegistryId)
+			}
+			ciArtifacts[i].RegistryType = string(dockerArtifact.RegistryType)
+			ciArtifacts[i].RegistryName = dockerRegistryId
+		}
 	}
 	return ciArtifacts, nil
 
@@ -1013,17 +1067,20 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", currentRunningArtifact)
 		}
 		currentRunningArtifactBean = &bean2.CiArtifactBean{
-			Id:           currentRunningArtifact.Id,
-			Image:        currentRunningArtifact.Image,
-			ImageDigest:  currentRunningArtifact.ImageDigest,
-			MaterialInfo: mInfo,
-			ScanEnabled:  currentRunningArtifact.ScanEnabled,
-			Scanned:      currentRunningArtifact.Scanned,
-			Deployed:     true,
-			DeployedTime: formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
-			Latest:       true,
-			CreatedTime:  formatDate(currentRunningArtifact.CreatedOn, bean2.LayoutRFC3339),
-			DataSource:   currentRunningArtifact.DataSource,
+			Id:                     currentRunningArtifact.Id,
+			Image:                  currentRunningArtifact.Image,
+			ImageDigest:            currentRunningArtifact.ImageDigest,
+			MaterialInfo:           mInfo,
+			ScanEnabled:            currentRunningArtifact.ScanEnabled,
+			Scanned:                currentRunningArtifact.Scanned,
+			Deployed:               true,
+			DeployedTime:           formatDate(latestWf[0].CdWorkflow.CreatedOn, bean2.LayoutRFC3339),
+			Latest:                 true,
+			CreatedTime:            formatDate(currentRunningArtifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:             currentRunningArtifact.DataSource,
+			CiPipelineId:           currentRunningArtifact.PipelineId,
+			CredentialsSourceType:  currentRunningArtifact.CredentialsSourceType,
+			CredentialsSourceValue: currentRunningArtifact.CredentialSourceValue,
 		}
 		if currentRunningArtifact.WorkflowId != nil {
 			currentRunningArtifactBean.CiWorkflowId = *currentRunningArtifact.WorkflowId
@@ -1050,6 +1107,11 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 				return ciArtifacts, 0, "", totalCount, err
 			}
 		} else {
+			if listingFilterOpts.ParentStageType == WorklowTypePre {
+				listingFilterOpts.PluginStage = repository.PRE_CD
+			} else if listingFilterOpts.ParentStageType == WorklowTypePost {
+				listingFilterOpts.PluginStage = repository.POST_CD
+			}
 			//if parent pipeline is PRE_CD/POST_CD/CD, then compute ciArtifacts using listingFilterOpts
 			ciArtifacts, totalCount, err = impl.buildArtifactsForCdStageV2(listingFilterOpts, isApprovalNode)
 			if err != nil {
@@ -1100,12 +1162,12 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 }
 
 func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, int, error) {
-	cdWfrList, totalCount, err := impl.ciArtifactRepository.FindArtifactByListFilter(listingFilterOpts, isApprovalNode)
+	cdArtifacts, totalCount, err := impl.ciArtifactRepository.FindArtifactByListFilter(listingFilterOpts, isApprovalNode)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd workflow runners using filter", "filterOptions", listingFilterOpts, "err", err)
 		return nil, totalCount, err
 	}
-	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(cdWfrList))
+	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(cdArtifacts))
 
 	//get artifact running on parent cd
 	artifactRunningOnParentCd := 0
@@ -1118,28 +1180,31 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts
 		artifactRunningOnParentCd = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
 	}
 
-	for _, wfr := range cdWfrList {
-		mInfo, err := parseMaterialInfo([]byte(wfr.MaterialInfo), wfr.DataSource)
+	for _, artifact := range cdArtifacts {
+		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
 		if err != nil {
 			mInfo = []byte("[]")
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err)
 		}
 		ciArtifact := &bean2.CiArtifactBean{
-			Id:           wfr.Id,
-			Image:        wfr.Image,
-			ImageDigest:  wfr.ImageDigest,
+			Id:           artifact.Id,
+			Image:        artifact.Image,
+			ImageDigest:  artifact.ImageDigest,
 			MaterialInfo: mInfo,
 			//TODO:LastSuccessfulTriggerOnParent
-			Scanned:              wfr.Scanned,
-			ScanEnabled:          wfr.ScanEnabled,
-			RunningOnParentCd:    wfr.Id == artifactRunningOnParentCd,
-			ExternalCiPipelineId: wfr.ExternalCiPipelineId,
-			ParentCiArtifact:     wfr.ParentCiArtifact,
-			CreatedTime:          formatDate(wfr.CreatedOn, bean2.LayoutRFC3339),
-			DataSource:           wfr.DataSource,
+			Scanned:                artifact.Scanned,
+			ScanEnabled:            artifact.ScanEnabled,
+			RunningOnParentCd:      artifact.Id == artifactRunningOnParentCd,
+			ExternalCiPipelineId:   artifact.ExternalCiPipelineId,
+			ParentCiArtifact:       artifact.ParentCiArtifact,
+			CreatedTime:            formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:             artifact.DataSource,
+			CiPipelineId:           artifact.PipelineId,
+			CredentialsSourceType:  artifact.CredentialsSourceType,
+			CredentialsSourceValue: artifact.CredentialSourceValue,
 		}
-		if wfr.WorkflowId != nil {
-			ciArtifact.CiWorkflowId = *wfr.WorkflowId
+		if artifact.WorkflowId != nil {
+			ciArtifact.CiWorkflowId = *artifact.WorkflowId
 		}
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}
@@ -1218,18 +1283,21 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 		}
 		ciArtifact := &bean2.CiArtifactBean{
-			Id:                   artifact.Id,
-			Image:                artifact.Image,
-			ImageDigest:          artifact.ImageDigest,
-			MaterialInfo:         mInfo,
-			ScanEnabled:          artifact.ScanEnabled,
-			Scanned:              artifact.Scanned,
-			Deployed:             artifact.Deployed,
-			DeployedTime:         formatDate(artifact.DeployedTime, bean2.LayoutRFC3339),
-			ExternalCiPipelineId: artifact.ExternalCiPipelineId,
-			ParentCiArtifact:     artifact.ParentCiArtifact,
-			CreatedTime:          formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
-			DataSource:           artifact.DataSource,
+			Id:                     artifact.Id,
+			Image:                  artifact.Image,
+			ImageDigest:            artifact.ImageDigest,
+			MaterialInfo:           mInfo,
+			ScanEnabled:            artifact.ScanEnabled,
+			Scanned:                artifact.Scanned,
+			Deployed:               artifact.Deployed,
+			DeployedTime:           formatDate(artifact.DeployedTime, bean2.LayoutRFC3339),
+			ExternalCiPipelineId:   artifact.ExternalCiPipelineId,
+			ParentCiArtifact:       artifact.ParentCiArtifact,
+			CreatedTime:            formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
+			CiPipelineId:           artifact.PipelineId,
+			DataSource:             artifact.DataSource,
+			CredentialsSourceType:  artifact.CredentialsSourceType,
+			CredentialsSourceValue: artifact.CredentialSourceValue,
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId

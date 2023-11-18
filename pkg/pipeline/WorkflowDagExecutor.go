@@ -45,6 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -98,7 +99,7 @@ type WorkflowDagExecutor interface {
 	HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool) (bool, error)
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(pipelineOverride *chartConfig.PipelineOverride) error
-	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
+	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32, refCdWorkflowRunnerId int) error
 	TriggerPreStage(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, triggeredBy int32, applyAuth bool, refCdWorkflowRunnerId int) error
@@ -113,47 +114,49 @@ type WorkflowDagExecutor interface {
 }
 
 type WorkflowDagExecutorImpl struct {
-	logger                        *zap.SugaredLogger
-	pipelineRepository            pipelineConfig.PipelineRepository
-	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	pubsubClient                  *pubsub.PubSubClientServiceImpl
-	appService                    app.AppService
-	cdWorkflowService             WorkflowService
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	materialRepository            pipelineConfig.MaterialRepository
-	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
-	ciArtifactRepository          repository.CiArtifactRepository
-	user                          user.UserService
-	enforcer                      casbin.Enforcer
-	enforcerUtil                  rbac.EnforcerUtil
-	groupRepository               repository.DeploymentGroupRepository
-	tokenCache                    *util3.TokenCache
-	acdAuthConfig                 *util3.ACDAuthConfig
-	envRepository                 repository2.EnvironmentRepository
-	eventFactory                  client.EventFactory
-	eventClient                   client.EventClient
-	cvePolicyRepository           security.CvePolicyRepository
-	scanResultRepository          security.ImageScanResultRepository
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
-	argoUserService               argo.ArgoUserService
-	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
-	pipelineStatusTimelineService status.PipelineStatusTimelineService
-	CiTemplateRepository          pipelineConfig.CiTemplateRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	appLabelRepository            pipelineConfig.AppLabelRepository
-	gitSensorGrpcClient           gitSensorClient.Client
-	k8sCommonService              k8s.K8sCommonService
-	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
-	chartTemplateService          util.ChartTemplateService
-	appRepository                 appRepository.AppRepository
-	helmRepoPushService           app.HelmRepoPushService
-	pipelineStageRepository       repository4.PipelineStageRepository
-	pipelineStageService          PipelineStageService
-	config                        *types.CdConfig
-	scopedVariableManager         variables.ScopedVariableCMCSManager
-	celService                    resourceFilter.CELEvaluatorService
-	resourceFilterService         resourceFilter.ResourceFilterService
+	logger                         *zap.SugaredLogger
+	pipelineRepository             pipelineConfig.PipelineRepository
+	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
+	pubsubClient                   *pubsub.PubSubClientServiceImpl
+	appService                     app.AppService
+	cdWorkflowService              WorkflowService
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	materialRepository             pipelineConfig.MaterialRepository
+	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
+	ciArtifactRepository           repository.CiArtifactRepository
+	user                           user.UserService
+	enforcer                       casbin.Enforcer
+	enforcerUtil                   rbac.EnforcerUtil
+	groupRepository                repository.DeploymentGroupRepository
+	tokenCache                     *util3.TokenCache
+	acdAuthConfig                  *util3.ACDAuthConfig
+	envRepository                  repository2.EnvironmentRepository
+	eventFactory                   client.EventFactory
+	eventClient                    client.EventClient
+	cvePolicyRepository            security.CvePolicyRepository
+	scanResultRepository           security.ImageScanResultRepository
+	appWorkflowRepository          appWorkflow.AppWorkflowRepository
+	prePostCdScriptHistoryService  history2.PrePostCdScriptHistoryService
+	argoUserService                argo.ArgoUserService
+	cdPipelineStatusTimelineRepo   pipelineConfig.PipelineStatusTimelineRepository
+	pipelineStatusTimelineService  status.PipelineStatusTimelineService
+	CiTemplateRepository           pipelineConfig.CiTemplateRepository
+	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
+	appLabelRepository             pipelineConfig.AppLabelRepository
+	gitSensorGrpcClient            gitSensorClient.Client
+	k8sCommonService               k8s.K8sCommonService
+	deploymentApprovalRepository   pipelineConfig.DeploymentApprovalRepository
+	chartTemplateService           util.ChartTemplateService
+	appRepository                  appRepository.AppRepository
+	helmRepoPushService            app.HelmRepoPushService
+	pipelineStageRepository        repository4.PipelineStageRepository
+	pipelineStageService           PipelineStageService
+	config                         *types.CdConfig
+	scopedVariableManager          variables.ScopedVariableCMCSManager
+	celService                     resourceFilter.CELEvaluatorService
+	resourceFilterService          resourceFilter.ResourceFilterService
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
+	pluginInputVariableParser      PluginInputVariableParser
 
 	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
 	configMapHistoryService             history2.ConfigMapHistoryService
@@ -188,6 +191,8 @@ type WorkflowDagExecutorImpl struct {
 	scopedVariableService               variables.ScopedVariableService
 	dockerArtifactStoreRepository       repository6.DockerArtifactStoreRepository
 	imageTaggingService                 ImageTaggingService
+	customTagService                    CustomTagService
+	globalPluginService                 plugin.GlobalPluginService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -198,41 +203,30 @@ const enabled = "enabled"
 const replicaCount = "replicaCount"
 
 const (
-	CD_PIPELINE_ENV_NAME_KEY     = "CD_PIPELINE_ENV_NAME"
-	CD_PIPELINE_CLUSTER_NAME_KEY = "CD_PIPELINE_CLUSTER_NAME"
 	GIT_COMMIT_HASH_PREFIX       = "GIT_COMMIT_HASH"
 	GIT_SOURCE_TYPE_PREFIX       = "GIT_SOURCE_TYPE"
 	GIT_SOURCE_VALUE_PREFIX      = "GIT_SOURCE_VALUE"
-	GIT_METADATA                 = "GIT_METADATA"
 	GIT_SOURCE_COUNT             = "GIT_SOURCE_COUNT"
 	APP_LABEL_KEY_PREFIX         = "APP_LABEL_KEY"
 	APP_LABEL_VALUE_PREFIX       = "APP_LABEL_VALUE"
-	APP_LABEL_METADATA           = "APP_LABEL_METADATA"
 	APP_LABEL_COUNT              = "APP_LABEL_COUNT"
 	CHILD_CD_ENV_NAME_PREFIX     = "CHILD_CD_ENV_NAME"
 	CHILD_CD_CLUSTER_NAME_PREFIX = "CHILD_CD_CLUSTER_NAME"
-	CHILD_CD_METADATA            = "CHILD_CD_METADATA"
 	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
-	DOCKER_IMAGE                 = "DOCKER_IMAGE"
-	DEPLOYMENT_RELEASE_ID        = "DEPLOYMENT_RELEASE_ID"
-	DEPLOYMENT_UNIQUE_ID         = "DEPLOYMENT_UNIQUE_ID"
-	CD_TRIGGERED_BY              = "CD_TRIGGERED_BY"
-	CD_TRIGGER_TIME              = "CD_TRIGGER_TIME"
-	APP_NAME                     = "APP_NAME"
-	DEVTRON_CD_TRIGGERED_BY      = "DEVTRON_CD_TRIGGERED_BY"
-	DEVTRON_CD_TRIGGER_TIME      = "DEVTRON_CD_TRIGGER_TIME"
+	DEVTRON_SYSTEM_USER_ID       = 1
 )
 
 type CdStageCompleteEvent struct {
-	CiProjectDetails []bean3.CiProjectDetails     `json:"ciProjectDetails"`
-	WorkflowId       int                          `json:"workflowId"`
-	WorkflowRunnerId int                          `json:"workflowRunnerId"`
-	CdPipelineId     int                          `json:"cdPipelineId"`
-	TriggeredBy      int32                        `json:"triggeredBy"`
-	StageYaml        string                       `json:"stageYaml"`
-	ArtifactLocation string                       `json:"artifactLocation"`
-	PipelineName     string                       `json:"pipelineName"`
-	CiArtifactDTO    pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
+	CiProjectDetails              []bean3.CiProjectDetails     `json:"ciProjectDetails"`
+	WorkflowId                    int                          `json:"workflowId"`
+	WorkflowRunnerId              int                          `json:"workflowRunnerId"`
+	CdPipelineId                  int                          `json:"cdPipelineId"`
+	TriggeredBy                   int32                        `json:"triggeredBy"`
+	StageYaml                     string                       `json:"stageYaml"`
+	ArtifactLocation              string                       `json:"artifactLocation"`
+	PipelineName                  string                       `json:"pipelineName"`
+	CiArtifactDTO                 pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
+	PluginRegistryArtifactDetails map[string][]string          `json:"PluginRegistryArtifactDetails"`
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -265,6 +259,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	helmRepoPushService app.HelmRepoPushService,
 	pipelineStageRepository repository4.PipelineStageRepository,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
+	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
+	globalPluginService plugin.GlobalPluginService,
+	pluginInputVariableParser PluginInputVariableParser,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	celService resourceFilter.CELEvaluatorService, resourceFilterService resourceFilter.ResourceFilterService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
@@ -300,6 +297,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	scopedVariableService variables.ScopedVariableService,
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository,
 	imageTaggingService ImageTaggingService,
+	customTagService CustomTagService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -339,6 +337,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineStageRepository:       pipelineStageRepository,
 		pipelineStageService:          pipelineStageService,
 		scopedVariableManager:         scopedVariableManager,
+		globalPluginService:           globalPluginService,
+		pluginInputVariableParser:     pluginInputVariableParser,
 		celService:                    celService,
 		resourceFilterService:         resourceFilterService,
 
@@ -375,6 +375,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		scopedVariableService:               scopedVariableService,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 		imageTaggingService:                 imageTaggingService,
+		customTagService:                    customTagService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -421,7 +422,7 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 			}
 		} else if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
-			err = impl.HandlePostStageSuccessEvent(wf.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy)
+			err = impl.HandlePostStageSuccessEvent(wf.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 			if err != nil {
 				impl.logger.Errorw("deployment success event error", "err", err)
 				return
@@ -440,7 +441,14 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 	//1. get cd pipelines
 	//2. get config
 	//3. trigger wf/ deployment
-	pipelines, err := impl.pipelineRepository.FindByParentCiPipelineId(artifact.PipelineId)
+	var pipelineID int
+	if artifact.DataSource == repository.POST_CI {
+		pipelineID = artifact.ComponentId
+	} else {
+		// TODO: need to migrate artifact.PipelineId for dataSource="CI_RUNNER" also to component_id
+		pipelineID = artifact.PipelineId
+	}
+	pipelines, err := impl.pipelineRepository.FindByParentCiPipelineId(pipelineID)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
 		return err
@@ -646,13 +654,79 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 		if cdStageCompleteEvent.TriggeredBy != 1 {
 			applyAuth = true
 		}
-		err := impl.TriggerAutoCDOnPreStageSuccess(cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.CiArtifactDTO.Id, cdStageCompleteEvent.WorkflowId, cdStageCompleteEvent.TriggeredBy, applyAuth)
+		ciArtifact, err := impl.ciArtifactRepository.Get(cdStageCompleteEvent.CiArtifactDTO.Id)
+		if err != nil {
+			return err
+		}
+		PreCDArtifacts, err := impl.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, cdStageCompleteEvent.CdPipelineId, repository.PRE_CD)
+		if err != nil {
+			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
+			return err
+		}
+		ciArtifactId := 0
+		if len(PreCDArtifacts) > 0 {
+			ciArtifactId = PreCDArtifacts[0].Id // deployment will be trigger with artifact copied by plugin
+		} else {
+			ciArtifactId = cdStageCompleteEvent.CiArtifactDTO.Id
+		}
+		err = impl.TriggerAutoCDOnPreStageSuccess(cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId, cdStageCompleteEvent.TriggeredBy, applyAuth)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd on pre cd succcess", "err", err)
 			return err
 		}
 	}
 	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.CiArtifact, pluginArtifactsDetail map[string][]string, pipelineId int, stage string) ([]*repository.CiArtifact, error) {
+
+	saveArtifacts, err := impl.ciArtifactRepository.GetArtifactsByDataSourceAndComponentId(stage, pipelineId)
+	if err != nil {
+		return nil, err
+	}
+	PipelineArtifacts := make(map[string]bool)
+	for _, artifact := range saveArtifacts {
+		PipelineArtifacts[artifact.Image] = true
+	}
+	var parentCiArtifactId int
+	if ciArtifact.ParentCiArtifact > 0 {
+		parentCiArtifactId = ciArtifact.ParentCiArtifact
+	} else {
+		parentCiArtifactId = ciArtifact.Id
+	}
+	var CDArtifacts []*repository.CiArtifact
+	for registry, artifacts := range pluginArtifactsDetail {
+		// artifacts are list of images
+		for _, artifact := range artifacts {
+			_, artifactAlreadySaved := PipelineArtifacts[artifact]
+			if artifactAlreadySaved {
+				continue
+			}
+			pluginArtifact := &repository.CiArtifact{
+				Image:                 artifact,
+				ImageDigest:           ciArtifact.ImageDigest,
+				MaterialInfo:          ciArtifact.MaterialInfo,
+				DataSource:            stage,
+				ComponentId:           pipelineId,
+				CredentialsSourceType: repository.GLOBAL_CONTAINER_REGISTRY,
+				CredentialSourceValue: registry,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: DEVTRON_SYSTEM_USER_ID,
+					UpdatedOn: time.Now(),
+					UpdatedBy: DEVTRON_SYSTEM_USER_ID,
+				},
+				ParentCiArtifact: parentCiArtifactId,
+			}
+			CDArtifacts = append(CDArtifacts, pluginArtifact)
+		}
+	}
+	err = impl.ciArtifactRepository.SaveAll(CDArtifacts)
+	if err != nil {
+		impl.logger.Errorw("Error in saving artifacts metadata generated by plugin")
+		return CDArtifacts, err
+	}
+	return CDArtifacts, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, triggeredBy int32, applyAuth bool, refCdWorkflowRunnerId int) error {
@@ -806,6 +880,18 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	cdStageWorkflowRequest.StageType = types.PRE
+	// handling skopeo plugin specific logic
+	imagePathReservationIds, err := impl.SetSkopeoPluginDataInWorkflowRequest(cdStageWorkflowRequest, pipeline.Id, types.PRE, artifact)
+	if err != nil {
+		runner.Status = pipelineConfig.WorkflowFailed
+		runner.Message = err.Error()
+		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		return err
+	} else {
+		runner.ImagePathReservationIds = imagePathReservationIds
+		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+	}
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
@@ -881,6 +967,82 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) SetSkopeoPluginDataInWorkflowRequest(cdStageWorkflowRequest *types.WorkflowRequest, pipelineId int, pipelineStage string, artifact *repository.CiArtifact) ([]int, error) {
+	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(SKOPEO)
+	var imagePathReservationIds []int
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting skopeo plugin id", "err", err)
+		return imagePathReservationIds, err
+	}
+	for _, step := range cdStageWorkflowRequest.PrePostDeploySteps {
+		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
+			var pipelineStageEntityType int
+			if pipelineStage == types.PRE {
+				pipelineStageEntityType = bean3.EntityTypePreCD
+			} else {
+				pipelineStageEntityType = bean3.EntityTypePostCD
+			}
+			// for Skopeo plugin parse destination images and save its data in image path reservation table
+			customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in fetching custom tag by entity key and value for CD", "err", err)
+				return imagePathReservationIds, err
+			}
+			var customTagId int
+			if customTagDbObject != nil && customTagDbObject.Id > 0 {
+				customTagId = customTagDbObject.Id
+			} else {
+				customTagId = -1
+			}
+			var sourceDockerRegistryId string
+
+			if artifact.DataSource == repository.PRE_CD || artifact.DataSource == repository.POST_CD || artifact.DataSource == repository.POST_CI {
+				if artifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+					sourceDockerRegistryId = artifact.CredentialSourceValue
+				}
+			} else {
+				sourceDockerRegistryId = cdStageWorkflowRequest.DockerRegistryId
+			}
+			registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, customDockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
+			if err != nil {
+				impl.logger.Errorw("error in parsing skopeo input variable", "err", err)
+				return imagePathReservationIds, err
+			}
+			var destinationImages []string
+			for _, images := range registryDestinationImageMap {
+				for _, image := range images {
+					destinationImages = append(destinationImages, image)
+				}
+			}
+			// fetch already saved artifacts to check if they are already present
+			savedCIArtifacts, err := impl.ciArtifactRepository.FindCiArtifactByImagePaths(destinationImages)
+			if err != nil {
+				impl.logger.Errorw("error in fetching artifacts by image path", "err", err)
+				return imagePathReservationIds, err
+			}
+			if len(savedCIArtifacts) > 0 {
+				// if already present in ci artifact, return "image path already in use error"
+				return imagePathReservationIds, bean3.ErrImagePathInUse
+			}
+			imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
+			if err != nil {
+				impl.logger.Errorw("error in reserving image", "err", err)
+				return imagePathReservationIds, err
+			}
+			cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
+			cdStageWorkflowRequest.RegistryCredentialMap = registryCredentialMap
+			var pluginArtifactStage string
+			if pipelineStage == types.PRE {
+				pluginArtifactStage = repository.PRE_CD
+			} else {
+				pluginArtifactStage = repository.POST_CD
+			}
+			cdStageWorkflowRequest.PluginArtifactStage = pluginArtifactStage
+		}
+	}
+	return imagePathReservationIds, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) sendPreStageNotification(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline) error {
@@ -1038,6 +1200,16 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
+	// handling plugin specific logic
+
+	pluginImagePathReservationIds, err := impl.SetSkopeoPluginDataInWorkflowRequest(cdStageWorkflowRequest, pipeline.Id, types.POST, cdWf.CiArtifact)
+	if err != nil {
+		runner.Status = pipelineConfig.WorkflowFailed
+		runner.Message = err.Error()
+		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		return err
+	}
+
 	_, jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
@@ -1093,13 +1265,18 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			return err
 		}
 		// Auto Trigger after Post Stage Success Event
-		go impl.HandlePostStageSuccessEvent(runner.CdWorkflowId, pipeline.Id, 1)
+		go impl.HandlePostStageSuccessEvent(runner.CdWorkflowId, pipeline.Id, 1, nil)
 	}
 
 	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWf.Id, bean.CD_WORKFLOW_TYPE_POST)
 	if err != nil {
 		impl.logger.Errorw("error in getting wfr by workflowId and runnerType", "err", err, "wfId", cdWf.Id)
 		return err
+	}
+	wfr.ImagePathReservationIds = pluginImagePathReservationIds
+	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
+	if err != nil {
+		impl.logger.Error("error in updating image path reservation ids in cd workflow runner", "err", "err")
 	}
 
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
@@ -1117,6 +1294,24 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	return nil
 }
+
+func (impl *WorkflowDagExecutorImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {
+	var imagePathReservationIds []int
+	for _, images := range registryImageMap {
+		for _, image := range images {
+			imagePathReservationData, err := impl.customTagService.ReserveImagePath(image, customTagId)
+			if err != nil {
+				impl.logger.Errorw("Error in marking custom tag reserved", "err", err)
+				return imagePathReservationIds, err
+			}
+			if imagePathReservationData != nil {
+				imagePathReservationIds = append(imagePathReservationIds, imagePathReservationData.Id)
+			}
+		}
+	}
+	return imagePathReservationIds, nil
+}
+
 func (impl *WorkflowDagExecutorImpl) buildArtifactLocationForS3(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) (string, string, string) {
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
 	if cdArtifactLocationFormat == "" {
@@ -1399,9 +1594,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 
 	extraEnvVariables := make(map[string]string)
 	if env != nil {
-		extraEnvVariables[CD_PIPELINE_ENV_NAME_KEY] = env.Name
+		extraEnvVariables[plugin.CD_PIPELINE_ENV_NAME_KEY] = env.Name
 		if env.Cluster != nil {
-			extraEnvVariables[CD_PIPELINE_CLUSTER_NAME_KEY] = env.Cluster.ClusterName
+			extraEnvVariables[plugin.CD_PIPELINE_CLUSTER_NAME_KEY] = env.Cluster.ClusterName
 		}
 	}
 	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifact.Id)
@@ -1454,7 +1649,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("err while marshaling git metdata", "err", err)
 			return nil, err
 		}
-		extraEnvVariables[GIT_METADATA] = string(gitMetadata)
+		extraEnvVariables[plugin.GIT_METADATA] = string(gitMetadata)
 
 		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(len(ciWf.GitTriggers))
 	}
@@ -1485,7 +1680,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("err while marshaling childCdEnvVariables", "err", err)
 			return nil, err
 		}
-		extraEnvVariables[CHILD_CD_METADATA] = string(childCdEnvVariablesMetadata)
+		extraEnvVariables[plugin.CHILD_CD_METADATA] = string(childCdEnvVariablesMetadata)
 
 		extraEnvVariables[CHILD_CD_COUNT] = strconv.Itoa(len(childPipelines))
 	}
@@ -1539,7 +1734,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				impl.logger.Errorw("err while marshaling appLabelEnvVariables", "err", err)
 				return nil, err
 			}
-			extraEnvVariables[APP_LABEL_METADATA] = string(appLabelEnvVariablesMetadata)
+			extraEnvVariables[plugin.APP_LABEL_METADATA] = string(appLabelEnvVariablesMetadata)
 
 		}
 	}
@@ -1670,7 +1865,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(pipelineOverri
 	} else {
 		// to trigger next pre/cd, if any
 		// finding children cd by pipeline id
-		err = impl.HandlePostStageSuccessEvent(cdWorkflow.Id, pipelineOverride.PipelineId, 1)
+		err = impl.HandlePostStageSuccessEvent(cdWorkflow.Id, pipelineOverride.PipelineId, 1, nil)
 		if err != nil {
 			impl.logger.Errorw("error in triggering children cd after successful deployment event", "parentCdPipelineId", pipelineOverride.PipelineId)
 			return err
@@ -1679,7 +1874,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(pipelineOverri
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error {
 	// finding children cd by pipeline id
 	cdPipelinesMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(cdPipelineId)
 	if err != nil {
@@ -1690,6 +1885,16 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 	if err != nil {
 		impl.logger.Errorw("error in finding artifact by cd workflow id", "err", err, "cdWorkflowId", cdWorkflowId)
 		return err
+	}
+	if len(pluginRegistryImageDetails) > 0 {
+		PostCDArtifacts, err := impl.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD)
+		if err != nil {
+			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
+			return err
+		}
+		if len(PostCDArtifacts) > 0 {
+			ciArtifact = PostCDArtifacts[0]
+		}
 	}
 	//TODO : confirm about this logic used for applyAuth
 	applyAuth := false
@@ -1783,7 +1988,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 
-	if cdWf == nil {
+	if cdWf == nil || (cdWf != nil && cdWf.CiArtifactId != artifact.Id) {
+		// cdWf != nil && cdWf.CiArtifactId != artifact.Id for auto trigger case when deployment is triggered with image generated by plugin
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifactId,
 			PipelineId:   pipelineId,
@@ -2091,7 +2297,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			timelines = append(timelines, timeline)
 		}
 
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunnersWithTxn(previousNonTerminalRunners, tx)
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunners(previousNonTerminalRunners)
 		if err != nil {
 			impl.logger.Errorw("error updating cd wf runner status", "err", err, "previousNonTerminalRunners", previousNonTerminalRunners)
 			return err
@@ -3470,7 +3676,7 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
-	mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, mergedValues)
+	mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, artifact, pipeline.CiPipelineId, mergedValues)
 	valuesOverrideResponse.MergedValues = string(mergedValues)
 	span.End()
 	if err != nil {
@@ -4329,7 +4535,7 @@ func (impl *WorkflowDagExecutorImpl) mergeAndSave(envOverride *chartConfig.EnvCo
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
-	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, merged)
+	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, artifact, pipeline.CiPipelineId, merged)
 	span.End()
 	if err != nil {
 		return 0, 0, "", err

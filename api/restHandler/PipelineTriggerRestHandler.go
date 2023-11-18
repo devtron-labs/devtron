@@ -135,7 +135,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
 		return
 	}
 	res := map[string]interface{}{"releaseId": mergeResp, "helmPackageName": helmPackageName}

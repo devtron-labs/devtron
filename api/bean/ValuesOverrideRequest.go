@@ -122,4 +122,8 @@ type ArtifactsListFilterOptions struct {
 	//ApprovalNode data
 	ApprovalNodeConfigured bool
 	ApproversCount         int
+
+
+	//pluginStage
+	PluginStage string
 }

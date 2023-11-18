@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
@@ -33,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -89,6 +91,8 @@ type CiServiceImpl struct {
 	customTagService              CustomTagService
 	config                        *types.CiConfig
 	scopedVariableManager         variables.ScopedVariableManager
+	pluginInputVariableParser     PluginInputVariableParser
+	globalPluginService           plugin.GlobalPluginService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -105,6 +109,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
 	customTagService CustomTagService,
+	pluginInputVariableParser PluginInputVariableParser,
+	globalPluginService plugin.GlobalPluginService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                        Logger,
@@ -125,6 +131,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		appRepository:                 appRepository,
 		scopedVariableManager:         scopedVariableManager,
 		customTagService:              customTagService,
+		pluginInputVariableParser:     pluginInputVariableParser,
+		globalPluginService:           globalPluginService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -513,7 +521,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if customTag.Id != 0 {
+	if customTag.Id != 0 && customTag.Enabled == true {
 		imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository)
 		if err != nil {
 			if errors.Is(err, bean2.ErrImagePathInUse) {
@@ -527,12 +535,30 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			}
 			return nil, err
 		}
-		savedWf.ImagePathReservationId = imagePathReservation.Id
+		savedWf.ImagePathReservationIds = []int{imagePathReservation.Id}
 		//imagePath = docker.io/avd0/dashboard:fd23414b
 		dockerImageTag = strings.Split(imagePathReservation.ImagePath, ":")[1]
 	} else {
 		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	}
+
+	// skopeo plugin specific logic
+	registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err := impl.GetWorkflowRequestVariablesForSkopeoPlugin(
+		preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
+		fmt.Sprintf(bean2.ImagePathPattern, pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository, dockerImageTag), pipeline.CiTemplate.DockerRegistry.Id)
+	if err != nil {
+		impl.Logger.Errorw("error in getting env variables for skopeo plugin")
+		savedWf.Status = pipelineConfig.WorkflowFailed
+		savedWf.Message = err.Error()
+		err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+		if err1 != nil {
+			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+		}
+		return nil, err
+	}
+
+	savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
+	// skopeo plugin logic ends
 
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
@@ -643,41 +669,44 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	workflowRequest := &types.WorkflowRequest{
-		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
-		PipelineName:               pipeline.Name,
-		PipelineId:                 pipeline.Id,
-		CiCacheFileName:            pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
-		CiProjectDetails:           ciProjectDetails,
-		Namespace:                  ciWorkflowConfig.Namespace,
-		BlobStorageConfigured:      savedWf.BlobStorageEnabled,
-		CiImage:                    ciWorkflowConfig.CiImage,
-		ActiveDeadlineSeconds:      ciWorkflowConfig.CiTimeout,
-		WorkflowId:                 savedWf.Id,
-		TriggeredBy:                savedWf.TriggeredBy,
-		CacheLimit:                 impl.config.CacheLimit,
-		ScanEnabled:                pipeline.ScanEnabled,
-		CloudProvider:              impl.config.CloudProvider,
-		DefaultAddressPoolBaseCidr: impl.config.GetDefaultAddressPoolBaseCidr(),
-		DefaultAddressPoolSize:     impl.config.GetDefaultAddressPoolSize(),
-		PreCiSteps:                 preCiSteps,
-		PostCiSteps:                postCiSteps,
-		RefPlugins:                 refPluginsData,
-		AppName:                    pipeline.App.AppName,
-		TriggerByAuthor:            user.EmailId,
-		CiBuildConfig:              ciBuildConfigBean,
-		CiBuildDockerMtuValue:      impl.config.CiRunnerDockerMTUValue,
-		IgnoreDockerCachePush:      impl.config.IgnoreDockerCacheForCI,
-		IgnoreDockerCachePull:      impl.config.IgnoreDockerCacheForCI,
-		CacheInvalidate:            trigger.InvalidateCache,
-		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
-		EnableBuildContext:         impl.config.EnableBuildContext,
-		OrchestratorHost:           impl.config.OrchestratorHost,
-		OrchestratorToken:          impl.config.OrchestratorToken,
-		ImageRetryCount:            impl.config.ImageRetryCount,
-		ImageRetryInterval:         impl.config.ImageRetryInterval,
-		WorkflowExecutor:           impl.config.GetWorkflowExecutorType(),
-		Type:                       bean2.CI_WORKFLOW_PIPELINE_TYPE,
-		CiArtifactLastFetch:        trigger.CiArtifactLastFetch,
+		WorkflowNamePrefix:          strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
+		PipelineName:                pipeline.Name,
+		PipelineId:                  pipeline.Id,
+		CiCacheFileName:             pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
+		CiProjectDetails:            ciProjectDetails,
+		Namespace:                   ciWorkflowConfig.Namespace,
+		BlobStorageConfigured:       savedWf.BlobStorageEnabled,
+		CiImage:                     ciWorkflowConfig.CiImage,
+		ActiveDeadlineSeconds:       ciWorkflowConfig.CiTimeout,
+		WorkflowId:                  savedWf.Id,
+		TriggeredBy:                 savedWf.TriggeredBy,
+		CacheLimit:                  impl.config.CacheLimit,
+		ScanEnabled:                 pipeline.ScanEnabled,
+		CloudProvider:               impl.config.CloudProvider,
+		DefaultAddressPoolBaseCidr:  impl.config.GetDefaultAddressPoolBaseCidr(),
+		DefaultAddressPoolSize:      impl.config.GetDefaultAddressPoolSize(),
+		PreCiSteps:                  preCiSteps,
+		PostCiSteps:                 postCiSteps,
+		RefPlugins:                  refPluginsData,
+		AppName:                     pipeline.App.AppName,
+		TriggerByAuthor:             user.EmailId,
+		CiBuildConfig:               ciBuildConfigBean,
+		CiBuildDockerMtuValue:       impl.config.CiRunnerDockerMTUValue,
+		IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,
+		IgnoreDockerCachePull:       impl.config.IgnoreDockerCacheForCI,
+		CacheInvalidate:             trigger.InvalidateCache,
+		ExtraEnvironmentVariables:   trigger.ExtraEnvironmentVariables,
+		EnableBuildContext:          impl.config.EnableBuildContext,
+		OrchestratorHost:            impl.config.OrchestratorHost,
+		OrchestratorToken:           impl.config.OrchestratorToken,
+		ImageRetryCount:             impl.config.ImageRetryCount,
+		ImageRetryInterval:          impl.config.ImageRetryInterval,
+		WorkflowExecutor:            impl.config.GetWorkflowExecutorType(),
+		Type:                        bean2.CI_WORKFLOW_PIPELINE_TYPE,
+		CiArtifactLastFetch:         trigger.CiArtifactLastFetch,
+		RegistryDestinationImageMap: registryDestinationImageMap,
+		RegistryCredentialMap:       registryCredentialMap,
+		PluginArtifactStage:         pluginArtifactStage,
 	}
 
 	if dockerRegistry != nil {
@@ -700,7 +729,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if ciWorkflowConfig.LogsBucket == "" {
 		ciWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
-
+	if len(registryDestinationImageMap) > 0 {
+		workflowRequest.PushImageBeforePostCI = true
+	}
 	switch workflowRequest.CloudProvider {
 	case types.BLOB_STORAGE_S3:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
@@ -756,6 +787,63 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 	}
 	return workflowRequest, nil
+}
+
+func (impl *CiServiceImpl) GetWorkflowRequestVariablesForSkopeoPlugin(preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]plugin.RegistryCredentials, string, []int, error) {
+	var registryDestinationImageMap map[string][]string
+	var registryCredentialMap map[string]plugin.RegistryCredentials
+	var pluginArtifactStage string
+	var imagePathReservationIds []int
+	skopeoRefPluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(SKOPEO)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in getting skopeo plugin id", "err", err)
+		return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds, err
+	}
+	for _, step := range preCiSteps {
+		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
+			// for Skopeo plugin parse destination images and save its data in image path reservation table
+			return nil, nil, pluginArtifactStage, nil, errors.New("skopeo plugin not allowed in pre-ci step, please remove it and try again")
+		}
+	}
+	for _, step := range postCiSteps {
+		if skopeoRefPluginId != 0 && step.RefPluginId == skopeoRefPluginId {
+			// for Skopeo plugin parse destination images and save its data in image path reservation table
+			registryDestinationImageMap, registryCredentialMap, err = impl.pluginInputVariableParser.HandleSkopeoPluginInputVariable(step.InputVars, customTag, buildImagePath, buildImagedockerRegistryId)
+			if err != nil {
+				impl.Logger.Errorw("error in parsing skopeo input variable", "err", err)
+				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds, err
+			}
+			pluginArtifactStage = repository5.POST_CI
+		}
+	}
+	for _, images := range registryDestinationImageMap {
+		for _, image := range images {
+			if image == buildImagePath {
+				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds,
+					bean2.ErrImagePathInUse
+			}
+		}
+	}
+	imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
+	if err != nil {
+		return nil, nil, pluginArtifactStage, imagePathReservationIds, err
+	}
+	return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds, nil
+}
+
+func (impl *CiServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {
+	var imagePathReservationIds []int
+	for _, images := range registryImageMap {
+		for _, image := range images {
+			imagePathReservationData, err := impl.customTagService.ReserveImagePath(image, customTagId)
+			if err != nil {
+				impl.Logger.Errorw("Error in marking custom tag reserved", "err", err)
+				return imagePathReservationIds, err
+			}
+			imagePathReservationIds = append(imagePathReservationIds, imagePathReservationData.Id)
+		}
+	}
+	return imagePathReservationIds, nil
 }
 
 func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {
