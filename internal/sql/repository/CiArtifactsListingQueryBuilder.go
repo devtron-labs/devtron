@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 )
+
 const EmptyLikeRegex = "%%"
 
 func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
