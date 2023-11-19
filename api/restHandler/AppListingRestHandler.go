@@ -1247,10 +1247,7 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1324,10 +1321,7 @@ func (handler AppListingRestHandlerImpl) FetchMinDetailOtherEnvironment(w http.R
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return

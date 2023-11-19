@@ -458,10 +458,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, resourceName)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -676,10 +673,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrite
 	//RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -810,10 +804,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWri
 	handler.Logger.Infow("request payload, GetCiPipelineMin", "appId", appId)
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -1044,10 +1035,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 	//RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -1149,10 +1137,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, resourceName)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1210,16 +1195,8 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	isAuthorised := false
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(createMaterialDto.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); ok {
-		isAuthorised = true
-	}
-	if !isAuthorised {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceObject); ok {
-			isAuthorised = true
-		}
-	}
+	isAuthorised := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionCreate)
 	if !isAuthorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -1283,16 +1260,8 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 			return
 		}
 	}
-	isAuthorised := false
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(updateMaterialDto.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); ok {
-		isAuthorised = true
-	}
-	if !isAuthorised {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceObject); ok {
-			isAuthorised = true
-		}
-	}
+	isAuthorised := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionCreate)
 	if !isAuthorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return

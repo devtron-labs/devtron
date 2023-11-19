@@ -118,10 +118,7 @@ func (handler AppRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.
 	//rback implementation starts here
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -212,10 +209,7 @@ func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Reque
 
 	// check for existing project/app permission
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.Id)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionUpdate, object)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -223,10 +217,7 @@ func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Reque
 
 	// check for request project/app permission
 	object = handler.enforcerUtil.GetAppRBACNameByTeamIdAndAppId(request.TeamId, request.Id)
-	ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionUpdate, object)
-	}
+	ok = handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -385,10 +376,7 @@ func (handler AppRestHandlerImpl) UpdateAppNote(w http.ResponseWriter, r *http.R
 
 	// check for existing project/app permission
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(bean.Identifier)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionUpdate, object)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return

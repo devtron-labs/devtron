@@ -197,10 +197,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	// RBAC enforcer applying
 	object := impl.enforcerUtil.GetAppRBACName(app.AppName)
 	impl.Logger.Debugw("rbac object for other environment list", "object", object)
-	ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-	if !ok {
-		ok = impl.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
-	}
+	ok := impl.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return

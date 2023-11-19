@@ -300,7 +300,7 @@ func InitializeApp() (*App, error) {
 	tokenCache := util2.NewTokenCache(sugaredLogger, acdAuthConfig, userAuthServiceImpl)
 	syncedEnforcer := casbin.Create()
 	enforcerImpl := casbin.NewEnforcerImpl(syncedEnforcer, sessionManager, sugaredLogger)
-	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl)
+	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(sugaredLogger)
 	appListingRepositoryImpl := repository.NewAppListingRepositoryImpl(sugaredLogger, db, appListingRepositoryQueryBuilder, environmentRepositoryImpl)
 	pipelineConfigRepositoryImpl := chartConfig.NewPipelineConfigRepository(db)

@@ -154,10 +154,7 @@ func (handler PipelineConfigRestHandlerImpl) GitListAutocomplete(w http.Response
 	handler.Logger.Infow("request payload, GitListAutocomplete", "appId", appId)
 	//RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
