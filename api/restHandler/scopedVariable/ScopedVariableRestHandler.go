@@ -147,10 +147,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 	}
 	handler.logger.Infow("request payload, GetScopedVariables", "payload", scope.AppId, scope.EnvId, scope.ClusterId)
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, resourceName)
-	}
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return

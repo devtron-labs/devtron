@@ -73,6 +73,7 @@ type EnforcerUtil interface {
 	GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
+	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
 }
 
 type EnforcerUtilImpl struct {
@@ -83,13 +84,14 @@ type EnforcerUtilImpl struct {
 	pipelineRepository    pipelineConfig.PipelineRepository
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
 	clusterRepository     repository.ClusterRepository
+	enforcer              casbin.Enforcer
 	*EnforcerUtilHelmImpl
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
 	appRepo app.AppRepository, environmentRepository repository.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	clusterRepository repository.ClusterRepository) *EnforcerUtilImpl {
+	clusterRepository repository.ClusterRepository, enforcer casbin.Enforcer) *EnforcerUtilImpl {
 	return &EnforcerUtilImpl{
 		logger:                logger,
 		teamRepository:        teamRepository,
@@ -102,6 +104,7 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 			logger:            logger,
 			clusterRepository: clusterRepository,
 		},
+		enforcer: enforcer,
 	}
 }
 
@@ -709,4 +712,12 @@ func (impl EnforcerUtilImpl) GetEnvRBACArrayByAppIdForJobs(appId int) []string {
 	}
 
 	return rbacObjects
+}
+
+func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJob(token, resourceName, action string) bool {
+	ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, resourceName)
+	if !ok {
+		ok = impl.enforcer.Enforce(token, casbin.ResourceJobs, action, resourceName)
+	}
+	return ok
 }
