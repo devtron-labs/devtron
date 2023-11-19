@@ -589,6 +589,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	if len(appWorkflowMapping) > 0 {
 		workflowName = appWorkflowMapping[0].AppWorkflow.Name
 	}
+	// This is being done for jobs, jobs execute in default-env (devtron-ci) namespace by default. so considering DefaultCiNamespace as env for rbac enforcement
 	envName := ""
 	if ciTriggerRequest.EnvironmentId == 0 {
 		envName = pipeline.DefaultCiWorkflowNamespace

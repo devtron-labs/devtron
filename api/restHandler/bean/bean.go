@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const Workflows = "workflows"
+
 type EphemeralContainerData struct {
 	Name       string `json:"name"`
 	IsExternal bool   `json:"isExternal"`
