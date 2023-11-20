@@ -66,7 +66,7 @@ type UserService interface {
 	SaveLoginAudit(emailId, clientIp string, id int32)
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
-	GetConfigApprovalUsersByEnv(appName, envName string) ([]string, error)
+	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
 }
 
 type UserServiceImpl struct {
@@ -1125,8 +1125,8 @@ func (impl UserServiceImpl) CheckForApproverAccess(appName, envName string, user
 	return allowed
 }
 
-func (impl UserServiceImpl) GetConfigApprovalUsersByEnv(appName, envName string) ([]string, error) {
-	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetConfigApprovalUsersByEnv(appName, envName)
+func (impl UserServiceImpl) GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error) {
+	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetConfigApprovalUsersByEnv(appName, envName, team)
 	if err != nil {
 		return emailIds, err
 	}

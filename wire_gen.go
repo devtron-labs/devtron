@@ -870,7 +870,7 @@ func InitializeApp() (*App, error) {
 	globalPolicyRestHandlerImpl := globalPolicy2.NewGlobalPolicyRestHandlerImpl(sugaredLogger, globalPolicyServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate, enforcerUtilImpl)
 	globalPolicyRouterImpl := globalPolicy2.NewGlobalPolicyRouterImpl(sugaredLogger, globalPolicyRestHandlerImpl)
 	configDraftRepositoryImpl := drafts.NewConfigDraftRepositoryImpl(sugaredLogger, db)
-	configDraftServiceImpl := drafts.NewConfigDraftServiceImpl(sugaredLogger, configDraftRepositoryImpl, configMapServiceImpl, chartServiceImpl, propertiesConfigServiceImpl, resourceProtectionServiceImpl, userServiceImpl, appRepositoryImpl, environmentRepositoryImpl)
+	configDraftServiceImpl := drafts.NewConfigDraftServiceImpl(sugaredLogger, configDraftRepositoryImpl, configMapServiceImpl, chartServiceImpl, propertiesConfigServiceImpl, resourceProtectionServiceImpl, userServiceImpl, appRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl)
 	configDraftRestHandlerImpl := drafts2.NewConfigDraftRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, configDraftServiceImpl)
 	configDraftRouterImpl := drafts2.NewConfigDraftRouterImpl(configDraftRestHandlerImpl)
 	resourceProtectionRestHandlerImpl := protect2.NewResourceProtectionRestHandlerImpl(sugaredLogger, resourceProtectionServiceImpl, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate)
