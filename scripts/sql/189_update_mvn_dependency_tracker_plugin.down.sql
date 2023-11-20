@@ -22,11 +22,11 @@ if [ $ToUploadBom == "YES" ]
 then                                                                    
         apk add curl                                                    
     cd $OutDirDTrack                                                    
-        curl -v --location --request POST "$DTrackEndpoint/api/v1/bom" \
-                --header "accept: application/json" \                   
-                --header "X-Api-Key: $DTrackApiKey" \                           
-                --form "projectName=$DTrackProjectName" \                       
-                --form \"autoCreate=true\" \                                   
-                --form "projectVersion=$DTrackProjectVersion" \                 
-                --form "bom=@\"bom.json\""                                       
+        curl -v --location --request POST "$DTrackEndpoint/api/v1/bom" \\
+                --header "accept: application/json" \\                   
+                --header "X-Api-Key: $DTrackApiKey" \\                          
+                --form "projectName=$DTrackProjectName" \\                       
+                --form \"autoCreate=true\" \\                                   
+                --form "projectVersion=$DTrackProjectVersion" \\                 
+                --form "bom=@\"bom.json\""                 
 fi'  WHERE id=(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Dependency track for Maven & Gradle' and ps."index"=1 and ps.deleted=false);
