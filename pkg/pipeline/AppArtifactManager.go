@@ -313,6 +313,27 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 		if imageCommentResp := imageCommentsDataMap[deployedCiArtifacts[i].Id]; imageCommentResp != nil {
 			deployedCiArtifacts[i].ImageComment = imageCommentResp
 		}
+		var dockerRegistryId string
+		if deployedCiArtifacts[i].DataSource == repository.POST_CI || deployedCiArtifacts[i].DataSource == repository.PRE_CD || deployedCiArtifacts[i].DataSource == repository.POST_CD {
+			if deployedCiArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+				dockerRegistryId = deployedCiArtifacts[i].CredentialsSourceValue
+			}
+		} else {
+			ciPipeline, err := impl.CiPipelineRepository.FindById(deployedCiArtifacts[i].CiPipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
+				return deployedCiArtifactsResponse, err
+			}
+			dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
+		}
+		if len(dockerRegistryId) > 0 {
+			dockerArtifact, err := impl.dockerArtifactRegistry.FindOne(dockerRegistryId)
+			if err != nil {
+				impl.logger.Errorw("error in getting docker registry details", "err", err, "dockerArtifactStoreId", dockerRegistryId)
+			}
+			deployedCiArtifacts[i].RegistryType = string(dockerArtifact.RegistryType)
+			deployedCiArtifacts[i].RegistryName = dockerRegistryId
+		}
 	}
 
 	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
@@ -370,14 +391,18 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 		}
 		userEmail := userEmails[ciArtifact.TriggeredBy]
 		deployedCiArtifacts = append(deployedCiArtifacts, bean2.CiArtifactBean{
-			Id:           ciArtifact.Id,
-			Image:        ciArtifact.Image,
-			MaterialInfo: mInfo,
-			DeployedTime: formatDate(ciArtifact.StartedOn, bean2.LayoutRFC3339),
-			WfrId:        ciArtifact.CdWorkflowRunnerId,
-			DeployedBy:   userEmail,
-			Scanned:      ciArtifact.Scanned,
-			ScanEnabled:  ciArtifact.ScanEnabled,
+			Id:                     ciArtifact.Id,
+			Image:                  ciArtifact.Image,
+			MaterialInfo:           mInfo,
+			DeployedTime:           formatDate(ciArtifact.StartedOn, bean2.LayoutRFC3339),
+			WfrId:                  ciArtifact.CdWorkflowRunnerId,
+			DeployedBy:             userEmail,
+			Scanned:                ciArtifact.Scanned,
+			ScanEnabled:            ciArtifact.ScanEnabled,
+			CiPipelineId:           ciArtifact.PipelineId,
+			CredentialsSourceType:  ciArtifact.CredentialsSourceType,
+			CredentialsSourceValue: ciArtifact.CredentialSourceValue,
+			DataSource:             ciArtifact.DataSource,
 		})
 		artifactIds = append(artifactIds, ciArtifact.Id)
 	}

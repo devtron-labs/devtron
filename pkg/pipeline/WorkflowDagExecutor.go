@@ -578,7 +578,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 		if err != nil {
 			return err
 		}
-		PreCDArtifacts, err := impl.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, pipeline.Id, repository.PRE_CD)
+		PreCDArtifacts, err := impl.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
 			return err
@@ -605,7 +605,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.CiArtifact, pluginArtifactsDetail map[string][]string, pipelineId int, stage string) ([]*repository.CiArtifact, error) {
+func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.CiArtifact, pluginArtifactsDetail map[string][]string, pipelineId int, stage string, triggerdBy int32) ([]*repository.CiArtifact, error) {
 
 	saveArtifacts, err := impl.ciArtifactRepository.GetArtifactsByDataSourceAndComponentId(stage, pipelineId)
 	if err != nil {
@@ -639,9 +639,9 @@ func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.
 				CredentialSourceValue: registry,
 				AuditLog: sql.AuditLog{
 					CreatedOn: time.Now(),
-					CreatedBy: DEVTRON_SYSTEM_USER_ID,
+					CreatedBy: triggerdBy,
 					UpdatedOn: time.Now(),
-					UpdatedBy: DEVTRON_SYSTEM_USER_ID,
+					UpdatedBy: triggerdBy,
 				},
 				ParentCiArtifact: parentCiArtifactId,
 			}
@@ -661,7 +661,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	triggeredAt := time.Now()
 
 	//in case of pre stage manual trigger auth is already applied
-	if applyAuth {
+	if applyAuth && triggeredBy != 1 {
 		user, err := impl.user.GetById(artifact.UpdatedBy)
 		if err != nil {
 			impl.logger.Errorw("error in fetching user for auto pipeline", "UpdatedBy", artifact.UpdatedBy)
@@ -1596,7 +1596,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 		return err
 	}
 	if len(pluginRegistryImageDetails) > 0 {
-		PostCDArtifacts, err := impl.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD)
+		PostCDArtifacts, err := impl.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
 			return err
