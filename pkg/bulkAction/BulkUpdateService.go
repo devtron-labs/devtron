@@ -1018,10 +1018,9 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
-		success := true
 		if _, ok := response[appKey]; !ok {
 			pResponse := make(map[string]any)
-			pResponse[pipelineKey] = false
+			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
@@ -1048,13 +1047,10 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			pipelineResponse[Error] = hibernateReqError
+			pipelineResponse[Error] = hibernateReqError.Error()
 			response[appKey] = pipelineResponse
 			continue
 		}
-		pipelineResponse := response[appKey]
-		pipelineResponse[pipelineKey] = success
-		response[appKey] = pipelineResponse
 	}
 	var responseArray []map[string]interface{}
 	for appKey, pipelineResponse := range response {
@@ -1065,10 +1061,10 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		appMap["id"] = appId
 		appMap["appName"] = appName
 		for key, value := range pipelineResponse {
-			if key == "authError" {
-				appMap["authError"] = value
-			} else if key == "error" {
-				appMap["error"] = value
+			if key == AuthorizationError {
+				appMap[AuthorizationError] = value
+			} else if key == Error {
+				appMap[Error] = value
 			} else {
 				appMap["success"] = value
 			}
