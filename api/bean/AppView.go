@@ -170,6 +170,7 @@ type DeploymentDetailContainer struct {
 	Description                   string          `json:"description" validate:"max=40"`
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
 	HelmReleaseInstallStatus      string          `json:"-"`
+	ChartAvatar                   string          `json:"chartAvatar,omitempty"`
 }
 
 type AppDetailContainer struct {
