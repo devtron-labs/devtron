@@ -299,7 +299,7 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 
 }
 
-func (impl *CiPipelineConfigServiceImpl) addpipelineToTemplate(createRequest *bean.CiConfigRequest) (resp *bean.CiConfigRequest, err error) {
+func (impl *CiPipelineConfigServiceImpl) addpipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error) {
 
 	if createRequest.AppWorkflowId == 0 {
 		// create workflow
@@ -329,7 +329,7 @@ func (impl *CiPipelineConfigServiceImpl) addpipelineToTemplate(createRequest *be
 		return nil, err
 	}
 
-	if !createRequest.IsSwitchCiPipelineRequest() && len(workflowMapping) > 0 {
+	if !isSwitchCiPipelineRequest && len(workflowMapping) > 0 {
 		return nil, &util.ApiError{
 			InternalMessage:   "pipeline already exists",
 			UserDetailMessage: fmt.Sprintf("pipeline already exists in workflow"),
@@ -1497,7 +1497,8 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 		}
 	}()
 
-	if request.IsSwitchCiPipelineRequest() {
+	isSwitchCiPipelineRequest := request.IsSwitchCiPipelineRequest()
+	if isSwitchCiPipelineRequest {
 		if request.SwitchFromCiPipelineId != 0 && request.SwitchFromExternalCiPipelineId != 0 {
 			return nil, errors.New("invalid request payload, both switchFromCiPipelineId and switchFromExternalCiPipelineId cannot be set in the payload")
 		}
@@ -1516,7 +1517,7 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 			}
 		}
 
-		//validate request if it's a switch request
+		//validate switch request
 		err = impl.validateCiPipelineSwitch(request.SwitchFromCiPipelineId, request.SwitchFromExternalCiPipelineId, request.CiPipeline.PipelineType, switchFromType)
 		if err != nil {
 			impl.logger.Errorw("error occurred when validating ci-pipeline switch", "err", err)
@@ -1550,14 +1551,14 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 		return nil, fmt.Errorf("pipeline name already exist")
 	}
 
-	res, err := impl.addpipelineToTemplate(ciConfig)
+	res, err := impl.addpipelineToTemplate(ciConfig, isSwitchCiPipelineRequest)
 	if err != nil {
 		impl.logger.Errorw("error in adding pipeline to template", "ciConf", ciConfig, "err", err)
 		return nil, err
 	}
 
 	//go and update all the app workflow mappings of old ci_pipeline with new ci_pipeline_id.
-	if request.IsSwitchCiPipelineRequest() {
+	if isSwitchCiPipelineRequest {
 		err = impl.updateLinkedAppWorkflowMappings(tx, oldAppWorkflowMapping, res.AppWorkflowMapping)
 		if err != nil {
 			impl.logger.Errorw("error in updating app workflow mappings", "err", err)
@@ -1616,8 +1617,8 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 	}
 
 	ciConfig.IsJob = request.IsJob
-	ciConfig.SwitchFromCiPipelineId = request.SwitchFromCiPipelineId
-	ciConfig.SwitchFromExternalCiPipelineId = request.SwitchFromExternalCiPipelineId
+	//ciConfig.SwitchFromCiPipelineId = request.SwitchFromCiPipelineId
+	//ciConfig.SwitchFromExternalCiPipelineId = request.SwitchFromExternalCiPipelineId
 	// Check for clone job to not create env override again
 	ciConfig.IsCloneJob = request.IsCloneJob
 	switch request.Action {
@@ -1742,7 +1743,7 @@ func (impl *CiPipelineConfigServiceImpl) CreateCiPipeline(createRequest *bean.Ci
 	createRequest.Id = ciTemplate.Id
 	createRequest.CiTemplateName = ciTemplate.TemplateName
 	if len(createRequest.CiPipelines) > 0 {
-		conf, err := impl.addpipelineToTemplate(createRequest)
+		conf, err := impl.addpipelineToTemplate(createRequest, false)
 		if err != nil {
 			impl.logger.Errorw("error in pipeline creation ", "err", err)
 			return nil, err
