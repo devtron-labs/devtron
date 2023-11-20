@@ -65,8 +65,9 @@ type GetAllApiResourcesResponse struct {
 }
 
 type K8sApiResource struct {
-	Gvk        schema.GroupVersionKind `json:"gvk"`
-	Namespaced bool                    `json:"namespaced"`
+	Gvk        schema.GroupVersionKind     `json:"gvk"`
+	Gvr        schema.GroupVersionResource `json:"gvr"`
+	Namespaced bool                        `json:"namespaced"`
 }
 
 type ApplyResourcesRequest struct {
