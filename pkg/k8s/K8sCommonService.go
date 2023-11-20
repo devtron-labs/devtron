@@ -621,13 +621,19 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 			}
 			for key, _type := range value {
 				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndpointsKind {
-					value[k8sCommonBean.Port] = endpointPortMapping[serviceName]
+					if port, ok := endpointPortMapping[serviceName]; ok {
+						value[k8sCommonBean.Port] = port
+					}
 				}
 				if key == k8sCommonBean.Kind && _type == k8sCommonBean.ServiceKind {
-					value[k8sCommonBean.Port] = servicePortMapping[serviceName]
+					if port, ok := servicePortMapping[serviceName]; ok {
+						value[k8sCommonBean.Port] = port
+					}
 				}
 				if key == k8sCommonBean.Kind && _type == k8sCommonBean.EndPointsSlice {
-					value[k8sCommonBean.Port] = endpointSlicePortMapping[serviceName]
+					if port, ok := endpointSlicePortMapping[serviceName]; ok {
+						value[k8sCommonBean.Port] = port
+					}
 				}
 			}
 		}

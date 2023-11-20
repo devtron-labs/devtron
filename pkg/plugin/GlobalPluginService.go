@@ -40,10 +40,10 @@ type GlobalPluginService interface {
 	GetAllGlobalVariables() ([]*GlobalVariable, error)
 	ListAllPlugins(stageTypeReq string) ([]*PluginListComponentDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
+	GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error)
 	PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error)
 	GetDetailedPluginInfoByPluginId(pluginId int) (*PluginMetadataDto, error)
 	GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error)
-	GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error)
 }
 
 func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository,
@@ -336,6 +336,18 @@ func getVariableDto(pluginVariable *repository.PluginStepVariable) *PluginVariab
 		VariableStepIndex:     pluginVariable.VariableStepIndex,
 		ReferenceVariableName: pluginVariable.ReferenceVariableName,
 	}
+}
+
+func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error) {
+	pluginMetadata, err := impl.globalPluginRepository.GetPluginByName(pluginName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching plugin metadata by name", "err", err)
+		return 0, err
+	}
+	if pluginMetadata == nil {
+		return 0, nil
+	}
+	return pluginMetadata[0].Id, nil
 }
 
 func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
@@ -1613,16 +1625,4 @@ func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadat
 		return nil, err
 	}
 	return pluginDeleteReq, nil
-}
-
-func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error) {
-	pluginMetadata, err := impl.globalPluginRepository.GetPluginByName(pluginName)
-	if err != nil {
-		impl.logger.Errorw("error in fetching plugin metadata by name", "err", err)
-		return 0, err
-	}
-	if pluginMetadata == nil {
-		return 0, nil
-	}
-	return pluginMetadata[0].Id, nil
 }
