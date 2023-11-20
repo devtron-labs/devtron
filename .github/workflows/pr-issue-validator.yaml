@@ -29,6 +29,10 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0
+
 
     - name: Validate Issue Reference
       env:
@@ -41,9 +45,10 @@ jobs:
         set -x
         if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* || "$TITLE" == *"release:"* || "$TITLE" == *"Release:"*  ]]; then
           echo "Skipping validation as this is a PR for documentation or chore."
+          exit 0
           gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
           gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
-          exit 0
+          # exit 0
         fi
         
         ### For ex: Fixes #2123
@@ -120,3 +125,64 @@ jobs:
             gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
             exit 1
         fi
+
+    - name: Check SQL file format and duplicates
+      shell: bash
+      env: 
+          pr_no: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      run: |
+          echo "GitHub Token: $GH_TOKEN"
+          git fetch origin main
+          git diff origin/main...HEAD --name-only > mydiff
+          echo "Changed SQL files:"
+          cat mydiff
+          file_list=$(git diff origin/main...HEAD --name-only)
+          echo "Done"
+          echo "==============="
+          awk '/scripts\/sql\//' mydiff
+          echo "==============="
+          count=$(awk '/scripts\/sql\//' mydiff | wc -l) 
+          echo "==============="
+          if [[ $count == "0" ]] ; then 
+            echo "No Sql file is added .exiting from this action"
+            exit 0
+          fi
+          for filename in $file_list; do
+            echo "Checking File: $filename"
+            
+            if [[ "$filename" =~ \.(up|down)\.sql$ ]]; then
+              echo "File name is in the correct format: $filename"
+            else
+              echo "Error: File name is not in the correct format: $filename."
+              gh pr comment $pr_no --body "Error: The SQL file name is not in the correct format: $filename."
+              exit 1 
+            fi
+            echo "Current directory: $(pwd)"
+            
+            cd scripts/sql/
+            echo "SQL files directory: $(pwd)"
+            
+            migration_no=$(echo $filename | cut -d "/" -f 3 | cut -d "_" -f 1)
+            echo "Migration Number: $migration_no"
+            
+            migration_files_of_this_no=$(ls | grep -i $migration_no | wc -l)
+            cd ../../
+            echo "Current directory: $(pwd)"
+            
+            echo "Migration Number: $migration_no"
+            echo "Number of files with this migration number: $migration_files_of_this_no"
+            
+            if [[ $migration_files_of_this_no == "2" ]] ; then
+              echo "All looks good for this migration number."
+            elif [[ $migration_files_of_this_no == "1" ]] ; then
+              echo "Not Looks good . only $filename this file present."
+              echo "Only single migration file was present for this No-  $migration_no"
+              gh pr comment $pr_no --body "Error: Only Single migration file was present for this no -: $migration_no."
+              exit 1
+            else 
+               echo "Error: Migration number is repeated."
+               gh pr comment $pr_no --body "Error: The SQL file number is duplicated: $migration_no."
+               exit 1
+            fi
+          done
