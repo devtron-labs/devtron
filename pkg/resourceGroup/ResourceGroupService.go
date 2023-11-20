@@ -306,7 +306,7 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 	}
 	if groupType == APP_GROUP {
 		appStatuses, err := impl.appStatusRepository.GetByEnvId(parentResourceId)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting appStatuses by envId", "err", err, "envId", parentResourceId)
 			return nil, err
 		}
