@@ -22,8 +22,8 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -1228,18 +1228,21 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCIParentV2(listingFilterOpt
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 		}
 		ciArtifact := &bean2.CiArtifactBean{
-			Id:                   artifact.Id,
-			Image:                artifact.Image,
-			ImageDigest:          artifact.ImageDigest,
-			MaterialInfo:         mInfo,
-			ScanEnabled:          artifact.ScanEnabled,
-			Scanned:              artifact.Scanned,
-			Deployed:             artifact.Deployed,
-			DeployedTime:         formatDate(artifact.DeployedTime, bean2.LayoutRFC3339),
-			ExternalCiPipelineId: artifact.ExternalCiPipelineId,
-			ParentCiArtifact:     artifact.ParentCiArtifact,
-			CreatedTime:          formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
-			DataSource:           artifact.DataSource,
+			Id:                     artifact.Id,
+			Image:                  artifact.Image,
+			ImageDigest:            artifact.ImageDigest,
+			MaterialInfo:           mInfo,
+			ScanEnabled:            artifact.ScanEnabled,
+			Scanned:                artifact.Scanned,
+			Deployed:               artifact.Deployed,
+			DeployedTime:           formatDate(artifact.DeployedTime, bean2.LayoutRFC3339),
+			ExternalCiPipelineId:   artifact.ExternalCiPipelineId,
+			ParentCiArtifact:       artifact.ParentCiArtifact,
+			CreatedTime:            formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
+			DataSource:             artifact.DataSource,
+			CiPipelineId:           artifact.PipelineId,
+			CredentialsSourceType:  artifact.CredentialsSourceType,
+			CredentialsSourceValue: artifact.CredentialSourceValue,
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId
