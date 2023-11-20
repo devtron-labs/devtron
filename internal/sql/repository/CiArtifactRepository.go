@@ -38,12 +38,13 @@ const (
 	GLOBAL_CONTAINER_REGISTRY credentialsSource = "global_container_registry"
 )
 const (
-	CI_RUNNER artifactsSourceType = "ci_runner"
-	WEBHOOK   artifactsSourceType = "ext"
+	CI_RUNNER artifactsSourceType = "CI-RUNNER"
+	WEBHOOK   artifactsSourceType = "EXTERNAL"
 	PRE_CD    artifactsSourceType = "pre_cd"
 	POST_CD   artifactsSourceType = "post_cd"
 	PRE_CI    artifactsSourceType = "pre_ci"
 	POST_CI   artifactsSourceType = "post_ci"
+	GOCD      artifactsSourceType = "GOCD"
 )
 
 type CiArtifactWithExtraData struct {
@@ -61,8 +62,8 @@ type CiArtifact struct {
 	PipelineId            int       `sql:"pipeline_id"` //id of the ci pipeline from which this webhook was triggered
 	Image                 string    `sql:"image,notnull"`
 	ImageDigest           string    `sql:"image_digest,notnull"`
-	MaterialInfo          string    `sql:"material_info"` //git material metadata json array string
-	DataSource            string    `sql:"data_source,notnull"`
+	MaterialInfo          string    `sql:"material_info"`       //git material metadata json array string
+	DataSource            string    `sql:"data_source,notnull"` // possible values -> (CI_RUNNER,ext,post_ci,pre_cd,post_cd) CI_runner is for normal build ci
 	WorkflowId            *int      `sql:"ci_workflow_id"`
 	ParentCiArtifact      int       `sql:"parent_ci_artifact"`
 	ScanEnabled           bool      `sql:"scan_enabled,notnull"`
