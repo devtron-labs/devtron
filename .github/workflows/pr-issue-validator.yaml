@@ -45,10 +45,9 @@ jobs:
         set -x
         if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* || "$TITLE" == *"release:"* || "$TITLE" == *"Release:"*  ]]; then
           echo "Skipping validation as this is a PR for documentation or chore."
-          exit 0
           gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
           gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
-          # exit 0
+          exit 0
         fi
         
         ### For ex: Fixes #2123
