@@ -55,7 +55,7 @@ type AppListingRepository interface {
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
-	FetchOverviewAppsByEnvironment(envId, limit, offset int, status string) ([]*bean.AppEnvironmentContainer, error)
+	FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error)
 	FetchLastDeployedImage(appId, envId int) (*LastDeployed, error)
 }
 
@@ -124,7 +124,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 	return jobContainers, nil
 }
 
-func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int, status string) ([]*bean.AppEnvironmentContainer, error) {
+func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error) {
 	query := " SELECT a.id as app_id,a.app_name,aps.status as app_status, ld.last_deployed_time " +
 		" FROM app a " +
 		" INNER JOIN pipeline p ON p.app_id = a.id and p.deleted = false and p.environment_id = ? " +
@@ -132,13 +132,8 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 		" LEFT JOIN " +
 		" (SELECT pco.pipeline_id,MAX(pco.created_on) as last_deployed_time from pipeline_config_override pco " +
 		" GROUP BY pco.pipeline_id) ld ON ld.pipeline_id = p.id " +
-		" WHERE a.active = true "
-	if status == strings.ToLower(Hibernating) {
-		query += fmt.Sprintf(" and aps.status = '%v' ", Hibernating)
-	} else if len(status) > 0 {
-		query += fmt.Sprintf(" and aps.status != '%v' ", Hibernating)
-	}
-	query += " ORDER BY a.app_name "
+		" WHERE a.active = true " +
+		" ORDER BY a.app_name "
 	if limit > 0 {
 		query += fmt.Sprintf("LIMIT %v", limit)
 	}
@@ -146,7 +141,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 		query += fmt.Sprintf("OFFSET %v", offset)
 	}
 	var envContainers []*bean.AppEnvironmentContainer
-	_, err := impl.dbConnection.Query(&envContainers, query, envId, envId, status)
+	_, err := impl.dbConnection.Query(&envContainers, query, envId, envId)
 	return envContainers, err
 }
 
