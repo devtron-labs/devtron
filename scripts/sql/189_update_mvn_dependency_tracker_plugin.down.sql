@@ -21,7 +21,7 @@ fi
 if [ $ToUploadBom == "YES" ]                                            
 then                                                                    
         apk add curl                                                    
-    cd $OutDirDTrack                                                    
+        cd $OutDirDTrack                                                    
         curl -v --location --request POST "$DTrackEndpoint/api/v1/bom" \\
                 --header "accept: application/json" \\                   
                 --header "X-Api-Key: $DTrackApiKey" \\                          
