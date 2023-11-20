@@ -251,7 +251,7 @@ type ConfigMapSecretsResponse struct {
 }
 
 func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMessage, error) {
-	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" && source != "pre_cd" && source != "post_cd" && source != "post_ci" {
+	if source != repository.GOCD && source != repository.CI_RUNNER && source != repository.WEBHOOK && source != repository.PRE_CD && source != repository.POST_CD && source != repository.POST_CI {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
 	var ciMaterials []repository.CiMaterialInfo

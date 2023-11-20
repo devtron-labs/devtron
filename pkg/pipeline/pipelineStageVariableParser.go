@@ -18,6 +18,7 @@ type RefPluginName = string
 
 const (
 	COPY_CONTAINER_IMAGE RefPluginName = "Copy container image"
+	EMPTY_STRING                       = " "
 )
 
 const (
@@ -100,11 +101,11 @@ func (impl *PluginInputVariableParserImpl) getRegistryRepoMapping(destinationInf
 	destinationRegistryRepoDetails := strings.Split(destinationInfo, "\n")
 	for _, detail := range destinationRegistryRepoDetails {
 		registryRepoSplit := strings.Split(detail, "|")
-		registryName := strings.Trim(registryRepoSplit[0], " ")
+		registryName := strings.Trim(registryRepoSplit[0], EMPTY_STRING)
 		repositoryValuesSplit := strings.Split(registryRepoSplit[1], ",")
 		var repositories []string
 		for _, repositoryName := range repositoryValuesSplit {
-			repositoryName = strings.Trim(repositoryName, " ")
+			repositoryName = strings.Trim(repositoryName, EMPTY_STRING)
 			repositories = append(repositories, repositoryName)
 		}
 		destinationRegistryRepositoryMap[registryName] = repositories
