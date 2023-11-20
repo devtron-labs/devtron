@@ -67,12 +67,7 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 		" AND ((cd_workflow.pipeline_id= %v and cd_workflow_runner.workflow_type = '%v' ) OR (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v' AND cd_workflow_runner.status IN ('Healthy','Succeeded') )))" +
 		" OR (ci_artifact.component_id = %v  and ci_artifact.data_source= '%v' ))" +
 		" AND (ci_artifact.image LIKE '%v' )"
-	//commonQuery := " FROM cd_workflow_runner " +
-	//	" INNER JOIN cd_workflow ON cd_workflow.id=cd_workflow_runner.cd_workflow_id " +
-	//	" INNER JOIN ci_artifact cia ON cia.id = cd_workflow.ci_artifact_id " +
-	//	" WHERE (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v') " +
-	//	"       OR (cd_workflow.pipeline_id = %v AND cd_workflow_runner.workflow_type = '%v' AND cd_workflow_runner.status IN ('Healthy','Succeeded'))" +
-	//	" AND cia.image LIKE '%v' "
+
 	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType, listingFilterOptions.ParentId, listingFilterOptions.PluginStage, listingFilterOptions.SearchString)
 	if isApprovalNode {
 		commonQuery = commonQuery + fmt.Sprintf(" AND ( cd_workflow.ci_artifact_id NOT IN (SELECT DISTINCT dar.ci_artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = %v AND dar.active=true AND dar.artifact_deployment_triggered = false))", listingFilterOptions.PipelineId)
@@ -95,10 +90,11 @@ func BuildQueryForArtifactsForRollback(listingFilterOptions bean.ArtifactsListFi
 		" INNER JOIN cd_workflow cdw ON cdw.id=cdwr.cd_workflow_id " +
 		" INNER JOIN ci_artifact cia ON cia.id=cdw.ci_artifact_id " +
 		" WHERE cdw.pipeline_id=%v AND cdwr.workflow_type = '%v' "
+
+	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType)
 	if listingFilterOptions.SearchString != EmptyLikeRegex {
 		commonQuery += fmt.Sprintf(" AND cia.image LIKE '%v' ", listingFilterOptions.SearchString)
 	}
-	commonQuery = fmt.Sprintf(commonQuery, listingFilterOptions.PipelineId, listingFilterOptions.StageType)
 	if len(listingFilterOptions.ExcludeWfrIds) > 0 {
 		commonQuery = fmt.Sprintf(" %s AND cdwr.id NOT IN (%s)", commonQuery, helper.GetCommaSepratedString(listingFilterOptions.ExcludeWfrIds))
 	}
