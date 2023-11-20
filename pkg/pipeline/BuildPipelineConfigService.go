@@ -1488,14 +1488,6 @@ func (impl *CiPipelineConfigServiceImpl) updateLinkedAppWorkflowMappings(tx *pg.
 
 func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPatchRequest, ciConfig *bean.CiConfigRequest) (*bean.CiConfigRequest, error) {
 
-	if request.IsSwitchCiPipelineRequest() {
-		impl.logger.Debugw("handling switch ci pipeline")
-		return impl.handleSwitchCiPipeline(request, ciConfig)
-	}
-
-	impl.logger.Debugw("create patch request")
-	ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
-
 	pipelineExists, err := impl.ciPipelineRepository.CheckIfPipelineExistsByNameAndAppId(request.CiPipeline.Name, request.AppId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching pipeline by name, FindByName", "err", err, "patch cipipeline name", request.CiPipeline.Name)
@@ -1507,6 +1499,13 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 		return nil, fmt.Errorf("pipeline name already exist")
 	}
 
+	if request.IsSwitchCiPipelineRequest() {
+		impl.logger.Debugw("handling switch ci pipeline")
+		return impl.handleSwitchCiPipeline(request, ciConfig)
+	}
+
+	impl.logger.Debugw("create patch request")
+	ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
 	res, err := impl.addpipelineToTemplate(ciConfig, false)
 	if err != nil {
 		impl.logger.Errorw("error in adding pipeline to template", "ciConf", ciConfig, "err", err)
@@ -1557,18 +1556,6 @@ func (impl *CiPipelineConfigServiceImpl) handleSwitchCiPipeline(request *bean.Ci
 
 	impl.logger.Debugw("create patch request for ci switch")
 	ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
-
-	pipelineExists, err := impl.ciPipelineRepository.CheckIfPipelineExistsByNameAndAppId(request.CiPipeline.Name, request.AppId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching pipeline by name, FindByName", "err", err, "patch cipipeline name", request.CiPipeline.Name)
-		return nil, err
-	}
-
-	if pipelineExists {
-		impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
-		return nil, fmt.Errorf("pipeline name already exist")
-	}
-
 	res, err := impl.addpipelineToTemplate(ciConfig, true)
 	if err != nil {
 		impl.logger.Errorw("error in adding pipeline to template", "ciConf", ciConfig, "err", err)
