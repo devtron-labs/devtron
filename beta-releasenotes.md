@@ -26,6 +26,7 @@
 - docs: Added Videos + Fixed Typos and Navigation (#4169)
 - doc: added a Config.md to expose all the env variables use in this microservice (#4173)
 ## Others
+- chore: Update pr-issue-validator.yaml (#4207)
 - chore: update maven dependency tracker plugin (#4254)
 - chore: artifact api refactoring (#4137)
 - chore: resource sql migration script (#4175)
