@@ -547,4 +547,5 @@ VALUES ('workflow', 'Workflow', 'Workflow', ARRAY ['jobs'], false, now(), 1, now
 
 Alter table roles add column IF NOT EXISTS workflow text;
 
-
+--  This is being done as casbin resource objects are being defined as TeamObj/AppObj and rbac enforcement is failing as jobName has / in it.
+UPDATE app SET app_name = REPLACE (app_name,'/','-') where app_type =2;

@@ -120,7 +120,7 @@ func (impl UserCommonServiceImpl) getDefaultRbacRoleAndPolicyByRoleFilter(entity
 
 func (impl UserCommonServiceImpl) GetRenderedRoleData(defaultRoleData repository2.RoleCacheDetailObj, pValUpdateMap map[repository2.PValUpdateKey]string) *repository2.RoleModel {
 	renderedRoleData := &repository2.RoleModel{
-		Role:        strings.ToLower(getResolvedValueFromPValDetailObject(defaultRoleData.Role, pValUpdateMap).String()),
+		Role:        getResolvedValueFromPValDetailObject(defaultRoleData.Role, pValUpdateMap).String(),
 		Entity:      getResolvedValueFromPValDetailObject(defaultRoleData.Entity, pValUpdateMap).String(),
 		EntityName:  getResolvedValueFromPValDetailObject(defaultRoleData.EntityName, pValUpdateMap).String(),
 		Team:        getResolvedValueFromPValDetailObject(defaultRoleData.Team, pValUpdateMap).String(),
