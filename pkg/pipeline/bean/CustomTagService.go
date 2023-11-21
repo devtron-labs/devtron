@@ -5,6 +5,8 @@ import "fmt"
 const (
 	EntityNull = iota
 	EntityTypeCiPipelineId
+	EntityTypePreCD
+	EntityTypePostCD
 )
 
 const (
