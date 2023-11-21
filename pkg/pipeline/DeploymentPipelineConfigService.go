@@ -142,6 +142,7 @@ type CdPipelineConfigServiceImpl struct {
 	deploymentConfig                 *DeploymentServiceTypeConfig
 	application                      application.ServiceClient
 	customTagService                 CustomTagService
+	pipelineConfigListenerService    PipelineConfigListenerService
 	devtronAppCMCSService            DevtronAppCMCSService
 }
 
@@ -174,8 +175,9 @@ func NewCdPipelineConfigServiceImpl(
 	scopedVariableManager variables.ScopedVariableManager,
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
-	devtronAppCMCSService DevtronAppCMCSService,
-	customTagService CustomTagService) *CdPipelineConfigServiceImpl {
+	customTagService CustomTagService,
+	pipelineConfigListenerService PipelineConfigListenerService,
+	devtronAppCMCSService DevtronAppCMCSService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -205,6 +207,7 @@ func NewCdPipelineConfigServiceImpl(
 		scopedVariableManager:            scopedVariableManager,
 		deploymentConfig:                 deploymentConfig,
 		application:                      application,
+		pipelineConfigListenerService:    pipelineConfigListenerService,
 		devtronAppCMCSService:            devtronAppCMCSService,
 		customTagService:                 customTagService,
 	}
@@ -831,6 +834,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		return deleteResponse, err
 	}
 	deleteResponse.DeleteInitiated = true
+	impl.pipelineConfigListenerService.HandleCdPipelineDelete(pipeline.Id, userId)
 	return deleteResponse, nil
 }
 

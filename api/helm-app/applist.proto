@@ -86,6 +86,9 @@ message AppDetail{
 
 message AppStatus{
   string applicationStatus = 1;
+  string ReleaseStatus = 2;
+  string Description = 3;
+  google.protobuf.Timestamp LastDeployed = 4;
 }
 
 message ReleaseStatus {
@@ -237,6 +240,7 @@ message UpgradeReleaseRequest {
   string valuesYaml = 2;
   int32 historyMax = 3;
   ChartContent chartContent = 4;
+  bool RunInCtx = 5;
 }
 
 message UpgradeReleaseResponse {
@@ -295,6 +299,7 @@ message HelmInstallCustomRequest {
   string valuesYaml = 1;
   ChartContent chartContent = 2;
   ReleaseIdentifier releaseIdentifier = 3;
+  bool RunInCtx = 4;
 }
 
 message HelmInstallCustomResponse {
