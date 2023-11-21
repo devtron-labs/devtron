@@ -1,3 +1,4 @@
+UPDATE app SET app_name = REPLACE (app_name,'-','/') where app_type =2;
 ALTER TABLE roles DROP COLUMN workflow;
 DELETE from rbac_role_resource_detail where resource='workflow';
 UPDATE rbac_policy_resource_detail set eligible_entity_access_types = ARRAY['apps/devtron-app','apps/helm-app'] where resource='project' OR resource ='global-environment' OR resource='terminal';
