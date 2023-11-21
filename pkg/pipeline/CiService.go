@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
@@ -377,7 +377,7 @@ func (impl *CiServiceImpl) saveNewWorkflowForCITrigger(pipeline *pipelineConfig.
 	}
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:                pipelineConfig.WorkflowStarting,
+		Status:                pipelineConfig.WorkflowStarting, //starting CIStage
 		Message:               "",
 		StartedOn:             time.Now(),
 		CiPipelineId:          pipeline.Id,

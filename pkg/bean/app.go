@@ -128,7 +128,7 @@ type CiPipeline struct {
 	LastTriggeredEnvId         int                    `json:"lastTriggeredEnvId"`
 	CustomTagObject            *CustomTagData         `json:"customTag,omitempty"`
 	DefaultTag                 []string               `json:"defaultTag,omitempty"`
-	EnableCustomTag          bool                   `json:"enableCustomTag"`
+	EnableCustomTag            bool                   `json:"enableCustomTag"`
 }
 
 type DockerConfigOverride struct {
@@ -774,11 +774,11 @@ type CiArtifactBean struct {
 	ExternalCiPipelineId    int                                  `json:"-"`
 	ParentCiArtifact        int                                  `json:"-"`
 	CiWorkflowId            int                                  `json:"-"`
-	RegistryType                  string                    `json:"registryType"`
-	RegistryName                  string                    `json:"registryName"`
-	CiPipelineId                  int                       `json:"-"`
-	CredentialsSourceType         string                    `json:"-"`
-	CredentialsSourceValue        string                    `json:"-"`
+	RegistryType            string                               `json:"registryType"`
+	RegistryName            string                               `json:"registryName"`
+	CiPipelineId            int                                  `json:"-"`
+	CredentialsSourceType   string                               `json:"-"`
+	CredentialsSourceValue  string                               `json:"-"`
 }
 
 type CiArtifactResponse struct {
