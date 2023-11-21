@@ -148,8 +148,8 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*LastDeployed, error) {
 	lastDeployed := &LastDeployed{}
 	query := `select ca.image as last_deployed_image, u.email_id as last_deployed_by from pipeline p
-			  	join cd_workflow_runner cwr on cwr.name = p.pipeline_name
-				join cd_workflow cw on cw.id = cwr.cd_workflow_id
+                join cd_workflow cw on cw.pipeline_id = p.id
+			  	join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id
 				join ci_artifact ca on ca.id = cw.ci_artifact_id
 				join users u on u.id = cwr.triggered_by
 				where p.app_id = ? and p.environment_id = ? and p.deleted = false order by cwr.created_on desc limit 1;`
