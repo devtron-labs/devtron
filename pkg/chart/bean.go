@@ -32,6 +32,8 @@ type TemplateRequest struct {
 	Readme                  string                      `json:"readme"`
 	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
+	GitRepoUrl              string                      `json:"-"`
+	IsCustomGitRepository   bool                        `json:"-"`
 	UserId                  int32                       `json:"-"`
 }
 
@@ -87,4 +89,15 @@ type HelmAppGitOpsConfigRequest struct {
 	EnvironmentId int    `json:"environmentId" validate:"required"`
 	TeamId        int    `json:"teamId" validate:"required"`
 	UserId        int32  `json:"-"`
+}
+
+type AppGitOpsConfigRequest struct {
+	AppId      int    `json:"appId" validate:"required"`
+	GitRepoURL string `json:"gitRepoURL" validate:"required"`
+	UserId     int32  `json:"-"`
+}
+
+type AppGitOpsConfigResponse struct {
+	GitRepoURL string `json:"gitRepoURL"`
+	IsEditable bool   `json:"isEditable"`
 }

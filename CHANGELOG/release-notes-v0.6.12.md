@@ -39,7 +39,7 @@
 ## Others
 - bug: resolve failing bulk pipeline delete api (#3042)
 - removed server mode hardcoding (#3031)
-- fi: fixed incorrect userId in ci audit entries (#3011)
+- fi: fixed incorrect UserId in ci audit entries (#3011)
 - plugin jira icon added (#2977)
 - task: added api for getting default template values (#2905)
 

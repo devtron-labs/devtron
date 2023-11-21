@@ -32,6 +32,8 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
@@ -116,6 +118,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	configMapService              ConfigMapService
 	genericNoteService            genericNotes.GenericNoteService
 	customTagService              CustomTagService
+	chartService                  chart.ChartService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -142,7 +145,8 @@ func NewCiCdPipelineOrchestrator(
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	configMapService ConfigMapService,
 	customTagService CustomTagService,
-	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorImpl {
+	genericNoteService genericNotes.GenericNoteService,
+	chartService chart.ChartService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -169,6 +173,7 @@ func NewCiCdPipelineOrchestrator(
 		configMapService:              configMapService,
 		genericNoteService:            genericNoteService,
 		customTagService:              customTagService,
+		chartService:                  chartService,
 	}
 }
 
@@ -1647,6 +1652,16 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
 	}
+
+	latestChartConfiguredInApp, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching latest chart for app by appId")
+	}
+	isAppLevelGitOpsConfigured := true
+	if latestChartConfiguredInApp.IsCustomGitRepository && (latestChartConfiguredInApp.GitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED || len(latestChartConfiguredInApp.GitRepoUrl) == 0) {
+		isAppLevelGitOpsConfigured = false
+	}
+
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
 		preStage := bean.CdStage{}
@@ -1697,6 +1712,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+			IsGitOpsRepoNotConfigured:     isAppLevelGitOpsConfigured,
 		}
 		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
 			pipeline.PreDeployStage = pipelineStages[0]

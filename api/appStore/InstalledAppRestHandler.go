@@ -881,8 +881,12 @@ func (handler *InstalledAppRestHandlerImpl) ValidateGitOpsConfigForHelmApp(w htt
 		return
 	}
 	//rbac block ends here
-
-	isValidConfig, err := handler.gitOpsService.ValidateCustomGitRepoURL(gitOpsConfigRequest.GitRepoURL, userId, false)
+	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
+		GitRepoURL:        gitOpsConfigRequest.GitRepoURL,
+		UserId:            userId,
+		ValidateEmptyRepo: true,
+	}
+	isValidConfig, err := handler.gitOpsService.ValidateCustomGitRepoURL(validateRequest)
 	if !isValidConfig {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

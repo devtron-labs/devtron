@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -33,6 +34,7 @@ type GitOpsManifestPushServiceImpl struct {
 	gitOpsConfigRepository        repository.GitOpsConfigRepository
 	gitFactory                    *GitFactory
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService
+	gitOpsConfigService           gitops.GitOpsConfigService
 }
 
 func NewGitOpsManifestPushServiceImpl(
@@ -42,6 +44,7 @@ func NewGitOpsManifestPushServiceImpl(
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	gitFactory *GitFactory,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
+	gitOpsConfigService gitops.GitOpsConfigService,
 ) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                        logger,
@@ -50,12 +53,24 @@ func NewGitOpsManifestPushServiceImpl(
 		gitOpsConfigRepository:        gitOpsConfigRepository,
 		gitFactory:                    gitFactory,
 		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		gitOpsConfigService:           gitOpsConfigService,
 	}
 }
 
 func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse {
 	manifestPushResponse := bean.ManifestPushResponse{}
-	err := impl.PushChartToGitRepo(manifestPushTemplate, ctx)
+	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
+		GitRepoURL: manifestPushTemplate.RepoUrl,
+	}
+	isValidGitOpsURL, err := impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateRequest)
+	if isValidGitOpsURL == false {
+		impl.logger.Errorw("invalid gitOps repo URL", "err", err)
+		manifestPushResponse.Error = err
+		impl.SaveTimelineForError(manifestPushTemplate, err)
+		return manifestPushResponse
+	}
+
+	err = impl.PushChartToGitRepo(manifestPushTemplate, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		manifestPushResponse.Error = err

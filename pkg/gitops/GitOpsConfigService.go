@@ -60,25 +60,27 @@ type GitOpsConfigService interface {
 	GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigByProvider(provider string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
-	ValidateCustomGitRepoURL(gitRepoURL string, userId int32, skipEmptyRepoValidation bool) (bool, error)
+	ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) (bool, error)
 }
 
 const (
-	GitOpsSecretName      = "devtron-gitops-secret"
-	DryrunRepoName        = "devtron-sample-repo-dryrun-"
-	DeleteRepoStage       = "Delete Repo"
-	CommitOnRestStage     = "Commit On Rest"
-	PushStage             = "Push"
-	CloneStage            = "Clone"
-	GetRepoUrlStage       = "Get Repo RedirectionUrl"
-	CreateRepoStage       = "Create Repo"
-	CloneHttp             = "Clone Http"
-	CreateReadmeStage     = "Create Readme"
-	GITHUB_PROVIDER       = "GITHUB"
-	GITLAB_PROVIDER       = "GITLAB"
-	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
-	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
-	BITBUCKET_API_HOST    = "https://api.bitbucket.org/2.0/"
+	GitOpsSecretName               = "devtron-gitops-secret"
+	DryrunRepoName                 = "devtron-sample-repo-dryrun-"
+	DeleteRepoStage                = "Delete Repo"
+	CommitOnRestStage              = "Commit On Rest"
+	PushStage                      = "Push"
+	CloneStage                     = "Clone"
+	GetRepoUrlStage                = "Get Repo URL"
+	CreateRepoStage                = "Create Repo"
+	CloneHttp                      = "Clone Http"
+	CreateReadmeStage              = "Create Readme"
+	ValidateOrganisationalURLStage = "Organisational URL Validation"
+	ValidateEmptyRepoStage         = "Empty Repo Validation"
+	GITHUB_PROVIDER                = "GITHUB"
+	GITLAB_PROVIDER                = "GITLAB"
+	BITBUCKET_PROVIDER             = "BITBUCKET_CLOUD"
+	AZURE_DEVOPS_PROVIDER          = "AZURE_DEVOPS"
+	BITBUCKET_API_HOST             = "https://api.bitbucket.org/2.0/"
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
@@ -87,6 +89,13 @@ type DetailedErrorGitOpsConfigResponse struct {
 	ValidatedOn       time.Time         `json:"validatedOn"`
 	DeleteRepoFailed  bool              `json:"deleteRepoFailed"`
 	ValidationSkipped bool              `json:"validationSkipped"`
+}
+
+type ValidateCustomGitRepoURLRequest struct {
+	GitRepoURL               string
+	UserId                   int32
+	ValidateEmptyRepo        bool
+	performDefaultValidation bool
 }
 
 type GitOpsConfigServiceImpl struct {
@@ -794,51 +803,56 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	return detailedErrorGitOpsConfigResponse
 }
 
-func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(gitRepoURL string, userId int32, skipEmptyRepoValidation bool) (bool, error) {
+func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(activeGitOpsConfig *bean2.GitOpsConfigDto) (errorMessageKey string, errorMessage error) {
+	gitProvider := strings.ToUpper(activeGitOpsConfig.Provider)
+	switch gitProvider {
+	case GITHUB_PROVIDER:
+		errorMessageKey = "The repository must belong to GitHub organization"
+		errorMessage = fmt.Errorf("%s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
+	case GITLAB_PROVIDER:
+		errorMessageKey = "The repository must belong to gitLab Group ID"
+		errorMessage = fmt.Errorf("%s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
+
+	case BITBUCKET_PROVIDER:
+		errorMessageKey = "The repository must belong to BitBucket Workspace"
+		errorMessage = fmt.Errorf("%s as configured in global configurations > GitOps", activeGitOpsConfig.BitBucketWorkspaceId)
+
+	case AZURE_DEVOPS_PROVIDER:
+		errorMessageKey = "The repository must belong to Azure DevOps Project: "
+		errorMessage = fmt.Errorf("%s as configured in global configurations > GitOps", activeGitOpsConfig.AzureProjectName)
+	}
+	return errorMessageKey, errorMessage
+}
+func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) DetailedErrorGitOpsConfigResponse {
+	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
+	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	activeGitOpsConfig, err := impl.GetGitOpsConfigActive()
 	if err != nil {
 		impl.logger.Errorw("error in validating gitOps repo URL", "err", err)
+		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 		if util.IsErrNoRows(err) {
-			return false, fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+			detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Error in getting GitOps configuration")] = fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 		}
-		return false, nil
+		detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Error in getting GitOps configuration")] = err
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 	}
+
+	if request.performDefaultValidation {
+		// Validate: Perform Default Validation
+		activeGitOpsConfig.AllowCustomRepository = false //overriding the flag to enforce validation
+		return impl.GitOpsValidateDryRun(activeGitOpsConfig)
+	}
+
 	if !activeGitOpsConfig.AllowCustomRepository {
-		return true, nil
-	}
-	var hostURL string
-	var errorMessage error
-	switch strings.ToUpper(activeGitOpsConfig.Provider) {
-	case GITHUB_PROVIDER:
-		orgUrl, err := impl.buildGithubOrgUrl(activeGitOpsConfig.Host, activeGitOpsConfig.GitHubOrgId)
-		if err != nil {
-			return false, err
+		// Validate: Skipped as this function is for App level custom git repo url validation
+		return DetailedErrorGitOpsConfigResponse{
+			ValidationSkipped: true,
 		}
-		hostURL = orgUrl
-		errorMessage = fmt.Errorf("The repository must belong to GitHub organization: %s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
-
-	case GITLAB_PROVIDER:
-		groupName, err := impl.gitFactory.GetGitLabGroupPath(activeGitOpsConfig)
-		if err != nil {
-			return false, err
-		}
-		slashSuffixPresent := strings.HasSuffix(activeGitOpsConfig.Host, "/")
-		if slashSuffixPresent {
-			hostURL += groupName
-		} else {
-			hostURL = fmt.Sprintf(activeGitOpsConfig.Host+"/%s", groupName)
-		}
-		errorMessage = fmt.Errorf("The repository must belong to gitLab Group ID: %s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
-
-	case BITBUCKET_PROVIDER:
-		hostURL = util.BITBUCKET_CLONE_BASE_URL + activeGitOpsConfig.BitBucketWorkspaceId
-		errorMessage = fmt.Errorf("The repository must belong to BitBucket Workspace: %s as configured in global configurations > GitOps", activeGitOpsConfig.BitBucketWorkspaceId)
 	}
-	if !strings.Contains(gitRepoURL, hostURL) {
-		return false, errorMessage
-	}
+	repoName := util.GetGitOpsRepoNameFromUrl(request.GitRepoURL)
 
-	repoName := util.GetGitOpsRepoNameFromUrl(gitRepoURL)
+	// Validate: Get Repository Starts
 	config := &bean2.GitOpsConfigDto{
 		GitRepoName:          repoName,
 		BitBucketWorkspaceId: activeGitOpsConfig.BitBucketProjectKey,
@@ -846,25 +860,57 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(gitRepoURL string, 
 	}
 	repoUrl, err := impl.gitFactory.Client.GetRepoUrl(config)
 	if err != nil || repoUrl == "" {
-		impl.logger.Errorw("fetching error", "err", err)
-		return false, fmt.Errorf("Repository '%s' not found: Please create the repository and try again.", repoName)
+		impl.logger.Errorw("fetching repository error", "repoName", repoName, "err", err)
+		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+		if err == nil {
+			err = fmt.Errorf("Please create the repository and try again.")
+		}
+		detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Repository '%s' not found", repoName)] = impl.extractErrorMessageByProvider(err, gitProvider)
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 	}
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+	// Validate: Get Repository Ends
 
-	if !skipEmptyRepoValidation {
+	// Validate: Organisational URL starts
+	if !strings.Contains(request.GitRepoURL, repoUrl) {
+		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+		errorKey, errorMsg := impl.getValidationErrorForNonOrganisationalURL(activeGitOpsConfig)
+		detailedErrorGitOpsConfigActions.StageErrorMap[errorKey] = errorMsg
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+	}
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, ValidateOrganisationalURLStage)
+	// Validate: Organisational URL Ends
+
+	if request.ValidateEmptyRepo {
+		// Validate: Empty repository Starts
 		commitCount, err := impl.gitFactory.Client.GetCommitsCount(repoName, activeGitOpsConfig.AzureProjectName)
 		if err != nil {
-			return false, err
+			impl.logger.Errorw("error in fetching commit count for", "repository", repoName)
+			detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+			detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Error in getting commits")] = impl.extractErrorMessageByProvider(err, gitProvider)
+			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 		}
 		if commitCount > 0 {
-			errorMessage = fmt.Errorf("Repository '%s' is not empty: GitOps repository must be empty.", repoName)
+			detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+			detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Repository '%s' is not empty", repoName)] = fmt.Errorf("GitOps repository must be empty.")
+			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 		}
-		err = impl.chartTemplateService.CreateReadmeInGitRepo(repoName, userId)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, ValidateEmptyRepoStage)
+		// Validate: Empty repository Ends
+
+		// Validate: Write Access in repository Starts
+		err = impl.chartTemplateService.CreateReadmeInGitRepo(repoName, request.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating file in git repo", "err", err)
-			return false, fmt.Errorf("Permission required: Token used in GitOps Configurations must have read and write permission for this repository.")
+			detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+			detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Permission required")] = fmt.Errorf("Token used in GitOps Configurations must have read and write permission for this repository.")
+			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 		}
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
+		// Validate: Write Access in repository Ends
 	}
-	return true, nil
+	detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+	return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 }
 
 func (impl *GitOpsConfigServiceImpl) cleanDir(dir string) {

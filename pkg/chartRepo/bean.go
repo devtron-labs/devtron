@@ -45,3 +45,8 @@ type AcdConfigMapRepositoriesDto struct {
 	CertSecret     *KeyDto `json:"certSecret,omitempty"`
 	KeySecret      *KeyDto `json:"keySecret,omitempty"`
 }
+
+const (
+	GIT_REPO_DEFAULT        = "Default"
+	GIT_REPO_NOT_CONFIGURED = "NOT_CONFIGURED"
+)

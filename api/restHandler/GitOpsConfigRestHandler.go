@@ -198,15 +198,19 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, 
 		return
 	}
 	gitopsConfigured := false
+	allowCustomRepository := false
 	if len(result) > 0 {
 		for _, gitopsConf := range result {
 			if gitopsConf.Active {
 				gitopsConfigured = true
+				allowCustomRepository = gitopsConf.AllowCustomRepository
+
 			}
 		}
 	}
 	res := make(map[string]bool)
 	res["exists"] = gitopsConfigured
+	res["allowCustomRepository"] = allowCustomRepository
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 

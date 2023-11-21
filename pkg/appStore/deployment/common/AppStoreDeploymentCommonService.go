@@ -529,10 +529,26 @@ func (impl AppStoreDeploymentCommonServiceImpl) AddConfigFileToChart(config *uti
 
 // CreateGitOpsRepoAndPushChart is a wrapper for creating gitops repo and pushing chart to created repo
 func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, bool, string, error) {
-	repoURL, isNew, err := impl.CreateGitOpsRepo(installAppVersionRequest)
+
+	var (
+		repoURL string
+		isNew   bool
+		err     error
+	)
+
+	gitOpsConfig, err := impl.gitOpsConfigRepository.GetGitOpsConfigActive()
 	if err != nil {
-		impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 		return nil, false, "", err
+	}
+	//TODO Asutosh: here
+	if !gitOpsConfig.AllowCustomRepository || installAppVersionRequest.GitRepoURL == "Default" {
+		repoURL, isNew, err = impl.CreateGitOpsRepo(installAppVersionRequest)
+		if err != nil {
+			impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
+			return nil, false, "", err
+		}
+	} else {
+		repoURL = installAppVersionRequest.GitRepoURL
 	}
 	pushChartToGitRequest := ParseChartGitPushRequest(installAppVersionRequest, repoURL, builtChartPath)
 	chartGitAttribute, commitHash, err := impl.PushChartToGitopsRepo(pushChartToGitRequest, requirementsConfig, valuesConfig)

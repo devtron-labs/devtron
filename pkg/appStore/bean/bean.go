@@ -100,10 +100,11 @@ type InstallAppVersionDTO struct {
 	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
 	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
 	AppStoreApplicationVersionId int
-	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
-	PerformGitOps                bool `json:"performGitOps"`
-	PerformACDDeployment         bool `json:"performACDDeployment"`
-	PerformHelmDeployment        bool `json:"performHelmDeployment"`
+	PerformGitOpsForHelmApp      bool   `json:"performGitOpsForHelmApp"`
+	PerformGitOps                bool   `json:"performGitOps"`
+	PerformACDDeployment         bool   `json:"performACDDeployment"`
+	PerformHelmDeployment        bool   `json:"performHelmDeployment"`
+	GitRepoURL                   string `json:"gitRepoURL"`
 }
 
 type InstalledAppDeleteResponseDTO struct {

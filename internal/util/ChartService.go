@@ -78,7 +78,6 @@ type ChartTemplateService interface {
 	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
-	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
 	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
 	LoadChartFromDir(dir string) (*chart.Chart, error)
@@ -707,26 +706,6 @@ func (impl ChartTemplateServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string
 	_, err = impl.gitFactory.Client.CreateReadme(config)
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-func (impl ChartTemplateServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error {
-	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
-	if err != nil && pg.ErrNoRows != err {
-		return err
-	}
-	for _, ch := range charts {
-		if len(ch.GitRepoUrl) == 0 {
-			ch.GitRepoUrl = chartGitAttribute.RepoUrl
-			ch.ChartLocation = chartGitAttribute.ChartLocation
-			ch.UpdatedOn = time.Now()
-			ch.UpdatedBy = userId
-			err = impl.chartRepository.Update(ch)
-			if err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }

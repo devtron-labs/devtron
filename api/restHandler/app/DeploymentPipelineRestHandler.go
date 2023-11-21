@@ -67,6 +67,8 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
 	GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request)
 	GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request)
+	ConfigureGitOpsConfigurationForApp(w http.ResponseWriter, r *http.Request)
+	GetGitOpsConfigurationOfApp(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request)
 	EnvConfigOverrideUpdate(w http.ResponseWriter, r *http.Request)
@@ -2617,4 +2619,81 @@ func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(emailId string, app
 		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 	}
 	return appResult, envResult
+}
+
+func (handler *PipelineConfigRestHandlerImpl) ConfigureGitOpsConfigurationForApp(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var appGitOpsConfigRequest chart.AppGitOpsConfigRequest
+	err = decoder.Decode(&appGitOpsConfigRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, ConfigureGitOpsConfigurationForApp", "err", err, "payload", appGitOpsConfigRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appGitOpsConfigRequest.UserId = userId
+
+	handler.Logger.Infow("request payload, ConfigureGitOpsConfigurationForApp", "payload", appGitOpsConfigRequest)
+	err = handler.validator.Struct(appGitOpsConfigRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, ConfigureDeploymentTemplateForApp", "err", err, "payload", appGitOpsConfigRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(appGitOpsConfigRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	err = handler.chartService.SaveAppLevelGitOpsConfiguration(appGitOpsConfigRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, SaveAppLevelGitOpsConfiguration", "err", err, "request", appGitOpsConfigRequest)
+		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
+		return
+	}
+}
+
+func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfigurationOfApp(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	appGitOpsConfig, err := handler.chartService.GetGitOpsConfigurationOfApp(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetGitOpsConfigurationOfApp", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, appGitOpsConfig, http.StatusOK)
 }

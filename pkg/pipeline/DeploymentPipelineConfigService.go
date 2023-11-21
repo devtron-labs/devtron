@@ -37,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -140,6 +141,7 @@ type CdPipelineConfigServiceImpl struct {
 	scopedVariableManager            variables.ScopedVariableManager
 	deploymentConfig                 *DeploymentServiceTypeConfig
 	application                      application.ServiceClient
+	chartService                     chart.ChartService
 
 	devtronAppCMCSService DevtronAppCMCSService
 }
@@ -173,6 +175,7 @@ func NewCdPipelineConfigServiceImpl(
 	scopedVariableManager variables.ScopedVariableManager,
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
+	chartService chart.ChartService,
 
 	devtronAppCMCSService DevtronAppCMCSService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
@@ -204,6 +207,7 @@ func NewCdPipelineConfigServiceImpl(
 		scopedVariableManager:            scopedVariableManager,
 		deploymentConfig:                 deploymentConfig,
 		application:                      application,
+		chartService:                     chartService,
 		devtronAppCMCSService:            devtronAppCMCSService,
 	}
 }
@@ -338,20 +342,33 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	// TODO: creating git repo for all apps irrespective of acd or helm
 	if isGitOpsConfigured && isGitOpsRequiredForCD {
-
-		gitopsRepoName, chartGitAttr, err := impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil {
-			impl.logger.Errorw("error in creating git repo", "err", err)
+			impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", app.Id)
 			return nil, err
 		}
-
-		err = impl.RegisterInACD(gitopsRepoName, chartGitAttr, pipelineCreateRequest.UserId, ctx)
+		var gitOpsRepoName string
+		var chartGitAttr *util.ChartGitAttribute
+		if chart.IsCustomGitRepository {
+			// in this case user has already created an empty git repository and provided us gitRepoUrl
+			chartGitAttr = &util.ChartGitAttribute{
+				RepoUrl: chart.GitRepoUrl,
+			}
+			gitOpsRepoName = util.GetGitOpsRepoNameFromUrl(chartGitAttr.RepoUrl)
+		} else {
+			gitOpsRepoName, chartGitAttr, err = impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating git repo", "err", err)
+				return nil, err
+			}
+		}
+		err = impl.RegisterInACD(gitOpsRepoName, chartGitAttr, pipelineCreateRequest.UserId, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in registering app in acd", "err", err)
 			return nil, err
 		}
-
-		err = impl.updateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
+		// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
+		err = impl.chartService.UpdateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 			return nil, err
@@ -1625,26 +1642,6 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 	err = tx.Commit()
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-func (impl *CdPipelineConfigServiceImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error {
-	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
-	if err != nil && pg.ErrNoRows != err {
-		return err
-	}
-	for _, ch := range charts {
-		if len(ch.GitRepoUrl) == 0 {
-			ch.GitRepoUrl = chartGitAttribute.RepoUrl
-			ch.ChartLocation = chartGitAttribute.ChartLocation
-			ch.UpdatedOn = time.Now()
-			ch.UpdatedBy = userId
-			err = impl.chartRepository.Update(ch)
-			if err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }

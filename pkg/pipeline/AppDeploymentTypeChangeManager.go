@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"strconv"
@@ -63,6 +64,7 @@ type AppDeploymentTypeChangeManagerImpl struct {
 	appStatusRepository  appStatus.AppStatusRepository
 	helmAppService       client.HelmAppService
 	application          application2.ServiceClient
+	chartService         chart.ChartService
 
 	appArtifactManager      AppArtifactManager
 	cdPipelineConfigService CdPipelineConfigService
@@ -78,7 +80,8 @@ func NewAppDeploymentTypeChangeManagerImpl(
 	helmAppService client.HelmAppService,
 	application application2.ServiceClient,
 	appArtifactManager AppArtifactManager,
-	cdPipelineConfigService CdPipelineConfigService) *AppDeploymentTypeChangeManagerImpl {
+	cdPipelineConfigService CdPipelineConfigService,
+	chartService chart.ChartService) *AppDeploymentTypeChangeManagerImpl {
 	return &AppDeploymentTypeChangeManagerImpl{
 		logger:                  logger,
 		pipelineRepository:      pipelineRepository,
@@ -90,6 +93,7 @@ func NewAppDeploymentTypeChangeManagerImpl(
 		application:             application,
 		appArtifactManager:      appArtifactManager,
 		cdPipelineConfigService: cdPipelineConfigService,
+		chartService:            chartService,
 	}
 }
 
@@ -445,7 +449,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						impl.logger.Errorw("error in registering acd app", "err", err)
 					}
 					if AcdRegisterErr == nil {
-						RepoURLUpdateErr = impl.chartTemplateService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttr, userId)
+						RepoURLUpdateErr = impl.chartService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttr, userId)
 						if RepoURLUpdateErr != nil {
 							impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 						}
