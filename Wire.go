@@ -964,6 +964,9 @@ func InitializeApp() (*App, error) {
 
 		argocdServer.NewArgoClientWrapperServiceImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
+
+		pipeline.NewPluginInputVariableParserImpl,
+		wire.Bind(new(pipeline.PluginInputVariableParser), new(*pipeline.PluginInputVariableParserImpl)),
 	)
 	return &App{}, nil
 }

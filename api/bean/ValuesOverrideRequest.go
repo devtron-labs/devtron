@@ -116,4 +116,8 @@ type ArtifactsListFilterOptions struct {
 
 	//excludeWfRunners
 	ExcludeWfrIds []int
+
+
+	//pluginStage
+	PluginStage string
 }

@@ -78,6 +78,7 @@ type CiWorkflow struct {
 	ParentCiWorkFlowId     int                  `sql:"parent_ci_workflow_id"`
 	ExecutorType           WorkflowExecutorType `sql:"executor_type"` //awf, system
 	ImagePathReservationId int                  `sql:"image_path_reservation_id"`
+	ImagePathReservationIds []int             `sql:"image_path_reservation_ids" pg:",array"`
 	CiPipeline             *CiPipeline
 }
 
@@ -112,6 +113,7 @@ type WorkflowWithArtifact struct {
 	ParentCiWorkflowId     int                  `json:"parent_ci_workflow_id"`
 	ExecutorType           WorkflowExecutorType `json:"executor_type"` //awf, system
 	ImagePathReservationId int                  `json:"image_path_reservation_id"`
+	ImagePathReservationIds []int             `json:"image_path_reservation_ids" pg:",array"`
 }
 
 type GitCommit struct {
