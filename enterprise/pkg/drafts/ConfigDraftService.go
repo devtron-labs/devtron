@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"time"
@@ -299,10 +300,15 @@ func (impl *ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType
 
 func (impl *ConfigDraftServiceImpl) GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error) {
 	draftVersion, err := impl.configDraftRepository.GetLatestConfigDraftByName(appId, envId, resourceName, resourceType)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	draftResponse := draftVersion.ConvertToConfigDraft()
+	draftResponse := &ConfigDraftResponse{}
+	if draftVersion == nil {
+		draftResponse.Approvers = impl.getApproversData(appId, envId)
+		return draftResponse, nil
+	}
+	draftResponse = draftVersion.ConvertToConfigDraft()
 	err = impl.updateDraftResponse(draftResponse.DraftId, userId, draftResponse)
 	if err != nil {
 		return nil, err
