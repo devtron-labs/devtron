@@ -1,3 +1,5 @@
+UPDATE plugin_metadata SET name='Dependency track for Maven & Gradle' WHERE name='Dependency track for Maven & Gradle)';
+
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
 VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Dependency track for Maven & Gradle' and ps."index"=1 and ps.deleted=false),'ExcludeBuildTest','BOOL','If Enable, this will skips compiling the tests i.e. it skips building the test artifacts','t','t','false',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
