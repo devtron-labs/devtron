@@ -9,6 +9,7 @@
 - fix: inducing overridden DockerRegistryId in case docker registry is overridden (#4178)
 - fix: cm cs handling for inheriting type in get sample workflow api (core app routers) (#4189)
 ## Enhancements
+- feat: Helm async deploy Devtron Apps (#4045)
 - feat: copy container images (#4209)
 - feat: add plugin via api (#3937)
 - feat: Run jobs using system executor (#4161)
