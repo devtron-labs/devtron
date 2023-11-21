@@ -1179,7 +1179,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			pipelineResponse[Error] = hibernateReqError
+			pipelineResponse[Error] = hibernateReqError.Error()
 			response[appKey] = pipelineResponse
 			//return nil, err
 		}
@@ -1196,10 +1196,10 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		appMap["id"] = appId
 		appMap["appName"] = appName
 		for key, value := range pipelineResponse {
-			if key == "authError" {
-				appMap["authError"] = value
-			} else if key == "error" {
-				appMap["error"] = value
+			if key == AuthorizationError {
+				appMap[AuthorizationError] = value
+			} else if key == Error {
+				appMap[Error] = value
 			} else {
 				appMap["success"] = value
 			}
