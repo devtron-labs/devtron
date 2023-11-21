@@ -30,6 +30,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -127,6 +128,10 @@ type WorkflowRequest struct {
 	Env                      *repository.Environment
 	AppLabels                map[string]string
 	IsDryRun                 bool `json:"isDryRun"`
+	RegistryDestinationImageMap map[string][]string                   `json:"registryDestinationImageMap"`
+	RegistryCredentialMap       map[string]plugin.RegistryCredentials `json:"registryCredentialMap"`
+	PluginArtifactStage         string                                `json:"pluginArtifactStage"`
+	PushImageBeforePostCI       bool                                  `json:"pushImageBeforePostCI"`
 	Scope                    resourceQualifiers.Scope
 }
 

@@ -172,6 +172,7 @@ type CdWorkflowRunner struct {
 	DeploymentApprovalRequestId int                  `sql:"deployment_approval_request_id"`
 	RefCdWorkflowRunnerId       int                  `sql:"ref_cd_workflow_runner_id,notnull"`
 	HelmReferenceChart          []byte               `sql:""`
+	ImagePathReservationIds []int                `sql:"image_path_reservation_ids" pg:",array,notnull"`
 	CdWorkflow                  *CdWorkflow
 	DeploymentApprovalRequest   *DeploymentApprovalRequest
 	sql.AuditLog
@@ -496,9 +497,15 @@ func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnersWithTxn(wfrs []*CdWor
 	return err
 }
 
-func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error {
-	_, err := impl.dbConnection.Model(&wfr).Update()
-	return err
+func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunners(wfrs []*CdWorkflowRunner) error {
+	for _, wfr := range wfrs {
+		err := impl.dbConnection.Update(wfr)
+		if err != nil {
+			impl.logger.Errorw("error in updating wfr", "err", err)
+			return err
+		}
+	}
+	return nil
 }
 func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error) {
 	var wfr []*CdWorkflowRunner
@@ -620,6 +627,36 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId in
 		return nil, err
 	}
 	return wfrList, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CdWorkflowRunner, int, error) {
+	var wfrList []CdWorkflowRunner
+	query := impl.dbConnection.
+		Model(&wfrList).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Where("cd_workflow.pipeline_id = ?", listingFilterOptions.PipelineId).
+		Where("cd_workflow_runner.workflow_type = ?", listingFilterOptions.StageType).
+		Where("cd_workflow__ci_artifact.image LIKE ?", listingFilterOptions.SearchString)
+
+	if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
+		query = query.Where("cd_workflow__ci_artifact.id NOT IN (?)", pg.In(listingFilterOptions.ExcludeArtifactIds))
+	}
+	totalCount, err := query.Count()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting Wfrs count and ci artifacts by pipelineId", "err", err, "pipelineId", listingFilterOptions.PipelineId)
+		return nil, totalCount, err
+	}
+
+	query = query.Order("cd_workflow_runner.id DESC").
+		Limit(listingFilterOptions.Limit).
+		Offset(listingFilterOptions.Offset)
+
+	err = query.Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting Wfrs and ci artifacts by pipelineId", "err", err, "pipelineId", listingFilterOptions.PipelineId)
+		return nil, totalCount, err
+	}
+	return wfrList, totalCount, nil
 }
 
 func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error) {
