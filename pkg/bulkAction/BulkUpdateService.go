@@ -1040,7 +1040,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_STOP {
 			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = true
+			pipelineResponse[pipelineKey] = false
 			if deploymentHistory.Status == application.Progressing {
 				pipelineResponse[Skipped] = "Hibernation already in progress"
 			} else {
@@ -1091,6 +1091,8 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 				appMap[AuthorizationError] = value
 			} else if key == Error {
 				appMap[Error] = value
+			} else if key == Skipped {
+				appMap[Skipped] = value
 			} else {
 				appMap["success"] = value
 			}
