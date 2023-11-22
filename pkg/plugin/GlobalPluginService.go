@@ -3,7 +3,6 @@ package plugin
 import (
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -21,10 +20,27 @@ type GlobalVariable struct {
 	Type        string `json:"stageType"`
 }
 
+const (
+	DOCKER_IMAGE                 = "DOCKER_IMAGE"
+	DEPLOYMENT_RELEASE_ID        = "DEPLOYMENT_RELEASE_ID"
+	DEPLOYMENT_UNIQUE_ID         = "DEPLOYMENT_UNIQUE_ID"
+	CD_TRIGGERED_BY              = "CD_TRIGGERED_BY"
+	CD_TRIGGER_TIME              = "CD_TRIGGER_TIME"
+	APP_NAME                     = "APP_NAME"
+	DEVTRON_CD_TRIGGERED_BY      = "DEVTRON_CD_TRIGGERED_BY"
+	DEVTRON_CD_TRIGGER_TIME      = "DEVTRON_CD_TRIGGER_TIME"
+	CD_PIPELINE_ENV_NAME_KEY     = "CD_PIPELINE_ENV_NAME"
+	CD_PIPELINE_CLUSTER_NAME_KEY = "CD_PIPELINE_CLUSTER_NAME"
+	GIT_METADATA                 = "GIT_METADATA"
+	CHILD_CD_METADATA            = "CHILD_CD_METADATA"
+	APP_LABEL_METADATA           = "APP_LABEL_METADATA"
+)
+
 type GlobalPluginService interface {
 	GetAllGlobalVariables() ([]*GlobalVariable, error)
 	ListAllPlugins(stageTypeReq string) ([]*PluginListComponentDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
+	GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error)
 	PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error)
 	GetDetailedPluginInfoByPluginId(pluginId int) (*PluginMetadataDto, error)
 	GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error)
@@ -90,67 +106,67 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Type:        "ci",
 		},
 		{
-			Name:        pipeline.CD_PIPELINE_ENV_NAME_KEY,
+			Name:        CD_PIPELINE_ENV_NAME_KEY,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "The name of the environment for which this deployment pipeline is configured.",
 			Type:        "cd",
 		},
 		{
-			Name:        pipeline.CD_PIPELINE_CLUSTER_NAME_KEY,
+			Name:        CD_PIPELINE_CLUSTER_NAME_KEY,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "The name of the cluster to which the environment belongs for which this deployment pipeline is configured.",
 			Type:        "cd",
 		},
 		{
-			Name:        pipeline.DOCKER_IMAGE,
+			Name:        DOCKER_IMAGE,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Complete image name(repository+registry+tag).",
 			Type:        "cd",
 		},
 		{
-			Name:        pipeline.APP_NAME,
+			Name:        APP_NAME,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "The name of the app this pipeline resides in.",
 			Type:        "cd",
 		},
 		{
-			Name:        pipeline.DEPLOYMENT_RELEASE_ID,
+			Name:        DEPLOYMENT_RELEASE_ID,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Auto-incremented counter for deployment triggers.",
 			Type:        "post-cd",
 		},
 		{
-			Name:        pipeline.DEPLOYMENT_UNIQUE_ID,
+			Name:        DEPLOYMENT_UNIQUE_ID,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Auto-incremented counter for deployment triggers. Counter is shared between Pre/Post/Deployment stages.",
 			Type:        "cd",
 		},
 		{
-			Name:        pipeline.CD_TRIGGERED_BY,
+			Name:        CD_TRIGGERED_BY,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Email-Id/Name of the user who triggered the deployment pipeline.",
 			Type:        "post-cd",
 		},
 		{
-			Name:        pipeline.CD_TRIGGER_TIME,
+			Name:        CD_TRIGGER_TIME,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Time when the deployment pipeline was triggered.",
 			Type:        "post-cd",
 		},
 		{
-			Name:        pipeline.GIT_METADATA,
+			Name:        GIT_METADATA,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "GIT_METADATA consists of GIT_COMMIT_HASH, GIT_SOURCE_TYPE, GIT_SOURCE_VALUE.",
 			Type:        "cd",
 		},
 		{
-			Name:        pipeline.APP_LABEL_METADATA,
+			Name:        APP_LABEL_METADATA,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "APP_LABEL_METADATA consists of APP_LABEL_KEY, APP_LABEL_VALUE. APP_LABEL_METADATA will only be available if workflow has External CI.",
 			Type:        "cd",
 		},
 		{
-			Name:        pipeline.CHILD_CD_METADATA,
+			Name:        CHILD_CD_METADATA,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "CHILD_CD_METADATA consists of CHILD_CD_ENV_NAME, CHILD_CD_CLUSTER_NAME. CHILD_CD_METADATA will only be available if this CD pipeline has a Child CD pipeline.",
 			Type:        "cd",
@@ -320,6 +336,18 @@ func getVariableDto(pluginVariable *repository.PluginStepVariable) *PluginVariab
 		VariableStepIndex:     pluginVariable.VariableStepIndex,
 		ReferenceVariableName: pluginVariable.ReferenceVariableName,
 	}
+}
+
+func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error) {
+	pluginMetadata, err := impl.globalPluginRepository.GetPluginByName(pluginName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching plugin metadata by name", "err", err)
+		return 0, err
+	}
+	if pluginMetadata == nil {
+		return 0, nil
+	}
+	return pluginMetadata[0].Id, nil
 }
 
 func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
