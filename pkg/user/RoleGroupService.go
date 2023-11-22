@@ -401,10 +401,10 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 		return nil, err
 	}
 	eliminatedPolicies = append(eliminatedPolicies, items...)
-	impl.logger.Infow("eliminated policies", "eliminatedPolicies", eliminatedPolicies)
+	impl.logger.Debugw("eliminated policies", "eliminatedPolicies", eliminatedPolicies)
 	if len(eliminatedPolicies) > 0 {
 		pRes := casbin2.RemovePolicy(eliminatedPolicies)
-		impl.logger.Infow("pRes : failed policies 1", "pRes", &pRes)
+		impl.logger.Debugw("pRes : failed policies 1", "pRes", &pRes)
 		println(pRes)
 	}
 	// DELETE PROCESS ENDS
@@ -449,11 +449,10 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 			}
 		}
 	}
-	impl.logger.Infow("policies", "policies", policies)
 	//updating in casbin
 	if len(policies) > 0 {
 		pRes := casbin2.AddPolicy(policies)
-		impl.logger.Infow("pres failed policies on add policy", "pres", &pRes)
+		impl.logger.Debugw("pres failed policies on add policy", "pres", &pRes)
 		println(pRes)
 	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
