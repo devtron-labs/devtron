@@ -37,8 +37,7 @@ set schema='{
                 },
                 "createdOn":
                 {
-                    "type": "string",
-                    "format": "date-time"
+                    "type": "string"
                 },
                 "createdBy":
                 {
@@ -231,8 +230,7 @@ set schema='{
                 },
                 "createdOn":
                 {
-                    "type": "string",
-                    "format": "date-time"
+                    "type": "string"
                 },
                 "createdBy":
                 {
@@ -338,13 +336,11 @@ set schema='{
                             {
                                 "Preferred run":
                                 {
-                                    "type": "string",
-                                    "format": "date-time"
+                                    "type": "string"
                                 },
                                 "Maintenance time":
                                 {
-                                    "type": "string",
-                                    "format": "date-time"
+                                    "type": "string"
                                 }
                             }
                         }
@@ -419,8 +415,7 @@ set schema='{
                 },
                 "createdOn":
                 {
-                    "type": "string",
-                    "format": "date-time"
+                    "type": "string"
                 },
                 "createdBy":
                 {
@@ -617,8 +612,7 @@ set schema='{
                 },
                 "createdOn":
                 {
-                    "type": "string",
-                    "format": "date-time"
+                    "type": "string"
                 },
                 "createdBy":
                 {
