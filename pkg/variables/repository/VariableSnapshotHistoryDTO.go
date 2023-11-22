@@ -22,10 +22,31 @@ type VariableSnapshotHistoryBean struct {
 	HistoryReference
 }
 
+type VariableSnapshotHistoryBeanRaw struct {
+	VariableSnapshot map[string]string
+	HistoryReference
+}
+
+func GetSnapshotBean(referenceId int, referenceType HistoryReferenceType, snapshot map[string]string) *VariableSnapshotHistoryBean {
+	if snapshot != nil && len(snapshot) > 0 {
+		variableMapBytes, _ := json.Marshal(snapshot)
+		return &VariableSnapshotHistoryBean{
+			VariableSnapshot: variableMapBytes,
+			HistoryReference: HistoryReference{
+				HistoryReferenceId:   referenceId,
+				HistoryReferenceType: referenceType,
+			},
+		}
+	}
+	return nil
+}
+
 type HistoryReferenceType int
 
 const (
 	HistoryReferenceTypeDeploymentTemplate HistoryReferenceType = 1
 	HistoryReferenceTypeCIWORKFLOW         HistoryReferenceType = 2
 	HistoryReferenceTypeCDWORKFLOWRUNNER   HistoryReferenceType = 3
+	HistoryReferenceTypeConfigMap          HistoryReferenceType = 4
+	HistoryReferenceTypeSecret             HistoryReferenceType = 5
 )

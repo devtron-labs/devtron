@@ -1,6 +1,8 @@
 package bean
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type ConfigDataRequest struct {
 	Id            int           `json:"id"`
@@ -42,7 +44,6 @@ type ConfigData struct {
 	FilePermission        string           `json:"filePermission"`
 	Overridden            bool             `json:"overridden"`
 }
-
 type ExternalSecret struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`
@@ -85,4 +86,8 @@ type CreateJobEnvOverridePayload struct {
 	AppId  int   `json:"appId"`
 	EnvId  int   `json:"envId"`
 	UserId int32 `json:"-"`
+}
+
+type SecretsList struct {
+	ConfigData []*ConfigData `json:"secrets"`
 }

@@ -35,8 +35,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
@@ -88,6 +88,8 @@ type AppServiceConfig struct {
 	GetPipelineDeployedWithinHours      int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12"` //in hours
 	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"`             //in seconds
 	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
+	EnableAsyncInstallDevtronChart      bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
+	DevtronChartInstallRequestTimeout   int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"` //in minutes
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
@@ -163,21 +165,19 @@ type AppServiceImpl struct {
 	GitOpsManifestPushService              GitOpsPushService
 	helmRepoPushService                    HelmRepoPushService
 	DockerArtifactStoreRepository          dockerRegistryRepository.DockerArtifactStoreRepository
-	variableSnapshotHistoryService         variables.VariableSnapshotHistoryService
-	scopedVariableService                  variables.ScopedVariableService
-	variableEntityMappingService           variables.VariableEntityMappingService
-	variableTemplateParser                 parsers.VariableTemplateParser
+	scopedVariableManager                  variables.ScopedVariableCMCSManager
 	argoClientWrapperService               argocdServer.ArgoClientWrapperService
 }
 
 type AppService interface {
-	//TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
+	//HandleCDTriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
+	//TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
 	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, *chartConfig.PipelineOverride, error)
 	//TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) (*[]byte, error)
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
-	GetCmSecretNew(appId int, envId int, isJob bool) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
+	GetCmSecretNew(appId int, envId int, isJob bool, scope resourceQualifiers.Scope) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	//MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
 	WriteCDSuccessEvent(appId int, envId int, wfr *pipelineConfig.CdWorkflowRunner, override *chartConfig.PipelineOverride)
@@ -193,6 +193,7 @@ type AppService interface {
 	//PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error
 
 	BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error)
+	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 }
 
 func NewAppService(
@@ -252,11 +253,8 @@ func NewAppService(
 	GitOpsManifestPushService GitOpsPushService,
 	helmRepoPushService HelmRepoPushService,
 	DockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
-	scopedVariableService variables.ScopedVariableService,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+	scopedVariableManager variables.ScopedVariableCMCSManager,
 ) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
@@ -320,11 +318,8 @@ func NewAppService(
 		GitOpsManifestPushService:              GitOpsManifestPushService,
 		helmRepoPushService:                    helmRepoPushService,
 		DockerArtifactStoreRepository:          DockerArtifactStoreRepository,
-		variableSnapshotHistoryService:         variableSnapshotHistoryService,
-		scopedVariableService:                  scopedVariableService,
-		variableEntityMappingService:           variableEntityMappingService,
-		variableTemplateParser:                 variableTemplateParser,
 		argoClientWrapperService:               argoClientWrapperService,
+		scopedVariableManager:                  scopedVariableManager,
 	}
 	return appServiceImpl
 }
@@ -1155,7 +1150,7 @@ func (impl *AppServiceImpl) autoHealChartLocationInChart(ctx context.Context, en
 }
 
 // FIXME tmp workaround
-func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int, isJob bool) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
+func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int, isJob bool, scope resourceQualifiers.Scope) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
 	var configMapJson string
 	var secretDataJson string
 	var configMapJsonApp string
@@ -1220,7 +1215,13 @@ func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int, isJob bool) (*b
 			return nil, nil, err
 		}
 	}
-	return &configResponse, &secretResponse, nil
+
+	resolvedConfigResponse, resolvedSecretResponse, err := impl.scopedVariableManager.ResolveForPrePostStageTrigger(scope, configResponse, secretResponse, configMapA.Id, configMapE.Id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resolvedConfigResponse, resolvedSecretResponse, nil
 }
 
 // depricated
@@ -1411,4 +1412,9 @@ const replicaCount = "replicaCount"
 
 func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
 	return impl.globalEnvVariables.GitOpsRepoPrefix
+}
+
+func (impl *AppServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
+	return impl.appStatusConfig.EnableAsyncInstallDevtronChart &&
+		deploymentAppType == bean2.Helm
 }

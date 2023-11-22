@@ -12,12 +12,14 @@ require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/caarlos0/env/v6 v6.7.2
 	github.com/casbin/casbin v1.9.1
+	github.com/casbin/casbin/v2 v2.77.2
 	github.com/casbin/xorm-adapter v1.0.1-0.20190716004226-a317737a1007
+	github.com/casbin/xorm-adapter/v2 v2.5.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.31
-	github.com/devtron-labs/common-lib-private v0.0.5
+	github.com/devtron-labs/common-lib-private v0.0.7
 	github.com/devtron-labs/protos v0.0.0-20230503113602-282404f70fd2
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -52,7 +54,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/satori/go.uuid v1.2.0
 	github.com/stretchr/testify v1.8.4
-	github.com/tidwall/gjson v1.14.3
+	github.com/tidwall/gjson v1.17.0
 	github.com/tidwall/sjson v1.2.4
 	github.com/xanzy/go-gitlab v0.60.0
 	github.com/xeipuuv/gojsonschema v1.2.0
@@ -154,6 +156,7 @@ require (
 	github.com/go-xorm/xorm v0.7.9 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-github/v41 v41.0.0 // indirect
@@ -228,8 +231,9 @@ require (
 	github.com/src-d/gcfg v1.4.0 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
+	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.1 // indirect
@@ -284,8 +288,9 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.13.6 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	upper.io/db.v3 v3.8.0+incompatible // indirect
-	xorm.io/builder v0.3.6 // indirect
+	xorm.io/builder v0.3.7 // indirect
 	xorm.io/core v0.7.2 // indirect
+	xorm.io/xorm v1.0.3 // indirect
 )
 
 replace (

@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type App struct {
@@ -45,6 +46,7 @@ type AppRepository interface {
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
 	Update(app *App) error
 	UpdateWithTxn(app *App, tx *pg.Tx) error
+	SetDescription(id int, description string, userId int32) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
 	FindJobByDisplayName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
@@ -114,6 +116,13 @@ func (repo AppRepositoryImpl) Update(app *App) error {
 
 func (repo AppRepositoryImpl) UpdateWithTxn(app *App, tx *pg.Tx) error {
 	err := tx.Update(app)
+	return err
+}
+
+func (repo AppRepositoryImpl) SetDescription(id int, description string, userId int32) error {
+	_, err := repo.dbConnection.Model((*App)(nil)).
+		Set("description = ?", description).Set("updated_by = ?", userId).Set("updated_on = ?", time.Now()).
+		Where("id = ?", id).Update()
 	return err
 }
 

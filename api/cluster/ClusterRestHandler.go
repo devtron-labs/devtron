@@ -53,6 +53,7 @@ type ClusterRestHandler interface {
 	FindNoteByClusterId(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
 	UpdateVirtualCluster(w http.ResponseWriter, r *http.Request)
+	UpdateClusterDescription(w http.ResponseWriter, r *http.Request)
 	UpdateClusterNote(w http.ResponseWriter, r *http.Request)
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
 	DeleteCluster(w http.ResponseWriter, r *http.Request)
@@ -531,6 +532,45 @@ func (impl ClusterRestHandlerImpl) UpdateVirtualCluster(w http.ResponseWriter, r
 
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 
+}
+
+func (impl ClusterRestHandlerImpl) UpdateClusterDescription(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("service err, Update", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean cluster.ClusterBean
+	err = decoder.Decode(&bean)
+	if err != nil {
+		impl.logger.Errorw("request err, UpdateClusterDescription", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Infow("request payload, UpdateClusterDescription", "payload", bean)
+	//TODO: add apt validation
+	clusterDescription, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", bean.Id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	// RBAC enforcer applying
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, strings.ToLower(clusterDescription.ClusterName)); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer ends
+	err = impl.clusterService.UpdateClusterDescription(&bean, userId)
+	if err != nil {
+		impl.logger.Errorw("service err, UpdateClusterDescription", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, "Cluster description updated successfully", http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *http.Request) {

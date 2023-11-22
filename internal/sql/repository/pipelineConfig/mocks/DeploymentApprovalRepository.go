@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	mock "github.com/stretchr/testify/mock"
 )
 
