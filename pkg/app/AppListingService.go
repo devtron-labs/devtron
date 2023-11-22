@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
+	"golang.org/x/exp/slices"
 	"net/http"
 	"strconv"
 	"strings"
@@ -427,6 +428,14 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 	} else if util.IsErrNoRows(err) {
 		return false, nil
 	} else {
+		cdWfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), override.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.Logger.Errorw("error in getting latest wfr by pipelineId", "err", err, "cdWorkflowId", override.CdWorkflowId)
+			return false, err
+		}
+		if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue}, cdWfr.Status) {
+			return false, nil
+		}
 		return models.DEPLOYMENTTYPE_STOP == override.DeploymentType, nil
 	}
 }
@@ -445,6 +454,16 @@ func (impl AppListingServiceImpl) ISLastReleaseStopTypeV2(pipelineIds []int) (ma
 	}
 	for _, override := range overrides {
 		if _, ok := releaseMap[override.PipelineId]; !ok {
+			cdWfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), override.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+			if err != nil {
+				impl.Logger.Errorw("error in getting latest wfr by pipelineId", "err", err, "cdWorkflowId", override.CdWorkflowId)
+				releaseMap[override.PipelineId] = false
+				continue
+			}
+			if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue}, cdWfr.Status) {
+				releaseMap[override.PipelineId] = false
+				continue
+			}
 			isStopType := models.DEPLOYMENTTYPE_STOP == override.DeploymentType
 			releaseMap[override.PipelineId] = isStopType
 		}

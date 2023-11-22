@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
 )
 
@@ -122,6 +123,7 @@ type CiPipeline struct {
 	LastTriggeredEnvId       int                    `json:"lastTriggeredEnvId"`
 	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
 	DefaultTag               []string               `json:"defaultTag,omitempty"`
+	EnableCustomTag          bool                   `json:"enableCustomTag"`
 }
 
 type DockerConfigOverride struct {
@@ -245,6 +247,7 @@ type CiMaterialPatchRequest struct {
 type CustomTagData struct {
 	TagPattern string `json:"tagPattern"`
 	CounterX   int    `json:"counterX"`
+	Enabled    bool   `json:"enabled"`
 }
 
 type CiMaterialValuePatchRequest struct {
@@ -574,7 +577,9 @@ type CDPipelineConfigObject struct {
 	SourceToNewPipelineId         map[int]int                            `json:"sourceToNewPipelineId,omitempty"`
 	RefPipelineId                 int                                    `json:"refPipelineId,omitempty"`
 	ExternalCiPipelineId          int                                    `json:"externalCiPipelineId,omitempty"`
-	IsProdEnv                     bool                                   `json:"isProdEnv"`
+	CustomTagObject               *CustomTagData                         `json:"customTag"`
+	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage"`
+	EnableCustomTag               bool                                   `json:"enableCustomTag"`
 	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
 }
 
@@ -750,6 +755,11 @@ type CiArtifactBean struct {
 	ExternalCiPipelineId          int                       `json:"-"`
 	ParentCiArtifact              int                       `json:"-"`
 	CiWorkflowId                  int                       `json:"-"`
+	RegistryType                  string                    `json:"registryType"`
+	RegistryName                  string                    `json:"registryName"`
+	CiPipelineId                  int                       `json:"-"`
+	CredentialsSourceType         string                    `json:"-"`
+	CredentialsSourceValue        string                    `json:"-"`
 }
 
 type CiArtifactResponse struct {
