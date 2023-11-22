@@ -66,7 +66,7 @@ The **Configurations** tab of your application group allows you to configure the
 * [ConfigMaps](../reference/glossary.md#configmaps)
 * [Secrets](../reference/glossary.md#secrets)
 
-As shown above, you can handle the configurations of more than one application from a single screen.
+As shown below, you can handle the configurations of more than one application from a single screen.
 
 ![Figure 8: Configurations of each App](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/configurations.jpg)
 
@@ -79,7 +79,7 @@ The **Build & Deploy** tab of your application group helps you deploy one or mor
 
     ![Figure 9: Deploy Option](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-app-deploy.jpg)
 
-2. Select the application and the CI build for which you want to trigger the deployment.
+2. Select the application and the CI build (image) for which you want to trigger the deployment.
 
     ![Figure 10: Selecting Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-image-1.jpg)
 
@@ -136,6 +136,6 @@ Assume you have a few applications whose [build pipelines](../reference/glossary
 
     ![Figure 20: Changing Branch](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/change-branch.jpg)
 
-2. Enter the new branch name (or the new regular expression if you are using branch regex) and click **Update Branch**.
+2. Enter the new branch name (*or the new regular expression if you are using branch regex*) and click **Update Branch**.
 
     ![Figure 21: Updating Branch Name](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/update-branch.jpg)
