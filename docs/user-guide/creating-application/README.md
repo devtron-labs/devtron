@@ -8,17 +8,23 @@
 
 [Git Repository](git-material.md)
 
-[Docker Configuration](docker-build-configuration.md)
+[Build Configuration](docker-build-configuration.md)
 
-[Deployment Template](deployment-template.md)
+[Base Deployment Template](deployment-template.md)
 
-[Workflows](workflow/)
+[Workflow Editor](workflow/README.md)
 
-[Config Maps](config-maps.md)
+[ConfigMaps](config-maps.md)
 
 [Secrets](secrets.md)
 
+[External Links](external-links.md)
+
+[Protect Configuration](config-approval.md)
+
 [Environment Overrides](environment-overrides.md)
 
-[Application Metrics](app-metrics.md)
+[Deleting Application](../deleting-application.md)
+
+<!-- [Application Metrics](app-metrics.md) -->
 
