@@ -11,6 +11,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -1015,6 +1016,16 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		return nil, err
 	}
 	response := make(map[string]map[string]any)
+	var cdPipelineIds []int
+
+	for _, pipeline := range pipelines {
+		cdPipelineIds = append(cdPipelineIds, pipeline.Id)
+	}
+	deploymentTypeMap, err := impl.pipelineRepository.FindDeploymentTypeByPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deploymentTypes", "pipelineIds", cdPipelineIds, "err", err)
+		return nil, err
+	}
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
@@ -1022,6 +1033,14 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			pResponse := make(map[string]any)
 			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
+		}
+		if deploymentTypeMap[pipeline.Id] == models.DEPLOYMENTTYPE_STOP {
+			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = true
+			pipelineResponse[Error] = "Hibernation already initiated"
+			response[appKey] = pipelineResponse
+			continue
 		}
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
@@ -1145,6 +1164,15 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
 	}
+	var cdPipelineIds []int
+	for _, pipeline := range pipelines {
+		cdPipelineIds = append(cdPipelineIds, pipeline.Id)
+	}
+	deploymentTypeMap, err := impl.pipelineRepository.FindDeploymentTypeByPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deploymentTypes", "pipelineIds", cdPipelineIds, "err", err)
+		return nil, err
+	}
 	response := make(map[string]map[string]any)
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
@@ -1154,6 +1182,14 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			pResponse := make(map[string]any)
 			pResponse[pipelineKey] = false
 			response[appKey] = pResponse
+		}
+		if deploymentTypeMap[pipeline.Id] == models.DEPLOYMENTTYPE_START {
+			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = true
+			pipelineResponse[Error] = "UnHibernation already initiated"
+			response[appKey] = pipelineResponse
+			continue
 		}
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)

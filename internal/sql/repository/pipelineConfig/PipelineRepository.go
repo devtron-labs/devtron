@@ -20,6 +20,7 @@ package pipelineConfig
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -110,6 +111,7 @@ type PipelineRepository interface {
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
+	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]models.DeploymentType, error)
 }
 
 type CiArtifactDTO struct {
@@ -668,5 +670,31 @@ func (impl PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cd
 	for _, pipelineId := range pipelineIds {
 		pipelineIdsMap[pipelineId] = true
 	}
+	return pipelineIdsMap, nil
+}
+
+func (impl PipelineRepositoryImpl) FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]models.DeploymentType, error) {
+
+	pipelineIdsMap := make(map[int]models.DeploymentType)
+
+	type deploymentTypeDTO struct {
+		DeploymentType models.DeploymentType `sql:"deployment_type"`
+		PipelineId     int                   `sql:"pipeline_id"`
+	}
+
+	var deploymentType []deploymentTypeDTO
+	query := "with pcos as(select max(id) as id from pipeline_config_override where pipeline_id in (?)" +
+		" group by pipeline_id) select deployment_type,pipeline_id from pipeline_config_override pco inner" +
+		" join pcos on pcos.id=pco.id;"
+
+	_, err := impl.dbConnection.Query(&deploymentType, query, pg.In(cdPipelineIds), true)
+	if err != nil {
+		return pipelineIdsMap, err
+	}
+
+	for _, v := range deploymentType {
+		pipelineIdsMap[v.PipelineId] = v.DeploymentType
+	}
+
 	return pipelineIdsMap, nil
 }
