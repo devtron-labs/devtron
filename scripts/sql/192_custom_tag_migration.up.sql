@@ -1,0 +1,1 @@
+update custom_tag set enabled=true where active=true;

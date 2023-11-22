@@ -337,7 +337,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 
 	//If customTagObject has been passed, create or update the resource
 	//Otherwise deleteIfExists
-	if len(createRequest.CustomTagObject.TagPattern) > 0 {
+	if createRequest.CustomTagObject != nil && len(createRequest.CustomTagObject.TagPattern) > 0 {
 		customTag := bean4.CustomTag{
 			EntityKey:            bean2.EntityTypeCiPipelineId,
 			EntityValue:          strconv.Itoa(ciPipelineObject.Id),
