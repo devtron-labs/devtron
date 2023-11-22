@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -169,6 +170,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 const (
 	AuthorizationError = "authError"
 	Error              = "error"
+	Skipped            = "skipped"
 )
 
 func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateSeeExampleResponse, error) {
@@ -1034,11 +1036,16 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
-		if deploymentTypeMap[pipeline.Id] == models.DEPLOYMENTTYPE_STOP {
+		deploymentHistory := deploymentTypeMap[pipeline.Id]
+		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_STOP {
 			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = true
-			pipelineResponse[Error] = "Hibernation already initiated"
+			if deploymentHistory.Status == application.Progressing {
+				pipelineResponse[Skipped] = "Hibernation already in progress"
+			} else {
+				pipelineResponse[Skipped] = "Application is already hibernated"
+			}
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1183,11 +1190,16 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			pResponse[pipelineKey] = false
 			response[appKey] = pResponse
 		}
-		if deploymentTypeMap[pipeline.Id] == models.DEPLOYMENTTYPE_START {
+		deploymentHistory := deploymentTypeMap[pipeline.Id]
+		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_START {
 			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = true
-			pipelineResponse[Error] = "UnHibernation already initiated"
+			if deploymentHistory.Status == application.Progressing {
+				pipelineResponse[Skipped] = "Un-hibernation already in progress"
+			} else {
+				pipelineResponse[Skipped] = "Application is already un-hibernated"
+			}
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1236,6 +1248,8 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 				appMap[AuthorizationError] = value
 			} else if key == Error {
 				appMap[Error] = value
+			} else if key == Skipped {
+				appMap[Skipped] = value
 			} else {
 				appMap["success"] = value
 			}
