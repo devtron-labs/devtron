@@ -1,4 +1,5 @@
 ## Bugs
+- fix: DevtronApp Deployment Status Fixed (#4267)
 - fix: deleted service showing port as missing fix (#4240)
 - fix: kubernetes events fix for resources (#4247)
 - fix:post-cd plugin not getting added again, after removing and adding again (#4219)
