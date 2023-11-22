@@ -1,4 +1,5 @@
 ## Bugs
+- fix: No rows for rest config in case of Default namespace (#4269)
 - fix: DevtronApp Deployment Status Fixed (#4267)
 - fix: deleted service showing port as missing fix (#4240)
 - fix: kubernetes events fix for resources (#4247)
