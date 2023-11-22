@@ -21,6 +21,7 @@
 - feat: pre-postcd trigger with plugin (#4176)
 - feat: upload and download logs/artifact from blob storage configured in external cluster (#4138)
 ## Documentation
+- docs: App Configuration Corrections + Structuring (#4235)
 - docs: Added Filter Doc in Index (#4253)
 - docs: Filter Condition Doc (#4224)
 - docs: Updated chart parameters in doc for deployment and rollout deployment chart (#4218)
