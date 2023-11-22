@@ -129,6 +129,7 @@ type PipelineConfigRestHandlerImpl struct {
 	imageTaggingService          pipeline.ImageTaggingService
 	deploymentTemplateService    generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
+	ciArtifactRepository         repository.CiArtifactRepository
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -152,7 +153,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageTaggingService pipeline.ImageTaggingService) *PipelineConfigRestHandlerImpl {
+	imageTaggingService pipeline.ImageTaggingService,
+	ciArtifactRepository repository.CiArtifactRepository) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -189,6 +191,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		imageTaggingService:          imageTaggingService,
 		deploymentTemplateService:    deploymentTemplateService,
 		pipelineRestHandlerEnvConfig: envConfig,
+		ciArtifactRepository:         ciArtifactRepository,
 	}
 }
 

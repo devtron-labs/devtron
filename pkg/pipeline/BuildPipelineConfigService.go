@@ -628,7 +628,9 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			ciPipeline.CustomTagObject = &bean.CustomTagData{
 				TagPattern: customTag.TagPattern,
 				CounterX:   customTag.AutoIncreasingNumber,
+				Enabled:    customTag.Enabled,
 			}
+			ciPipeline.EnableCustomTag = customTag.Enabled
 		}
 		if ciEnvMapping.Id > 0 {
 			ciPipeline.EnvironmentId = ciEnvMapping.EnvironmentId
@@ -766,6 +768,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 			TagPattern: customTag.TagPattern,
 			CounterX:   customTag.AutoIncreasingNumber,
 		}
+		ciPipeline.EnableCustomTag = customTag.Enabled
 	}
 	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipelineId)
 	if err != nil && err != pg.ErrNoRows {

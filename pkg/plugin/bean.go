@@ -117,3 +117,13 @@ type ScriptPathArgPortMapping struct {
 	PortOnContainer     int                          `json:"portOnContainer"`
 	ScriptId            int                          `json:"scriptId"`
 }
+
+type RegistryCredentials struct {
+	RegistryType       string `json:"registryType" validate:"required"`
+	RegistryURL        string `json:"registryURL"`
+	Username           string `json:"username"`
+	Password           string `json:"password"`
+	AWSAccessKeyId     string `json:"awsAccessKeyId,omitempty"`
+	AWSSecretAccessKey string `json:"awsSecretAccessKey,omitempty"`
+	AWSRegion          string `json:"awsRegion,omitempty"`
+}

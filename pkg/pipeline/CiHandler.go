@@ -623,6 +623,14 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
 		return 0, err
 	}
+	imagePathReservationIds := workflow.ImagePathReservationIds
+	if len(imagePathReservationIds) > 0 {
+		err = impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
+		if err != nil {
+			impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
+			return 0, err
+		}
+	}
 	return workflow.Id, nil
 }
 
