@@ -1194,7 +1194,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_START {
 			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = true
+			pipelineResponse[pipelineKey] = false
 			if deploymentHistory.Status == application.Progressing {
 				pipelineResponse[Skipped] = "Un-hibernation already in progress"
 			} else {
