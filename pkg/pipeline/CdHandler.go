@@ -55,6 +55,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/strings/slices"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -508,7 +509,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 	}
 	impl.Logger.Debugw("checking helm app status for non terminal deployment triggers", "wfrList", wfrList, "number of wfr", len(wfrList))
 	for _, wfr := range wfrList {
-		if time.Now().Sub(wfr.UpdatedOn) <= time.Duration(helmPipelineStatusCheckEligibleTime)*time.Second {
+		if time.Now().Sub(wfr.StartedOn) <= time.Duration(helmPipelineStatusCheckEligibleTime)*time.Second {
 			//if wfr is updated within configured time then do not include for this cron cycle
 			continue
 		}
@@ -517,46 +518,29 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			Namespace:   wfr.CdWorkflow.Pipeline.Environment.Namespace,
 			ReleaseName: wfr.CdWorkflow.Pipeline.DeploymentAppName,
 		}
-		helmAppStatus, err := impl.helmAppService.GetApplicationStatus(context.Background(), appIdentifier)
-		if err != nil {
-			impl.Logger.Errorw("error in getting helm app release status ", "appIdentifier", appIdentifier, "err", err)
-			//return err
-			//skip this error and continue for next workflow status
-			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
-
-			// Handle release not found errors
-			if !strings.Contains(err.Error(), "release: not found") {
-				continue
-			}
-		}
-		if helmAppStatus == application.Healthy {
-			wfr.Status = pipelineConfig.WorkflowSucceeded
-			wfr.FinishedOn = time.Now()
-
-		} else if err != nil && strings.Contains(err.Error(), "release: not found") {
-			// If release not found, mark the deployment as failure
-			wfr.Status = pipelineConfig.WorkflowFailed
-
-		} else {
-			wfr.Status = pipelineConfig.WorkflowInProgress
+		if isWfrUpdated := impl.workflowDagExecutor.UpdateWorkflowRunnerStatusForDeployment(appIdentifier, wfr, true); !isWfrUpdated {
+			continue
 		}
 		wfr.UpdatedBy = 1
 		wfr.UpdatedOn = time.Now()
+		if wfr.Status == pipelineConfig.WorkflowFailed {
+			err = impl.workflowDagExecutor.MarkPipelineStatusTimelineFailed(wfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED))
+			if err != nil {
+				impl.Logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
+				return err
+			}
+		}
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(wfr)
 		if err != nil {
 			impl.Logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
 		}
-		cdMetrics := util3.CDMetrics{
-			AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
-			Status:          wfr.Status,
-			DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
-			EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
-			Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
+		if slices.Contains(pipelineConfig.WfrTerminalStatusList, wfr.Status) {
+			impl.workflowDagExecutor.UpdateTriggerCDMetricsOnFinish(wfr)
 		}
-		util3.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
+
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
-		if helmAppStatus == application.Healthy {
+		if wfr.Status == pipelineConfig.WorkflowSucceeded {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
 			if err != nil {
 				impl.Logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
