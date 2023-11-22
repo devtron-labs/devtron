@@ -517,6 +517,9 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 			return true
 		}
 	}
+	if wfr.Status == pipelineConfig.WorkflowInProgress {
+		return false
+	}
 	wfr.Status = pipelineConfig.WorkflowInProgress
 	return true
 }
