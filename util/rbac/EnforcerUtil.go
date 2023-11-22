@@ -69,6 +69,7 @@ type EnforcerUtil interface {
 	GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string
 	GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string
 	GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string
+	GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId int, envName string) string
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
@@ -650,7 +651,11 @@ func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPi
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	application, err := impl.appRepo.FindAppAndProjectByAppId(ciPipeline.AppId)
+	return impl.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(ciPipeline.AppId, envId, envName)
+
+}
+func (impl EnforcerUtilImpl) GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId int, envName string) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
