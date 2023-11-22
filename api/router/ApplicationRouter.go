@@ -79,7 +79,8 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 	router.Path("/{applicationName}/managed-resources").
 		Methods("GET").
 		HandlerFunc(r.handler.ManagedResources)
-	router.Path("/{name}/rollback").
+	router.Path("/{name}" +
+		"/rollback").
 		Methods("GET").
 		HandlerFunc(r.handler.Rollback)
 

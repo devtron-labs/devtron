@@ -671,7 +671,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
 	if errors.Is(err, bean1.ErrImagePathInUse) {
 		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
-		common.WriteJsonResp(w, err, response, http.StatusConflict)
+		common.WriteJsonResp(w, err, err, http.StatusConflict)
 		return
 	}
 	if err != nil {
@@ -2044,27 +2044,49 @@ func (handler PipelineConfigRestHandlerImpl) extractCipipelineMetaForImageTags(a
 	externalCi = false
 	ciPipelineId = 0
 	appId = 0
-
-	ciPipeline, err := handler.ciPipelineRepository.GetCiPipelineByArtifactId(artifactId)
-	var externalCiPipeline *pipelineConfig.ExternalCiPipeline
+	ciArtifact, err := handler.ciArtifactRepository.Get(artifactId)
 	if err != nil {
-		if err == pg.ErrNoRows {
-			handler.Logger.Infow("no ciPipeline found by artifact Id, fetching external ci-pipeline ", "artifactId", artifactId)
-			externalCiPipeline, err = handler.ciPipelineRepository.GetExternalCiPipelineByArtifactId(artifactId)
-		}
+		handler.Logger.Errorw("Error in fetching ci artifact by ci artifact id", "err", err)
+		return externalCi, ciPipelineId, appId, err
+	}
+	if ciArtifact.DataSource == repository.POST_CI {
+		ciPipelineId = ciArtifact.ComponentId
+		ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(ciPipelineId)
 		if err != nil {
-			handler.Logger.Errorw("error occurred in fetching ciPipeline/externalCiPipeline by artifact Id ", "err", err, "artifactId", artifactId)
+			handler.Logger.Errorw("no ci pipeline found for given artifact", "err", err, "artifactId", artifactId, "ciPipelineId", ciPipelineId)
 			return externalCi, ciPipelineId, appId, err
 		}
-	}
-
-	if ciPipeline.Id != 0 {
-		ciPipelineId = ciPipeline.Id
 		appId = ciPipeline.AppId
+	} else if ciArtifact.DataSource == repository.PRE_CD || ciArtifact.DataSource == repository.POST_CD {
+		cdPipelineId := ciArtifact.ComponentId
+		cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(cdPipelineId)
+		if err != nil {
+			handler.Logger.Errorw("no cd pipeline found for given artifact", "err", err, "artifactId", artifactId, "cdPipelineId", cdPipelineId)
+			return externalCi, ciPipelineId, appId, err
+		}
+		ciPipelineId = cdPipeline.CiPipelineId
+		appId = cdPipeline.AppId
 	} else {
-		externalCi = true
-		ciPipelineId = externalCiPipeline.Id
-		appId = externalCiPipeline.AppId
+		ciPipeline, err := handler.ciPipelineRepository.GetCiPipelineByArtifactId(artifactId)
+		var externalCiPipeline *pipelineConfig.ExternalCiPipeline
+		if err != nil {
+			if err == pg.ErrNoRows {
+				handler.Logger.Infow("no ciPipeline found by artifact Id, fetching external ci-pipeline ", "artifactId", artifactId)
+				externalCiPipeline, err = handler.ciPipelineRepository.GetExternalCiPipelineByArtifactId(artifactId)
+			}
+			if err != nil {
+				handler.Logger.Errorw("error occurred in fetching ciPipeline/externalCiPipeline by artifact Id ", "err", err, "artifactId", artifactId)
+				return externalCi, ciPipelineId, appId, err
+			}
+		}
+		if ciPipeline.Id != 0 {
+			ciPipelineId = ciPipeline.Id
+			appId = ciPipeline.AppId
+		} else {
+			externalCi = true
+			ciPipelineId = externalCiPipeline.Id
+			appId = externalCiPipeline.AppId
+		}
 	}
 	return externalCi, ciPipelineId, appId, nil
 }
