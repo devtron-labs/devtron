@@ -1308,7 +1308,7 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name, description string
 	displayName := name
 	appName := name
 	if appType == helper.Job {
-		appName = name + "/" + util2.Generate(8) + "J"
+		appName = name + "-" + util2.Generate(8) + "J"
 	}
 	pg := &app2.App{
 		Active:      true,
