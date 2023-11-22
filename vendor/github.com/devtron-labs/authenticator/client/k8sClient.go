@@ -46,7 +46,8 @@ type K8sClient struct {
 }
 
 type RuntimeConfig struct {
-	LocalDevMode LocalDevMode `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false"`
+	LocalDevMode                LocalDevMode `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false"`
+	DevtronDefaultNamespaceName string       `env:"DEVTRON_DEFAULT_NAMESPACE" envDefault:"devtroncd"`
 }
 
 func GetRuntimeConfig() (*RuntimeConfig, error) {
@@ -66,7 +67,7 @@ func NewK8sClient(runtimeConfig *RuntimeConfig) (*K8sClient, error) {
 	}, nil
 }
 
-//TODO use it as generic function across system
+// TODO use it as generic function across system
 func getKubeConfig(devMode LocalDevMode) (*rest.Config, error) {
 	if devMode {
 		usr, err := user.Current()
@@ -98,11 +99,11 @@ func (impl *K8sClient) GetArgocdConfig() (secret *v1.Secret, cm *v1.ConfigMap, e
 	if err != nil {
 		return nil, nil, err
 	}
-	secret, err = clientSet.CoreV1().Secrets(DevtronDefaultNamespaceName).Get(context.Background(), ArgocdSecretName, v12.GetOptions{})
+	secret, err = clientSet.CoreV1().Secrets(impl.runtimeConfig.DevtronDefaultNamespaceName).Get(context.Background(), ArgocdSecretName, v12.GetOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
-	cm, err = clientSet.CoreV1().ConfigMaps(DevtronDefaultNamespaceName).Get(context.Background(), ArgocdConfigMapName, v12.GetOptions{})
+	cm, err = clientSet.CoreV1().ConfigMaps(impl.runtimeConfig.DevtronDefaultNamespaceName).Get(context.Background(), ArgocdConfigMapName, v12.GetOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -118,7 +119,7 @@ func (impl *K8sClient) GetDevtronConfig() (secret *v1.Secret, err error) {
 	if err != nil {
 		return nil, err
 	}
-	secret, err = clientSet.CoreV1().Secrets("devtroncd-1").Get(context.Background(), dexConfig.DevtronSecretName, v12.GetOptions{})
+	secret, err = clientSet.CoreV1().Secrets(impl.runtimeConfig.DevtronDefaultNamespaceName).Get(context.Background(), dexConfig.DevtronSecretName, v12.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -132,16 +133,14 @@ const (
 	SettingAdminPasswordMtimeKey = "admin.passwordMtime"
 	SettingAdminEnabledKey       = "admin.enabled"
 	SettingAdminTokensKey        = "admin.tokens"
-
-	SettingServerSignatureKey   = "server.secretkey"
-	SettingURLKey               = "url"
-	DevtronDefaultNamespaceName = "devtroncd"
-	CallbackEndpoint            = "/auth/callback"
-	SettingDexConfigKey         = "dex.config"
-	DexCallbackEndpoint         = "/api/dex/callback"
-	InitialPasswordLength       = 16
-	DevtronSecretName           = "devtron-secret"
-	DevtronConfigMapName        = "devtron-cm"
+	SettingServerSignatureKey    = "server.secretkey"
+	SettingURLKey                = "url"
+	CallbackEndpoint             = "/auth/callback"
+	SettingDexConfigKey          = "dex.config"
+	DexCallbackEndpoint          = "/api/dex/callback"
+	InitialPasswordLength        = 16
+	DevtronSecretName            = "devtron-secret"
+	DevtronConfigMapName         = "devtron-cm"
 
 	ArgocdConfigMapName        = "argocd-cm"
 	ArgocdSecretName           = "argocd-secret"
@@ -272,7 +271,7 @@ func (impl *K8sClient) ConfigUpdateNotify() (chan bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(clusterClient, time.Minute, kubeinformers.WithNamespace(DevtronDefaultNamespaceName))
+	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(clusterClient, time.Minute, kubeinformers.WithNamespace(impl.runtimeConfig.DevtronDefaultNamespaceName))
 	cmInformenr := informerFactory.Core().V1().ConfigMaps()
 	secretInformer := informerFactory.Core().V1().Secrets()
 	chanConfigUpdate := make(chan bool)
