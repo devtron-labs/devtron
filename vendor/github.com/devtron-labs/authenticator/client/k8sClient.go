@@ -118,7 +118,7 @@ func (impl *K8sClient) GetDevtronConfig() (secret *v1.Secret, err error) {
 	if err != nil {
 		return nil, err
 	}
-	secret, err = clientSet.CoreV1().Secrets(DevtronDefaultNamespaceName).Get(context.Background(), dexConfig.DevtronSecretName, v12.GetOptions{})
+	secret, err = clientSet.CoreV1().Secrets("devtroncd-1").Get(context.Background(), dexConfig.DevtronSecretName, v12.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
