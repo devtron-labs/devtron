@@ -60,7 +60,7 @@ type GitOpsConfigService interface {
 	GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigByProvider(provider string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
-	ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) (bool, error)
+	ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) DetailedErrorGitOpsConfigResponse
 }
 
 const (
@@ -99,19 +99,20 @@ type ValidateCustomGitRepoURLRequest struct {
 }
 
 type GitOpsConfigServiceImpl struct {
-	randSource           rand.Source
-	logger               *zap.SugaredLogger
-	globalEnvVariables   *util2.GlobalEnvVariables
-	gitOpsRepository     repository.GitOpsConfigRepository
-	K8sUtil              *util4.K8sUtil
-	aCDAuthConfig        *util3.ACDAuthConfig
-	clusterService       cluster.ClusterService
-	envService           cluster.EnvironmentService
-	versionService       argocdServer.VersionService
-	gitFactory           *util.GitFactory
-	chartTemplateService util.ChartTemplateService
-	argoUserService      argo.ArgoUserService
-	clusterServiceCD     cluster2.ServiceClient
+	randSource                       rand.Source
+	logger                           *zap.SugaredLogger
+	globalEnvVariables               *util2.GlobalEnvVariables
+	gitOpsRepository                 repository.GitOpsConfigRepository
+	K8sUtil                          *util4.K8sUtil
+	aCDAuthConfig                    *util3.ACDAuthConfig
+	clusterService                   cluster.ClusterService
+	envService                       cluster.EnvironmentService
+	versionService                   argocdServer.VersionService
+	gitFactory                       *util.GitFactory
+	chartTemplateService             util.ChartTemplateService
+	argoUserService                  argo.ArgoUserService
+	clusterServiceCD                 cluster2.ServiceClient
+	isDefaultAppLevelGitOpsValidated DetailedErrorGitOpsConfigResponse //cache for app level default validation
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
@@ -120,19 +121,20 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
 	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService, clusterServiceCD cluster2.ServiceClient) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
-		randSource:           rand.NewSource(time.Now().UnixNano()),
-		logger:               Logger,
-		globalEnvVariables:   globalEnvVariables,
-		gitOpsRepository:     gitOpsRepository,
-		K8sUtil:              K8sUtil,
-		aCDAuthConfig:        aCDAuthConfig,
-		clusterService:       clusterService,
-		envService:           envService,
-		versionService:       versionService,
-		gitFactory:           gitFactory,
-		chartTemplateService: chartTemplateService,
-		argoUserService:      argoUserService,
-		clusterServiceCD:     clusterServiceCD,
+		randSource:                       rand.NewSource(time.Now().UnixNano()),
+		logger:                           Logger,
+		globalEnvVariables:               globalEnvVariables,
+		gitOpsRepository:                 gitOpsRepository,
+		K8sUtil:                          K8sUtil,
+		aCDAuthConfig:                    aCDAuthConfig,
+		clusterService:                   clusterService,
+		envService:                       envService,
+		versionService:                   versionService,
+		gitFactory:                       gitFactory,
+		chartTemplateService:             chartTemplateService,
+		argoUserService:                  argoUserService,
+		clusterServiceCD:                 clusterServiceCD,
+		isDefaultAppLevelGitOpsValidated: DetailedErrorGitOpsConfigResponse{ValidationSkipped: true},
 	}
 }
 
@@ -147,6 +149,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
 			return detailedErrorGitOpsConfigResponse, err
 		}
+		impl.isDefaultAppLevelGitOpsValidated = detailedErrorGitOpsConfigResponse //reset the cache as the GitOps config is updated
 	}
 	return detailedErrorGitOpsConfigResponse, nil
 }
@@ -170,6 +173,8 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2
 			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", config)
 			return detailedErrorGitOpsConfigResponse, err
 		}
+		impl.isDefaultAppLevelGitOpsValidated = detailedErrorGitOpsConfigResponse //reset the cache as the GitOps config is updated
+
 	}
 	return detailedErrorGitOpsConfigResponse, nil
 }
@@ -804,8 +809,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 }
 
 func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(activeGitOpsConfig *bean2.GitOpsConfigDto) (errorMessageKey string, errorMessage error) {
-	gitProvider := strings.ToUpper(activeGitOpsConfig.Provider)
-	switch gitProvider {
+	switch strings.ToUpper(activeGitOpsConfig.Provider) {
 	case GITHUB_PROVIDER:
 		errorMessageKey = "The repository must belong to GitHub organization"
 		errorMessage = fmt.Errorf("%s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
@@ -823,6 +827,7 @@ func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(ac
 	}
 	return errorMessageKey, errorMessage
 }
+
 func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) DetailedErrorGitOpsConfigResponse {
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
@@ -840,8 +845,17 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 
 	if request.performDefaultValidation {
 		// Validate: Perform Default Validation
+		if !impl.isDefaultAppLevelGitOpsValidated.ValidationSkipped &&
+			len(impl.isDefaultAppLevelGitOpsValidated.StageErrorMap) == 0 {
+			return impl.isDefaultAppLevelGitOpsValidated //use the cached data as response if exists
+		}
+
 		activeGitOpsConfig.AllowCustomRepository = false //overriding the flag to enforce validation
-		return impl.GitOpsValidateDryRun(activeGitOpsConfig)
+		detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(activeGitOpsConfig)
+		if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
+			impl.isDefaultAppLevelGitOpsValidated = detailedErrorGitOpsConfigResponse
+		}
+		return detailedErrorGitOpsConfigResponse
 	}
 
 	if !activeGitOpsConfig.AllowCustomRepository {
@@ -851,6 +865,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		}
 	}
 	repoName := util.GetGitOpsRepoNameFromUrl(request.GitRepoURL)
+	gitProvider := strings.ToUpper(activeGitOpsConfig.Provider)
 
 	// Validate: Get Repository Starts
 	config := &bean2.GitOpsConfigDto{
@@ -861,24 +876,22 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 	repoUrl, err := impl.gitFactory.Client.GetRepoUrl(config)
 	if err != nil || repoUrl == "" {
 		impl.logger.Errorw("fetching repository error", "repoName", repoName, "err", err)
-		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 		if err == nil {
 			err = fmt.Errorf("Please create the repository and try again.")
 		}
 		detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Repository '%s' not found", repoName)] = impl.extractErrorMessageByProvider(err, gitProvider)
-		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+	} else {
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
 	// Validate: Get Repository Ends
 
 	// Validate: Organisational URL starts
 	if !strings.Contains(request.GitRepoURL, repoUrl) {
-		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 		errorKey, errorMsg := impl.getValidationErrorForNonOrganisationalURL(activeGitOpsConfig)
 		detailedErrorGitOpsConfigActions.StageErrorMap[errorKey] = errorMsg
-		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+	} else {
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, ValidateOrganisationalURLStage)
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, ValidateOrganisationalURLStage)
 	// Validate: Organisational URL Ends
 
 	if request.ValidateEmptyRepo {
