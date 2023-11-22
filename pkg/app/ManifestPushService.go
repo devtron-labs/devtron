@@ -62,15 +62,16 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
 		GitRepoURL: manifestPushTemplate.RepoUrl,
 	}
-	isValidGitOpsURL, err := impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateRequest)
-	if isValidGitOpsURL == false {
-		impl.logger.Errorw("invalid gitOps repo URL", "err", err)
-		manifestPushResponse.Error = err
-		impl.SaveTimelineForError(manifestPushTemplate, err)
+	detailedErrorGitOpsConfigResponse := impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateRequest)
+	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
+		errMsg := impl.gitOpsConfigService.ExtractErrorsFromGitOpsConfigResponse(detailedErrorGitOpsConfigResponse)
+		impl.logger.Errorw("invalid gitOps repo URL", "err", errMsg)
+		manifestPushResponse.Error = errMsg //as the pipeline_status_timeline.status_detail is of type TEXT; the length of errMsg won't be an issue
+		impl.SaveTimelineForError(manifestPushTemplate, errMsg)
 		return manifestPushResponse
 	}
 
-	err = impl.PushChartToGitRepo(manifestPushTemplate, ctx)
+	err := impl.PushChartToGitRepo(manifestPushTemplate, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		manifestPushResponse.Error = err

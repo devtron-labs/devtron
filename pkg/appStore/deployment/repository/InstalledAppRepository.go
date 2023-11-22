@@ -100,7 +100,8 @@ type InstalledApps struct {
 	AppId                      int                                   `sql:"app_id,notnull"`
 	EnvironmentId              int                                   `sql:"environment_id,notnull"`
 	Active                     bool                                  `sql:"active, notnull"`
-	GitOpsRepoName             string                                `sql:"git_ops_repo_name"`
+	GitOpsRepoName             string                                `sql:"git_ops_repo_name"` //TODO Asutosh: Here
+	IsCustomRepository         bool                                  `sql:"is_custom_repository"`
 	DeploymentAppType          string                                `sql:"deployment_app_type"`
 	Status                     appStoreBean.AppstoreDeploymentStatus `sql:"status"`
 	DeploymentAppDeleteRequest bool                                  `sql:"deployment_app_delete_request"`

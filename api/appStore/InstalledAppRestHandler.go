@@ -886,10 +886,6 @@ func (handler *InstalledAppRestHandlerImpl) ValidateGitOpsConfigForHelmApp(w htt
 		UserId:            userId,
 		ValidateEmptyRepo: true,
 	}
-	isValidConfig, err := handler.gitOpsService.ValidateCustomGitRepoURL(validateRequest)
-	if !isValidConfig {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	common.WriteJsonResp(w, nil, "RepoURL validated successfully", http.StatusOK)
+	detailedErrorGitOpsConfigResponse := handler.gitOpsService.ValidateCustomGitRepoURL(validateRequest)
+	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 }

@@ -91,7 +91,7 @@ type InstallAppVersionDTO struct {
 	ClusterId                    int                            `json:"clusterId"` // needed for hyperion mode
 	Namespace                    string                         `json:"namespace"` // needed for hyperion mode
 	AppOfferingMode              string                         `json:"appOfferingMode"`
-	GitOpsRepoName               string                         `json:"gitOpsRepoName"`
+	GitOpsRepoName               string                         `json:"gitOpsRepoName"` //TODO Asutosh: here
 	GitOpsPath                   string                         `json:"gitOpsPath"`
 	GitHash                      string                         `json:"gitHash"`
 	EnvironmentName              string                         `json:"-"`
@@ -99,12 +99,12 @@ type InstallAppVersionDTO struct {
 	DeploymentAppType            string                         `json:"deploymentAppType"`
 	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
 	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
+	PerformGitOpsForHelmApp      bool                           `json:"performGitOpsForHelmApp"`
+	PerformGitOps                bool                           `json:"performGitOps"`
+	PerformACDDeployment         bool                           `json:"performACDDeployment"`
+	PerformHelmDeployment        bool                           `json:"performHelmDeployment"`
+	GitRepoURL                   string                         `json:"gitRepoURL"`
 	AppStoreApplicationVersionId int
-	PerformGitOpsForHelmApp      bool   `json:"performGitOpsForHelmApp"`
-	PerformGitOps                bool   `json:"performGitOps"`
-	PerformACDDeployment         bool   `json:"performACDDeployment"`
-	PerformHelmDeployment        bool   `json:"performHelmDeployment"`
-	GitRepoURL                   string `json:"gitRepoURL"`
 }
 
 type InstalledAppDeleteResponseDTO struct {

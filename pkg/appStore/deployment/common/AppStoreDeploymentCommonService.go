@@ -540,8 +540,12 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(ins
 	if err != nil {
 		return nil, false, "", err
 	}
-	//TODO Asutosh: here
-	if !gitOpsConfig.AllowCustomRepository || installAppVersionRequest.GitRepoURL == "Default" {
+	InstalledApp, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
+	if err != nil {
+		impl.logger.Errorw("service err, installedApp", "err", err)
+		return nil, false, "", err
+	}
+	if !(gitOpsConfig.AllowCustomRepository && InstalledApp.IsCustomRepository) {
 		repoURL, isNew, err = impl.CreateGitOpsRepo(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)

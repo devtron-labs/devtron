@@ -14,6 +14,7 @@ type CustomTag struct {
 	AutoIncreasingNumber int      `sql:"auto_increasing_number, notnull"`
 	Active               bool     `sql:"active"`
 	Metadata             string   `sql:"metadata"`
+	Enabled              bool     `sql:"enabled, notnull"`
 }
 
 type ImagePathReservation struct {
@@ -35,6 +36,9 @@ type ImageTagRepository interface {
 	DeleteByEntityKeyAndValue(entityKey int, entityValue string) error
 	DeactivateImagePathReservation(id int) error
 	FetchActiveCustomTagData(entityKey int, entityValue string) (*CustomTag, error)
+	DeactivateImagePathReservationByImagePaths(tx *pg.Tx, imagePaths []string) error
+	DeactivateImagePathReservationByImagePathReservationIds(tx *pg.Tx, imagePathReservationIds []int) error
+	DisableCustomTag(entityKey int, entityValue string) error
 }
 
 type ImageTagRepositoryImpl struct {
@@ -104,4 +108,28 @@ func (impl *ImageTagRepositoryImpl) FindByImagePath(tx *pg.Tx, path string) ([]*
 
 func (impl *ImageTagRepositoryImpl) InsertImagePath(tx *pg.Tx, reservation *ImagePathReservation) error {
 	return tx.Insert(reservation)
+}
+
+func (impl *ImageTagRepositoryImpl) DeactivateImagePathReservationByImagePaths(tx *pg.Tx, imagePaths []string) error {
+	query := `UPDATE image_path_reservation set active=false where image_path in (?)`
+	_, err := tx.Exec(query, pg.In(imagePaths))
+	if err != nil && err != pg.ErrNoRows {
+		return err
+	}
+	return nil
+}
+
+func (impl *ImageTagRepositoryImpl) DeactivateImagePathReservationByImagePathReservationIds(tx *pg.Tx, imagePathReservationIds []int) error {
+	query := `UPDATE image_path_reservation set active=false where id in (?)`
+	_, err := tx.Exec(query, pg.In(imagePathReservationIds))
+	if err != nil && err != pg.ErrNoRows {
+		return err
+	}
+	return nil
+}
+
+func (impl *ImageTagRepositoryImpl) DisableCustomTag(entityKey int, entityValue string) error {
+	query := `update custom_tag set enabled = false where entity_key = ? and entity_value = ?`
+	_, err := impl.dbConnection.Exec(query, entityKey, entityValue)
+	return err
 }

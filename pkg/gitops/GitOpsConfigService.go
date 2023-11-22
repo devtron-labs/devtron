@@ -61,6 +61,7 @@ type GitOpsConfigService interface {
 	GetGitOpsConfigByProvider(provider string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
 	ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) DetailedErrorGitOpsConfigResponse
+	ExtractErrorsFromGitOpsConfigResponse(response DetailedErrorGitOpsConfigResponse) error
 }
 
 const (
@@ -826,6 +827,20 @@ func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(ac
 		errorMessage = fmt.Errorf("%s as configured in global configurations > GitOps", activeGitOpsConfig.AzureProjectName)
 	}
 	return errorMessageKey, errorMessage
+}
+
+func (impl GitOpsConfigServiceImpl) ExtractErrorsFromGitOpsConfigResponse(response DetailedErrorGitOpsConfigResponse) error {
+	if len(response.StageErrorMap) == 0 {
+		return nil
+	}
+	errorMessage := ""
+	for stage, err := range response.StageErrorMap {
+		if errorMessage != "" {
+			errorMessage += "\n"
+		}
+		errorMessage += fmt.Sprintf("%s: %s", stage, err)
+	}
+	return fmt.Errorf(errorMessage)
 }
 
 func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) DetailedErrorGitOpsConfigResponse {
