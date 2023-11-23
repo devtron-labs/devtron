@@ -638,11 +638,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 	if exists {
 		return
 	}
-	err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, pipelineConfig.WorkflowInProgress, "")
-	if err != nil {
-		impl.logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, "err", err)
-		return
-	}
+	impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, pipelineConfig.WorkflowInProgress, "")
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.InstalledApps.Environment.ClusterId, installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto)
 	impl.logger.Debugw("UpdateApplicationWithChartInfo", "res", res)
 	if err != nil {

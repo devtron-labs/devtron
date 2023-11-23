@@ -6,7 +6,6 @@ import (
 	"errors"
 	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
@@ -159,11 +158,6 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		}
 		impl.pubSubClient.Publish(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
 	} else {
-		err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowInProgress, "")
-		if err != nil {
-			impl.Logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
-			return installAppVersionRequest, err
-		}
 		_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
 	}
 	if err != nil {
