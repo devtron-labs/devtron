@@ -1468,7 +1468,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			return nil, err
 		}
 	} else if installAppVersionRequest.PerformHelmDeployment {
-		err = impl.appStoreDeploymentHelmService.UpdateChartInfo(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, installAppVersionRequest.InstalledAppVersionHistoryId, ctx)
+		err = impl.appStoreDeploymentHelmService.UpdateChartInfo(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, installAppVersionRequest.InstalledAppVersionHistoryId, ctx, tx)
 		if err != nil {
 			impl.logger.Errorw("error in helm update request", "err", err)
 			return nil, err
@@ -1508,12 +1508,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 				impl.logger.Errorw("error in updating install app version history on sync", "err", err)
 				return nil, err
 			}
-		}
-	} else {
-		err = tx.Commit()
-		if err != nil {
-			impl.logger.Errorw("error while committing transaction to db", "error", err)
-			return nil, err
 		}
 	}
 
