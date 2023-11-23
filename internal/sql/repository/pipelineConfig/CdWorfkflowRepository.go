@@ -105,7 +105,6 @@ const (
 	WorkflowTypeDeploy         = "DEPLOY"
 	WorkflowTypePre            = "PRE"
 	WorkflowTypePost           = "POST"
-	WorkflowInQueue            = "Queued"
 )
 
 var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, application.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}
