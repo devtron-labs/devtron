@@ -13,6 +13,7 @@ type InstalledAppVersionHistoryRepository interface {
 	CreateInstalledAppVersionHistory(model *InstalledAppVersionHistory, tx *pg.Tx) (*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistory(model *InstalledAppVersionHistory, tx *pg.Tx) (*InstalledAppVersionHistory, error)
 	GetInstalledAppVersionHistory(id int) (*InstalledAppVersionHistory, error)
+	GetQueuedInstalledAppVersionHistory(id int) (*InstalledAppVersionHistory, error)
 	GetInstalledAppVersionHistoryByVersionId(installAppVersionId int) ([]*InstalledAppVersionHistory, error)
 	GetLatestInstalledAppVersionHistory(installAppVersionId int) (*InstalledAppVersionHistory, error)
 	GetLatestInstalledAppVersionHistoryByGitHash(gitHash string) (*InstalledAppVersionHistory, error)
@@ -79,6 +80,15 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHisto
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_version_history.*").
 		Where("installed_app_version_history.id = ?", id).Select()
+	return model, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) GetQueuedInstalledAppVersionHistory(id int) (*InstalledAppVersionHistory, error) {
+	model := &InstalledAppVersionHistory{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_version_history.*").
+		Where("installed_app_version_history.id = ?", id).
+		Where("installed_app_version_history.status = ?", pipelineConfig.WorkflowInQueue).Select()
 	return model, err
 }
 

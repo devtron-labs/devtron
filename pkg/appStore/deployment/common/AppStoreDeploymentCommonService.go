@@ -64,6 +64,7 @@ type AppStoreDeploymentCommonService interface {
 	InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isSuccess bool) error
 	UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 	UpdateInstalledAppVersionHistoryStatus(installAppVersionRequestId int, status string, data string) error
+	UpdateQueuedInstalledAppVersionHistoryStatus(installedAppVersionHistoryId int, status string, data string) error
 	UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isSuccesss bool) error
 }
 
@@ -778,6 +779,38 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistory
 	// Rollback tx on error.
 	defer tx.Rollback()
 	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
+	if err != nil {
+		impl.logger.Errorw("error in getting installed app version history ", "installedAppVersionHistoryId", installedAppVersionHistoryId, "err", err)
+		return err
+	}
+	savedInstalledAppVersionHistory.Status = status
+	savedInstalledAppVersionHistory.HelmReleaseStatusConfig = data
+	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (impl AppStoreDeploymentCommonServiceImpl) UpdateQueuedInstalledAppVersionHistoryStatus(installedAppVersionHistoryId int, status string, data string) error {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetQueuedInstalledAppVersionHistory(installedAppVersionHistoryId)
+	if err != nil {
+		impl.logger.Errorw("error in getting queued installed app version history ", "installedAppVersionHistoryId", installedAppVersionHistoryId, "err", err)
+		return err
+	}
 	savedInstalledAppVersionHistory.Status = status
 	savedInstalledAppVersionHistory.HelmReleaseStatusConfig = data
 	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)

@@ -558,7 +558,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error 
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(installHelmAsyncRequest *InstallHelmAsyncRequest) {
 
-	defer impl.cleanUpHelmAppReleaseContextMap(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionId, installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId)
+	defer impl.cleanUpHelmAppReleaseContextMap(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppId, installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(installHelmAsyncRequest.InstallAppVersionDTO.HelmInstallContextTime)*time.Minute)
 	defer cancel()
 	//skip if the appVersionHistory is not the latest one
@@ -571,7 +571,11 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(instal
 		return
 	}
 	impl.UpdateReleaseContextForPipeline(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppId, installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, cancel)
-	impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, pipelineConfig.WorkflowInProgress, "")
+	err = impl.appStoreDeploymentCommonService.UpdateQueuedInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, pipelineConfig.WorkflowInProgress, "")
+	if err != nil {
+		impl.logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, "err", err)
+		return
+	}
 	installRes, err := impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.InstallAppVersionDTO.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
 	if err != nil {
 		impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO, false)
@@ -595,20 +599,20 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) UpdateReleaseContextForPipeli
 	}
 }
 
-func (impl *AppStoreDeploymentFullModeServiceImpl) cleanUpHelmAppReleaseContextMap(appVersionId, appVersionHistoryId int) {
-	if impl.isReleaseContextExistsForPipeline(appVersionId, appVersionHistoryId) {
+func (impl *AppStoreDeploymentFullModeServiceImpl) cleanUpHelmAppReleaseContextMap(installedAppId, appVersionHistoryId int) {
+	if impl.isReleaseContextExistsForPipeline(installedAppId, appVersionHistoryId) {
 		impl.helmAppReleaseContextMapLock.Lock()
 		defer impl.helmAppReleaseContextMapLock.Unlock()
-		if _, ok := impl.helmAppReleaseContextMap[appVersionId]; ok {
-			delete(impl.helmAppReleaseContextMap, appVersionId)
+		if _, ok := impl.helmAppReleaseContextMap[installedAppId]; ok {
+			delete(impl.helmAppReleaseContextMap, installedAppId)
 		}
 	}
 }
 
-func (impl *AppStoreDeploymentFullModeServiceImpl) isReleaseContextExistsForPipeline(appVersionId, appVersionHistoryId int) bool {
+func (impl *AppStoreDeploymentFullModeServiceImpl) isReleaseContextExistsForPipeline(installedAppId, appVersionHistoryId int) bool {
 	impl.helmAppReleaseContextMapLock.Lock()
 	defer impl.helmAppReleaseContextMapLock.Unlock()
-	if releaseContext, ok := impl.helmAppReleaseContextMap[appVersionId]; ok {
+	if releaseContext, ok := impl.helmAppReleaseContextMap[installedAppId]; ok {
 		return releaseContext.AppVersionHistoryId == appVersionHistoryId
 	}
 	return false
@@ -624,7 +628,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) handleIfPreviousRunnerTrigger
 }
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(installHelmAsyncRequest *InstallHelmAsyncRequest) {
-	defer impl.cleanUpHelmAppReleaseContextMap(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionId, installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId)
+	defer impl.cleanUpHelmAppReleaseContextMap(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppId, installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId)
 	impl.logger.Debugw("CallBackForHelmUpgrade", "installHelmAsyncRequest", installHelmAsyncRequest)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(installHelmAsyncRequest.InstallAppVersionDTO.HelmInstallContextTime)*time.Minute)
 	defer cancel()
@@ -638,7 +642,11 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 	if exists {
 		return
 	}
-	impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, pipelineConfig.WorkflowInProgress, "")
+	err = impl.appStoreDeploymentCommonService.UpdateQueuedInstalledAppVersionHistoryStatus(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, pipelineConfig.WorkflowInProgress, "")
+	if err != nil {
+		impl.logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, "err", err)
+		return
+	}
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.InstalledApps.Environment.ClusterId, installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto)
 	impl.logger.Debugw("UpdateApplicationWithChartInfo", "res", res)
 	if err != nil {
