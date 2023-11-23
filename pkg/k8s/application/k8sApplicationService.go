@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 	"net/http"
 	"strconv"
 	"strings"
@@ -816,7 +817,13 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 				Stdin:                    true,
 				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
 				TTY:                      true,
+				SecurityContext: &corev1.SecurityContext{
+					AllowPrivilegeEscalation: pointer.Bool(false),
+					RunAsNonRoot:             pointer.Bool(true),
+					RunAsUser:                pointer.Int64(1000),
+				},
 			},
+
 			TargetContainerName: req.BasicData.TargetContainerName,
 		}
 	}
