@@ -150,10 +150,12 @@ func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel 
 
 // TODO need to extend msg ack depending upon response from callback like error scenario
 func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *PubSubMsg), topic string) {
-	timeLimitInMillSecs := impl.logsConfig.DefaultLogTimeLimit * 1000
+	//timeLimitInMillSecs := impl.logsConfig.DefaultLogTimeLimit * 1000
 	t1 := time.Now()
+	//defer order is FILO
 	defer natsMetrics.IncConsumptionCount(topic)
-	defer impl.printTimeDiff(t1, msg, timeLimitInMillSecs)
+	defer natsMetrics.NatsEventConsumptionTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+	//defer impl.printTimeDiff(t1, msg, timeLimitInMillSecs)
 	defer msg.Ack()
 	subMsg := &PubSubMsg{Data: string(msg.Data)}
 	callback(subMsg)
