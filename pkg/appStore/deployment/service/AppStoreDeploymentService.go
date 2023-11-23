@@ -77,8 +77,8 @@ type AppStoreDeploymentService interface {
 
 type DeploymentServiceTypeConfig struct {
 	IsInternalUse          bool `env:"IS_INTERNAL_USE" envDefault:"false"`
-	HelmInstallAsyncMode   bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"true"`
-	HelmInstallContextTime int  `env:"HELM_INSTALL_CONTEXT_TIME" envDefault:"1"`
+	HelmInstallAsyncMode   bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"false"`
+	HelmInstallContextTime int  `env:"HELM_INSTALL_CONTEXT_TIME" envDefault:"5"`
 }
 
 func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
