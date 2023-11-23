@@ -455,14 +455,16 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	if err != nil {
 		return nil, err
 	}
-	err = tx.Commit()
 	if !impl.deploymentTypeConfig.HelmInstallAsyncMode {
+		err = tx.Commit()
+		if err != nil {
+			return nil, err
+		}
 		err = impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersionRequest, true)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if err != nil {
-		return nil, err
-	}
-
 	return installAppVersionRequest, nil
 }
 

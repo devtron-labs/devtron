@@ -156,6 +156,10 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		if err != nil {
 			return nil, err
 		}
+		err = tx.Commit()
+		if err != nil {
+			return nil, err
+		}
 		impl.pubSubClient.Publish(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
 	} else {
 		_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
