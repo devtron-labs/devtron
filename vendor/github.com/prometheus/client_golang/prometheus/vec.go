@@ -72,8 +72,6 @@ func NewMetricVec(desc *Desc, newMetric func(lvs ...string) Metric) *MetricVec {
 // with a performance overhead (for creating and processing the Labels map).
 // See also the CounterVec example.
 func (m *MetricVec) DeleteLabelValues(lvs ...string) bool {
-	lvs = constrainLabelValues(m.desc, lvs, m.curry)
-
 	h, err := m.hashLabelValues(lvs)
 	if err != nil {
 		return false
@@ -93,9 +91,6 @@ func (m *MetricVec) DeleteLabelValues(lvs ...string) bool {
 // This method is used for the same purpose as DeleteLabelValues(...string). See
 // there for pros and cons of the two methods.
 func (m *MetricVec) Delete(labels Labels) bool {
-	labels, closer := constrainLabels(m.desc, labels)
-	defer closer()
-
 	h, err := m.hashLabels(labels)
 	if err != nil {
 		return false
@@ -111,9 +106,6 @@ func (m *MetricVec) Delete(labels Labels) bool {
 // Note that curried labels will never be matched if deleting from the curried vector.
 // To match curried labels with DeletePartialMatch, it must be called on the base vector.
 func (m *MetricVec) DeletePartialMatch(labels Labels) int {
-	labels, closer := constrainLabels(m.desc, labels)
-	defer closer()
-
 	return m.metricMap.deleteByLabels(labels, m.curry)
 }
 
@@ -152,11 +144,11 @@ func (m *MetricVec) CurryWith(labels Labels) (*MetricVec, error) {
 		oldCurry = m.curry
 		iCurry   int
 	)
-	for i, labelName := range m.desc.variableLabels.names {
-		val, ok := labels[labelName]
+	for i, label := range m.desc.variableLabels {
+		val, ok := labels[label]
 		if iCurry < len(oldCurry) && oldCurry[iCurry].index == i {
 			if ok {
-				return nil, fmt.Errorf("label name %q is already curried", labelName)
+				return nil, fmt.Errorf("label name %q is already curried", label)
 			}
 			newCurry = append(newCurry, oldCurry[iCurry])
 			iCurry++
@@ -164,10 +156,7 @@ func (m *MetricVec) CurryWith(labels Labels) (*MetricVec, error) {
 			if !ok {
 				continue // Label stays uncurried.
 			}
-			newCurry = append(newCurry, curriedLabelValue{
-				i,
-				m.desc.variableLabels.constrain(labelName, val),
-			})
+			newCurry = append(newCurry, curriedLabelValue{i, val})
 		}
 	}
 	if l := len(oldCurry) + len(labels) - len(newCurry); l > 0 {
@@ -210,7 +199,6 @@ func (m *MetricVec) CurryWith(labels Labels) (*MetricVec, error) {
 // a wrapper around MetricVec, implementing a vector for a specific Metric
 // implementation, for example GaugeVec.
 func (m *MetricVec) GetMetricWithLabelValues(lvs ...string) (Metric, error) {
-	lvs = constrainLabelValues(m.desc, lvs, m.curry)
 	h, err := m.hashLabelValues(lvs)
 	if err != nil {
 		return nil, err
@@ -236,9 +224,6 @@ func (m *MetricVec) GetMetricWithLabelValues(lvs ...string) (Metric, error) {
 // around MetricVec, implementing a vector for a specific Metric implementation,
 // for example GaugeVec.
 func (m *MetricVec) GetMetricWith(labels Labels) (Metric, error) {
-	labels, closer := constrainLabels(m.desc, labels)
-	defer closer()
-
 	h, err := m.hashLabels(labels)
 	if err != nil {
 		return nil, err
@@ -248,7 +233,7 @@ func (m *MetricVec) GetMetricWith(labels Labels) (Metric, error) {
 }
 
 func (m *MetricVec) hashLabelValues(vals []string) (uint64, error) {
-	if err := validateLabelValues(vals, len(m.desc.variableLabels.names)-len(m.curry)); err != nil {
+	if err := validateLabelValues(vals, len(m.desc.variableLabels)-len(m.curry)); err != nil {
 		return 0, err
 	}
 
@@ -257,7 +242,7 @@ func (m *MetricVec) hashLabelValues(vals []string) (uint64, error) {
 		curry         = m.curry
 		iVals, iCurry int
 	)
-	for i := 0; i < len(m.desc.variableLabels.names); i++ {
+	for i := 0; i < len(m.desc.variableLabels); i++ {
 		if iCurry < len(curry) && curry[iCurry].index == i {
 			h = m.hashAdd(h, curry[iCurry].value)
 			iCurry++
@@ -271,7 +256,7 @@ func (m *MetricVec) hashLabelValues(vals []string) (uint64, error) {
 }
 
 func (m *MetricVec) hashLabels(labels Labels) (uint64, error) {
-	if err := validateValuesInLabels(labels, len(m.desc.variableLabels.names)-len(m.curry)); err != nil {
+	if err := validateValuesInLabels(labels, len(m.desc.variableLabels)-len(m.curry)); err != nil {
 		return 0, err
 	}
 
@@ -280,17 +265,17 @@ func (m *MetricVec) hashLabels(labels Labels) (uint64, error) {
 		curry  = m.curry
 		iCurry int
 	)
-	for i, labelName := range m.desc.variableLabels.names {
-		val, ok := labels[labelName]
+	for i, label := range m.desc.variableLabels {
+		val, ok := labels[label]
 		if iCurry < len(curry) && curry[iCurry].index == i {
 			if ok {
-				return 0, fmt.Errorf("label name %q is already curried", labelName)
+				return 0, fmt.Errorf("label name %q is already curried", label)
 			}
 			h = m.hashAdd(h, curry[iCurry].value)
 			iCurry++
 		} else {
 			if !ok {
-				return 0, fmt.Errorf("label name %q missing in label map", labelName)
+				return 0, fmt.Errorf("label name %q missing in label map", label)
 			}
 			h = m.hashAdd(h, val)
 		}
@@ -468,7 +453,7 @@ func valueMatchesVariableOrCurriedValue(targetValue string, index int, values []
 func matchPartialLabels(desc *Desc, values []string, labels Labels, curry []curriedLabelValue) bool {
 	for l, v := range labels {
 		// Check if the target label exists in our metrics and get the index.
-		varLabelIndex, validLabel := indexOf(l, desc.variableLabels.names)
+		varLabelIndex, validLabel := indexOf(l, desc.variableLabels)
 		if validLabel {
 			// Check the value of that label against the target value.
 			// We don't consider curried values in partial matches.
@@ -612,7 +597,7 @@ func matchLabels(desc *Desc, values []string, labels Labels, curry []curriedLabe
 		return false
 	}
 	iCurry := 0
-	for i, k := range desc.variableLabels.names {
+	for i, k := range desc.variableLabels {
 		if iCurry < len(curry) && curry[iCurry].index == i {
 			if values[i] != curry[iCurry].value {
 				return false
@@ -630,7 +615,7 @@ func matchLabels(desc *Desc, values []string, labels Labels, curry []curriedLabe
 func extractLabelValues(desc *Desc, labels Labels, curry []curriedLabelValue) []string {
 	labelValues := make([]string, len(labels)+len(curry))
 	iCurry := 0
-	for i, k := range desc.variableLabels.names {
+	for i, k := range desc.variableLabels {
 		if iCurry < len(curry) && curry[iCurry].index == i {
 			labelValues[i] = curry[iCurry].value
 			iCurry++
@@ -654,56 +639,4 @@ func inlineLabelValues(lvs []string, curry []curriedLabelValue) []string {
 		iLVs++
 	}
 	return labelValues
-}
-
-var labelsPool = &sync.Pool{
-	New: func() interface{} {
-		return make(Labels)
-	},
-}
-
-func constrainLabels(desc *Desc, labels Labels) (Labels, func()) {
-	if len(desc.variableLabels.labelConstraints) == 0 {
-		// Fast path when there's no constraints
-		return labels, func() {}
-	}
-
-	constrainedLabels := labelsPool.Get().(Labels)
-	for l, v := range labels {
-		constrainedLabels[l] = desc.variableLabels.constrain(l, v)
-	}
-
-	return constrainedLabels, func() {
-		for k := range constrainedLabels {
-			delete(constrainedLabels, k)
-		}
-		labelsPool.Put(constrainedLabels)
-	}
-}
-
-func constrainLabelValues(desc *Desc, lvs []string, curry []curriedLabelValue) []string {
-	if len(desc.variableLabels.labelConstraints) == 0 {
-		// Fast path when there's no constraints
-		return lvs
-	}
-
-	constrainedValues := make([]string, len(lvs))
-	var iCurry, iLVs int
-	for i := 0; i < len(lvs)+len(curry); i++ {
-		if iCurry < len(curry) && curry[iCurry].index == i {
-			iCurry++
-			continue
-		}
-
-		if i < len(desc.variableLabels.names) {
-			constrainedValues[iLVs] = desc.variableLabels.constrain(
-				desc.variableLabels.names[i],
-				lvs[iLVs],
-			)
-		} else {
-			constrainedValues[iLVs] = lvs[iLVs]
-		}
-		iLVs++
-	}
-	return constrainedValues
 }
