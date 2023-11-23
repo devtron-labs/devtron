@@ -21,7 +21,7 @@ type InstalledAppVersionHistoryRepository interface {
 	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error)
-	UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppVersionId int, triggeredBy int32) error
+	UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppVersionId int, triggeredBy int32, tx *pg.Tx) error
 	IsLatestVersionHistory(installedAppVersionId, installedAppVersionHistoryId int) (bool, error)
 	GetConnection() *pg.DB
 }
@@ -95,9 +95,9 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppStoreApplicationVersi
 	return appStoreApplicationVersionId, err
 }
 
-func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppVersionId int, triggeredBy int32) error {
+func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppVersionId int, triggeredBy int32, tx *pg.Tx) error {
 	var model []*InstalledAppVersionHistory
-	_, err := impl.dbConnection.Model(&model).
+	_, err := tx.Model(&model).
 		Set("status=?", pipelineConfig.WorkflowFailed).
 		Set("finished_on=?", time.Now()).
 		Set("updated_on=?", time.Now()).

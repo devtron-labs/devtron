@@ -283,7 +283,11 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
 	installedAppVersionHistory.UpdatedOn = time.Now()
 	installedAppVersionHistory.StartedOn = time.Now()
-	installedAppVersionHistory.Status = pipelineConfig.WorkflowInQueue
+	if impl.deploymentTypeConfig.HelmInstallAsyncMode {
+		installedAppVersionHistory.Status = pipelineConfig.WorkflowInQueue
+	} else {
+		installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
+	}
 	helmInstallConfigDTO := appStoreBean.HelmReleaseStatusConfig{
 		InstallAppVersionHistoryId: 0,
 		Message:                    "Install initiated",
@@ -300,7 +304,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	err = impl.installedAppRepositoryHistory.UpdatePreviousQueuedVersionHistory(installedAppVersionHistory.Id, installedAppVersions.Id, installAppVersionRequest.UserId)
+	err = impl.installedAppRepositoryHistory.UpdatePreviousQueuedVersionHistory(installedAppVersionHistory.Id, installedAppVersions.Id, installAppVersionRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
@@ -410,7 +414,6 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		return nil, err
 	}
 	impl.updateDeploymentParametersInRequest(installAppVersionRequest, installAppVersionRequest.DeploymentAppType)
-	impl.logger.Debugw("Helm install installAppVersionRequest", "installAppVersionRequest", installAppVersionRequest)
 	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
 		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", tx)
 	}
@@ -1341,7 +1344,12 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	installAppVersionRequest.AppName = installedApp.App.AppName
 	installAppVersionRequest.EnvironmentName = installedApp.Environment.Name
 	installAppVersionRequest.Environment = &installedApp.Environment
-	installAppVersionHistoryStatus := pipelineConfig.WorkflowInQueue
+	var installAppVersionHistoryStatus string
+	if impl.deploymentTypeConfig.HelmInstallAsyncMode {
+		installAppVersionHistoryStatus = pipelineConfig.WorkflowInQueue
+	} else {
+		installAppVersionHistoryStatus = pipelineConfig.WorkflowInProgress
+	}
 	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
 		InstalledAppVersionId: installedAppVersion.Id,
 		ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
@@ -1359,7 +1367,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
 		return nil, err
 	}
-	err = impl.installedAppRepositoryHistory.UpdatePreviousQueuedVersionHistory(installedAppVersionHistory.Id, installedAppVersion.Id, installAppVersionRequest.UserId)
+	err = impl.installedAppRepositoryHistory.UpdatePreviousQueuedVersionHistory(installedAppVersionHistory.Id, installedAppVersion.Id, installAppVersionRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
