@@ -31,6 +31,10 @@ As you can see, it has similar options as available under [Applications](./appli
 * Deployment history
 * Configurations
 
+{% hint style="info" %}
+Users need to have [View only permission](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to view all the applications within a group.
+{% endhint %}
+
 First, we will walk you through the [key features](#key-features) of Application Groups, followed by [additional features](#additional-features) that will help you perform bulk actions.
 
 ---
@@ -57,6 +61,10 @@ The **Build & Deploy** tab of your application group enables you to trigger the 
 
     ![Figure 7: Triggered Deployment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/build-image.jpg)
 
+{% hint style="info" %}
+Users need to have [Build and deploy permission](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to trigger the build
+{% endhint %}
+
 
 ### Changing Configurations
 
@@ -69,6 +77,10 @@ The **Configurations** tab of your application group allows you to configure the
 As shown below, you can handle the configurations of more than one application from a single screen.
 
 ![Figure 8: Configurations of each App](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/configurations.jpg)
+
+{% hint style="info" %}
+Users need to have [Manager role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to change their configuration
+{% endhint %}
 
 
 ### Deploying Applications
@@ -94,6 +106,10 @@ The **Build & Deploy** tab of your application group helps you deploy one or mor
 Once the deployment is successful, the pipelines will show `Succeeded`.
 
 ![Figure 13: Successful Deployment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/successful.jpg)
+
+{% hint style="info" %}
+Users need to have [Build and deploy permission](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to initiate the deployment
+{% endhint %}
 
 ---
 
@@ -127,6 +143,10 @@ Now when you access the application group, your saved filter will be visible on 
 
 ![Figure 19: Saved Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter-3.jpg)
 
+{% hint style="info" %}
+All users with [View only permission](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) and above can use an existing filter. Users need to have `Manager` role or above to create, edit, or delete a filter.
+{% endhint %}
+
 
 ### Changing Branch
 
@@ -139,3 +159,7 @@ Assume you have a few applications whose [build pipelines](../reference/glossary
 2. Enter the new branch name (*or the new regular expression if you are using branch regex*) and click **Update Branch**.
 
     ![Figure 21: Updating Branch Name](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/update-branch.jpg)
+
+{% hint style="info" %}
+Users need to have [Manager role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to update their branch
+{% endhint %}
