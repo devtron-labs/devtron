@@ -93,7 +93,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
 	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
 	helmAppService                       client.HelmAppService
-	helmAsyncHelmInstallRequestMap       map[int]bool
+	helmAsyncHelmInstallRequestMap       map[int32]bool
 	helmAsyncHelmInstallRequestLock      *sync.Mutex
 	helmAppReleaseContextMap             map[int]HelmAppReleaseContextType
 	helmAppReleaseContextMapLock         *sync.Mutex
@@ -151,7 +151,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		pubSubClient:                         pubSubClient,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		helmAppService:                       helmAppService,
-		helmAsyncHelmInstallRequestMap:       make(map[int]bool),
+		helmAsyncHelmInstallRequestMap:       make(map[int32]bool),
 		helmAsyncHelmInstallRequestLock:      &sync.Mutex{},
 		helmAppReleaseContextMap:             make(map[int]HelmAppReleaseContextType),
 		helmAppReleaseContextMapLock:         &sync.Mutex{},
@@ -534,13 +534,18 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error 
 			impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
 			return
 		}
-		if skip := impl.handleConcurrentRequest(installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppId); skip {
-			impl.logger.Warnw("concurrent request received, SubscribeHelmAsyncHelmInstallRequest", "WfrId", installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId)
-			return
-		}
+
 		if installHelmAsyncRequest.Type == "install" {
+			if skip := impl.handleConcurrentRequest(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId); skip {
+				impl.logger.Warnw("concurrent request received, SubscribeHelmAsyncHelmInstallRequest", "WfrId", installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppId)
+				return
+			}
 			impl.CallBackForHelmInstall(installHelmAsyncRequest)
 		} else if installHelmAsyncRequest.Type == "upgrade" {
+			if skip := impl.handleConcurrentRequest(installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto.InstallReleaseRequest.InstallAppVersionHistoryId); skip {
+				impl.logger.Warnw("concurrent request received, SubscribeHelmAsyncHelmInstallRequest", "WfrId", installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppId)
+				return
+			}
 			impl.CallBackForHelmUpgrade(installHelmAsyncRequest)
 		}
 	})
@@ -649,13 +654,13 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 
 }
 
-func (impl *AppStoreDeploymentFullModeServiceImpl) handleConcurrentRequest(installAppId int) bool {
+func (impl *AppStoreDeploymentFullModeServiceImpl) handleConcurrentRequest(installAppVersionHistoryId int32) bool {
 	impl.helmAsyncHelmInstallRequestLock.Lock()
 	defer impl.helmAsyncHelmInstallRequestLock.Unlock()
-	if _, exists := impl.helmAsyncHelmInstallRequestMap[installAppId]; exists {
+	if _, exists := impl.helmAsyncHelmInstallRequestMap[installAppVersionHistoryId]; exists {
 		//request is in process already, Skip here
 		return true
 	}
-	impl.helmAsyncHelmInstallRequestMap[installAppId] = true
+	impl.helmAsyncHelmInstallRequestMap[installAppVersionHistoryId] = true
 	return false
 }

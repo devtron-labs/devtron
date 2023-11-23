@@ -69,7 +69,7 @@ type AppStoreDeploymentCommonService interface {
 
 type DeploymentCommonServiceTypeConfig struct {
 	IsInternalUse        bool `env:"IS_INTERNAL_USE" envDefault:"false"`
-	HelmInstallAsyncMode bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"false"`
+	HelmInstallAsyncMode bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"true"`
 }
 
 func GetDeploymentCommonServiceTypeConfig() (*DeploymentCommonServiceTypeConfig, error) {
