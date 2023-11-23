@@ -2656,12 +2656,13 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureGitOpsConfigurationForApp
 		return
 	}
 
-	err = handler.chartService.SaveAppLevelGitOpsConfiguration(appGitOpsConfigRequest)
+	detailedErrorGitOpsConfigResponse, err := handler.chartService.SaveAppLevelGitOpsConfiguration(appGitOpsConfigRequest, app.AppName)
 	if err != nil {
 		handler.Logger.Errorw("service err, SaveAppLevelGitOpsConfiguration", "err", err, "request", appGitOpsConfigRequest)
 		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
 		return
 	}
+	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfigurationOfApp(w http.ResponseWriter, r *http.Request) {

@@ -96,7 +96,7 @@ type ValidateCustomGitRepoURLRequest struct {
 	GitRepoURL               string
 	UserId                   int32
 	ValidateEmptyRepo        bool
-	performDefaultValidation bool
+	PerformDefaultValidation bool
 }
 
 type GitOpsConfigServiceImpl struct {
@@ -858,7 +858,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 	}
 
-	if request.performDefaultValidation {
+	if request.PerformDefaultValidation {
 		// Validate: Perform Default Validation
 		if !impl.isDefaultAppLevelGitOpsValidated.ValidationSkipped &&
 			len(impl.isDefaultAppLevelGitOpsValidated.StageErrorMap) == 0 {
@@ -879,7 +879,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 			ValidationSkipped: true,
 		}
 	}
-	repoName := util.GetGitOpsRepoNameFromUrl(request.GitRepoURL)
+	repoName := util.GetGitRepoNameFromGitRepoUrl(request.GitRepoURL)
 	gitProvider := strings.ToUpper(activeGitOpsConfig.Provider)
 
 	// Validate: Get Repository Starts

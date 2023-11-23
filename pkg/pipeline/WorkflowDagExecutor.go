@@ -3100,7 +3100,7 @@ func (impl *WorkflowDagExecutorImpl) BuildManifestPushTemplate(overrideRequest *
 		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
-		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
+		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl //TODO Asutosh: here
 	}
 	return manifestPushTemplate, err
 }
@@ -3455,7 +3455,7 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 			Project:         "default",
 			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
-			RepoUrl:         chart.GitRepoUrl,
+			RepoUrl:         chart.GitRepoUrl, //TODO Asutosh: here
 		}
 
 		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
@@ -4175,7 +4175,7 @@ func (impl *WorkflowDagExecutorImpl) mergeAndSave(envOverride *chartConfig.EnvCo
 	commitHash := ""
 	commitTime := time.Time{}
 	if util.IsAcdApp(pipeline.DeploymentAppType) {
-		chartRepoName := util.GetGitOpsRepoNameFromUrl(envOverride.Chart.GitRepoUrl)
+		chartRepoName := util.GetGitRepoNameFromGitRepoUrl(envOverride.Chart.GitRepoUrl)
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
 		//getting username & emailId for commit author data
 		userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)

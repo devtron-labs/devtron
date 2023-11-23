@@ -119,7 +119,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChartToGitRepo(manifestPushTempla
 func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) (commitHash string, commitTime time.Time, err error) {
 	commitHash = ""
 	commitTime = time.Time{}
-	chartRepoName := util.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
+	chartRepoName := util.GetGitRepoNameFromGitRepoUrl(manifestPushTemplate.RepoUrl)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
 	//getting username & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(manifestPushTemplate.UserId)

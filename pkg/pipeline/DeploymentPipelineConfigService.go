@@ -38,6 +38,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -356,7 +357,15 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
 	//Validation for checking deployment App type
-	isGitOpsConfigured, err := impl.IsGitopsConfigured()
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting active GitOpsConfig", "err", err)
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+	//isGitOpsConfigured, err := impl.IsGitopsConfigured()
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		// if no deployment app type sent from user then we'll not validate
@@ -391,13 +400,13 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		}
 		var gitOpsRepoName string
 		var chartGitAttr *util.ChartGitAttribute
-		if chart.IsCustomGitRepository {
+		if gitOpsConfig.AllowCustomRepository && chart.IsCustomGitRepository {
 			// in this case user has already created an empty git repository and provided us gitRepoUrl
 			chartGitAttr = &util.ChartGitAttribute{
 				RepoUrl: chart.GitRepoUrl,
 			}
-			gitOpsRepoName = util.GetGitOpsRepoNameFromUrl(chartGitAttr.RepoUrl)
-		} else {
+			gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
+		} else if len(chart.GitRepoUrl) == 0 || chart.GitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED {
 			gitOpsRepoName, chartGitAttr, err = impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating git repo", "err", err)

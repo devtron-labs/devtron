@@ -398,7 +398,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName stri
 	}
 	if application != nil {
 		gitOpsRepoUrl := application.Spec.Source.RepoURL
-		gitOpsRepoName = util.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
+		gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(gitOpsRepoUrl)
 	}
 	return gitOpsRepoName, nil
 }

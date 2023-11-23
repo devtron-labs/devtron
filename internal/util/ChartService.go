@@ -74,7 +74,7 @@ type ChartTemplateService interface {
 	CleanDir(dir string)
 	GetUserEmailIdAndNameForGitOpsCommit(userId int32) (emailId, name string)
 	GetGitOpsRepoName(appName string) string
-	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
+	CreateGitRepositoryForApp(gitOpsRepoName string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
 	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
@@ -246,7 +246,7 @@ type ChartGitAttribute struct {
 	RepoUrl, ChartLocation string
 }
 
-func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error) {
+func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName string, userId int32) (chartGitAttribute *ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	gitOpsRepoName = space.ReplaceAllString(gitOpsRepoName, "-")
@@ -276,7 +276,7 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 			return nil, err
 		}
 	}
-	return &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
+	return &ChartGitAttribute{RepoUrl: repoUrl}, nil
 }
 
 func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {

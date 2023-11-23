@@ -99,8 +99,8 @@ type ChartService interface {
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error
-	SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest) error
-	GetGitOpsConfigurationOfApp(appId int) (AppGitOpsConfigResponse, error)
+	SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string) (detailedErrorGitOpsConfigResponse gitops.DetailedErrorGitOpsConfigResponse, err error)
+	GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
 }
 
@@ -343,7 +343,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
-	gitRepoUrl := ""
+	gitRepoUrl := chartRepo.GIT_REPO_NOT_CONFIGURED
 	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
 	if currentLatestChart.Id > 0 {
 		impl.logger.Debugw("updating env and pipeline config which are currently latest in db", "chartId", currentLatestChart.Id)
@@ -371,10 +371,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		if err != nil {
 			return nil, err
 		}
-		//TODO Asutosh: here
-		if currentLatestChart.IsCustomGitRepository {
-			gitRepoUrl = chartRepo.GIT_REPO_NOT_CONFIGURED
-		} else {
+		if currentLatestChart.GitRepoUrl != "" {
 			gitRepoUrl = currentLatestChart.GitRepoUrl
 		}
 	}
@@ -497,7 +494,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 
 	//save chart
 	// 1. create chart, 2. push in repo, 3. add value of chart variable 4. save chart
-	chartRepo, err := impl.getChartRepo(templateRequest)
+	chartRepository, err := impl.getChartRepo(templateRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart repo detail", "req", templateRequest, "err", err)
 		return nil, err
@@ -514,7 +511,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	}
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
-	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
+	version, err := impl.getNewVersion(chartRepository.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
@@ -528,8 +525,8 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 	chartLocation := filepath.Join(templateName, version)
-	gitRepoUrl := ""
-	if currentLatestChart.Id > 0 {
+	gitRepoUrl := chartRepo.GIT_REPO_NOT_CONFIGURED
+	if currentLatestChart.Id > 0 && currentLatestChart.GitRepoUrl != "" {
 		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
@@ -553,15 +550,15 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	override = dst.Bytes()
 	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
-		ChartRepoId:             chartRepo.Id,
+		ChartRepoId:             chartRepository.Id,
 		Values:                  string(merged),
 		GlobalOverride:          string(override),
 		ReleaseOverride:         chartValues.ReleaseOverrides,
 		PipelineOverride:        chartValues.PipelineOverrides,
 		ImageDescriptorTemplate: chartValues.ImageDescriptorTemplate,
 		ChartName:               chartMeta.Name,
-		ChartRepo:               chartRepo.Name,
-		ChartRepoUrl:            chartRepo.Url,
+		ChartRepo:               chartRepository.Name,
+		ChartRepoUrl:            chartRepository.Url,
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
@@ -606,6 +603,10 @@ func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, appL
 	if appLevelMetrics != nil {
 		appMetrics = appLevelMetrics.AppMetrics
 	}
+	gitRepoUrl := ""
+	if chart.GitRepoUrl != chartRepo.GIT_REPO_NOT_CONFIGURED {
+		gitRepoUrl = chart.GitRepoUrl
+	}
 	return &TemplateRequest{
 		RefChartTemplate:        chart.ReferenceTemplate,
 		Id:                      chart.Id,
@@ -618,7 +619,7 @@ func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, appL
 		IsAppMetricsEnabled:     appMetrics,
 		IsBasicViewLocked:       chart.IsBasicViewLocked,
 		CurrentViewEditor:       chart.CurrentViewEditor,
-		GitRepoUrl:              chart.GitRepoUrl,
+		GitRepoUrl:              gitRepoUrl,
 		IsCustomGitRepository:   chart.IsCustomGitRepository,
 	}, nil
 }
@@ -1727,7 +1728,7 @@ func (impl ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribu
 		return err
 	}
 	for _, ch := range charts {
-		if len(ch.GitRepoUrl) == 0 || ch.ChartRepoUrl == chartRepo.GIT_REPO_DEFAULT || ch.ChartRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED {
+		if len(ch.GitRepoUrl) == 0 || ch.ChartRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED {
 			ch.GitRepoUrl = chartGitAttribute.RepoUrl
 			ch.ChartLocation = chartGitAttribute.ChartLocation
 			ch.UpdatedOn = time.Now()
@@ -1741,47 +1742,83 @@ func (impl ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribu
 	return nil
 }
 
-func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest) error {
+func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string) (detailedErrorGitOpsConfigResponse gitops.DetailedErrorGitOpsConfigResponse, err error) {
+	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
+		if util.IsErrNoRows(err) {
+			return detailedErrorGitOpsConfigResponse, fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+		}
+		return detailedErrorGitOpsConfigResponse, err
+	}
+	if !activeGlobalGitOpsConfig.AllowCustomRepository {
+		return detailedErrorGitOpsConfigResponse, fmt.Errorf("Invalid request. Please configure Gitops with 'Allow changing git repository for application'.")
+	}
+
 	charts, err := impl.chartRepository.FindActiveChartsByAppId(appGitOpsRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("Error in fetching charts for app", "err", err, "appId", appGitOpsRequest.AppId)
+		return detailedErrorGitOpsConfigResponse, err
+	}
+
+	validateCustomGitRepoURLRequest := gitops.ValidateCustomGitRepoURLRequest{
+		GitRepoURL:               appGitOpsRequest.GitRepoURL,
+		UserId:                   appGitOpsRequest.UserId,
+		PerformDefaultValidation: appGitOpsRequest.GitRepoURL == chartRepo.GIT_REPO_DEFAULT,
+	}
+
+	detailedErrorGitOpsConfigResponse = impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
+	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
+		return detailedErrorGitOpsConfigResponse, nil
+	}
+
+	gitRepoUrl := appGitOpsRequest.GitRepoURL
+	if appGitOpsRequest.GitRepoURL == chartRepo.GIT_REPO_DEFAULT {
+		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(appName)
+		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, appGitOpsRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
+			return detailedErrorGitOpsConfigResponse, err
+		}
+		gitRepoUrl = chartGitAttr.RepoUrl
 	}
 	for _, chart := range charts {
-		chart.GitRepoUrl = appGitOpsRequest.GitRepoURL
+		chart.GitRepoUrl = gitRepoUrl
 		chart.UpdatedOn = time.Now()
 		chart.UpdatedBy = appGitOpsRequest.UserId
-		chart.IsCustomGitRepository = appGitOpsRequest.GitRepoURL != chartRepo.GIT_REPO_DEFAULT
+		chart.IsCustomGitRepository = activeGlobalGitOpsConfig.AllowCustomRepository && appGitOpsRequest.GitRepoURL != chartRepo.GIT_REPO_DEFAULT
 		err = impl.chartRepository.Update(chart)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts while saving git repo url", "err", err, "appGitOpsRequest", appGitOpsRequest)
-			return err
+			return detailedErrorGitOpsConfigResponse, err
 		}
 	}
-	return nil
+	return detailedErrorGitOpsConfigResponse, nil
 }
 
-func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (AppGitOpsConfigResponse, error) {
-
-	appGitOpsConfigResponse := AppGitOpsConfigResponse{}
+func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error) {
+	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
+		if util.IsErrNoRows(err) {
+			return nil, fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+		}
+		return nil, err
+	}
+	if !activeGlobalGitOpsConfig.AllowCustomRepository {
+		return nil, fmt.Errorf("Invalid request. Please configure Gitops with 'Allow changing git repository for application'.")
+	}
 
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", appId)
-		return appGitOpsConfigResponse, err
+		return nil, err
 	}
 
-	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
-	if err != nil {
-		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
-		return appGitOpsConfigResponse, nil
-	}
-	if activeGlobalGitOpsConfig.AllowCustomRepository && len(chart.GitRepoUrl) == 0 {
-		appGitOpsConfigResponse.IsEditable = true
-		return appGitOpsConfigResponse, nil
-	}
-	if activeGlobalGitOpsConfig.AllowCustomRepository && chart.IsCustomGitRepository && chart.GitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED {
-		appGitOpsConfigResponse.IsEditable = true
-		appGitOpsConfigResponse.GitRepoURL = chartRepo.GIT_REPO_NOT_CONFIGURED
+	appGitOpsConfigResponse := &AppGitOpsConfigResponse{}
+	if activeGlobalGitOpsConfig.AllowCustomRepository {
+		appGitOpsConfigResponse.IsEditable = chart.GitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED || len(chart.GitRepoUrl) == 0
+		appGitOpsConfigResponse.GitRepoURL = ""
 		return appGitOpsConfigResponse, nil
 	}
 	return appGitOpsConfigResponse, nil

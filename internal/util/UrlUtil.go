@@ -36,7 +36,7 @@ func IsValidUrl(input string) bool {
 	return true
 }
 
-func GetGitOpsRepoNameFromUrl(gitRepoUrl string) string {
+func GetGitRepoNameFromGitRepoUrl(gitRepoUrl string) string {
 	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
 	gitRepoUrl = strings.ReplaceAll(gitRepoUrl, ".git", "")
 	return gitRepoUrl
