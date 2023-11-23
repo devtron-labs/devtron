@@ -69,6 +69,7 @@ set schema='{
                                 "On pager duty":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "object",
@@ -89,6 +90,7 @@ set schema='{
                                 "3rd party contacts":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "string"
@@ -262,6 +264,7 @@ set schema='{
                                 "POCs":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "object",
@@ -282,6 +285,7 @@ set schema='{
                                 "Access manager":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "object",
@@ -442,6 +446,7 @@ set schema='{
                                 "Code owners":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "object",
@@ -467,6 +472,7 @@ set schema='{
                                 "Framework":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "string",
@@ -486,6 +492,7 @@ set schema='{
                                 "Language":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "string",
@@ -639,6 +646,7 @@ set schema='{
                                 "Code owners":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "object",
@@ -664,6 +672,7 @@ set schema='{
                                 "Framework":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "string",
@@ -683,6 +692,7 @@ set schema='{
                                 "Language":
                                 {
                                     "type": "array",
+                                    "uniqueItems": true,
                                     "items":
                                     {
                                         "type": "string",
