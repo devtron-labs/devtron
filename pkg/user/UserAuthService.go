@@ -501,6 +501,18 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 			impl.logger.Warnw("error in deleting casbin policy for role", "role", roleModel.Role)
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
 		}
+		allUsersMappedToRoles, err := casbin2.GetUserByRole(roleModel.Role)
+		if err != nil {
+			impl.logger.Errorw("error in getting all users by roles", "err", err, "role", roleModel.Role)
+			return err
+		}
+		for _, rl := range allUsersMappedToRoles {
+			success = casbin2.DeleteRoleForUser(rl, roleModel.Role)
+			if !success {
+				impl.logger.Warnw("error in deleting casbin policy for role", "role", roleModel.Role)
+				casbinDeleteFailed = append(casbinDeleteFailed, success)
+			}
+		}
 		//deleting user_roles for this role_id (foreign key constraint)
 		err = impl.userAuthRepository.DeleteUserRoleByRoleId(roleModel.Id, tx)
 		if err != nil {
@@ -508,7 +520,7 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 			return err
 		}
 		//deleting role_group_role_mapping for this role_id (foreign key constraint)
-		err := impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleId(roleModel.Id, tx)
+		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleId(roleModel.Id, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting role_group_role_mapping by role id", "err", err, "roleId", roleModel.Id)
 			return err
