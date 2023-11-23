@@ -495,6 +495,7 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 
 	// deleting policies in casbin and roles
 	var casbinDeleteFailed []bool
+	casbin2.LoadPolicy()
 	for _, roleModel := range roleModels {
 		success := casbin2.RemovePoliciesByRole(roleModel.Role)
 		if !success {
@@ -532,5 +533,6 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 			return err
 		}
 	}
+	casbin2.LoadPolicy()
 	return nil
 }
