@@ -268,7 +268,9 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 				updatedWorkflowList = append(updatedWorkflowList, workNameObjectMap[obj])
 			}
 		}
-
+		if len(updatedWorkflowList) == 0 {
+			updatedWorkflowList = []appWorkflow.AppWorkflowDto{}
+		}
 		workflows[bean2.Workflows] = updatedWorkflowList
 	} else if len(workflowsList) > 0 {
 		workflows[bean2.Workflows] = workflowsList
