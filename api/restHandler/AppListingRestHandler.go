@@ -26,9 +26,10 @@ import (
 	"github.com/caarlos0/env/v6"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
+	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	bean2 "github.com/devtron-labs/devtron/api/restHandler/bean"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -1542,7 +1543,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			handler.logger.Errorw("error in getting pods by label", "err", err, "clusterId", cdPipeline.Environment.ClusterId, "namespace", cdPipeline.Environment.Namespace, "label", label)
 			return resourceTree, err
 		}
-		ephemeralContainersMap := bean2.ExtractEphemeralContainers(pods)
+		ephemeralContainersMap := k8sObjectUtils.ExtractEphemeralContainers(pods)
 		for _, metaData := range resp.PodMetadata {
 			metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 		}

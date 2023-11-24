@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -83,7 +84,11 @@ type ApplyResourcesResponse struct {
 }
 
 type ManifestResponse struct {
-	Manifest unstructured.Unstructured `json:"manifest,omitempty"`
+	// EphemeralContainers are set for Pod kind manifest response only
+	// will always contain running ephemeral containers
+	// +optional
+	EphemeralContainers []*k8sObjectsUtil.EphemeralContainerData `json:"ephemeralContainers,omitempty"`
+	Manifest            unstructured.Unstructured                `json:"manifest,omitempty"`
 }
 
 type ResourceKey struct {
