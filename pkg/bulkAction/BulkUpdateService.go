@@ -1186,10 +1186,9 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
-		success := true
 		if _, ok := response[appKey]; !ok {
 			pResponse := make(map[string]any)
-			pResponse[pipelineKey] = false
+			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
 		deploymentHistory := deploymentTypeMap[pipeline.Id]
@@ -1232,10 +1231,11 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			pipelineResponse[Error] = hibernateReqError.Error()
 			response[appKey] = pipelineResponse
 			//return nil, err
+		} else {
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = true
+			response[appKey] = pipelineResponse
 		}
-		pipelineResponse := response[appKey]
-		pipelineResponse[pipelineKey] = success
-		response[appKey] = pipelineResponse
 	}
 	var responseArray []map[string]interface{}
 	for appKey, pipelineResponse := range response {
