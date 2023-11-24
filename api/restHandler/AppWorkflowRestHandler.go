@@ -109,7 +109,7 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 	res, err := handler.appWorkflowService.CreateAppWorkflow(request)
 	if err != nil {
 		if err.Error() == bean3.WORKFLOW_EXIST_ERROR {
-			common.WriteJsonResp(w, err, []byte("Creation Failed"), http.StatusBadRequest)
+			common.WriteJsonResp(w, err, bean3.WORKFLOW_EXIST_ERROR, http.StatusBadRequest)
 			return
 		}
 		handler.Logger.Errorw("error on creating", "err", err)
