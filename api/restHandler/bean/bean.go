@@ -2,7 +2,7 @@ package bean
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/k8s"
+	k8s3 "github.com/devtron-labs/devtron/util/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"strings"
 )
@@ -44,7 +44,7 @@ func ExtractEphemeralContainers(pods []corev1.Pod) map[string][]*EphemeralContai
 
 func isExternalEphemeralContainer(cmds []string, name string) bool {
 	isExternal := true
-	matchingCmd := fmt.Sprintf("sh "+k8s.EphemeralContainerStartingBashScriptName, name)
+	matchingCmd := fmt.Sprintf("sh "+k8s3.EphemeralContainerStartingBashScriptName, name)
 	for _, cmd := range cmds {
 		if strings.Contains(cmd, matchingCmd) {
 			isExternal = false
