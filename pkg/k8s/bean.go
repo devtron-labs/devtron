@@ -35,3 +35,5 @@ type PodContainerList struct {
 	InitContainers      []string
 	EphemeralContainers []string
 }
+
+const EphemeralContainerStartingBashScriptName = "./tmp/%s-devtron.sh"
