@@ -891,7 +891,6 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	if util2.IsBaseStack() || util2.IsHelmApp(installedApp.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType) {
 		installAppVersionRequest := &appStoreBean.InstallAppVersionDTO{
 			AppStoreVersion:    installedApp.AppStoreApplicationVersionId,
-			Id:                 installedApp.Id,
 			InstalledAppId:     installedApp.InstalledAppId,
 			ReferenceValueId:   installedApp.ReferenceValueId,
 			ReferenceValueKind: installedApp.ReferenceValueKind,
@@ -903,6 +902,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 			impl.logger.Errorw("error while rollback helm release", "error", err)
 			return false, err
 		}
+		success = true
 	} else {
 		installedApp, success, err = impl.appStoreDeploymentArgoCdService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
 		if err != nil {
