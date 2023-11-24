@@ -44,6 +44,17 @@ const (
 	PLUGIN_VARIABLE_FORMAT_TYPE_DATE    PluginStepVariableFormatType = "DATE"
 )
 
+const (
+	CI                = 1
+	CD                = 2
+	CI_CD             = 3
+	CD_STAGE_TYPE     = "cd"
+	CI_STAGE_TYPE     = "ci"
+	CI_CD_STAGE_TYPE  = "ci_cd"
+	EXISTING_TAG_TYPE = "existing_tags"
+	NEW_TAG_TYPE      = "new_tags"
+)
+
 type PluginMetadata struct {
 	tableName   struct{}   `sql:"plugin_metadata" pg:",discard_unknown_columns"`
 	Id          int        `sql:"id,pk"`
@@ -134,19 +145,20 @@ type PluginStepVariable struct {
 	Value                     string                       `sql:"value"`
 	VariableType              PluginStepVariableType       `sql:"variable_type"`
 	ValueType                 PluginStepVariableValueType  `sql:"value_type"`
-	PreviousStepIndex         int                          `sql:"previous_step_index"`
-	VariableStepIndex         int                          `sql:"variable_step_index"`
-	VariableStepIndexInPlugin int                          `sql:"variable_step_index_in_plugin"` // will contain stepIndex of variable in case of refPlugin
+	PreviousStepIndex         int                          `sql:"previous_step_index,notnull"`
+	VariableStepIndex         int                          `sql:"variable_step_index,notnull"`
+	VariableStepIndexInPlugin int                          `sql:"variable_step_index_in_plugin,notnull"` // will contain stepIndex of variable in case of refPlugin
 	ReferenceVariableName     string                       `sql:"reference_variable_name"`
 	Deleted                   bool                         `sql:"deleted,notnull"`
 	sql.AuditLog
+	PluginMetadataId int `sql:"-"`
 }
 
 type PluginStepCondition struct {
 	tableName           struct{}                `sql:"plugin_step_condition" pg:",discard_unknown_columns"`
 	Id                  int                     `sql:"id,pk"`
-	PluginStepId        int                     `sql:"plugin_step_id"`
-	ConditionVariableId int                     `sql:"condition_variable_id"` //id of variable on which condition is written
+	PluginStepId        int                     `sql:"plugin_step_id,notnull"`
+	ConditionVariableId int                     `sql:"condition_variable_id,notnull"` //id of variable on which condition is written
 	ConditionType       PluginStepConditionType `sql:"condition_type"`
 	ConditionalOperator string                  `sql:"conditional_operator"`
 	ConditionalValue    string                  `sql:"conditional_value"`
@@ -154,8 +166,17 @@ type PluginStepCondition struct {
 	sql.AuditLog
 }
 
+type PluginStageMapping struct {
+	tableName struct{} `sql:"plugin_stage_mapping" pg:",discard_unknown_columns"`
+	Id        int      `sql:"id,pk"`
+	PluginId  int      `sql:"plugin_id"`
+	StageType int      `sql:"stage_type"`
+	sql.AuditLog
+}
+
 type GlobalPluginRepository interface {
 	GetMetaDataForAllPlugins() ([]*PluginMetadata, error)
+	GetMetaDataForPluginWithStageType(stageType int) ([]*PluginMetadata, error)
 	GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error)
 	GetAllPluginTags() ([]*PluginTag, error)
 	GetAllPluginTagRelations() ([]*PluginTagRelation, error)
@@ -166,7 +187,38 @@ type GlobalPluginRepository interface {
 	GetStepsByPluginIds(pluginIds []int) ([]*PluginStep, error)
 	GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginStepVariableType) ([]*PluginStepVariable, error)
 	GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error)
+	GetExposedVariablesForAllPlugins() ([]*PluginStepVariable, error)
 	GetConditionsByStepId(stepId int) ([]*PluginStepCondition, error)
+	GetPluginByName(pluginName string) ([]*PluginMetadata, error)
+	GetAllPluginMetaData() ([]*PluginMetadata, error)
+	GetPluginStepsByPluginId(pluginId int) ([]*PluginStep, error)
+	GetConditionsByPluginId(pluginId int) ([]*PluginStepCondition, error)
+	GetPluginStageMappingByPluginId(pluginId int) (*PluginStageMapping, error)
+	GetConnection() (dbConnection *pg.DB)
+
+	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
+	SavePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) (*PluginStageMapping, error)
+	SavePluginSteps(pluginStep *PluginStep, tx *pg.Tx) (*PluginStep, error)
+	SavePluginPipelineScript(pluginPipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error)
+	SavePluginStepVariables(pluginStepVariables *PluginStepVariable, tx *pg.Tx) (*PluginStepVariable, error)
+	SavePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) (*PluginStepCondition, error)
+	SavePluginTag(pluginTag *PluginTag, tx *pg.Tx) (*PluginTag, error)
+	SavePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) (*PluginTagRelation, error)
+	SavePluginTagInBulk(pluginTag []*PluginTag, tx *pg.Tx) error
+	SavePluginTagRelationInBulk(pluginTagRelation []*PluginTagRelation, tx *pg.Tx) error
+
+	UpdatePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) error
+	UpdatePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) error
+	UpdatePluginSteps(pluginStep *PluginStep, tx *pg.Tx) error
+	UpdatePluginPipelineScript(pluginPipelineScript *PluginPipelineScript, tx *pg.Tx) error
+	UpdatePluginStepVariables(pluginStepVariables *PluginStepVariable, tx *pg.Tx) error
+	UpdatePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) error
+	UpdatePluginTag(pluginTag *PluginTag, tx *pg.Tx) error
+	UpdatePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) error
+
+	UpdateInBulkPluginSteps(pluginSteps []*PluginStep, tx *pg.Tx) error
+	UpdateInBulkPluginStepVariables(pluginStepVariables []*PluginStepVariable, tx *pg.Tx) error
+	UpdateInBulkPluginStepConditions(pluginStepConditions []*PluginStepCondition, tx *pg.Tx) error
 }
 
 func NewGlobalPluginRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *GlobalPluginRepositoryImpl {
@@ -181,10 +233,28 @@ type GlobalPluginRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
+func (impl *GlobalPluginRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
+	return impl.dbConnection
+}
+
 func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMetadata, error) {
 	var plugins []*PluginMetadata
 	err := impl.dbConnection.Model(&plugins).
 		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all plugins", "err", err)
+		return nil, err
+	}
+	return plugins, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetMetaDataForPluginWithStageType(stageType int) ([]*PluginMetadata, error) {
+	var plugins []*PluginMetadata
+	err := impl.dbConnection.Model(&plugins).
+		Join("INNER JOIN plugin_stage_mapping psm on psm.plugin_id=plugin_metadata.id").
+		Where("plugin_metadata.deleted = ?", false).
+		Where("psm.stage_type= 2 or psm.stage_type= ?", stageType).
+		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all plugins", "err", err)
 		return nil, err
@@ -322,6 +392,21 @@ func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginId(pluginId i
 	return pluginVariables, nil
 }
 
+func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesForAllPlugins() ([]*PluginStepVariable, error) {
+	var pluginVariables []*PluginStepVariable
+	query := `SELECT psv.*, pm.id as plugin_metadata_id from plugin_step_variable psv 
+    				INNER JOIN plugin_step ps on ps.id = psv.plugin_step_id
+    				INNER JOIN plugin_metadata pm on pm.id = ps.plugin_id 
+    				WHERE psv.deleted = ? and psv.is_exposed = ? and
+    				ps.deleted = ? and pm.deleted = ?;`
+	_, err := impl.dbConnection.Query(&pluginVariables, query, false, true, false, false)
+	if err != nil {
+		impl.logger.Errorw("err in getting exposed variables for all plugins", "err", err)
+		return nil, err
+	}
+	return pluginVariables, nil
+}
+
 func (impl *GlobalPluginRepositoryImpl) GetConditionsByStepId(stepId int) ([]*PluginStepCondition, error) {
 	var conditions []*PluginStepCondition
 	err := impl.dbConnection.Model(&conditions).
@@ -332,4 +417,197 @@ func (impl *GlobalPluginRepositoryImpl) GetConditionsByStepId(stepId int) ([]*Pl
 		return nil, err
 	}
 	return conditions, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginByName(pluginName string) ([]*PluginMetadata, error) {
+	var plugin []*PluginMetadata
+	err := impl.dbConnection.Model(&plugin).
+		Where("name = ?", pluginName).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting pluginMetadata by pluginName", "err", err, "pluginName", pluginName)
+		return nil, err
+	}
+	return plugin, nil
+
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetAllPluginMetaData() ([]*PluginMetadata, error) {
+	var plugins []*PluginMetadata
+	err := impl.dbConnection.Model(&plugins).Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all plugin metadata", "err", err)
+		return nil, err
+	}
+	return plugins, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginStepsByPluginId(pluginId int) ([]*PluginStep, error) {
+	var pluginSteps []*PluginStep
+	err := impl.dbConnection.Model(&pluginSteps).
+		Where("deleted = ?", false).
+		Where("plugin_id = ?", pluginId).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting plugin steps by pluginId", "err", err, "pluginId", pluginId)
+		return nil, err
+	}
+	return pluginSteps, nil
+}
+
+// GetConditionsByPluginId fetches plugin step variable conditions by plugin id
+func (impl *GlobalPluginRepositoryImpl) GetConditionsByPluginId(pluginId int) ([]*PluginStepCondition, error) {
+	var pluginStepConditions []*PluginStepCondition
+	err := impl.dbConnection.Model(&pluginStepConditions).
+		Column("plugin_step_condition.*").
+		Join("INNER JOIN plugin_step_variable psv on psv.id = plugin_step_condition.condition_variable_id").
+		Join("INNER JOIN plugin_step ps on ps.id = psv.plugin_step_id").
+		Join("INNER JOIN plugin_metadata pm on pm.id = ps.plugin_id").
+		Where("plugin_step_condition.deleted = ?", false).
+		Where("psv.deleted = ?", false).
+		Where("ps.deleted = ?", false).
+		Where("pm.deleted = ?", false).
+		Where("pm.id = ?", pluginId).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting plugin step conditions", "err", err, "pluginId", pluginId)
+		return nil, err
+	}
+	return pluginStepConditions, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginStageMappingByPluginId(pluginId int) (*PluginStageMapping, error) {
+	var pluginStageMapping PluginStageMapping
+	err := impl.dbConnection.Model(&pluginStageMapping).
+		Where("plugin_id = ?", pluginId).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting pluginStageMapping", "err", err, "pluginId", pluginId)
+		return nil, err
+	}
+	return &pluginStageMapping, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error) {
+	err := tx.Insert(pluginMetadata)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginMetadata", "err", err)
+		return pluginMetadata, err
+	}
+	return pluginMetadata, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) (*PluginStageMapping, error) {
+	err := tx.Insert(pluginStageMapping)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginStageMapping", "err", err)
+		return pluginStageMapping, err
+	}
+	return pluginStageMapping, nil
+}
+func (impl *GlobalPluginRepositoryImpl) SavePluginSteps(pluginStep *PluginStep, tx *pg.Tx) (*PluginStep, error) {
+	err := tx.Insert(pluginStep)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginStep", "err", err)
+		return pluginStep, err
+	}
+	return pluginStep, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginPipelineScript(pluginPipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error) {
+	err := tx.Insert(pluginPipelineScript)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginPipelineScript", "err", err)
+		return pluginPipelineScript, err
+	}
+	return pluginPipelineScript, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginStepVariables(pluginStepVariables *PluginStepVariable, tx *pg.Tx) (*PluginStepVariable, error) {
+	err := tx.Insert(pluginStepVariables)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginStepVariables", "err", err)
+		return pluginStepVariables, err
+	}
+	return pluginStepVariables, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) (*PluginStepCondition, error) {
+	err := tx.Insert(pluginStepConditions)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginStepConditions", "err", err)
+		return pluginStepConditions, err
+	}
+	return pluginStepConditions, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginTag(pluginTags *PluginTag, tx *pg.Tx) (*PluginTag, error) {
+	err := tx.Insert(pluginTags)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginTags", "err", err)
+		return pluginTags, err
+	}
+	return pluginTags, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) (*PluginTagRelation, error) {
+	err := tx.Insert(pluginTagRelation)
+	if err != nil {
+		impl.logger.Errorw("error in saving pluginTagRelation", "err", err)
+		return pluginTagRelation, err
+	}
+	return pluginTagRelation, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginTagInBulk(pluginTag []*PluginTag, tx *pg.Tx) error {
+	err := tx.Insert(&pluginTag)
+	return err
+}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginTagRelationInBulk(pluginTagRelation []*PluginTagRelation, tx *pg.Tx) error {
+	err := tx.Insert(&pluginTagRelation)
+	return err
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) error {
+	return tx.Update(pluginMetadata)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) error {
+	return tx.Update(pluginStageMapping)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginSteps(pluginStep *PluginStep, tx *pg.Tx) error {
+	return tx.Update(pluginStep)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginPipelineScript(pluginPipelineScript *PluginPipelineScript, tx *pg.Tx) error {
+	return tx.Update(pluginPipelineScript)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginStepVariables(pluginStepVariables *PluginStepVariable, tx *pg.Tx) error {
+	return tx.Update(pluginStepVariables)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginStepConditions(pluginStepConditions *PluginStepCondition, tx *pg.Tx) error {
+	return tx.Update(pluginStepConditions)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginTag(pluginTag *PluginTag, tx *pg.Tx) error {
+	return tx.Update(pluginTag)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) error {
+	return tx.Update(pluginTagRelation)
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginSteps(pluginSteps []*PluginStep, tx *pg.Tx) error {
+	_, err := tx.Model(&pluginSteps).Update()
+	return err
+}
+func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepVariables(pluginStepVariables []*PluginStepVariable, tx *pg.Tx) error {
+	_, err := tx.Model(&pluginStepVariables).Update()
+	return err
+}
+func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepConditions(pluginStepConditions []*PluginStepCondition, tx *pg.Tx) error {
+	_, err := tx.Model(&pluginStepConditions).Update()
+	return err
 }

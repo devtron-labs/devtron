@@ -19,9 +19,10 @@ package dockerRegistry
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
@@ -33,22 +34,23 @@ import (
 )
 
 type DockerRegistryIpsConfigService interface {
-	IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int) (bool, error)
-	HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, ciPipelineId int, valuesFileContent []byte) ([]byte, error)
+	IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int, isVirtualEnv bool) (bool, error)
+	HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error)
 }
 
 type DockerRegistryIpsConfigServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
-	k8sUtil                           *util.K8sUtil
+	k8sUtil                           *k8s.K8sUtil
 	clusterService                    cluster.ClusterService
 	ciPipelineRepository              pipelineConfig.CiPipelineRepository
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
+	ciTemplateOverrideRepository      pipelineConfig.CiTemplateOverrideRepository
 }
 
 func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository,
-	k8sUtil *util.K8sUtil, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository) *DockerRegistryIpsConfigServiceImpl {
+	k8sUtil *k8s.K8sUtil, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository, ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *DockerRegistryIpsConfigServiceImpl {
 	return &DockerRegistryIpsConfigServiceImpl{
 		logger:                            logger,
 		dockerRegistryIpsConfigRepository: dockerRegistryIpsConfigRepository,
@@ -56,12 +58,12 @@ func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegi
 		clusterService:                    clusterService,
 		ciPipelineRepository:              ciPipelineRepository,
 		dockerArtifactStoreRepository:     dockerArtifactStoreRepository,
+		ciTemplateOverrideRepository:      ciTemplateOverrideRepository,
 	}
 }
 
-func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int) (bool, error) {
+func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int, isVirtualEnv bool) (bool, error) {
 	impl.logger.Infow("checking if Ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
-
 	ipsConfig, err := impl.dockerRegistryIpsConfigRepository.FindByDockerRegistryId(dockerRegistryId)
 	if err != nil {
 		impl.logger.Errorw("Error while getting docker registry ips config", "dockerRegistryId", dockerRegistryId, "err", err)
@@ -71,11 +73,11 @@ func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(d
 			return false, err
 		}
 	}
-	isAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
+	isAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId, isVirtualEnv)
 	return isAccessProvided, nil
 }
 
-func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, ciPipelineId int, valuesFileContent []byte) ([]byte, error) {
+func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error) {
 	clusterId := environment.ClusterId
 	impl.logger.Infow("handling ips if access given", "ciPipelineId", ciPipelineId, "clusterId", clusterId)
 
@@ -84,29 +86,11 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 		return valuesFileContent, nil
 	}
 
-	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
+	dockerRegistryId, err := impl.getDockerRegistryIdForCiPipeline(ciPipelineId, artifact)
 	if err != nil {
-		impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipelineId, "error", err)
-		if err == pg.ErrNoRows {
-			return valuesFileContent, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	if ciPipeline.IsExternal && ciPipeline.ParentCiPipeline == 0 {
-		impl.logger.Warn("Ignoring for external ci")
-		return valuesFileContent, nil
-	}
-
-	if ciPipeline.CiTemplate == nil {
-		impl.logger.Warn("returning as ciPipeline.CiTemplate is found nil")
-		return valuesFileContent, nil
-	}
-
-	dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
-	if len(*dockerRegistryId) == 0 {
-		impl.logger.Warn("returning as dockerRegistryId is found empty")
+		impl.logger.Errorw("error in getting docker registry", "dockerRegistryId", dockerRegistryId, "error", err)
+		return valuesFileContent, err
+	} else if dockerRegistryId == nil {
 		return valuesFileContent, nil
 	}
 
@@ -126,8 +110,8 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 		impl.logger.Warn("returning as ipsConfig is found nil")
 		return valuesFileContent, nil
 	}
-
-	ipsAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
+	isVirtualEnv := environment.IsVirtualEnvironment
+	ipsAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId, isVirtualEnv)
 	if !ipsAccessProvided {
 		impl.logger.Infow("ips access not given", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
 		return valuesFileContent, nil
@@ -155,6 +139,52 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 	return updatedValuesFileContent, nil
 }
 
+func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(ciPipelineId int, artifact *repository3.CiArtifact) (*string, error) {
+	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipelineId, "error", err)
+		return nil, err
+	}
+
+	if ciPipeline.IsExternal && ciPipeline.ParentCiPipeline == 0 {
+		impl.logger.Warn("Ignoring for external ci")
+		return nil, nil
+	}
+
+	if ciPipeline.CiTemplate == nil {
+		impl.logger.Warn("returning as ciPipeline.CiTemplate is found nil")
+		return nil, nil
+	}
+	var dockerRegistryId string
+	if artifact.DataSource == repository3.POST_CI || artifact.DataSource == repository3.PRE_CD || artifact.DataSource == repository3.POST_CD {
+		// if image is generated by plugin at these stages
+		if artifact.CredentialsSourceType == repository3.GLOBAL_CONTAINER_REGISTRY {
+			dockerRegistryId = artifact.CredentialSourceValue
+		}
+	} else {
+		// if image is created by ci build
+		dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
+		if len(dockerRegistryId) == 0 {
+			impl.logger.Warn("returning as dockerRegistryId is found empty")
+			return nil, nil
+		}
+
+		if ciPipeline.IsDockerConfigOverridden {
+			//set dockerRegistryId value with the DockerRegistryId of the overridden dockerRegistry
+			ciPipId := ciPipelineId
+			if ciPipeline.ParentCiPipeline != 0 {
+				ciPipId = ciPipeline.ParentCiPipeline
+			}
+			ciTemplateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipId)
+			if err != nil {
+				impl.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "ciPipelineId", ciPipelineId, "error", err)
+				return nil, err
+			}
+			dockerRegistryId = ciTemplateOverride.DockerRegistryId
+		}
+	}
+	return &dockerRegistryId, nil
+}
 func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId int, namespace string, ipsName string, dockerRegistryBean *repository.DockerArtifactStore) error {
 	impl.logger.Infow("creating/updating ips", "ipsName", ipsName, "clusterId", clusterId)
 
@@ -222,12 +252,12 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
 		return err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	cfg, err := clusterBean.GetClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config", "clusterId", clusterId, "error", err)
 		return err
 	}
-	k8sClient, err := impl.k8sUtil.GetClient(cfg)
+	k8sClient, err := impl.k8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "clusterId", clusterId, "error", err)
 		return err
@@ -242,7 +272,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		// create secret
 		impl.logger.Infow("creating ips", "ipsName", ipsName, "clusterId", clusterId)
 		ipsData := BuildIpsData(registryURL, username, password, email)
-		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient)
+		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient, nil, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
 			return err

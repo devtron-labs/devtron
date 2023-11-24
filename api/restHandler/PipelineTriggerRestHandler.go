@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 
@@ -29,7 +31,6 @@ import (
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -47,6 +48,7 @@ type PipelineTriggerRestHandler interface {
 	StartStopApp(w http.ResponseWriter, r *http.Request)
 	StartStopDeploymentGroup(w http.ResponseWriter, r *http.Request)
 	GetAllLatestDeploymentConfiguration(w http.ResponseWriter, r *http.Request)
+	RotatePods(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineTriggerRestHandlerImpl struct {
@@ -131,11 +133,53 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	res := map[string]interface{}{"releaseId": mergeResp}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var podRotateRequest pipeline.PodRotateRequest
+	err = decoder.Decode(&podRotateRequest)
+	if err != nil {
+		handler.logger.Errorw("request err, RotatePods", "err", err, "payload", podRotateRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	podRotateRequest.UserId = userId
+	handler.logger.Infow("request payload, RotatePods", "err", err, "payload", podRotateRequest)
+	err = handler.validator.Struct(podRotateRequest)
+	if err != nil {
+		handler.logger.Errorw("validation err, RotatePods", "err", err, "payload", podRotateRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(podRotateRequest.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	object = handler.enforcerUtil.GetEnvRBACNameByAppId(podRotateRequest.AppId, podRotateRequest.EnvironmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	rotatePodResponse, err := handler.workflowDagExecutor.RotatePods(r.Context(), &podRotateRequest)
+	if err != nil {
+		handler.logger.Errorw("service err, RotatePods", "err", err, "payload", podRotateRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, rotatePodResponse, http.StatusOK)
 }
 
 func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter, r *http.Request) {
@@ -309,9 +353,12 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 		return
 	}
 	//RBAC END
+	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
+	ctx := r.Context()
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
-	allDeploymentconfig, err := handler.deploymentConfigService.GetLatestDeploymentConfigurationByPipelineId(pipelineId, userHasAdminAccess)
+	allDeploymentconfig, err := handler.deploymentConfigService.GetLatestDeploymentConfigurationByPipelineId(ctx, pipelineId, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("error in getting latest deployment config, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

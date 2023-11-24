@@ -28,7 +28,8 @@ import (
 	"go.uber.org/zap"
 )
 
-/**
+/*
+*
 this table contains scanned images registry for deployed object and apps,
 images which are deployed on cluster by anyway and has scanned result
 */
@@ -126,8 +127,8 @@ func (impl ImageScanDeployInfoRepositoryImpl) FindByIds(ids []int) ([]*ImageScan
 	return models, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) Update(team *ImageScanDeployInfo) error {
-	err := impl.dbConnection.Update(team)
+func (impl ImageScanDeployInfoRepositoryImpl) Update(model *ImageScanDeployInfo) error {
+	err := impl.dbConnection.Update(model)
 	return err
 }
 
@@ -184,7 +185,8 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	}
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster clus on clus.id=env.cluster_id"
-	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true"
+	query = query + " LEFT JOIN app ap on ap.id = info.scan_object_meta_id and info.object_type='app' WHERE ap.active=true"
+	query = query + " AND info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1 "
 	if len(deployInfoIds) > 0 {
 		ids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(deployInfoIds)), ","), "[]")
 		query = query + " AND info.id IN (" + ids + ")"
@@ -231,7 +233,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *I
 	}
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster c on c.id=env.cluster_id"
-	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true"
+	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1"
 	if len(deployInfoIds) > 0 {
 		ids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(deployInfoIds)), ","), "[]")
 		query = query + " AND info.id IN (" + ids + ")"

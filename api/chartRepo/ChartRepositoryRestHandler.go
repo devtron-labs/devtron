@@ -48,6 +48,7 @@ type ChartBinary struct {
 type ChartRepositoryRestHandler interface {
 	GetChartRepoById(w http.ResponseWriter, r *http.Request)
 	GetChartRepoList(w http.ResponseWriter, r *http.Request)
+	GetChartRepoListMin(w http.ResponseWriter, r *http.Request)
 	CreateChartRepo(w http.ResponseWriter, r *http.Request)
 	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
@@ -115,13 +116,35 @@ func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoList(w http.ResponseW
 	handler.Logger.Infow("request payload, GetChartRepoList, app store")
 	res, err := handler.chartRepositoryService.GetChartRepoList()
 
-	err = handler.attributesService.UpdateKeyValueByOne(CHART_STORE_VISITED_COUNTER)
-
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartRepoList, app store", "err", err, "userId", userId)
+		handler.Logger.Debug(res)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	err = handler.attributesService.UpdateKeyValueByOne(CHART_STORE_VISITED_COUNTER)
+	// ignoring error here since it shouldn't break the main call. logging it instead
+	handler.Logger.Errorw("service err, GetChartRepoList, app store, update visited counter", "err", err, "userId", userId)
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoListMin(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+	handler.Logger.Infow("request payload, GetChartRepoListMin, app store")
+	res, err := handler.chartRepositoryService.GetChartRepoListMin()
+
+	if err != nil {
+		handler.Logger.Errorw("service err, GetChartRepoListMin, app store", "err", err, "userId", userId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -190,7 +213,12 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	err = handler.chartRepositoryService.ValidateDeploymentCount(request)
+	if err != nil {
+		handler.Logger.Errorw("error updating, UpdateChartRepo", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -258,7 +286,11 @@ func (handler *ChartRepositoryRestHandlerImpl) TriggerChartSyncManual(w http.Res
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	err2 := handler.chartRepositoryService.TriggerChartSyncManual()
+	chartProviderConfig := &chartRepo.ChartProviderConfig{
+		ChartProviderId: "*",
+		IsOCIRegistry:   true,
+	}
+	err2 := handler.chartRepositoryService.TriggerChartSyncManual(chartProviderConfig)
 	if err2 != nil {
 		common.WriteJsonResp(w, err2, nil, http.StatusInternalServerError)
 	} else {

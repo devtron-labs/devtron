@@ -17,10 +17,11 @@ SERVER_MODE_FULL= FULL
 SERVER_MODE_EA_ONLY=EA_ONLY
 #TEST_BRANCH=PUT_YOUR_BRANCH_HERE
 #LATEST_HASH=PUT_YOUR_HASH_HERE
+GOFLAGS:= $(GOFLAGS) -buildvcs=false
 include $(ENV_FILE)
 export
 
-build: clean wire test-all
+build: clean wire
 	$(ENVVAR) GOOS=$(GOOS) go build -o devtron \
 			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
@@ -30,7 +31,7 @@ wire:
 	wire
 
 clean:
-	rm -f devtron
+	rm -rf devtron
 
 test-all: test-unit
 	echo 'test cases ran successfully'

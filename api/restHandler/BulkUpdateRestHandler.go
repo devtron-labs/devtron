@@ -55,7 +55,7 @@ type BulkUpdateRestHandlerImpl struct {
 	validator               *validator.Validate
 	teamService             team.TeamService
 	enforcer                casbin.Enforcer
-	gitSensorClient         gitSensor.GitSensorClient
+	gitSensorClient         gitSensor.Client
 	pipelineRepository      pipelineConfig.PipelineRepository
 	appWorkflowService      appWorkflow.AppWorkflowService
 	enforcerUtil            rbac.EnforcerUtil
@@ -81,7 +81,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
-	gitSensorClient gitSensor.GitSensorClient,
+	gitSensorClient gitSensor.Client,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, envService request.EnvironmentService,
 	gitRegistryConfig pipeline.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
@@ -422,19 +422,11 @@ func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.Respo
 		return
 	}
 
-	v := r.URL.Query()
-	forceDelete := false
-	forceDeleteParam := v.Get("forceDelete")
-	if len(forceDeleteParam) > 0 {
-		forceDelete, err = strconv.ParseBool(forceDeleteParam)
-		if err != nil {
-			handler.logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
+	if cdPipelineBulkActionReq.ForceDelete {
+		cdPipelineBulkActionReq.NonCascadeDelete = true
 	}
-	cdPipelineBulkActionReq.ForceDelete = forceDelete
 
+	v := r.URL.Query()
 	dryRun := false
 	dryRunParam := v.Get("dryRun")
 	if len(dryRunParam) > 0 {

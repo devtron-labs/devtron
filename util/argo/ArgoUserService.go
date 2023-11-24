@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/devtron-labs/authenticator/client"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -17,7 +18,6 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -49,15 +49,12 @@ type ArgoUserServiceImpl struct {
 	devtronSecretConfig     *util2.DevtronSecretConfig
 	runTimeConfig           *client.RuntimeConfig
 	gitOpsRepository        repository.GitOpsConfigRepository
-	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
+	argoCDConnectionManager connection.ArgoCDConnectionManager
 	versionService          argocdServer.VersionService
+	k8sUtil                 *k8s.K8sUtil
 }
 
-func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
-	clusterService cluster.ClusterService,
-	devtronSecretConfig *util2.DevtronSecretConfig,
-	runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository,
-	argoCDConnectionManager argocdServer.ArgoCDConnectionManager, versionService argocdServer.VersionService) (*ArgoUserServiceImpl, error) {
+func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *k8s.K8sUtil) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,
@@ -66,6 +63,7 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 		gitOpsRepository:        gitOpsRepository,
 		argoCDConnectionManager: argoCDConnectionManager,
 		versionService:          versionService,
+		k8sUtil:                 k8sUtil,
 	}
 	if !runTimeConfig.LocalDevMode {
 		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
@@ -83,7 +81,7 @@ func (impl *ArgoUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() 
 
 func (impl *ArgoUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
 	token := ""
-	k8sClient, err := impl.clusterService.GetK8sClient()
+	k8sClient, err := impl.k8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 	}
@@ -178,7 +176,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		//here acd token only required in context for argo cd calls
 		return "", nil
 	}
-	k8sClient, err := impl.clusterService.GetK8sClient()
+	k8sClient, err := impl.k8sUtil.GetClientForInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 		return "", err
@@ -341,19 +339,6 @@ func getNewPassword() string {
 		s[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(s)
-}
-
-func getClient(clusterConfig *util.ClusterConfig) (*v1.CoreV1Client, error) {
-	cfg := &rest.Config{}
-	cfg.Host = clusterConfig.Host
-	cfg.BearerToken = clusterConfig.BearerToken
-	cfg.Insecure = true
-	httpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
-	if err != nil {
-		return nil, err
-	}
-	client, err := v1.NewForConfigAndClient(cfg, httpClient)
-	return client, err
 }
 
 func getSecret(namespace string, name string, client *v1.CoreV1Client) (*apiv1.Secret, error) {

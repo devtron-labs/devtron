@@ -12,26 +12,34 @@ type CiBuildType string
 const (
 	SELF_DOCKERFILE_BUILD_TYPE    CiBuildType = "self-dockerfile-build"
 	MANAGED_DOCKERFILE_BUILD_TYPE CiBuildType = "managed-dockerfile-build"
-	SKIP_BUILD_BUILD_TYPE         CiBuildType = "skip-build"
+	SKIP_BUILD_TYPE               CiBuildType = "skip-build"
 	BUILDPACK_BUILD_TYPE          CiBuildType = "buildpack-build"
 )
+const Main = "main"
 
 type CiBuildConfigBean struct {
-	Id                int                `json:"id"`
-	GitMaterialId     int                `json:"gitMaterialId,omitempty" validate:"required"`
-	CiBuildType       CiBuildType        `json:"ciBuildType"`
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
-	BuildPackConfig   *BuildPackConfig   `json:"buildPackConfig"`
+	Id                        int                `json:"id"`
+	GitMaterialId             int                `json:"gitMaterialId,omitempty" validate:"required"`
+	BuildContextGitMaterialId int                `json:"buildContextGitMaterialId,omitempty" validate:"required"`
+	UseRootBuildContext       bool               `json:"useRootBuildContext"`
+	CiBuildType               CiBuildType        `json:"ciBuildType"`
+	DockerBuildConfig         *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
+	BuildPackConfig           *BuildPackConfig   `json:"buildPackConfig"`
+	PipelineType              string             `json:"pipelineType"`
 }
 
 type DockerBuildConfig struct {
-	DockerfilePath     string            `json:"dockerfileRelativePath,omitempty"`
-	DockerfileContent  string            `json:"dockerfileContent"`
-	Args               map[string]string `json:"args,omitempty"`
-	TargetPlatform     string            `json:"targetPlatform,omitempty"`
-	Language           string            `json:"language,omitempty"`
-	LanguageFramework  string            `json:"languageFramework,omitempty"`
-	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
+	DockerfilePath         string              `json:"dockerfileRelativePath,omitempty"`
+	DockerfileContent      string              `json:"dockerfileContent"`
+	Args                   map[string]string   `json:"args,omitempty"`
+	TargetPlatform         string              `json:"targetPlatform,omitempty"`
+	Language               string              `json:"language,omitempty"`
+	LanguageFramework      string              `json:"languageFramework,omitempty"`
+	DockerBuildOptions     map[string]string   `json:"dockerBuildOptions,omitempty"`
+	BuildContext           string              `json:"buildContext,omitempty"`
+	UseBuildx              bool                `json:"useBuildx"`
+	BuildxProvenanceMode   string              `json:"buildxProvenanceMode"`
+	BuildxK8sDriverOptions []map[string]string `json:"buildxK8SDriverOptions,omitempty"`
 }
 
 type BuildPackConfig struct {
@@ -66,6 +74,7 @@ func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ci
 		CiTemplateOverrideId: overrideTemplateId,
 		BuildMetadata:        buildMetadata,
 		AuditLog:             sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: userId},
+		UseRootContext:       &ciBuildConfigBean.UseRootBuildContext,
 	}
 	return ciBuildConfigEntity, nil
 }
@@ -89,11 +98,17 @@ func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*C
 			return nil, err
 		}
 	}
+	useRootBuildContext := false
+	//dbBuildConfig.UseRootContext will be nil if the entry in db never updated before
+	if dbBuildConfig.UseRootContext == nil || *(dbBuildConfig.UseRootContext) {
+		useRootBuildContext = true
+	}
 	ciBuildConfigBean := &CiBuildConfigBean{
-		Id:                dbBuildConfig.Id,
-		CiBuildType:       ciBuildType,
-		BuildPackConfig:   buildPackConfig,
-		DockerBuildConfig: dockerBuildConfig,
+		Id:                  dbBuildConfig.Id,
+		CiBuildType:         ciBuildType,
+		BuildPackConfig:     buildPackConfig,
+		DockerBuildConfig:   dockerBuildConfig,
+		UseRootBuildContext: useRootBuildContext,
 	}
 	return ciBuildConfigBean, nil
 }
@@ -129,6 +144,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 			return nil, err
 		}
 	}
+	//no entry found in ci_build_config table, construct with requested data
 	if ciBuildConfigBean == nil {
 		dockerArgs := mergeMap(oldDockerArgs, ciLevelDockerArgs)
 		ciBuildConfigBean = &CiBuildConfigBean{
@@ -138,7 +154,10 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 				Args:               dockerArgs,
 				TargetPlatform:     targetPlatform,
 				DockerBuildOptions: dockerBuildOptionsMap,
+				BuildContext:       "",
 			},
+			//setting true as default
+			UseRootBuildContext: true,
 		}
 	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig

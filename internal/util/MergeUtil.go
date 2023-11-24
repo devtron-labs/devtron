@@ -19,11 +19,11 @@ package util
 
 import (
 	"encoding/json"
-
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/util"
 	jsonpatch "github.com/evanphx/json-patch"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 )
 
 type MergeUtil struct {
@@ -99,8 +99,6 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 	appLevelConfigMap := bean.ConfigMapJson{}
 	envLevelConfigMap := bean.ConfigMapJson{}
 	configResponse := bean.ConfigMapJson{}
-	commonMaps := map[string]bean.Map{}
-	var finalMaps []bean.Map
 	if appLevelConfigMapJson != "" {
 		err = json.Unmarshal([]byte(appLevelConfigMapJson), &appLevelConfigMap)
 		if err != nil {
@@ -117,20 +115,7 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 		configResponse.Enabled = true
 	}
 
-	for _, item := range envLevelConfigMap.Maps {
-		commonMaps[item.Name] = item
-	}
-	for _, item := range appLevelConfigMap.Maps {
-		if _, ok := commonMaps[item.Name]; ok {
-			//ignoring this value as override from configB
-		} else {
-			commonMaps[item.Name] = item
-		}
-	}
-	for _, v := range commonMaps {
-		finalMaps = append(finalMaps, v)
-	}
-	configResponse.Maps = finalMaps
+	configResponse.Maps = mergeConfigMapsAndSecrets(envLevelConfigMap.Maps, appLevelConfigMap.Maps)
 	byteData, err := json.Marshal(configResponse)
 	if err != nil {
 		m.Logger.Debugw("error in marshal ", "err", err)
@@ -138,69 +123,77 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 	return string(byteData), err
 }
 
-func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJson string, chartMajorVersion int, chartMinorVersion int) (data string, err error) {
+func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJson string, chartMajorVersion int, chartMinorVersion int, isJob bool) (data string, err error) {
 	appLevelSecret := bean.ConfigSecretJson{}
-	envLevelSecret := bean.ConfigSecretJson{}
-	secretResponse := bean.ConfigSecretJson{}
-	commonSecrets := map[string]*bean.Map{}
-	var finalMaps []*bean.Map
 	if appLevelSecretJson != "" {
 		err = json.Unmarshal([]byte(appLevelSecretJson), &appLevelSecret)
 		if err != nil {
 			m.Logger.Debugw("error in Unmarshal ", "appLevelSecretJson", appLevelSecretJson, "envLevelSecretJson", envLevelSecretJson, "err", err)
 		}
 	}
+	envLevelSecret := bean.ConfigSecretJson{}
 	if envLevelSecretJson != "" {
 		err = json.Unmarshal([]byte(envLevelSecretJson), &envLevelSecret)
 		if err != nil {
 			m.Logger.Debugw("error in Unmarshal ", "appLevelSecretJson", appLevelSecretJson, "envLevelSecretJson", envLevelSecretJson, "err", err)
 		}
 	}
+	secretResponse := bean.ConfigSecretJson{}
 	if len(appLevelSecret.Secrets) > 0 || len(envLevelSecret.Secrets) > 0 {
 		secretResponse.Enabled = true
 	}
 
-	for _, item := range envLevelSecret.Secrets {
-		commonSecrets[item.Name] = item
+	finalCMCS := mergeConfigMapsAndSecrets(envLevelSecret.GetDereferencedSecrets(), appLevelSecret.GetDereferencedSecrets())
+	for _, finalMap := range finalCMCS {
+		finalMap = m.processExternalSecrets(finalMap, chartMajorVersion, chartMinorVersion, isJob)
 	}
-	for _, item := range appLevelSecret.Secrets {
-		//else ignoring this value as override from configB
-		if _, ok := commonSecrets[item.Name]; !ok {
-			commonSecrets[item.Name] = item
-		}
-	}
-
-	for _, item := range commonSecrets {
-		if item.ExternalType == util.AWSSecretsManager || item.ExternalType == util.AWSSystemManager || item.ExternalType == util.HashiCorpVault {
-			if item.SecretData != nil && chartMajorVersion <= 3 && chartMinorVersion < 8 {
-				var es []map[string]interface{}
-				esNew := make(map[string]interface{})
-				err = json.Unmarshal(item.SecretData, &es)
-				if err != nil {
-					m.Logger.Debugw("error in Unmarshal ", "appLevelSecretJson", appLevelSecretJson, "envLevelSecretJson", envLevelSecretJson, "err", err)
-				}
-				for _, item := range es {
-					keyProp := item["name"].(string)
-					valueProp := item["key"]
-					esNew[keyProp] = valueProp
-				}
-				byteData, err := json.Marshal(esNew)
-				if err != nil {
-					m.Logger.Debugw("error in marshal ", "err", err)
-				}
-				item.Data = byteData
-				item.SecretData = nil
-			}
-		}
-	}
-
-	for _, v := range commonSecrets {
-		finalMaps = append(finalMaps, v)
-	}
-	secretResponse.Secrets = finalMaps
+	secretResponse.SetReferencedSecrets(finalCMCS)
 	byteData, err := json.Marshal(secretResponse)
 	if err != nil {
 		m.Logger.Debugw("error in marshal ", "err", err)
 	}
 	return string(byteData), err
+}
+
+func mergeConfigMapsAndSecrets(envLevelCMCS []bean.ConfigSecretMap, appLevelSecretCMCS []bean.ConfigSecretMap) []bean.ConfigSecretMap {
+	envCMCSNames := make([]string, 0)
+	var finalCMCS []bean.ConfigSecretMap
+	for _, item := range envLevelCMCS {
+		envCMCSNames = append(envCMCSNames, item.Name)
+	}
+	for _, item := range appLevelSecretCMCS {
+		//else ignoring this value as override from configB
+		if !slices.Contains(envCMCSNames, item.Name) {
+			finalCMCS = append(finalCMCS, item)
+		}
+	}
+	for _, item := range envLevelCMCS {
+		finalCMCS = append(finalCMCS, item)
+	}
+	return finalCMCS
+}
+
+func (m MergeUtil) processExternalSecrets(secret bean.ConfigSecretMap, chartMajorVersion int, chartMinorVersion int, isJob bool) bean.ConfigSecretMap {
+	if secret.ExternalType == util.AWSSecretsManager || secret.ExternalType == util.AWSSystemManager || secret.ExternalType == util.HashiCorpVault {
+		if secret.SecretData != nil && ((chartMajorVersion <= 3 && chartMinorVersion < 8) || isJob) {
+			var es []map[string]interface{}
+			esNew := make(map[string]interface{})
+			err := json.Unmarshal(secret.SecretData, &es)
+			if err != nil {
+				m.Logger.Debugw("error in Unmarshal ", "SecretData", secret.SecretData, "external secret", es, "err", err)
+			}
+			for _, item := range es {
+				keyProp := item["name"].(string)
+				valueProp := item["key"]
+				esNew[keyProp] = valueProp
+			}
+			byteData, err := json.Marshal(esNew)
+			if err != nil {
+				m.Logger.Debugw("error in marshal ", "err", err)
+			}
+			secret.Data = byteData
+			secret.SecretData = nil
+		}
+	}
+	return secret
 }

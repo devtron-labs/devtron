@@ -18,10 +18,12 @@
 package pipeline
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -31,43 +33,29 @@ import (
 )
 
 type GitRegistryConfig interface {
-	Create(request *GitRegistry) (*GitRegistry, error)
-	GetAll() ([]GitRegistry, error)
-	FetchAllGitProviders() ([]GitRegistry, error)
-	FetchOneGitProvider(id string) (*GitRegistry, error)
-	Update(request *GitRegistry) (*GitRegistry, error)
-	Delete(request *GitRegistry) error
+	Create(request *types.GitRegistry) (*types.GitRegistry, error)
+	GetAll() ([]types.GitRegistry, error)
+	FetchAllGitProviders() ([]types.GitRegistry, error)
+	FetchOneGitProvider(id string) (*types.GitRegistry, error)
+	Update(request *types.GitRegistry) (*types.GitRegistry, error)
+	Delete(request *types.GitRegistry) error
 }
 type GitRegistryConfigImpl struct {
-	logger          *zap.SugaredLogger
-	gitProviderRepo repository.GitProviderRepository
-	GitSensorClient gitSensor.GitSensorClient
-}
-
-type GitRegistry struct {
-	Id            int                 `json:"id,omitempty" validate:"number"`
-	Name          string              `json:"name,omitempty" validate:"required"`
-	Url           string              `json:"url,omitempty"`
-	UserName      string              `json:"userName,omitempty"`
-	Password      string              `json:"password,omitempty"`
-	SshPrivateKey string              `json:"sshPrivateKey,omitempty"`
-	AccessToken   string              `json:"accessToken,omitempty"`
-	AuthMode      repository.AuthMode `json:"authMode,omitempty" validate:"required"`
-	Active        bool                `json:"active"`
-	UserId        int32               `json:"-"`
-	GitHostId     int                 `json:"gitHostId"`
+	logger              *zap.SugaredLogger
+	gitProviderRepo     repository.GitProviderRepository
+	GitSensorGrpcClient gitSensor.Client
 }
 
 func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository,
-	GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
+	GitSensorClient gitSensor.Client) *GitRegistryConfigImpl {
 	return &GitRegistryConfigImpl{
-		logger:          logger,
-		gitProviderRepo: gitProviderRepo,
-		GitSensorClient: GitSensorClient,
+		logger:              logger,
+		gitProviderRepo:     gitProviderRepo,
+		GitSensorGrpcClient: GitSensorClient,
 	}
 }
 
-func (impl GitRegistryConfigImpl) Create(request *GitRegistry) (*GitRegistry, error) {
+func (impl GitRegistryConfigImpl) Create(request *types.GitRegistry) (*types.GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 	exist, err := impl.gitProviderRepo.ProviderExists(request.Url)
 	if err != nil {
@@ -127,16 +115,16 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistry) (*GitRegistry, er
 }
 
 // get all active git providers
-func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistry, error) {
+func (impl GitRegistryConfigImpl) GetAll() ([]types.GitRegistry, error) {
 	impl.logger.Debug("get all provider request")
 	providers, err := impl.gitProviderRepo.FindAllActiveForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []GitRegistry
+	var gitProviders []types.GitRegistry
 	for _, provider := range providers {
-		providerRes := GitRegistry{
+		providerRes := types.GitRegistry{
 			Id:        provider.Id,
 			Name:      provider.Name,
 			Url:       provider.Url,
@@ -148,16 +136,16 @@ func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistry, error) {
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistry, error) {
+func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]types.GitRegistry, error) {
 	impl.logger.Debug("fetch all git providers from db")
 	providers, err := impl.gitProviderRepo.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []GitRegistry
+	var gitProviders []types.GitRegistry
 	for _, provider := range providers {
-		providerRes := GitRegistry{
+		providerRes := types.GitRegistry{
 			Id:            provider.Id,
 			Name:          provider.Name,
 			Url:           provider.Url,
@@ -175,7 +163,7 @@ func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistry, error) 
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRegistry, error) {
+func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*types.GitRegistry, error) {
 	impl.logger.Debug("fetch git provider by ID from db")
 	provider, err := impl.gitProviderRepo.FindOne(providerId)
 	if err != nil {
@@ -183,7 +171,7 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRe
 		return nil, err
 	}
 
-	providerRes := &GitRegistry{
+	providerRes := &types.GitRegistry{
 		Id:            provider.Id,
 		Name:          provider.Name,
 		Url:           provider.Url,
@@ -200,18 +188,18 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRe
 	return providerRes, err
 }
 
-func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, error) {
+func (impl GitRegistryConfigImpl) Update(request *types.GitRegistry) (*types.GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 
 	/*
-		exist, err := impl.gitProviderRepo.ProviderExists(request.Url)
+		exist, err := impl.gitProviderRepo.ProviderExists(request.RedirectionUrl)
 		if err != nil {
-			impl.logger.Errorw("error in fetch ", "url", request.Url, "err", err)
+			impl.logger.Errorw("error in fetch ", "url", request.RedirectionUrl, "err", err)
 			return nil, err
 		}
 		if exist {
-			impl.logger.Infow("repo already exists", "url", request.Url)
-			return nil, errors.NewAlreadyExists(err, request.Url)
+			impl.logger.Infow("repo already exists", "url", request.RedirectionUrl)
+			return nil, errors.NewAlreadyExists(err, request.RedirectionUrl)
 		}
 	*/
 
@@ -273,7 +261,7 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, er
 	return request, nil
 }
 
-func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error {
+func (impl GitRegistryConfigImpl) Delete(request *types.GitRegistry) error {
 	providerId := strconv.Itoa(request.Id)
 	gitProviderConfig, err := impl.gitProviderRepo.FindOne(providerId)
 	if err != nil {
@@ -314,8 +302,7 @@ func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvid
 		SshPrivateKey: provider.SshPrivateKey,
 		AuthMode:      provider.AuthMode,
 	}
-	_, err := impl.GitSensorClient.SaveGitProvider(sensorGitProvider)
-	return err
+	return impl.GitSensorGrpcClient.SaveGitProvider(context.Background(), sensorGitProvider)
 }
 
 // Modifying Ssh Private Key because Ssh key authentication requires a new-line at the end of string & there are chances that user skips sending \n

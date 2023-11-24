@@ -31,7 +31,7 @@ spec:
       {{- end }}
       containers:
       - name: chart-sync
-        image: quay.io/devtron/chart-sync:6bdaa674-150-13276
+        image: quay.io/devtron/chart-sync:0e8c785e-373-16172
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
         securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
@@ -80,7 +80,7 @@ spec:
           {{- end }}
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:6bdaa674-150-13276
+            image: quay.io/devtron/chart-sync:0e8c785e-373-16172
             {{- if and $.Values.global $.Values.global.containerSecurityContext }}
             securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 14 }}

@@ -8,7 +8,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strings"
 )
 
 type EnforcerUtilHelm interface {
@@ -48,7 +47,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterId(clusterId int, namespa
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName)
 }
 
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string {
@@ -60,7 +59,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, c
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	return fmt.Sprintf("%s/%s__%s/%s", teamObj.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s__%s/%s", teamObj.Name, cluster.ClusterName, namespace, appName)
 }
 
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clusterId int, namespace string, appName string) (string, string) {
@@ -73,7 +72,6 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 	}
 
 	cluster, err := impl.clusterRepository.FindById(clusterId)
-
 	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object from cluster repository", "err", err)
 		return "", ""
@@ -83,7 +81,6 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 		// for cli apps which are not yet linked
 
 		app, err := impl.appRepository.FindAppAndProjectByAppName(appName)
-
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching app details", "err", err)
 			return "", ""
@@ -91,27 +88,31 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 
 		if app.TeamId == 0 {
 			// case if project is not assigned to cli app
-			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName)), ""
+			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName), ""
 		} else {
 			// case if project is assigned
-			return fmt.Sprintf("%s/%s__%s/%s", app.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName)), ""
+			return fmt.Sprintf("%s/%s__%s/%s", app.Team.Name, cluster.ClusterName, namespace, appName), ""
 		}
 
 	}
 
 	if installedApp.App.TeamId == 0 {
 		// for EA apps which have no project assigned to them
-		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName)),
-			fmt.Sprintf("%s/%s/%s", team.UNASSIGNED_PROJECT, installedApp.Environment.EnvironmentIdentifier, strings.ToLower(appName))
+		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName),
+			fmt.Sprintf("%s/%s/%s", team.UNASSIGNED_PROJECT, installedApp.Environment.EnvironmentIdentifier, appName)
 
 	} else {
 		if installedApp.EnvironmentId == 0 {
-			// for apps in EA mode, initally env id is 0.
-			return fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName)), ""
+			// for apps in EA mode, initally env can be 0.
+			return fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, appName), ""
 		}
 		// for apps which are assigned to a project and have env ID
-		return fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, installedApp.Environment.EnvironmentIdentifier, strings.ToLower(appName)),
-			fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
+		rbacOne := fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, installedApp.Environment.EnvironmentIdentifier, appName)
+		rbacTwo := fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, appName)
+		if installedApp.Environment.IsVirtualEnvironment {
+			return rbacOne, ""
+		}
+		return rbacOne, rbacTwo
 	}
 
 }
@@ -119,21 +120,23 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVersionId int) (string, string) {
 
 	InstalledApp, err := impl.InstalledAppRepository.GetInstalledApp(installedAppVersionId)
-
 	if err != nil {
 		impl.logger.Errorw("error in fetching installed app version data", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
+	rbacOne := fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.EnvironmentIdentifier, InstalledApp.App.AppName)
 
-	rbacOne := fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.EnvironmentIdentifier, strings.ToLower(InstalledApp.App.AppName))
+	if InstalledApp.Environment.IsVirtualEnvironment {
+		return rbacOne, ""
+	}
 
 	var rbacTwo string
-
-	if InstalledApp.Environment.EnvironmentIdentifier != InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace {
-		rbacTwo = fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace, strings.ToLower(InstalledApp.App.AppName))
-		return rbacOne, rbacTwo
+	if !InstalledApp.Environment.IsVirtualEnvironment {
+		if InstalledApp.Environment.EnvironmentIdentifier != InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace {
+			rbacTwo = fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace, InstalledApp.App.AppName)
+			return rbacOne, rbacTwo
+		}
 	}
 
 	return rbacOne, ""
-
 }

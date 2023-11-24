@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type App struct {
@@ -45,16 +46,19 @@ type AppRepository interface {
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
 	Update(app *App) error
 	UpdateWithTxn(app *App, tx *pg.Tx) error
+	SetDescription(id int, description string, userId int32) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
 	FindJobByDisplayName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
+	FindActiveById(id int) (pipelineGroup *App, err error)
 	FindAppsByTeamId(teamId int) ([]*App, error)
 	FindAppsByTeamIds(teamId []int, appType string) ([]App, error)
 	FindAppsByTeamName(teamName string) ([]App, error)
 	FindAll() ([]*App, error)
 	FindAppsByEnvironmentId(environmentId int) ([]App, error)
 	FindAllActiveAppsWithTeam() ([]*App, error)
+	FindAllActiveAppsWithTeamWithTeamId(teamID int) ([]*App, error)
 	CheckAppExists(appNames []string) ([]*App, error)
 
 	FindByIds(ids []*int) ([]*App, error)
@@ -65,10 +69,13 @@ type AppRepository interface {
 	FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*App, error)
 	FindIdsByTeamIdsAndTeamNames(teamIds []int, teamNames []string) ([]int, error)
 	FindIdsByNames(appNames []string) ([]int, error)
+	FindByNames(appNames []string) ([]*App, error)
 	FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error)
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
 	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
+	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*App, error)
+	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -108,6 +115,13 @@ func (repo AppRepositoryImpl) Update(app *App) error {
 
 func (repo AppRepositoryImpl) UpdateWithTxn(app *App, tx *pg.Tx) error {
 	err := tx.Update(app)
+	return err
+}
+
+func (repo AppRepositoryImpl) SetDescription(id int, description string, userId int32) error {
+	_, err := repo.dbConnection.Model((*App)(nil)).
+		Set("description = ?", description).Set("updated_by = ?", userId).Set("updated_on = ?", time.Now()).
+		Where("id = ?", id).Update()
 	return err
 }
 
@@ -164,6 +178,16 @@ func (repo AppRepositoryImpl) FindById(id int) (*App, error) {
 	return pipelineGroup, err
 }
 
+func (repo AppRepositoryImpl) FindActiveById(id int) (*App, error) {
+	pipelineGroup := &App{}
+	err := repo.dbConnection.
+		Model(pipelineGroup).
+		Where("id = ?", id).
+		Where("active = ?", true).
+		Select()
+	return pipelineGroup, err
+}
+
 func (repo AppRepositoryImpl) FindAppsByTeamId(teamId int) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Where("team_id = ?", teamId).
@@ -209,6 +233,25 @@ func (repo AppRepositoryImpl) FindAllActiveAppsWithTeam() ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Column("Team").
 		Where("app.active = ?", true).Where("app.app_type = ?", 0).
+		Select()
+	return apps, err
+}
+
+func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamWithTeamId(teamID int) ([]*App, error) {
+	var apps []*App
+	err := repo.dbConnection.Model(&apps).Column("Team").
+		Where("app.active = ?", true).
+		Where("app.app_type = ?", 0).
+		Where("app.team_id = ?", teamID).
+		Select()
+	return apps, err
+}
+
+func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*App, error) {
+	var apps []*App
+	appNameLikeQuery := "app.app_name like '%" + appNameMatch + "%'"
+	err := repo.dbConnection.Model(&apps).Column("Team").
+		Where("app.active = ?", true).Where("app.app_type = ?", helper.CustomApp).Where(appNameLikeQuery).
 		Select()
 	return apps, err
 }
@@ -316,6 +359,15 @@ func (repo AppRepositoryImpl) FindIdsByNames(appNames []string) ([]int, error) {
 	return ids, err
 }
 
+func (repo AppRepositoryImpl) FindByNames(appNames []string) ([]*App, error) {
+	var appNamesWithIds []*App
+	err := repo.dbConnection.Model(&appNamesWithIds).
+		Where("active=true").
+		Where("app_name in (?)", pg.In(appNames)).
+		Select()
+	return appNamesWithIds, err
+}
+
 func (repo AppRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error) {
 	repo.logger.Debug("reached at Fetch All Active Installed Apps With AppId And Name")
 	var apps []*App
@@ -383,4 +435,10 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 		appCounts = append(appCounts, id.Id)
 	}
 	return appCounts, err
+}
+
+func (repo AppRepositoryImpl) FindAppAndProjectByIdsIn(ids []int) ([]*App, error) {
+	var apps []*App
+	err := repo.dbConnection.Model(&apps).Column("app.*", "Team").Where("app.active = ?", true).Where("app.id in (?)", pg.In(ids)).Select()
+	return apps, err
 }

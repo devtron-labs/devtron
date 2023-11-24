@@ -21,14 +21,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/devtron-labs/devtron/pkg/app"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"time"
+	"github.com/devtron-labs/devtron/pkg/bean"
+	"k8s.io/utils/strings/slices"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
@@ -100,7 +104,36 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		if applicationDetail.StatusTime.IsZero() {
 			applicationDetail.StatusTime = time.Now()
 		}
-		isSucceeded, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime)
+		isAppStoreApplication := false
+		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
+		if err != nil && err == pg.ErrNoRows {
+			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
+			//if not found in pipeline table then search in installed_apps table
+			gitOpsDeployedAppNames, err := impl.installedAppRepository.GetAllGitOpsDeploymentAppName()
+			if err != nil && err == pg.ErrNoRows {
+				//no installed_apps found
+				impl.logger.Errorw("no installed apps found", "err", err)
+				return
+			} else if err != nil {
+				impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
+				return
+			}
+			var devtronGitOpsAppName string
+			gitOpsRepoPrefix := impl.appService.GetGitOpsRepoPrefix()
+			if len(gitOpsRepoPrefix) > 0 {
+				devtronGitOpsAppName = fmt.Sprintf("%s-%s", gitOpsRepoPrefix, app.ObjectMeta.Name)
+			} else {
+				devtronGitOpsAppName = app.ObjectMeta.Name
+			}
+			if slices.Contains(gitOpsDeployedAppNames, devtronGitOpsAppName) {
+				//app found in installed_apps table hence setting flag to true
+				isAppStoreApplication = true
+			} else {
+				//app neither found in installed_apps nor in pipeline table hence returning
+				return
+			}
+		}
+		isSucceeded, pipelineOverride, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 			//TODO - check update for charts - fix this call
@@ -119,13 +152,9 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
 		if isSucceeded {
 			impl.logger.Debugw("git hash history", "list", app.Status.History)
-			gitHash := ""
-			if app != nil {
-				gitHash = app.Status.Sync.Revision
-			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride)
 			if err != nil {
-				impl.logger.Errorw("deployment success event error", "gitHash", gitHash, "err", err)
+				impl.logger.Errorw("deployment success event error", "pipelineOverride", pipelineOverride, "err", err)
 				return
 			}
 		}
@@ -193,6 +222,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		}
 		deleteRequest := &appStoreBean.InstallAppVersionDTO{}
 		deleteRequest.ForceDelete = false
+		deleteRequest.NonCascadeDelete = false
 		deleteRequest.AcdPartialDelete = false
 		deleteRequest.InstalledAppId = model.InstalledAppId
 		deleteRequest.AppId = model.AppId
@@ -209,7 +239,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		}
 	} else {
 		// devtron app
-		err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), true, false, 0)
+		_, err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), bean.FORCE_DELETE, false, 1)
 		if err != nil {
 			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
 			return err

@@ -56,4 +56,7 @@ func (router AppRouterImpl) InitAppRouter(appRouter *mux.Router) {
 
 	appRouter.Path("/min").HandlerFunc(router.handler.GetAppListByTeamIds).Methods("GET")
 
+	appRouter.Path("/note").
+		Methods("PUT").
+		HandlerFunc(router.handler.UpdateAppNote)
 }

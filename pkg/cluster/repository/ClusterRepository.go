@@ -21,12 +21,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Cluster struct {
 	tableName              struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
 	Id                     int               `sql:"id,pk"`
 	ClusterName            string            `sql:"cluster_name"`
+	Description            string            `sql:"description"`
 	ServerUrl              string            `sql:"server_url"`
 	PrometheusEndpoint     string            `sql:"prometheus_endpoint"`
 	Active                 bool              `sql:"active,notnull"`
@@ -39,6 +41,8 @@ type Cluster struct {
 	AgentInstallationStage int               `sql:"agent_installation_stage"`
 	K8sVersion             string            `sql:"k8s_version"`
 	ErrorInConnecting      string            `sql:"error_in_connecting"`
+	IsVirtualCluster       bool              `sql:"is_virtual_cluster"`
+	InsecureSkipTlsVerify  bool              `sql:"insecure_skip_tls_verify"`
 	sql.AuditLog
 }
 
@@ -48,13 +52,17 @@ type ClusterRepository interface {
 	FindOneActive(clusterName string) (*Cluster, error)
 	FindAll() ([]Cluster, error)
 	FindAllActive() ([]Cluster, error)
-
+	FindAllActiveExceptVirtual() ([]Cluster, error)
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
+	SetDescription(id int, description string, userId int32) error
 	Delete(model *Cluster) error
 	MarkClusterDeleted(model *Cluster) error
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
+	FindActiveClusters() ([]Cluster, error)
+	SaveAll(models []*Cluster) error
+	FindByNames(clusterNames []string) ([]*Cluster, error)
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -83,6 +91,9 @@ func (impl ClusterRepositoryImpl) FindOne(clusterName string) (*Cluster, error) 
 		Select()
 	return cluster, err
 }
+func (impl ClusterRepositoryImpl) SaveAll(models []*Cluster) error {
+	return impl.dbConnection.Insert(models)
+}
 
 func (impl ClusterRepositoryImpl) FindOneActive(clusterName string) (*Cluster, error) {
 	cluster := &Cluster{}
@@ -104,11 +115,28 @@ func (impl ClusterRepositoryImpl) FindAll() ([]Cluster, error) {
 	return clusters, err
 }
 
+func (impl ClusterRepositoryImpl) FindActiveClusters() ([]Cluster, error) {
+	activeClusters := make([]Cluster, 0)
+	query := "select id, cluster_name, active from cluster where active = true"
+	_, err := impl.dbConnection.Query(&activeClusters, query)
+	return activeClusters, err
+}
+
 func (impl ClusterRepositoryImpl) FindAllActive() ([]Cluster, error) {
 	var clusters []Cluster
 	err := impl.dbConnection.
 		Model(&clusters).
 		Where("active=?", true).
+		Select()
+	return clusters, err
+}
+
+func (impl ClusterRepositoryImpl) FindAllActiveExceptVirtual() ([]Cluster, error) {
+	var clusters []Cluster
+	err := impl.dbConnection.
+		Model(&clusters).
+		Where("active=?", true).
+		Where("is_virtual_cluster=?", false).
 		Select()
 	return clusters, err
 }
@@ -124,6 +152,15 @@ func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	return cluster, err
 }
 
+func (impl ClusterRepositoryImpl) FindByNames(clusterNames []string) ([]*Cluster, error) {
+	var cluster []*Cluster
+	err := impl.dbConnection.
+		Model(&cluster).
+		Where("cluster_name in (?)", pg.In(clusterNames)).
+		Where("active = ?", true).
+		Select()
+	return cluster, err
+}
 func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 	var cluster []Cluster
 	err := impl.dbConnection.
@@ -136,6 +173,13 @@ func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 
 func (impl ClusterRepositoryImpl) Update(model *Cluster) error {
 	return impl.dbConnection.Update(model)
+}
+
+func (impl ClusterRepositoryImpl) SetDescription(id int, description string, userId int32) error {
+	_, err := impl.dbConnection.Model((*Cluster)(nil)).
+		Set("description = ?", description).Set("updated_by = ?", userId).Set("updated_on = ?", time.Now()).
+		Where("id = ?", id).Update()
+	return err
 }
 
 func (impl ClusterRepositoryImpl) Delete(model *Cluster) error {

@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 )
@@ -9,8 +10,9 @@ type PipelineStageDto struct {
 	Id          int                          `json:"id"`
 	Name        string                       `json:"name,omitempty"`
 	Description string                       `json:"description,omitempty"`
-	Type        repository.PipelineStageType `json:"type,omitempty" validate:"omitempty,oneof=PRE_CI POST_CI"`
+	Type        repository.PipelineStageType `json:"type,omitempty" validate:"omitempty,oneof=PRE_CI POST_CI PRE_CD POST_CD"`
 	Steps       []*PipelineStageStepDto      `json:"steps"`
+	TriggerType pipelineConfig.TriggerType   `json:"triggerType,omitempty"`
 }
 
 type PipelineStageStepDto struct {
@@ -90,3 +92,7 @@ type PortMap struct {
 	PortOnLocal     int `json:"portOnLocal" validate:"number,gt=0"`
 	PortOnContainer int `json:"portOnContainer" validate:"number,gt=0"`
 }
+
+const (
+	VULNERABILITY_SCANNING_PLUGIN string = "Vulnerability Scanning"
+)

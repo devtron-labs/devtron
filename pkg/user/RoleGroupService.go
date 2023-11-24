@@ -18,9 +18,11 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	util2 "github.com/devtron-labs/devtron/pkg/user/util"
 	"strings"
 	"time"
 
@@ -67,6 +69,11 @@ func NewRoleGroupServiceImpl(userAuthRepository repository2.UserAuthRepository,
 }
 
 func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error) {
+	validationPassed := util2.CheckValidationForRoleGroupCreation(request.Name)
+	if !validationPassed {
+		return nil, errors.New(bean2.VALIDATION_FAILED_ERROR_MSG)
+	}
+
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -91,13 +98,22 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		}
 		rgName := strings.ToLower(request.Name)
 		object := "group:" + strings.ReplaceAll(rgName, " ", "_")
+
+		exists, err := impl.roleGroupRepository.CheckRoleGroupExistByCasbinName(object)
+		if err != nil {
+			impl.logger.Errorw("error in getting role group by casbin name", "err", err, "casbinName", object)
+			return nil, err
+		} else if exists {
+			impl.logger.Errorw("role group already present", "err", err, "roleGroup", request.Name)
+			return nil, errors.New("role group already exist")
+		}
 		model.CasbinName = object
 		model.CreatedBy = request.UserId
 		model.UpdatedBy = request.UserId
 		model.CreatedOn = time.Now()
 		model.UpdatedOn = time.Now()
 		model.Active = true
-		model, err := impl.roleGroupRepository.CreateRoleGroup(model, tx)
+		model, err = impl.roleGroupRepository.CreateRoleGroup(model, tx)
 		request.Id = model.Id
 		if err != nil {
 			impl.logger.Errorw("error in creating new user group", "error", err)
@@ -138,7 +154,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 						}
 						if roleModel.Id == 0 {
 							if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
-								flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
+								flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
 								if err != nil || flag == false {
 									return nil, err
 								}
@@ -217,7 +233,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						return policiesToBeAdded, err
 					}
 					if roleModel.Id == 0 {
-						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
+						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, err
 						}
@@ -346,7 +362,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 					if roleModel.Id == 0 {
 						request.Status = bean2.RoleNotFoundStatusPrefix + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 						if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
-							flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
+							flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
 							policies = append(policies, policiesAdded...)
 							if err != nil || flag == false {
 								return nil, err
@@ -610,7 +626,7 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 	if err != nil {
 		impl.logger.Errorw("error in getting all role group role mappings or not found", "err", err)
 	}
-	allRolesForGroup, err := impl.roleGroupRepository.GetRolesByGroupCasbinName(model.CasbinName)
+	allRolesForGroup, err := casbin2.GetRolesForUser(model.CasbinName)
 	if err != nil {
 		impl.logger.Errorw("error in getting all roles for groups", "err", err)
 	}
@@ -644,7 +660,7 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 	}
 
 	for _, role := range allRolesForGroup {
-		flag := casbin2.DeleteRoleForUser(model.CasbinName, role.Role)
+		flag := casbin2.DeleteRoleForUser(model.CasbinName, role)
 		if flag == false {
 			impl.logger.Warnw("unable to delete mapping of group and user in casbin", "user", model.CasbinName, "role", role)
 			return false, err

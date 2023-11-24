@@ -18,7 +18,10 @@
 package cluster
 
 import (
+	"context"
 	"encoding/json"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/pkg/k8s"
 	"net/http"
 	"strconv"
 	"strings"
@@ -49,24 +52,29 @@ type EnvironmentRestHandler interface {
 	FindById(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request)
+	GetEnvironmentConnection(w http.ResponseWriter, r *http.Request)
 	DeleteEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request)
 }
 
 type EnvironmentRestHandlerImpl struct {
 	environmentClusterMappingsService request.EnvironmentService
+	k8sCommonService                  k8s.K8sCommonService
 	logger                            *zap.SugaredLogger
 	userService                       user.UserService
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
 	deleteService                     delete2.DeleteService
+	k8sUtil                           *k8s2.K8sUtil
 	cfg                               *bean.Config
 }
 
-func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer,
-	deleteService delete2.DeleteService,
-) *EnvironmentRestHandlerImpl {
+type ClusterReachableResponse struct {
+	ClusterReachable bool   `json:"clusterReachable"`
+	ClusterName      string `json:"clusterName"`
+}
+
+func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *k8s2.K8sUtil, k8sCommonService k8s.K8sCommonService) *EnvironmentRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -82,6 +90,8 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 		enforcer:                          enforcer,
 		deleteService:                     deleteService,
 		cfg:                               cfg,
+		k8sUtil:                           k8sUtil,
+		k8sCommonService:                  k8sCommonService,
 	}
 }
 
@@ -174,7 +184,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 	token := r.Header.Get("token")
 	emailId, err := impl.userService.GetEmailFromToken(token)
 	if err != nil {
-		impl.logger.Errorw("error in getting emailId from token", "err", err, "token", token)
+		impl.logger.Errorw("error in getting emailId from token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -298,7 +308,12 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		return
 	}
 	start := time.Now()
-	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocomplete()
+	showDeploymentOptionsParam := false
+	param := r.URL.Query().Get("showDeploymentOptions")
+	if param != "" {
+		showDeploymentOptionsParam, _ = strconv.ParseBool(param)
+	}
+	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocomplete(showDeploymentOptionsParam)
 	if err != nil {
 		impl.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -337,7 +352,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	}
 	elapsedTime := time.Since(start)
 	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
-		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
+		elapsedTime, "envSize", len(grantedEnvironment))
 
 	common.WriteJsonResp(w, err, grantedEnvironment, http.StatusOK)
 }
@@ -354,7 +369,13 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		return
 	}
 	token := r.Header.Get("token")
-	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.CheckAuthorizationForGlobalEnvironment)
+	userEmailId, err := impl.userService.GetEmailFromToken(token)
+	if err != nil {
+		impl.logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(userEmailId, isActionUserSuperAdmin, impl.CheckAuthorizationByEmailInBatchForGlobalEnvironment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -364,6 +385,14 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		clusters = make([]*request.ClusterEnvDto, 0)
 	}
 	common.WriteJsonResp(w, err, clusters, http.StatusOK)
+}
+
+func (handler EnvironmentRestHandlerImpl) CheckAuthorizationByEmailInBatchForGlobalEnvironment(emailId string, object []string) map[string]bool {
+	var objectResult map[string]bool
+	if len(object) > 0 {
+		objectResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, object)
+	}
+	return objectResult
 }
 
 func (handler EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment(token string, object string) bool {
@@ -445,4 +474,70 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByCl
 		clusters = make([]*request.ClusterEnvDto, 0)
 	}
 	common.WriteJsonResp(w, err, clusters, http.StatusOK)
+}
+
+func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseWriter, r *http.Request) {
+	//token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	envIdString := vars["envId"]
+	envId, err := strconv.Atoi(envIdString)
+	if err != nil {
+		impl.logger.Errorw("failed to extract clusterId from param", "error", err, "clusterId", envIdString)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	bean, err := impl.environmentClusterMappingsService.FindById(envId)
+	if err != nil {
+		impl.logger.Errorw("request err, FindById", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	clusterBean, err := impl.environmentClusterMappingsService.FindClusterByEnvId(envId)
+	if err != nil {
+		impl.logger.Errorw("request err, FindById", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.EnvironmentIdentifier)); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	// getting restConfig and clientSet outside the goroutine because we don't want to call goroutine func with receiver function
+	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(context.Background(), clusterBean.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", clusterBean.Id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	k8sClientSet, err := impl.k8sUtil.CreateK8sClientSet(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in creating k8s clientSet", "err", err, "clusterId", clusterBean.Id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	responseObj := &ClusterReachableResponse{
+		ClusterReachable: true,
+		ClusterName:      clusterBean.ClusterName,
+	}
+	err = impl.k8sUtil.FetchConnectionStatusForCluster(k8sClientSet)
+	if err != nil {
+		impl.logger.Errorw("error in fetching connection status fo cluster", "err", err, "clusterId", clusterBean.Id)
+		responseObj.ClusterReachable = false
+	}
+	//updating the cluster connection error to db
+	mapObj := map[int]error{
+		clusterBean.Id: err,
+	}
+	impl.environmentClusterMappingsService.HandleErrorInClusterConnections([]*request.ClusterBean{clusterBean}, mapObj, true)
+	common.WriteJsonResp(w, nil, responseObj, http.StatusOK)
 }

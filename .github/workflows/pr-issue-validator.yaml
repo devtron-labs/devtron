@@ -1,0 +1,152 @@
+name: Validate Pull Request
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - edited
+      - reopened
+    branches:    
+      - 'main'
+      - 'release-**'
+    # paths-ignore:
+    #   - 'docs/**'
+    #   - '.github/'
+    #   - 'CHANGELOG/'
+    #   - 'charts/'
+    #   - 'manifests/'
+    #   - 'sample-docker-templates/'
+  
+jobs:
+  validate-PR-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Validate Issue Reference
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        PR_BODY: ${{ github.event.pull_request.body }}
+        url: ${{ github.event.pull_request.url }}
+        PRNUM: ${{ github.event.pull_request.number }}
+        TITLE: ${{ github.event.pull_request.title }}
+      run: |
+        set -x
+        echo "base or target repo : ${{ github.event.pull_request.base.repo.full_name }}"
+        echo "head or source repo : ${{ github.event.pull_request.head.repo.full_name }}"
+        if [[ ${{ github.event.pull_request.head.repo.full_name }} == ${{ github.event.pull_request.base.repo.full_name }} ]]; then
+          export forked=false
+        else
+          export forked=true
+        fi
+        echo "forked: $forked"
+        if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* || "$TITLE" == *"release:"* || "$TITLE" == *"Release:"*  ]]; then
+          echo "Skipping validation as this is a PR for documentation or chore."
+          if [[ $forked == true ]]; then
+            echo "PR:Ready-to-Review, exiting gracefully"
+            exit 0
+          fi
+          gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
+          gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
+          exit 0
+        fi
+        
+        ### For ex: Fixes #2123
+        pattern1="((Fixes|Resolves) #[0-9]+)"
+        
+        ### For ex: Resolves https://github.com/devtron-labs/devtron/issues/2123
+        pattern2="((Fixes|Resolves) https://github.com/devtron-labs/devtron/issues/[0-9]+)"
+        
+        ### For ex: Fixes devtron-labs/devtron#2123
+        pattern3="((Fixes|Resolves) devtron-labs/devtron#[0-9]+)"
+        
+        # Get the pull request body
+        PR_BODY=$(jq -r '.pull_request.body' $GITHUB_EVENT_PATH)
+        echo "PR_BODY = $PR_BODY"
+
+        ### Checks if PR_BODY matches pattern1 or pattern2 or pattern3 or none
+        ### grep -i (case insensitive) -E (enables extended regular expression in grep) -q (this option suppresses normal output)
+        if echo "$PR_BODY" | grep -iEq "$pattern1"; then
+            ### Here we are taking only the numerical value ie. issue number
+            ### head -n1 only prints the 1st line.
+            ### grep -o -E "[0-9]+ basically outputs only the number between [0-9]+
+            echo "$PR_BODY" | grep -iE "$pattern1" | head -n1 | grep -o -E "[0-9]+" | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
+            echo "issue_num is : $issue_num"
+        elif echo "$PR_BODY" | grep -iEq "$pattern2"; then
+            echo "$PR_BODY" | grep -iE "$pattern2" | head -n1 | awk -F '/' '{print $NF}' | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
+            echo "issue_num is : $issue_num"
+        elif echo "$PR_BODY" | grep -iEq "$pattern3"; then
+            echo "$PR_BODY" | grep -iE "$pattern3" | head -n1 | awk -F '#' '{print $NF}' | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
+            echo "issue_num is : $issue_num"
+        else
+            echo "No Issue number detected hence failing the PR Validation check."
+            if [[ $forked == true ]]; then
+              echo "PR:Issue-verification-failed, exiting forcefully!"
+              exit 1
+            fi
+            gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
+            gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
+            exit 1
+        fi
+
+        ### Here we are setting the Internal Field Separator to "/"
+        ### read -r -> reads input from variable $url
+        ### -a url_parts -> tells read command to store input into an array named url_parts[]
+        IFS="/" read -r -a url_parts <<< "$url"
+        
+        # Remove the last two elements (repos and the issue number)
+        unset url_parts[-1]
+        unset url_parts[-1]
+        # Reattach the URL pieces
+        url=$(IFS=/; echo "${url_parts[*]}")
+
+        # Add the issue number to the URL
+        url="${url}/issues/${issue_num}"
+        echo "$url"
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+        if [[ "$response_code" -eq 200 ]]; then
+          # Check if issue is open or closed
+          text=$(curl -s "$url")
+          echo "checking status of the issue"
+          if [[ $(echo "$text" | jq -r '.state') == "open" ]]; then
+            echo "Issue #$issue_num is open"
+            echo "Issue reference found in the pull request body."
+            if [[ $forked == true ]]; then
+              echo "PR:Ready-to-Review, exiting gracefully"
+              exit 0
+            fi
+            gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
+            gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
+            exit 0
+          else
+            echo "Issue #$issue_num is not open"
+            if [[ $forked == true ]]; then
+              echo "PR:Issue-verification-failed, exiting forcefully!"
+              exit 1
+            fi
+            gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
+            gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
+            exit 1
+          fi
+        else
+            echo "Invalid Response Code obtained - error code: $response_code"
+            echo "No valid issue reference found in the pull request body."
+            gh pr comment $PRNUM --body "PR is not linked to any issue, please make the corresponding changes in the body."
+            if [[ $forked == true ]]; then
+              echo "PR:Issue-verification-failed, exiting forcefully!"
+              exit 1
+            fi
+            gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
+            gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
+            exit 1
+        fi

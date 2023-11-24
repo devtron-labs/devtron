@@ -37,7 +37,7 @@ import (
 
 const (
 	GIT_WORKING_DIR       = "/tmp/gitops/"
-	GetRepoUrlStage       = "Get Repo Url"
+	GetRepoUrlStage       = "Get Repo RedirectionUrl"
 	CreateRepoStage       = "Create Repo"
 	CloneHttpStage        = "Clone Http"
 	CreateReadmeStage     = "Create Readme"
@@ -61,7 +61,7 @@ type GitClient interface {
 
 type GitFactory struct {
 	Client           GitClient
-	gitService       GitService
+	GitService       GitService
 	GitWorkingDir    string
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
@@ -93,7 +93,7 @@ func (factory *GitFactory) Reload() error {
 		return err
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
-	factory.gitService = gitService
+	factory.GitService = gitService
 	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
 	if err != nil {
 		return err
@@ -144,7 +144,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 		AllowInsecureTLS:     gitOpsConfig.AllowInsecureTLS,
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
-	//factory.gitService = gitService
+	//factory.GitService = GitService
 	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
 	if err != nil {
 		return client, gitService, err
@@ -168,7 +168,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 	return &GitFactory{
 		Client:           client,
 		logger:           logger,
-		gitService:       gitService,
+		GitService:       gitService,
 		gitOpsRepository: gitOpsRepository,
 		GitWorkingDir:    cfg.GitWorkingDir,
 		gitCliUtil:       gitCliUtil,

@@ -44,6 +44,7 @@ type EnvLevelAppMetricsRepository interface {
 	FindByAppIdAndEnvId(appId int, envId int) (*EnvLevelAppMetrics, error)
 	Delete(metrics *EnvLevelAppMetrics) error
 	FindByAppId(appId int) ([]*EnvLevelAppMetrics, error)
+	FindByAppIdAndEnvIds(appId int, envIds []int) ([]*EnvLevelAppMetrics, error)
 }
 
 func NewEnvLevelAppMetricsRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *EnvLevelAppMetricsRepositoryImpl {
@@ -74,4 +75,13 @@ func (impl *EnvLevelAppMetricsRepositoryImpl) Update(metrics *EnvLevelAppMetrics
 
 func (impl *EnvLevelAppMetricsRepositoryImpl) Delete(metrics *EnvLevelAppMetrics) error {
 	return impl.dbConnection.Delete(metrics)
+}
+
+func (impl *EnvLevelAppMetricsRepositoryImpl) FindByAppIdAndEnvIds(appId int, envIds []int) ([]*EnvLevelAppMetrics, error) {
+	var envAppLevelMetrics []*EnvLevelAppMetrics
+	err := impl.dbConnection.Model(&envAppLevelMetrics).
+		Where("env_level_app_metrics.app_id = ? ", appId).
+		Where("env_level_app_metrics.env_id in (?) ", pg.In(envIds)).
+		Select()
+	return envAppLevelMetrics, err
 }

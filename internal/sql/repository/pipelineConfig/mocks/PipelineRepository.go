@@ -14,28 +14,44 @@ type PipelineRepository struct {
 	mock.Mock
 }
 
-func (_m *PipelineRepository) FindActiveByAppIds(appIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
-	//
-	return nil, err
-}
-
-func (_m *PipelineRepository) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
-	//
-	return nil, err
-}
-
-// Delete provides a mock function with given fields: id, tx
-func (_m *PipelineRepository) Delete(id int, tx *pg.Tx) error {
-	ret := _m.Called(id, tx)
+// Delete provides a mock function with given fields: id, userId, tx
+func (_m *PipelineRepository) Delete(id int, userId int32, tx *pg.Tx) error {
+	ret := _m.Called(id, userId, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, *pg.Tx) error); ok {
-		r0 = rf(id, tx)
+	if rf, ok := ret.Get(0).(func(int, int32, *pg.Tx) error); ok {
+		r0 = rf(id, userId, tx)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
+}
+
+// FilterDeploymentDeleteRequestedPipelineIds provides a mock function with given fields: cdPipelineIds
+func (_m *PipelineRepository) FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error) {
+	ret := _m.Called(cdPipelineIds)
+
+	var r0 map[int]bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) (map[int]bool, error)); ok {
+		return rf(cdPipelineIds)
+	}
+	if rf, ok := ret.Get(0).(func([]int) map[int]bool); ok {
+		r0 = rf(cdPipelineIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[int]bool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(cdPipelineIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // FindActiveByAppId provides a mock function with given fields: appId
@@ -142,6 +158,32 @@ func (_m *PipelineRepository) FindActiveByAppIdAndPipelineId(appId int, pipeline
 	return r0, r1
 }
 
+// FindActiveByAppIds provides a mock function with given fields: appIds
+func (_m *PipelineRepository) FindActiveByAppIds(appIds []int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(appIds)
+
+	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(appIds)
+	}
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(appIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(appIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindActiveByEnvId provides a mock function with given fields: envId
 func (_m *PipelineRepository) FindActiveByEnvId(envId int) ([]*pipelineConfig.Pipeline, error) {
 	ret := _m.Called(envId)
@@ -168,25 +210,51 @@ func (_m *PipelineRepository) FindActiveByEnvId(envId int) ([]*pipelineConfig.Pi
 	return r0, r1
 }
 
-// FindActiveByEnvIdAndDeploymentTypeExcludingAppIds provides a mock function with given fields: environmentId, deploymentAppType, exclusionList
+// FindActiveByEnvIdAndDeploymentType provides a mock function with given fields: environmentId, deploymentAppType, exclusionList, includeApps
 func (_m *PipelineRepository) FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*pipelineConfig.Pipeline, error) {
-	ret := _m.Called(environmentId, deploymentAppType, exclusionList)
+	ret := _m.Called(environmentId, deploymentAppType, exclusionList, includeApps)
 
 	var r0 []*pipelineConfig.Pipeline
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int, string, []int) ([]*pipelineConfig.Pipeline, error)); ok {
-		return rf(environmentId, deploymentAppType, exclusionList)
+	if rf, ok := ret.Get(0).(func(int, string, []int, []int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(environmentId, deploymentAppType, exclusionList, includeApps)
 	}
-	if rf, ok := ret.Get(0).(func(int, string, []int) []*pipelineConfig.Pipeline); ok {
-		r0 = rf(environmentId, deploymentAppType, exclusionList)
+	if rf, ok := ret.Get(0).(func(int, string, []int, []int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(environmentId, deploymentAppType, exclusionList, includeApps)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(int, string, []int) error); ok {
-		r1 = rf(environmentId, deploymentAppType, exclusionList)
+	if rf, ok := ret.Get(1).(func(int, string, []int, []int) error); ok {
+		r1 = rf(environmentId, deploymentAppType, exclusionList, includeApps)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindActiveByEnvIds provides a mock function with given fields: envId
+func (_m *PipelineRepository) FindActiveByEnvIds(envId []int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(envId)
+
+	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(envId)
+	}
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(envId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(envId)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -291,6 +359,58 @@ func (_m *PipelineRepository) FindAllPipelinesByChartsOverrideAndAppIdAndChartId
 
 	if rf, ok := ret.Get(1).(func(bool, int, int) error); ok {
 		r1 = rf(chartOverridden, appId, chartId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindAppAndEnvDetailsByPipelineId provides a mock function with given fields: id
+func (_m *PipelineRepository) FindAppAndEnvDetailsByPipelineId(id int) (*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(id)
+
+	var r0 *pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) (*pipelineConfig.Pipeline, error)); ok {
+		return rf(id)
+	}
+	if rf, ok := ret.Get(0).(func(int) *pipelineConfig.Pipeline); ok {
+		r0 = rf(id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pipelineConfig.Pipeline)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindAppAndEnvironmentAndProjectByPipelineIds provides a mock function with given fields: pipelineIds
+func (_m *PipelineRepository) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(pipelineIds)
+
+	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(pipelineIds)
+	}
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(pipelineIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(pipelineIds)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -658,25 +778,25 @@ func (_m *PipelineRepository) GetArgoPipelineByArgoAppName(argoAppName string) (
 	return r0, r1
 }
 
-// GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses provides a mock function with given fields: deployedBeforeMinutes
-func (_m *PipelineRepository) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int, pipelineStatusCheckDeployedSince int) ([]*pipelineConfig.Pipeline, error) {
-	ret := _m.Called(deployedBeforeMinutes)
+// GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses provides a mock function with given fields: deployedBeforeMinutes, getPipelineDeployedWithinHours
+func (_m *PipelineRepository) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(deployedBeforeMinutes, getPipelineDeployedWithinHours)
 
 	var r0 []*pipelineConfig.Pipeline
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.Pipeline, error)); ok {
-		return rf(deployedBeforeMinutes)
+	if rf, ok := ret.Get(0).(func(int, int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(deployedBeforeMinutes, getPipelineDeployedWithinHours)
 	}
-	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.Pipeline); ok {
-		r0 = rf(deployedBeforeMinutes)
+	if rf, ok := ret.Get(0).(func(int, int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(deployedBeforeMinutes, getPipelineDeployedWithinHours)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(int) error); ok {
-		r1 = rf(deployedBeforeMinutes)
+	if rf, ok := ret.Get(1).(func(int, int) error); ok {
+		r1 = rf(deployedBeforeMinutes, getPipelineDeployedWithinHours)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -781,15 +901,44 @@ func (_m *PipelineRepository) GetPartiallyDeletedPipelineByStatus(appId int, env
 	ret := _m.Called(appId, envId)
 
 	var r0 pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int, int) (pipelineConfig.Pipeline, error)); ok {
+		return rf(appId, envId)
+	}
 	if rf, ok := ret.Get(0).(func(int, int) pipelineConfig.Pipeline); ok {
 		r0 = rf(appId, envId)
 	} else {
 		r0 = ret.Get(0).(pipelineConfig.Pipeline)
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int, int) error); ok {
 		r1 = rf(appId, envId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetPostStageConfigById provides a mock function with given fields: id
+func (_m *PipelineRepository) GetPostStageConfigById(id int) (*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(id)
+
+	var r0 *pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) (*pipelineConfig.Pipeline, error)); ok {
+		return rf(id)
+	}
+	if rf, ok := ret.Get(0).(func(int) *pipelineConfig.Pipeline); ok {
+		r0 = rf(id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pipelineConfig.Pipeline)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(id)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -828,6 +977,20 @@ func (_m *PipelineRepository) Save(pipeline []*pipelineConfig.Pipeline, tx *pg.T
 	var r0 error
 	if rf, ok := ret.Get(0).(func([]*pipelineConfig.Pipeline, *pg.Tx) error); ok {
 		r0 = rf(pipeline, tx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetDeploymentAppCreatedInPipeline provides a mock function with given fields: deploymentAppCreated, pipelineId, userId
+func (_m *PipelineRepository) SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error {
+	ret := _m.Called(deploymentAppCreated, pipelineId, userId)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(bool, int, int32) error); ok {
+		r0 = rf(deploymentAppCreated, pipelineId, userId)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -889,13 +1052,13 @@ func (_m *PipelineRepository) Update(pipeline *pipelineConfig.Pipeline, tx *pg.T
 	return r0
 }
 
-// UpdateCdPipeline provides a mock function with given fields: pipeline
-func (_m *PipelineRepository) UpdateCdPipeline(pipeline *pipelineConfig.Pipeline) error {
-	ret := _m.Called(pipeline)
+// UpdateCdPipelineAfterDeployment provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes, userId, delete
+func (_m *PipelineRepository) UpdateCdPipelineAfterDeployment(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, delete bool) error {
+	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes, userId, delete)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*pipelineConfig.Pipeline) error); ok {
-		r0 = rf(pipeline)
+	if rf, ok := ret.Get(0).(func(string, []int, int32, bool) error); ok {
+		r0 = rf(deploymentAppType, cdPipelineIdIncludes, userId, delete)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -903,13 +1066,13 @@ func (_m *PipelineRepository) UpdateCdPipeline(pipeline *pipelineConfig.Pipeline
 	return r0
 }
 
-// UpdateCdPipelineDeploymentAppInFilter provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes, userId
-func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32) error {
-	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes, userId)
+// UpdateCdPipelineDeploymentAppInFilter provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated, delete
+func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, delete bool) error {
+	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated, delete)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, []int, int32) error); ok {
-		r0 = rf(deploymentAppType, cdPipelineIdIncludes, userId)
+	if rf, ok := ret.Get(0).(func(string, []int, int32, bool, bool) error); ok {
+		r0 = rf(deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated, delete)
 	} else {
 		r0 = ret.Error(0)
 	}

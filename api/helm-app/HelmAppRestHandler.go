@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -14,7 +15,6 @@ import (
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -313,7 +313,7 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 }
 
 func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, r *http.Request) {
-	request := &openapi.UpdateReleaseRequest{}
+	request := &UpdateApplicationRequestDto{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(request)
 	if err != nil {
@@ -336,7 +336,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
-
+	request.SourceAppType = SOURCE_EXTERNAL_HELM_APP
 	// update application externally
 	res, err := handler.helmAppService.UpdateApplication(r.Context(), appIdentifier, request)
 	if err != nil {
@@ -464,4 +464,5 @@ type InstalledAppInfo struct {
 	AppStoreChartName     string `json:"appStoreChartName"`
 	TeamId                int    `json:"teamId"`
 	TeamName              string `json:"teamName"`
+	DeploymentType        string `json:"deploymentType"`
 }

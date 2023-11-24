@@ -31,6 +31,7 @@ type Chart struct {
 	ReferenceChart          []byte                      `sql:"reference_chart"`
 	IsBasicViewLocked       bool                        `sql:"is_basic_view_locked,notnull"`
 	CurrentViewEditor       models.ChartsViewEditorType `sql:"current_view_editor"`
+	ResolvedGlobalOverride  string                      `sql:"-"`
 	sql.AuditLog
 }
 
@@ -46,6 +47,7 @@ type ChartRepository interface {
 
 	FindActiveChartsByAppId(appId int) (charts []*Chart, err error)
 	FindLatestChartForAppByAppId(appId int) (chart *Chart, err error)
+	FindChartRefIdForLatestChartForAppByAppId(appId int) (int, error)
 	FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error)
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
 	FindPreviousChartByAppId(appId int) (chart *Chart, err error)
@@ -123,6 +125,17 @@ func (repositoryImpl ChartRepositoryImpl) FindLatestChartForAppByAppId(appId int
 		Where("latest= ?", true).
 		Select()
 	return chart, err
+}
+
+func (repositoryImpl ChartRepositoryImpl) FindChartRefIdForLatestChartForAppByAppId(appId int) (int, error) {
+	chart := &Chart{}
+	err := repositoryImpl.dbConnection.
+		Model(chart).
+		Column("chart_ref_id").
+		Where("app_id= ?", appId).
+		Where("latest= ?", true).
+		Select()
+	return chart.ChartRefId, err
 }
 
 func (repositoryImpl ChartRepositoryImpl) FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error) {

@@ -45,7 +45,7 @@ func NewTokenCache(logger *zap.SugaredLogger, aCDAuthConfig *ACDAuthConfig, user
 }
 func (impl *TokenCache) BuildACDSynchContext() (acdContext context.Context, err error) {
 	token, found := impl.cache.Get("token")
-	impl.logger.Debugw("building acd context", "token", token, "found", found)
+	impl.logger.Debugw("building acd context", "found", found)
 	if !found {
 		token, err := impl.userAuthService.HandleLogin(impl.aCDAuthConfig.ACDUsername, impl.aCDAuthConfig.ACDPassword)
 		if err != nil {
@@ -61,10 +61,12 @@ func (impl *TokenCache) BuildACDSynchContext() (acdContext context.Context, err 
 }
 
 type ACDAuthConfig struct {
-	ACDUsername           string `env:"ACD_USERNAME" envDefault:"admin"`
-	ACDPassword           string `env:"ACD_PASSWORD" `
-	ACDConfigMapName      string `env:"ACD_CM" envDefault:"argocd-cm"`
-	ACDConfigMapNamespace string `env:"ACD_NAMESPACE" envDefault:"devtroncd"`
+	ACDUsername                      string `env:"ACD_USERNAME" envDefault:"admin"`
+	ACDPassword                      string `env:"ACD_PASSWORD" `
+	ACDConfigMapName                 string `env:"ACD_CM" envDefault:"argocd-cm"`
+	ACDConfigMapNamespace            string `env:"ACD_NAMESPACE" envDefault:"devtroncd"`
+	ResourceListForReplicas          string `env:"RESOURCE_LIST_FOR_REPLICAS" envDefault:"Deployment,Rollout,StatefulSet,ReplicaSet"`
+	ResourceListForReplicasBatchSize int    `env:"RESOURCE_LIST_FOR_REPLICAS_BATCH_SIZE" envDefault:"5"`
 }
 
 func GetACDAuthConfig() (*ACDAuthConfig, error) {

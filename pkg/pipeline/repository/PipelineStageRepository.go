@@ -29,7 +29,7 @@ const (
 	PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_GLOBAL   PipelineStageStepVariableValueType  = "GLOBAL"
 	PIPELINE_STAGE_STEP_CONDITION_TYPE_SKIP          PipelineStageStepConditionType      = "SKIP"
 	PIPELINE_STAGE_STEP_CONDITION_TYPE_TRIGGER       PipelineStageStepConditionType      = "TRIGGER"
-	PIPELINE_STAGE_STEP_CONDITION_TYPE_SUCCESS       PipelineStageStepConditionType      = "SUCCESS"
+	PIPELINE_STAGE_STEP_CONDITION_TYPE_SUCCESS       PipelineStageStepConditionType      = "PASS"
 	PIPELINE_STAGE_STEP_CONDITION_TYPE_FAIL          PipelineStageStepConditionType      = "FAIL"
 	PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_STRING  PipelineStageStepVariableFormatType = "STRING"
 	PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_NUMBER  PipelineStageStepVariableFormatType = "NUMBER"
@@ -137,22 +137,30 @@ type PipelineStageStepCondition struct {
 type PipelineStageRepository interface {
 	GetConnection() *pg.DB
 
-	CreateCiStage(ciStage *PipelineStage) (*PipelineStage, error)
-	UpdateCiStage(ciStage *PipelineStage) (*PipelineStage, error)
-	MarkCiStageDeletedById(ciStageId int, updatedBy int32, tx *pg.Tx) error
+	CreatePipelineStage(pipelineStage *PipelineStage, tx *pg.Tx) (*PipelineStage, error)
+	UpdatePipelineStage(pipelineStage *PipelineStage) (*PipelineStage, error)
+	MarkPipelineStageDeletedById(stageId int, updatedBy int32, tx *pg.Tx) error
+
 	GetAllCiStagesByCiPipelineId(ciPipelineId int) ([]*PipelineStage, error)
+	GetAllCdStagesByCdPipelineId(cdPipelineId int) ([]*PipelineStage, error)
+	GetAllCdStagesByCdPipelineIds(cdPipelineIds []int) ([]*PipelineStage, error)
+
 	GetCiStageByCiPipelineIdAndStageType(ciPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
+	GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
 
 	GetStepIdsByStageId(stageId int) ([]int, error)
-	CreatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error)
+	CreatePipelineStageStep(step *PipelineStageStep, tx *pg.Tx) (*PipelineStageStep, error)
 	UpdatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error)
-	MarkCiStageStepsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error
+	MarkPipelineStageStepsDeletedByStageId(stageId int, updatedBy int32, tx *pg.Tx) error
 	GetAllStepsByStageId(stageId int) ([]*PipelineStageStep, error)
+	GetAllCiPipelineIdsByPluginIdAndStageType(pluginId int, stageType string) ([]int, error)
+	CheckPluginExistsInCiPipeline(pipelineId int, stageType string, pluginId int) (bool, error)
 	GetStepById(stepId int) (*PipelineStageStep, error)
 	MarkStepsDeletedByStageId(stageId int) error
 	MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq []int, stageId int) error
+	GetActiveStepsByRefPluginId(refPluginId int) ([]*PipelineStageStep, error)
 
-	CreatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
+	CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error)
 	UpdatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
 	GetScriptIdsByStageId(stageId int) ([]int, error)
 	MarkPipelineScriptsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
@@ -160,7 +168,8 @@ type PipelineStageRepository interface {
 	MarkScriptDeletedById(scriptId int) error
 
 	MarkScriptMappingDeletedByScriptId(scriptId int) error
-	CreateScriptMapping(mappings []ScriptPathArgPortMapping) error
+	CreateScriptMapping(mappings []ScriptPathArgPortMapping, tx *pg.Tx) error
+	UpdateScriptMapping(mappings []*ScriptPathArgPortMapping, tx *pg.Tx) error
 	GetScriptMappingIdsByStageId(stageId int) ([]int, error)
 	MarkPipelineScriptMappingsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error)
@@ -217,6 +226,32 @@ func (impl *PipelineStageRepositoryImpl) GetAllCiStagesByCiPipelineId(ciPipeline
 	return pipelineStages, nil
 }
 
+func (impl *PipelineStageRepositoryImpl) GetAllCdStagesByCdPipelineId(cdPipelineId int) ([]*PipelineStage, error) {
+	var pipelineStages []*PipelineStage
+	err := impl.dbConnection.Model(&pipelineStages).
+		Where("cd_pipeline_id = ?", cdPipelineId).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all cd stages by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
+		return nil, err
+	}
+	return pipelineStages, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) GetAllCdStagesByCdPipelineIds(cdPipelineIds []int) ([]*PipelineStage, error) {
+	var pipelineStages []*PipelineStage
+	err := impl.dbConnection.Model(&pipelineStages).
+		Where("cd_pipeline_id in (?)", pg.In(cdPipelineIds)).
+		Where("deleted = ?", false).
+		Select()
+
+	if err != nil {
+		impl.logger.Errorw("err in getting all cd stages by cdPipelineIds", "err", err, "cdPipelineIds", cdPipelineIds)
+		return nil, err
+	}
+	return pipelineStages, nil
+}
+
 func (impl *PipelineStageRepositoryImpl) GetCiStageByCiPipelineIdAndStageType(ciPipelineId int, stageType PipelineStageType) (*PipelineStage, error) {
 	var pipelineStage PipelineStage
 	err := impl.dbConnection.Model(&pipelineStage).
@@ -230,30 +265,49 @@ func (impl *PipelineStageRepositoryImpl) GetCiStageByCiPipelineIdAndStageType(ci
 	return &pipelineStage, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) CreateCiStage(ciStage *PipelineStage) (*PipelineStage, error) {
-	err := impl.dbConnection.Insert(ciStage)
+func (impl *PipelineStageRepositoryImpl) GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType PipelineStageType) (*PipelineStage, error) {
+	var pipelineStage PipelineStage
+	err := impl.dbConnection.Model(&pipelineStage).
+		Where("cd_pipeline_id = ?", cdPipelineId).
+		Where("type = ?", stageType).
+		Where("deleted = ?", false).Select()
 	if err != nil {
-		impl.logger.Errorw("error in creating pre stage entry", "err", err, "ciStage", ciStage)
+		impl.logger.Errorw("err in getting cd stage by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
 		return nil, err
 	}
-	return ciStage, nil
+	return &pipelineStage, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) UpdateCiStage(ciStage *PipelineStage) (*PipelineStage, error) {
-	err := impl.dbConnection.Update(ciStage)
+func (impl *PipelineStageRepositoryImpl) CreatePipelineStage(pipelineStage *PipelineStage, tx *pg.Tx) (*PipelineStage, error) {
+	var err error
+	if tx != nil {
+		err = tx.Insert(pipelineStage)
+	} else {
+		err = impl.dbConnection.Insert(pipelineStage)
+	}
 	if err != nil {
-		impl.logger.Errorw("error in updating pre stage entry", "err", err, "ciStage", ciStage)
+		impl.logger.Errorw("err at CreatePipelineStage in inserting pipelineStage", err, "pipelineStage", pipelineStage)
 		return nil, err
 	}
-	return ciStage, nil
+
+	return pipelineStage, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkCiStageDeletedById(ciStageId int, updatedBy int32, tx *pg.Tx) error {
+func (impl *PipelineStageRepositoryImpl) UpdatePipelineStage(pipelineStage *PipelineStage) (*PipelineStage, error) {
+	err := impl.dbConnection.Update(pipelineStage)
+	if err != nil {
+		impl.logger.Errorw("error in updating pre stage entry", "err", err, "pipelineStage", pipelineStage)
+		return nil, err
+	}
+	return pipelineStage, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) MarkPipelineStageDeletedById(stageId int, updatedBy int32, tx *pg.Tx) error {
 	var stage PipelineStage
 	_, err := tx.Model(&stage).Set("deleted = ?", true).Set("updated_on = ?", time.Now()).
-		Set("updated_by = ?", updatedBy).Where("id = ?", ciStageId).Update()
+		Set("updated_by = ?", updatedBy).Where("id = ?", stageId).Update()
 	if err != nil {
-		impl.logger.Errorw("error in marking ci stage deleted", "err", err, "ciStageId", ciStageId)
+		impl.logger.Errorw("error in marking pipeline stage deleted", "err", err, "StageId", stageId)
 		return err
 	}
 	return nil
@@ -270,12 +324,18 @@ func (impl *PipelineStageRepositoryImpl) GetStepIdsByStageId(stageId int) ([]int
 	return ids, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error) {
-	err := impl.dbConnection.Insert(step)
+func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStep(step *PipelineStageStep, tx *pg.Tx) (*PipelineStageStep, error) {
+	var err error
+	if tx != nil {
+		err = tx.Insert(step)
+	} else {
+		err = impl.dbConnection.Insert(step)
+	}
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline stage step", "err", err, "step", step)
 		return nil, err
 	}
+
 	return step, nil
 }
 
@@ -288,12 +348,12 @@ func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStep(step *PipelineS
 	return step, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkCiStageStepsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error {
+func (impl *PipelineStageRepositoryImpl) MarkPipelineStageStepsDeletedByStageId(stageId int, updatedBy int32, tx *pg.Tx) error {
 	var step PipelineStageStep
 	_, err := tx.Model(&step).Set("deleted = ?", true).Set("updated_on = ?", time.Now()).
-		Set("updated_by = ?", updatedBy).Where("pipeline_stage_id = ?", ciStageId).Update()
+		Set("updated_by = ?", updatedBy).Where("pipeline_stage_id = ?", stageId).Update()
 	if err != nil {
-		impl.logger.Errorw("error in marking steps deleted by stageId", "err", err, "ciStageId", ciStageId)
+		impl.logger.Errorw("error in marking steps deleted by stageId", "err", err, "ciStageId", stageId)
 		return err
 	}
 	return nil
@@ -324,6 +384,32 @@ func (impl *PipelineStageRepositoryImpl) GetStepById(stepId int) (*PipelineStage
 	return &step, nil
 }
 
+func (impl *PipelineStageRepositoryImpl) GetAllCiPipelineIdsByPluginIdAndStageType(pluginId int, stageType string) ([]int, error) {
+	var ciPipelineIds []int
+	query := "Select ps.ci_pipeline_id from pipeline_stage ps " +
+		"INNER JOIN pipeline_stage_step pss ON pss.pipeline_stage_id = ps.id " +
+		"where pss.ref_plugin_id = ? and ps.type = ? and pss.deleted = false and ps.deleted = false"
+	_, err := impl.dbConnection.Query(&ciPipelineIds, query, pluginId, stageType)
+	if err != nil {
+		impl.logger.Errorw("err in getting ciPipelineIds by PluginId and StepType", "err", err, "pluginId", pluginId, "stageType", stageType)
+		return nil, err
+	}
+	return ciPipelineIds, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) CheckPluginExistsInCiPipeline(pipelineId int, stageType string, pluginId int) (bool, error) {
+	var step PipelineStageStep
+	query := `Select * from pipeline_stage_step pss  
+		INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id  
+		where pss.ref_plugin_id = ? and ps.type = ? and pss.deleted = false and ps.deleted = false and ps.ci_pipeline_id= ?;`
+	_, err := impl.dbConnection.Query(&step, query, pluginId, stageType, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("err in getting pipelineStageStep", "err", err, "pluginId", pluginId, "pipelineId", pipelineId, "stageType", stageType)
+		return false, err
+	}
+	return step.Id != 0, nil
+}
+
 func (impl *PipelineStageRepositoryImpl) MarkStepsDeletedByStageId(stageId int) error {
 	var step PipelineStageStep
 	_, err := impl.dbConnection.Model(&step).Set("deleted = ?", true).
@@ -347,12 +433,30 @@ func (impl *PipelineStageRepositoryImpl) MarkStepsDeletedExcludingActiveStepsInU
 	return nil
 }
 
-func (impl *PipelineStageRepositoryImpl) CreatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error) {
-	err := impl.dbConnection.Insert(pipelineScript)
+func (impl *PipelineStageRepositoryImpl) GetActiveStepsByRefPluginId(refPluginId int) ([]*PipelineStageStep, error) {
+	var steps []*PipelineStageStep
+	err := impl.dbConnection.Model(&steps).
+		Where("ref_plugin_id = ?", refPluginId).
+		Where("deleted = ?", false).Select()
 	if err != nil {
-		impl.logger.Errorw("error in creating pipeline script", "err", err, "scriptEntry", pipelineScript)
+		impl.logger.Errorw("err in getting all steps by refPluginId", "err", err, "refPluginId", refPluginId)
 		return nil, err
 	}
+	return steps, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error) {
+	var err error
+	if tx != nil {
+		err = tx.Insert(pipelineScript)
+	} else {
+		err = impl.dbConnection.Insert(pipelineScript)
+	}
+	if err != nil {
+		impl.logger.Errorw("err at CreatePipelineScript in inserting pipelineScript", err, "pipelineScript", pipelineScript)
+		return nil, err
+	}
+
 	return pipelineScript, nil
 }
 
@@ -426,10 +530,36 @@ func (impl *PipelineStageRepositoryImpl) MarkScriptMappingDeletedByScriptId(scri
 	return nil
 }
 
-func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPathArgPortMapping) error {
-	err := impl.dbConnection.Insert(&mappings)
+func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPathArgPortMapping, tx *pg.Tx) error {
+	var err error
+	if tx != nil {
+		err = tx.Insert(&mappings)
+	} else {
+		err = impl.dbConnection.Insert(&mappings)
+	}
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline script mappings", "err", err, "mappings", mappings)
+		return err
+	}
+	return nil
+}
+
+func (impl *PipelineStageRepositoryImpl) UpdateScriptMapping(mappings []*ScriptPathArgPortMapping, tx *pg.Tx) error {
+	var err error
+	if tx != nil {
+		for _, entry := range mappings {
+			err = tx.Update(entry)
+			if err != nil {
+				impl.logger.Errorw("error in updating ScriptPathArgPortMapping", "entry", entry, "err", err)
+				return err
+			}
+		}
+
+	} else {
+		err = impl.dbConnection.Update(&mappings)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in updating pipeline script mappings", "err", err, "mappings", mappings)
 		return err
 	}
 	return nil
@@ -512,7 +642,12 @@ func (impl *PipelineStageRepositoryImpl) CheckIfPortMappingExists(portOnLocal in
 }
 
 func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStepVariables(variables []PipelineStageStepVariable, tx *pg.Tx) ([]PipelineStageStepVariable, error) {
-	err := tx.Insert(&variables)
+	var err error
+	if tx != nil {
+		err = tx.Insert(&variables)
+	} else {
+		err = impl.dbConnection.Insert(&variables)
+	}
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline stage step variables", "err", err, "variables", variables)
 		return variables, err
@@ -605,11 +740,17 @@ func (impl *PipelineStageRepositoryImpl) MarkVariablesDeletedExcludingActiveVari
 }
 
 func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStepConditions(conditions []PipelineStageStepCondition, tx *pg.Tx) ([]PipelineStageStepCondition, error) {
-	err := tx.Insert(&conditions)
+	var err error
+	if tx != nil {
+		err = tx.Insert(&conditions)
+	} else {
+		err = impl.dbConnection.Insert(&conditions)
+	}
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline stage step conditions", "err", err, "conditions", conditions)
 		return conditions, err
 	}
+
 	return conditions, nil
 }
 
