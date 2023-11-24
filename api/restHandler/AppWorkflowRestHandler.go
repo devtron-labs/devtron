@@ -19,13 +19,13 @@ package restHandler
 
 import (
 	"encoding/json"
-	"errors"
 	bean2 "github.com/devtron-labs/devtron/api/restHandler/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
+	bean3 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -108,7 +108,7 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 
 	res, err := handler.appWorkflowService.CreateAppWorkflow(request)
 	if err != nil {
-		if errors.Is(err, errors.New("workflow with this name already exist in this app")) {
+		if err.Error() == bean3.WORKFLOW_EXIST_ERROR {
 			common.WriteJsonResp(w, err, []byte("Creation Failed"), http.StatusBadRequest)
 			return
 		}

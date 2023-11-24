@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	bean2 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -194,7 +195,7 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 		}
 		if workflow.Id != 0 {
 			impl.Logger.Errorw("workflow with this name already exist", "err", err)
-			return req, errors.New("workflow with this name already exist in this app")
+			return req, errors.New(bean2.WORKFLOW_EXIST_ERROR)
 		}
 		wf := &appWorkflow.AppWorkflow{
 			Name:   req.Name,
