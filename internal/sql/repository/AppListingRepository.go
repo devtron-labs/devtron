@@ -154,7 +154,10 @@ func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*
 				join users u on u.id = cwr.triggered_by
 				where p.app_id = ? and p.environment_id = ? and p.deleted = false order by cwr.created_on desc;`
 	_, err := impl.dbConnection.Query(&lastDeployed, query, appId, envId)
-	return lastDeployed[0], err
+	if len(lastDeployed) > 0 {
+		return lastDeployed[0], err
+	}
+	return nil, err
 }
 
 func (impl AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error) {
