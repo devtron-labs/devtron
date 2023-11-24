@@ -33,7 +33,7 @@ func ExtractEphemeralContainers(pods []corev1.Pod) map[string][]*EphemeralContai
 			if _, ok := ephemeralContainerStatusMap[ec.Name]; ok {
 				containerData := EphemeralContainerData{
 					Name:       ec.Name,
-					IsExternal: isExternalEphemeralContainer(ec.Command, ec.Name),
+					IsExternal: IsExternalEphemeralContainer(ec.Command, ec.Name),
 				}
 				ephemeralContainers = append(ephemeralContainers, &containerData)
 			}
@@ -45,7 +45,7 @@ func ExtractEphemeralContainers(pods []corev1.Pod) map[string][]*EphemeralContai
 	return ephemeralContainersMap
 }
 
-func isExternalEphemeralContainer(cmds []string, name string) bool {
+func IsExternalEphemeralContainer(cmds []string, name string) bool {
 	isExternal := true
 	matchingCmd := fmt.Sprintf("sh "+EphemeralContainerStartingShellScriptFileName, name)
 	for _, cmd := range cmds {
