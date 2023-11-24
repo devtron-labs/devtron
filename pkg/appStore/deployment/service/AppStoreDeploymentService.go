@@ -938,7 +938,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		return false, err
 	}
 
-	if installedApp.AppOfferingMode == util2.SERVER_MODE_FULL {
+	if util.IsAcdApp(installedApp.DeploymentAppType) {
 		// create build history for version upgrade, chart upgrade or simple update
 		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installedApp)
 		if err != nil {
