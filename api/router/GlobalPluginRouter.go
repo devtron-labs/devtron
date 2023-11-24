@@ -23,12 +23,19 @@ type GlobalPluginRouterImpl struct {
 }
 
 func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *mux.Router) {
-	globalPluginRouter.Path("/global/list/global-variable").
+	globalPluginRouter.Path("").
+		HandlerFunc(impl.globalPluginRestHandler.PatchPlugin).Methods("POST")
+	globalPluginRouter.Path("/detail/all").
+		HandlerFunc(impl.globalPluginRestHandler.GetAllDetailedPluginInfo).Methods("GET")
+	globalPluginRouter.Path("/detail/{pluginId}").
+		HandlerFunc(impl.globalPluginRestHandler.GetDetailedPluginInfoByPluginId).Methods("GET")
+
+	globalPluginRouter.Path("/list/global-variable").
 		HandlerFunc(impl.globalPluginRestHandler.GetAllGlobalVariables).Methods("GET")
 
-	globalPluginRouter.Path("/global/list").
+	globalPluginRouter.Path("/list").
 		HandlerFunc(impl.globalPluginRestHandler.ListAllPlugins).Methods("GET")
 
-	globalPluginRouter.Path("/global/{pluginId}").
+	globalPluginRouter.Path("/{pluginId}").
 		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailById).Methods("GET")
 }

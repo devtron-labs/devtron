@@ -19,6 +19,11 @@ type CustomTagService interface {
 	GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error)
 	DeleteCustomTagIfExists(tag bean.CustomTag) error
 	DeactivateImagePathReservation(id int) error
+	GetCustomTag(entityKey int, entityValue string) (*repository.CustomTag, string, error)
+	ReserveImagePath(imagePath string, customTagId int) (*repository.ImagePathReservation, error)
+	DeactivateImagePathReservationByImagePath(imagePaths []string) error
+	DeactivateImagePathReservationByImageIds(imagePathReservationIds []int) error
+	DisableCustomTagIfExist(tag bean.CustomTag) error
 }
 
 type CustomTagServiceImpl struct {
@@ -38,16 +43,24 @@ func (impl *CustomTagServiceImpl) DeactivateImagePathReservation(id int) error {
 }
 
 func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) error {
-	if err := validateTagPattern(tag.TagPattern); err != nil {
-		return err
+
+	if len(tag.TagPattern) == 0 && tag.Enabled {
+		return fmt.Errorf("tag pattern cannot be empty")
 	}
-	customTagData := repository.CustomTag{
+	if tag.Enabled {
+		if err := validateTagPattern(tag.TagPattern); err != nil {
+			return err
+		}
+	}
+	var customTagData repository.CustomTag
+	customTagData = repository.CustomTag{
 		EntityKey:            tag.EntityKey,
 		EntityValue:          tag.EntityValue,
 		TagPattern:           strings.ReplaceAll(tag.TagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_X, bean2.IMAGE_TAG_VARIABLE_NAME_x),
 		AutoIncreasingNumber: tag.AutoIncreasingNumber,
 		Metadata:             tag.Metadata,
 		Active:               true,
+		Enabled:              tag.Enabled,
 	}
 	oldTagObject, err := impl.customTagRepository.FetchCustomTagData(customTagData.EntityKey, customTagData.EntityValue)
 	if err != nil && err != pg.ErrNoRows {
@@ -160,18 +173,97 @@ func isValidDockerImageTag(tag string) bool {
 	return re.MatchString(tag)
 }
 
-func validateTag(imageTag string) error {
-	if len(imageTag) == 0 || len(imageTag) > 128 {
-		return fmt.Errorf("image tag should be of len 1-128 only, imageTag: %s", imageTag)
+func (impl *CustomTagServiceImpl) GetCustomTag(entityKey int, entityValue string) (*repository.CustomTag, string, error) {
+	connection := impl.customTagRepository.GetConnection()
+	tx, err := connection.Begin()
+	customTagData, err := impl.customTagRepository.IncrementAndFetchByEntityKeyAndValue(tx, entityKey, entityValue)
+	if err != nil {
+		return nil, "", err
 	}
-	allowedSymbols := ".abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ-0987654321"
-	allowedCharSet := make(map[int32]struct{})
-	for _, c := range allowedSymbols {
-		allowedCharSet[c] = struct{}{}
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("Error in fetching custom tag", "err", err)
+		return customTagData, "", err
 	}
-	firstChar := imageTag[0:1]
-	if firstChar == "." || firstChar == "-" {
-		return fmt.Errorf("image tag can not start with a period or a hyphen, imageTag: %s", imageTag)
+	var dockerTag string
+	if customTagData != nil && len(customTagData.TagPattern) == 0 {
+		return customTagData, dockerTag, nil
+	}
+	dockerTag, err = validateAndConstructTag(customTagData)
+	if err != nil {
+		return nil, "", err
+	}
+	return customTagData, dockerTag, nil
+
+}
+
+func (impl *CustomTagServiceImpl) ReserveImagePath(imagePath string, customTagId int) (*repository.ImagePathReservation, error) {
+	connection := impl.customTagRepository.GetConnection()
+	tx, err := connection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	imagePathReservations, err := impl.customTagRepository.FindByImagePath(tx, imagePath)
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	if len(imagePathReservations) > 0 {
+		return nil, bean2.ErrImagePathInUse
+	}
+	imagePathReservation := &repository.ImagePathReservation{
+		ImagePath:   imagePath,
+		CustomTagId: customTagId,
+	}
+	err = impl.customTagRepository.InsertImagePath(tx, imagePathReservation)
+	if err != nil {
+		return imagePathReservation, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("Error in fetching custom tag", "err", err)
+		return imagePathReservation, err
+	}
+	return imagePathReservation, err
+}
+
+func (impl *CustomTagServiceImpl) DeactivateImagePathReservationByImagePath(imagePaths []string) error {
+	connection := impl.customTagRepository.GetConnection()
+	tx, err := connection.Begin()
+	if err != nil {
+		return nil
+	}
+	err = impl.customTagRepository.DeactivateImagePathReservationByImagePaths(tx, imagePaths)
+	if err != nil {
+		impl.Logger.Errorw("error in marking image path unreserved")
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("Error in fetching custom tag", "err", err)
+		return err
 	}
 	return nil
+}
+
+func (impl *CustomTagServiceImpl) DeactivateImagePathReservationByImageIds(imagePathReservationIds []int) error {
+	connection := impl.customTagRepository.GetConnection()
+	tx, err := connection.Begin()
+	if err != nil {
+		return nil
+	}
+	err = impl.customTagRepository.DeactivateImagePathReservationByImagePathReservationIds(tx, imagePathReservationIds)
+	if err != nil {
+		impl.Logger.Errorw("error in marking image path unreserved")
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("Error in fetching custom tag", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *CustomTagServiceImpl) DisableCustomTagIfExist(tag bean.CustomTag) error {
+	return impl.customTagRepository.DisableCustomTag(tag.EntityKey, tag.EntityValue)
 }

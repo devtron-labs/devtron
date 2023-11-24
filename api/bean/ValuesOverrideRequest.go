@@ -64,8 +64,9 @@ type ValuesOverrideRequest struct {
 	CdWorkflowType                        WorkflowType                `json:"cdWorkflowType,notnull"`
 	WfrId                                 int                         `json:"wfrId,notnull"`
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
+	PipelineOverrideId                    int                         `json:"pipelineOverrideId"` //required for async install/upgrade event;
+	DeploymentType                        models.DeploymentType       `json:"deploymentType"`     //required for async install/upgrade handling; previously if was used internally
 	UserId                                int32                       `json:"-"`
-	DeploymentType                        models.DeploymentType       `json:"-"`
 	EnvId                                 int                         `json:"-"`
 	EnvName                               string                      `json:"-"`
 	ClusterId                             int                         `json:"-"`
@@ -80,6 +81,12 @@ type ValuesOverrideRequest struct {
 type BulkCdDeployEvent struct {
 	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
 	UserId                int32                  `json:"userId"`
+}
+
+type AsyncCdDeployEvent struct {
+	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
+	TriggeredAt           time.Time              `json:"triggeredAt"`
+	TriggeredBy           int32                  `json:"triggeredBy"`
 }
 
 type ReleaseStatusUpdateRequest struct {
@@ -122,4 +129,7 @@ type ArtifactsListFilterOptions struct {
 	//ApprovalNode data
 	ApprovalNodeConfigured bool
 	ApproversCount         int
+
+	//pluginStage
+	PluginStage string
 }

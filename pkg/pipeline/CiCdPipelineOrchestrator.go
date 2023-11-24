@@ -342,14 +342,19 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 
+	if createRequest.EnableCustomTag && len(createRequest.CustomTagObject.TagPattern) == 0 {
+		return nil, errors.New("please input custom tag data if tag is enabled")
+	}
+
 	//If customTagObject has been passed, create or update the resource
 	//Otherwise deleteIfExists
-	if createRequest.CustomTagObject != nil {
+	if createRequest.CustomTagObject != nil && len(createRequest.CustomTagObject.TagPattern) > 0 {
 		customTag := bean5.CustomTag{
 			EntityKey:            bean2.EntityTypeCiPipelineId,
 			EntityValue:          strconv.Itoa(ciPipelineObject.Id),
 			TagPattern:           createRequest.CustomTagObject.TagPattern,
 			AutoIncreasingNumber: createRequest.CustomTagObject.CounterX,
+			Enabled:              createRequest.EnableCustomTag,
 		}
 		err = impl.customTagService.CreateOrUpdateCustomTag(&customTag)
 		if err != nil {
@@ -359,6 +364,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		customTag := bean5.CustomTag{
 			EntityKey:   bean2.EntityTypeCiPipelineId,
 			EntityValue: strconv.Itoa(ciPipelineObject.Id),
+			Enabled:     false,
 		}
 		err := impl.customTagService.DeleteCustomTagIfExists(customTag)
 		if err != nil {
@@ -781,12 +787,21 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 
 		//If customTagObejct has been passed, save it
-		if ciPipeline.CustomTagObject != nil {
+		if !ciPipeline.EnableCustomTag {
+			err := impl.customTagService.DisableCustomTagIfExist(bean5.CustomTag{
+				EntityKey:   bean2.EntityTypeCiPipelineId,
+				EntityValue: strconv.Itoa(ciPipeline.Id),
+			})
+			if err != nil {
+				return nil, err
+			}
+		} else if ciPipeline.CustomTagObject != nil && len(ciPipeline.CustomTagObject.TagPattern) != 0 {
 			customTag := &bean5.CustomTag{
 				EntityKey:            bean2.EntityTypeCiPipelineId,
 				EntityValue:          strconv.Itoa(ciPipeline.Id),
 				TagPattern:           ciPipeline.CustomTagObject.TagPattern,
 				AutoIncreasingNumber: ciPipeline.CustomTagObject.CounterX,
+				Enabled:              ciPipeline.EnableCustomTag,
 			}
 			err := impl.customTagService.CreateOrUpdateCustomTag(customTag)
 			if err != nil {
@@ -1638,7 +1653,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 			return pipeline, err
 		}
 	}
-	return pipeline, err
+	return pipeline, nil
 }
 
 func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error {
