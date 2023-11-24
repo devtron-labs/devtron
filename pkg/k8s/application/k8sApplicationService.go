@@ -827,6 +827,8 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 			TargetContainerName: req.BasicData.TargetContainerName,
 		}
 	}
+	//add SYS_PTRACE capability
+	addCapability(ephemeralContainer, "SYS_PTRACE")
 	ephemeralContainer.Name = ephemeralContainer.Name + "-" + util2.Generate(5)
 	scriptCreateCommand := fmt.Sprintf("echo 'while true; do sleep 600; done;' > %s-devtron.sh", ephemeralContainer.Name)
 	scriptRunCommand := fmt.Sprintf("sh %s-devtron.sh", ephemeralContainer.Name)
@@ -835,6 +837,16 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 	ephemeralContainer = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
 	return copied, ephemeralContainer, nil
 
+}
+
+func addCapability(c *corev1.EphemeralContainer, capability corev1.Capability) {
+	if c.SecurityContext == nil {
+		c.SecurityContext = &corev1.SecurityContext{}
+	}
+	if c.SecurityContext.Capabilities == nil {
+		c.SecurityContext.Capabilities = &corev1.Capabilities{}
+	}
+	c.SecurityContext.Capabilities.Add = append(c.SecurityContext.Capabilities.Add, capability)
 }
 
 func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error) {
