@@ -61,11 +61,11 @@ type AppStoreDeploymentCommonService interface {
 	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *AppStoreManifestResponse, err error)
 	GitOpsOperations(manifestResponse *AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
 	GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
-	InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isSuccess bool) error
+	InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, error error) error
 	UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 	UpdateInstalledAppVersionHistoryStatus(installAppVersionRequestId int, status string, data string) error
 	UpdateQueuedInstalledAppVersionHistoryStatus(installedAppVersionHistoryId int, status string, data string) error
-	UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isSuccesss bool) error
+	UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, error error) error
 }
 
 type DeploymentCommonServiceTypeConfig struct {
@@ -230,6 +230,9 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 		},
 		DeploymentAppType:            chart.DeploymentAppType,
 		AppStoreApplicationVersionId: installedAppVersion.AppStoreApplicationVersionId,
+		ReferenceValueId:             installedAppVersion.ReferenceValueId,
+		ReferenceValueKind:           installedAppVersion.ReferenceValueKind,
+		ValuesOverrideYaml:           installedAppVersion.ValuesYaml,
 	}
 }
 
@@ -645,10 +648,10 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifestAndPerformGitOpe
 	return appStoreGitOpsResponse, nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isSuccess bool) error {
+func (impl AppStoreDeploymentCommonServiceImpl) InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, error error) error {
 	//step 4 db operation status update to deploy success
 	status := appStoreBean.DEPLOY_SUCCESS
-	if !isSuccess {
+	if error != nil {
 		status = appStoreBean.TRIGGER_ERROR
 	}
 	_, err := impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, status)
@@ -665,7 +668,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) InstallAppPostDbOperation(instal
 			return err
 		}
 	}
-	err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, isSuccess)
+	err = impl.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, error)
 	if err != nil {
 		impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
 		return err
@@ -727,7 +730,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistory
 	return nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isSuccess bool) error {
+func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, error error) error {
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
 		err := impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowSucceeded, "")
 		if err != nil {
@@ -738,7 +741,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistory
 
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		status := ""
-		if isSuccess {
+		if error == nil {
 			status = pipelineConfig.WorkflowSucceeded
 		} else {
 			status = pipelineConfig.WorkflowFailed
@@ -749,10 +752,10 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistory
 			IsReleaseInstalled:         true,
 			ErrorInInstallation:        false,
 		}
-		if !isSuccess {
+		if error != nil {
 			helmInstallStatus = &appStoreBean.HelmReleaseStatusConfig{
 				InstallAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
-				Message:                    "Error In Installation",
+				Message:                    error.Error(),
 				IsReleaseInstalled:         false,
 				ErrorInInstallation:        true,
 			}

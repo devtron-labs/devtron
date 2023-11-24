@@ -576,13 +576,11 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(instal
 		impl.logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, "err", err)
 		return
 	}
-	installRes, err := impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.InstallAppVersionDTO.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
+	_, err = impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.InstallAppVersionDTO.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
 	if err != nil {
-		impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO, false)
 		impl.logger.Errorw("Error in Install Release in callback", "err", err)
-		return
 	}
-	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO, installRes.GetSuccess())
+	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO, err)
 }
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) UpdateReleaseContextForPipeline(installAppId, appVersionHistoryId int, cancel context.CancelFunc) {
@@ -647,14 +645,11 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 		impl.logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstallAppVersionDTO.InstalledAppVersionHistoryId, "err", err)
 		return
 	}
-	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.InstalledApps.Environment.ClusterId, installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto)
-	impl.logger.Debugw("UpdateApplicationWithChartInfo", "res", res)
+	_, err = impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.InstalledApps.Environment.ClusterId, installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto)
 	if err != nil {
-		impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO, false)
 		impl.logger.Errorw("error in updating helm application", "err", err)
-		return
 	}
-	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO, res.GetSuccess())
+	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installHelmAsyncRequest.InstallAppVersionDTO, err)
 
 }
 

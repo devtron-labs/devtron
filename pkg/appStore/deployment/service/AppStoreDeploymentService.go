@@ -460,7 +460,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		if err != nil {
 			return nil, err
 		}
-		err = impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersionRequest, true)
+		err = impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersionRequest, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -887,8 +887,18 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 
 	// Rollback starts
 	var success bool
+
 	if util2.IsBaseStack() || util2.IsHelmApp(installedApp.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType) {
-		installedApp, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
+		installAppVersionRequest := &appStoreBean.InstallAppVersionDTO{
+			AppStoreVersion:    installedApp.AppStoreApplicationVersionId,
+			Id:                 installedApp.Id,
+			InstalledAppId:     installedApp.InstalledAppId,
+			ReferenceValueId:   installedApp.ReferenceValueId,
+			ReferenceValueKind: installedApp.ReferenceValueKind,
+			ValuesOverrideYaml: installedApp.ValuesOverrideYaml,
+		}
+		//installedApp, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
+		_, err := impl.UpdateInstalledApp(ctx, installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error while rollback helm release", "error", err)
 			return false, err
@@ -1007,7 +1017,7 @@ func (impl AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(instal
 	}
 	// STEP-3 install app DB post operations
 	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-	err = impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersionRequest, true)
+	err = impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersionRequest, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1503,7 +1513,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 				return nil, err
 			}
 		} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
-			err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, true)
+			err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, nil)
 			if err != nil {
 				impl.logger.Errorw("error in updating install app version history on sync", "err", err)
 				return nil, err
@@ -1557,7 +1567,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequ
 		impl.logger.Errorw("error while installing app via helm", "error", err)
 		return installAppVersionRequest, err
 	}
-	err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, true)
+	err = impl.appStoreDeploymentCommonService.UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest, nil)
 	if err != nil {
 		impl.logger.Errorw("error in updating installed app version history with sync", "err", err)
 		return installAppVersionRequest, err
