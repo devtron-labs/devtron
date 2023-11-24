@@ -202,7 +202,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		return
 	}
 	if resource != nil {
-		resource, err = k8sObjectsUtil.SetEphemeralContainersInManifestResponse(resource)
+		err = resource.SetRunningEphemeralContainers()
 		if err != nil {
 			handler.logger.Errorw("error in setting running ephemeral containers and setting them in resource response", "err", err)
 			common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)

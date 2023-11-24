@@ -2,9 +2,7 @@ package k8sObjectsUtil
 
 import (
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"strings"
 )
 
@@ -14,24 +12,6 @@ type EphemeralContainerData struct {
 	Name string `json:"name"`
 	// IsExternal flag indicates that this ephemeral container is not managed by devtron.(neither created nor can be killed by devtron)
 	IsExternal bool `json:"isExternal"`
-}
-
-// SetEphemeralContainersInManifestResponse will extract out all the running ephemeral containers of the given pod manifest and sets in manifestResponse.EphemeralContainers
-// if given manifest is not of pod kind, it just returns the manifestResponse arg
-func SetEphemeralContainersInManifestResponse(manifestResponse *k8s.ManifestResponse) (*k8s.ManifestResponse, error) {
-	if manifestResponse != nil {
-		if podManifest := manifestResponse.Manifest; isPod(podManifest.GetKind(), podManifest.GroupVersionKind().Group) {
-			pod := corev1.Pod{}
-			// Convert the unstructured object to a Pod object
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(podManifest.Object, &pod)
-			if err != nil {
-				return manifestResponse, err
-			}
-			runningEphemeralContainers := ExtractEphemeralContainers([]corev1.Pod{pod})
-			manifestResponse.EphemeralContainers = runningEphemeralContainers[pod.Name]
-		}
-	}
-	return manifestResponse, nil
 }
 
 // ExtractEphemeralContainers will only return map of pod_name vs running ephemeral_containers list of this pod.
@@ -79,6 +59,6 @@ func IsExternalEphemeralContainer(cmds []string, name string) bool {
 	return isExternal
 }
 
-func isPod(kind string, group string) bool {
+func IsPod(kind string, group string) bool {
 	return kind == "Pod" && group == ""
 }
