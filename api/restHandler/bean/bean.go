@@ -44,7 +44,7 @@ func ExtractEphemeralContainers(pods []corev1.Pod) map[string][]*EphemeralContai
 
 func isExternalEphemeralContainer(cmds []string, name string) bool {
 	isExternal := true
-	matchingCmd := fmt.Sprintf("sh "+k8s3.EphemeralContainerStartingBashScriptName, name)
+	matchingCmd := fmt.Sprintf("sh "+k8s3.EphemeralContainerStartingShellScriptName, name)
 	for _, cmd := range cmds {
 		if strings.Contains(cmd, matchingCmd) {
 			isExternal = false

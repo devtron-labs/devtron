@@ -822,8 +822,8 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 		}
 	}
 	ephemeralContainer.Name = ephemeralContainer.Name + "-" + util2.Generate(5)
-	scriptCreateCommand := fmt.Sprintf("echo 'while true; do sleep 600; done;' > "+k8s3.EphemeralContainerStartingBashScriptName, ephemeralContainer.Name)
-	scriptRunCommand := fmt.Sprintf("sh "+k8s3.EphemeralContainerStartingBashScriptName, ephemeralContainer.Name)
+	scriptCreateCommand := fmt.Sprintf("echo 'while true; do sleep 600; done;' > "+k8s3.EphemeralContainerStartingShellScriptName, ephemeralContainer.Name)
+	scriptRunCommand := fmt.Sprintf("sh "+k8s3.EphemeralContainerStartingShellScriptName, ephemeralContainer.Name)
 	ephemeralContainer.Command = []string{"sh", "-c", scriptCreateCommand + " && " + scriptRunCommand}
 	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ephemeralContainer)
 	ephemeralContainer = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
