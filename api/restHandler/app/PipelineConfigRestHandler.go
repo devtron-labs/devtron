@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -360,6 +361,12 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	// Validation For appName
+	if ok := strings.Contains(createRequest.AppName, bean3.UniquePlaceHolderForAppName); ok {
+		common.WriteJsonResp(w, err, "app creation failed due to validation on app-name as it contains not allowed place-holder in name", http.StatusBadRequest)
+		return
+	}
+
 	var createResp *bean.CreateAppDTO
 	err = nil
 	if createRequest.TemplateId == 0 {
