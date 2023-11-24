@@ -85,8 +85,8 @@ type ApplyResourcesResponse struct {
 
 type ManifestResponse struct {
 	Manifest unstructured.Unstructured `json:"manifest,omitempty"`
-	// EphemeralContainers are set for Pod kind manifest response only
-	// will always contain running ephemeral containers
+	// EphemeralContainers are set for Pod kind manifest response only.
+	// will only contain ephemeral containers which are in running state
 	// +optional
 	EphemeralContainers []*k8sObjectsUtil.EphemeralContainerData `json:"ephemeralContainers,omitempty"`
 }
