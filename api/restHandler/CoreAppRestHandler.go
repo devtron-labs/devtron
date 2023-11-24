@@ -723,6 +723,7 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 		ParentAppId:              ciPipeline.ParentAppId,
 		LinkedCount:              ciPipeline.LinkedCount,
 		PipelineType:             string(ciPipeline.PipelineType),
+		IsGitRequired:            ciPipeline.IsGitRequired,
 	}
 
 	//build ciPipelineMaterial resp
@@ -1684,6 +1685,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			ParentAppId:              ciPipelineData.ParentAppId,
 			LinkedCount:              ciPipelineData.LinkedCount,
 			PipelineType:             bean.PipelineType(ciPipelineData.PipelineType),
+			IsGitRequired:            ciPipelineData.IsGitRequired,
 		},
 	}
 

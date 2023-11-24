@@ -123,6 +123,7 @@ type CiPipeline struct {
 	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
 	DefaultTag               []string               `json:"defaultTag,omitempty"`
 	EnableCustomTag          bool                   `json:"enableCustomTag"`
+	IsGitRequired            bool                   `json:"isGitRequired"`
 }
 
 type DockerConfigOverride struct {

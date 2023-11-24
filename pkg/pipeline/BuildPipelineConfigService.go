@@ -330,8 +330,13 @@ func (impl *CiPipelineConfigServiceImpl) addpipelineToTemplate(createRequest *be
 
 	//pipeline name validation
 	var pipelineNames []string
+	isGitRequired := true
 	for _, pipeline := range createRequest.CiPipelines {
 		pipelineNames = append(pipelineNames, pipeline.Name)
+		if pipeline.PipelineType == bean.CI_JOB && pipeline.IsGitRequired == false {
+			isGitRequired = false
+		}
+		pipeline.IsGitRequired = isGitRequired
 	}
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline group", "err", err)
@@ -613,6 +618,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 			PipelineType:             bean.PipelineType(pipeline.PipelineType),
+			IsGitRequired:            pipeline.IsGitRequired,
 		}
 		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
 		if err != nil && err != pg.ErrNoRows {
@@ -757,6 +763,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 		PipelineType:             bean.PipelineType(pipeline.PipelineType),
+		IsGitRequired:            pipeline.IsGitRequired,
 	}
 	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
@@ -881,6 +888,7 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 			PipelineType:             bean.PipelineType(pipeline.PipelineType),
+			IsGitRequired:            pipeline.IsGitRequired,
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
@@ -1707,6 +1715,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 				PipelineType:             bean.PipelineType(pipeline.PipelineType),
+				IsGitRequired:            pipeline.IsGitRequired,
 			}
 			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]
 			if ok {

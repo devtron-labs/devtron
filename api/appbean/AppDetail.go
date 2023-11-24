@@ -91,6 +91,7 @@ type CiPipelineDetails struct {
 	ParentAppId               int                         `json:"parentAppId,omitempty"`
 	LinkedCount               int                         `json:"linkedCount,omitempty"`
 	PipelineType              string                      `json:"pipelineType,omitempty"`
+	IsGitRequired             bool                        `json:"isGitRequired"`
 }
 
 type CiPipelineMaterialConfig struct {
