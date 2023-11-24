@@ -61,20 +61,22 @@ type ImageDetailsFromCR struct {
 }
 
 type CiCompleteEvent struct {
-	CiProjectDetails   []bean2.CiProjectDetails `json:"ciProjectDetails"`
-	DockerImage        string                   `json:"dockerImage" validate:"required,image-validator"`
-	Digest             string                   `json:"digest"`
-	PipelineId         int                      `json:"pipelineId"`
-	WorkflowId         *int                     `json:"workflowId"`
-	TriggeredBy        int32                    `json:"triggeredBy"`
-	PipelineName       string                   `json:"pipelineName"`
-	DataSource         string                   `json:"dataSource"`
-	MaterialType       string                   `json:"materialType"`
-	Metrics            util.CIMetrics           `json:"metrics"`
-	AppName            string                   `json:"appName"`
-	IsArtifactUploaded bool                     `json:"isArtifactUploaded"`
-	FailureReason      string                   `json:"failureReason"`
-	ImageDetailsFromCR *ImageDetailsFromCR      `json:"imageDetailsFromCR"`
+	CiProjectDetails              []bean2.CiProjectDetails `json:"ciProjectDetails"`
+	DockerImage                   string                   `json:"dockerImage" validate:"required,image-validator"`
+	Digest                        string                   `json:"digest"`
+	PipelineId                    int                      `json:"pipelineId"`
+	WorkflowId                    *int                     `json:"workflowId"`
+	TriggeredBy                   int32                    `json:"triggeredBy"`
+	PipelineName                  string                   `json:"pipelineName"`
+	DataSource                    string                   `json:"dataSource"`
+	MaterialType                  string                   `json:"materialType"`
+	Metrics                       util.CIMetrics           `json:"metrics"`
+	AppName                       string                   `json:"appName"`
+	IsArtifactUploaded            bool                     `json:"isArtifactUploaded"`
+	FailureReason                 string                   `json:"failureReason"`
+	ImageDetailsFromCR            *ImageDetailsFromCR      `json:"imageDetailsFromCR"`
+	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
+	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
 }
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
@@ -214,14 +216,16 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 	}
 
 	request := &pipeline.CiArtifactWebhookRequest{
-		Image:              event.DockerImage,
-		ImageDigest:        event.Digest,
-		DataSource:         event.DataSource,
-		PipelineName:       event.PipelineName,
-		MaterialInfo:       rawMaterialInfo,
-		UserId:             event.TriggeredBy,
-		WorkflowId:         event.WorkflowId,
-		IsArtifactUploaded: event.IsArtifactUploaded,
+		Image:                         event.DockerImage,
+		ImageDigest:                   event.Digest,
+		DataSource:                    event.DataSource,
+		PipelineName:                  event.PipelineName,
+		MaterialInfo:                  rawMaterialInfo,
+		UserId:                        event.TriggeredBy,
+		WorkflowId:                    event.WorkflowId,
+		IsArtifactUploaded:            event.IsArtifactUploaded,
+		PluginRegistryArtifactDetails: event.PluginRegistryArtifactDetails,
+		PluginArtifactStage:           event.PluginArtifactStage,
 	}
 	return request, nil
 }

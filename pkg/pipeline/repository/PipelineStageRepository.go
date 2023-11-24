@@ -159,6 +159,7 @@ type PipelineStageRepository interface {
 	GetStepById(stepId int) (*PipelineStageStep, error)
 	MarkStepsDeletedByStageId(stageId int) error
 	MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq []int, stageId int) error
+	GetActiveStepsByRefPluginId(refPluginId int) ([]*PipelineStageStep, error)
 
 	CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error)
 	UpdatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
@@ -169,6 +170,7 @@ type PipelineStageRepository interface {
 
 	MarkScriptMappingDeletedByScriptId(scriptId int) error
 	CreateScriptMapping(mappings []ScriptPathArgPortMapping, tx *pg.Tx) error
+	UpdateScriptMapping(mappings []*ScriptPathArgPortMapping, tx *pg.Tx) error
 	GetScriptMappingIdsByStageId(stageId int) ([]int, error)
 	MarkPipelineScriptMappingsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error)
@@ -434,6 +436,18 @@ func (impl *PipelineStageRepositoryImpl) MarkStepsDeletedExcludingActiveStepsInU
 	return nil
 }
 
+func (impl *PipelineStageRepositoryImpl) GetActiveStepsByRefPluginId(refPluginId int) ([]*PipelineStageStep, error) {
+	var steps []*PipelineStageStep
+	err := impl.dbConnection.Model(&steps).
+		Where("ref_plugin_id = ?", refPluginId).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all steps by refPluginId", "err", err, "refPluginId", refPluginId)
+		return nil, err
+	}
+	return steps, nil
+}
+
 func (impl *PipelineStageRepositoryImpl) CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error) {
 	var err error
 	if tx != nil {
@@ -528,6 +542,27 @@ func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPa
 	}
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline script mappings", "err", err, "mappings", mappings)
+		return err
+	}
+	return nil
+}
+
+func (impl *PipelineStageRepositoryImpl) UpdateScriptMapping(mappings []*ScriptPathArgPortMapping, tx *pg.Tx) error {
+	var err error
+	if tx != nil {
+		for _, entry := range mappings {
+			err = tx.Update(entry)
+			if err != nil {
+				impl.logger.Errorw("error in updating ScriptPathArgPortMapping", "entry", entry, "err", err)
+				return err
+			}
+		}
+
+	} else {
+		err = impl.dbConnection.Update(&mappings)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in updating pipeline script mappings", "err", err, "mappings", mappings)
 		return err
 	}
 	return nil

@@ -123,6 +123,7 @@ type CiCdConfig struct {
 	BuildxProvenanceMode           string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
 	ExtBlobStorageCmName           string                       `env:"EXTERNAL_BLOB_STORAGE_CM_NAME" envDefault:"blob-storage-cm"`
 	ExtBlobStorageSecretName       string                       `env:"EXTERNAL_BLOB_STORAGE_SECRET_NAME" envDefault:"blob-storage-secret"`
+	CanApproverDeploy              bool                         `env:"CAN_APPROVER_DEPLOY" envDefault:"false"`
 }
 
 type CiConfig struct {

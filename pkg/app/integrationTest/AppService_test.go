@@ -128,7 +128,7 @@ func InitAppService() *app2.AppServiceImpl {
 	moduleRepositoryImpl := moduleRepo.NewModuleRepositoryImpl(dbConnection)
 	moduleActionAuditLogRepository := module.NewModuleActionAuditLogRepositoryImpl(dbConnection)
 	clusterRepository := repository1.NewClusterRepositoryImpl(dbConnection, logger)
-	clusterService := cluster.NewClusterServiceImplExtended(clusterRepository, nil, nil, logger, nil, nil, nil, nil, nil, nil, nil, nil)
+	clusterService := cluster.NewClusterServiceImplExtended(clusterRepository, nil, nil, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	helmClientConfig, err := client.GetConfig()
 	if err != nil {
 		log.Fatal("error in getting server helm client config, AppService_test", "err", err)
@@ -162,6 +162,7 @@ func InitAppService() *app2.AppServiceImpl {
 		nil, nil, nil, nil, nil, refChartDir, nil,
 		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
 		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return appService
 }

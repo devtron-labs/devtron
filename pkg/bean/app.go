@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
 )
 
@@ -127,6 +128,7 @@ type CiPipeline struct {
 	LastTriggeredEnvId         int                    `json:"lastTriggeredEnvId"`
 	CustomTagObject            *CustomTagData         `json:"customTag,omitempty"`
 	DefaultTag                 []string               `json:"defaultTag,omitempty"`
+	EnableCustomTag            bool                   `json:"enableCustomTag"`
 }
 
 type DockerConfigOverride struct {
@@ -250,6 +252,7 @@ type CiMaterialPatchRequest struct {
 type CustomTagData struct {
 	TagPattern string `json:"tagPattern"`
 	CounterX   int    `json:"counterX"`
+	Enabled    bool   `json:"enabled"`
 }
 
 type CiMaterialValuePatchRequest struct {
@@ -571,6 +574,9 @@ type CDPipelineConfigObject struct {
 	SourceToNewPipelineId         map[int]int                            `json:"sourceToNewPipelineId,omitempty"`
 	RefPipelineId                 int                                    `json:"refPipelineId,omitempty"`
 	ExternalCiPipelineId          int                                    `json:"externalCiPipelineId,omitempty"`
+	CustomTagObject               *CustomTagData                         `json:"customTag"`
+	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage"`
+	EnableCustomTag               bool                                   `json:"enableCustomTag"`
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -754,13 +760,25 @@ type CiArtifactBean struct {
 	WfrId                         int             `json:"wfrId"`
 	DeployedBy                    string          `json:"deployedBy"`
 	//TriggeredByEmail              string                               `json:"triggeredByEmail"`
-	TriggeredBy            int32                                `json:"triggeredBy"`
-	CiConfigureSourceType  pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
-	CiConfigureSourceValue string                               `json:"ciConfigureSourceValue"`
-	UserApprovalMetadata   *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
-	ImageReleaseTags       []*repository2.ImageTag              `json:"imageReleaseTags"`
-	ImageComment           *repository2.ImageComment            `json:"imageComment"`
-	FilterState            resourceFilter.FilterState           `json:"filterState"`
+	TriggeredBy             int32                                `json:"triggeredBy"`
+	CiConfigureSourceType   pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue  string                               `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
+	ImageReleaseTags        []*repository2.ImageTag              `json:"imageReleaseTags"`
+	ImageComment            *repository2.ImageComment            `json:"imageComment"`
+	FilterState             resourceFilter.FilterState           `json:"filterState"`
+	AppliedFilters          []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
+	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
+	AppliedFiltersTimestamp time.Time                            `json:"appliedFiltersTimestamp"`
+	CreatedTime             string                               `json:"createdTime"`
+	ExternalCiPipelineId    int                                  `json:"-"`
+	ParentCiArtifact        int                                  `json:"-"`
+	CiWorkflowId            int                                  `json:"-"`
+	RegistryType            string                               `json:"registryType"`
+	RegistryName            string                               `json:"registryName"`
+	CiPipelineId            int                                  `json:"-"`
+	CredentialsSourceType   string                               `json:"-"`
+	CredentialsSourceValue  string                               `json:"-"`
 }
 
 type CiArtifactResponse struct {
@@ -777,6 +795,8 @@ type CiArtifactResponse struct {
 	AppReleaseTagNames         []string                             `json:"appReleaseTagNames"` //unique list of tags exists in the app
 	HideImageTaggingHardDelete bool                                 `json:"hideImageTaggingHardDelete"`
 	ResourceFilters            []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
+	TotalCount                 int                                  `json:"totalCount"`
+	CanApproverDeploy          bool                                 `json:"canApproverDeploy"`
 }
 
 type AppLabelsDto struct {
