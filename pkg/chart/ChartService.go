@@ -589,7 +589,8 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 
 func (impl ChartServiceImpl) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, gitOpsAllowInsecureTLS bool) error {
 	repo := &v1alpha1.Repository{
-		Repo: chartGitAttribute.RepoUrl,
+		Repo:     chartGitAttribute.RepoUrl,
+		Insecure: gitOpsAllowInsecureTLS,
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
