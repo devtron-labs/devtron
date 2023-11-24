@@ -253,11 +253,13 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	}
 	for _, envContainer := range envContainers {
 		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
-		if err != nil || lastDeployed == nil {
+		if err != nil {
 			return resp, err
 		}
-		envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
-		envContainer.LastDeployedBy = lastDeployed.LastDeployedBy
+		if lastDeployed != nil {
+			envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
+			envContainer.LastDeployedBy = lastDeployed.LastDeployedBy
+		}
 	}
 	resp.Apps = envContainers
 	return resp, err
