@@ -1036,6 +1036,17 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
+		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
+		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
+		if !isValidAuth {
+			//skip hibernate for the app if user does not have access on that
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			pipelineResponse[AuthorizationError] = true
+			response[appKey] = pipelineResponse
+			continue
+		}
 		deploymentHistory := deploymentTypeMap[pipeline.Id]
 		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_STOP {
 			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
@@ -1046,17 +1057,6 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			} else {
 				pipelineResponse[Skipped] = "Application is already hibernated"
 			}
-			response[appKey] = pipelineResponse
-			continue
-		}
-		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
-		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
-		if !isValidAuth {
-			//skip hibernate for the app if user does not have access on that
-			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = false
-			pipelineResponse[AuthorizationError] = true
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1191,6 +1191,17 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
+		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
+		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
+		if !isValidAuth {
+			//skip hibernate for the app if user does not have access on that
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			pipelineResponse[AuthorizationError] = true
+			response[appKey] = pipelineResponse
+			continue
+		}
 		deploymentHistory := deploymentTypeMap[pipeline.Id]
 		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_START {
 			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
@@ -1201,17 +1212,6 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			} else {
 				pipelineResponse[Skipped] = "Application is already un-hibernated"
 			}
-			response[appKey] = pipelineResponse
-			continue
-		}
-		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
-		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
-		if !isValidAuth {
-			//skip hibernate for the app if user does not have access on that
-			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = false
-			pipelineResponse[AuthorizationError] = true
 			response[appKey] = pipelineResponse
 			continue
 		}
