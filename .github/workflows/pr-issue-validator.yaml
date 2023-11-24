@@ -124,12 +124,11 @@ jobs:
             gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
             exit 1
         fi
-
     - name: Check SQL file format and duplicates
       shell: bash
       env: 
           pr_no: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
       run: |
           echo "GitHub Token: $GH_TOKEN"
           git fetch origin main
@@ -137,12 +136,8 @@ jobs:
           echo "Changed SQL files:"
           cat mydiff
           file_list=$(git diff origin/main...HEAD --name-only)
-          echo "Done"
-          echo "==============="
           awk '/scripts\/sql\//' mydiff
-          echo "==============="
           count=$(awk '/scripts\/sql\//' mydiff | wc -l) 
-          echo "==============="
           if [[ $count == "0" ]] ; then 
             echo "No Sql file is added .exiting from this action"
             exit 0
@@ -165,7 +160,7 @@ jobs:
             migration_no=$(echo $filename | cut -d "/" -f 3 | cut -d "_" -f 1)
             echo "Migration Number: $migration_no"
             
-            migration_files_of_this_no=$(ls | grep -i $migration_no | wc -l)
+            migration_files_of_this_no=$(ls | cut -d "_" -f 1 | grep  -w -c  $migration_no )
             cd ../../
             echo "Current directory: $(pwd)"
             
