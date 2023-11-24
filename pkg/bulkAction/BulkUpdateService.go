@@ -1230,12 +1230,11 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			pipelineResponse[pipelineKey] = false
 			pipelineResponse[Error] = hibernateReqError.Error()
 			response[appKey] = pipelineResponse
-			//return nil, err
-		} else {
-			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = true
-			response[appKey] = pipelineResponse
+			continue
 		}
+		pipelineResponse := response[appKey]
+		pipelineResponse[pipelineKey] = true
+		response[appKey] = pipelineResponse
 	}
 	var responseArray []map[string]interface{}
 	for appKey, pipelineResponse := range response {
