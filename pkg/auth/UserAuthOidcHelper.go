@@ -21,7 +21,7 @@ import (
 	"github.com/devtron-labs/authenticator/client"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/authenticator/oidc"
-	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"net/http"
@@ -66,8 +66,8 @@ func NewUserAuthOidcHelperImpl(logger *zap.SugaredLogger, selfRegistrationRolesS
 
 // SanitiseRedirectUrl replaces initial "/orchestrator" from url
 func (impl UserAuthOidcHelperImpl) sanitiseRedirectUrl(redirectUrl string) string {
-	if strings.Contains(redirectUrl, argocdServer.Dashboard) {
-		redirectUrl = strings.ReplaceAll(redirectUrl, argocdServer.Orchestrator, "")
+	if strings.Contains(redirectUrl, connection.Dashboard) {
+		redirectUrl = strings.ReplaceAll(redirectUrl, connection.Orchestrator, "")
 	}
 	return redirectUrl
 }

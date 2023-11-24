@@ -9,8 +9,7 @@ global:
     runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
-#  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.22" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.24"
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -55,15 +54,17 @@ components:
         ENABLE_BUILD_CONTEXT: "true"
         ENABLE_RESTART_WORKLOAD: "true"
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
-    image: "quay.io/devtron/dashboard:12717798-325-16265"
+        ENABLE_SCOPED_VARIABLES: "true"
+        ENABLE_CI_JOB: "true"
+    image: "quay.io/devtron/dashboard:94cb7168-325-19078"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:3c1ba1ad-280-16262"
-    cicdImage: "quay.io/devtron/devtron:3c1ba1ad-434-16260"
+    image: "quay.io/devtron/hyperion:6822926b-280-19032"
+    cicdImage: "quay.io/devtron/devtron:6822926b-434-19035"
     imagePullPolicy: IfNotPresent
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d8d774c3-138-16238"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:ad3af321-138-18662"
     serviceMonitor:
       enabled: false
     service:
@@ -93,15 +94,19 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:aefc1baf-318-16208"
+    image: "quay.io/devtron/kubelink:2dbe99a8-564-19001"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
+      MANIFEST_FETCH_BATCH_SIZE: "2"
+      NATS_MSG_PROCESSING_BATCH_SIZE: "1"
+      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
       PG_PORT: "5432"
       PG_USER: postgres
+      RUN_HELM_INSTALL_IN_ASYNC_MODE: "false"
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
@@ -113,7 +118,34 @@ components:
     persistence:
       volumeSize: "20Gi"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:46b8f0f1-200-16195"
+    image: "quay.io/devtron/git-sensor:b6c3ea0e-200-16327"
+    imagePullPolicy: "IfNotPresent"
+    serviceMonitor:
+      enabled: false
+    persistence:
+      volumeSize: 2Gi
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_USER: postgres
+      COMMIT_STATS_TIMEOUT_IN_SEC: "2"
+      ENABLE_FILE_STATS: "true"
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
+  lens: 
+    image: "quay.io/devtron/lens:8803028b-333-16178"
+    imagePullPolicy: IfNotPresent
+    configs:
+      GIT_SENSOR_PROTOCOL: GRPC
+      GIT_SENSOR_URL: git-sensor-service.devtroncd:90
+      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_PORT: "5432"
+      PG_USER: postgres
+      PG_DATABASE: lens
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
@@ -294,7 +326,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "quay.io/devtron/notifier:d9c72180-372-14306"
+  image: "quay.io/devtron/notifier:d71bcbcd-372-18717"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
@@ -318,11 +350,11 @@ minio:
     storage: "50Gi"
 # Change below values for workflow controller
 workflowController:
-  image: "quay.io/argoproj/workflow-controller:v3.0.7"
-  executorImage: "quay.io/argoproj/argoexec:v3.0.7"
+  # Set this to true if you have IMDSv2 enforced or IMDSv1 and v2 on your AWS EKS cluster and false if you are using IMDSv1 with token hop limit set to 1
+  IMDSv2Enforced: true
+  image: "quay.io/argoproj/workflow-controller:v3.4.3"
+  executorImage: "quay.io/argoproj/argoexec:v3.4.3"
 
-lens: 
-  image: "quay.io/devtron/lens:8803028b-333-16178"
 # Values for grafana integration
 monitoring:
   grafana:

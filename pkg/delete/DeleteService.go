@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -17,7 +18,7 @@ type DeleteService interface {
 	DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *team.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
-	DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error
+	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
 }
 
@@ -99,7 +100,7 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error {
+func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error {
 	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(deleteRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("error in deleting docker registry", "err", err, "deleteRequest", deleteRequest)

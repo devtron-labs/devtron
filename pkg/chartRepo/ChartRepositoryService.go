@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	util3 "github.com/devtron-labs/devtron/util/k8s"
+	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -434,7 +434,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	}
 	updateSuccess := false
 	retryCount := 0
-	//request.Url = ""
+	//request.RedirectionUrl = ""
 
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1

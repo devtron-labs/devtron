@@ -109,7 +109,7 @@ func (session *ArgoSession) DoRequest(clientRequest *ClientRequest) (resBody []b
 
 func NewArgoSession(config *ArgoConfig, logger *zap.SugaredLogger) (session *ArgoSession, err error) {
 	/*location := "/api/v1/session"
-	baseUrl, err := url.Parse(config.Url)
+	baseUrl, err := url.Parse(config.RedirectionUrl)
 	if err != nil {
 		return nil, err
 	}

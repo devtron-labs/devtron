@@ -3,11 +3,11 @@ package capacity
 import (
 	"context"
 	"fmt"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity/bean"
-	k8s2 "github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -67,9 +67,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 	for _, cluster := range clusters {
 		clusterCapacityDetail := &bean.ClusterCapacityDetail{}
 		var err error
-		if cluster.IsVirtualCluster {
-			clusterCapacityDetail.IsVirtualCluster = cluster.IsVirtualCluster
-		} else if len(cluster.ErrorInConnecting) > 0 {
+		if len(cluster.ErrorInConnecting) > 0 {
 			clusterCapacityDetail.ErrorInConnection = cluster.ErrorInConnecting
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)

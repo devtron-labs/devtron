@@ -13,11 +13,14 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -25,6 +28,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DeploymentHistoryResp struct {
@@ -61,6 +65,8 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetDefaultDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
+	GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request)
+	GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request)
 	EnvConfigOverrideUpdate(w http.ResponseWriter, r *http.Request)
@@ -873,6 +879,81 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 	common.WriteJsonResp(w, err, env, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := r.Header.Get("token")
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	resp, err := handler.deploymentTemplateService.FetchDeploymentsWithChartRefs(appId, envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchDeploymentsWithChartRefs", "err", err, "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+
+	var request generateManifest.DeploymentTemplateRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, GetDeploymentTemplate by API", "err", err, "GetYaluesAndManifest", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		handler.Logger.Errorw("request err, userId", "err", err, "payload", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
+
+	//RBAC enforcer Ends
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	defer cancel()
+	//TODO fix
+	resp, err := handler.deploymentTemplateService.GetDeploymentTemplate(ctx, request)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
 func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -923,7 +1004,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	}
 
 	if pg.ErrNoRows == err {
-		appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+		appOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 		if err != nil {
 			handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -998,7 +1079,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDefaultDeploymentTemplate(w htt
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "unauthorized user", http.StatusForbidden)
 		return
 	}
-	defaultTemplate, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	defaultTemplate, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("error in getting default deployment template, GetDefaultDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1095,7 +1176,34 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	stage := r.URL.Query().Get("stage")
 	if len(stage) == 0 {
-		stage = "PRE"
+		stage = pipeline.WorklowTypePre
+	}
+	searchString := ""
+	search := r.URL.Query().Get("search")
+	if len(search) != 0 {
+		searchString = search
+	}
+
+	offset := 0
+	limit := 10
+	offsetQueryParam := r.URL.Query().Get("offset")
+	if offsetQueryParam != "" {
+		offset, err = strconv.Atoi(offsetQueryParam)
+		if err != nil || offset < 0 {
+			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
+			common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+			return
+		}
+	}
+
+	sizeQueryParam := r.URL.Query().Get("size")
+	if sizeQueryParam != "" {
+		limit, err = strconv.Atoi(sizeQueryParam)
+		if err != nil {
+			handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
+			common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+			return
+		}
 	}
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
 
@@ -1126,8 +1234,17 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		return
 	}
 	//rbac block ends here
-
-	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
+	var ciArtifactResponse *bean.CiArtifactResponse
+	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
+		artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
+			Limit:        limit,
+			Offset:       offset,
+			SearchString: searchString,
+		}
+		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions)
+	} else {
+		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
+	}
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1240,7 +1357,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppOverrideForDefaultTemplate(w 
 	}
 	//RBAC
 
-	appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	appOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateCiTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1350,6 +1467,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
 		return
 	}
+	searchString := r.URL.Query().Get("search")
+
 	//rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
@@ -1363,9 +1482,14 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 	}
 	//rbac block ends here
 	//rbac for edit tags access
+	var ciArtifactResponse bean.CiArtifactResponse
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
+	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
+		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollbackV2(cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
+	} else {
+		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit, searchString)
+	}
 
-	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, "unable to fetch artifacts", http.StatusInternalServerError)
@@ -1432,7 +1556,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateMigrationConfig(w http.Respon
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var dbMigrationConfigBean pipeline.DbMigrationConfigBean
+	var dbMigrationConfigBean types.DbMigrationConfigBean
 	err = decoder.Decode(&dbMigrationConfigBean)
 
 	dbMigrationConfigBean.UserId = userId
@@ -1478,7 +1602,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMigrationConfig(w http.Respon
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var dbMigrationConfigBean pipeline.DbMigrationConfigBean
+	var dbMigrationConfigBean types.DbMigrationConfigBean
 	err = decoder.Decode(&dbMigrationConfigBean)
 	dbMigrationConfigBean.UserId = userId
 	if err != nil {
@@ -2278,7 +2402,7 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 		return
 	}
 
-	newAppOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartUpgradeRequest.ChartRefId)
+	newAppOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartUpgradeRequest.ChartRefId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpgradeForAllApps", "err", err, "payload", chartUpgradeRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

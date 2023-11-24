@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/api/helm-app/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -41,7 +42,7 @@ import (
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
-	GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error)
+	GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error)
 	GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
@@ -137,10 +138,16 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	req := &AppListRequest{}
 	for _, clusterDetail := range clusters {
 		config := &ClusterConfig{
-			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config[k8s.BearerToken],
-			ClusterId:    int32(clusterDetail.Id),
-			ClusterName:  clusterDetail.ClusterName,
+			ApiServerUrl:          clusterDetail.ServerUrl,
+			Token:                 clusterDetail.Config[k8s.BearerToken],
+			ClusterId:             int32(clusterDetail.Id),
+			ClusterName:           clusterDetail.ClusterName,
+			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
+		}
+		if clusterDetail.InsecureSkipTLSVerify == false {
+			config.KeyData = clusterDetail.Config[k8s.TlsKey]
+			config.CertData = clusterDetail.Config[k8s.CertData]
+			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
@@ -262,10 +269,16 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 		return nil, err
 	}
 	config := &ClusterConfig{
-		ApiServerUrl: cluster.ServerUrl,
-		Token:        cluster.Config[k8s.BearerToken],
-		ClusterId:    int32(cluster.Id),
-		ClusterName:  cluster.ClusterName,
+		ApiServerUrl:          cluster.ServerUrl,
+		Token:                 cluster.Config[k8s.BearerToken],
+		ClusterId:             int32(cluster.Id),
+		ClusterName:           cluster.ClusterName,
+		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+	}
+	if cluster.InsecureSkipTLSVerify == false {
+		config.KeyData = cluster.Config[k8s.TlsKey]
+		config.CertData = cluster.Config[k8s.CertData]
+		config.CaData = cluster.Config[k8s.CertificateAuthorityData]
 	}
 	return config, nil
 }
@@ -274,8 +287,8 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 	return impl.getApplicationDetail(ctx, app, nil)
 }
 
-func (impl *HelmAppServiceImpl) GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
-	return impl.getApplicationStatus(ctx, app)
+func (impl *HelmAppServiceImpl) GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error) {
+	return impl.getApplicationAndReleaseStatus(ctx, app)
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
@@ -318,12 +331,11 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 	return appdetail, err
 }
 
-func (impl *HelmAppServiceImpl) getApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
-	applicationStatus := ""
+func (impl *HelmAppServiceImpl) getApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
-		return applicationStatus, err
+		return nil, err
 	}
 	req := &AppDetailRequest{
 		ClusterConfig: config,
@@ -333,10 +345,9 @@ func (impl *HelmAppServiceImpl) getApplicationStatus(ctx context.Context, app *A
 	appStatus, err := impl.helmAppClient.GetAppStatus(ctx, req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app status", "err", err)
-		return applicationStatus, err
+		return nil, err
 	}
-	applicationStatus = appStatus.ApplicationStatus
-	return applicationStatus, err
+	return appStatus, err
 }
 
 func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
@@ -407,6 +418,17 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
 	}
+	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
+	//that case DeleteApplication returned with grpc error and the user was not able to delete the
+	//cd-pipeline after helm app is created in that namespace.
+	exists, err := impl.checkIfNsExists(app)
+	if err != nil {
+		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", app.ClusterId)
+		return nil, err
+	}
+	if !exists {
+		return nil, models.NamespaceNotExistError{Err: fmt.Errorf("namespace %s does not exist", app.Namespace)}
+	}
 
 	req := &ReleaseIdentifier{
 		ClusterConfig:    config,
@@ -424,6 +446,31 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		Success: &deleteApplicationResponse.Success,
 	}
 	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error) {
+	clusterBean, err := impl.clusterService.FindById(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster bean", "error", err, "clusterId", app.ClusterId)
+		return false, err
+	}
+	config, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "error", err, "clusterId", app.ClusterId)
+		return false, err
+	}
+	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
+		return false, err
+	}
+	exists, err := impl.K8sUtil.CheckIfNsExists(app.Namespace, v12Client)
+	if err != nil {
+		impl.logger.Errorw("error in checking if namespace exists or not", "error", err, "clusterConfig", config)
+		return false, err
+	}
+
+	return exists, nil
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {

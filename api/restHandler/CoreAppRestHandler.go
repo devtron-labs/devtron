@@ -440,7 +440,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 func (handler CoreAppRestHandlerImpl) buildAppMetadata(appId int) (*appBean.AppMetadata, error, int) {
 	handler.logger.Debugw("Getting app detail - meta data", "appId", appId)
 
-	appMetaInfo, err := handler.appCrudOperationService.GetAppMetaInfo(appId)
+	appMetaInfo, err := handler.appCrudOperationService.GetAppMetaInfo(appId, app.ZERO_INSTALLED_APP_ID, app.ZERO_ENVIRONMENT_ID)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err, "appId", appId)
 		return nil, err, http.StatusInternalServerError
@@ -722,6 +722,7 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 		ParentCiPipeline:         ciPipeline.ParentCiPipeline,
 		ParentAppId:              ciPipeline.ParentAppId,
 		LinkedCount:              ciPipeline.LinkedCount,
+		PipelineType:             string(ciPipeline.PipelineType),
 	}
 
 	//build ciPipelineMaterial resp
@@ -886,6 +887,10 @@ func (handler CoreAppRestHandlerImpl) buildAppConfigMaps(appId int, envId int, c
 
 			//set data
 			data := configMap.Data
+			if configMap.Data == nil {
+				//it means env cm is inheriting from base cm
+				data = configMap.DefaultData
+			}
 			var dataObj map[string]interface{}
 			if data != nil {
 				err := json.Unmarshal([]byte(data), &dataObj)
@@ -971,9 +976,6 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentSecrets(appId int, envI
 			if err != nil {
 				handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 				return nil, err, http.StatusInternalServerError
-			}
-			if secretConfig.Data == nil {
-				secretDataWithData.ConfigData[0].Data = secretConfig.Data
 			}
 			secretDataWithData.ConfigData[0].DefaultData = secretConfig.DefaultData
 
@@ -1191,45 +1193,50 @@ func (handler CoreAppRestHandlerImpl) deleteApp(ctx context.Context, appId int, 
 
 		// delete all CD pipelines for app starts
 		cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			handler.logger.Errorw("service err, GetCdPipelines in DeleteApp", "err", err, "appId", appId)
 			return err
 		}
+		if err != pg.ErrNoRows {
+			for _, cdPipeline := range cdPipelines.Pipelines {
+				cdPipelineDeleteRequest := &bean.CDPatchRequest{
+					AppId:            appId,
+					UserId:           userId,
+					Action:           bean.CD_DELETE,
+					ForceDelete:      true,
+					NonCascadeDelete: false,
+					Pipeline:         cdPipeline,
+				}
+				_, err = handler.pipelineBuilder.PatchCdPipelines(cdPipelineDeleteRequest, ctx)
+				if err != nil {
+					handler.logger.Errorw("err in deleting cd pipeline in DeleteApp", "err", err, "payload", cdPipelineDeleteRequest)
+					return err
+				}
+			}
 
-		for _, cdPipeline := range cdPipelines.Pipelines {
-			cdPipelineDeleteRequest := &bean.CDPatchRequest{
-				AppId:            appId,
-				UserId:           userId,
-				Action:           bean.CD_DELETE,
-				ForceDelete:      true,
-				NonCascadeDelete: false,
-				Pipeline:         cdPipeline,
-			}
-			_, err = handler.pipelineBuilder.PatchCdPipelines(cdPipelineDeleteRequest, ctx)
-			if err != nil {
-				handler.logger.Errorw("err in deleting cd pipeline in DeleteApp", "err", err, "payload", cdPipelineDeleteRequest)
-				return err
-			}
 		}
 		// delete all CD pipelines for app ends
 
 		// delete all CI pipelines for app starts
 		ciPipelines, err := handler.pipelineBuilder.GetCiPipeline(appId)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			handler.logger.Errorw("service err, GetCiPipelines in DeleteApp", "err", err, "appId", appId)
 			return err
 		}
-		for _, ciPipeline := range ciPipelines.CiPipelines {
-			ciPipelineDeleteRequest := &bean.CiPatchRequest{
-				AppId:      appId,
-				UserId:     userId,
-				Action:     bean.DELETE,
-				CiPipeline: ciPipeline,
-			}
-			_, err := handler.pipelineBuilder.PatchCiPipeline(ciPipelineDeleteRequest)
-			if err != nil {
-				handler.logger.Errorw("err in deleting ci pipeline in DeleteApp", "err", err, "payload", ciPipelineDeleteRequest)
-				return err
+		if err != pg.ErrNoRows {
+
+			for _, ciPipeline := range ciPipelines.CiPipelines {
+				ciPipelineDeleteRequest := &bean.CiPatchRequest{
+					AppId:      appId,
+					UserId:     userId,
+					Action:     bean.DELETE,
+					CiPipeline: ciPipeline,
+				}
+				_, err := handler.pipelineBuilder.PatchCiPipeline(ciPipelineDeleteRequest)
+				if err != nil {
+					handler.logger.Errorw("err in deleting ci pipeline in DeleteApp", "err", err, "payload", ciPipelineDeleteRequest)
+					return err
+				}
 			}
 		}
 		// delete all CI pipelines for app ends
@@ -1550,16 +1557,37 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 		//Creating workflow ends
 
 		//Creating CI pipeline starts
-		ciPipelineId, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
+		ciPipeline, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
+			err1 := handler.appWorkflowService.DeleteAppWorkflow(workflowId, userId)
+			if err1 != nil {
+				handler.logger.Errorw("service err, DeleteAppWorkflow ")
+				return err1, http.StatusInternalServerError
+			}
 			handler.logger.Errorw("err in saving ci pipelines", err, "appId", appId)
 			return err, http.StatusInternalServerError
 		}
 		//Creating CI pipeline ends
 
 		//Creating CD pipeline starts
-		err = handler.createCdPipelines(ctx, appId, userId, workflowId, ciPipelineId, workflow.CdPipelines)
+		err = handler.createCdPipelines(ctx, appId, userId, workflowId, ciPipeline.Id, workflow.CdPipelines)
 		if err != nil {
+			ciPipelineDeleteRequest := &bean.CiPatchRequest{
+				AppId:      appId,
+				UserId:     userId,
+				Action:     bean.DELETE,
+				CiPipeline: ciPipeline,
+			}
+			_, err1 := handler.pipelineBuilder.PatchCiPipeline(ciPipelineDeleteRequest)
+			if err1 != nil {
+				handler.logger.Errorw("err in deleting ci pipeline in DeleteApp", "err", err, "payload", ciPipelineDeleteRequest)
+				return err1, http.StatusInternalServerError
+			}
+			err1 = handler.appWorkflowService.DeleteAppWorkflow(workflowId, userId)
+			if err1 != nil {
+				handler.logger.Errorw("service err, DeleteAppWorkflow ")
+				return err1, http.StatusInternalServerError
+			}
 			handler.logger.Errorw("err in saving cd pipelines", err, "appId", appId)
 			return err, http.StatusInternalServerError
 		}
@@ -1589,13 +1617,13 @@ func (handler CoreAppRestHandlerImpl) createWorkflowInDb(workflowName string, ap
 	return savedAppWf.Id, nil
 }
 
-func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, workflowId int, ciPipelineData *appBean.CiPipelineDetails) (int, error) {
+func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, workflowId int, ciPipelineData *appBean.CiPipelineDetails) (*bean.CiPipeline, error) {
 
 	// if ci pipeline is of external type, then throw error as we are not supporting it as of now
 	if ciPipelineData.ParentCiPipeline == 0 && ciPipelineData.ParentAppId == 0 && ciPipelineData.IsExternal {
 		err := errors.New("external ci pipeline creation is not supported yet")
 		handler.logger.Error("external ci pipeline creation is not supported yet")
-		return 0, err
+		return nil, err
 	}
 
 	// build ci pipeline materials starts
@@ -1612,13 +1640,13 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 		}
 		if err != nil {
 			handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateWorkflows", "err", err, "appId", appId)
-			return 0, err
+			return nil, err
 		}
 
 		if gitMaterial == nil {
 			err = errors.New("gitMaterial is nil")
 			handler.logger.Errorw("gitMaterial is nil", "checkoutPath", ciMaterial.CheckoutPath)
-			return 0, err
+			return nil, err
 		}
 
 		ciMaterialRequest := &bean.CiMaterial{
@@ -1655,6 +1683,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			ParentCiPipeline:         ciPipelineData.ParentCiPipeline,
 			ParentAppId:              ciPipelineData.ParentAppId,
 			LinkedCount:              ciPipelineData.LinkedCount,
+			PipelineType:             bean.PipelineType(ciPipelineData.PipelineType),
 		},
 	}
 
@@ -1662,10 +1691,10 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 	res, err := handler.pipelineBuilder.PatchCiPipeline(ciPipelineRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, PatchCiPipelines", "err", err, "appId", appId)
-		return 0, err
+		return nil, err
 	}
 
-	return res.CiPipelines[0].Id, nil
+	return res.CiPipelines[0], nil
 }
 
 func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, appId int, userId int32, workflowId int, ciPipelineId int, cdPipelines []*appBean.CdPipelineDetails) error {
@@ -2299,7 +2328,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 
 	// get app metadata for appId
-	appMetaInfo, err := handler.appCrudOperationService.GetAppMetaInfo(appId)
+	appMetaInfo, err := handler.appCrudOperationService.GetAppMetaInfo(appId, app.ZERO_INSTALLED_APP_ID, app.ZERO_ENVIRONMENT_ID)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppWorkflow", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -2350,7 +2379,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	app, err := handler.appCrudOperationService.GetAppMetaInfo(appId)
+	app, err := handler.appCrudOperationService.GetAppMetaInfo(appId, app.ZERO_INSTALLED_APP_ID, app.ZERO_ENVIRONMENT_ID)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

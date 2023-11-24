@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/common-lib/pubsub-lib"
 	"path"
 	"regexp"
 	"time"
@@ -66,6 +67,7 @@ type AppStoreDeploymentFullModeService interface {
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	GetGitOpsRepoName(appName string, environmentName string) (string, error)
+	SubscribeHelmInstallStatus() error
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -86,6 +88,9 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	gitOpsConfigRepository               repository3.GitOpsConfigRepository
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	argoClientWrapperService             argocdServer.ArgoClientWrapperService
+	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
+	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -101,8 +106,11 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoUserService argo.ArgoUserService, gitOpsConfigRepository repository3.GitOpsConfigRepository,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+	pubSubClient *pubsub_lib.PubSubClientServiceImpl,
+	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
 ) *AppStoreDeploymentFullModeServiceImpl {
-	return &AppStoreDeploymentFullModeServiceImpl{
+	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
 		refChartDir:                          refChartDir,
@@ -120,7 +128,15 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigRepository:               gitOpsConfigRepository,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
+		argoClientWrapperService:             argoClientWrapperService,
+		pubSubClient:                         pubSubClient,
+		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 	}
+	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstallStatus()
+	if err != nil {
+		return nil
+	}
+	return appStoreDeploymentFullModeServiceImpl
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *util.ChartGitAttribute, error) {
@@ -316,6 +332,12 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	//STEP 6: Force Sync ACD - works like trigger deployment
 	//impl.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 
+	//STEP 7: normal refresh ACD - update for step 6 to avoid delay
+	err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
+	if err != nil {
+		impl.logger.Errorw("error in getting the argo application with normal refresh", "err", err)
+	}
+
 	return installAppVersionRequest, nil
 }
 
@@ -476,5 +498,43 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 		return err
 	}
 
+	return nil
+}
+
+func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() error {
+
+	callback := func(msg *pubsub_lib.PubSubMsg) {
+
+		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
+		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
+			return
+		}
+
+		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(helmInstallNatsMessage.InstallAppVersionHistoryId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
+			return
+		}
+		if helmInstallNatsMessage.ErrorInInstallation {
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		} else {
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+		}
+		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
+		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+		if err != nil {
+			impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
+			return
+		}
+	}
+
+	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback)
+	if err != nil {
+		impl.logger.Error(err)
+		return err
+	}
 	return nil
 }

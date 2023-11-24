@@ -20,8 +20,9 @@ package pipeline
 import (
 	"context"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/client-go/kubernetes"
@@ -30,8 +31,8 @@ import (
 )
 
 type CiLogService interface {
-	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
-	FetchLogs(baseLogLocationPathConfig string, ciLogRequest BuildLogRequest) (*os.File, func() error, error)
+	FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
+	FetchLogs(baseLogLocationPathConfig string, ciLogRequest types.BuildLogRequest) (*os.File, func() error, error)
 }
 
 type CiLogServiceImpl struct {
@@ -39,19 +40,6 @@ type CiLogServiceImpl struct {
 	ciService  CiService
 	kubeClient *kubernetes.Clientset
 	k8sUtil    *k8s.K8sUtil
-}
-
-type BuildLogRequest struct {
-	PipelineId        int
-	WorkflowId        int
-	PodName           string
-	LogsFilePath      string
-	Namespace         string
-	CloudProvider     blob_storage.BlobStorageType
-	AwsS3BaseConfig   *blob_storage.AwsS3BaseConfig
-	AzureBlobConfig   *blob_storage.AzureBlobBaseConfig
-	GcpBlobBaseConfig *blob_storage.GcpBlobBaseConfig
-	MinioEndpoint     string
 }
 
 func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, k8sUtil *k8s.K8sUtil) (*CiLogServiceImpl, error) {
@@ -68,7 +56,7 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, k8sUtil
 	}, nil
 }
 
-func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
+func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
 	var kubeClient *kubernetes.Clientset
 	kubeClient = impl.kubeClient
 	var err error
@@ -96,7 +84,7 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 	return podLogs, cleanUpFunc, nil
 }
 
-func (impl *CiLogServiceImpl) FetchLogs(baseLogLocationPathConfig string, logRequest BuildLogRequest) (*os.File, func() error, error) {
+func (impl *CiLogServiceImpl) FetchLogs(baseLogLocationPathConfig string, logRequest types.BuildLogRequest) (*os.File, func() error, error) {
 	tempFile := baseLogLocationPathConfig
 	tempFile = filepath.Clean(filepath.Join(tempFile, logRequest.PodName+".log"))
 

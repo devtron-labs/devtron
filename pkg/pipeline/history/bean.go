@@ -1,8 +1,8 @@
 package history
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"time"
 )
 
@@ -58,26 +58,27 @@ type HistoryDetailDto struct {
 	SubPath            *bool                `json:"subPath,omitempty"`
 	FilePermission     string               `json:"filePermission,omitempty"`
 	CodeEditorValue    *HistoryDetailConfig `json:"codeEditorValue"`
-	VariableSnapshot   map[string]string    `json:"variableSnapshot"`
 }
 
 type HistoryDetailConfig struct {
-	DisplayName string `json:"displayName"`
-	Value       string `json:"value"`
+	DisplayName      string            `json:"displayName"`
+	Value            string            `json:"value"`
+	VariableSnapshot map[string]string `json:"variableSnapshot"`
+	ResolvedValue    string            `json:"resolvedValue"`
 }
 
 //history components(deployment template, configMaps, secrets, pipeline strategy) components below
 
 type ConfigMapAndSecretHistoryDto struct {
-	Id         int           `json:"id"`
-	PipelineId int           `json:"pipelineId"`
-	AppId      int           `json:"appId"`
-	DataType   string        `json:"dataType,omitempty"`
-	ConfigData []*ConfigData `json:"configData,omitempty"`
-	Deployed   bool          `json:"deployed"`
-	DeployedOn time.Time     `json:"deployedOn"`
-	DeployedBy int32         `json:"deployedBy"`
-	EmailId    string        `json:"emailId"`
+	Id         int                `json:"id"`
+	PipelineId int                `json:"pipelineId"`
+	AppId      int                `json:"appId"`
+	DataType   string             `json:"dataType,omitempty"`
+	ConfigData []*bean.ConfigData `json:"configData,omitempty"`
+	Deployed   bool               `json:"deployed"`
+	DeployedOn time.Time          `json:"deployedOn"`
+	DeployedBy int32              `json:"deployedBy"`
+	EmailId    string             `json:"emailId"`
 }
 
 type PrePostCdScriptHistoryDto struct {
@@ -86,8 +87,8 @@ type PrePostCdScriptHistoryDto struct {
 	Script               string                           `json:"script"`
 	Stage                string                           `json:"stage"`
 	ConfigMapSecretNames PrePostStageConfigMapSecretNames `json:"configmapSecretNames"`
-	ConfigMapData        []*ConfigData                    `json:"configmapData"`
-	SecretData           []*ConfigData                    `json:"secretData"`
+	ConfigMapData        []*bean.ConfigData               `json:"configmapData"`
+	SecretData           []*bean.ConfigData               `json:"secretData"`
 	TriggerType          string                           `json:"triggerType"`
 	ExecInEnv            bool                             `json:"execInEnv"`
 	Deployed             bool                             `json:"deployed"`
@@ -132,50 +133,3 @@ type PipelineStrategyHistoryDto struct {
 }
 
 // duplicate structs below, because importing from pkg/pipeline was resulting in circular dependency
-
-type ConfigList struct {
-	ConfigData []*ConfigData `json:"maps"`
-}
-
-type SecretList struct {
-	ConfigData []*ConfigData `json:"secrets"`
-}
-
-type ConfigData struct {
-	Name                  string           `json:"name"`
-	Type                  string           `json:"type"`
-	External              bool             `json:"external"`
-	MountPath             string           `json:"mountPath,omitempty"`
-	Data                  json.RawMessage  `json:"data"`
-	DefaultData           json.RawMessage  `json:"defaultData,omitempty"`
-	DefaultMountPath      string           `json:"defaultMountPath,omitempty"`
-	Global                bool             `json:"global"`
-	ExternalSecretType    string           `json:"externalType"`
-	ExternalSecret        []ExternalSecret `json:"secretData"`
-	DefaultExternalSecret []ExternalSecret `json:"defaultSecretData,omitempty"`
-	ESOSecretData         ESOSecretData    `json:"esoSecretData"`
-	DefaultESOSecretData  ESOSecretData    `json:"defaultESOSecretData,omitempty"`
-	RoleARN               string           `json:"roleARN"`
-	SubPath               bool             `json:"subPath"`
-	FilePermission        string           `json:"filePermission"`
-}
-
-type ExternalSecret struct {
-	Key      string `json:"key"`
-	Name     string `json:"name"`
-	Property string `json:"property,omitempty"`
-	IsBinary bool   `json:"isBinary"`
-}
-
-type ESOSecretData struct {
-	SecretStore     json.RawMessage `json:"secretStore,omitempty"`
-	SecretStoreRef  json.RawMessage `json:"secretStoreRef,omitempty"`
-	EsoData         []ESOData       `json:"esoData"`
-	RefreshInterval string          `json:"refreshInterval,omitempty"`
-}
-
-type ESOData struct {
-	SecretKey string `json:"secretKey"`
-	Key       string `json:"key"`
-	Property  string `json:"property,omitempty"`
-}

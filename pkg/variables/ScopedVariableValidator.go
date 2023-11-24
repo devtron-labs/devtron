@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"golang.org/x/exp/slices"
 	"regexp"
+	"strings"
 )
 
 func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (error, bool) {
@@ -15,6 +16,11 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 		if slices.Contains(variableNamesList, variable.Definition.VarName) {
 			return models.ValidationError{Err: fmt.Errorf("duplicate variable name %s", variable.Definition.VarName)}, false
 		}
+
+		if strings.HasPrefix(variable.Definition.VarName, impl.VariableNameConfig.SystemVariablePrefix) {
+			return models.ValidationError{Err: fmt.Errorf("%s is not allowed (Prefix %s is reserved for system variables)", variable.Definition.VarName, impl.VariableNameConfig.SystemVariablePrefix)}, false
+		}
+
 		regex := impl.VariableNameConfig.VariableNameRegex
 
 		regexExpression := regexp.MustCompile(regex)
@@ -24,6 +30,11 @@ func (impl *ScopedVariableServiceImpl) isValidPayload(payload models.Payload) (e
 		variableNamesList = append(variableNamesList, variable.Definition.VarName)
 		uniqueVariableMap := make(map[string]interface{})
 		for _, attributeValue := range variable.AttributeValues {
+
+			if !utils.IsStringType(attributeValue.VariableValue.Value) && variable.Definition.VarType.IsTypeSensitive() {
+				return models.ValidationError{Err: fmt.Errorf("data type other than string cannot be sensitive")}, false
+			}
+
 			validIdentifierTypeList := helper.GetIdentifierTypeFromAttributeType(attributeValue.AttributeType)
 			if len(validIdentifierTypeList) != len(attributeValue.AttributeParams) {
 				return models.ValidationError{Err: fmt.Errorf("attribute selectors are not valid for given category %s", attributeValue.AttributeType)}, false

@@ -2,12 +2,14 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/devtron-labs/authenticator/client"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/batch/v1"
 	v12 "k8s.io/api/core/v1"
@@ -24,12 +26,12 @@ func TestSystemWorkflowExecute(t *testing.T) {
 	t.SkipNow()
 	logger, loggerErr := util.NewSugardLogger()
 	assert.Nil(t, loggerErr)
-	cdConfig, err := GetCiCdConfig()
+	cdConfig, err := types.GetCiCdConfig()
 	assert.Nil(t, err)
 	runtimeConfig, err := client.GetRuntimeConfig()
 	assert.Nil(t, err)
 	k8sUtil := k8s.NewK8sUtil(logger, runtimeConfig)
-	workflowExecutorImpl := NewSystemWorkflowExecutorImpl(logger, k8sUtil)
+	workflowExecutorImpl := executors.NewSystemWorkflowExecutorImpl(logger, k8sUtil)
 
 	t.Run("validate not configured blob storage", func(t *testing.T) {
 		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
@@ -150,7 +152,7 @@ func validateSecretTemplates(t *testing.T, templatesList *unstructured.Unstructu
 	}
 }
 
-func executeAndValidateJobTemplate(t *testing.T, workflowExecutorImpl *SystemWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) *unstructured.UnstructuredList {
+func executeAndValidateJobTemplate(t *testing.T, workflowExecutorImpl *executors.SystemWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) *unstructured.UnstructuredList {
 	templatesList, err := workflowExecutorImpl.ExecuteWorkflow(workflowTemplate)
 	assert.Nil(t, err)
 	jobTemplate, err := getJobTemplate(templatesList)
@@ -161,9 +163,9 @@ func executeAndValidateJobTemplate(t *testing.T, workflowExecutorImpl *SystemWor
 
 func validateJobTemplate(t *testing.T, jobTemplate v1.Job, workflowTemplate bean.WorkflowTemplate) {
 	objectMeta := jobTemplate.ObjectMeta
-	assert.True(t, strings.Contains(objectMeta.Name, fmt.Sprintf(WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix)))
+	assert.True(t, strings.Contains(objectMeta.Name, fmt.Sprintf(executors.WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix)))
 	wfLabels := objectMeta.Labels
-	assert.Equal(t, DEVTRON_WORKFLOW_LABEL_VALUE, wfLabels[DEVTRON_WORKFLOW_LABEL_KEY])
+	assert.Equal(t, executors.DEVTRON_WORKFLOW_LABEL_VALUE, wfLabels[executors.DEVTRON_WORKFLOW_LABEL_KEY])
 	jobSpec := jobTemplate.Spec
 	activeDeadlineSeconds := jobSpec.ActiveDeadlineSeconds
 	assert.NotNil(t, activeDeadlineSeconds)
@@ -179,7 +181,7 @@ func getJobTemplate(templatesList *unstructured.UnstructuredList) (v1.Job, error
 	var jobTemplate v1.Job
 	var err error
 	for _, templateItem := range templatesList.Items {
-		if templateItem.GetKind() == kube.JobKind {
+		if templateItem.GetKind() == k8sCommonBean.JobKind {
 			err = runtime.DefaultUnstructuredConverter.FromUnstructured(templateItem.Object, &jobTemplate)
 			break
 		}

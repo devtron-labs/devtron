@@ -22,10 +22,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -60,6 +62,10 @@ import (
 	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
 )
+
+type PipelineRestHandlerEnvConfig struct {
+	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2"`
+}
 
 type DevtronAppRestHandler interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
@@ -122,6 +128,9 @@ type PipelineConfigRestHandlerImpl struct {
 	gitProviderRepo              repository.GitProviderRepository
 	argoUserService              argo.ArgoUserService
 	imageTaggingService          pipeline.ImageTaggingService
+	deploymentTemplateService    generateManifest.DeploymentTemplateService
+	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
+	ciArtifactRepository         repository.CiArtifactRepository
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -140,11 +149,18 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	gitRegistryConfig pipeline.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandler pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
+	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageTaggingService pipeline.ImageTaggingService) *PipelineConfigRestHandlerImpl {
+	imageTaggingService pipeline.ImageTaggingService,
+	ciArtifactRepository repository.CiArtifactRepository) *PipelineConfigRestHandlerImpl {
+	envConfig := &PipelineRestHandlerEnvConfig{}
+	err := env.Parse(envConfig)
+	if err != nil {
+		Logger.Errorw("error in parsing PipelineRestHandlerEnvConfig", "err", err)
+	}
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -174,6 +190,9 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		imageTaggingService:          imageTaggingService,
+		deploymentTemplateService:    deploymentTemplateService,
+		pipelineRestHandlerEnvConfig: envConfig,
+		ciArtifactRepository:         ciArtifactRepository,
 	}
 }
 
