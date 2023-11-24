@@ -2,6 +2,8 @@ package bean
 
 import "time"
 
+const WORKFLOW_EXIST_ERROR = "workflow with this name already exist in this app"
+
 type ManifestPushTemplate struct {
 	WorkflowRunnerId       int
 	AppId                  int
