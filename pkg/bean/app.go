@@ -142,6 +142,7 @@ type CiPipelineMin struct {
 	ParentAppId      int          `json:"parentAppId"`
 	PipelineType     PipelineType `json:"pipelineType,omitempty"`
 	ScanEnabled      bool         `json:"scanEnabled,notnull"`
+	IsGitRequired    bool         `json:"isGitRequired"`
 }
 
 type CiScript struct {

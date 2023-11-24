@@ -1507,6 +1507,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 			ParentAppId:      parentCiPipeline.AppId,
 			PipelineType:     pipelineType,
 			ScanEnabled:      pipeline.ScanEnabled,
+			IsGitRequired:    pipeline.IsGitRequired,
 		}
 		ciPipelineResp = append(ciPipelineResp, ciPipeline)
 	}
