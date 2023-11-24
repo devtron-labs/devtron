@@ -16,6 +16,7 @@ const (
 	BUILDPACK_BUILD_TYPE          CiBuildType = "buildpack-build"
 )
 const Main = "main"
+const UniquePlaceHolderForAppName = "$etron"
 
 type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`

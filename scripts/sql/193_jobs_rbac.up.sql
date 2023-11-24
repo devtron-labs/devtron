@@ -549,3 +549,5 @@ Alter table roles add column IF NOT EXISTS workflow text;
 
 --  This is being done as casbin resource objects are being defined as TeamObj/AppObj and rbac enforcement is failing as jobName has / in it.
 UPDATE app SET app_name = REPLACE (app_name,'/','-') where app_type =2;
+-- This is being done to unique identifying app and job and other enities in future to avoid conflicts in rbac enforcement
+UPDATE app SET app_name = CONCAT  (app_name,'$etron') where app_type =2;
