@@ -2,7 +2,7 @@ package k8s
 
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/api/helm-app"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 )
 
@@ -35,5 +35,3 @@ type PodContainerList struct {
 	InitContainers      []string
 	EphemeralContainers []string
 }
-
-const EphemeralContainerStartingBashScriptName = "./tmp/%s-devtron.sh"
