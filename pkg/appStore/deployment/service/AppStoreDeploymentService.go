@@ -889,16 +889,27 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	var success bool
 
 	if util2.IsBaseStack() || util2.IsHelmApp(installedApp.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType) {
+		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(*request.Version))
+		if err != nil {
+			return false, err
+		}
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionHistory.InstalledAppVersionId)
+		if err != nil {
+			return false, err
+		}
 		installAppVersionRequest := &appStoreBean.InstallAppVersionDTO{
-			AppStoreVersion:    installedApp.AppStoreApplicationVersionId,
+			AppStoreVersion:    installedAppVersion.AppStoreApplicationVersionId,
 			InstalledAppId:     installedApp.InstalledAppId,
 			ReferenceValueId:   installedApp.ReferenceValueId,
 			ReferenceValueKind: installedApp.ReferenceValueKind,
-			ValuesOverrideYaml: installedApp.ValuesOverrideYaml,
+			ValuesOverrideYaml: installedAppVersionHistory.ValuesYamlRaw,
 			UserId:             userId,
 		}
+		if int(*request.Version) == installedApp.InstalledAppVersionId {
+			installAppVersionRequest.Id = installedApp.InstalledAppVersionId
+		}
 		//installedApp, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
-		_, err := impl.UpdateInstalledApp(ctx, installAppVersionRequest)
+		_, err = impl.UpdateInstalledApp(ctx, installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error while rollback helm release", "error", err)
 			return false, err
