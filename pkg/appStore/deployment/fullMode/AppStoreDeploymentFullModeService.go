@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	"path"
 	"regexp"
 	"time"
@@ -89,6 +90,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
 	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
 	chartDeploymentService               util.ChartDeploymentService
+	gitOpsService                        gitops.GitOpsConfigService
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -108,6 +110,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub_lib.PubSubClientServiceImpl,
 	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
 	chartDeploymentService util.ChartDeploymentService,
+	gitOpsService gitops.GitOpsConfigService,
 ) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
@@ -131,6 +134,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		pubSubClient:                         pubSubClient,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		chartDeploymentService:               chartDeploymentService,
+		gitOpsService:                        gitOpsService,
 	}
 	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstallStatus()
 	if err != nil {
@@ -140,6 +144,12 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *util.ChartGitAttribute, error) {
+	installedAppModel, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
+	if err != nil {
+		impl.logger.Errorw("fetching error, installedApp", "err", err)
+		return installAppVersionRequest, nil, err
+	}
+	installAppVersionRequest.GitOpsRepoURL = installedAppModel.GitOpsRepoUrl
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
@@ -178,7 +188,10 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	if appStoreAppVersion.AppStore.ChartRepo != nil {
 		dependency.Repository = appStoreAppVersion.AppStore.ChartRepo.Url
 	}
-	var dependencies []appStoreBean.Dependency
+	var (
+		gitOpsRepoName string
+		dependencies   []appStoreBean.Dependency
+	)
 	dependencies = append(dependencies, dependency)
 	requirementDependencies := &appStoreBean.Dependencies{
 		Dependencies: dependencies,
@@ -191,8 +204,11 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	if err != nil {
 		return installAppVersionRequest, nil, err
 	}
-
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+	if installedAppModel.IsCustomRepository && len(installedAppModel.GitOpsRepoUrl) != 0 {
+		gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(installedAppModel.GitOpsRepoUrl)
+	} else {
+		gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+	}
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)

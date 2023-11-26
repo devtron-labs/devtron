@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -59,6 +60,48 @@ func NewGitOpsManifestPushServiceImpl(
 
 func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse {
 	manifestPushResponse := bean.ManifestPushResponse{}
+	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
+		if util.IsErrNoRows(err) {
+			errMsg := fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+			manifestPushResponse.Error = errMsg
+			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
+			return manifestPushResponse
+		}
+		manifestPushResponse.Error = err
+		impl.SaveTimelineForError(manifestPushTemplate, err)
+		return manifestPushResponse
+	}
+
+	if manifestPushTemplate.RepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED {
+		if activeGlobalGitOpsConfig.AllowCustomRepository {
+			errMsg := fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
+			manifestPushResponse.Error = errMsg
+			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
+			return manifestPushResponse
+		}
+		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(manifestPushTemplate.AppName)
+		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, manifestPushTemplate.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
+			errMsg := fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
+			manifestPushResponse.Error = errMsg
+			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
+			return manifestPushResponse
+		}
+		manifestPushTemplate.RepoUrl = chartGitAttr.RepoUrl
+		chartGitAttr.ChartLocation = manifestPushTemplate.ChartLocation
+		err = impl.chartService.UpdateGitRepoUrlInCharts(manifestPushTemplate.AppId, chartGitAttr, manifestPushTemplate.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+			errMsg := fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
+			manifestPushResponse.Error = errMsg
+			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
+			return manifestPushResponse
+		}
+	}
+
 	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
 		GitRepoURL: manifestPushTemplate.RepoUrl,
 	}
@@ -71,7 +114,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 		return manifestPushResponse
 	}
 
-	err := impl.PushChartToGitRepo(manifestPushTemplate, ctx)
+	err = impl.PushChartToGitRepo(manifestPushTemplate, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		manifestPushResponse.Error = err
@@ -80,7 +123,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 	}
 	commitHash, commitTime, err := impl.CommitValuesToGit(manifestPushTemplate, ctx)
 	if err != nil {
-		impl.logger.Errorw("error in commiting values to git", "err", err)
+		impl.logger.Errorw("error in committing values to git", "err", err)
 		manifestPushResponse.Error = err
 		impl.SaveTimelineForError(manifestPushTemplate, err)
 		return manifestPushResponse
@@ -99,7 +142,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChartToGitRepo(manifestPushTempla
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetGitOpsRepoName")
 	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(manifestPushTemplate.AppName)
+	gitOpsRepoName := util.GetGitRepoNameFromGitRepoUrl(manifestPushTemplate.RepoUrl)
 	span.End()
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.CheckChartExists")
 	err := impl.chartService.CheckChartExists(manifestPushTemplate.ChartRefId)

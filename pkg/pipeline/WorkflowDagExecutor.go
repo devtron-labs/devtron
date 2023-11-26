@@ -3100,7 +3100,7 @@ func (impl *WorkflowDagExecutorImpl) BuildManifestPushTemplate(overrideRequest *
 		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
-		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl //TODO Asutosh: here
+		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
 	}
 	return manifestPushTemplate, err
 }
@@ -3455,7 +3455,7 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 			Project:         "default",
 			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
-			RepoUrl:         chart.GitRepoUrl, //TODO Asutosh: here
+			RepoUrl:         chart.GitRepoUrl, //The custom repository url is handled at build manifest level
 		}
 
 		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)

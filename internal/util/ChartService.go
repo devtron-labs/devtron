@@ -526,11 +526,10 @@ func (impl ChartTemplateServiceImpl) CreateAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
-
-	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
+	gitOpsRepoName := GetGitRepoNameFromGitRepoUrl(installAppVersionRequest.GitOpsRepoURL)
+	if len(gitOpsRepoName) == 0 {
 		//here git ops repo will be the app name, to breaking the mono repo structure
-		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest.AppName)
-		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
+		gitOpsRepoName = impl.GetGitOpsRepoName(installAppVersionRequest.AppName)
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
@@ -543,8 +542,8 @@ func (impl ChartTemplateServiceImpl) CreateAndPushToGitChartProxy(appStoreName, 
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	gitRepoRequest := &bean.GitOpsConfigDto{
-		GitRepoName:          installAppVersionRequest.GitOpsRepoName,
-		Description:          "helm chart for " + installAppVersionRequest.GitOpsRepoName,
+		GitRepoName:          gitOpsRepoName,
+		Description:          "helm chart for " + gitOpsRepoName,
 		Username:             userName,
 		UserEmailId:          userEmailId,
 		BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId,
@@ -553,7 +552,7 @@ func (impl ChartTemplateServiceImpl) CreateAndPushToGitChartProxy(appStoreName, 
 	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
-			impl.logger.Errorw("error in creating git project", "name", installAppVersionRequest.GitOpsRepoName, "err", err)
+			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 			return nil, err
 		}
 	}

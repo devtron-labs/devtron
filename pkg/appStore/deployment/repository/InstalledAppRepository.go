@@ -100,7 +100,7 @@ type InstalledApps struct {
 	AppId                      int                                   `sql:"app_id,notnull"`
 	EnvironmentId              int                                   `sql:"environment_id,notnull"`
 	Active                     bool                                  `sql:"active, notnull"`
-	GitOpsRepoName             string                                `sql:"git_ops_repo_name"` //TODO Asutosh: Here
+	GitOpsRepoUrl              string                                `sql:"git_ops_repo_url"` // earlier we used this column as "git_ops_repo_name", where we were storing the GitOpsRepoName only;
 	IsCustomRepository         bool                                  `sql:"is_custom_repository"`
 	DeploymentAppType          string                                `sql:"deployment_app_type"`
 	Status                     appStoreBean.AppstoreDeploymentStatus `sql:"status"`

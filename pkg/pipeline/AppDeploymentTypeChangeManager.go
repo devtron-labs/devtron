@@ -30,6 +30,8 @@ import (
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
+	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"strconv"
@@ -401,7 +403,14 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 	successfulPipelines := make([]*bean.DeploymentChangeStatus, 0)
 	failedPipelines := make([]*bean.DeploymentChangeStatus, 0)
 
-	isGitOpsConfigured, gitOpsConfigErr := impl.cdPipelineConfigService.IsGitopsConfigured()
+	isGitOpsConfigured := false
+	gitOpsConfig, gitOpsConfigErr := impl.cdPipelineConfigService.GetActiveGitopsConfig()
+	if gitOpsConfigErr != nil && gitOpsConfigErr != pg.ErrNoRows {
+		impl.logger.Errorw("error in checking if gitOps configured", "err", gitOpsConfigErr)
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
 
 	// Iterate over all the pipelines in the environment for given deployment app type
 	for _, pipeline := range pipelines {
@@ -435,8 +444,27 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 
 			} else {
 				// Register app in ACD
-				var AcdRegisterErr, RepoURLUpdateErr error
-				gitopsRepoName, chartGitAttr, createGitRepoErr := impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+				var (
+					gitopsRepoName                                     string
+					chartGitAttr                                       *util.ChartGitAttribute
+					AcdRegisterErr, RepoURLUpdateErr, createGitRepoErr error
+				)
+				chart, chartServiceErr := impl.chartService.FindLatestChartForAppByAppId(pipeline.AppId)
+				if chartServiceErr != nil {
+					impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", pipeline.AppId)
+				}
+				if chartServiceErr == nil {
+					if gitOpsConfig.AllowCustomRepository && chart.IsCustomGitRepository {
+						// in this case user has already created an empty git repository and provided us gitRepoUrl
+						chartGitAttr = &util.ChartGitAttribute{
+							RepoUrl: chart.GitRepoUrl,
+						}
+						gitopsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
+					} else if len(chart.GitRepoUrl) == 0 || chart.GitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED {
+						gitopsRepoName, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+					}
+				}
+
 				if createGitRepoErr != nil {
 					impl.logger.Errorw("error increating git repo", "err", err)
 				}
@@ -455,7 +483,9 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						}
 					}
 				}
-				if createGitRepoErr != nil {
+				if chartServiceErr != nil {
+					err = chartServiceErr
+				} else if createGitRepoErr != nil {
 					err = createGitRepoErr
 				} else if AcdRegisterErr != nil {
 					err = AcdRegisterErr

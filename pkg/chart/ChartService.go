@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -99,7 +100,7 @@ type ChartService interface {
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error
-	SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string) (detailedErrorGitOpsConfigResponse gitops.DetailedErrorGitOpsConfigResponse, err error)
+	SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error)
 	GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
 }
@@ -1742,7 +1743,7 @@ func (impl ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribu
 	return nil
 }
 
-func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string) (detailedErrorGitOpsConfigResponse gitops.DetailedErrorGitOpsConfigResponse, err error) {
+func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error) {
 	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
@@ -1762,9 +1763,10 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 	}
 
 	validateCustomGitRepoURLRequest := gitops.ValidateCustomGitRepoURLRequest{
-		GitRepoURL:               appGitOpsRequest.GitRepoURL,
+		GitRepoURL:               appGitOpsRequest.GitOpsRepoURL,
 		UserId:                   appGitOpsRequest.UserId,
-		PerformDefaultValidation: appGitOpsRequest.GitRepoURL == chartRepo.GIT_REPO_DEFAULT,
+		ExtraValidationStage:     gitops.Create_Readme,
+		PerformDefaultValidation: appGitOpsRequest.GitOpsRepoURL == chartRepo.GIT_REPO_DEFAULT,
 	}
 
 	detailedErrorGitOpsConfigResponse = impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
@@ -1772,8 +1774,8 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 		return detailedErrorGitOpsConfigResponse, nil
 	}
 
-	gitRepoUrl := appGitOpsRequest.GitRepoURL
-	if appGitOpsRequest.GitRepoURL == chartRepo.GIT_REPO_DEFAULT {
+	gitRepoUrl := appGitOpsRequest.GitOpsRepoURL
+	if appGitOpsRequest.GitOpsRepoURL == chartRepo.GIT_REPO_DEFAULT {
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(appName)
 		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, appGitOpsRequest.UserId)
 		if err != nil {
@@ -1786,7 +1788,7 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 		chart.GitRepoUrl = gitRepoUrl
 		chart.UpdatedOn = time.Now()
 		chart.UpdatedBy = appGitOpsRequest.UserId
-		chart.IsCustomGitRepository = activeGlobalGitOpsConfig.AllowCustomRepository && appGitOpsRequest.GitRepoURL != chartRepo.GIT_REPO_DEFAULT
+		chart.IsCustomGitRepository = activeGlobalGitOpsConfig.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != chartRepo.GIT_REPO_DEFAULT
 		err = impl.chartRepository.Update(chart)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts while saving git repo url", "err", err, "appGitOpsRequest", appGitOpsRequest)

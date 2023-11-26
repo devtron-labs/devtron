@@ -316,10 +316,19 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false, appStoreBean.BULK_DEPLOY_REQUEST)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
+		}
+
+		if installAppVersionDTO.DetailedErrorGitOpsConfigResponse != nil &&
+			len(installAppVersionDTO.DetailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
+			errMsg := fmt.Sprintf("GitOps repository validation error for app '%s':", installAppVersionDTO.AppName)
+			for stage, errorMessage := range installAppVersionDTO.DetailedErrorGitOpsConfigResponse.StageErrorMap {
+				errMsg += fmt.Sprintf("\n%s: %s", stage, errorMessage)
+			}
+			return nil, fmt.Errorf(errMsg)
 		}
 		installAppVersions = append(installAppVersions, installAppVersionDTO)
 	}
@@ -454,7 +463,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			}
 		}
 		config := &bean2.GitOpsConfigDto{
-			GitRepoName:          installedAppVersion.GitOpsRepoName,
+			GitRepoName:          util.GetGitRepoNameFromGitRepoUrl(installedAppVersion.GitOpsRepoURL),
 			BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketProjectKey,
 			BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
 		}
@@ -788,7 +797,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false, appStoreBean.DEFAULT_COMPONENT_DEPLOYMENT_REQUEST)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err

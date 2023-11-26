@@ -3,7 +3,9 @@ package appStoreDeploymentTool
 import (
 	"context"
 	"errors"
+	"github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	"net/http"
 	"time"
 
@@ -37,6 +39,8 @@ type AppStoreDeploymentHelmService interface {
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error
 	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
+	ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse
+	GetGitRepoUrl(gitOpsRepoName string) (string, error)
 }
 
 type AppStoreDeploymentHelmServiceImpl struct {
@@ -71,6 +75,14 @@ func (impl AppStoreDeploymentHelmServiceImpl) UpdateChartInfo(installAppVersionR
 		return err
 	}
 	return nil
+}
+
+func (impl AppStoreDeploymentHelmServiceImpl) ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse {
+	return bean.DetailedErrorGitOpsConfigResponse{}
+}
+
+func (impl AppStoreDeploymentHelmServiceImpl) GetGitRepoUrl(gitOpsRepoName string) (string, error) {
+	return "", nil
 }
 
 func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {

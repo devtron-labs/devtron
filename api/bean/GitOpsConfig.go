@@ -1,5 +1,7 @@
 package bean
 
+import "time"
+
 type GitOpsConfigDto struct {
 	Id                    int    `json:"id,omitempty"`
 	Provider              string `json:"provider"`
@@ -32,4 +34,12 @@ type GitRepoRequestDto struct {
 	AzureProjectName     string `json:"azureProjectName"`
 	BitBucketWorkspaceId string `json:"bitBucketWorkspaceId"`
 	BitBucketProjectKey  string `json:"bitBucketProjectKey"`
+}
+
+type DetailedErrorGitOpsConfigResponse struct {
+	SuccessfulStages  []string          `json:"successfulStages"`
+	StageErrorMap     map[string]string `json:"stageErrorMap"`
+	ValidatedOn       time.Time         `json:"validatedOn"`
+	DeleteRepoFailed  bool              `json:"deleteRepoFailed"`
+	ValidationSkipped bool              `json:"validationSkipped"`
 }

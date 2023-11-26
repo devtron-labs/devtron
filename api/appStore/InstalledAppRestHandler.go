@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -882,9 +883,10 @@ func (handler *InstalledAppRestHandlerImpl) ValidateGitOpsConfigForHelmApp(w htt
 	}
 	//rbac block ends here
 	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
-		GitRepoURL:        gitOpsConfigRequest.GitRepoURL,
-		UserId:            userId,
-		ValidateEmptyRepo: true,
+		GitRepoURL:               gitOpsConfigRequest.GitOpsRepoURL,
+		UserId:                   userId,
+		ExtraValidationStage:     gitops.Validate_Empty_Repo,
+		PerformDefaultValidation: gitOpsConfigRequest.GitOpsRepoURL == chartRepo.GIT_REPO_DEFAULT,
 	}
 	detailedErrorGitOpsConfigResponse := handler.gitOpsService.ValidateCustomGitRepoURL(validateRequest)
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)

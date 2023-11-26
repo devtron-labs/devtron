@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
+	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
@@ -25,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -57,6 +59,8 @@ type AppStoreDeploymentArgoCdService interface {
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error
 	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
 	RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error
+	ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse
+	GetGitRepoUrl(gitOpsRepoName string) (string, error)
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -79,6 +83,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	chartDeploymentService               util.ChartDeploymentService
+	gitOpsService                        gitops.GitOpsConfigService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
@@ -163,6 +168,14 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(insta
 		impl.Logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
 	}
 	return timelineErr
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse {
+	return impl.gitOpsService.ValidateCustomGitRepoURL(request)
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) GetGitRepoUrl(gitOpsRepoName string) (string, error) {
+	return impl.gitOpsService.GetGitRepoUrl(gitOpsRepoName)
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -301,7 +314,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	installedApp.ValuesOverrideYaml = versionHistory.ValuesYamlRaw
 	installedApp.AppStoreId = installedAppVersion.AppStoreApplicationVersion.AppStoreId
 	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
-	installedApp.GitOpsRepoName = installedAppVersion.InstalledApp.GitOpsRepoName
+	installedApp.GitOpsRepoURL = installedAppVersion.InstalledApp.GitOpsRepoUrl
 	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 
 	//create an entry in version history table

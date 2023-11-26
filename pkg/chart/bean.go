@@ -85,16 +85,16 @@ type AppConfigResponse struct {
 type DefaultChart string
 
 type HelmAppGitOpsConfigRequest struct {
-	GitRepoURL    string `json:"gitRepoURL" validate:"required"`
+	GitOpsRepoURL string `json:"gitRepoURL" validate:"required"`
 	EnvironmentId int    `json:"environmentId" validate:"required"`
 	TeamId        int    `json:"teamId" validate:"required"`
 	UserId        int32  `json:"-"`
 }
 
 type AppGitOpsConfigRequest struct {
-	AppId      int    `json:"appId" validate:"required"`
-	GitRepoURL string `json:"gitRepoURL" validate:"required"`
-	UserId     int32  `json:"-"`
+	AppId         int    `json:"appId" validate:"required"`
+	GitOpsRepoURL string `json:"gitRepoURL" validate:"required"`
+	UserId        int32  `json:"-"`
 }
 
 type AppGitOpsConfigResponse struct {

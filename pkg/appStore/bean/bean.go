@@ -19,6 +19,7 @@ package appStoreBean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
 )
@@ -62,49 +63,58 @@ type InstalledAppDto struct {
 	EnvironmentId   int    `json:"environmentId"`
 }
 
+type InstallAppVersionRequestType int
+
+const (
+	INSTALL_APP_REQUEST InstallAppVersionRequestType = iota
+	BULK_DEPLOY_REQUEST
+	DEFAULT_COMPONENT_DEPLOYMENT_REQUEST
+)
+
 type InstallAppVersionDTO struct {
-	Id                           int                            `json:"id,omitempty"`
-	AppId                        int                            `json:"appId,omitempty"`
-	AppName                      string                         `json:"appName,omitempty"`
-	TeamId                       int                            `json:"teamId,omitempty"`
-	TeamName                     string                         `json:"teamName,omitempty"`
-	EnvironmentId                int                            `json:"environmentId,omitempty"`
-	InstalledAppId               int                            `json:"installedAppId,omitempty,notnull"`
-	InstalledAppVersionId        int                            `json:"installedAppVersionId,omitempty,notnull"`
-	InstalledAppVersionHistoryId int                            `json:"installedAppVersionHistoryId,omitempty"`
-	AppStoreVersion              int                            `json:"appStoreVersion,omitempty,notnull"`
-	ValuesOverrideYaml           string                         `json:"valuesOverrideYaml,omitempty"`
-	Readme                       string                         `json:"readme,omitempty"`
-	UserId                       int32                          `json:"-"`
-	ReferenceValueId             int                            `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind           string                         `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
-	ACDAppName                   string                         `json:"-"`
-	Environment                  *repository2.Environment       `json:"-"`
-	ChartGroupEntryId            int                            `json:"-"`
-	DefaultClusterComponent      bool                           `json:"-"`
-	Status                       AppstoreDeploymentStatus       `json:"-"`
-	AppStoreId                   int                            `json:"appStoreId"`
-	AppStoreName                 string                         `json:"appStoreName"`
-	Deprecated                   bool                           `json:"deprecated"`
-	ForceDelete                  bool                           `json:"-"`
-	NonCascadeDelete             bool                           `json:"-"`
-	ClusterId                    int                            `json:"clusterId"` // needed for hyperion mode
-	Namespace                    string                         `json:"namespace"` // needed for hyperion mode
-	AppOfferingMode              string                         `json:"appOfferingMode"`
-	GitOpsRepoName               string                         `json:"gitOpsRepoName"` //TODO Asutosh: here
-	GitOpsPath                   string                         `json:"gitOpsPath"`
-	GitHash                      string                         `json:"gitHash"`
-	EnvironmentName              string                         `json:"-"`
-	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
-	DeploymentAppType            string                         `json:"deploymentAppType"`
-	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
-	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
-	PerformGitOpsForHelmApp      bool                           `json:"performGitOpsForHelmApp"`
-	PerformGitOps                bool                           `json:"performGitOps"`
-	PerformACDDeployment         bool                           `json:"performACDDeployment"`
-	PerformHelmDeployment        bool                           `json:"performHelmDeployment"`
-	GitRepoURL                   string                         `json:"gitRepoURL"`
-	AppStoreApplicationVersionId int
+	Id                                int                                     `json:"id,omitempty"`
+	AppId                             int                                     `json:"appId,omitempty"`
+	AppName                           string                                  `json:"appName,omitempty"`
+	TeamId                            int                                     `json:"teamId,omitempty"`
+	TeamName                          string                                  `json:"teamName,omitempty"`
+	EnvironmentId                     int                                     `json:"environmentId,omitempty"`
+	InstalledAppId                    int                                     `json:"installedAppId,omitempty,notnull"`
+	InstalledAppVersionId             int                                     `json:"installedAppVersionId,omitempty,notnull"`
+	InstalledAppVersionHistoryId      int                                     `json:"installedAppVersionHistoryId,omitempty"`
+	AppStoreVersion                   int                                     `json:"appStoreVersion,omitempty,notnull"`
+	ValuesOverrideYaml                string                                  `json:"valuesOverrideYaml,omitempty"`
+	Readme                            string                                  `json:"readme,omitempty"`
+	ReferenceValueId                  int                                     `json:"referenceValueId, omitempty" validate:"required,number"`
+	ReferenceValueKind                string                                  `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
+	AppStoreId                        int                                     `json:"appStoreId"`
+	AppStoreName                      string                                  `json:"appStoreName"`
+	Deprecated                        bool                                    `json:"deprecated"`
+	ClusterId                         int                                     `json:"clusterId"` // needed for hyperion mode
+	Namespace                         string                                  `json:"namespace"` // needed for hyperion mode
+	AppOfferingMode                   string                                  `json:"appOfferingMode"`
+	GitOpsPath                        string                                  `json:"gitOpsPath"`
+	GitHash                           string                                  `json:"gitHash"`
+	DeploymentAppType                 string                                  `json:"deploymentAppType"`
+	AcdPartialDelete                  bool                                    `json:"acdPartialDelete"`
+	InstalledAppDeleteResponse        *InstalledAppDeleteResponseDTO          `json:"deleteResponse,omitempty"`
+	PerformGitOpsForHelmApp           bool                                    `json:"performGitOpsForHelmApp"`
+	GitOpsRepoURL                     string                                  `json:"gitRepoURL"`
+	DetailedErrorGitOpsConfigResponse *bean.DetailedErrorGitOpsConfigResponse `json:"detailedErrorGitOpsConfigResponse,omitempty"`
+	IsNewGitOpsRepo                   bool                                    `json:"-"`
+	PerformGitOps                     bool                                    `json:"-"`
+	PerformACDDeployment              bool                                    `json:"-"`
+	PerformHelmDeployment             bool                                    `json:"-"`
+	ACDAppName                        string                                  `json:"-"`
+	Environment                       *repository2.Environment                `json:"-"`
+	ChartGroupEntryId                 int                                     `json:"-"`
+	DefaultClusterComponent           bool                                    `json:"-"`
+	Status                            AppstoreDeploymentStatus                `json:"-"`
+	UserId                            int32                                   `json:"-"`
+	ForceDelete                       bool                                    `json:"-"`
+	NonCascadeDelete                  bool                                    `json:"-"`
+	EnvironmentName                   string                                  `json:"-"`
+	InstallAppVersionChartDTO         *InstallAppVersionChartDTO              `json:"-"`
+	AppStoreApplicationVersionId      int
 }
 
 type InstalledAppDeleteResponseDTO struct {
