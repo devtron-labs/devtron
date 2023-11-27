@@ -905,7 +905,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 			ValuesOverrideYaml: installedAppVersionHistory.ValuesYamlRaw,
 			UserId:             userId,
 		}
-		if int(*request.Version) == installedApp.InstalledAppVersionId {
+		if installedAppVersion.Id == installedApp.InstalledAppVersionId {
 			installAppVersionRequest.Id = installedApp.InstalledAppVersionId
 		}
 		//installedApp, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
