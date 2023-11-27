@@ -103,9 +103,10 @@ type CiArtifactRepository interface {
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
 	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
-	UpdateLatestTimestamp(artifactIds []int) error
 	GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error)
 	FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error)
+
+	UpdateLatestTimestamp(artifactIds []int) error
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -132,6 +133,9 @@ func (impl CiArtifactRepositoryImpl) SaveAll(artifacts []*CiArtifact) ([]*CiArti
 }
 
 func (impl CiArtifactRepositoryImpl) UpdateLatestTimestamp(artifactIds []int) error {
+	if len(artifactIds) == 0 {
+		return nil
+	}
 	_, err := impl.dbConnection.Model(&CiArtifact{}).
 		Set("updated_on = ?", time.Now()).
 		Where("id IN (?)", pg.In(artifactIds)).

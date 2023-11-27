@@ -106,28 +106,30 @@ type CiPipelineConfigService interface {
 }
 
 type CiPipelineConfigServiceImpl struct {
-	logger                        *zap.SugaredLogger
-	ciTemplateService             CiTemplateService
-	materialRepo                  pipelineConfig.MaterialRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	ciConfig                      *types.CiCdConfig
-	attributesService             attributes.AttributesService
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	pipelineStageService          PipelineStageService
-	pipelineRepository            pipelineConfig.PipelineRepository
-	appRepo                       app2.AppRepository
-	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
-	ciCdPipelineOrchestrator      CiCdPipelineOrchestrator
-	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
-	CiTemplateHistoryService      history.CiTemplateHistoryService
-	securityConfig                *SecurityConfig
-	ecrConfig                     *EcrConfig
-	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	resourceGroupService          resourceGroup2.ResourceGroupService
-	enforcerUtil                  rbac.EnforcerUtil
-	customTagService              CustomTagService
+	logger                              *zap.SugaredLogger
+	ciTemplateService                   CiTemplateService
+	materialRepo                        pipelineConfig.MaterialRepository
+	ciPipelineRepository                pipelineConfig.CiPipelineRepository
+	ciConfig                            *types.CiCdConfig
+	attributesService                   attributes.AttributesService
+	ciWorkflowRepository                pipelineConfig.CiWorkflowRepository
+	appWorkflowRepository               appWorkflow.AppWorkflowRepository
+	pipelineStageService                PipelineStageService
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	appRepo                             app2.AppRepository
+	dockerArtifactStoreRepository       dockerRegistryRepository.DockerArtifactStoreRepository
+	ciCdPipelineOrchestrator            CiCdPipelineOrchestrator
+	ciTemplateOverrideRepository        pipelineConfig.CiTemplateOverrideRepository
+	CiTemplateHistoryService            history.CiTemplateHistoryService
+	securityConfig                      *SecurityConfig
+	ecrConfig                           *EcrConfig
+	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
+	resourceGroupService                resourceGroup2.ResourceGroupService
+	enforcerUtil                        rbac.EnforcerUtil
+	customTagService                    CustomTagService
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
+	ciPipelineHistoryService            history.CiPipelineHistoryService
+	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -150,7 +152,8 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	resourceGroupService resourceGroup2.ResourceGroupService,
 	customTagService CustomTagService,
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
+	ciPipelineHistoryService history.CiPipelineHistoryService,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 ) *CiPipelineConfigServiceImpl {
 
 	securityConfig := &SecurityConfig{}
@@ -180,8 +183,8 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		resourceGroupService:          resourceGroupService,
 		securityConfig:                securityConfig,
 		customTagService:              customTagService,
-		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
-	}
+		ciPipelineHistoryService:      ciPipelineHistoryService,
+		cdWorkflowRepository:          cdWorkflowRepository}
 }
 
 func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariablesByAppIds(appIds []int) (map[int]*bean.CiConfigRequest, error) {
@@ -1469,7 +1472,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	}
 	if err == pg.ErrNoRows || len(pipelines) == 0 {
 		impl.logger.Errorw("no ci pipeline found", "appId", appId, "err", err)
-		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline found"}
+		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "no ci pipeline found"}
 		return nil, err
 	}
 	parentCiPipelines, linkedCiPipelineIds, err := impl.ciPipelineRepository.FindParentCiPipelineMapByAppId(appId)
@@ -2024,9 +2027,9 @@ func (impl *CiPipelineConfigServiceImpl) DeleteCiPipeline(request *bean.CiPatchR
 	}
 	if len(workflowMapping) > 0 {
 		return nil, &util.ApiError{
-			InternalMessage:   "cd pipeline exists for this CI",
-			UserDetailMessage: fmt.Sprintf("cd pipeline exists for this CI"),
-			UserMessage:       fmt.Sprintf("cd pipeline exists for this CI")}
+			InternalMessage:   "Please delete deployment pipelines for this workflow first and try again.",
+			UserDetailMessage: fmt.Sprintf("Please delete deployment pipelines for this workflow first and try again."),
+			UserMessage:       fmt.Sprintf("Please delete deployment pipelines for this workflow first and try again.")}
 	}
 
 	pipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
