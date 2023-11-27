@@ -758,14 +758,13 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		defer tx.Rollback()
 
 		ciPipelineObject := &pipelineConfig.CiPipeline{
-			AppId:            createRequest.AppId,
-			IsManual:         ciPipeline.IsManual,
-			IsExternal:       ciPipeline.IsExternal,
-			CiTemplateId:     templateId,
-			Version:          ciPipeline.Version,
-			Name:             ciPipeline.Name,
-			ParentCiPipeline: ciPipeline.ParentCiPipeline,
-			//ParentIdentifier:         ciPipeline.ParentIdentifier,
+			AppId:                    createRequest.AppId,
+			IsManual:                 ciPipeline.IsManual,
+			IsExternal:               ciPipeline.IsExternal,
+			CiTemplateId:             templateId,
+			Version:                  ciPipeline.Version,
+			Name:                     ciPipeline.Name,
+			ParentCiPipeline:         ciPipeline.ParentCiPipeline,
 			DockerArgs:               string(argByte),
 			Active:                   true,
 			Deleted:                  false,
@@ -906,6 +905,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		if err != nil {
 			return nil, err
 		}
+		// to copy artifacts in certain cases
 		if createRequest.Artifact != nil {
 			createRequest.Artifact.PipelineId = ciPipeline.Id
 			_, err := impl.CiArtifactRepository.SaveAll([]*repository.CiArtifact{createRequest.Artifact})
