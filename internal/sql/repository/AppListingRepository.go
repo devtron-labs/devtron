@@ -586,7 +586,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	}
 
 	query := "SELECT " +
-		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id, ch.git_repo_url as chart_git_repo_url" +
+		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id, ch.git_repo_url as chart_git_repo_url," +
 		" p.id as pipeline_id, ceco.status as yaml_status, ceco.reviewed as yaml_reviewed " +
 		" FROM app app" +
 		" LEFT JOIN ci_template ct on ct.app_id=app.id" +
