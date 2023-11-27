@@ -933,6 +933,23 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	}
 
 	if util.IsAcdApp(installedApp.DeploymentAppType) {
+		if installedApp.InstalledAppId > 0 && installedApp.InstalledAppVersionId > 0 {
+			installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(installedApp.InstalledAppVersionId)
+			if err != nil {
+				impl.logger.Errorw("error while fetching chart installed version", "error", err)
+				return false, err
+			}
+			installedApp.Id = installedAppVersion.Id
+			installedAppVersion.Active = true
+			installedAppVersion.ValuesYaml = installedApp.ValuesOverrideYaml
+			installedAppVersion.UpdatedOn = time.Now()
+			installedAppVersion.UpdatedBy = userId
+			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
+			if err != nil {
+				impl.logger.Errorw("error while updating db", "error", err)
+				return false, err
+			}
+		}
 		// create build history for version upgrade, chart upgrade or simple update
 		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installedApp)
 		if err != nil {
