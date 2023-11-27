@@ -8,7 +8,10 @@ import (
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app"
+	bean2 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
@@ -20,6 +23,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -42,6 +46,8 @@ type K8sCommonServiceImpl struct {
 	K8sUtil                     *k8s.K8sUtil
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
+	clusterRepository           repository.ClusterRepository
+	commonService               commonService.CommonService
 }
 type K8sApplicationServiceConfig struct {
 	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
@@ -49,7 +55,9 @@ type K8sApplicationServiceConfig struct {
 }
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil,
-	clusterService cluster.ClusterService) *K8sCommonServiceImpl {
+	clusterService cluster.ClusterService,
+	clusterRepository repository.ClusterRepository,
+	commonService commonService.CommonService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -60,18 +68,33 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil,
 		K8sUtil:                     k8sUtils,
 		clusterService:              clusterService,
 		K8sApplicationServiceConfig: cfg,
+		clusterRepository:           clusterRepository,
+		commonService:               commonService,
 	}
 }
 
 func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	clusterId := request.ClusterId
-	//getting rest config by clusterId
-	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
+	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.commonService.GetClusterConfigFromAllClusters(clusterId)
+
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
+	podNameSplit := strings.Split(resourceIdentifier.Name, "-")
+	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	resourceResp, err := impl.K8sUtil.GetResource(context.Background(), bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err)
+		return nil, err
+	}
+	restConfig, err = impl.commonService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+		return nil, err
+	}
 	resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
@@ -116,13 +139,30 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 
 func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error) {
 	clusterId := request.ClusterId
-	//getting rest config by clusterId
-	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
+	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.commonService.GetClusterConfigFromAllClusters(clusterId)
+
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
+	podNameSplit := strings.Split(resourceIdentifier.Name, "-")
+	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	resourceResp, err := impl.K8sUtil.GetResource(context.Background(), bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err)
+		return nil, err
+	}
+	restConfig, err = impl.commonService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+		return nil, err
+	}
+	clusterConfig.Host = restConfig.Host
+	clusterConfig.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
+	clusterConfig.BearerToken = restConfig.BearerToken
+
 	list, err := impl.K8sUtil.ListEvents(restConfig, resourceIdentifier.Namespace, resourceIdentifier.GroupVersionKind, ctx, resourceIdentifier.Name)
 	if err != nil {
 		impl.logger.Errorw("error in listing events", "err", err, "clusterId", clusterId)

@@ -11,6 +11,7 @@ const (
 	ArgoApplicationKind          = "Application"
 	VersionV1Alpha1              = "v1alpha1"
 	AllNamespaces                = ""
+	DevtronCDNamespae            = "devtroncd"
 	ArgoLabelForManagedResources = "app.kubernetes.io/instance"
 )
 

@@ -15,13 +15,16 @@ package terminal
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
@@ -368,16 +371,22 @@ type TerminalSessionHandlerImpl struct {
 	logger                    *zap.SugaredLogger
 	k8sUtil                   *k8s.K8sUtil
 	ephemeralContainerService cluster.EphemeralContainerService
+	clusterRepository         repository.ClusterRepository
+	commonService             commonService.CommonService
 }
 
 func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
-	logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil, ephemeralContainerService cluster.EphemeralContainerService) *TerminalSessionHandlerImpl {
+	logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil, ephemeralContainerService cluster.EphemeralContainerService,
+	clusterRepository repository.ClusterRepository,
+	commonService commonService.CommonService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService:        environmentService,
 		clusterService:            clusterService,
 		logger:                    logger,
 		k8sUtil:                   k8sUtil,
 		ephemeralContainerService: ephemeralContainerService,
+		clusterRepository:         clusterRepository,
+		commonService:             commonService,
 	}
 }
 
@@ -433,29 +442,47 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 
 func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
 	var clusterBean *cluster.ClusterBean
+	var clusterConfig *k8s.ClusterConfig
 	var err error
 	if req.ClusterId != 0 {
-		clusterBean, err = impl.clusterService.FindById(req.ClusterId)
+		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.commonService.GetClusterConfigFromAllClusters(req.ClusterId)
+
+		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
-			impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
+			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", req.ClusterId)
 			return nil, nil, err
 		}
+		podNameSplit := strings.Split(req.PodName, "-")
+		resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+		resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err)
+			return nil, nil, err
+		}
+		restConfig, err = impl.commonService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			return nil, nil, err
+		}
+		clusterConfig.Host = restConfig.Host
+		clusterConfig.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
+		clusterConfig.BearerToken = restConfig.BearerToken
 	} else if req.EnvironmentId != 0 {
 		clusterBean, err = impl.environmentService.FindClusterByEnvId(req.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
 			return nil, nil, err
 		}
+		clusterConfig, err = clusterBean.GetClusterConfig()
+		if err != nil {
+			impl.logger.Errorw("error in config", "err", err)
+			return nil, nil, err
+		}
 	} else {
 		return nil, nil, fmt.Errorf("not able to find cluster-config")
 	}
-	config, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in config", "err", err)
-		return nil, nil, err
-	}
 
-	cfg, _, clientSet, err := impl.k8sUtil.GetK8sConfigAndClients(config)
+	cfg, _, clientSet, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in clientSet", "err", err)
 		return nil, nil, err
@@ -529,16 +556,30 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 }
 
 func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
-	clusterBean, err := impl.clusterService.FindById(req.ClusterId)
+	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.commonService.GetClusterConfigFromAllClusters(req.ClusterId)
+
+	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", req.ClusterId)
 		return err
 	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
+	podNameSplit := strings.Split(req.PodName, "-")
+	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		impl.logger.Errorw("error in getting resource list", "err", err)
 		return err
 	}
+
+	restConfig, err = impl.commonService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+		return err
+	}
+	clusterConfig.Host = restConfig.Host
+	clusterConfig.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
+	clusterConfig.BearerToken = restConfig.BearerToken
+
 	v1Client, err := impl.k8sUtil.GetCoreV1Client(clusterConfig)
 	pod, err := impl.k8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
 	if err != nil {

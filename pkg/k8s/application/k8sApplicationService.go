@@ -12,8 +12,10 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
@@ -75,12 +77,16 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	ephemeralContainerConfig     *EphemeralContainerConfig
+	clusterRepository            repository.ClusterRepository
+	commonService                commonService.CommonService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
-	ephemeralContainerRepository repository.EphemeralContainersRepository) (*K8sApplicationServiceImpl, error) {
+	ephemeralContainerRepository repository.EphemeralContainersRepository,
+	clusterRepository repository.ClusterRepository,
+	commonService commonService.CommonService) (*K8sApplicationServiceImpl, error) {
 	ephemeralContainerConfig := &EphemeralContainerConfig{}
 	err := env.Parse(ephemeralContainerConfig)
 	if err != nil {
@@ -100,6 +106,8 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerService:    ephemeralContainerService,
 		ephemeralContainerRepository: ephemeralContainerRepository,
 		ephemeralContainerConfig:     ephemeralContainerConfig,
+		clusterRepository:            clusterRepository,
+		commonService:                commonService,
 	}, nil
 }
 
@@ -302,15 +310,30 @@ func (impl *K8sApplicationServiceImpl) DecodeDevtronAppId(applicationId string) 
 
 func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error) {
 	clusterId := request.ClusterId
-	//getting rest config by clusterId
-	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.commonService.GetClusterConfigFromAllClusters(clusterId)
+
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
-
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podLogsRequest := request.K8sRequest.PodLogsRequest
+	podNameSplit := strings.Split(resourceIdentifier.Name, "-")
+	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	resourceResp, err := impl.K8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err)
+		return nil, err
+	}
+	restConfig, err = impl.commonService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+		return nil, err
+	}
+	clusterConfig.Host = restConfig.Host
+	clusterConfig.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
+	clusterConfig.BearerToken = restConfig.BearerToken
 	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
