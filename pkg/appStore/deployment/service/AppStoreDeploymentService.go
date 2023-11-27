@@ -893,7 +893,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		if err != nil {
 			return false, err
 		}
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionHistory.InstalledAppVersionId)
+		installedAppVersion, err := impl.installedAppRepository.GetInactiveInstalledAppVersion(installedAppVersionHistory.InstalledAppVersionId)
 		if err != nil {
 			return false, err
 		}

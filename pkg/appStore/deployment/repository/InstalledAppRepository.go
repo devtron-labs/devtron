@@ -41,6 +41,7 @@ type InstalledAppRepository interface {
 	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	GetInstalledApp(id int) (*InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
+	GetInactiveInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
@@ -325,6 +326,32 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Installe
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion", "InstalledApp.App.Team").
 		Where("installed_app_versions.id = ?", id).Where("installed_app_versions.active = true").Select()
+	if err != nil {
+		return model, err
+	}
+	appStore := &appStoreDiscoverRepository.AppStore{}
+	err = impl.dbConnection.
+		Model(appStore).
+		Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
+		Where("app_store.id = ? ", model.AppStoreApplicationVersion.AppStoreId).
+		Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE and " +
+				"repository_type='CHART' and " +
+				"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
+		}).
+		Select()
+	if err != nil {
+		return model, err
+	}
+	model.AppStoreApplicationVersion.AppStore = appStore
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetInactiveInstalledAppVersion(id int) (*InstalledAppVersions, error) {
+	model := &InstalledAppVersions{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion", "InstalledApp.App.Team").
+		Where("installed_app_versions.id = ?", id).Where("installed_app_versions.active = false").Select()
 	if err != nil {
 		return model, err
 	}
