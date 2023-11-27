@@ -1375,7 +1375,7 @@ func (impl *UserServiceImpl) checkGroupAuth(groupName string, token string, mana
 			hasAccessToGroup = false
 		}
 		if len(role.Team) > 0 {
-			rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
+			rbacObject := fmt.Sprintf("%s", role.Team)
 			isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
 			if !isValidAuth {
 				hasAccessToGroup = false
@@ -1515,7 +1515,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 		for _, entityName := range entityNames {
 			if managerAuth != nil {
 				// check auth only for apps permission, skip for chart group
-				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				rbacObject := fmt.Sprintf("%s", roleFilter.Team)
 				isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
 				if !isValidAuth {
 					continue
@@ -1582,7 +1582,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 			for _, workflow := range workflows {
 				if managerAuth != nil {
 					// check auth only for apps permission, skip for chart group
-					rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+					rbacObject := fmt.Sprintf("%s", roleFilter.Team)
 					isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
 					if !isValidAuth {
 						continue

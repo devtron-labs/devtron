@@ -423,7 +423,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 		} else {
 			if len(roleFilter.Team) > 0 {
 				// check auth only for apps permission, skip for chart group
-				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				rbacObject := fmt.Sprintf("%s", roleFilter.Team)
 				isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
 				if !isValidAuth {
 					continue

@@ -30,7 +30,6 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type ApiTokenRestHandler interface {
@@ -213,7 +212,7 @@ func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *htt
 }
 
 func (handler ApiTokenRestHandlerImpl) checkManagerAuth(resource, token, object string) bool {
-	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, object); !ok {
 		return false
 	}
 	return true
@@ -243,10 +242,10 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 }
 
 func (handler ApiTokenRestHandlerImpl) CheckAuthorizationForWebhook(token string, projectObject string, envObject string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, projectObject); !ok {
 		return false
 	}
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObject); !ok {
 		return false
 	}
 	return true

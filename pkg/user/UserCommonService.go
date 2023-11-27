@@ -256,7 +256,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			}
 		} else if roleFilter.Entity == bean2.EntityJobs {
 			if len(roleFilter.Team) > 0 { // check auth only for apps permission, skip for chart group
-				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				rbacObject := fmt.Sprintf("%s", roleFilter.Team)
 				isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
 				if !isValidAuth {
 					continue
@@ -291,7 +291,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			}
 		} else {
 			if len(roleFilter.Team) > 0 { // check auth only for apps permission, skip for chart group
-				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				rbacObject := fmt.Sprintf("%s", roleFilter.Team)
 				isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
 				if !isValidAuth {
 					continue
@@ -342,7 +342,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			return nil, err
 		}
 		if len(role.Team) > 0 {
-			rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
+			rbacObject := fmt.Sprintf("%s", role.Team)
 			isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
 			if !isValidAuth {
 				continue
@@ -417,7 +417,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			}
 		} else if entity == bean2.EntityJobs {
 			if len(roleFilter.Team) > 0 { // check auth only for apps permission, skip for chart group
-				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				rbacObject := fmt.Sprintf("%s", roleFilter.Team)
 				isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
 				if !isValidAuth {
 					continue
@@ -452,7 +452,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			}
 		} else {
 			if len(roleFilter.Team) > 0 { // check auth only for apps permission, skip for chart group
-				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				rbacObject := fmt.Sprintf("%s", roleFilter.Team)
 				isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
 				if !isValidAuth {
 					continue
@@ -503,7 +503,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			return nil, err
 		}
 		if len(role.Team) > 0 {
-			rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
+			rbacObject := fmt.Sprintf("%s", role.Team)
 			isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
 			if !isValidAuth {
 				continue
@@ -567,10 +567,10 @@ func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, 
 		resourceObj = "*"
 	}
 
-	rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(cluster), strings.ToLower(namespaceObj), casbin.ResourceUser)
+	rbacResource := fmt.Sprintf("%s/%s/%s", cluster, namespaceObj, casbin.ResourceUser)
 	resourcesArray := strings.Split(resourceObj, ",")
 	for _, resourceVal := range resourcesArray {
-		rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceVal))
+		rbacObject := fmt.Sprintf("%s/%s/%s", groupObj, kindObj, resourceVal)
 		allowed := managerAuth(rbacResource, token, rbacObject)
 		if !allowed {
 			return false
