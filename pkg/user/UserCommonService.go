@@ -25,6 +25,11 @@ type UserCommonService interface {
 	ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter bean.RoleFilter) bean.RoleFilter
 	RemovePlaceHolderInRoleFilterField(roleFilterField string) string
 	GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int)
+	BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string)
+	BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string)
+	BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string)
+	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string)
+	GetUniqueKeyForAllEntity(role repository2.RoleModel) string
 }
 
 type UserCommonServiceImpl struct {
@@ -628,4 +633,96 @@ func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.Ro
 		capacity += int(value)
 	}
 	return capacity, m
+}
+
+func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string) {
+	switch role.Entity {
+	case bean.CLUSTER_ENTITIY:
+		{
+			impl.BuildRoleFilterKeyForCluster(roleFilterMap, role, key)
+		}
+	case bean2.EntityJobs:
+		{
+			impl.BuildRoleFilterKeyForJobs(roleFilterMap, role, key)
+		}
+	default:
+		{
+			impl.BuildRoleFilterKeyForOtherEntity(roleFilterMap, role, key)
+		}
+	}
+}
+
+func (impl UserCommonServiceImpl) BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string) {
+	namespaceArr := strings.Split(roleFilterMap[key].Namespace, ",")
+	if containsArr(namespaceArr, AllNamespace) {
+		roleFilterMap[key].Namespace = AllNamespace
+	} else if !containsArr(namespaceArr, role.Namespace) {
+		roleFilterMap[key].Namespace = fmt.Sprintf("%s,%s", roleFilterMap[key].Namespace, role.Namespace)
+	}
+	groupArr := strings.Split(roleFilterMap[key].Group, ",")
+	if containsArr(groupArr, AllGroup) {
+		roleFilterMap[key].Group = AllGroup
+	} else if !containsArr(groupArr, role.Group) {
+		roleFilterMap[key].Group = fmt.Sprintf("%s,%s", roleFilterMap[key].Group, role.Group)
+	}
+	kindArr := strings.Split(roleFilterMap[key].Kind, ",")
+	if containsArr(kindArr, AllKind) {
+		roleFilterMap[key].Kind = AllKind
+	} else if !containsArr(kindArr, role.Kind) {
+		roleFilterMap[key].Kind = fmt.Sprintf("%s,%s", roleFilterMap[key].Kind, role.Kind)
+	}
+	resourceArr := strings.Split(roleFilterMap[key].Resource, ",")
+	if containsArr(resourceArr, AllResource) {
+		roleFilterMap[key].Resource = AllResource
+	} else if !containsArr(resourceArr, role.Resource) {
+		roleFilterMap[key].Resource = fmt.Sprintf("%s,%s", roleFilterMap[key].Resource, role.Resource)
+	}
+}
+
+func (impl UserCommonServiceImpl) BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string) {
+	envArr := strings.Split(roleFilterMap[key].Environment, ",")
+	if containsArr(envArr, AllEnvironment) {
+		roleFilterMap[key].Environment = AllEnvironment
+	} else if !containsArr(envArr, role.Environment) {
+		roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
+	}
+	entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+	if !containsArr(entityArr, role.EntityName) {
+		roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
+	}
+	workflowArr := strings.Split(roleFilterMap[key].Workflow, ",")
+	if containsArr(workflowArr, AllWorkflow) {
+		roleFilterMap[key].Workflow = AllWorkflow
+	} else if !containsArr(workflowArr, role.Workflow) {
+		roleFilterMap[key].Workflow = fmt.Sprintf("%s,%s", roleFilterMap[key].Workflow, role.Workflow)
+	}
+}
+
+func (impl UserCommonServiceImpl) BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string) {
+	envArr := strings.Split(roleFilterMap[key].Environment, ",")
+	if containsArr(envArr, AllEnvironment) {
+		roleFilterMap[key].Environment = AllEnvironment
+	} else if !containsArr(envArr, role.Environment) {
+		roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
+	}
+	entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+	if !containsArr(entityArr, role.EntityName) {
+		roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
+	}
+}
+func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository2.RoleModel) string {
+	key := ""
+	if len(role.Team) > 0 && role.Entity != bean2.EntityJobs {
+		key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+	} else if role.Entity == bean2.EntityJobs {
+		key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
+	} else if len(role.Entity) > 0 {
+		if role.Entity == bean.CLUSTER_ENTITIY {
+			key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
+				role.Namespace, role.Group, role.Kind)
+		} else {
+			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
+		}
+	}
+	return key
 }
