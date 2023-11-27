@@ -83,8 +83,11 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 		return nil, err
 	}
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
-	podNameSplit := strings.Split(resourceIdentifier.Name, "-")
-	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	resourceName := resourceIdentifier.Name
+	if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Pod" {
+		podNameSplit := strings.Split(resourceIdentifier.Name, "-")
+		resourceName = strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	}
 	resourceResp, err := impl.K8sUtil.GetResource(context.Background(), bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err)
@@ -151,8 +154,11 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 	}
 
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
-	podNameSplit := strings.Split(resourceIdentifier.Name, "-")
-	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	resourceName := resourceIdentifier.Name
+	if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Pod" {
+		podNameSplit := strings.Split(resourceIdentifier.Name, "-")
+		resourceName = strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	}
 	resourceResp, err := impl.K8sUtil.GetResource(context.Background(), bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err)
