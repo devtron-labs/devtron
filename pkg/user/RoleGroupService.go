@@ -130,7 +130,6 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(request.RoleFilters)
 		var policies = make([]casbin2.Policy, 0, capacity)
 		for index, roleFilter := range request.RoleFilters {
-			//roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 			entity := roleFilter.Entity
 			if entity == bean.CLUSTER_ENTITIY {
 				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx, mapping[index])
@@ -404,7 +403,6 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(request.RoleFilters)
 	var policies = make([]casbin2.Policy, 0, capacity)
 	for index, roleFilter := range request.RoleFilters {
-		//roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
 			policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx, mapping[index])
 			policies = append(policies, policiesToBeAdded...)

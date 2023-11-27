@@ -221,7 +221,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	var eliminatedPolicies []casbin.Policy
 	// DELETE Removed Items
 	for _, roleFilter := range userInfo.RoleFilters {
-		//roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
 			namespaces := strings.Split(roleFilter.Namespace, ",")
 			groups := strings.Split(roleFilter.Group, ",")
@@ -363,7 +362,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 	// Filter out removed items in current request
 	//var policies []casbin.Policy
 	for _, roleFilter := range request.RoleFilters {
-		//roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 		entity := roleFilter.Entity
 		if entity == bean.CLUSTER_ENTITIY {
 			namespaces := strings.Split(roleFilter.Namespace, ",")
@@ -569,7 +567,6 @@ func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.Ro
 
 	m := make(map[int]int)
 	for index, roleFilter := range roleFilters {
-		//roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 		namespaces := strings.Split(roleFilter.Namespace, ",")
 		groups := strings.Split(roleFilter.Group, ",")
 		kinds := strings.Split(roleFilter.Kind, ",")
