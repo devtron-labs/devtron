@@ -451,7 +451,7 @@ func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.
 	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
 	var err error
 	rolesChanged := false
-	roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
+	//roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 	if entity == bean2.CLUSTER {
 		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForClusterEntity(roleFilter, userId, model, existingRoles, token, managerAuth, tx, entity, capacity)
 		if err != nil {
@@ -488,10 +488,10 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter 
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					namespace = impl.userCommonService.RemovePlaceHolderInRoleFilterField(namespace)
-					group = impl.userCommonService.RemovePlaceHolderInRoleFilterField(group)
-					kind = impl.userCommonService.RemovePlaceHolderInRoleFilterField(kind)
-					resource = impl.userCommonService.RemovePlaceHolderInRoleFilterField(resource)
+					//namespace = impl.userCommonService.RemovePlaceHolderInRoleFilterField(namespace)
+					//group = impl.userCommonService.RemovePlaceHolderInRoleFilterField(group)
+					//kind = impl.userCommonService.RemovePlaceHolderInRoleFilterField(kind)
+					//resource = impl.userCommonService.RemovePlaceHolderInRoleFilterField(resource)
 					if managerAuth != nil {
 						isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 						if !isValidAuth {
@@ -1391,8 +1391,8 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 					continue
 				}
 			}
-			entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-			environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
+			//entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
+			//environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, "")
 			if err != nil {
 				impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
@@ -1458,9 +1458,9 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 						continue
 					}
 				}
-				entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-				environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-				workflow = impl.userCommonService.RemovePlaceHolderInRoleFilterField(workflow)
+				//entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
+				//environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
+				//workflow = impl.userCommonService.RemovePlaceHolderInRoleFilterField(workflow)
 				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, workflow)
 				if err != nil {
 					impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)

@@ -22,8 +22,8 @@ type UserCommonService interface {
 	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin.Policy, error)
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin.Policy, error)
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
-	ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter bean.RoleFilter) bean.RoleFilter
-	RemovePlaceHolderInRoleFilterField(roleFilterField string) string
+	//ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter bean.RoleFilter) bean.RoleFilter
+	//RemovePlaceHolderInRoleFilterField(roleFilterField string) string
 	GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int)
 	BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string)
 	BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, role repository2.RoleModel, key string)
@@ -223,7 +223,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	var eliminatedPolicies []casbin.Policy
 	// DELETE Removed Items
 	for _, roleFilter := range userInfo.RoleFilters {
-		roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
+		//roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
 			namespaces := strings.Split(roleFilter.Namespace, ",")
 			groups := strings.Split(roleFilter.Group, ",")
@@ -235,10 +235,10 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 				for _, group := range groups {
 					for _, kind := range kinds {
 						for _, resource := range resources {
-							namespace = impl.RemovePlaceHolderInRoleFilterField(namespace)
-							group = impl.RemovePlaceHolderInRoleFilterField(group)
-							kind = impl.RemovePlaceHolderInRoleFilterField(kind)
-							resource = impl.RemovePlaceHolderInRoleFilterField(resource)
+							//namespace = impl.RemovePlaceHolderInRoleFilterField(namespace)
+							//group = impl.RemovePlaceHolderInRoleFilterField(group)
+							//kind = impl.RemovePlaceHolderInRoleFilterField(kind)
+							//resource = impl.RemovePlaceHolderInRoleFilterField(resource)
 							isValidAuth := impl.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 							if !isValidAuth {
 								continue
@@ -275,9 +275,9 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
 					for _, workflow := range workflows {
-						entityName = impl.RemovePlaceHolderInRoleFilterField(entityName)
-						environment = impl.RemovePlaceHolderInRoleFilterField(environment)
-						workflow = impl.RemovePlaceHolderInRoleFilterField(workflow)
+						//entityName = impl.RemovePlaceHolderInRoleFilterField(entityName)
+						//environment = impl.RemovePlaceHolderInRoleFilterField(environment)
+						//workflow = impl.RemovePlaceHolderInRoleFilterField(workflow)
 						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, workflow)
 						if err != nil {
 							impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
@@ -308,8 +308,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			accessType := roleFilter.AccessType
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
-					entityName = impl.RemovePlaceHolderInRoleFilterField(entityName)
-					environment = impl.RemovePlaceHolderInRoleFilterField(environment)
+					//entityName = impl.RemovePlaceHolderInRoleFilterField(entityName)
+					//environment = impl.RemovePlaceHolderInRoleFilterField(environment)
 					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, "")
 					if err != nil {
 						impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
@@ -374,7 +374,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 	// Filter out removed items in current request
 	//var policies []casbin.Policy
 	for _, roleFilter := range request.RoleFilters {
-		roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
+		//roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 		entity := roleFilter.Entity
 		if entity == bean.CLUSTER_ENTITIY {
 			namespaces := strings.Split(roleFilter.Namespace, ",")
@@ -387,10 +387,10 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 				for _, group := range groups {
 					for _, kind := range kinds {
 						for _, resource := range resources {
-							namespace = impl.RemovePlaceHolderInRoleFilterField(namespace)
-							group = impl.RemovePlaceHolderInRoleFilterField(group)
-							kind = impl.RemovePlaceHolderInRoleFilterField(kind)
-							resource = impl.RemovePlaceHolderInRoleFilterField(resource)
+							//namespace = impl.RemovePlaceHolderInRoleFilterField(namespace)
+							//group = impl.RemovePlaceHolderInRoleFilterField(group)
+							//kind = impl.RemovePlaceHolderInRoleFilterField(kind)
+							//resource = impl.RemovePlaceHolderInRoleFilterField(resource)
 							isValidAuth := impl.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 							if !isValidAuth {
 								continue
@@ -436,9 +436,9 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
 					for _, workflow := range workflows {
-						entityName = impl.RemovePlaceHolderInRoleFilterField(entityName)
-						environment = impl.RemovePlaceHolderInRoleFilterField(environment)
-						workflow = impl.RemovePlaceHolderInRoleFilterField(workflow)
+						//entityName = impl.RemovePlaceHolderInRoleFilterField(entityName)
+						//environment = impl.RemovePlaceHolderInRoleFilterField(environment)
+						//workflow = impl.RemovePlaceHolderInRoleFilterField(workflow)
 						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, workflow)
 						if err != nil {
 							impl.logger.Errorw("Error in fetching roles by filter", "user", request)
@@ -469,8 +469,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			actionType := roleFilter.Action
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
-					entityName = impl.RemovePlaceHolderInRoleFilterField(entityName)
-					environment = impl.RemovePlaceHolderInRoleFilterField(environment)
+					//entityName = impl.RemovePlaceHolderInRoleFilterField(entityName)
+					//environment = impl.RemovePlaceHolderInRoleFilterField(environment)
 					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, "")
 					if err != nil {
 						impl.logger.Errorw("Error in fetching roles by filter", "user", request)
@@ -584,43 +584,44 @@ func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, 
 	return true
 }
 
-func (impl UserCommonServiceImpl) ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter bean.RoleFilter) bean.RoleFilter {
-	if roleFilter.EntityName == "" {
-		roleFilter.EntityName = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Environment == "" {
-		roleFilter.Environment = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Namespace == "" {
-		roleFilter.Namespace = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Group == "" {
-		roleFilter.Group = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Kind == "" {
-		roleFilter.Kind = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Resource == "" {
-		roleFilter.Resource = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Workflow == "" {
-		roleFilter.Workflow = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	return roleFilter
-}
+//func (impl UserCommonServiceImpl) ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter bean.RoleFilter) bean.RoleFilter {
+//	if roleFilter.EntityName == "" {
+//		roleFilter.EntityName = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+//	}
+//	if roleFilter.Environment == "" {
+//		roleFilter.Environment = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+//	}
+//	if roleFilter.Namespace == "" {
+//		roleFilter.Namespace = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+//	}
+//	if roleFilter.Group == "" {
+//		roleFilter.Group = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+//	}
+//	if roleFilter.Kind == "" {
+//		roleFilter.Kind = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+//	}
+//	if roleFilter.Resource == "" {
+//		roleFilter.Resource = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+//	}
+//	if roleFilter.Workflow == "" {
+//		roleFilter.Workflow = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+//	}
+//	return roleFilter
+//}
+//
+//func (impl UserCommonServiceImpl) RemovePlaceHolderInRoleFilterField(roleFilterField string) string {
+//	if roleFilterField == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
+//		return ""
+//	}
+//	return roleFilterField
+//}
 
-func (impl UserCommonServiceImpl) RemovePlaceHolderInRoleFilterField(roleFilterField string) string {
-	if roleFilterField == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-		return ""
-	}
-	return roleFilterField
-}
 func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int) {
 	capacity := 0
 
 	m := make(map[int]int)
 	for index, roleFilter := range roleFilters {
-		roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
+		//roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 		namespaces := strings.Split(roleFilter.Namespace, ",")
 		groups := strings.Split(roleFilter.Group, ",")
 		kinds := strings.Split(roleFilter.Kind, ",")
