@@ -168,7 +168,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		}
 		impl.pubSubClient.Publish(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
 	} else {
-		_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
+		_, err = impl.helmAppService.InstallRelease(context.Background(), installAppVersionRequest.ClusterId, installReleaseRequest)
 	}
 	if err != nil {
 		return installAppVersionRequest, err
@@ -512,7 +512,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 		}
 		impl.pubSubClient.Publish(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
 	} else {
-		res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest)
+		res, err := impl.helmAppService.UpdateApplicationWithChartInfo(context.Background(), installedApp.Environment.ClusterId, updateReleaseRequest)
 		if err != nil {
 			impl.Logger.Errorw("error in updating helm application", "err", err)
 			return err
