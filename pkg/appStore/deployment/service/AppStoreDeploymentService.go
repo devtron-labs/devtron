@@ -925,24 +925,6 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	if !success {
 		return false, fmt.Errorf("rollback request failed")
 	}
-	//DB operation
-	if installedApp.InstalledAppId > 0 && installedApp.InstalledAppVersionId > 0 {
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(installedApp.InstalledAppVersionId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching chart installed version", "error", err)
-			return false, err
-		}
-		installedApp.Id = installedAppVersion.Id
-		installedAppVersion.Active = true
-		installedAppVersion.ValuesYaml = installedApp.ValuesOverrideYaml
-		installedAppVersion.UpdatedOn = time.Now()
-		installedAppVersion.UpdatedBy = userId
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
-		if err != nil {
-			impl.logger.Errorw("error while updating db", "error", err)
-			return false, err
-		}
-	}
 	//STEP 8: finish with return response
 	err = tx.Commit()
 	if err != nil {
