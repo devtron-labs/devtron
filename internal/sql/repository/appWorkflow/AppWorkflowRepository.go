@@ -61,6 +61,8 @@ type AppWorkflowRepository interface {
 	FindByCDPipelineIds(cdPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindByWorkflowIds(workflowIds []int) ([]*AppWorkflowMapping, error)
 	FindMappingByAppIds(appIds []int) ([]*AppWorkflowMapping, error)
+	UpdateParentComponentDetails(tx *pg.Tx, oldComponentId int, oldComponentType string, newComponentId int, newComponentType string) error
+	FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -411,6 +413,15 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId
 		Select()
 	return models, err
 }
+func (impl AppWorkflowRepositoryImpl) FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error) {
+	model := AppWorkflowMapping{}
+	err := impl.dbConnection.Model(&model).
+		Where("type = ?", componentType).
+		Where("component_id = ?", componentId).
+		Where("active = ?", true).
+		Select()
+	return &model, err
+}
 
 func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiIdByIdsIn(externalCiId []int) ([]*AppWorkflowMapping, error) {
 	var models []*AppWorkflowMapping
@@ -460,4 +471,20 @@ func (impl AppWorkflowRepositoryImpl) FindMappingByAppIds(appIds []int) ([]*AppW
 		Where("app_workflow_mapping.active = ?", true).
 		Select()
 	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) UpdateParentComponentDetails(tx *pg.Tx, oldParentId int, oldParentType string, newParentId int, newParentType string) error {
+
+	/*updateQuery := fmt.Sprintf(" UPDATE app_workflow_mapping "+
+		" SET parent_type = (select type from new_app_workflow_mapping),parent_id = (select id from new_app_workflow_mapping) where parent_id = %v and parent_type='%v' and active = true", oldComponentId, oldComponentType)
+
+	finalQuery := withQuery + updateQuery*/
+	_, err := tx.Model((*AppWorkflowMapping)(nil)).
+		Set("parent_type = ?", newParentType).
+		Set("parent_id = ?", newParentId).
+		Where("parent_type = ?", oldParentType).
+		Where("parent_id = ?", oldParentId).
+		Where("active = true").
+		Update()
+	return err
 }

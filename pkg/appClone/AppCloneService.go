@@ -56,6 +56,7 @@ type AppCloneServiceImpl struct {
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	pipelineRepository      pipelineConfig.PipelineRepository
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
+	ciPipelineConfigService pipeline.CiPipelineConfigService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -69,7 +70,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository) *AppCloneServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository,
+	ciPipelineConfigService pipeline.CiPipelineConfigService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
@@ -85,6 +87,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		ciPipelineRepository:    ciPipelineRepository,
 		pipelineRepository:      pipelineRepository,
 		appWorkflowRepository:   appWorkflowRepository,
+		ciPipelineConfigService: ciPipelineConfigService,
 	}
 }
 
@@ -653,7 +656,7 @@ func (impl *AppCloneServiceImpl) createExternalCiAndAppWorkflowMapping(createWor
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	externalCiPipelineId, err := impl.pipelineBuilder.CreateExternalCiAndAppWorkflowMapping(createWorkflowMappingDto.newAppId, createWorkflowMappingDto.newWfId, createWorkflowMappingDto.userId, tx)
+	externalCiPipelineId, _, err := impl.ciPipelineConfigService.CreateExternalCiAndAppWorkflowMapping(createWorkflowMappingDto.newAppId, createWorkflowMappingDto.newWfId, createWorkflowMappingDto.userId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
 		return 0, err

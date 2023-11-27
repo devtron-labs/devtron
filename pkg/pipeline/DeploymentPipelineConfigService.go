@@ -109,7 +109,6 @@ type CdPipelineConfigService interface {
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	IsGitopsConfigured() (bool, error)
 	RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error
-	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, error)
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -144,6 +143,7 @@ type CdPipelineConfigServiceImpl struct {
 	customTagService                 CustomTagService
 	pipelineConfigListenerService    PipelineConfigListenerService
 	devtronAppCMCSService            DevtronAppCMCSService
+	ciPipelineConfigService          CiPipelineConfigService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -177,7 +177,8 @@ func NewCdPipelineConfigServiceImpl(
 	application application.ServiceClient,
 	customTagService CustomTagService,
 	pipelineConfigListenerService PipelineConfigListenerService,
-	devtronAppCMCSService DevtronAppCMCSService) *CdPipelineConfigServiceImpl {
+	devtronAppCMCSService DevtronAppCMCSService,
+	ciPipelineConfigService CiPipelineConfigService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -210,6 +211,7 @@ func NewCdPipelineConfigServiceImpl(
 		pipelineConfigListenerService:    pipelineConfigListenerService,
 		devtronAppCMCSService:            devtronAppCMCSService,
 		customTagService:                 customTagService,
+		ciPipelineConfigService:          ciPipelineConfigService,
 	}
 }
 
@@ -353,6 +355,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	isGitOpsConfigured, err := impl.IsGitopsConfigured()
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		// skip creation of pipeline if envId is not set
+		if pipeline.EnvironmentId <= 0 {
+			continue
+		}
 		// if no deployment app type sent from user then we'll not validate
 		deploymentConfig, err := impl.devtronAppCMCSService.GetDeploymentConfigMap(pipeline.EnvironmentId)
 		if err != nil {
@@ -406,20 +412,22 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 			return nil, err
 		}
 		pipeline.Id = id
-
-		//creating pipeline_stage entry here after tx commit due to FK issue
-		if pipeline.PreDeployStage != nil && len(pipeline.PreDeployStage.Steps) > 0 {
-			err = impl.pipelineStageService.CreatePipelineStage(pipeline.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, id, pipelineCreateRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in creating pre-cd stage", "err", err, "preCdStage", pipeline.PreDeployStage, "pipelineId", id)
-				return nil, err
+		//go for stage creation if pipeline is created above
+		if pipeline.Id > 0 {
+			//creating pipeline_stage entry here after tx commit due to FK issue
+			if pipeline.PreDeployStage != nil && len(pipeline.PreDeployStage.Steps) > 0 {
+				err = impl.pipelineStageService.CreatePipelineStage(pipeline.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, id, pipelineCreateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in creating pre-cd stage", "err", err, "preCdStage", pipeline.PreDeployStage, "pipelineId", id)
+					return nil, err
+				}
 			}
-		}
-		if pipeline.PostDeployStage != nil && len(pipeline.PostDeployStage.Steps) > 0 {
-			err = impl.pipelineStageService.CreatePipelineStage(pipeline.PostDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, id, pipelineCreateRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in creating post-cd stage", "err", err, "postCdStage", pipeline.PostDeployStage, "pipelineId", id)
-				return nil, err
+			if pipeline.PostDeployStage != nil && len(pipeline.PostDeployStage.Steps) > 0 {
+				err = impl.pipelineStageService.CreatePipelineStage(pipeline.PostDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, id, pipelineCreateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in creating post-cd stage", "err", err, "postCdStage", pipeline.PostDeployStage, "pipelineId", id)
+					return nil, err
+				}
 			}
 		}
 	}
@@ -1338,7 +1346,7 @@ func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateReq
 
 	haveAtLeastOneGitOps := false
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		if pipeline.EnvironmentId > 0 && pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			haveAtLeastOneGitOps = true
 		}
 	}
@@ -1631,128 +1639,140 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
-		wf := &appWorkflow.AppWorkflow{
-			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
-			AppId:    app.Id,
-			Active:   true,
-			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+	if (pipeline.AppWorkflowId == 0 || pipeline.IsSwitchCiPipelineRequest()) && pipeline.ParentPipelineType == "WEBHOOK" {
+		if pipeline.AppWorkflowId == 0 {
+			wf := &appWorkflow.AppWorkflow{
+				Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
+				AppId:    app.Id,
+				Active:   true,
+				AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			}
+			savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving app workflow", "appId", app.Id, "err", err)
+				return 0, err
+			}
+			pipeline.AppWorkflowId = savedAppWf.Id
 		}
-		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
-		if err != nil {
-			impl.logger.Errorw("error in saving app workflow", "appId", app.Id, "err", err)
-			return 0, err
-		}
-		externalCiPipelineId, err := impl.CreateExternalCiAndAppWorkflowMapping(app.Id, savedAppWf.Id, userId, tx)
+		externalCiPipelineId, appWorkflowMapping, err := impl.ciPipelineConfigService.CreateExternalCiAndAppWorkflowMapping(app.Id, pipeline.AppWorkflowId, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "appId", app.Id, "err", err)
 			return 0, err
 		}
+		if pipeline.IsSwitchCiPipelineRequest() {
+			err = impl.ciPipelineConfigService.SwitchToExternalCi(tx, appWorkflowMapping, pipeline.SwitchFromCiPipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in switching external ci", "appId", app.Id, "switchFromExternalCiPipelineId", pipeline.SwitchFromCiPipelineId, "userId", userId, "err", err)
+			}
+		}
 		pipeline.ParentPipelineId = externalCiPipelineId
-		pipeline.AppWorkflowId = savedAppWf.Id
 	}
 
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-	if err != nil {
-		return 0, err
-	}
-	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, false, pipeline.Namespace, chart.IsBasicViewLocked, chart.CurrentViewEditor, tx)
-	if err != nil {
-		return 0, err
-	}
-
-	// Get pipeline override based on Deployment strategy
-	//TODO: mark as created in our db
-	pipelineId, err := impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
-	if err != nil {
-		impl.logger.Errorw("error in creating cd pipeline", "appId", app.Id, "pipeline", pipeline)
-		return 0, err
-	}
-	if pipeline.RefPipelineId > 0 {
-		pipeline.SourceToNewPipelineId[pipeline.RefPipelineId] = pipelineId
-	}
-
-	//adding pipeline to workflow
-	_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
-	if err != nil && err != pg.ErrNoRows {
-		return 0, err
-	}
-	if pipeline.AppWorkflowId > 0 {
-		var parentPipelineId int
-		var parentPipelineType string
-
-		if pipeline.ParentPipelineId == 0 {
-			parentPipelineId = pipeline.CiPipelineId
-			parentPipelineType = "CI_PIPELINE"
-		} else {
-			parentPipelineId = pipeline.ParentPipelineId
-			parentPipelineType = pipeline.ParentPipelineType
-			if pipeline.ParentPipelineType != appWorkflow.WEBHOOK && pipeline.RefPipelineId > 0 && len(pipeline.SourceToNewPipelineId) > 0 {
-				parentPipelineId = pipeline.SourceToNewPipelineId[pipeline.ParentPipelineId]
-			}
-		}
-		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			AppWorkflowId: pipeline.AppWorkflowId,
-			ParentId:      parentPipelineId,
-			ParentType:    parentPipelineType,
-			ComponentId:   pipelineId,
-			Type:          "CD_PIPELINE",
-			Active:        true,
-			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+	// do not create the pipeline if environment is not set
+	pipelineId := 0
+	if pipeline.EnvironmentId > 0 {
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil {
 			return 0, err
 		}
-	}
-	//getting global app metrics for cd pipeline create because env level metrics is not created yet
-	appLevelAppMetricsEnabled := false
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
-	} else if err == nil {
-		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
-	}
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
-		return 0, err
-	}
-	//VARIABLE_MAPPING_UPDATE
-	err = impl.scopedVariableManager.ExtractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository3.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
-	if err != nil {
-		return 0, err
-	}
-	// strategies for pipeline ids, there is only one is default
-	defaultCount := 0
-	for _, item := range pipeline.Strategies {
-		if item.Default {
-			defaultCount = defaultCount + 1
-			if defaultCount > 1 {
-				impl.logger.Warnw("already have one strategy is default in this pipeline", "strategy", item.DeploymentTemplate)
-				item.Default = false
-			}
-		}
-		strategy := &chartConfig.PipelineStrategy{
-			PipelineId: pipelineId,
-			Strategy:   item.DeploymentTemplate,
-			Config:     string(item.Config),
-			Default:    item.Default,
-			Deleted:    false,
-			AuditLog:   sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
-		}
-		err = impl.pipelineConfigRepository.Save(strategy, tx)
+		envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, false, pipeline.Namespace, chart.IsBasicViewLocked, chart.CurrentViewEditor, tx)
 		if err != nil {
-			impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
-			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
-		}
-		//creating history entry for strategy
-		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
-		if err != nil {
-			impl.logger.Errorw("error in creating strategy history entry", "err", err)
 			return 0, err
 		}
 
+		// Get pipeline override based on Deployment strategy
+		//TODO: mark as created in our db
+		pipelineId, err = impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
+		if err != nil {
+			impl.logger.Errorw("error in creating cd pipeline", "appId", app.Id, "pipeline", pipeline)
+			return 0, err
+		}
+		if pipeline.RefPipelineId > 0 {
+			pipeline.SourceToNewPipelineId[pipeline.RefPipelineId] = pipelineId
+		}
+
+		//adding pipeline to workflow
+		_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
+		if err != nil && err != pg.ErrNoRows {
+			return 0, err
+		}
+		if pipeline.AppWorkflowId > 0 {
+			var parentPipelineId int
+			var parentPipelineType string
+
+			if pipeline.ParentPipelineId == 0 {
+				parentPipelineId = pipeline.CiPipelineId
+				parentPipelineType = "CI_PIPELINE"
+			} else {
+				parentPipelineId = pipeline.ParentPipelineId
+				parentPipelineType = pipeline.ParentPipelineType
+				if pipeline.ParentPipelineType != appWorkflow.WEBHOOK && pipeline.RefPipelineId > 0 && len(pipeline.SourceToNewPipelineId) > 0 {
+					parentPipelineId = pipeline.SourceToNewPipelineId[pipeline.ParentPipelineId]
+				}
+			}
+			appWorkflowMap := &appWorkflow.AppWorkflowMapping{
+				AppWorkflowId: pipeline.AppWorkflowId,
+				ParentId:      parentPipelineId,
+				ParentType:    parentPipelineType,
+				ComponentId:   pipelineId,
+				Type:          "CD_PIPELINE",
+				Active:        true,
+				AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			}
+			_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+			if err != nil {
+				return 0, err
+			}
+		}
+		//getting global app metrics for cd pipeline create because env level metrics is not created yet
+		appLevelAppMetricsEnabled := false
+		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+		} else if err == nil {
+			appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+		}
+		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
+			return 0, err
+		}
+		//VARIABLE_MAPPING_UPDATE
+		err = impl.scopedVariableManager.ExtractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository3.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
+		if err != nil {
+			return 0, err
+		}
+		// strategies for pipeline ids, there is only one is default
+		defaultCount := 0
+		for _, item := range pipeline.Strategies {
+			if item.Default {
+				defaultCount = defaultCount + 1
+				if defaultCount > 1 {
+					impl.logger.Warnw("already have one strategy is default in this pipeline", "strategy", item.DeploymentTemplate)
+					item.Default = false
+				}
+			}
+			strategy := &chartConfig.PipelineStrategy{
+				PipelineId: pipelineId,
+				Strategy:   item.DeploymentTemplate,
+				Config:     string(item.Config),
+				Default:    item.Default,
+				Deleted:    false,
+				AuditLog:   sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			}
+			err = impl.pipelineConfigRepository.Save(strategy, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
+				return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
+			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
+				return 0, err
+			}
+
+		}
 	}
 	// save custom tag data
 	err = impl.CDPipelineCustomTagDBOperations(pipeline)
@@ -2053,31 +2073,4 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 	}
 	return respDtos
 
-}
-
-func (impl *CdPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, error) {
-	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-		AppId:       appId,
-		AccessToken: "",
-		Active:      true,
-		AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-	}
-	externalCiPipeline, err := impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving external ci", "appId", appId, "err", err)
-		return 0, err
-	}
-	appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-		AppWorkflowId: appWorkflowId,
-		ComponentId:   externalCiPipeline.Id,
-		Type:          "WEBHOOK",
-		Active:        true,
-		AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-	}
-	appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving app workflow mapping for external ci", "appId", appId, "appWorkflowId", appWorkflowId, "externalCiPipelineId", externalCiPipeline.Id, "err", err)
-		return 0, err
-	}
-	return externalCiPipeline.Id, nil
 }

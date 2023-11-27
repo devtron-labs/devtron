@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"strconv"
 	"time"
 )
@@ -110,6 +111,7 @@ type PipelineRepository interface {
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
+	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 }
 
 type CiArtifactDTO struct {
@@ -669,4 +671,15 @@ func (impl PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cd
 		pipelineIdsMap[pipelineId] = true
 	}
 	return pipelineIdsMap, nil
+}
+
+func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error {
+	newCiPipId := pointer.Int(newCiPipelineId)
+	if newCiPipelineId == 0 {
+		newCiPipId = nil
+	}
+	_, err := tx.Model((*Pipeline)(nil)).Set("ci_pipeline_id = ?", newCiPipId).
+		Where("ci_pipeline_id = ? ", oldCiPipelineId).
+		Where("deleted = ?", false).Update()
+	return err
 }
