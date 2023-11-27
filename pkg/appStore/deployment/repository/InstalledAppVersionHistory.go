@@ -113,6 +113,9 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersion
 	if err != nil {
 		return err
 	}
+	if len(installedAppVersionIds) == 0 {
+		return nil
+	}
 	var model []*InstalledAppVersionHistory
 	_, err = tx.Model(&model).
 		Set("status=?", pipelineConfig.WorkflowFailed).
