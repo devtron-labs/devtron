@@ -202,7 +202,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	refPluginsData := prePostAndRefPluginResponse.RefPluginData
 	variableSnapshot := prePostAndRefPluginResponse.VariableSnapshot
 
-	if len(preCiSteps) == 0 && isJob {
+	if len(preCiSteps) == 0 && (isJob || trigger.PipelineType == string(bean.CI_JOB)) {
 		return 0, &util.ApiError{
 			UserMessage: "No tasks are configured in this job pipeline",
 		}
