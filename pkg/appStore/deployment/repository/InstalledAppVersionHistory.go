@@ -22,7 +22,7 @@ type InstalledAppVersionHistoryRepository interface {
 	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error)
-	UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppVersionId int, triggeredBy int32, tx *pg.Tx) error
+	UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppId int, triggeredBy int32, tx *pg.Tx) error
 	IsLatestVersionHistory(installedAppVersionId, installedAppVersionHistoryId int) (bool, error)
 	GetConnection() *pg.DB
 }
@@ -105,15 +105,22 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppStoreApplicationVersi
 	return appStoreApplicationVersionId, err
 }
 
-func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppVersionId int, triggeredBy int32, tx *pg.Tx) error {
+func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppId int, triggeredBy int32, tx *pg.Tx) error {
+	var installedAppVersionIds []int
+	query := "SELECT iav.id FROM installed_app_versions iav WHERE iav.installed_app_id = %d;"
+	query = fmt.Sprintf(query, installedAppId)
+	_, err := impl.dbConnection.Query(&installedAppVersionIds, query)
+	if err != nil {
+		return err
+	}
 	var model []*InstalledAppVersionHistory
-	_, err := tx.Model(&model).
+	_, err = tx.Model(&model).
 		Set("status=?", pipelineConfig.WorkflowFailed).
 		Set("finished_on=?", time.Now()).
 		Set("updated_on=?", time.Now()).
 		Set("updated_by=?", triggeredBy).
 		Where("id < ?", installedAppVersionHistoryId).
-		Where("installed_app_version_id = ?", installedAppVersionId).
+		Where("installed_app_version_id in (?)", pg.In(installedAppVersionIds)).
 		Where("status = ?", pipelineConfig.WorkflowInQueue).
 		Update()
 	return err

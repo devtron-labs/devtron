@@ -304,7 +304,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	err = impl.installedAppRepositoryHistory.UpdatePreviousQueuedVersionHistory(installedAppVersionHistory.Id, installedAppVersions.Id, installAppVersionRequest.UserId, tx)
+	err = impl.installedAppRepositoryHistory.UpdatePreviousQueuedVersionHistory(installedAppVersionHistory.Id, installedAppVersions.InstalledAppId, installAppVersionRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
@@ -1373,7 +1373,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
 		return nil, err
 	}
-	err = impl.installedAppRepositoryHistory.UpdatePreviousQueuedVersionHistory(installedAppVersionHistory.Id, installedAppVersion.Id, installAppVersionRequest.UserId, tx)
+	err = impl.installedAppRepositoryHistory.UpdatePreviousQueuedVersionHistory(installedAppVersionHistory.Id, installedAppVersion.InstalledAppId, installAppVersionRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
