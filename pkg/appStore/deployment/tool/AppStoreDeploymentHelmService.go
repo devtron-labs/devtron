@@ -148,9 +148,15 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 	if installAppVersionRequest.HelmInstallAsyncMode {
 		impl.Logger.Debugw("Helm Install with Async mode")
 		installHelmAsyncRequest := appStoreDeploymentFullMode.InstallHelmAsyncRequest{
-			InstallAppVersionDTO:  installAppVersionRequest,
-			InstallReleaseRequest: installReleaseRequest,
-			Type:                  "install",
+			InstallReleaseRequest:        installReleaseRequest,
+			Type:                         "install",
+			InstalledAppId:               installAppVersionRequest.InstalledAppId,
+			InstalledAppVersionId:        installAppVersionRequest.InstalledAppVersionId,
+			ContextTime:                  installAppVersionRequest.HelmInstallContextTime,
+			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+			ClusterId:                    installAppVersionRequest.ClusterId,
+			GitHash:                      installAppVersionRequest.GitHash,
+			UserId:                       installAppVersionRequest.UserId,
 		}
 		data, err := json.Marshal(&installHelmAsyncRequest)
 		if err != nil {
@@ -484,12 +490,17 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 		SourceAppType: client.SOURCE_HELM_APP,
 	}
 	if installAppVersionRequest.HelmInstallAsyncMode {
-		impl.Logger.Debugw("Helm Update with Async mode")
 		installHelmAsyncRequest := appStoreDeploymentFullMode.InstallHelmAsyncRequest{
-			InstallAppVersionDTO:                     installAppVersionRequest,
 			UpdateApplicationWithChartInfoRequestDto: updateReleaseRequest,
 			Type:                                     "upgrade",
 			InstalledApps:                            installedApp,
+			InstalledAppId:                           installAppVersionRequest.InstalledAppId,
+			InstalledAppVersionId:                    installAppVersionRequest.InstalledAppVersionId,
+			ContextTime:                              installAppVersionRequest.HelmInstallContextTime,
+			InstalledAppVersionHistoryId:             installAppVersionRequest.InstalledAppVersionHistoryId,
+			ClusterId:                                installAppVersionRequest.ClusterId,
+			GitHash:                                  installAppVersionRequest.GitHash,
+			UserId:                                   installAppVersionRequest.UserId,
 		}
 		data, err := json.Marshal(&installHelmAsyncRequest)
 		if err != nil {
