@@ -622,6 +622,14 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
 		return 0, err
 	}
+	imagePathReservationIds := workflow.ImagePathReservationIds
+	if len(imagePathReservationIds) > 0 {
+		err = impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
+		if err != nil {
+			impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
+			return 0, err
+		}
+	}
 	return workflow.Id, nil
 }
 
@@ -1609,11 +1617,16 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	for _, ciWorkflow := range ciWorkflows {
 		var isExt bool
 		var env *repository3.Environment
+		var restConfig *rest.Config
 		if ciWorkflow.Namespace != DefaultCiWorkflowNamespace {
 			isExt = true
 			env, err = impl.envRepository.FindById(ciWorkflow.EnvironmentId)
 			if err != nil {
 				impl.Logger.Errorw("could not fetch stage env", "err", err)
+				return err
+			}
+			restConfig, err = impl.getRestConfig(ciWorkflow)
+			if err != nil {
 				return err
 			}
 		}
@@ -1622,10 +1635,6 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		isPodDeleted := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
 
-			restConfig, err := impl.getRestConfig(ciWorkflow)
-			if err != nil {
-				return err
-			}
 			//check weather pod is exists or not, if exits check its status
 			wf, err := impl.workflowService.GetWorkflowStatus(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
 			if err != nil {

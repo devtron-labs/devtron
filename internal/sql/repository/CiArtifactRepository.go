@@ -31,6 +31,22 @@ import (
 	"go.uber.org/zap"
 )
 
+type credentialsSource = string
+type artifactsSourceType = string
+
+const (
+	GLOBAL_CONTAINER_REGISTRY credentialsSource = "global_container_registry"
+)
+const (
+	CI_RUNNER artifactsSourceType = "CI-RUNNER"
+	WEBHOOK   artifactsSourceType = "EXTERNAL"
+	PRE_CD    artifactsSourceType = "pre_cd"
+	POST_CD   artifactsSourceType = "post_cd"
+	PRE_CI    artifactsSourceType = "pre_ci"
+	POST_CI   artifactsSourceType = "post_ci"
+	GOCD      artifactsSourceType = "GOCD"
+)
+
 type CiArtifactWithExtraData struct {
 	CiArtifact
 	PayloadSchema      string
@@ -41,23 +57,26 @@ type CiArtifactWithExtraData struct {
 }
 
 type CiArtifact struct {
-	tableName            struct{}  `sql:"ci_artifact" pg:",discard_unknown_columns"`
-	Id                   int       `sql:"id,pk"`
-	PipelineId           int       `sql:"pipeline_id"` //id of the ci pipeline from which this webhook was triggered
-	Image                string    `sql:"image,notnull"`
-	ImageDigest          string    `sql:"image_digest,notnull"`
-	MaterialInfo         string    `sql:"material_info"` //git material metadata json array string
-	DataSource           string    `sql:"data_source,notnull"`
-	WorkflowId           *int      `sql:"ci_workflow_id"`
-	ParentCiArtifact     int       `sql:"parent_ci_artifact"`
-	ScanEnabled          bool      `sql:"scan_enabled,notnull"`
-	Scanned              bool      `sql:"scanned,notnull"`
-	ExternalCiPipelineId int       `sql:"external_ci_pipeline_id"`
-	IsArtifactUploaded   bool      `sql:"is_artifact_uploaded"`
-	DeployedTime         time.Time `sql:"-"`
-	Deployed             bool      `sql:"-"`
-	Latest               bool      `sql:"-"`
-	RunningOnParent      bool      `sql:"-"`
+	tableName             struct{}  `sql:"ci_artifact" pg:",discard_unknown_columns"`
+	Id                    int       `sql:"id,pk"`
+	PipelineId            int       `sql:"pipeline_id"` //id of the ci pipeline from which this webhook was triggered
+	Image                 string    `sql:"image,notnull"`
+	ImageDigest           string    `sql:"image_digest,notnull"`
+	MaterialInfo          string    `sql:"material_info"`       //git material metadata json array string
+	DataSource            string    `sql:"data_source,notnull"` // possible values -> (CI_RUNNER,ext,post_ci,pre_cd,post_cd) CI_runner is for normal build ci
+	WorkflowId            *int      `sql:"ci_workflow_id"`
+	ParentCiArtifact      int       `sql:"parent_ci_artifact"`
+	ScanEnabled           bool      `sql:"scan_enabled,notnull"`
+	Scanned               bool      `sql:"scanned,notnull"`
+	ExternalCiPipelineId  int       `sql:"external_ci_pipeline_id"`
+	IsArtifactUploaded    bool      `sql:"is_artifact_uploaded"`
+	CredentialsSourceType string    `sql:"credentials_source_type"`
+	CredentialSourceValue string    `sql:"credentials_source_value"`
+	ComponentId           int       `sql:"component_id"`
+	DeployedTime          time.Time `sql:"-"`
+	Deployed              bool      `sql:"-"`
+	Latest                bool      `sql:"-"`
+	RunningOnParent       bool      `sql:"-"`
 	sql.AuditLog
 }
 
@@ -85,6 +104,8 @@ type CiArtifactRepository interface {
 	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CiArtifact, int, error)
 	FetchApprovedArtifactsForRollback(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
 	FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
+	GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error)
+	FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -130,7 +151,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIdsI
 	}
 
 	err := impl.dbConnection.Model(&artifacts).
-		Column("ci_artifact.id", "ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id").
+		Column("ci_artifact.id", "ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id", "ci_artifact.pipeline_id").
 		Where("ci_artifact.id in (?)", pg.In(ids)).
 		Order("ci_artifact.id DESC").
 		Select()
@@ -560,7 +581,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV2(cdPipelineId int
 }
 
 func GetCiMaterialInfo(materialInfo string, source string) ([]CiMaterialInfo, error) {
-	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" {
+	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" && source != "post_ci" && source != "pre_cd" && source != "post_cd" {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
 	var ciMaterials []CiMaterialInfo
@@ -730,4 +751,30 @@ func (impl CiArtifactRepositoryImpl) FetchApprovedArtifactsForRollback(listingFi
 		totalCount = results[0].TotalCount
 	}
 	return results, totalCount, nil
+}
+
+func (impl CiArtifactRepositoryImpl) GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error) {
+	var ciArtifacts []CiArtifact
+	err := impl.dbConnection.
+		Model(&ciArtifacts).
+		Where(" data_source=? and component_id=? ", dataSource, componentId).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting ci artifacts by data_source and component_id")
+		return ciArtifacts, err
+	}
+	return ciArtifacts, nil
+}
+
+func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error) {
+	var ciArtifacts []CiArtifact
+	err := impl.dbConnection.
+		Model(&ciArtifacts).
+		Where(" image in (?) ", pg.In(images)).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting ci artifacts by data_source and component_id")
+		return ciArtifacts, err
+	}
+	return ciArtifacts, nil
 }
