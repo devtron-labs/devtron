@@ -442,14 +442,14 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	var clusterConfig *k8s.ClusterConfig
 	var err error
 	if req.ClusterId != 0 {
-		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
+		config, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", req.ClusterId)
 			return nil, nil, err
 		}
-		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(config)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", config)
 			return nil, nil, err
 		}
 		podNameSplit := strings.Split(req.PodName, "-")
@@ -464,9 +464,11 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 			return nil, nil, err
 		}
-		clusterConfig.Host = restConfig.Host
-		clusterConfig.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
-		clusterConfig.BearerToken = restConfig.BearerToken
+		config.Host = restConfig.Host
+		config.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
+		config.BearerToken = restConfig.BearerToken
+
+		clusterConfig = config
 	} else if req.EnvironmentId != 0 {
 		clusterBean, err = impl.environmentService.FindClusterByEnvId(req.EnvironmentId)
 		if err != nil {
