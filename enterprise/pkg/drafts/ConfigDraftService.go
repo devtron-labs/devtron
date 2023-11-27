@@ -169,12 +169,13 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(re
 		return
 	}
 	config := ConfigDraftRequest{
-		AppId:        draftData.AppId,
-		EnvId:        draftData.EnvId,
-		Resource:     draftData.Resource,
-		ResourceName: draftData.ResourceName,
-		UserComment:  request.UserComment,
-		UserId:       request.UserId,
+		AppId:                     draftData.AppId,
+		EnvId:                     draftData.EnvId,
+		Resource:                  draftData.Resource,
+		ResourceName:              draftData.ResourceName,
+		UserComment:               request.UserComment,
+		UserId:                    request.UserId,
+		ProtectNotificationConfig: request.ProtectNotificationConfig,
 	}
 	go impl.performNotificationConfigAction(config)
 
