@@ -697,25 +697,6 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 			return ciArtifactsResponse, err
 		}
 
-		//set userApprovalMetaData starts
-		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
-		var artifactIds []int
-		for _, item := range ciArtifacts {
-			artifactIds = append(artifactIds, item.Id)
-		}
-		userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, pipeline.Id, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", pipeline.Id, "artifactIds", artifactIds, "err", err)
-			return ciArtifactsResponse, err
-		}
-
-		for i, artifact := range ciArtifacts {
-			if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok {
-				ciArtifacts[i].UserApprovalMetadata = approvalMetadataForArtifact
-			}
-		}
-		//set userApprovalMetaData ends
-
 		environment := pipeline.Environment
 		scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
 		filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
@@ -724,13 +705,35 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 			return ciArtifactsResponse, err
 		}
 
-		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline)
-		if err != nil {
-			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
-			return ciArtifactsResponse, err
+		if ciArtifacts != nil {
+			//set userApprovalMetaData starts
+			var artifactIds []int
+			for _, item := range ciArtifacts {
+				artifactIds = append(artifactIds, item.Id)
+			}
+			userApprovalMetadata, err := impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, pipeline.Id, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
+			if err != nil {
+				impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", pipeline.Id, "artifactIds", artifactIds, "err", err)
+				return ciArtifactsResponse, err
+			}
+
+			for i, artifact := range ciArtifacts {
+				if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok {
+					ciArtifacts[i].UserApprovalMetadata = approvalMetadataForArtifact
+				}
+			}
+			//set userApprovalMetaData ends
+			ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline)
+			if err != nil {
+				impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
+				return ciArtifactsResponse, err
+			}
 		}
 
 		ciArtifactsResponse.CdPipelineId = pipeline.Id
+		if ciArtifacts == nil {
+			ciArtifacts = []bean2.CiArtifactBean{}
+		}
 		ciArtifactsResponse.CiArtifacts = ciArtifacts
 		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
 		ciArtifactsResponse.ResourceFilters = filters
@@ -908,13 +911,6 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		ciArtifacts = append(ciArtifacts, *ciArtifactsRef)
 	}
 
-	//sorting ci artifacts on the basis of creation time
-	if ciArtifacts != nil {
-		sort.SliceStable(ciArtifacts, func(i, j int) bool {
-			return ciArtifacts[i].Id > ciArtifacts[j].Id
-		})
-	}
-
 	environment := pipeline.Environment
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, ProjectId: pipeline.App.TeamId, EnvId: pipeline.EnvironmentId, ClusterId: environment.ClusterId, IsProdEnv: environment.Default}
 	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
@@ -923,19 +919,25 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		return ciArtifactsResponse, err
 	}
 	ciArtifactsResponse.ResourceFilters = filters
-	ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline)
-	if err != nil {
-		impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
-		return ciArtifactsResponse, err
-	}
-	ciArtifacts, err = impl.setGitTriggerData(ciArtifacts)
-	if err != nil {
-		impl.logger.Errorw("error in setting gitTrigger data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
-		return ciArtifactsResponse, err
-	}
 
-	if !isApprovalNode {
-		ciArtifacts = impl.fillAppliedFiltersData(ciArtifacts, pipeline.Id, stage)
+	//sorting ci artifacts on the basis of creation time
+	if ciArtifacts != nil {
+		sort.SliceStable(ciArtifacts, func(i, j int) bool {
+			return ciArtifacts[i].Id > ciArtifacts[j].Id
+		})
+		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
+			return ciArtifactsResponse, err
+		}
+		ciArtifacts, err = impl.setGitTriggerData(ciArtifacts)
+		if err != nil {
+			impl.logger.Errorw("error in setting gitTrigger data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
+			return ciArtifactsResponse, err
+		}
+		if !isApprovalNode {
+			ciArtifacts = impl.fillAppliedFiltersData(ciArtifacts, pipeline.Id, stage)
+		}
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
@@ -984,7 +986,7 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			if ciArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
 				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
 			}
-		} else {
+		} else if ciArtifacts[i].DataSource == repository.CI_RUNNER {
 			ciPipeline, err := impl.CiPipelineRepository.FindById(ciArtifacts[i].CiPipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
