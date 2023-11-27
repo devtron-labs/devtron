@@ -8,10 +8,9 @@ import (
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	bean2 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/commonService"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
@@ -46,8 +45,7 @@ type K8sCommonServiceImpl struct {
 	K8sUtil                     *k8s.K8sUtil
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
-	clusterRepository           repository.ClusterRepository
-	commonService               commonService.CommonService
+	argoApplicationService      argoApplication.ArgoApplicationService
 }
 type K8sApplicationServiceConfig struct {
 	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
@@ -56,8 +54,7 @@ type K8sApplicationServiceConfig struct {
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil,
 	clusterService cluster.ClusterService,
-	clusterRepository repository.ClusterRepository,
-	commonService commonService.CommonService) *K8sCommonServiceImpl {
+	argoApplicationService argoApplication.ArgoApplicationService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -68,18 +65,21 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil,
 		K8sUtil:                     k8sUtils,
 		clusterService:              clusterService,
 		K8sApplicationServiceConfig: cfg,
-		clusterRepository:           clusterRepository,
-		commonService:               commonService,
+		argoApplicationService:      argoApplicationService,
 	}
 }
 
 func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	clusterId := request.ClusterId
-	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.commonService.GetClusterConfigFromAllClusters(clusterId)
-
+	//getting rest config by clusterId
+	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", clusterId)
+		return nil, err
+	}
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
 		return nil, err
 	}
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
@@ -90,7 +90,7 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 		impl.logger.Errorw("error in getting resource list", "err", err)
 		return nil, err
 	}
-	restConfig, err = impl.commonService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 		return nil, err
@@ -139,13 +139,17 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 
 func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error) {
 	clusterId := request.ClusterId
-	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.commonService.GetClusterConfigFromAllClusters(clusterId)
-
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", clusterId)
 		return nil, err
 	}
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
+		return nil, err
+	}
+
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podNameSplit := strings.Split(resourceIdentifier.Name, "-")
 	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
@@ -154,7 +158,7 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 		impl.logger.Errorw("error in getting resource list", "err", err)
 		return nil, err
 	}
-	restConfig, err = impl.commonService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 		return nil, err
@@ -162,7 +166,6 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 	clusterConfig.Host = restConfig.Host
 	clusterConfig.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
 	clusterConfig.BearerToken = restConfig.BearerToken
-
 	list, err := impl.K8sUtil.ListEvents(restConfig, resourceIdentifier.Namespace, resourceIdentifier.GroupVersionKind, ctx, resourceIdentifier.Name)
 	if err != nil {
 		impl.logger.Errorw("error in listing events", "err", err, "clusterId", clusterId)

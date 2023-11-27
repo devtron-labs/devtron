@@ -21,10 +21,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/commonService"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
@@ -371,22 +371,19 @@ type TerminalSessionHandlerImpl struct {
 	logger                    *zap.SugaredLogger
 	k8sUtil                   *k8s.K8sUtil
 	ephemeralContainerService cluster.EphemeralContainerService
-	clusterRepository         repository.ClusterRepository
-	commonService             commonService.CommonService
+	argoApplicationService    argoApplication.ArgoApplicationService
 }
 
 func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil, ephemeralContainerService cluster.EphemeralContainerService,
-	clusterRepository repository.ClusterRepository,
-	commonService commonService.CommonService) *TerminalSessionHandlerImpl {
+	argoApplicationService argoApplication.ArgoApplicationService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService:        environmentService,
 		clusterService:            clusterService,
 		logger:                    logger,
 		k8sUtil:                   k8sUtil,
 		ephemeralContainerService: ephemeralContainerService,
-		clusterRepository:         clusterRepository,
-		commonService:             commonService,
+		argoApplicationService:    argoApplicationService,
 	}
 }
 
@@ -445,11 +442,14 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	var clusterConfig *k8s.ClusterConfig
 	var err error
 	if req.ClusterId != 0 {
-		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.commonService.GetClusterConfigFromAllClusters(req.ClusterId)
-
+		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", req.ClusterId)
+			return nil, nil, err
+		}
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
-			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", req.ClusterId)
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
 			return nil, nil, err
 		}
 		podNameSplit := strings.Split(req.PodName, "-")
@@ -459,7 +459,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 			impl.logger.Errorw("error in getting resource list", "err", err)
 			return nil, nil, err
 		}
-		restConfig, err = impl.commonService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
 		if err != nil {
 			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 			return nil, nil, err
@@ -556,13 +556,17 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 }
 
 func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
-	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.commonService.GetClusterConfigFromAllClusters(req.ClusterId)
-
-	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", req.ClusterId)
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", req.ClusterId)
 		return err
 	}
+	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
+		return err
+	}
+
 	podNameSplit := strings.Split(req.PodName, "-")
 	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
 	resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
@@ -571,7 +575,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 		return err
 	}
 
-	restConfig, err = impl.commonService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 		return err

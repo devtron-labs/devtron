@@ -15,6 +15,12 @@ const (
 	ArgoLabelForManagedResources = "app.kubernetes.io/instance"
 )
 
+const (
+	Server      = "server"
+	Destination = "destination"
+	Config      = "config"
+)
+
 var GvkForArgoApplication = schema.GroupVersionKind{
 	Group:   ArgoGroup,
 	Kind:    ArgoApplicationKind,
