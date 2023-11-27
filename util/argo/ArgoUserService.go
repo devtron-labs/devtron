@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -45,7 +44,6 @@ type ArgoUserService interface {
 
 type ArgoUserServiceImpl struct {
 	logger                  *zap.SugaredLogger
-	clusterService          cluster.ClusterService
 	devtronSecretConfig     *util2.DevtronSecretConfig
 	runTimeConfig           *client.RuntimeConfig
 	gitOpsRepository        repository.GitOpsConfigRepository
@@ -54,10 +52,10 @@ type ArgoUserServiceImpl struct {
 	k8sUtil                 *k8s.K8sUtil
 }
 
-func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *k8s.K8sUtil) (*ArgoUserServiceImpl, error) {
+func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
+	devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *k8s.K8sUtil) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
-		clusterService:          clusterService,
 		devtronSecretConfig:     devtronSecretConfig,
 		runTimeConfig:           runTimeConfig,
 		gitOpsRepository:        gitOpsRepository,

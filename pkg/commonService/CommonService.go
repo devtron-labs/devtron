@@ -95,12 +95,6 @@ type AppChecklist struct {
 	//ChartChecklist *ChartChecklist `json:",inline"`
 }
 
-const (
-	Server      = "server"
-	Destination = "destination"
-	Config      = "config"
-)
-
 func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error) {
 	var chart *chartRepoRepository.Chart
 	if appId > 0 && envId > 0 {
