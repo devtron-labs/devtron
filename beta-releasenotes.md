@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Get Artifacts list API is throwing pg no rows error  (#4292)
 - fix: updated copy container image plugin for multi arc build support (#4282)
 - fix: old custom tag migration (#4273)
 - fix: No rows for rest config in case of Default namespace (#4269)
