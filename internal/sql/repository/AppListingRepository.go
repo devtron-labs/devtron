@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strconv"
@@ -626,7 +627,9 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	if model != nil && model.Id > 0 && model.AllowCustomRepository {
 		isCustomGitopsRepoUrl = true
 	}
-
+	if stages.ChartGitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED && stages.CiPipelineId == 0 {
+		stages.ChartGitRepoUrl = ""
+	}
 	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId, true),
 		impl.makeAppStageStatus(1, "MATERIAL", materialExists, true),
 		impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId, true),
@@ -634,13 +637,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 		impl.makeAppStageStatus(4, "CHART", stages.ChartId, true),
 		impl.makeAppStageStatus(5, "GITOPS_CONFIG", len(stages.ChartGitRepoUrl), isCustomGitopsRepoUrl),
 		impl.makeAppStageStatus(6, "CD_PIPELINE", stages.PipelineId, true),
-		impl.makeAppStageChartEnvConfigStatus(7, "CHART_ENV_CONFIG", func() bool {
-			if stages.YamlStatus == 3 && stages.YamlReviewed == true {
-				return true
-			} else {
-				return false
-			}
-		}()),
+		impl.makeAppStageChartEnvConfigStatus(7, "CHART_ENV_CONFIG", stages.YamlStatus == 3 && stages.YamlReviewed),
 	)
 
 	return appStageStatus, nil
