@@ -228,8 +228,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppStoreId(appSto
 	var model []*InstalledAppVersions
 	err := impl.dbConnection.Model(&model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion").
-		Where("app_store_application_version.app_store_id = ?", appStoreId).
-		Where("installed_app_versions.active = true").Select()
+		Where("app_store_application_version.app_store_id = ?", appStoreId).Select()
 	if err != nil {
 		return model, err
 	}

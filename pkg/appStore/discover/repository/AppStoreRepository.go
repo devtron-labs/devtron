@@ -25,7 +25,10 @@ import (
 	"time"
 )
 
-type AppStoreRepository interface{}
+type AppStoreRepository interface {
+	GetAppStoreApplications() ([]*AppStore, error)
+	Delete(appStores []*AppStore) error
+}
 
 type AppStoreRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -37,15 +40,46 @@ func NewAppStoreRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB) *
 }
 
 type AppStore struct {
-	TableName   struct{} `sql:"app_store" pg:",discard_unknown_columns"`
-	Id          int      `sql:"id,pk"`
-	Name        string   `sql:"name,notnull"`
-	ChartRepoId int      `sql:"chart_repo_id"`
-	//Active                bool      `sql:"active,notnull"`
+	TableName             struct{}  `sql:"app_store" pg:",discard_unknown_columns"`
+	Id                    int       `sql:"id,pk"`
+	Name                  string    `sql:"name,notnull"`
+	ChartRepoId           int       `sql:"chart_repo_id"`
+	Active                bool      `sql:"active,notnull"`
 	DockerArtifactStoreId string    `sql:"docker_artifact_store_id"`
 	ChartGitLocation      string    `sql:"chart_git_location"`
 	CreatedOn             time.Time `sql:"created_on,notnull"`
 	UpdatedOn             time.Time `sql:"updated_on,notnull"`
 	ChartRepo             *chartRepoRepository.ChartRepo
 	DockerArtifactStore   *dockerArtifactStoreRegistry.DockerArtifactStore
+}
+
+func (impl AppStoreRepositoryImpl) GetAppStoreApplications() ([]*AppStore, error) {
+	var models []*AppStore
+	err := impl.dbConnection.Model(&models).Where("active = ? and chart_repo_id is NULL", true).Select()
+	if err != nil {
+		return models, err
+	}
+	return models, nil
+}
+
+func (impl *AppStoreRepositoryImpl) Delete(appStores []*AppStore) error {
+	err := impl.dbConnection.RunInTransaction(func(tx *pg.Tx) error {
+		for _, appStore := range appStores {
+			//appStoreApplicationVersionDeleteQuery := "delete from app_store_application_version where app_store_id = ?"
+			//_, err := impl.dbConnection.Exec(appStoreApplicationVersionDeleteQuery, appStore.Id)
+			//if err != nil {
+			//	impl.Logger.Errorw("error in deleting app store application version by app store id", "err", err)
+			//	return err
+			//}
+			appStoreDeleteQuery := "delete from app_store where id = ?"
+			appStoreDeleteQuery = "update app_store set active=false where id = ?"
+			_, err := impl.dbConnection.Exec(appStoreDeleteQuery, appStore.Id)
+			if err != nil {
+				impl.Logger.Errorw("error in deleting app store ", "err", err, "app_store_id", appStore.Id)
+				return err
+			}
+		}
+		return nil
+	})
+	return err
 }

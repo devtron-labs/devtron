@@ -28,7 +28,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -55,39 +57,50 @@ type AppStoreDeploymentRestHandler interface {
 	UpdateInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetInstalledAppVersion(w http.ResponseWriter, r *http.Request)
 	UpdateProjectHelmApp(w http.ResponseWriter, r *http.Request)
+	FixCorruptedApps(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
-	Logger                     *zap.SugaredLogger
-	userAuthService            user.UserService
-	enforcer                   casbin.Enforcer
-	enforcerUtil               rbac.EnforcerUtil
-	enforcerUtilHelm           rbac.EnforcerUtilHelm
-	appStoreDeploymentService  service.AppStoreDeploymentService
-	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	validator                  *validator.Validate
-	helmAppService             client.HelmAppService
-	helmAppRestHandler         client.HelmAppRestHandler
-	argoUserService            argo.ArgoUserService
-	attributesService          attributes.AttributesService
+	Logger                               *zap.SugaredLogger
+	userAuthService                      user.UserService
+	enforcer                             casbin.Enforcer
+	enforcerUtil                         rbac.EnforcerUtil
+	enforcerUtilHelm                     rbac.EnforcerUtilHelm
+	appStoreDeploymentService            service.AppStoreDeploymentService
+	appStoreDeploymentServiceC           appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	validator                            *validator.Validate
+	helmAppService                       client.HelmAppService
+	helmAppRestHandler                   client.HelmAppRestHandler
+	argoUserService                      argo.ArgoUserService
+	attributesService                    attributes.AttributesService
+	appStoreRepository                   appStoreDiscoverRepository.AppStoreRepository
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
+	installedAppRepository               repository.InstalledAppRepository
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
 	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService) *AppStoreDeploymentRestHandlerImpl {
+	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService,
+	appStoreRepository appStoreDiscoverRepository.AppStoreRepository,
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
+	installedAppRepository repository.InstalledAppRepository,
+) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
-		Logger:                     Logger,
-		userAuthService:            userAuthService,
-		enforcer:                   enforcer,
-		enforcerUtil:               enforcerUtil,
-		enforcerUtilHelm:           enforcerUtilHelm,
-		appStoreDeploymentService:  appStoreDeploymentService,
-		validator:                  validator,
-		helmAppService:             helmAppService,
-		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
-		argoUserService:            argoUserService,
-		attributesService:          attributesService,
+		Logger:                               Logger,
+		userAuthService:                      userAuthService,
+		enforcer:                             enforcer,
+		enforcerUtil:                         enforcerUtil,
+		enforcerUtilHelm:                     enforcerUtilHelm,
+		appStoreDeploymentService:            appStoreDeploymentService,
+		validator:                            validator,
+		helmAppService:                       helmAppService,
+		appStoreDeploymentServiceC:           appStoreDeploymentServiceC,
+		argoUserService:                      argoUserService,
+		attributesService:                    attributesService,
+		appStoreRepository:                   appStoreRepository,
+		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
+		installedAppRepository:               installedAppRepository,
 	}
 }
 
@@ -607,4 +620,67 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 		handler.Logger.Errorw("Helm App project update")
 		common.WriteJsonResp(w, nil, "Project Updated", http.StatusOK)
 	}
+}
+
+func (handler AppStoreDeploymentRestHandlerImpl) FixCorruptedApps(w http.ResponseWriter, r *http.Request) {
+	appStoreAllApps, err := handler.appStoreRepository.GetAppStoreApplications()
+	if err != nil {
+		handler.Logger.Errorw("error in fetching from app_store", "err", err)
+		return
+	}
+	activeAppStoreMap := make(map[string]*appStoreDiscoverRepository.AppStore)
+	AppVersionCount := make(map[string]int)
+	for _, appStore := range appStoreAllApps {
+		appStoreApplicationVersions, err := handler.appStoreApplicationVersionRepository.FindChartVersionByAppStoreId(appStore.Id)
+		if err != nil {
+			handler.Logger.Errorw("error in fetching app store app version by app store id", "err", err, "app_store_id", appStore.Id)
+			continue
+		}
+		uniqueKey := fmt.Sprintf("%s-%s", appStore.Name, appStore.DockerArtifactStoreId)
+		if _, ok := AppVersionCount[uniqueKey]; !ok {
+			AppVersionCount[uniqueKey] = len(appStoreApplicationVersions)
+			activeAppStoreMap[uniqueKey] = appStore
+		} else if len(appStoreApplicationVersions) > AppVersionCount[uniqueKey] {
+			AppVersionCount[uniqueKey] = len(appStoreApplicationVersions)
+			activeAppStoreMap[uniqueKey] = appStore
+		}
+	}
+	handler.Logger.Infow("updating charts to correct repo if they are in repo which will be deleted")
+	for _, appStore := range appStoreAllApps {
+		uniqueKey := fmt.Sprintf("%s-%s", appStore.Name, appStore.DockerArtifactStoreId)
+		if appStore.Id != activeAppStoreMap[uniqueKey].Id {
+			installedAppVersions, err := handler.installedAppRepository.GetInstalledAppVersionByAppStoreId(appStore.Id)
+			if err != nil {
+				handler.Logger.Errorw("error in fetching installed app versions by appStoreId", "err", err, "appStoreId", appStore.Id)
+				return
+			}
+			for _, installedAppVersion := range installedAppVersions {
+				activeAppStoreApplicationVersion, err := handler.appStoreApplicationVersionRepository.FindAppStoreVersionByAppStoreIdAndChartVersion(activeAppStoreMap[uniqueKey].Id, installedAppVersion.AppStoreApplicationVersion.Name, installedAppVersion.AppStoreApplicationVersion.Version)
+				if err != nil {
+					handler.Logger.Errorw("error in fetching active app store application version by id", "err", err)
+					continue
+				}
+				installedAppVersion.AppStoreApplicationVersionId = activeAppStoreApplicationVersion.Id
+				installedAppVersion, err = handler.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
+				if err != nil {
+					handler.Logger.Errorw("error in updating installed app version", "err", err, "installedAppVersionId", installedAppVersion.Id)
+					return
+				}
+			}
+		}
+	}
+	handler.Logger.Infow("deleting duplicate charts")
+	var appsToBeDeleted []*appStoreDiscoverRepository.AppStore
+	for _, appStore := range appStoreAllApps {
+		uniqueKey := fmt.Sprintf("%s-%s", appStore.Name, appStore.DockerArtifactStoreId)
+		if appStore.Id != activeAppStoreMap[uniqueKey].Id {
+			appsToBeDeleted = append(appsToBeDeleted, appStore)
+		}
+	}
+	err = handler.appStoreRepository.Delete(appsToBeDeleted)
+	if err != nil {
+		handler.Logger.Errorw("error in marking app store version as deleted", "err", err)
+		return
+	}
+
 }

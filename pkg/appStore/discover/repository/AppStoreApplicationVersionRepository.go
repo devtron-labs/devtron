@@ -37,6 +37,7 @@ type AppStoreApplicationVersionRepository interface {
 	GetChartInfoById(id int) (*AppStoreApplicationVersion, error)
 	FindByAppStoreName(name string) (*appStoreBean.AppStoreWithVersion, error)
 	SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error)
+	FindAppStoreVersionByAppStoreIdAndChartVersion(appStoreId int, chartName, version string) (AppStoreApplicationVersion, error)
 }
 
 type AppStoreApplicationVersionRepositoryImpl struct {
@@ -262,4 +263,14 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(
 		return nil, err
 	}
 	return chartRepos, err
+}
+
+func (impl *AppStoreApplicationVersionRepositoryImpl) FindAppStoreVersionByAppStoreIdAndChartVersion(appStoreId int, chartName, version string) (AppStoreApplicationVersion, error) {
+	var appStoreApplicationVersion AppStoreApplicationVersion
+	query := "select * from app_store_application_version where app_store_id = ? and name = ?  and  version = ? "
+	_, err := impl.dbConnection.Query(&appStoreApplicationVersion, query, appStoreId, chartName, version)
+	if err != nil {
+		return appStoreApplicationVersion, err
+	}
+	return appStoreApplicationVersion, nil
 }

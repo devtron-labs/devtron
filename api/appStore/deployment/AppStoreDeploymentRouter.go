@@ -57,4 +57,7 @@ func (router AppStoreDeploymentRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/application/update/project").
 		HandlerFunc(router.appStoreDeploymentRestHandler.UpdateProjectHelmApp).Methods("PUT")
 
+	configRouter.Path("/application/fix/corrupted").
+		HandlerFunc(router.appStoreDeploymentRestHandler.FixCorruptedApps).Methods("GET")
+
 }
