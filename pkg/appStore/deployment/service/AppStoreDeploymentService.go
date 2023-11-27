@@ -900,8 +900,8 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		installAppVersionRequest := &appStoreBean.InstallAppVersionDTO{
 			AppStoreVersion:    installedAppVersion.AppStoreApplicationVersionId,
 			InstalledAppId:     installedApp.InstalledAppId,
-			ReferenceValueId:   installedApp.ReferenceValueId,
-			ReferenceValueKind: installedApp.ReferenceValueKind,
+			ReferenceValueId:   installedAppVersion.ReferenceValueId,
+			ReferenceValueKind: installedAppVersion.ReferenceValueKind,
 			ValuesOverrideYaml: installedAppVersionHistory.ValuesYamlRaw,
 			UserId:             userId,
 		}
