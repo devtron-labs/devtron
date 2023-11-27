@@ -26,7 +26,7 @@ func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilt
 		selectQuery := " SELECT cia.* "
 		remainingQuery := " FROM ci_artifact cia" +
 			" INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id or (cp.id=cia.component_id and cia.data_source='post_ci' ) )" +
-			" INNER JOIN pipeline p ON p.ci_pipeline_id = cp.id and p.id=%v" +
+			" INNER JOIN pipeline p ON (p.ci_pipeline_id = cp.id and p.id=%v )" +
 			" WHERE "
 		remainingQuery = fmt.Sprintf(remainingQuery, listingFilterOpts.PipelineId)
 		if isApprovalNode {

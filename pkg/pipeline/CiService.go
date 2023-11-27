@@ -537,7 +537,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 		savedWf.ImagePathReservationIds = []int{imagePathReservation.Id}
 		//imagePath = docker.io/avd0/dashboard:fd23414b
-		dockerImageTag = strings.Split(imagePathReservation.ImagePath, ":")[1]
+		imagePathSplit := strings.Split(imagePathReservation.ImagePath, ":")
+		if len(imagePathSplit) >= 1 {
+			dockerImageTag = imagePathSplit[len(imagePathSplit)-1]
+		}
 	} else {
 		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	}
