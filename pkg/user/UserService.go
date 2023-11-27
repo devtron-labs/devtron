@@ -488,10 +488,6 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter 
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					//namespace = impl.userCommonService.RemovePlaceHolderInRoleFilterField(namespace)
-					//group = impl.userCommonService.RemovePlaceHolderInRoleFilterField(group)
-					//kind = impl.userCommonService.RemovePlaceHolderInRoleFilterField(kind)
-					//resource = impl.userCommonService.RemovePlaceHolderInRoleFilterField(resource)
 					if managerAuth != nil {
 						isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 						if !isValidAuth {
@@ -1391,8 +1387,6 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 					continue
 				}
 			}
-			//entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-			//environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, "")
 			if err != nil {
 				impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
@@ -1458,9 +1452,6 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 						continue
 					}
 				}
-				//entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-				//environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-				//workflow = impl.userCommonService.RemovePlaceHolderInRoleFilterField(workflow)
 				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, workflow)
 				if err != nil {
 					impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)

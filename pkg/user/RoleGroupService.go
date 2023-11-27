@@ -185,10 +185,6 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					//namespace = impl.userCommonService.RemovePlaceHolderInRoleFilterField(namespace)
-					//group = impl.userCommonService.RemovePlaceHolderInRoleFilterField(group)
-					//kind = impl.userCommonService.RemovePlaceHolderInRoleFilterField(kind)
-					//resource = impl.userCommonService.RemovePlaceHolderInRoleFilterField(resource)
 					if managerAuth != nil {
 						isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 						if !isValidAuth {
@@ -248,8 +244,6 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilte
 	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
-			//entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-			//environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, "")
 			if err != nil {
 				impl.logger.Errorw("error in getting new role model")
@@ -308,9 +302,6 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
 			for _, workflow := range workflows {
-				//entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-				//environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-				//workflow = impl.userCommonService.RemovePlaceHolderInRoleFilterField(workflow)
 				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, workflow)
 				if err != nil {
 					impl.logger.Errorw("error in getting new role model")
