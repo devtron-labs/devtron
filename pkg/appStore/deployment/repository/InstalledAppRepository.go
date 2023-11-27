@@ -351,7 +351,7 @@ func (impl InstalledAppRepositoryImpl) GetInactiveInstalledAppVersion(id int) (*
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion", "InstalledApp.App.Team").
-		Where("installed_app_versions.id = ?", id).Where("installed_app_versions.active = false").Select()
+		Where("installed_app_versions.id = ?", id).Select()
 	if err != nil {
 		return model, err
 	}
