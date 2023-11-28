@@ -342,7 +342,7 @@ func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevt
 	} else if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
 		appDeployedOnClusterId = clusterIdFromMap
 	}
-	var configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj
+	var configOfClusterWhereAppIsDeployed *bean.ArgoClusterConfigObj
 	if appDeployedOnClusterId < 1 {
 		//cluster is not added on devtron, need to get server config from secret which argo-cd saved
 		coreV1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
@@ -369,10 +369,13 @@ func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevt
 				}
 			}
 		}
+
+		restConfig.Host = destinationServer
+		if configOfClusterWhereAppIsDeployed != nil {
+			restConfig.TLSClientConfig.Insecure = configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure
+			restConfig.BearerToken = configOfClusterWhereAppIsDeployed.BearerToken
+		}
 	}
-	restConfig.Host = destinationServer
-	restConfig.TLSClientConfig.Insecure = configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure
-	restConfig.BearerToken = configOfClusterWhereAppIsDeployed.BearerToken
 	return restConfig, nil
 }
 

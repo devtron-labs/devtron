@@ -84,11 +84,16 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 	}
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	resourceName := resourceIdentifier.Name
-	if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Pod" {
-		podNameSplit := strings.Split(resourceIdentifier.Name, "-")
-		resourceName = strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	resourceNameSplit := strings.Split(resourceIdentifier.Name, "-")
+	if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Pod" ||
+		request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "EndpointSlice" {
+		resourceName = strings.Join(resourceNameSplit[:len(resourceNameSplit)-2], "-")
+	} else if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "ReplicaSet" ||
+		request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Endpoints" ||
+		request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Service" {
+		resourceName = strings.Join(resourceNameSplit[:len(resourceNameSplit)-1], "-")
 	}
-	resourceResp, err := impl.K8sUtil.GetResource(context.Background(), bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
+	resourceResp, err := impl.K8sUtil.GetResource(ctx, bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err)
 		return nil, err
@@ -155,9 +160,14 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	resourceName := resourceIdentifier.Name
-	if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Pod" {
-		podNameSplit := strings.Split(resourceIdentifier.Name, "-")
-		resourceName = strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	resourceNameSplit := strings.Split(resourceIdentifier.Name, "-")
+	if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Pod" ||
+		request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "EndpointSlice" {
+		resourceName = strings.Join(resourceNameSplit[:len(resourceNameSplit)-2], "-")
+	} else if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "ReplicaSet" ||
+		request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Endpoints" ||
+		request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Service" {
+		resourceName = strings.Join(resourceNameSplit[:len(resourceNameSplit)-1], "-")
 	}
 	resourceResp, err := impl.K8sUtil.GetResource(context.Background(), bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
 	if err != nil {
