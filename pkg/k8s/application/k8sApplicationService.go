@@ -308,36 +308,50 @@ func (impl *K8sApplicationServiceImpl) DecodeDevtronAppId(applicationId string) 
 func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error) {
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
-	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", clusterId)
-		return nil, err
-	}
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
-		return nil, err
-	}
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podLogsRequest := request.K8sRequest.PodLogsRequest
-	podNameSplit := strings.Split(resourceIdentifier.Name, "-")
-	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
-	resourceResp, err := impl.K8sUtil.GetResource(ctx, bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
-	if err != nil {
-		impl.logger.Errorw("not on external cluster", "err", err)
-	} else {
-		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	if request.IsArgoApplication {
+		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(clusterId)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", clusterId)
 			return nil, err
 		}
+		restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
+			return nil, err
+		}
+		podNameSplit := strings.Split(resourceIdentifier.Name, "-")
+		resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+		resourceResp, err := impl.K8sUtil.GetResource(ctx, bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
+		if err != nil {
+			impl.logger.Errorw("not on external cluster", "err", err)
+		} else {
+			restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+			if err != nil {
+				impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+				return nil, err
+			}
+		}
+		resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
+		if err != nil {
+			impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
+			return nil, err
+		}
+		return resp, nil
+	} else {
+		restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
+			return nil, err
+		}
+		resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
+		if err != nil {
+			impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
+			return nil, err
+		}
+		return resp, nil
 	}
-	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
-	if err != nil {
-		impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
-		return nil, err
-	}
-	return resp, nil
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,

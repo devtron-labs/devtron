@@ -47,6 +47,7 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 		//Queries("sinceSeconds", "{sinceSeconds}").
 		Queries("follow", "{follow}").
 		Queries("tailLines", "{tailLines}").
+		Queries("isArgo", "{isArgo}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetPodLogs).Methods("GET")
 
 	k8sAppRouter.Path("/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}").
