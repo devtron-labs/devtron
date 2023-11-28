@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Job trigger throws error (#4296)
 - fix: Get Artifacts list API is throwing pg no rows error  (#4292)
 - fix: updated copy container image plugin for multi arc build support (#4282)
 - fix: old custom tag migration (#4273)
