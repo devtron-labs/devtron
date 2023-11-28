@@ -457,35 +457,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		refPluginsData = []*bean2.RefPluginObject{}
 	}
 
-	var dockerImageTag string
-	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-	if customTag.Id != 0 && customTag.Enabled == true {
-		imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository)
-		if err != nil {
-			if errors.Is(err, bean2.ErrImagePathInUse) {
-				savedWf.Status = pipelineConfig.WorkflowFailed
-				savedWf.Message = bean2.ImageTagUnavailableMessage
-				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-				if err1 != nil {
-					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
-				}
-				return nil, err
-			}
-			return nil, err
-		}
-		savedWf.ImagePathReservationIds = []int{imagePathReservation.Id}
-		//imagePath = docker.io/avd0/dashboard:fd23414b
-		imagePathSplit := strings.Split(imagePathReservation.ImagePath, ":")
-		if len(imagePathSplit) >= 1 {
-			dockerImageTag = imagePathSplit[len(imagePathSplit)-1]
-		}
-	} else {
-		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
-	}
-
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
 	}
@@ -550,6 +521,35 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if checkoutPath == "" {
 		checkoutPath = "./"
 	}
+	var dockerImageTag string
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	if customTag.Id != 0 && customTag.Enabled == true {
+		imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
+		if err != nil {
+			if errors.Is(err, bean2.ErrImagePathInUse) {
+				savedWf.Status = pipelineConfig.WorkflowFailed
+				savedWf.Message = bean2.ImageTagUnavailableMessage
+				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+				if err1 != nil {
+					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+				}
+				return nil, err
+			}
+			return nil, err
+		}
+		savedWf.ImagePathReservationIds = []int{imagePathReservation.Id}
+		//imagePath = docker.io/avd0/dashboard:fd23414b
+		imagePathSplit := strings.Split(imagePathReservation.ImagePath, ":")
+		if len(imagePathSplit) >= 1 {
+			dockerImageTag = imagePathSplit[len(imagePathSplit)-1]
+		}
+	} else {
+		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
+	}
+
 	// copyContainerImage plugin specific logic
 	var registryDestinationImageMap map[string][]string
 	var registryCredentialMap map[string]plugin.RegistryCredentials
