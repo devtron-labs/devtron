@@ -623,12 +623,12 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		sort.SliceStable(ciArtifacts, func(i, j int) bool {
 			return ciArtifacts[i].Id > ciArtifacts[j].Id
 		})
-	}
 
-	ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, pipeline)
-	if err != nil {
-		impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
-		return ciArtifactsResponse, err
+		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
+			return ciArtifactsResponse, err
+		}
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
@@ -673,7 +673,7 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			if ciArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
 				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
 			}
-		} else {
+		} else if ciArtifacts[i].DataSource == repository.CI_RUNNER {
 			ciPipeline, err := impl.CiPipelineRepository.FindById(ciArtifacts[i].CiPipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
