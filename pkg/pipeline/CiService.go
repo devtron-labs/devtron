@@ -213,7 +213,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		return 0, err
 	}
 
-	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfig, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData)
+	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfig, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
 	if err != nil {
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return 0, err
@@ -388,10 +388,7 @@ func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipeli
 	return ArtifactLocation
 }
 
-func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger,
-	ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow,
-	ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript,
-	preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject) (*types.WorkflowRequest, error) {
+func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
 	var ciProjectDetails []bean2.CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
@@ -490,21 +487,27 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	// copyContainerImage plugin specific logic
-	registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err := impl.GetWorkflowRequestVariablesForCopyContainerImagePlugin(
-		preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
-		fmt.Sprintf(bean2.ImagePathPattern, pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository, dockerImageTag), pipeline.CiTemplate.DockerRegistry.Id)
-	if err != nil {
-		impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
-		savedWf.Status = pipelineConfig.WorkflowFailed
-		savedWf.Message = err.Error()
-		err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-		if err1 != nil {
-			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+	var registryDestinationImageMap map[string][]string
+	var registryCredentialMap map[string]plugin.RegistryCredentials
+	var pluginArtifactStage string
+	var imageReservationIds []int
+	if !isJob {
+		registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err = impl.GetWorkflowRequestVariablesForCopyContainerImagePlugin(
+			preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
+			fmt.Sprintf(bean2.ImagePathPattern, pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository, dockerImageTag), pipeline.CiTemplate.DockerRegistry.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
+			savedWf.Status = pipelineConfig.WorkflowFailed
+			savedWf.Message = err.Error()
+			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+			if err1 != nil {
+				impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+			}
+			return nil, err
 		}
-		return nil, err
-	}
 
-	savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
+		savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
+	}
 
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
