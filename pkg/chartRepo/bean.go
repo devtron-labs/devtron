@@ -45,8 +45,3 @@ type AcdConfigMapRepositoriesDto struct {
 	CertSecret     *KeyDto `json:"certSecret,omitempty"`
 	KeySecret      *KeyDto `json:"keySecret,omitempty"`
 }
-
-const (
-	GIT_REPO_DEFAULT        = "Default"
-	GIT_REPO_NOT_CONFIGURED = "NOT_CONFIGURED" // The value of the constant has been used in the migration script for `custom_gitops_repo_url`; Need to add another migration script if the value is updated.
-)

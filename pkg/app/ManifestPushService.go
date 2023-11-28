@@ -11,7 +11,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -74,7 +73,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 		return manifestPushResponse
 	}
 
-	if manifestPushTemplate.RepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED {
+	if manifestPushTemplate.RepoUrl == bean2.GIT_REPO_NOT_CONFIGURED {
 		if activeGlobalGitOpsConfig.AllowCustomRepository {
 			errMsg := fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
 			manifestPushResponse.Error = errMsg

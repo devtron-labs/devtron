@@ -33,7 +33,6 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
@@ -1673,7 +1672,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		impl.logger.Errorw("error in fetching latest chart for app by appId")
 	}
 	isAppLevelGitOpsConfigured := true
-	if latestChartConfiguredInApp.IsCustomGitRepository && (latestChartConfiguredInApp.GitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED || len(latestChartConfiguredInApp.GitRepoUrl) == 0) {
+	if latestChartConfiguredInApp.IsCustomGitRepository && (latestChartConfiguredInApp.GitRepoUrl == bean4.GIT_REPO_NOT_CONFIGURED || len(latestChartConfiguredInApp.GitRepoUrl) == 0) {
 		isAppLevelGitOpsConfigured = false
 	}
 

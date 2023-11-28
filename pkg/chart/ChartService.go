@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -344,7 +343,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
-	gitRepoUrl := chartRepo.GIT_REPO_NOT_CONFIGURED
+	gitRepoUrl := bean.GIT_REPO_NOT_CONFIGURED
 	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
 	if currentLatestChart.Id > 0 {
 		impl.logger.Debugw("updating env and pipeline config which are currently latest in db", "chartId", currentLatestChart.Id)
@@ -526,7 +525,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 	chartLocation := filepath.Join(templateName, version)
-	gitRepoUrl := chartRepo.GIT_REPO_NOT_CONFIGURED
+	gitRepoUrl := bean.GIT_REPO_NOT_CONFIGURED
 	if currentLatestChart.Id > 0 && currentLatestChart.GitRepoUrl != "" {
 		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
@@ -605,7 +604,7 @@ func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, appL
 		appMetrics = appLevelMetrics.AppMetrics
 	}
 	gitRepoUrl := ""
-	if chart.GitRepoUrl != chartRepo.GIT_REPO_NOT_CONFIGURED {
+	if chart.GitRepoUrl != bean.GIT_REPO_NOT_CONFIGURED {
 		gitRepoUrl = chart.GitRepoUrl
 	}
 	return &TemplateRequest{
@@ -1729,7 +1728,7 @@ func (impl ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribu
 		return err
 	}
 	for _, ch := range charts {
-		if len(ch.GitRepoUrl) == 0 || ch.ChartRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED {
+		if len(ch.GitRepoUrl) == 0 || ch.ChartRepoUrl == bean.GIT_REPO_NOT_CONFIGURED {
 			ch.GitRepoUrl = chartGitAttribute.RepoUrl
 			ch.ChartLocation = chartGitAttribute.ChartLocation
 			ch.UpdatedOn = time.Now()
@@ -1766,7 +1765,7 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 		GitRepoURL:               appGitOpsRequest.GitOpsRepoURL,
 		UserId:                   appGitOpsRequest.UserId,
 		ExtraValidationStage:     gitops.Create_Readme,
-		PerformDefaultValidation: appGitOpsRequest.GitOpsRepoURL == chartRepo.GIT_REPO_DEFAULT,
+		PerformDefaultValidation: appGitOpsRequest.GitOpsRepoURL == bean.GIT_REPO_DEFAULT,
 	}
 
 	detailedErrorGitOpsConfigResponse = impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
@@ -1775,7 +1774,7 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 	}
 
 	gitRepoUrl := appGitOpsRequest.GitOpsRepoURL
-	if appGitOpsRequest.GitOpsRepoURL == chartRepo.GIT_REPO_DEFAULT {
+	if appGitOpsRequest.GitOpsRepoURL == bean.GIT_REPO_DEFAULT {
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(appName)
 		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, appGitOpsRequest.UserId)
 		if err != nil {
@@ -1788,7 +1787,7 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 		chart.GitRepoUrl = gitRepoUrl
 		chart.UpdatedOn = time.Now()
 		chart.UpdatedBy = appGitOpsRequest.UserId
-		chart.IsCustomGitRepository = activeGlobalGitOpsConfig.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != chartRepo.GIT_REPO_DEFAULT
+		chart.IsCustomGitRepository = activeGlobalGitOpsConfig.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != bean.GIT_REPO_DEFAULT
 		err = impl.chartRepository.Update(chart)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts while saving git repo url", "err", err, "appGitOpsRequest", appGitOpsRequest)
@@ -1819,7 +1818,7 @@ func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsC
 
 	appGitOpsConfigResponse := &AppGitOpsConfigResponse{}
 	if activeGlobalGitOpsConfig.AllowCustomRepository {
-		appGitOpsConfigResponse.IsEditable = chart.GitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED || len(chart.GitRepoUrl) == 0
+		appGitOpsConfigResponse.IsEditable = chart.GitRepoUrl == bean.GIT_REPO_NOT_CONFIGURED || len(chart.GitRepoUrl) == 0
 		appGitOpsConfigResponse.GitRepoURL = ""
 		return appGitOpsConfigResponse, nil
 	}

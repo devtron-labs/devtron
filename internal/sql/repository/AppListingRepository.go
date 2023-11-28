@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strconv"
@@ -627,7 +626,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	if model != nil && model.Id > 0 && model.AllowCustomRepository {
 		isCustomGitopsRepoUrl = true
 	}
-	if stages.ChartGitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED && stages.CiPipelineId == 0 {
+	if stages.ChartGitRepoUrl == bean.GIT_REPO_NOT_CONFIGURED && stages.CiPipelineId == 0 {
 		stages.ChartGitRepoUrl = ""
 	}
 	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId, true),

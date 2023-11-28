@@ -20,7 +20,6 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"net/url"
 	"strings"
 	"time"
@@ -230,7 +229,7 @@ func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentT
 func (impl *PipelineBuilderImpl) isGitRepoUrlPresent(appId int) bool {
 	fetchedChart, err := impl.chartRepository.FindLatestByAppId(appId)
 
-	if err != nil || len(fetchedChart.GitRepoUrl) == 0 || fetchedChart.GitRepoUrl == chartRepo.GIT_REPO_NOT_CONFIGURED {
+	if err != nil || len(fetchedChart.GitRepoUrl) == 0 || fetchedChart.GitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED {
 		impl.logger.Errorw("error fetching git repo url or it is not present")
 		return false
 	}

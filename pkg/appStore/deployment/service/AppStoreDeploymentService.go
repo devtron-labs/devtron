@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
@@ -40,7 +41,6 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -231,7 +231,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 				installAppVersionRequestType == appStoreBean.DEFAULT_COMPONENT_DEPLOYMENT_REQUEST) &&
 				gitOpsConfig.AllowCustomRepository &&
 				len(installAppVersionRequest.GitOpsRepoURL) == 0 {
-				installAppVersionRequest.GitOpsRepoURL = chartRepo.GIT_REPO_DEFAULT
+				installAppVersionRequest.GitOpsRepoURL = bean2.GIT_REPO_DEFAULT
 			}
 		}
 	}
@@ -244,7 +244,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 				installAppVersionRequestType == appStoreBean.DEFAULT_COMPONENT_DEPLOYMENT_REQUEST) &&
 				gitOpsConfig.AllowCustomRepository &&
 				len(installAppVersionRequest.GitOpsRepoURL) == 0 {
-				installAppVersionRequest.GitOpsRepoURL = chartRepo.GIT_REPO_DEFAULT
+				installAppVersionRequest.GitOpsRepoURL = bean2.GIT_REPO_DEFAULT
 			}
 		}
 	}
@@ -265,12 +265,12 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 			}
 			return nil, err
 		}
-		if gitOpsConfig.AllowCustomRepository && installAppVersionRequest.GitOpsRepoURL != chartRepo.GIT_REPO_DEFAULT {
+		if gitOpsConfig.AllowCustomRepository && installAppVersionRequest.GitOpsRepoURL != bean2.GIT_REPO_DEFAULT {
 			validateCustomGitRepoURLRequest := gitops.ValidateCustomGitRepoURLRequest{
 				GitRepoURL:               installAppVersionRequest.GitOpsRepoURL,
 				UserId:                   installAppVersionRequest.UserId,
 				ExtraValidationStage:     gitops.Create_Readme,
-				PerformDefaultValidation: installAppVersionRequest.GitOpsRepoURL == chartRepo.GIT_REPO_DEFAULT,
+				PerformDefaultValidation: installAppVersionRequest.GitOpsRepoURL == bean2.GIT_REPO_DEFAULT,
 			}
 
 			detailedErrorGitOpsConfigResponse := impl.appStoreDeploymentArgoCdService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
