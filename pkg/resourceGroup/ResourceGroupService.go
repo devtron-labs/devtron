@@ -22,7 +22,6 @@ import (
 	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	"github.com/devtron-labs/devtron/internal/util"
-	appStatus2 "github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -304,7 +303,8 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 	for _, resourceGroup := range resourceGroups {
 		resourceGroupIds = append(resourceGroupIds, resourceGroup.Id)
 	}
-	if groupType == APP_GROUP {
+	// TODO: uncomment below code, once the app status starts getting updated without needing to visit app details page
+	/*if groupType == APP_GROUP {
 		appStatuses, err := impl.appStatusRepository.GetByEnvId(parentResourceId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting appStatuses by envId", "err", err, "envId", parentResourceId)
@@ -339,7 +339,7 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 				EnvironmentId:    parentResourceId,
 			})
 		}
-	}
+	}*/
 	if len(resourceGroupIds) == 0 {
 		return resourceGroupDtos, nil
 	}
