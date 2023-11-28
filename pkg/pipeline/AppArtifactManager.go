@@ -69,6 +69,7 @@ type AppArtifactManagerImpl struct {
 	cdPipelineConfigService CdPipelineConfigService
 	dockerArtifactRegistry  dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 	CiPipelineRepository    pipelineConfig.CiPipelineRepository
+	ciTemplateService       CiTemplateService
 }
 
 func NewAppArtifactManagerImpl(
@@ -84,7 +85,8 @@ func NewAppArtifactManagerImpl(
 	pipelineStageService PipelineStageService,
 	cdPipelineConfigService CdPipelineConfigService,
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
-	CiPipelineRepository pipelineConfig.CiPipelineRepository) *AppArtifactManagerImpl {
+	CiPipelineRepository pipelineConfig.CiPipelineRepository,
+	ciTemplateService CiTemplateService) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
 		return nil
@@ -104,6 +106,7 @@ func NewAppArtifactManagerImpl(
 		config:                  cdConfig,
 		dockerArtifactRegistry:  dockerArtifactRegistry,
 		CiPipelineRepository:    CiPipelineRepository,
+		ciTemplateService:       ciTemplateService,
 	}
 }
 
@@ -992,7 +995,16 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
 				return nil, err
 			}
-			dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
+			if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
+				ciTemplateBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(ciPipeline.Id)
+				if err != nil {
+					impl.logger.Errorw("error in fetching template override", "pipelineId", ciPipeline.Id, "err", err)
+					return nil, err
+				}
+				dockerRegistryId = ciTemplateBean.CiTemplateOverride.DockerRegistryId
+			} else {
+				dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
+			}
 		}
 		if len(dockerRegistryId) > 0 {
 			dockerArtifact, err := impl.dockerArtifactRegistry.FindOne(dockerRegistryId)
