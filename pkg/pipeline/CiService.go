@@ -486,29 +486,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	}
 
-	// copyContainerImage plugin specific logic
-	var registryDestinationImageMap map[string][]string
-	var registryCredentialMap map[string]plugin.RegistryCredentials
-	var pluginArtifactStage string
-	var imageReservationIds []int
-	if !isJob {
-		registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err = impl.GetWorkflowRequestVariablesForCopyContainerImagePlugin(
-			preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
-			fmt.Sprintf(bean2.ImagePathPattern, pipeline.CiTemplate.DockerRegistry.RegistryURL, pipeline.CiTemplate.DockerRepository, dockerImageTag), pipeline.CiTemplate.DockerRegistry.Id)
-		if err != nil {
-			impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
-			savedWf.Status = pipelineConfig.WorkflowFailed
-			savedWf.Message = err.Error()
-			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-			if err1 != nil {
-				impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
-			}
-			return nil, err
-		}
-
-		savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
-	}
-
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
 	}
@@ -572,6 +549,31 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	if checkoutPath == "" {
 		checkoutPath = "./"
+	}
+	// copyContainerImage plugin specific logic
+	var registryDestinationImageMap map[string][]string
+	var registryCredentialMap map[string]plugin.RegistryCredentials
+	var pluginArtifactStage string
+	var imageReservationIds []int
+	if !isJob {
+		registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err = impl.GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
+			fmt.Sprintf(bean2.ImagePathPattern,
+				dockerRegistry.RegistryURL,
+				dockerRepository,
+				dockerImageTag),
+			dockerRegistry.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
+			savedWf.Status = pipelineConfig.WorkflowFailed
+			savedWf.Message = err.Error()
+			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+			if err1 != nil {
+				impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+			}
+			return nil, err
+		}
+
+		savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
 	}
 	//mergedArgs := string(merged)
 	oldArgs := ciTemplate.Args
