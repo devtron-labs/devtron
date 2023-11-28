@@ -18,5 +18,5 @@ ALTER TABLE public.installed_apps
 ALTER TABLE public.charts
     ADD COLUMN IF NOT EXISTS is_custom_repository bool DEFAULT FALSE;
 
-UPDATE charts set git_repo_url = 'NOT_CONFIGURED' where git_repo_url IS NULL OR git_repo_url = '';
+UPDATE charts SET git_repo_url = 'NOT_CONFIGURED' WHERE git_repo_url IS NULL OR git_repo_url = '';
 END;

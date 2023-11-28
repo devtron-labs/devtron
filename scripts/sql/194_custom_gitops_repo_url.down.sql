@@ -19,5 +19,5 @@ UPDATE installed_apps set git_ops_repo_name = REPLACE(REVERSE(SPLIT_PART(REVERSE
 ALTER TABLE public.charts
     DROP COLUMN IF EXISTS is_custom_repository bool;
 
-UPDATE charts set git_repo_url = '' where git_repo_url = 'NOT_CONFIGURED';
+UPDATE charts SET git_repo_url = '' WHERE git_repo_url = 'NOT_CONFIGURED';
 END;

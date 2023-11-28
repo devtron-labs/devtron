@@ -102,6 +102,7 @@ type ChartService interface {
 	SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error)
 	GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
+	IsGitRepoUrlPresent(appId int) bool
 }
 
 type ChartServiceImpl struct {
@@ -1752,7 +1753,11 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 		return detailedErrorGitOpsConfigResponse, err
 	}
 	if !activeGlobalGitOpsConfig.AllowCustomRepository {
-		return detailedErrorGitOpsConfigResponse, fmt.Errorf("Invalid request. Please configure Gitops with 'Allow changing git repository for application'.")
+		return detailedErrorGitOpsConfigResponse, fmt.Errorf("Invalid request! Please configure Gitops with 'Allow changing git repository for application'.")
+	}
+
+	if impl.IsGitRepoUrlPresent(appGitOpsRequest.AppId) {
+		return detailedErrorGitOpsConfigResponse, fmt.Errorf("Invalid request! GitOps repository is already configured.")
 	}
 
 	charts, err := impl.chartRepository.FindActiveChartsByAppId(appGitOpsRequest.AppId)
@@ -1807,9 +1812,8 @@ func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsC
 		return nil, err
 	}
 	if !activeGlobalGitOpsConfig.AllowCustomRepository {
-		return nil, fmt.Errorf("Invalid request. Please configure Gitops with 'Allow changing git repository for application'.")
+		return nil, fmt.Errorf("Invalid request! Please configure Gitops with 'Allow changing git repository for application'.")
 	}
-
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", appId)
@@ -1823,4 +1827,16 @@ func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsC
 		return appGitOpsConfigResponse, nil
 	}
 	return appGitOpsConfigResponse, nil
+}
+
+func (impl ChartServiceImpl) IsGitRepoUrlPresent(appId int) bool {
+	fetchedChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error fetching git repo url from the latest chart")
+		return false
+	}
+	if len(fetchedChart.GitRepoUrl) == 0 || fetchedChart.GitRepoUrl == bean.GIT_REPO_NOT_CONFIGURED {
+		return false
+	}
+	return true
 }
