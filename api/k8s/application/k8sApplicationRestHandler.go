@@ -134,11 +134,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		return
 	}
 	vars := r.URL.Query()
-	isArgoApplication, err := strconv.ParseBool(vars.Get("isArgo"))
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
 	request.IsArgoApplication = isArgoApplication
 	rbacObject := ""
 	rbacObject2 := ""
@@ -528,11 +524,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		return
 	}
 	vars := r.URL.Query()
-	isArgoApplication, err := strconv.ParseBool(vars.Get("isArgo"))
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
 	request.IsArgoApplication = isArgoApplication
 	if request.AppId != "" && request.AppType == bean2.HelmAppType {
 		// For Helm app resource
@@ -614,11 +606,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		return
 	}
 	vars := r.URL.Query()
-	isArgoApplication, err := strconv.ParseBool(vars.Get("isArgo"))
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
 	request.IsArgoApplication = isArgoApplication
 	appTypeStr := vars.Get("appType")
 	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
@@ -711,11 +699,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		return
 	}
 	vars := r.URL.Query()
-	isArgoApplication, err := strconv.ParseBool(vars.Get("isArgo"))
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
 	appTypeStr := vars.Get("appType")
 	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
 	request, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)

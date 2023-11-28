@@ -97,14 +97,13 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 		resourceResp, err := impl.K8sUtil.GetResource(ctx, bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
 		if err != nil {
 			impl.logger.Errorw("not on external cluster", "err", err)
-		} else {
-			restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
-			if err != nil {
-				impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
-				return nil, err
-			}
+			return nil, err
 		}
-
+		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			return nil, err
+		}
 		resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
 		if err != nil {
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
@@ -125,7 +124,6 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 		}
 		return resp, nil
 	}
-	return nil, nil
 }
 
 func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
@@ -190,12 +188,12 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 		resourceResp, err := impl.K8sUtil.GetResource(ctx, bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
 		if err != nil {
 			impl.logger.Errorw("not on external cluster", "err", err)
-		} else {
-			restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
-			if err != nil {
-				impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
-				return nil, err
-			}
+			return nil, err
+		}
+		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			return nil, err
 		}
 		list, err := impl.K8sUtil.ListEvents(restConfig, resourceIdentifier.Namespace, resourceIdentifier.GroupVersionKind, ctx, resourceIdentifier.Name)
 		if err != nil {
