@@ -149,7 +149,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		impl.Logger.Debugw("Helm Install with Async mode")
 		installHelmAsyncRequest := appStoreDeploymentFullMode.InstallHelmAsyncRequest{
 			InstallReleaseRequest:        installReleaseRequest,
-			Type:                         "install",
+			Type:                         appStoreDeploymentFullMode.HELM_INSTALL_EVENT,
 			InstalledAppId:               installAppVersionRequest.InstalledAppId,
 			InstalledAppVersionId:        installAppVersionRequest.InstalledAppVersionId,
 			ContextTime:                  installAppVersionRequest.HelmInstallContextTime,
@@ -492,7 +492,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 	if installAppVersionRequest.HelmInstallAsyncMode {
 		installHelmAsyncRequest := appStoreDeploymentFullMode.InstallHelmAsyncRequest{
 			UpdateApplicationWithChartInfoRequestDto: updateReleaseRequest,
-			Type:                                     "upgrade",
+			Type:                                     appStoreDeploymentFullMode.HELM_UPGRADE_EVENT,
 			InstalledApps:                            installedApp,
 			InstalledAppId:                           installAppVersionRequest.InstalledAppId,
 			InstalledAppVersionId:                    installAppVersionRequest.InstalledAppVersionId,

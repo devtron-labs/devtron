@@ -59,6 +59,8 @@ import (
 const (
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	HELM_UPGRADE_EVENT                          = "upgrade"
+	HELM_INSTALL_EVENT                          = "install"
 )
 
 type AppStoreDeploymentFullModeService interface {
@@ -541,13 +543,13 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error 
 			return
 		}
 
-		if installHelmAsyncRequest.Type == "install" {
+		if installHelmAsyncRequest.Type == HELM_INSTALL_EVENT {
 			if skip := impl.handleConcurrentRequest(installHelmAsyncRequest.InstallReleaseRequest.InstallAppVersionHistoryId); skip {
 				impl.logger.Warnw("concurrent request received, SubscribeHelmAsyncHelmInstallRequest", "WfrId", installHelmAsyncRequest.InstalledAppId)
 				return
 			}
 			impl.CallBackForHelmInstall(installHelmAsyncRequest)
-		} else if installHelmAsyncRequest.Type == "upgrade" {
+		} else if installHelmAsyncRequest.Type == HELM_UPGRADE_EVENT {
 			if skip := impl.handleConcurrentRequest(installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto.InstallReleaseRequest.InstallAppVersionHistoryId); skip {
 				impl.logger.Warnw("concurrent request received, SubscribeHelmAsyncHelmInstallRequest", "WfrId", installHelmAsyncRequest.InstalledAppId)
 				return

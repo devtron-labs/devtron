@@ -130,11 +130,21 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersion
 
 }
 
-func (impl InstalledAppVersionHistoryRepositoryImpl) IsLatestVersionHistory(installedAppVersionId, installedAppVersionHistoryId int) (bool, error) {
+func (impl InstalledAppVersionHistoryRepositoryImpl) IsLatestVersionHistory(installedAppId, installedAppVersionHistoryId int) (bool, error) {
+	var installedAppVersionIds []int
+	query := "SELECT iav.id FROM installed_app_versions iav WHERE iav.installed_app_id = %d;"
+	query = fmt.Sprintf(query, installedAppId)
+	_, err := impl.dbConnection.Query(&installedAppVersionIds, query)
+	if err != nil {
+		return true, err
+	}
+	if len(installedAppVersionIds) == 0 {
+		return false, nil
+	}
 	var model *InstalledAppVersionHistory
 	exists, err := impl.dbConnection.Model(model).
 		Column("installed_app_version_history.*").
-		Where("installed_app_version_id = ?", installedAppVersionId).
+		Where("installed_app_version_id in (?)", installedAppVersionIds).
 		Order("installed_app_version_history.id DESC").
 		Where("id > ?", installedAppVersionHistoryId).
 		Exists()
