@@ -72,6 +72,8 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil,
 func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
+	resourceIdentifier := request.K8sRequest.ResourceIdentifier
+	var restConfigFinal *rest.Config
 	if request.IsArgoApplication {
 		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(clusterId)
 		if err != nil {
@@ -83,7 +85,6 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
 			return nil, err
 		}
-		resourceIdentifier := request.K8sRequest.ResourceIdentifier
 		resourceName := resourceIdentifier.Name
 		resourceNameSplit := strings.Split(resourceIdentifier.Name, "-")
 		if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Pod" ||
@@ -104,26 +105,21 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 			return nil, err
 		}
-		resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
-		if err != nil {
-			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
-			return nil, err
-		}
-		return resp, nil
+		restConfigFinal = restConfig
 	} else {
 		restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 			return nil, err
 		}
-		resourceIdentifier := request.K8sRequest.ResourceIdentifier
-		resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
-		if err != nil {
-			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
-			return nil, err
-		}
-		return resp, nil
+		restConfigFinal = restConfig
 	}
+	resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfigFinal)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
@@ -162,6 +158,8 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 
 func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error) {
 	clusterId := request.ClusterId
+	resourceIdentifier := request.K8sRequest.ResourceIdentifier
+	var restConfigFinal *rest.Config
 	if request.IsArgoApplication {
 		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(clusterId)
 		if err != nil {
@@ -173,8 +171,6 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
 			return nil, err
 		}
-
-		resourceIdentifier := request.K8sRequest.ResourceIdentifier
 		resourceName := resourceIdentifier.Name
 		resourceNameSplit := strings.Split(resourceIdentifier.Name, "-")
 		if request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Pod" ||
@@ -195,26 +191,21 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 			return nil, err
 		}
-		list, err := impl.K8sUtil.ListEvents(restConfig, resourceIdentifier.Namespace, resourceIdentifier.GroupVersionKind, ctx, resourceIdentifier.Name)
-		if err != nil {
-			impl.logger.Errorw("error in listing events", "err", err, "clusterId", clusterId)
-			return nil, err
-		}
-		return &k8s.EventsResponse{list}, nil
+		restConfigFinal = restConfig
 	} else {
 		restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 			return nil, err
 		}
-		resourceIdentifier := request.K8sRequest.ResourceIdentifier
-		list, err := impl.K8sUtil.ListEvents(restConfig, resourceIdentifier.Namespace, resourceIdentifier.GroupVersionKind, ctx, resourceIdentifier.Name)
-		if err != nil {
-			impl.logger.Errorw("error in listing events", "err", err, "clusterId", clusterId)
-			return nil, err
-		}
-		return &k8s.EventsResponse{list}, nil
+		restConfigFinal = restConfig
 	}
+	list, err := impl.K8sUtil.ListEvents(restConfigFinal, resourceIdentifier.Namespace, resourceIdentifier.GroupVersionKind, ctx, resourceIdentifier.Name)
+	if err != nil {
+		impl.logger.Errorw("error in listing events", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	return &k8s.EventsResponse{list}, nil
 }
 
 func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean {

@@ -442,60 +442,55 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	var clusterBean *cluster.ClusterBean
 	var clusterConfig *k8s.ClusterConfig
 	var err error
-	if req.ClusterId != 0 {
-		if req.IsArgoApplication {
-			config, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
-			if err != nil {
-				impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", req.ClusterId)
-				return nil, nil, err
-			}
-			restConfig, err := impl.k8sUtil.GetRestConfigByCluster(config)
-			if err != nil {
-				impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", config)
-				return nil, nil, err
-			}
-			podNameSplit := strings.Split(req.PodName, "-")
-			resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
-			resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
-			if err != nil {
-				impl.logger.Errorw("not on external cluster", "err", err)
-				return nil, nil, err
-			}
-			restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
-			if err != nil {
-				impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
-				return nil, nil, err
-			}
-			config.Host = restConfig.Host
-			config.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
-			config.BearerToken = restConfig.BearerToken
+	if req.IsArgoApplication {
+		config, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", req.ClusterId)
+			return nil, nil, err
+		}
+		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(config)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", config)
+			return nil, nil, err
+		}
+		podNameSplit := strings.Split(req.PodName, "-")
+		resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+		resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
+		if err != nil {
+			impl.logger.Errorw("not on external cluster", "err", err)
+			return nil, nil, err
+		}
+		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			return nil, nil, err
+		}
+		config.Host = restConfig.Host
+		config.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
+		config.BearerToken = restConfig.BearerToken
 
-			clusterConfig = config
-		} else {
+		clusterConfig = config
+	} else {
+		if req.ClusterId != 0 {
 			clusterBean, err = impl.clusterService.FindById(req.ClusterId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
 				return nil, nil, err
 			}
-			clusterConfig, err = clusterBean.GetClusterConfig()
+		} else if req.EnvironmentId != 0 {
+			clusterBean, err = impl.environmentService.FindClusterByEnvId(req.EnvironmentId)
 			if err != nil {
-				impl.logger.Errorw("error in config", "err", err)
+				impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
 				return nil, nil, err
 			}
-		}
-	} else if req.EnvironmentId != 0 {
-		clusterBean, err = impl.environmentService.FindClusterByEnvId(req.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
-			return nil, nil, err
+		} else {
+			return nil, nil, fmt.Errorf("not able to find cluster-config")
 		}
 		clusterConfig, err = clusterBean.GetClusterConfig()
 		if err != nil {
 			impl.logger.Errorw("error in config", "err", err)
 			return nil, nil, err
 		}
-	} else {
-		return nil, nil, fmt.Errorf("not able to find cluster-config")
 	}
 
 	cfg, _, clientSet, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)

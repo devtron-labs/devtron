@@ -307,9 +307,9 @@ func (impl *K8sApplicationServiceImpl) DecodeDevtronAppId(applicationId string) 
 
 func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error) {
 	clusterId := request.ClusterId
-	//getting rest config by clusterId
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podLogsRequest := request.K8sRequest.PodLogsRequest
+	var restConfigFinal *rest.Config
 	if request.IsArgoApplication {
 		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(clusterId)
 		if err != nil {
@@ -333,25 +333,21 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 			return nil, err
 		}
-		resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
-		if err != nil {
-			impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
-			return nil, err
-		}
-		return resp, nil
+		restConfigFinal = restConfig
 	} else {
 		restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 			return nil, err
 		}
-		resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
-		if err != nil {
-			impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
-			return nil, err
-		}
-		return resp, nil
+		restConfigFinal = restConfig
 	}
+	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfigFinal, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
