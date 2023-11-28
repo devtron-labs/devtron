@@ -847,7 +847,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 	if container == nil {
 		return false, errors.New("externally created ephemeral containers cannot be removed")
 	}
-	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f './tmp/%s-devtron' -o)", terminalReq.ContainerName)
+	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s' -o)", fmt.Sprintf(k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, terminalReq.ContainerName))
 	cmds := []string{"sh", "-c", containerKillCommand}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
 	if err != nil {
