@@ -63,6 +63,10 @@ type Pipeline struct {
 	sql.AuditLog
 }
 
+func (pipeline Pipeline) IsManualTrigger() bool {
+	return pipeline.TriggerType == TRIGGER_TYPE_MANUAL
+}
+
 type PipelineRepository interface {
 	Save(pipeline []*Pipeline, tx *pg.Tx) error
 	Update(pipeline *Pipeline, tx *pg.Tx) error
@@ -225,7 +229,7 @@ func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (p
 
 func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline.*", "Environment").
+		Column("pipeline.*", "Environment", "App").
 		Where("app_id = ?", appId).
 		Where("deleted = ?", false).
 		Select()
