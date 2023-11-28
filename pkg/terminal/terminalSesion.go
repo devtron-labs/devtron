@@ -456,13 +456,13 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 		resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
 		resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err)
-			return nil, nil, err
-		}
-		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
-		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
-			return nil, nil, err
+			impl.logger.Errorw("not on external cluster", "err", err)
+		} else {
+			restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+			if err != nil {
+				impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+				return nil, nil, err
+			}
 		}
 		config.Host = restConfig.Host
 		config.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
@@ -573,14 +573,13 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
 	resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting resource list", "err", err)
-		return err
-	}
-
-	restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
-	if err != nil {
-		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
-		return err
+		impl.logger.Errorw("not on external cluster", "err", err)
+	} else {
+		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			return err
+		}
 	}
 	clusterConfig.Host = restConfig.Host
 	clusterConfig.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure

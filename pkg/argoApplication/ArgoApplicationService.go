@@ -370,8 +370,8 @@ func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevt
 			}
 		}
 
-		restConfig.Host = destinationServer
 		if configOfClusterWhereAppIsDeployed != nil {
+			restConfig.Host = destinationServer
 			restConfig.TLSClientConfig.Insecure = configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure
 			restConfig.BearerToken = configOfClusterWhereAppIsDeployed.BearerToken
 		}

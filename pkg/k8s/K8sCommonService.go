@@ -96,19 +96,20 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 	resourceResp, err := impl.K8sUtil.GetResource(ctx, bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
 	if err != nil {
 		impl.logger.Errorw("not on external cluster", "err", err)
+	} else {
 		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
 		if err != nil {
 			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 			return nil, err
 		}
-		resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
-		if err != nil {
-			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
-			return nil, err
-		}
-		return resp, nil
 	}
-	return nil, nil
+
+	resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
@@ -169,26 +170,22 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 		request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind == "Service" {
 		resourceName = strings.Join(resourceNameSplit[:len(resourceNameSplit)-1], "-")
 	}
-	resourceResp, err := impl.K8sUtil.GetResource(context.Background(), bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
+	resourceResp, err := impl.K8sUtil.GetResource(ctx, bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting resource list", "err", err)
-		return nil, err
+		impl.logger.Errorw("not on external cluster", "err", err)
+	} else {
+		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+		if err != nil {
+			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			return nil, err
+		}
 	}
-	restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
-	if err != nil {
-		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
-		return nil, err
-	}
-	clusterConfig.Host = restConfig.Host
-	clusterConfig.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
-	clusterConfig.BearerToken = restConfig.BearerToken
 	list, err := impl.K8sUtil.ListEvents(restConfig, resourceIdentifier.Namespace, resourceIdentifier.GroupVersionKind, ctx, resourceIdentifier.Name)
 	if err != nil {
 		impl.logger.Errorw("error in listing events", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
 	return &k8s.EventsResponse{list}, nil
-
 }
 
 func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean {
