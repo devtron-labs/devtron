@@ -109,7 +109,7 @@ func (impl *BuildPipelineSwitchServiceImpl) SwitchToCiPipelineExceptExternal(req
 	//validate switch request
 	err := impl.validateCiPipelineSwitch(switchFromPipelineId, request.CiPipeline.PipelineType, switchFromType)
 	if err != nil {
-		impl.logger.Errorw("error occurred when validating ci-pipeline switch", "switchFromPipelineId", "switchFromType", switchFromType, "pipelineType", request.CiPipeline.PipelineType, "err", err)
+		impl.logger.Errorw("validating failed for ci-pipeline switch request", "switchFromPipelineId", "switchFromType", switchFromType, "pipelineType", request.CiPipeline.PipelineType, "err", err)
 		return nil, err
 	}
 
@@ -203,7 +203,8 @@ func (impl *BuildPipelineSwitchServiceImpl) validateCiPipelineSwitch(switchFromC
 			impl.logger.Errorw("error in finding latest ciwokflow by ciPipelineId", "ciPipelineId", switchFromCiPipelineId)
 			return err
 		}
-		if ciWorkflow.Status == Running || ciWorkflow.Status == Starting {
+
+		if ciWorkflow.InProgress() {
 			return errors.New(string(cannotConvertIfLatestWorkflowIsInNonTerminalState))
 		}
 	}
