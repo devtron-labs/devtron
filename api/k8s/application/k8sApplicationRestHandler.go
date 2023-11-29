@@ -916,6 +916,9 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		return
 	}
 	request.UserId = userId
+	vars := r.URL.Query()
+	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
+	request.IsArgoApplication = isArgoApplication
 	err = handler.k8sApplicationService.CreatePodEphemeralContainers(&request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in creating ephemeral container", "err", err, "requestPayload", request)

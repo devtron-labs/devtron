@@ -37,6 +37,7 @@ type K8sCommonService interface {
 	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error)
+	GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
 }
@@ -415,6 +416,51 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 	if err != nil {
 		//not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting clientSet with cluster config", "err", err, "clusterId", clusterId)
+		return nil, v1Client, err
+	}
+	return clientSet, v1Client, nil
+}
+
+func (impl *K8sCommonServiceImpl) GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *v1.CoreV1Client, error) {
+	config, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", req.ClusterId)
+		return nil, nil, err
+	}
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(config)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", config)
+		return nil, nil, err
+	}
+
+	podNameSplit := strings.Split(req.PodName, "-")
+	resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
+	resourceResp, err := impl.K8sUtil.GetResource(context.Background(), bean2.DevtronCDNamespae, resourceName, bean2.GvkForArgoApplication, restConfig)
+	if err != nil {
+		impl.logger.Errorw("not on external cluster", "err", err)
+		return nil, nil, err
+	}
+	restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+		return nil, nil, err
+	}
+	config.Host = restConfig.Host
+	config.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
+	config.BearerToken = restConfig.BearerToken
+
+	clusterConfig := config
+
+	v1Client, err := impl.K8sUtil.GetCoreV1Client(clusterConfig)
+	if err != nil {
+		//not logging clusterConfig as it contains sensitive data
+		impl.logger.Errorw("error occurred in getting v1Client with cluster config", "err", err, "clusterId", req.ClusterId)
+		return nil, nil, err
+	}
+	_, _, clientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
+	if err != nil {
+		//not logging clusterConfig as it contains sensitive data
+		impl.logger.Errorw("error occurred in getting clientSet with cluster config", "err", err, "clusterId", req.ClusterId)
 		return nil, v1Client, err
 	}
 	return clientSet, v1Client, nil

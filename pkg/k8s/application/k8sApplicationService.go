@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"net/http"
 	"strconv"
@@ -724,11 +725,21 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Con
 	return isUpdateResource, nil
 }
 func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error {
-
-	clientSet, v1Client, err := impl.k8sCommonService.GetCoreClientByClusterId(req.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
-		return err
+	var clientSet *kubernetes.Clientset
+	var v1Client *v1.CoreV1Client
+	var err error
+	if req.IsArgoApplication {
+		clientSet, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterIdForExternalArgoApps(req)
+		if err != nil {
+			impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
+			return err
+		}
+	} else {
+		clientSet, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterId(req.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
+			return err
+		}
 	}
 	compatible, err := impl.K8sServerVersionCheckForEphemeralContainers(clientSet)
 	if err != nil {
