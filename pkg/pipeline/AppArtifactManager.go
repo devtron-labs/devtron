@@ -59,6 +59,7 @@ type AppArtifactManagerImpl struct {
 	cdPipelineConfigService CdPipelineConfigService
 	dockerArtifactRegistry  dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 	CiPipelineRepository    pipelineConfig.CiPipelineRepository
+	ciTemplateService       CiTemplateService
 }
 
 func NewAppArtifactManagerImpl(
@@ -71,7 +72,8 @@ func NewAppArtifactManagerImpl(
 	pipelineStageService PipelineStageService,
 	cdPipelineConfigService CdPipelineConfigService,
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
-	CiPipelineRepository pipelineConfig.CiPipelineRepository) *AppArtifactManagerImpl {
+	CiPipelineRepository pipelineConfig.CiPipelineRepository,
+	ciTemplateService CiTemplateService) *AppArtifactManagerImpl {
 
 	return &AppArtifactManagerImpl{
 		logger:                  logger,
@@ -84,6 +86,7 @@ func NewAppArtifactManagerImpl(
 		pipelineStageService:    pipelineStageService,
 		dockerArtifactRegistry:  dockerArtifactRegistry,
 		CiPipelineRepository:    CiPipelineRepository,
+		ciTemplateService:       ciTemplateService,
 	}
 }
 
@@ -623,12 +626,12 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		sort.SliceStable(ciArtifacts, func(i, j int) bool {
 			return ciArtifacts[i].Id > ciArtifacts[j].Id
 		})
-	}
 
-	ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, pipeline)
-	if err != nil {
-		impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
-		return ciArtifactsResponse, err
+		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
+			return ciArtifactsResponse, err
+		}
 	}
 
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
@@ -673,13 +676,22 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			if ciArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
 				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
 			}
-		} else {
+		} else if ciArtifacts[i].DataSource == repository.CI_RUNNER {
 			ciPipeline, err := impl.CiPipelineRepository.FindById(ciArtifacts[i].CiPipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
 				return nil, err
 			}
-			dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
+			if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
+				ciTemplateBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(ciPipeline.Id)
+				if err != nil {
+					impl.logger.Errorw("error in fetching template override", "pipelineId", ciPipeline.Id, "err", err)
+					return nil, err
+				}
+				dockerRegistryId = ciTemplateBean.CiTemplateOverride.DockerRegistryId
+			} else {
+				dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
+			}
 		}
 		if len(dockerRegistryId) > 0 {
 			dockerArtifact, err := impl.dockerArtifactRegistry.FindOne(dockerRegistryId)
