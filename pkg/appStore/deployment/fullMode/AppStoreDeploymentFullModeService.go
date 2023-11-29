@@ -116,7 +116,6 @@ type InstallHelmAsyncRequest struct {
 	ContextTime                              int                                              `json:"contextTime"`
 	InstalledAppVersionHistoryId             int                                              `json:"installAppVersionHistoryId"`
 	ClusterId                                int                                              `json:"clusterId"`
-	GitHash                                  string                                           `json:"gitHash"`
 	UserId                                   int32                                            `json:"userId"`
 }
 
@@ -592,7 +591,6 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(instal
 		DeploymentAppType:            util.PIPELINE_DEPLOYMENT_TYPE_HELM,
 		InstalledAppVersionHistoryId: installHelmAsyncRequest.InstalledAppVersionHistoryId,
 		InstalledAppId:               installHelmAsyncRequest.InstalledAppId,
-		GitHash:                      installHelmAsyncRequest.GitHash,
 		UserId:                       installHelmAsyncRequest.UserId,
 	}
 	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersion, err)
@@ -668,7 +666,6 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 		DeploymentAppType:            util.PIPELINE_DEPLOYMENT_TYPE_HELM,
 		InstalledAppVersionHistoryId: installHelmAsyncRequest.InstalledAppVersionHistoryId,
 		InstalledAppId:               installHelmAsyncRequest.InstalledAppId,
-		GitHash:                      installHelmAsyncRequest.GitHash,
 		UserId:                       installHelmAsyncRequest.UserId,
 	}
 	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersion, err)

@@ -887,8 +887,14 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 
 	// Rollback starts
 	var success bool
-
-	if util2.IsBaseStack() || util2.IsHelmApp(installedApp.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType) {
+	if util2.IsHelmApp(installedApp.AppOfferingMode) {
+		installedApp, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
+		if err != nil {
+			impl.logger.Errorw("error while rollback helm release", "error", err)
+			return false, err
+		}
+		success = true
+	} else if util2.IsBaseStack() || util.IsHelmApp(installedApp.DeploymentAppType) {
 		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(*request.Version))
 		if err != nil {
 			return false, err

@@ -155,7 +155,6 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 			ContextTime:                  installAppVersionRequest.HelmInstallContextTime,
 			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 			ClusterId:                    installAppVersionRequest.ClusterId,
-			GitHash:                      installAppVersionRequest.GitHash,
 			UserId:                       installAppVersionRequest.UserId,
 		}
 		data, err := json.Marshal(&installHelmAsyncRequest)
@@ -499,7 +498,6 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 			ContextTime:                              installAppVersionRequest.HelmInstallContextTime,
 			InstalledAppVersionHistoryId:             installAppVersionRequest.InstalledAppVersionHistoryId,
 			ClusterId:                                installAppVersionRequest.ClusterId,
-			GitHash:                                  installAppVersionRequest.GitHash,
 			UserId:                                   installAppVersionRequest.UserId,
 		}
 		data, err := json.Marshal(&installHelmAsyncRequest)
