@@ -144,6 +144,7 @@ type CdPipelineConfigServiceImpl struct {
 	pipelineConfigListenerService    PipelineConfigListenerService
 	devtronAppCMCSService            DevtronAppCMCSService
 	ciPipelineConfigService          CiPipelineConfigService
+	buildPipelineSwitchService       BuildPipelineSwitchService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -1660,9 +1661,10 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			return 0, err
 		}
 		if pipeline.IsSwitchCiPipelineRequest() {
-			err = impl.ciPipelineConfigService.SwitchToExternalCi(tx, appWorkflowMapping, pipeline.SwitchFromCiPipelineId, userId)
+			err = impl.buildPipelineSwitchService.SwitchToExternalCi(tx, appWorkflowMapping, pipeline.SwitchFromCiPipelineId, userId)
 			if err != nil {
 				impl.logger.Errorw("error in switching external ci", "appId", app.Id, "switchFromExternalCiPipelineId", pipeline.SwitchFromCiPipelineId, "userId", userId, "err", err)
+				return 0, err
 			}
 		}
 		pipeline.ParentPipelineId = externalCiPipelineId

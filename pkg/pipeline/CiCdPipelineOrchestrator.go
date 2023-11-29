@@ -90,6 +90,7 @@ type CiCdPipelineOrchestrator interface {
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
+	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -2003,4 +2004,48 @@ func (impl CiCdPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegi
 		}
 	}
 	return nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error) {
+
+	if createRequest.AppWorkflowId == 0 {
+		// create workflow
+		wf := &appWorkflow.AppWorkflow{
+			Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, util2.Generate(4)),
+			AppId:  createRequest.AppId,
+			Active: true,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				UpdatedOn: time.Now(),
+				CreatedBy: createRequest.UserId,
+				UpdatedBy: createRequest.UserId,
+			},
+		}
+		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflow(wf)
+		if err != nil {
+			impl.logger.Errorw("err", err)
+			return nil, err
+		}
+		// workflow creation ends
+		createRequest.AppWorkflowId = savedAppWf.Id
+	}
+	//single ci in same wf validation
+	workflowMapping, err := impl.appWorkflowRepository.FindWFCIMappingByWorkflowId(createRequest.AppWorkflowId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching workflow mapping for ci validation", "err", err)
+		return nil, err
+	}
+
+	if !isSwitchCiPipelineRequest && len(workflowMapping) > 0 {
+		return nil, &util.ApiError{
+			InternalMessage:   "pipeline already exists",
+			UserDetailMessage: fmt.Sprintf("pipeline already exists in workflow"),
+			UserMessage:       fmt.Sprintf("pipeline already exists in workflow")}
+	}
+
+	createRequest, err = impl.CreateCiConf(createRequest, createRequest.Id)
+	if err != nil {
+		return nil, err
+	}
+	return createRequest, err
 }
