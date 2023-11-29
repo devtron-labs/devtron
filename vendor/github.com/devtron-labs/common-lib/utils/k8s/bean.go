@@ -109,3 +109,42 @@ func GetResourceKey(obj *unstructured.Unstructured) ResourceKey {
 	gvk := obj.GroupVersionKind()
 	return NewResourceKey(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
 }
+
+type DeletionPropagationOptions string
+
+const (
+	DeletePropagationOrphan     DeletionPropagationOptions = "Orphan"
+	DeletePropagationBackground DeletionPropagationOptions = "Background"
+	DeletePropagationForeground DeletionPropagationOptions = "Foreground"
+)
+
+type DeleteOptions struct {
+	Kind               string
+	APIVersion         string
+	GracePeriodSeconds *int64
+	Preconditions      string
+	OrphanDependents   *bool
+	PropagationPolicy  DeletionPropagationOptions
+	DryRun             []string
+}
+
+type DeleteAndCreateJobRequest struct {
+	Content       []byte
+	Namespace     string
+	ClusterConfig *ClusterConfig
+	DeleteOptions DeleteOptions
+}
+
+func (impl DeleteAndCreateJobRequest) GetK8sDeleteOptions() v12.DeleteOptions {
+	deletionPropagation := v12.DeletionPropagation(impl.DeleteOptions.PropagationPolicy)
+	deleteOptions := v12.DeleteOptions{
+		TypeMeta: v12.TypeMeta{
+			Kind:       impl.DeleteOptions.Kind,
+			APIVersion: impl.DeleteOptions.APIVersion,
+		},
+		GracePeriodSeconds: impl.DeleteOptions.GracePeriodSeconds,
+		PropagationPolicy:  &deletionPropagation,
+		DryRun:             impl.DeleteOptions.DryRun,
+	}
+	return deleteOptions
+}

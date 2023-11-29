@@ -711,8 +711,15 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConf
 	}
 
 	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, chartProviderConfig)
-
-	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
+	deleteAndCreateJobRequest := &util3.DeleteAndCreateJobRequest{
+		Content:       manualAppSyncJobByteArr,
+		Namespace:     impl.aCDAuthConfig.ACDConfigMapNamespace,
+		ClusterConfig: defaultClusterConfig,
+		DeleteOptions: util3.DeleteOptions{
+			PropagationPolicy: util3.DeletePropagationForeground,
+		},
+	}
+	err = impl.K8sUtil.DeleteAndCreateJob(deleteAndCreateJobRequest)
 	if err != nil {
 		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
 		return err
