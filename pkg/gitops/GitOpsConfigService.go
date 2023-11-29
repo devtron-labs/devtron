@@ -924,6 +924,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 	// Validate: Get Repository Ends
 
 	// Validate: Organisational URL starts
+	repoUrl = strings.ReplaceAll(repoUrl, ".git", "")
 	if !strings.Contains(request.GitRepoURL, repoUrl) {
 		errorKey, errorMsg := impl.getValidationErrorForNonOrganisationalURL(activeGitOpsConfig)
 		detailedErrorGitOpsConfigActions.StageErrorMap[errorKey] = errorMsg
