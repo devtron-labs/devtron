@@ -161,7 +161,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(
 		if artifact.CredentialsSourceType == repository3.GLOBAL_CONTAINER_REGISTRY {
 			dockerRegistryId = artifact.CredentialSourceValue
 		}
-	} else {
+	} else if artifact.DataSource == repository3.CI_RUNNER {
 		// if image is created by ci build
 		dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
 		if len(dockerRegistryId) == 0 {

@@ -60,7 +60,7 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 		AutoIncreasingNumber: tag.AutoIncreasingNumber,
 		Metadata:             tag.Metadata,
 		Active:               true,
-		Enabled:              true,
+		Enabled:              tag.Enabled,
 	}
 	oldTagObject, err := impl.customTagRepository.FetchCustomTagData(customTagData.EntityKey, customTagData.EntityValue)
 	if err != nil && err != pg.ErrNoRows {
