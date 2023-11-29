@@ -121,6 +121,8 @@ type AppEnvironmentContainer struct {
 	PreStageStatus              *string                   `json:"preStageStatus"`
 	PostStageStatus             *string                   `json:"postStageStatus"`
 	LastDeployedTime            string                    `json:"lastDeployedTime,omitempty"`
+	LastDeployedImage           string                    `json:"lastDeployedImage,omitempty"`
+	LastDeployedBy              string                    `json:"lastDeployedBy,omitempty"`
 	LastSuccessDeploymentDetail DeploymentDetailContainer `json:"-"`
 	Default                     bool                      `json:"default"`
 	Deleted                     bool                      `json:"deleted"`

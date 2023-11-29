@@ -27,6 +27,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	userrepository "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
@@ -166,6 +167,7 @@ type AppListingServiceImpl struct {
 	chartRepository                chartRepoRepository.ChartRepository
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
+	userRepository                 userrepository.UserRepository
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -176,7 +178,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
 	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppListingServiceImpl {
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -195,6 +197,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		chartRepository:                chartRepository,
 		ciPipelineRepository:           ciPipelineRepository,
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
+		userRepository:                 userRepository,
 	}
 	return serviceImpl
 }
@@ -207,9 +210,19 @@ type OverviewAppsByEnvironmentBean struct {
 	EnvironmentName string                          `json:"environmentName"`
 	Namespace       string                          `json:"namespace"`
 	ClusterName     string                          `json:"clusterName"`
+	ClusterId       int                             `json:"clusterId"`
+	Type            string                          `json:"environmentType"`
+	Description     string                          `json:"description"`
 	AppCount        int                             `json:"appCount"`
 	Apps            []*bean.AppEnvironmentContainer `json:"apps"`
+	CreatedOn       string                          `json:"createdOn"`
+	CreatedBy       string                          `json:"createdBy"`
 }
+
+const (
+	Production    = "Production"
+	NonProduction = "Non-Production"
+)
 
 func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error) {
 	resp := &OverviewAppsByEnvironmentBean{}
@@ -220,10 +233,33 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	resp.EnvironmentId = envId
 	resp.EnvironmentName = env.Name
 	resp.ClusterName = env.Cluster.ClusterName
+	resp.ClusterId = env.ClusterId
 	resp.Namespace = env.Namespace
+	resp.CreatedOn = env.CreatedOn.String()
+	if env.Default {
+		resp.Type = Production
+	} else {
+		resp.Type = NonProduction
+	}
+	resp.Description = env.Description
+	createdBy, err := impl.userRepository.GetById(env.CreatedBy)
+	if err != nil {
+		return resp, err
+	}
+	resp.CreatedBy = createdBy.EmailId
 	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
 	if err != nil {
 		return resp, err
+	}
+	for _, envContainer := range envContainers {
+		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
+		if err != nil {
+			return resp, err
+		}
+		if lastDeployed != nil {
+			envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
+			envContainer.LastDeployedBy = lastDeployed.LastDeployedBy
+		}
 	}
 	resp.Apps = envContainers
 	return resp, err
