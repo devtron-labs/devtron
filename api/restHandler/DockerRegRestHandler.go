@@ -120,8 +120,14 @@ func NewDockerRegRestHandlerImpl(
 func ValidateDockerArtifactStoreRequestBean(bean types.DockerArtifactStoreBean) error {
 	// handling for EA mode registry setup
 	if util2.IsBaseStack() {
-		if bean.DockerRegistryIpsConfig != nil {
-			bean.DockerRegistryIpsConfig = nil
+		// For EA MODE, DockerRegistryIpsConfig should be nil
+		bean.DockerRegistryIpsConfig = nil
+		// For EA MODE, IsDefault should be FALSE
+		bean.IsDefault = false
+
+		// For EA MODE, IsOCICompliantRegistry should be TRUE
+		if bean.RegistryType == repository.REGISTRYTYPE_GCR {
+			return fmt.Errorf("Invalid payload! 'GCR' is not supported as an OCI registry.")
 		}
 		// For EA MODE, IsOCICompliantRegistry should be TRUE
 		if !bean.IsOCICompliantRegistry {
