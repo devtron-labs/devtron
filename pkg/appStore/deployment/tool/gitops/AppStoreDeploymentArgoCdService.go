@@ -94,8 +94,8 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	pipelineStatusTimelineService status.PipelineStatusTimelineService, userService user.UserService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	argoClientWrapperService argocdServer.ArgoClientWrapperService,
-	chartDeploymentService util.ChartDeploymentService) *AppStoreDeploymentArgoCdServiceImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService, chartDeploymentService util.ChartDeploymentService,
+	gitOpsService gitops.GitOpsConfigService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                               logger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -116,6 +116,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		argoClientWrapperService:             argoClientWrapperService,
 		chartDeploymentService:               chartDeploymentService,
+		gitOpsService:                        gitOpsService,
 	}
 }
 
