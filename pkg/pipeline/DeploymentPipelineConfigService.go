@@ -179,7 +179,8 @@ func NewCdPipelineConfigServiceImpl(
 	customTagService CustomTagService,
 	pipelineConfigListenerService PipelineConfigListenerService,
 	devtronAppCMCSService DevtronAppCMCSService,
-	ciPipelineConfigService CiPipelineConfigService) *CdPipelineConfigServiceImpl {
+	ciPipelineConfigService CiPipelineConfigService,
+	buildPipelineSwitchService BuildPipelineSwitchService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -213,6 +214,7 @@ func NewCdPipelineConfigServiceImpl(
 		devtronAppCMCSService:            devtronAppCMCSService,
 		customTagService:                 customTagService,
 		ciPipelineConfigService:          ciPipelineConfigService,
+		buildPipelineSwitchService:       buildPipelineSwitchService,
 	}
 }
 
