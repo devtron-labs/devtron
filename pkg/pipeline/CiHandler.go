@@ -1132,7 +1132,11 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			savedWorkflow.Status = status
 		}
 		savedWorkflow.PodStatus = podStatus
-		savedWorkflow.Message = message
+
+		// NOTE: we are doing this for a quick fix where ci pending message become larger than 250 and in db we had set the charter limit to 250
+		if len(message) > 250 {
+			savedWorkflow.Message = message[:250]
+		}
 		if savedWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == executors.WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
 			savedWorkflow.Message = TERMINATE_MESSAGE
