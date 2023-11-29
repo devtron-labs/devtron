@@ -715,7 +715,7 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConf
 		Content:       manualAppSyncJobByteArr,
 		Namespace:     impl.aCDAuthConfig.ACDConfigMapNamespace,
 		ClusterConfig: defaultClusterConfig,
-		DeleteOptions: util3.DeleteOptions{
+		DeleteOptions: &util3.DeleteOptions{
 			PropagationPolicy: util3.DeletePropagationForeground,
 		},
 	}

@@ -2,6 +2,7 @@ package chartRepo
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"text/template"
 )
@@ -11,12 +12,15 @@ type AppSyncConfig struct {
 	DockerImage            string
 	AppSyncJobResourcesObj string
 	ChartProviderConfig    *ChartProviderConfig
+	JobName                string
 }
 
 type ChartProviderConfig struct {
 	ChartProviderId string
 	IsOCIRegistry   bool
 }
+
+const MANUAL_APP_SYNC_JOB_NAME = "app-manual-sync-job"
 
 func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, chartProviderConfig *ChartProviderConfig) []byte {
 	cfg, _ := sql.GetConfig()
@@ -25,12 +29,13 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
 		DockerImage:            dockerImage,
 		AppSyncJobResourcesObj: appSyncJobResourcesObj,
 		ChartProviderConfig:    chartProviderConfig,
+		JobName:                GetUniqueIdentifierForManualAppSyncJob(chartProviderConfig),
 	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
   "kind": "Job",
   "metadata": {
-    "name": "app-manual-sync-job",
+    "name": "{{.JobName}}",
     "namespace": "devtroncd"
   },
   "spec": {
@@ -46,7 +51,7 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
             "env": [
               {
                 "name": "PG_ADDR",
-                "value": "{{.DbConfig.Addr}}"
+                "value": "postgresql-postgresql.devtroncd"
               },
               {
                 "name": "PG_DATABASE",
@@ -85,4 +90,8 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
 	}
 	manualAppSyncJobByteArr := []byte(manualAppSyncJobBufferBytes.String())
 	return manualAppSyncJobByteArr
+}
+
+func GetUniqueIdentifierForManualAppSyncJob(ChartProviderConfig *ChartProviderConfig) string {
+	return fmt.Sprintf("%s-%s", MANUAL_APP_SYNC_JOB_NAME, ChartProviderConfig.ChartProviderId)
 }

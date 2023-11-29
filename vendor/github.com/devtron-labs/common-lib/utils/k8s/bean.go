@@ -132,19 +132,24 @@ type DeleteAndCreateJobRequest struct {
 	Content       []byte
 	Namespace     string
 	ClusterConfig *ClusterConfig
-	DeleteOptions DeleteOptions
+	DeleteOptions *DeleteOptions
 }
 
 func (impl DeleteAndCreateJobRequest) GetK8sDeleteOptions() v12.DeleteOptions {
-	deletionPropagation := v12.DeletionPropagation(impl.DeleteOptions.PropagationPolicy)
+	if impl.DeleteOptions == nil {
+		return v12.DeleteOptions{}
+	}
 	deleteOptions := v12.DeleteOptions{
 		TypeMeta: v12.TypeMeta{
 			Kind:       impl.DeleteOptions.Kind,
 			APIVersion: impl.DeleteOptions.APIVersion,
 		},
 		GracePeriodSeconds: impl.DeleteOptions.GracePeriodSeconds,
-		PropagationPolicy:  &deletionPropagation,
 		DryRun:             impl.DeleteOptions.DryRun,
+	}
+	deletionPropagation := v12.DeletionPropagation(impl.DeleteOptions.PropagationPolicy)
+	if len(deletionPropagation) > 0 {
+		deleteOptions.PropagationPolicy = &deletionPropagation
 	}
 	return deleteOptions
 }
