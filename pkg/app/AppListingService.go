@@ -228,6 +228,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	resp := &OverviewAppsByEnvironmentBean{}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
+		impl.Logger.Errorw("failed to fetch env", "err", err, "env id", envId)
 		return resp, err
 	}
 	resp.EnvironmentId = envId
@@ -244,16 +245,18 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	resp.Description = env.Description
 	createdBy, err := impl.userRepository.GetById(env.CreatedBy)
 	if err != nil {
-		return resp, err
+		impl.Logger.Errorw("failed to fetch user who created the env", "err", err, "user id that created env", env.CreatedBy)
 	}
 	resp.CreatedBy = createdBy.EmailId
 	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
 	if err != nil {
+		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "env id", envId)
 		return resp, err
 	}
 	for _, envContainer := range envContainers {
 		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
 		if err != nil {
+			impl.Logger.Errorw("failed to fetch last deployed image", "err", err, "app id", envContainer.AppId, "env id", envId)
 			return resp, err
 		}
 		if lastDeployed != nil {
