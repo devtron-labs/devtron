@@ -183,7 +183,7 @@ func (repo AppRepositoryImpl) FindById(id int) (*App, error) {
 func (repo AppRepositoryImpl) FindAppAndTeamByAppId(id int) (*App, error) {
 	pipelineGroup := &App{}
 	err := repo.dbConnection.Model(pipelineGroup).
-		Relation("Team").
+		Column("Team").
 		Where("app.id = ?", id).
 		Where("app.active = ?", true).
 		Where("team.id = app.team_id").
