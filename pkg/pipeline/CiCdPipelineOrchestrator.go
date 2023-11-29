@@ -73,7 +73,7 @@ type CiCdPipelineOrchestrator interface {
 	CreateCDPipelines(pipelineRequest *bean.CDPipelineConfigObject, appId int, userId int32, tx *pg.Tx, appName string) (pipelineId int, err error)
 	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (pipeline *pipelineConfig.Pipeline, err error)
 	DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error
-	DeleteCiEnvMapping(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error
+	DeleteCiPipelineAndCiEnvMappings(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error
 	SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
@@ -647,26 +647,13 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	return createRequest, nil
 }
 
+// todo: extract common logic into separate func and use that here and in switchService
 func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error {
 
 	userId := request.UserId
-	err := impl.DeleteCiEnvMapping(tx, pipeline, userId)
+	err := impl.DeleteCiPipelineAndCiEnvMappings(tx, pipeline, userId)
 	if err != nil {
-		return err
-	}
-
-	p := &pipelineConfig.CiPipeline{
-		Id:                       pipeline.Id,
-		Deleted:                  true,
-		ScanEnabled:              pipeline.ScanEnabled,
-		IsManual:                 pipeline.IsManual,
-		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-	}
-
-	err = impl.ciPipelineRepository.Update(p, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating ci pipeline, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
+		impl.logger.Errorw("error in deleting ciPipeline and ci-env mappings", "err", err, "pipelineId", pipeline.Id)
 		return err
 	}
 	var materials []*pipelineConfig.CiPipelineMaterial
@@ -695,18 +682,36 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 	}
 
 	if !request.CiPipeline.IsDockerConfigOverridden || request.CiPipeline.IsExternal { //if pipeline is external or if config is not overridden then ignore override and ciBuildConfig values
-		err = impl.SaveHistoryOfBaseTemplate(userId, p, materials)
+		err = impl.SaveHistoryOfBaseTemplate(userId, pipeline, materials)
 		if err != nil {
 			return err
 		}
 	} else {
 		CiTemplateBean := impl.CreateCiTemplateBean(request.CiPipeline.Id, request.CiPipeline.DockerConfigOverride.DockerRegistry, request.CiPipeline.DockerConfigOverride.DockerRepository, request.CiPipeline.DockerConfigOverride.CiBuildConfig.GitMaterialId, request.CiPipeline.DockerConfigOverride.CiBuildConfig, userId)
-		err = impl.ciPipelineHistoryService.SaveHistory(p, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
+		err = impl.ciPipelineHistoryService.SaveHistory(pipeline, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
 		if err != nil {
 			impl.logger.Errorw("error in saving delete history for ci pipeline material and ci template overridden", "err", err)
 		}
 	}
 
+	return err
+}
+
+func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipelineAndCiEnvMappings(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error {
+	err := impl.deleteCiEnvMapping(tx, ciPipeline, userId)
+	if err != nil {
+		impl.logger.Errorw("error in deleting ci-env mappings", "ciPipelineId", ciPipeline.Id, "err", err)
+		return err
+	}
+	ciPipeline.Deleted = true
+	ciPipeline.Active = false
+	ciPipeline.UpdatedOn = time.Now()
+	ciPipeline.UpdatedBy = userId
+	err = impl.ciPipelineRepository.Update(ciPipeline, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating ci pipeline, DeleteCiPipeline", "pipelineId", ciPipeline.Id, "err", err)
+		return err
+	}
 	return err
 }
 
@@ -747,7 +752,7 @@ func (impl CiCdPipelineOrchestratorImpl) SaveHistoryOfBaseTemplate(userId int32,
 	return err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) DeleteCiEnvMapping(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error {
+func (impl CiCdPipelineOrchestratorImpl) deleteCiEnvMapping(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error {
 	CiEnvMappingObject, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(ciPipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", ciPipeline.Id)

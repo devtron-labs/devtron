@@ -1241,7 +1241,7 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 
 	if request.IsSwitchCiPipelineRequest() {
 		impl.logger.Debugw("handling switch ci pipeline", "switchFromCiPipelineId", request.SwitchFromCiPipelineId, "switchFromExternalCiPipelineId", request.SwitchFromExternalCiPipelineId)
-		return impl.buildPipelineSwitchService.HandleSwitchCiPipeline(request, ciConfig)
+		return impl.buildPipelineSwitchService.SwitchToCiPipelineExceptExternal(request, ciConfig)
 	}
 
 	ciConfig.CiPipelines = []*bean.CiPipeline{request.CiPipeline} //request.CiPipeline
