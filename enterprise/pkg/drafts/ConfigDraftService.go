@@ -12,7 +12,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -45,12 +44,11 @@ type ConfigDraftServiceImpl struct {
 	userService               user.UserService
 	appRepo                   app.AppRepository
 	envRepository             repository2.EnvironmentRepository
-	teamRepository            team.TeamRepository
 }
 
 func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, configMapService pipeline.ConfigMapService, chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService, resourceProtectionService protect.ResourceProtectionService,
-	userService user.UserService, appRepo app.AppRepository, envRepository repository2.EnvironmentRepository, teamRepository team.TeamRepository) *ConfigDraftServiceImpl {
+	userService user.UserService, appRepo app.AppRepository, envRepository repository2.EnvironmentRepository) *ConfigDraftServiceImpl {
 	draftServiceImpl := &ConfigDraftServiceImpl{
 		logger:                    logger,
 		configDraftRepository:     configDraftRepository,
@@ -61,7 +59,6 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 		userService:               userService,
 		appRepo:                   appRepo,
 		envRepository:             envRepository,
-		teamRepository:            teamRepository,
 	}
 	resourceProtectionService.RegisterListener(draftServiceImpl)
 	return draftServiceImpl
@@ -558,7 +555,7 @@ func (impl *ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]
 
 func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int) []string {
 	var approvers []string
-	application, err := impl.appRepo.FindById(appId)
+	application, err := impl.appRepo.FindAppAndTeamByAppId(appId)
 	if err != nil {
 		return approvers
 	}
@@ -572,11 +569,7 @@ func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int) []str
 		}
 		envIdentifier = env.EnvironmentIdentifier
 	}
-	team, err := impl.teamRepository.FindOne(application.TeamId)
-	if err != nil {
-		return approvers
-	}
-	approvers, err = impl.userService.GetConfigApprovalUsersByEnv(appName, envIdentifier, team.Name)
+	approvers, err = impl.userService.GetConfigApprovalUsersByEnv(appName, envIdentifier, application.Team.Name)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching config approval emails, so sending empty approvers list", "err", err)
 	}

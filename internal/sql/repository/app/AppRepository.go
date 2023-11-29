@@ -51,6 +51,7 @@ type AppRepository interface {
 	FindJobByDisplayName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
+	FindAppAndTeamByAppId(id int) (*App, error)
 	FindActiveById(id int) (pipelineGroup *App, err error)
 	FindAppsByTeamId(teamId int) ([]*App, error)
 	FindAppsByTeamIds(teamId []int, appType string) ([]App, error)
@@ -176,6 +177,18 @@ func (repo AppRepositoryImpl) FindById(id int) (*App, error) {
 	pipelineGroup := &App{}
 	err := repo.dbConnection.Model(pipelineGroup).Where("id = ?", id).
 		Where("active = ?", true).Select()
+	return pipelineGroup, err
+}
+
+func (repo AppRepositoryImpl) FindAppAndTeamByAppId(id int) (*App, error) {
+	pipelineGroup := &App{}
+	err := repo.dbConnection.Model(pipelineGroup).
+		Relation("Team").
+		Where("app.id = ?", id).
+		Where("app.active = ?", true).
+		Where("team.id = app.team_id").
+		Select()
+
 	return pipelineGroup, err
 }
 
