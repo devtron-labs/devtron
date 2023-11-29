@@ -1,4 +1,5 @@
 ## Bugs
+- fix: limit ci build message length to 250 (#4300)
 - fix: Job trigger throws error (#4296)
 - fix: Get Artifacts list API is throwing pg no rows error  (#4292)
 - fix: updated copy container image plugin for multi arc build support (#4282)
