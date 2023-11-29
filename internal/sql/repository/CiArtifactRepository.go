@@ -134,6 +134,7 @@ func (impl CiArtifactRepositoryImpl) SaveAll(artifacts []*CiArtifact) ([]*CiArti
 
 func (impl CiArtifactRepositoryImpl) UpdateLatestTimestamp(artifactIds []int) error {
 	if len(artifactIds) == 0 {
+		impl.logger.Debug("UpdateLatestTimestamp empty list of artifacts, not updating")
 		return nil
 	}
 	_, err := impl.dbConnection.Model(&CiArtifact{}).
@@ -618,6 +619,10 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineId(ciPipelineId int
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error) {
 	var artifacts []CiArtifact
+	if len(ciPipelineIds) == 0 {
+		impl.logger.Debug("GetArtifactsByCiPipelineIds empty list of ids, returning empty list of artifacts")
+		return artifacts, nil
+	}
 	err := impl.dbConnection.
 		Model(&artifacts).
 		Column("ci_artifact.*").

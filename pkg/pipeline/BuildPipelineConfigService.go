@@ -340,15 +340,6 @@ func (impl *CiPipelineConfigServiceImpl) addpipelineToTemplate(createRequest *be
 			UserMessage:       fmt.Sprintf("pipeline already exists in workflow")}
 	}
 
-	//pipeline name validation
-	//var pipelineNames []string
-	//for _, pipeline := range createRequest.CiPipelines {
-	//	pipelineNames = append(pipelineNames, pipeline.Name)
-	//}
-	//if err != nil {
-	//	impl.logger.Errorw("error in creating pipeline group", "err", err)
-	//	return nil, err
-	//}
 	createRequest, err = impl.ciCdPipelineOrchestrator.CreateCiConf(createRequest, createRequest.Id)
 	if err != nil {
 		return nil, err

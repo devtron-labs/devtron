@@ -395,6 +395,13 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		return
 	}
 
+	if patchRequest.IsSwitchCiPipelineRequest() {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
+
 	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
 
 	var emptyDockerRegistry string
