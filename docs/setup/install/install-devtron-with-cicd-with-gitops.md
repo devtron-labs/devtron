@@ -201,6 +201,17 @@ kubectl logs -f -l app=inception -n devtroncd
 
 ## Devtron dashboard
 
+### For MiniKube/K3s/Kind/Microk8s/On-prem
+
+Run the below Command:
+
+```bash
+kubectl get svc -n devtroncd devtron-service -o jsonpath='{.spec.ports[0].nodePort}'
+```
+Access your Devtron Dashboard with  ```machineIP:nodePort```
+
+For more information, refer [Install Devtron on Minikube, Microk8s, K3s, Kind](https://docs.devtron.ai/install/install-devtron-on-minikube-microk8s-k3s-kind) 
+
 Run the following command to get the Devtron dashboard URL:
 
 ```bash
