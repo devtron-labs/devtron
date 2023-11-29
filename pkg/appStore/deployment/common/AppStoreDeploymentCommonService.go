@@ -303,11 +303,14 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetGitCommitConfig(installAppVer
 	}
 
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
-	if installAppVersionRequest.GitOpsRepoURL == "" && installAppVersionRequest.InstalledAppId != 0 {
+	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && installAppVersionRequest.GitOpsRepoURL == "" && installAppVersionRequest.InstalledAppId != 0 {
 		InstalledApp, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
-		if err != nil {
+		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("service err, installedApp", "err", err)
 			return nil, err
+		}
+		if util.IsErrNoRows(err) {
+			return nil, fmt.Errorf("Invalid request! No InstalledApp found.")
 		}
 		installAppVersionRequest.GitOpsRepoURL = InstalledApp.GitOpsRepoUrl
 	}
