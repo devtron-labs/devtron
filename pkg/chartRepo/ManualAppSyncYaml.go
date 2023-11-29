@@ -20,7 +20,11 @@ type ChartProviderConfig struct {
 	IsOCIRegistry   bool
 }
 
-const MANUAL_APP_SYNC_JOB_NAME = "app-manual-sync-job"
+const (
+	MANUAL_APP_SYNC_JOB_PREFIX            = "app-manual-sync-job"
+	MANUAL_APP_SYNC_JOB_OCI_PREFIX        = "oci-registry"
+	MANUAL_APP_SYNC_JOB_CHART_REPO_PREFIX = "chart-repo"
+)
 
 func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, chartProviderConfig *ChartProviderConfig) []byte {
 	cfg, _ := sql.GetConfig()
@@ -93,5 +97,12 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
 }
 
 func GetUniqueIdentifierForManualAppSyncJob(ChartProviderConfig *ChartProviderConfig) string {
-	return fmt.Sprintf("%s-%s", MANUAL_APP_SYNC_JOB_NAME, ChartProviderConfig.ChartProviderId)
+	var uniqueJobIdentifier string
+	if ChartProviderConfig.IsOCIRegistry {
+		uniqueJobIdentifier = fmt.Sprintf("%s-%s", MANUAL_APP_SYNC_JOB_OCI_PREFIX, ChartProviderConfig.ChartProviderId)
+	} else {
+		uniqueJobIdentifier = fmt.Sprintf("%s-%s", MANUAL_APP_SYNC_JOB_CHART_REPO_PREFIX, ChartProviderConfig.ChartProviderId)
+
+	}
+	return fmt.Sprintf("%s-%s", MANUAL_APP_SYNC_JOB_PREFIX, uniqueJobIdentifier)
 }
