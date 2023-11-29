@@ -213,7 +213,10 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	if !imagePushedAt.IsZero() {
 		createdOn = *imagePushedAt
 	}
-
+	if pipeline.PipelineType == bean.CI_JOB && request.Image == "" {
+		impl.logger.Errorw("empty image artifact found!", "request", request)
+		return 0, fmt.Errorf("empty image artifact found")
+	}
 	buildArtifact := &repository.CiArtifact{
 		Image:              request.Image,
 		ImageDigest:        request.ImageDigest,
@@ -248,6 +251,9 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	var pluginArtifacts []*repository.CiArtifact
 	for registry, artifacts := range request.PluginRegistryArtifactDetails {
 		for _, image := range artifacts {
+			if pipeline.PipelineType == bean.CI_JOB && image == "" {
+				continue
+			}
 			pluginArtifact := &repository.CiArtifact{
 				Image:                 image,
 				ImageDigest:           request.ImageDigest,
