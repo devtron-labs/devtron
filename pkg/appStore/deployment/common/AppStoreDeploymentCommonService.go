@@ -650,10 +650,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifestAndPerformGitOpe
 
 func (impl AppStoreDeploymentCommonServiceImpl) InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, error error) error {
 	//step 4 db operation status update to deploy success
-	status := appStoreBean.DEPLOY_SUCCESS
-	if error != nil {
-		status = appStoreBean.TRIGGER_ERROR
-	}
+	status := appStoreBean.GetAppStatus(error == nil)
 	_, err := impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, status)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
@@ -740,12 +737,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistory
 	}
 
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		status := ""
-		if error == nil {
-			status = pipelineConfig.WorkflowSucceeded
-		} else {
-			status = pipelineConfig.WorkflowFailed
-		}
+		status := appStoreBean.GetDeploymentStatus(error == nil)
 		helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{
 			InstallAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 			Message:                    "Release Installed",

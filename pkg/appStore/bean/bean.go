@@ -19,6 +19,7 @@ package appStoreBean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
 )
@@ -382,4 +383,22 @@ type HelmReleaseStatusConfig struct {
 	Message                    string
 	IsReleaseInstalled         bool
 	ErrorInInstallation        bool
+}
+
+func GetAppStatus(isSuccess bool) AppstoreDeploymentStatus {
+	switch isSuccess {
+	case true:
+		return DEPLOY_SUCCESS
+	default:
+		return HELM_ERROR
+	}
+}
+
+func GetDeploymentStatus(isSuccess bool) string {
+	switch isSuccess {
+	case true:
+		return pipelineConfig.WorkflowSucceeded
+	default:
+		return pipelineConfig.WorkflowFailed
+	}
 }
