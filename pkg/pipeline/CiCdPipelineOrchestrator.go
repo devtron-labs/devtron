@@ -246,7 +246,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 	}
 
 	if ciPipelineMaterial.CiPipeline.ParentCiPipeline != 0 {
-		return errors.New(string(bean.CI_PATCH_SKIP_MESSAGE) + "“Linked Build Pipeline“")
+		return errors.New(string(bean.CI_PATCH_SKIP_MESSAGE) + impl.getSkipMessage(ciPipelineMaterial.CiPipeline))
 	}
 	if ciPipelineMaterial.Regex != "" {
 		// Checking Trigger Access for Regex branch
@@ -271,6 +271,15 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 		}
 	}
 	return nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) getSkipMessage(ciPipeline *pipelineConfig.CiPipeline) string {
+	switch ciPipeline.PipelineType {
+	case string(bean.LINKED_CD):
+		return "“Sync with Environment”"
+	default:
+		return "“Linked Build Pipeline”"
+	}
 }
 
 func (impl CiCdPipelineOrchestratorImpl) findUniquePipelineForAppIdAndEnvironmentId(appId, environmentId int) (*pipelineConfig.Pipeline, error) {
