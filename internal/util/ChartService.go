@@ -703,10 +703,7 @@ func (impl ChartTemplateServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string
 		BitBucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
 	}
 	_, err = impl.gitFactory.Client.CreateReadme(config)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error) {

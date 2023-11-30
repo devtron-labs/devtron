@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -67,6 +68,7 @@ type AppWorkflowServiceImpl struct {
 	pipelineRepository       pipelineConfig.PipelineRepository
 	resourceGroupService     resourceGroup2.ResourceGroupService
 	enforcerUtil             rbac.EnforcerUtil
+	chartService             chart.ChartService
 }
 
 type AppWorkflowDto struct {
@@ -138,7 +140,8 @@ type PipelineIdentifier struct {
 
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService) *AppWorkflowServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService,
+	chartService chart.ChartService) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                   logger,
 		appWorkflowRepository:    appWorkflowRepository,
@@ -147,6 +150,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 		pipelineRepository:       pipelineRepository,
 		enforcerUtil:             enforcerUtil,
 		resourceGroupService:     resourceGroupService,
+		chartService:             chartService,
 	}
 }
 
@@ -754,17 +758,25 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	cdPipelines := &bean.CdPipelines{
 		AppId: appId,
 	}
+
+	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching latest chart details for app by appId")
+		return nil, err
+	}
+
 	for _, pipeline := range dbPipelines {
 		cdPipelineConfigObj := &bean.CDPipelineConfigObject{
-			Id:                pipeline.Id,
-			EnvironmentId:     pipeline.EnvironmentId,
-			EnvironmentName:   pipeline.Environment.Name,
-			CiPipelineId:      pipeline.CiPipelineId,
-			TriggerType:       pipeline.TriggerType,
-			Name:              pipeline.Name,
-			DeploymentAppType: pipeline.DeploymentAppType,
-			AppName:           pipeline.DeploymentAppName,
-			AppId:             pipeline.AppId,
+			Id:                        pipeline.Id,
+			EnvironmentId:             pipeline.EnvironmentId,
+			EnvironmentName:           pipeline.Environment.Name,
+			CiPipelineId:              pipeline.CiPipelineId,
+			TriggerType:               pipeline.TriggerType,
+			Name:                      pipeline.Name,
+			DeploymentAppType:         pipeline.DeploymentAppType,
+			AppName:                   pipeline.DeploymentAppName,
+			AppId:                     pipeline.AppId,
+			IsGitOpsRepoNotConfigured: !isAppLevelGitOpsConfigured,
 		}
 		cdPipelines.Pipelines = append(cdPipelines.Pipelines, cdPipelineConfigObj)
 	}

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -322,6 +323,9 @@ func (impl GitBitbucketClient) GetCommitsCount(repoName, projectName string) (in
 	}
 	gitCommitsIf, err := bitbucketClient.Repositories.Commits.GetCommits(getCommitsOptions)
 	if err != nil {
+		if errorResponse, ok := err.(*bitbucket.UnexpectedResponseStatusError); ok && strings.Contains(errorResponse.Error(), "404 Not Found") {
+			return 0, nil
+		}
 		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
 		return 0, err
 	}

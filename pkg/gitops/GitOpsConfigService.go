@@ -719,6 +719,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 	}
 	config := &bean2.GitOpsConfigDto{
 		Id:                    model.Id,
+		Username:              model.Username,
 		Provider:              model.Provider,
 		GitHubOrgId:           model.GitHubOrgId,
 		GitLabGroupId:         model.GitLabGroupId,
@@ -908,7 +909,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 	// Validate: Get Repository Starts
 	config := &bean2.GitOpsConfigDto{
 		GitRepoName:          repoName,
-		BitBucketWorkspaceId: activeGitOpsConfig.BitBucketProjectKey,
+		BitBucketWorkspaceId: activeGitOpsConfig.BitBucketWorkspaceId,
 		BitBucketProjectKey:  activeGitOpsConfig.BitBucketProjectKey,
 	}
 	repoUrl, err := impl.gitFactory.Client.GetRepoUrl(config)
@@ -925,6 +926,10 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 
 	// Validate: Organisational URL starts
 	repoUrl = strings.ReplaceAll(repoUrl, ".git", "")
+	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(request.GitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
+		request.GitRepoURL = strings.ReplaceAll(request.GitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")
+		detailedErrorGitOpsConfigActions.StageErrorMap["Invalid repository URL format"] = fmt.Errorf("Please use '%s' instead.", request.GitRepoURL)
+	}
 	if !strings.Contains(request.GitRepoURL, repoUrl) {
 		errorKey, errorMsg := impl.getValidationErrorForNonOrganisationalURL(activeGitOpsConfig)
 		detailedErrorGitOpsConfigActions.StageErrorMap[errorKey] = errorMsg
@@ -949,7 +954,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, ValidateEmptyRepoStage)
 		// Validate: Empty repository Ends
 	}
-	if request.ExtraValidationStage == Create_Readme {
+	if request.ExtraValidationStage == Create_Readme && len(detailedErrorGitOpsConfigActions.StageErrorMap) == 0 {
 		// Validate: Write Access in repository Starts
 		err = impl.chartTemplateService.CreateReadmeInGitRepo(repoName, request.UserId)
 		if err != nil {

@@ -213,6 +213,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) ParseGitRepoErrorResponse(err er
 	//update values yaml in chart
 	noTargetFound := false
 	if err != nil {
+		//
 		if errorResponse, ok := err.(*github.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
 			impl.logger.Errorw("no content found while updating git repo on github, do auto fix", "error", err)
 			noTargetFound = true

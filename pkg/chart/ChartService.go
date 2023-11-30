@@ -103,6 +103,7 @@ type ChartService interface {
 	GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
 	IsGitRepoUrlPresent(appId int) bool
+	IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error)
 }
 
 type ChartServiceImpl struct {
@@ -754,6 +755,30 @@ func (impl ChartServiceImpl) getNewVersion(chartRepo, chartName, refChartLocatio
 	count += 1
 
 	return placeholders[0] + "." + placeholders[1] + "." + strconv.FormatInt(count, 10), nil
+}
+
+func (impl ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error) {
+	activeGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
+	if util.IsErrNoRows(err) {
+		return false, nil
+	}
+	if err != nil {
+		impl.logger.Errorw("error in fetching latest chart for app by appId")
+		return false, err
+	}
+	if !activeGitOpsConfig.AllowCustomRepository {
+		return true, nil
+	}
+	latestChartConfiguredInApp, err := impl.FindLatestChartForAppByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching latest chart for app by appId")
+		return false, err
+	}
+	if latestChartConfiguredInApp.IsCustomGitRepository &&
+		(latestChartConfiguredInApp.GitRepoUrl == bean.GIT_REPO_NOT_CONFIGURED || len(latestChartConfiguredInApp.GitRepoUrl) == 0) {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (impl ChartServiceImpl) FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error) {
