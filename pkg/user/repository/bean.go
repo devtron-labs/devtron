@@ -25,3 +25,7 @@ const (
 	WorkflowPValUpdateKey     PValUpdateKey = "Workflow"
 	WorkflowObjPValUpdateKey  PValUpdateKey = "WorkflowObj"
 )
+
+const (
+	EMPTY = ""
+)

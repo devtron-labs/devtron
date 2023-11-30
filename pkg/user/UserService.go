@@ -460,7 +460,6 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
 	var err error
 	rolesChanged := false
-	roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 	if entity == bean2.CLUSTER {
 		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForClusterEntity(roleFilter, userId, model, existingRoles, token, managerAuth, tx, entity, capacity)
 		if err != nil {
@@ -497,10 +496,6 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					namespace = impl.userCommonService.RemovePlaceHolderInRoleFilterField(namespace)
-					group = impl.userCommonService.RemovePlaceHolderInRoleFilterField(group)
-					kind = impl.userCommonService.RemovePlaceHolderInRoleFilterField(kind)
-					resource = impl.userCommonService.RemovePlaceHolderInRoleFilterField(resource)
 					if managerAuth != nil {
 						isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 						if !isValidAuth {
@@ -877,74 +872,9 @@ func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool,
 	var roleFilters []bean.RoleFilter
 	roleFilterMap := make(map[string]*bean.RoleFilter)
 	for _, role := range roles {
-		key := ""
-		if len(role.Team) > 0 {
-			key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
-		} else if role.Entity == bean2.EntityJobs {
-			key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
-		} else if len(role.Entity) > 0 {
-			if role.Entity == bean.CLUSTER_ENTITIY {
-				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
-					role.Namespace, role.Group, role.Kind)
-			} else {
-				key = fmt.Sprintf("%s_%s_%s", role.Entity, role.Action)
-			}
-		}
+		key := impl.userCommonService.GetUniqueKeyForAllEntity(role)
 		if _, ok := roleFilterMap[key]; ok {
-			if role.Entity == bean.CLUSTER_ENTITIY {
-				namespaceArr := strings.Split(roleFilterMap[key].Namespace, ",")
-				if containsArr(namespaceArr, AllNamespace) {
-					roleFilterMap[key].Namespace = AllNamespace
-				} else if !containsArr(namespaceArr, role.Namespace) {
-					roleFilterMap[key].Namespace = fmt.Sprintf("%s,%s", roleFilterMap[key].Namespace, role.Namespace)
-				}
-				groupArr := strings.Split(roleFilterMap[key].Group, ",")
-				if containsArr(groupArr, AllGroup) {
-					roleFilterMap[key].Group = AllGroup
-				} else if !containsArr(groupArr, role.Group) {
-					roleFilterMap[key].Group = fmt.Sprintf("%s,%s", roleFilterMap[key].Group, role.Group)
-				}
-				kindArr := strings.Split(roleFilterMap[key].Kind, ",")
-				if containsArr(kindArr, AllKind) {
-					roleFilterMap[key].Kind = AllKind
-				} else if !containsArr(kindArr, role.Kind) {
-					roleFilterMap[key].Kind = fmt.Sprintf("%s,%s", roleFilterMap[key].Kind, role.Kind)
-				}
-				resourceArr := strings.Split(roleFilterMap[key].Resource, ",")
-				if containsArr(resourceArr, AllResource) {
-					roleFilterMap[key].Resource = AllResource
-				} else if !containsArr(resourceArr, role.Resource) {
-					roleFilterMap[key].Resource = fmt.Sprintf("%s,%s", roleFilterMap[key].Resource, role.Resource)
-				}
-			} else if role.Entity == bean2.EntityJobs {
-				envArr := strings.Split(roleFilterMap[key].Environment, ",")
-				if containsArr(envArr, AllEnvironment) {
-					roleFilterMap[key].Environment = AllEnvironment
-				} else if !containsArr(envArr, role.Environment) {
-					roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
-				}
-				entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-				if !containsArr(entityArr, role.EntityName) {
-					roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
-				}
-				workflowArr := strings.Split(roleFilterMap[key].Workflow, ",")
-				if containsArr(workflowArr, AllWorkflow) {
-					roleFilterMap[key].Workflow = AllWorkflow
-				} else if !containsArr(workflowArr, role.Workflow) {
-					roleFilterMap[key].Workflow = fmt.Sprintf("%s,%s", roleFilterMap[key].Workflow, role.Workflow)
-				}
-			} else {
-				envArr := strings.Split(roleFilterMap[key].Environment, ",")
-				if containsArr(envArr, AllEnvironment) {
-					roleFilterMap[key].Environment = AllEnvironment
-				} else if !containsArr(envArr, role.Environment) {
-					roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
-				}
-				entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-				if !containsArr(entityArr, role.EntityName) {
-					roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
-				}
-			}
+			impl.userCommonService.BuildRoleFilterForAllTypes(roleFilterMap, role, key)
 		} else {
 			roleFilterMap[key] = &bean.RoleFilter{
 				Entity:      role.Entity,
@@ -1463,7 +1393,7 @@ func (impl UserServiceImpl) checkGroupAuth(groupName string, token string, manag
 			hasAccessToGroup = false
 		}
 		if len(role.Team) > 0 {
-			rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
+			rbacObject := fmt.Sprintf("%s", role.Team)
 			isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
 			if !isValidAuth {
 				hasAccessToGroup = false
@@ -1489,74 +1419,9 @@ func (impl UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]b
 	var roleFilters []bean.RoleFilter
 	roleFilterMap := make(map[string]*bean.RoleFilter)
 	for _, role := range roles {
-		key := ""
-		if len(role.Team) > 0 {
-			key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
-		} else if role.Entity == bean2.EntityJobs {
-			key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
-		} else if len(role.Entity) > 0 {
-			if role.Entity == bean.CLUSTER_ENTITIY {
-				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
-					role.Namespace, role.Group, role.Kind)
-			} else {
-				key = fmt.Sprintf("%s_%s_%s", role.Entity, role.Action)
-			}
-		}
+		key := impl.userCommonService.GetUniqueKeyForAllEntity(*role)
 		if _, ok := roleFilterMap[key]; ok {
-			if role.Entity == bean.CLUSTER_ENTITIY {
-				namespaceArr := strings.Split(roleFilterMap[key].Namespace, ",")
-				if containsArr(namespaceArr, AllNamespace) {
-					roleFilterMap[key].Namespace = AllNamespace
-				} else if !containsArr(namespaceArr, role.Namespace) {
-					roleFilterMap[key].Namespace = fmt.Sprintf("%s,%s", roleFilterMap[key].Namespace, role.Namespace)
-				}
-				groupArr := strings.Split(roleFilterMap[key].Group, ",")
-				if containsArr(groupArr, AllGroup) {
-					roleFilterMap[key].Group = AllGroup
-				} else if !containsArr(groupArr, role.Group) {
-					roleFilterMap[key].Group = fmt.Sprintf("%s,%s", roleFilterMap[key].Group, role.Group)
-				}
-				kindArr := strings.Split(roleFilterMap[key].Kind, ",")
-				if containsArr(kindArr, AllKind) {
-					roleFilterMap[key].Kind = AllKind
-				} else if !containsArr(kindArr, role.Kind) {
-					roleFilterMap[key].Kind = fmt.Sprintf("%s,%s", roleFilterMap[key].Kind, role.Kind)
-				}
-				resourceArr := strings.Split(roleFilterMap[key].Resource, ",")
-				if containsArr(resourceArr, AllResource) {
-					roleFilterMap[key].Resource = AllResource
-				} else if !containsArr(resourceArr, role.Resource) {
-					roleFilterMap[key].Resource = fmt.Sprintf("%s,%s", roleFilterMap[key].Resource, role.Resource)
-				}
-			} else if role.Entity == bean2.EntityJobs {
-				envArr := strings.Split(roleFilterMap[key].Environment, ",")
-				if containsArr(envArr, AllEnvironment) {
-					roleFilterMap[key].Environment = AllEnvironment
-				} else if !containsArr(envArr, role.Environment) {
-					roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
-				}
-				entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-				if !containsArr(entityArr, role.EntityName) {
-					roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
-				}
-				workflowArr := strings.Split(roleFilterMap[key].Workflow, ",")
-				if containsArr(workflowArr, AllWorkflow) {
-					roleFilterMap[key].Workflow = AllWorkflow
-				} else if !containsArr(workflowArr, role.Workflow) {
-					roleFilterMap[key].Workflow = fmt.Sprintf("%s,%s", roleFilterMap[key].Workflow, role.Workflow)
-				}
-			} else {
-				envArr := strings.Split(roleFilterMap[key].Environment, ",")
-				if containsArr(envArr, AllEnvironment) {
-					roleFilterMap[key].Environment = AllEnvironment
-				} else if !containsArr(envArr, role.Environment) {
-					roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
-				}
-				entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-				if !containsArr(entityArr, role.EntityName) {
-					roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
-				}
-			}
+			impl.userCommonService.BuildRoleFilterForAllTypes(roleFilterMap, *role, key)
 		} else {
 			roleFilterMap[key] = &bean.RoleFilter{
 				Entity:      role.Entity,
@@ -1611,8 +1476,6 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 						continue
 					}
 				}
-				entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-				environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false, "")
 				if err != nil {
 					impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
@@ -1673,15 +1536,12 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 			for _, workflow := range workflows {
 				if managerAuth != nil {
 					// check auth only for apps permission, skip for chart group
-					rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+					rbacObject := fmt.Sprintf("%s", roleFilter.Team)
 					isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
 					if !isValidAuth {
 						continue
 					}
 				}
-				entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-				environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-				workflow = impl.userCommonService.RemovePlaceHolderInRoleFilterField(workflow)
 				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, false, accessType, "", "", "", "", "", actionType, false, workflow)
 				if err != nil {
 					impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
