@@ -34,8 +34,6 @@ VALUES ((select id from devtron_resource where kind = 'cd-pipeline'), 'v1',
         }',
         true, now(), 1, now(), 1);
 
-
-
 update devtron_resource_schema
 set schema='{
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -485,6 +483,7 @@ set schema='{
                                 {
                                     "type": "array",
                                     "uniqueItems": true,
+                                    "minItems": 1,
                                     "items":
                                     {
                                         "type": "object",
@@ -685,6 +684,7 @@ set schema='{
                                 {
                                     "type": "array",
                                     "uniqueItems": true,
+                                    "minItems": 1,
                                     "items":
                                     {
                                         "type": "object",
