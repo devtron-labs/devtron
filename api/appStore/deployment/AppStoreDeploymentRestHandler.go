@@ -625,6 +625,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 func (handler AppStoreDeploymentRestHandlerImpl) FixCorruptedApps(w http.ResponseWriter, r *http.Request) {
 	appStoreAllApps, err := handler.appStoreRepository.GetAppStoreApplications()
 	if err != nil {
+		common.WriteJsonResp(w, err, "error in fetching from app_store", http.StatusInternalServerError)
 		handler.Logger.Errorw("error in fetching from app_store", "err", err)
 		return
 	}
@@ -633,6 +634,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) FixCorruptedApps(w http.Respons
 	for _, appStore := range appStoreAllApps {
 		appStoreApplicationVersions, err := handler.appStoreApplicationVersionRepository.FindChartVersionByAppStoreId(appStore.Id)
 		if err != nil {
+			common.WriteJsonResp(w, err, "error in fetching app store app version by app store id", http.StatusInternalServerError)
 			handler.Logger.Errorw("error in fetching app store app version by app store id", "err", err, "app_store_id", appStore.Id)
 			continue
 		}
@@ -651,18 +653,22 @@ func (handler AppStoreDeploymentRestHandlerImpl) FixCorruptedApps(w http.Respons
 		if appStore.Id != activeAppStoreMap[uniqueKey].Id {
 			installedAppVersions, err := handler.installedAppRepository.GetInstalledAppVersionByAppStoreId(appStore.Id)
 			if err != nil {
+				common.WriteJsonResp(w, err, "error in fetching installed app versions by appStoreId", http.StatusInternalServerError)
 				handler.Logger.Errorw("error in fetching installed app versions by appStoreId", "err", err, "appStoreId", appStore.Id)
 				return
 			}
 			for _, installedAppVersion := range installedAppVersions {
 				activeAppStoreApplicationVersion, err := handler.appStoreApplicationVersionRepository.FindAppStoreVersionByAppStoreIdAndChartVersion(activeAppStoreMap[uniqueKey].Id, installedAppVersion.AppStoreApplicationVersion.Name, installedAppVersion.AppStoreApplicationVersion.Version)
 				if err != nil {
+					common.WriteJsonResp(w, err, "error in fetching active app store application version by id", http.StatusInternalServerError)
 					handler.Logger.Errorw("error in fetching active app store application version by id", "err", err)
 					continue
 				}
+				handler.Logger.Infow(" migrating from old applicationVersionId  to new ", "oldApplicationVersionId", installedAppVersion.AppStoreApplicationVersionId, "newApplicationVersionId", activeAppStoreApplicationVersion.Id)
 				installedAppVersion.AppStoreApplicationVersionId = activeAppStoreApplicationVersion.Id
 				installedAppVersion, err = handler.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
 				if err != nil {
+					common.WriteJsonResp(w, err, "error in updating installed app version", http.StatusInternalServerError)
 					handler.Logger.Errorw("error in updating installed app version", "err", err, "installedAppVersionId", installedAppVersion.Id)
 					return
 				}
@@ -679,8 +685,9 @@ func (handler AppStoreDeploymentRestHandlerImpl) FixCorruptedApps(w http.Respons
 	}
 	err = handler.appStoreRepository.Delete(appsToBeDeleted)
 	if err != nil {
+		common.WriteJsonResp(w, err, "error in marking app store version as delete", http.StatusInternalServerError)
 		handler.Logger.Errorw("error in marking app store version as deleted", "err", err)
 		return
 	}
-
+	common.WriteJsonResp(w, err, "completed", http.StatusOK)
 }
