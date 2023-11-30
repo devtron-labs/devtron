@@ -123,6 +123,7 @@ type CiPipeline struct {
 	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
 	DefaultTag               []string               `json:"defaultTag,omitempty"`
 	EnableCustomTag          bool                   `json:"enableCustomTag"`
+	IsGitRequired            bool                   `json:"isGitRequired"`
 }
 
 type DockerConfigOverride struct {
@@ -141,6 +142,7 @@ type CiPipelineMin struct {
 	ParentAppId      int          `json:"parentAppId"`
 	PipelineType     PipelineType `json:"pipelineType,omitempty"`
 	ScanEnabled      bool         `json:"scanEnabled,notnull"`
+	IsGitRequired    bool         `json:"isGitRequired"`
 }
 
 type CiScript struct {

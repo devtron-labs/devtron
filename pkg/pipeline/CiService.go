@@ -145,11 +145,6 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	if trigger.PipelineType == bean2.CI_JOB && len(ciMaterials) != 0 {
-		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
-		ciMaterials[0].GitMaterial = nil
-		ciMaterials[0].GitMaterialId = 0
-	}
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return 0, err
@@ -239,6 +234,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	workflowRequest.AppId = pipeline.AppId
 	workflowRequest.AppLabels = appLabels
 	workflowRequest.Env = env
+	workflowRequest.IsGitRequired = pipeline.IsGitRequired
 	if isJob {
 		workflowRequest.Type = bean2.JOB_WORKFLOW_PIPELINE_TYPE
 	} else {

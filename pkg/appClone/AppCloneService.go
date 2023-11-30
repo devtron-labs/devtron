@@ -856,6 +856,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					EnvironmentId:            refCiPipeline.EnvironmentId,
 					ScanEnabled:              refCiPipeline.ScanEnabled,
 					PipelineType:             refCiPipeline.PipelineType,
+					IsGitRequired:            refCiPipeline.IsGitRequired,
 				},
 				AppId:         req.appId,
 				Action:        bean.CREATE,
