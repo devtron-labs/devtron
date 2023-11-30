@@ -1,4 +1,5 @@
 ## Bugs
+- fix: app-group page breaking for inactive users (#4315)
 - fix: limit ci build message length to 250 (#4300)
 - fix: Job trigger throws error (#4296)
 - fix: Get Artifacts list API is throwing pg no rows error  (#4292)
