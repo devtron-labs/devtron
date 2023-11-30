@@ -47,6 +47,9 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 			common.WriteJsonResp(w, err, "Failed to parse appType param", http.StatusInternalServerError)
 			return
 		}
+	} else {
+		// if appType not provided we are considering it as customApp for now, doing this because to get all apps by team id rbac objects
+		appType = int(helper.CustomApp)
 	}
 	var teamIdInt int
 	handler.Logger.Infow("request payload, GetAppListForAutocomplete", "teamId", teamId)
@@ -91,9 +94,9 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 
 	var appIdToObjectMap map[int]string
 	if len(teamId) == 0 {
-		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithMatchingAppName(appName)
+		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithMatchingAppName(appName, helper.AppType(appType))
 	} else {
-		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithTeamID(teamIdInt)
+		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithTeamID(teamIdInt, helper.AppType(appType))
 	}
 
 	for _, app := range apps {
@@ -101,7 +104,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 		rbacObjects = append(rbacObjects, object)
 	}
 
-	enforcedMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	enforcedMap := handler.enforcerUtil.CheckAppRbacForAppOrJobInBulk(userEmailId, casbin.ActionGet, rbacObjects, helper.AppType(appType))
 	for _, app := range apps {
 		object := appIdToObjectMap[app.Id]
 		if enforcedMap[object] {
