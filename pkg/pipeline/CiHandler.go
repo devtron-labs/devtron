@@ -1399,7 +1399,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineCo
 	}
 	for _, pipeline := range pipelines {
 		pipelineId := 0
-		if pipeline.ParentCiPipeline == 0 {
+		if pipeline.ParentCiPipeline == 0 || pipeline.PipelineType == string(bean.LINKED_CD) {
 			pipelineId = pipeline.Id
 		} else {
 			pipelineId = pipeline.ParentCiPipeline
@@ -1784,7 +1784,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 			continue
 		}
 		ciPipelineId := 0
-		if ciPipeline.ParentCiPipeline == 0 {
+		if ciPipeline.ParentCiPipeline == 0 || ciPipeline.PipelineType == string(bean.LINKED_CD) {
 			ciPipelineId = ciPipeline.Id
 		} else {
 			ciPipelineId = ciPipeline.ParentCiPipeline
