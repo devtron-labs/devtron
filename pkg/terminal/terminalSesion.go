@@ -445,24 +445,24 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	if req.IsArgoApplication {
 		config, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", req.ClusterId)
+			impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", req.ClusterId)
 			return nil, nil, err
 		}
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(config)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", config)
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId)
 			return nil, nil, err
 		}
 		podNameSplit := strings.Split(req.PodName, "-")
 		resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
 		resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
 		if err != nil {
-			impl.logger.Errorw("not on external cluster", "err", err)
+			impl.logger.Errorw("not on external cluster", "err", err, "resourceName", resourceName)
 			return nil, nil, err
 		}
 		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			impl.logger.Errorw("error in getting server config", "err", err, "clusterWithApplicationObject", clusterWithApplicationObject)
 			return nil, nil, err
 		}
 		config.Host = restConfig.Host
@@ -474,7 +474,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 		if req.ClusterId != 0 {
 			clusterBean, err = impl.clusterService.FindById(req.ClusterId)
 			if err != nil {
-				impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
+				impl.logger.Errorw("error in fetching cluster detail", "err", err, "clusterId", req.ClusterId)
 				return nil, nil, err
 			}
 		} else if req.EnvironmentId != 0 {
@@ -488,7 +488,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 		}
 		clusterConfig, err = clusterBean.GetClusterConfig()
 		if err != nil {
-			impl.logger.Errorw("error in config", "err", err)
+			impl.logger.Errorw("error in config", "err", err, "clusterId", req.ClusterId)
 			return nil, nil, err
 		}
 	}
@@ -571,12 +571,12 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 	if req.IsArgoApplication {
 		config, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", req.ClusterId)
+			impl.logger.Errorw("error in fetching cluster config", "err", err, "cluster id", req.ClusterId)
 			return err
 		}
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(config)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", config)
+			impl.logger.Errorw("error in fetching rest config", "err", err, "cluster config", config)
 			return err
 		}
 
@@ -589,7 +589,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 		}
 		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			impl.logger.Errorw("error in fetching server config", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
 			return err
 		}
 		config.Host = restConfig.Host

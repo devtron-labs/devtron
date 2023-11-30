@@ -314,24 +314,24 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	if request.IsArgoApplication {
 		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(clusterId)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster id", clusterId)
+			impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterId)
 			return nil, err
 		}
 		restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster config", clusterConfig)
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId)
 			return nil, err
 		}
 		podNameSplit := strings.Split(resourceIdentifier.Name, "-")
 		resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
 		resourceResp, err := impl.K8sUtil.GetResource(ctx, bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
 		if err != nil {
-			impl.logger.Errorw("not on external cluster", "err", err)
+			impl.logger.Errorw("not on external cluster", "err", err, "resourceName", resourceName)
 			return nil, err
 		}
 		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
 		if err != nil {
-			impl.logger.Errorw("error in getting resource list", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
+			impl.logger.Errorw("error in getting server config", "err", err, "cluster with application object", clusterWithApplicationObject)
 			return nil, err
 		}
 		restConfigFinal = restConfig
@@ -731,7 +731,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 	if req.IsArgoApplication {
 		clientSet, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterIdForExternalArgoApps(req)
 		if err != nil {
-			impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
+			impl.logger.Errorw("error in getting coreV1 client by clusterId", "err", err, "req", req)
 			return err
 		}
 	} else {
