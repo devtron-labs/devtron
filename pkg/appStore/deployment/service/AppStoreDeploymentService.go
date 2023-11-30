@@ -455,7 +455,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	if err != nil {
 		return nil, err
 	}
-	if !impl.deploymentTypeConfig.HelmInstallAsyncMode {
+	if !impl.deploymentTypeConfig.HelmInstallAsyncMode || util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
 		err = tx.Commit()
 		if err != nil {
 			return nil, err
@@ -1501,7 +1501,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			return nil, err
 		}
 	}
-	if !impl.deploymentTypeConfig.HelmInstallAsyncMode {
+	if !impl.deploymentTypeConfig.HelmInstallAsyncMode || installAppVersionRequest.PerformACDDeployment {
 		installedApp.Status = appStoreBean.DEPLOY_SUCCESS
 		installedApp.UpdatedOn = time.Now()
 		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
