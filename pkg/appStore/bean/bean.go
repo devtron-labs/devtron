@@ -102,6 +102,7 @@ type InstallAppVersionDTO struct {
 	HelmInstallAsyncMode         bool                           `json:"helmInstallAsyncMode"`
 	HelmInstallContextTime       int                            `json:"helmInstallContextTime"`
 	AppStoreApplicationVersionId int
+	IsBulkDeploy                 bool
 	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
 	PerformGitOps                bool `json:"performGitOps"`
 	PerformACDDeployment         bool `json:"performACDDeployment"`

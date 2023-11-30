@@ -144,9 +144,8 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		InstallAppVersionHistoryId: int32(installAppVersionRequest.InstalledAppVersionHistoryId),
 	}
 
-	impl.Logger.Debugw("Helm install HelmInstallAsyncMode", "HelmInstallAsyncMode", installAppVersionRequest.HelmInstallAsyncMode)
-	if installAppVersionRequest.HelmInstallAsyncMode {
-		impl.Logger.Debugw("Helm Install with Async mode")
+	// As bulk Deploy is already running in Async mode so skipping this
+	if installAppVersionRequest.HelmInstallAsyncMode && !installAppVersionRequest.IsBulkDeploy {
 		installHelmAsyncRequest := appStoreDeploymentFullMode.InstallHelmAsyncRequest{
 			InstallReleaseRequest:        installReleaseRequest,
 			Type:                         appStoreDeploymentFullMode.HELM_INSTALL_EVENT,
