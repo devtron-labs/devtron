@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Message not updating for Ci (#4323)
 - fix: app-group page breaking for inactive users (#4315)
 - fix: limit ci build message length to 250 (#4300)
 - fix: Job trigger throws error (#4296)
