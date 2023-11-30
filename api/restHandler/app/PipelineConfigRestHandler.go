@@ -64,7 +64,7 @@ import (
 )
 
 type PipelineRestHandlerEnvConfig struct {
-	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2"`
+	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2" envDefault:"true"`
 }
 
 type DevtronAppRestHandler interface {

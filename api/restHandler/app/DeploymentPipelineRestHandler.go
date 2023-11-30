@@ -20,6 +20,7 @@ import (
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -214,11 +215,13 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		return
 	}
 	for _, deploymentPipeline := range cdPipeline.Pipelines {
-		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, deploymentPipeline.EnvironmentId)
-		handler.Logger.Debugw("Triggered Request By:", "object", object)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
+		if deploymentPipeline.EnvironmentId > 0 {
+			object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, deploymentPipeline.EnvironmentId)
+			handler.Logger.Debugw("Triggered Request By:", "object", object)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
 		}
 	}
 	//RBAC
@@ -325,7 +328,12 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 	createResp, err := handler.pipelineBuilder.PatchCdPipelines(&cdPipeline, ctx)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCdPipeline", "err", err, "payload", cdPipeline)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+
+		if errors.As(err, &models.ValidationError{}) {
+			common.WriteJsonResp(w, err, nil, http.StatusPreconditionFailed)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
