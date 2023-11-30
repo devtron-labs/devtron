@@ -147,6 +147,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 
 func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*LastDeployed, error) {
 	var lastDeployed []*LastDeployed
+	// we are adding a case in the query to concatenate the string "(inactive)" to the users' email id when user is inactive
 	query := `select ca.image as last_deployed_image, 
 			    case
 					when u.active = false then u.email_id || ' (inactive)'

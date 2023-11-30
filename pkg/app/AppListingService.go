@@ -245,7 +245,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	resp.Description = env.Description
 	createdBy, err := impl.userRepository.GetByIdIncludeDeleted(env.CreatedBy)
 	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error in fetching user for app meta info", "error", err)
+		impl.Logger.Errorw("error in fetching user for app meta info", "error", err, "env created by", env.CreatedBy)
 		return nil, err
 	}
 	if createdBy != nil && createdBy.Id > 0 {
