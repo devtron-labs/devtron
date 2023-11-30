@@ -447,6 +447,7 @@ set schema='{
                                 {
                                     "type": "array",
                                     "uniqueItems": true,
+                                    "minItems": 1,
                                     "items":
                                     {
                                         "type": "object",
@@ -647,6 +648,7 @@ set schema='{
                                 {
                                     "type": "array",
                                     "uniqueItems": true,
+                                    "minItems": 1,
                                     "items":
                                     {
                                         "type": "object",
