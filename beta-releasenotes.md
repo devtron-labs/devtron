@@ -39,6 +39,7 @@
 - docs: Added Videos + Fixed Typos and Navigation (#4169)
 - doc: added a Config.md to expose all the env variables use in this microservice (#4173)
 ## Others
+- chore: change CI backend infra  (#4251)
 - chore: updating dependency tracker maven plugin name  (#4265)
 - chore: Update pr-issue-validator.yaml (#4207)
 - chore: update maven dependency tracker plugin (#4254)
