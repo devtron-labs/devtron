@@ -48,6 +48,7 @@ type UserAuthRepository interface {
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
+	DeleteUserRoleByRoleIds(roleIds []int, tx *pg.Tx) error
 	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []casbin2.Policy)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx, UserId int32) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
@@ -56,6 +57,7 @@ type UserAuthRepository interface {
 	GetRolesForApp(appName string) ([]*RoleModel, error)
 	GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error)
 	DeleteRole(role *RoleModel, tx *pg.Tx) error
+	DeleteRolesByIds(roleIds []int, tx *pg.Tx) error
 	//GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
@@ -308,6 +310,16 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx)
 		Where("role_id = ?", roleId).Delete()
 	if err != nil {
 		impl.Logger.Error("err in deleting user role by role id", "err", err, "roleId", roleId)
+		return err
+	}
+	return nil
+}
+func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleIds(roleIds []int, tx *pg.Tx) error {
+	var userRoleModel *UserRoleModel
+	_, err := tx.Model(userRoleModel).
+		Where("role_id in (?)", pg.In(roleIds)).Delete()
+	if err != nil {
+		impl.Logger.Error("err in deleting user role by role id", "err", err, "roleIds", roleIds)
 		return err
 	}
 	return nil
@@ -687,6 +699,16 @@ func (impl UserAuthRepositoryImpl) DeleteRole(role *RoleModel, tx *pg.Tx) error 
 	err := tx.Delete(role)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting role", "err", err, "role", role)
+		return err
+	}
+	return nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteRolesByIds(roleIds []int, tx *pg.Tx) error {
+	var models []RoleModel
+	_, err := tx.Model(&models).Where("id in (?)", pg.In(roleIds)).Delete()
+	if err != nil {
+		impl.Logger.Errorw("error in deleting roles by roleIds", "err", err, "roles", roleIds)
 		return err
 	}
 	return nil
