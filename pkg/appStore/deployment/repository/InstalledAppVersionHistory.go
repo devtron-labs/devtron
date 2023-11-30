@@ -24,6 +24,7 @@ type InstalledAppVersionHistoryRepository interface {
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error)
 	UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppId int, triggeredBy int32, tx *pg.Tx) error
 	IsLatestVersionHistory(installedAppVersionId, installedAppVersionHistoryId int) (bool, error)
+	UpdateLatestQueuedVersionHistory(installedAppVersionHistoryId int, installedAppId int, triggeredBy int32) (int, error)
 	GetConnection() *pg.DB
 }
 
@@ -150,6 +151,22 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) IsLatestVersionHistory(inst
 		Exists()
 
 	return exists, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) UpdateLatestQueuedVersionHistory(installedAppVersionHistoryId int, installedAppId int, triggeredBy int32) (int, error) {
+
+	query := "UPDATE installed_app_version_history " +
+		"set status=?, " +
+		"updated_on=?, " +
+		"updated_by=? " +
+		"where status=? " +
+		"and id=? " +
+		"and id = (select max(id) from installed_app_version_history " +
+		"where installed_app_version_history.installed_app_version_id in (SELECT iav.id FROM installed_app_versions iav WHERE iav.installed_app_id = ?))"
+	var installedAppVersionHistory *InstalledAppVersionHistory
+	resp, err := impl.dbConnection.Query(installedAppVersionHistory, query, pipelineConfig.WorkflowInProgress, time.Now(), triggeredBy, pipelineConfig.WorkflowInQueue, installedAppVersionHistoryId, installedAppId)
+	fmt.Println(resp)
+	return resp.RowsAffected(), err
 }
 
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHistoryByVersionId(installAppVersionId int) ([]*InstalledAppVersionHistory, error) {
