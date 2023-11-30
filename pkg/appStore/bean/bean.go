@@ -402,3 +402,12 @@ func GetDeploymentStatus(isSuccess bool) string {
 		return pipelineConfig.WorkflowFailed
 	}
 }
+
+func GetDeploymentStartStatus(isAsync bool) string {
+	switch isAsync {
+	case true:
+		return pipelineConfig.WorkflowInQueue
+	default:
+		return pipelineConfig.WorkflowInProgress
+	}
+}

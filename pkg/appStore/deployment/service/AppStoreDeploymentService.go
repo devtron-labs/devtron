@@ -283,11 +283,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
 	installedAppVersionHistory.UpdatedOn = time.Now()
 	installedAppVersionHistory.StartedOn = time.Now()
-	if impl.deploymentTypeConfig.HelmInstallAsyncMode {
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowInQueue
-	} else {
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
-	}
+	installedAppVersionHistory.Status = appStoreBean.GetDeploymentStartStatus(impl.deploymentTypeConfig.HelmInstallAsyncMode)
 	helmInstallConfigDTO := appStoreBean.HelmReleaseStatusConfig{
 		InstallAppVersionHistoryId: 0,
 		Message:                    "Install initiated",
@@ -1373,12 +1369,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	installAppVersionRequest.AppName = installedApp.App.AppName
 	installAppVersionRequest.EnvironmentName = installedApp.Environment.Name
 	installAppVersionRequest.Environment = &installedApp.Environment
-	var installAppVersionHistoryStatus string
-	if impl.deploymentTypeConfig.HelmInstallAsyncMode {
-		installAppVersionHistoryStatus = pipelineConfig.WorkflowInQueue
-	} else {
-		installAppVersionHistoryStatus = pipelineConfig.WorkflowInProgress
-	}
+	installAppVersionHistoryStatus := appStoreBean.GetDeploymentStartStatus(impl.deploymentTypeConfig.HelmInstallAsyncMode)
 	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
 		InstalledAppVersionId: installedAppVersion.Id,
 		ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,

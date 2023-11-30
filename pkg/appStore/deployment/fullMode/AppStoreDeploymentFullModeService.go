@@ -95,8 +95,6 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
 	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
 	helmAppService                       client.HelmAppService
-	helmAsyncHelmInstallRequestMap       map[int32]bool
-	helmAsyncHelmInstallRequestLock      *sync.Mutex
 	helmAppReleaseContextMap             map[int]HelmAppReleaseContextType
 	helmAppReleaseContextMapLock         *sync.Mutex
 }
@@ -158,8 +156,6 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		pubSubClient:                         pubSubClient,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		helmAppService:                       helmAppService,
-		helmAsyncHelmInstallRequestMap:       make(map[int32]bool),
-		helmAsyncHelmInstallRequestLock:      &sync.Mutex{},
 		helmAppReleaseContextMap:             make(map[int]HelmAppReleaseContextType),
 		helmAppReleaseContextMapLock:         &sync.Mutex{},
 	}
@@ -570,12 +566,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(instal
 	if err != nil {
 		impl.logger.Errorw("Error in Install Release in callback", "err", err)
 	}
-	installAppVersion := &appStoreBean.InstallAppVersionDTO{
-		DeploymentAppType:            util.PIPELINE_DEPLOYMENT_TYPE_HELM,
-		InstalledAppVersionHistoryId: installHelmAsyncRequest.InstalledAppVersionHistoryId,
-		InstalledAppId:               installHelmAsyncRequest.InstalledAppId,
-		UserId:                       installHelmAsyncRequest.UserId,
-	}
+	installAppVersion := getPostDbOperationPayload(installHelmAsyncRequest)
 	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersion, err)
 }
 
@@ -638,23 +629,16 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 	if err != nil {
 		impl.logger.Errorw("error in updating helm application", "err", err)
 	}
-	installAppVersion := &appStoreBean.InstallAppVersionDTO{
+	installAppVersion := getPostDbOperationPayload(installHelmAsyncRequest)
+	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersion, err)
+
+}
+
+func getPostDbOperationPayload(installHelmAsyncRequest *InstallHelmAsyncRequest) *appStoreBean.InstallAppVersionDTO {
+	return &appStoreBean.InstallAppVersionDTO{
 		DeploymentAppType:            util.PIPELINE_DEPLOYMENT_TYPE_HELM,
 		InstalledAppVersionHistoryId: installHelmAsyncRequest.InstalledAppVersionHistoryId,
 		InstalledAppId:               installHelmAsyncRequest.InstalledAppId,
 		UserId:                       installHelmAsyncRequest.UserId,
 	}
-	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersion, err)
-
-}
-
-func (impl *AppStoreDeploymentFullModeServiceImpl) handleConcurrentRequest(installAppVersionHistoryId int32) bool {
-	impl.helmAsyncHelmInstallRequestLock.Lock()
-	defer impl.helmAsyncHelmInstallRequestLock.Unlock()
-	if _, exists := impl.helmAsyncHelmInstallRequestMap[installAppVersionHistoryId]; exists {
-		//request is in process already, Skip here
-		return true
-	}
-	impl.helmAsyncHelmInstallRequestMap[installAppVersionHistoryId] = true
-	return false
 }
