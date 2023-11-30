@@ -642,3 +642,20 @@ func getPostDbOperationPayload(installHelmAsyncRequest *InstallHelmAsyncRequest)
 		UserId:                       installHelmAsyncRequest.UserId,
 	}
 }
+
+func GetInstallHelmAsyncRequestPayload(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isInstallRequest bool) InstallHelmAsyncRequest {
+	request := InstallHelmAsyncRequest{
+		InstalledAppId:               installAppVersionRequest.InstalledAppId,
+		InstalledAppVersionId:        installAppVersionRequest.InstalledAppVersionId,
+		ContextTime:                  installAppVersionRequest.HelmInstallContextTime,
+		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+		ClusterId:                    installAppVersionRequest.ClusterId,
+		UserId:                       installAppVersionRequest.UserId,
+	}
+	if isInstallRequest {
+		request.Type = HELM_INSTALL_EVENT
+	} else {
+		request.Type = HELM_UPGRADE_EVENT
+	}
+	return request
+}
