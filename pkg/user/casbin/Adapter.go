@@ -172,6 +172,16 @@ func RemovePoliciesByRoles(roles string) bool {
 	return policyResponse
 }
 
+func RemovePoliciesByAllRoles(roles []string) bool {
+	rolesLower := make([]string, 0, len(roles))
+	for _, role := range roles {
+		rolesLower = append(rolesLower, strings.ToLower(role))
+	}
+	policyResponse := e.RemovePolicy(rolesLower)
+	enforcerImplRef.InvalidateCompleteCache()
+	return policyResponse
+}
+
 func handlePanic() {
 	if err := recover(); err != nil {
 		log.Println("panic occurred:", err)
