@@ -243,11 +243,18 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		resp.Type = NonProduction
 	}
 	resp.Description = env.Description
-	createdBy, err := impl.userRepository.GetById(env.CreatedBy)
-	if err != nil {
-		impl.Logger.Errorw("failed to fetch user who created the env", "err", err, "user id that created env", env.CreatedBy)
+	createdBy, err := impl.userRepository.GetByIdIncludeDeleted(env.CreatedBy)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching user for app meta info", "error", err)
+		return nil, err
 	}
-	resp.CreatedBy = createdBy.EmailId
+	if createdBy != nil && createdBy.Id > 0 {
+		if createdBy.Active {
+			resp.CreatedBy = fmt.Sprintf(createdBy.EmailId)
+		} else {
+			resp.CreatedBy = fmt.Sprintf("%s (inactive)", createdBy.EmailId)
+		}
+	}
 	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "env id", envId)
