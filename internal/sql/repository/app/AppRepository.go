@@ -58,7 +58,7 @@ type AppRepository interface {
 	FindAll() ([]*App, error)
 	FindAppsByEnvironmentId(environmentId int) ([]App, error)
 	FindAllActiveAppsWithTeam(appType helper.AppType) ([]*App, error)
-	FindAllActiveAppsWithTeamWithTeamId(teamID int) ([]*App, error)
+	FindAllActiveAppsWithTeamWithTeamId(teamID int, appType helper.AppType) ([]*App, error)
 	CheckAppExists(appNames []string) ([]*App, error)
 
 	FindByIds(ids []*int) ([]*App, error)
@@ -74,7 +74,7 @@ type AppRepository interface {
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
 	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
-	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*App, error)
+	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string, appType helper.AppType) ([]*App, error)
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
 	FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error)
 	FetchAppIdsByDisplaynames(names []string) (map[int]string, []int, error)
@@ -239,21 +239,21 @@ func (repo AppRepositoryImpl) FindAllActiveAppsWithTeam(appType helper.AppType) 
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamWithTeamId(teamID int) ([]*App, error) {
+func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamWithTeamId(teamID int, appType helper.AppType) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Column("Team").
 		Where("app.active = ?", true).
-		Where("app.app_type = ?", 0).
+		Where("app.app_type = ?", appType).
 		Where("app.team_id = ?", teamID).
 		Select()
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*App, error) {
+func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string, appType helper.AppType) ([]*App, error) {
 	var apps []*App
 	appNameLikeQuery := "app.app_name like '%" + appNameMatch + "%'"
 	err := repo.dbConnection.Model(&apps).Column("Team").
-		Where("app.active = ?", true).Where("app.app_type = ?", helper.CustomApp).Where(appNameLikeQuery).
+		Where("app.active = ?", true).Where("app.app_type = ?", appType).Where(appNameLikeQuery).
 		Select()
 	return apps, err
 }

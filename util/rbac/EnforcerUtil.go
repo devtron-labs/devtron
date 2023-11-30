@@ -37,7 +37,7 @@ import (
 type EnforcerUtil interface {
 	GetAppRBACName(appName string) string
 	GetRbacObjectsForAllApps(appType helper2.AppType) map[int]string
-	GetRbacObjectsForAllAppsWithTeamID(teamID int) map[int]string
+	GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper2.AppType) map[int]string
 	GetAppRBACNameByAppId(appId int) string
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
 	GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string
@@ -58,7 +58,7 @@ type EnforcerUtil interface {
 	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier k8s.ResourceIdentifier) (resourceName, objectName string)
 	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
 	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
-	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string) map[int]string
+	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string, appType helper2.AppType) map[int]string
 	GetAppAndEnvObjectByPipeline(cdPipelines []*bean.CDPipelineConfigObject) map[int][]string
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
@@ -75,6 +75,7 @@ type EnforcerUtil interface {
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
+	CheckAppRbacForAppOrJobInBulk(email, action string, rbacObjects []string, appType helper2.AppType) map[string]bool
 }
 
 type EnforcerUtilImpl struct {
@@ -180,15 +181,15 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps(appType helper2.AppType) m
 	return objects
 }
 
-func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithTeamID(teamID int) map[int]string {
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper2.AppType) map[int]string {
 	objects := make(map[int]string)
-	result, err := impl.appRepo.FindAllActiveAppsWithTeamWithTeamId(teamID)
+	result, err := impl.appRepo.FindAllActiveAppsWithTeamWithTeamId(teamID, appType)
 	if err != nil {
 		return objects
 	}
 	for _, item := range result {
 		if _, ok := objects[item.Id]; !ok {
-			objects[item.Id] = fmt.Sprintf("%s/%s", item.Team.Name, item.AppName)
+			objects[item.Id] = fmt.Sprintf("%s/%s", item.Team.Name, strings.ToLower(item.AppName))
 		}
 	}
 	return objects
@@ -559,15 +560,15 @@ func (impl EnforcerUtilImpl) GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int
 	return objects
 }
 
-func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string) map[int]string {
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string, appType helper2.AppType) map[int]string {
 	objects := make(map[int]string)
-	result, err := impl.appRepo.FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch)
+	result, err := impl.appRepo.FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch, appType)
 	if err != nil {
 		return objects
 	}
 	for _, item := range result {
 		if _, ok := objects[item.Id]; !ok {
-			objects[item.Id] = fmt.Sprintf("%s/%s", item.Team.Name, item.AppName)
+			objects[item.Id] = fmt.Sprintf("%s/%s", item.Team.Name, strings.ToLower(item.AppName))
 		}
 	}
 	return objects
@@ -725,4 +726,15 @@ func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJob(token, resourceName, action
 		ok = impl.enforcer.Enforce(token, casbin.ResourceJobs, action, resourceName)
 	}
 	return ok
+}
+
+func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(email, action string, rbacObjects []string, appType helper2.AppType) map[string]bool {
+	var enforcedMap map[string]bool
+	if appType == helper2.Job {
+		enforcedMap = impl.enforcer.EnforceByEmailInBatch(email, casbin.ResourceJobs, action, rbacObjects)
+	} else {
+		enforcedMap = impl.enforcer.EnforceByEmailInBatch(email, casbin.ResourceApplications, action, rbacObjects)
+	}
+
+	return enforcedMap
 }
