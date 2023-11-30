@@ -96,7 +96,7 @@ type ResourceType string
 const (
 	CM                 ResourceType = "ConfigMap"
 	CS                 ResourceType = "Secret"
-	DeploymentTemplate ResourceType = "DeploymentTemplate"
+	DeploymentTemplate ResourceType = "Deployment Template"
 )
 const AppLevelBaseUrl = "/dashboard/app/%d/edit/"
 const EnvLevelBaseUrl = "/dashboard/app/%d/edit/env-override/%d/"
@@ -436,9 +436,13 @@ func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDataForNotific
 	}
 	payload.AppName = application.AppName
 	payload.EnvName = environment.Name
-	payload.ProtectConfigFileName = request.ResourceName
 	payload.ProtectConfigComment = request.UserComment
 	payload.ProtectConfigFileType = string(request.Resource)
+	if request.Resource == DeploymentTemplate {
+		payload.ProtectConfigFileName = string(DeploymentTemplate)
+	} else {
+		payload.ProtectConfigFileName = request.ResourceName
+	}
 	return nil
 }
 func setProtectConfigLink(request ConfigDataForNotification) string {
