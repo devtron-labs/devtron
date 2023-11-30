@@ -1363,6 +1363,7 @@ func (impl *UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, er
 	response := &bean.UserInfo{
 		Id:      model.Id,
 		EmailId: model.EmailId,
+		Exist:   model.Active,
 	}
 	return response, nil
 }

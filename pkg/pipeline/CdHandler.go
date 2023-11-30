@@ -48,6 +48,7 @@ import (
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -1003,7 +1004,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		return types.WorkflowResponse{}, err
 	}
 	if triggeredByUser == nil {
-		triggeredByUser = &bean.UserInfo{EmailId: "anonymous"}
+		triggeredByUser = &bean.UserInfo{EmailId: bean3.ANONYMOUS_EMAIL_ID}
 	}
 	ciArtifactId := workflow.CiArtifactId
 	if ciArtifactId > 0 {

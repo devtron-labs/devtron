@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	bean4 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -662,7 +663,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
 	}
-	triggeredByUser, err := impl.userService.GetById(workflow.TriggeredBy)
+	triggeredByUser, err := impl.userService.GetByIdIncludeDeleted(workflow.TriggeredBy)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
@@ -722,13 +723,19 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		GitTriggers:        workflow.GitTriggers,
 		CiMaterials:        ciMaterialsArr,
 		TriggeredBy:        workflow.TriggeredBy,
-		TriggeredByEmail:   triggeredByUser.EmailId,
+		TriggeredByEmail:   bean4.ANONYMOUS_EMAIL_ID,
 		Artifact:           ciArtifact.Image,
 		ArtifactId:         ciArtifact.Id,
 		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
 		EnvironmentId:      workflow.EnvironmentId,
 		EnvironmentName:    environmentName,
 		PipelineType:       workflow.CiPipeline.PipelineType,
+	}
+	if triggeredByUser != nil {
+		workflowResponse.TriggeredByEmail = triggeredByUser.EmailId
+		if !triggeredByUser.Exist {
+			workflowResponse.TriggeredByEmail = fmt.Sprintf("%s (inactive)", triggeredByUser.EmailId)
+		}
 	}
 	return workflowResponse, nil
 }
@@ -1490,7 +1497,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			}
 		}
 
-		triggeredByUser, err = impl.userService.GetById(workflow.TriggeredBy)
+		triggeredByUser, err = impl.userService.GetByIdIncludeDeleted(workflow.TriggeredBy)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
@@ -1546,7 +1553,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 	gitTriggerInfoResponse := &types.GitTriggerInfoResponse{
 		//GitTriggers:      workflow.GitTriggers,
 		CiMaterials:      ciMaterialsArr,
-		TriggeredByEmail: triggeredByUser.EmailId,
+		TriggeredByEmail: bean4.ANONYMOUS_EMAIL_ID,
 		AppId:            ciPipeline.AppId,
 		AppName:          deployDetail.AppName,
 		EnvironmentId:    deployDetail.EnvironmentId,
@@ -1555,6 +1562,12 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		Default:          deployDetail.Default,
 		ImageTaggingData: *imageTaggingData,
 		Image:            ciArtifact.Image,
+	}
+	if triggeredByUser != nil {
+		gitTriggerInfoResponse.TriggeredByEmail = triggeredByUser.EmailId
+		if !triggeredByUser.Exist {
+			gitTriggerInfoResponse.TriggeredByEmail = fmt.Sprintf("%s (inactive)", triggeredByUser.EmailId)
+		}
 	}
 	return gitTriggerInfoResponse, nil
 }
