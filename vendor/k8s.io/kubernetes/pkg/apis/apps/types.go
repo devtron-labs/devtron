@@ -207,7 +207,6 @@ type StatefulSetSpec struct {
 	// Minimum number of seconds for which a newly created pod should be ready
 	// without any of its container crashing for it to be considered available.
 	// Defaults to 0 (pod will be considered available as soon as it is ready)
-	// This is an alpha field and requires enabling StatefulSetMinReadySeconds feature gate.
 	// +optional
 	MinReadySeconds int32
 
@@ -257,7 +256,6 @@ type StatefulSetStatus struct {
 	Conditions []StatefulSetCondition
 
 	// Total number of available pods (ready for at least minReadySeconds) targeted by this statefulset.
-	// This is a beta field and requires enabling StatefulSetMinReadySeconds feature gate.
 	// +optional
 	AvailableReplicas int32
 }
@@ -628,7 +626,6 @@ type RollingUpdateDaemonSet struct {
 	// daemonset on any given node can double if the readiness check fails, and
 	// so resource intensive daemonsets should take into account that they may
 	// cause evictions during disruption.
-	// This is beta field and enabled/disabled by DaemonSetUpdateSurge feature gate.
 	// +optional
 	MaxSurge intstr.IntOrString
 }
