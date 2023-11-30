@@ -266,11 +266,11 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(
 }
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindAppStoreVersionByAppStoreIdAndChartVersion(appStoreId int, chartName, version string) (AppStoreApplicationVersion, error) {
-	var appStoreApplicationVersion AppStoreApplicationVersion
+	var appStoreApplicationVersion []AppStoreApplicationVersion
 	query := "select * from app_store_application_version where app_store_id = ? and name = ?  and  version = ? "
 	_, err := impl.dbConnection.Query(&appStoreApplicationVersion, query, appStoreId, chartName, version)
 	if err != nil {
-		return appStoreApplicationVersion, err
+		return appStoreApplicationVersion[0], err
 	}
-	return appStoreApplicationVersion, nil
+	return appStoreApplicationVersion[0], nil
 }

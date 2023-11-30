@@ -55,7 +55,7 @@ type AppStore struct {
 
 func (impl AppStoreRepositoryImpl) GetAppStoreApplications() ([]*AppStore, error) {
 	var models []*AppStore
-	err := impl.dbConnection.Model(&models).Where("active = ? and chart_repo_id is NULL", true).Select()
+	err := impl.dbConnection.Model(&models).Where("active = ? ", true).Select()
 	if err != nil {
 		return models, err
 	}
