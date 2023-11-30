@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -58,11 +59,12 @@ type AppWorkflowRestHandlerImpl struct {
 	pipelineBuilder    pipeline.PipelineBuilder
 	appRepository      app.AppRepository
 	enforcerUtil       rbac.EnforcerUtil
+	chartService       chart.ChartService
 }
 
 func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appWorkflowService appWorkflow.AppWorkflowService,
 	teamService team.TeamService, enforcer casbin.Enforcer, pipelineBuilder pipeline.PipelineBuilder,
-	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil) *AppWorkflowRestHandlerImpl {
+	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil, chartService chart.ChartService) *AppWorkflowRestHandlerImpl {
 	return &AppWorkflowRestHandlerImpl{
 		Logger:             Logger,
 		appWorkflowService: appWorkflowService,
@@ -72,6 +74,7 @@ func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService us
 		pipelineBuilder:    pipelineBuilder,
 		appRepository:      appRepository,
 		enforcerUtil:       enforcerUtil,
+		chartService:       chartService,
 	}
 }
 
@@ -224,6 +227,13 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	} else {
 		workflows["workflows"] = []appWorkflow.AppWorkflowDto{}
 	}
+	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+	if err != nil {
+		impl.Logger.Errorw("service err, IsGitOpsRepoConfiguredForDevtronApps", "appId", appId, "envIds", envIds, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	workflows["isGitOpsRepoNotConfigured"] = isAppLevelGitOpsConfigured
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }
 
