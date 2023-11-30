@@ -159,7 +159,13 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 
 func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*LastDeployed, error) {
 	var lastDeployed []*LastDeployed
-	query := `select ca.image as last_deployed_image, u.email_id as last_deployed_by from pipeline p
+	// we are adding a case in the query to concatenate the string "(inactive)" to the users' email id when user is inactive
+	query := `select ca.image as last_deployed_image, 
+			    case
+					when u.active = false then u.email_id || ' (inactive)'
+					else u.email_id
+				end as last_deployed_by 
+				from pipeline p
                 join cd_workflow cw on cw.pipeline_id = p.id
 			  	join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id
 				join ci_artifact ca on ca.id = cw.ci_artifact_id
