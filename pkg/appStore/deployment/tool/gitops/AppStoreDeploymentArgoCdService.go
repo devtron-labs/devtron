@@ -16,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
@@ -310,7 +311,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	installedAppVersionHistory.UpdatedBy = installedApp.UserId
 	installedAppVersionHistory.UpdatedOn = time.Now()
 	installedAppVersionHistory.StartedOn = time.Now()
-	installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
+	installedAppVersionHistory.Status = bean.WorkflowInProgress
 	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.Logger.Errorw("error while fetching from db", "error", err)
@@ -713,7 +714,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 			impl.Logger.Errorw("error in getting installedAppVersionHistory by installedAppVersionHistoryId", "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
 			return err
 		}
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		installedAppVersionHistory.Status = bean.WorkflowFailed
 		installedAppVersionHistory.FinishedOn = triggeredAt
 		installedAppVersionHistory.UpdatedOn = time.Now()
 		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
@@ -725,7 +726,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 
 	} else {
 		//update [n,n-1] statuses as failed if not terminal
-		terminalStatus := []string{string(health.HealthStatusHealthy), pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded}
+		terminalStatus := []string{string(health.HealthStatusHealthy), bean.WorkflowAborted, bean.WorkflowFailed, bean.WorkflowSucceeded}
 		previousNonTerminalHistory, err := impl.installedAppRepositoryHistory.FindPreviousInstalledAppVersionHistoryByStatus(installAppVersionRequest.Id, installAppVersionRequest.InstalledAppVersionHistoryId, terminalStatus)
 		if err != nil {
 			impl.Logger.Errorw("error fetching previous installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
@@ -745,16 +746,16 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 		var timelines []*pipelineConfig.PipelineStatusTimeline
 		for _, previousHistory := range previousNonTerminalHistory {
 			if previousHistory.Status == string(health.HealthStatusHealthy) ||
-				previousHistory.Status == pipelineConfig.WorkflowSucceeded ||
-				previousHistory.Status == pipelineConfig.WorkflowAborted ||
-				previousHistory.Status == pipelineConfig.WorkflowFailed {
+				previousHistory.Status == bean.WorkflowSucceeded ||
+				previousHistory.Status == bean.WorkflowAborted ||
+				previousHistory.Status == bean.WorkflowFailed {
 				//terminal status return
 				impl.Logger.Infow("skip updating installedAppVersionHistory status as previous history status is", "status", previousHistory.Status)
 				continue
 			}
 			impl.Logger.Infow("updating installedAppVersionHistory status as previous runner status is", "status", previousHistory.Status)
 			previousHistory.FinishedOn = triggeredAt
-			previousHistory.Status = pipelineConfig.WorkflowFailed
+			previousHistory.Status = bean.WorkflowFailed
 			previousHistory.UpdatedOn = time.Now()
 			previousHistory.UpdatedBy = installAppVersionRequest.UserId
 			timeline := &pipelineConfig.PipelineStatusTimeline{

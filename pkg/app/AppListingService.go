@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	bean2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -479,7 +480,7 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 			impl.Logger.Errorw("error in getting latest wfr by pipelineId", "err", err, "cdWorkflowId", override.CdWorkflowId)
 			return false, err
 		}
-		if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue}, cdWfr.Status) {
+		if slices.Contains([]string{bean2.WorkflowInitiated, bean2.WorkflowInQueue}, cdWfr.Status) {
 			return false, nil
 		}
 		return models.DEPLOYMENTTYPE_STOP == override.DeploymentType, nil
@@ -506,7 +507,7 @@ func (impl AppListingServiceImpl) ISLastReleaseStopTypeV2(pipelineIds []int) (ma
 				releaseMap[override.PipelineId] = false
 				continue
 			}
-			if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue}, cdWfr.Status) {
+			if slices.Contains([]string{bean2.WorkflowInitiated, bean2.WorkflowInQueue}, cdWfr.Status) {
 				releaseMap[override.PipelineId] = false
 				continue
 			}
@@ -740,7 +741,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 		}
 
-		if latestTriggeredWf.WorkflowStatus == pipelineConfig.WF_STARTED || latestTriggeredWf.WorkflowStatus == pipelineConfig.WF_UNKNOWN {
+		if latestTriggeredWf.WorkflowStatus == bean2.WF_STARTED || latestTriggeredWf.WorkflowStatus == bean2.WF_UNKNOWN {
 			if pipeline.PreStageConfig != "" {
 				if preCdStageRunner != nil && preCdStageRunner.Id != 0 {
 					env.PreStageStatus = &preCdStageRunner.Status

@@ -23,7 +23,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -729,7 +729,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistory
 
 func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, error error) error {
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-		err := impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowSucceeded, "")
+		err := impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, bean2.WorkflowSucceeded, "")
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return err
@@ -737,7 +737,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateInstalledAppVersionHistory
 	}
 
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		status := appStoreBean.GetDeploymentStatus(error == nil)
+		status := bean2.GetDeploymentStatus(error == nil)
 		helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{
 			InstallAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 			Message:                    "Release Installed",

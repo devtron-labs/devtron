@@ -66,7 +66,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployDbOperation(&InstallAppVersionDTO, tx, false)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "helm")
@@ -116,7 +116,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployDbOperation(&InstallAppVersionDTO, tx, false)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "argo_cd")

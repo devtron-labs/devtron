@@ -19,7 +19,6 @@ package appStoreBean
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
 )
@@ -391,23 +390,5 @@ func GetAppStatus(isSuccess bool) AppstoreDeploymentStatus {
 		return DEPLOY_SUCCESS
 	default:
 		return HELM_ERROR
-	}
-}
-
-func GetDeploymentStatus(isSuccess bool) string {
-	switch isSuccess {
-	case true:
-		return pipelineConfig.WorkflowSucceeded
-	default:
-		return pipelineConfig.WorkflowFailed
-	}
-}
-
-func GetDeploymentStartStatus(isAsync bool) string {
-	switch isAsync {
-	case true:
-		return pipelineConfig.WorkflowInQueue
-	default:
-		return pipelineConfig.WorkflowInProgress
 	}
 }

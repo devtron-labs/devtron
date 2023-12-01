@@ -35,6 +35,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean3 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -342,7 +343,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		if err != nil {
 			impl.Logger.Errorw("error in getting acd application", "err", err, "argoAppName", pipeline)
 			//updating cdWfr status
-			cdWfr.Status = pipelineConfig.WorkflowUnableToFetchState
+			cdWfr.Status = bean3.WorkflowUnableToFetchState
 			cdWfr.UpdatedOn = time.Now()
 			cdWfr.UpdatedBy = 1
 			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWfr)
@@ -439,7 +440,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		if err != nil {
 			impl.Logger.Errorw("error in getting acd application", "err", err, "argoAppName", installedApp)
 			//updating cdWfr status
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowUnableToFetchState
+			installedAppVersionHistory.Status = bean3.WorkflowUnableToFetchState
 			installedAppVersionHistory.UpdatedOn = time.Now()
 			installedAppVersionHistory.UpdatedBy = 1
 			installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
@@ -485,7 +486,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		if isSucceeded {
 			//handling deployment success event
 			//updating cdWfr status
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+			installedAppVersionHistory.Status = bean3.WorkflowSucceeded
 			installedAppVersionHistory.FinishedOn = time.Now()
 			installedAppVersionHistory.UpdatedOn = time.Now()
 			installedAppVersionHistory.UpdatedBy = 1
@@ -523,7 +524,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 		}
 		wfr.UpdatedBy = 1
 		wfr.UpdatedOn = time.Now()
-		if wfr.Status == pipelineConfig.WorkflowFailed {
+		if wfr.Status == bean3.WorkflowFailed {
 			err = impl.workflowDagExecutor.MarkPipelineStatusTimelineFailed(wfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED))
 			if err != nil {
 				impl.Logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
@@ -535,12 +536,12 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			impl.Logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
 		}
-		if slices.Contains(pipelineConfig.WfrTerminalStatusList, wfr.Status) {
+		if slices.Contains(bean3.WfrTerminalStatusList, wfr.Status) {
 			impl.workflowDagExecutor.UpdateTriggerCDMetricsOnFinish(wfr)
 		}
 
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
-		if wfr.Status == pipelineConfig.WorkflowSucceeded {
+		if wfr.Status == bean3.WorkflowSucceeded {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
 			if err != nil {
 				impl.Logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)

@@ -25,6 +25,7 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	bean3 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/app"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -335,7 +336,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:                pipelineConfig.WorkflowStarting, //starting CIStage
+		Status:                bean3.WorkflowStarting, //starting CIStage
 		Message:               "",
 		StartedOn:             time.Now(),
 		CiPipelineId:          pipeline.Id,
@@ -530,7 +531,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
 		if err != nil {
 			if errors.Is(err, bean2.ErrImagePathInUse) {
-				savedWf.Status = pipelineConfig.WorkflowFailed
+				savedWf.Status = bean3.WorkflowFailed
 				savedWf.Message = bean2.ImageTagUnavailableMessage
 				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 				if err1 != nil {
@@ -564,7 +565,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			dockerRegistry.Id)
 		if err != nil {
 			impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
-			savedWf.Status = pipelineConfig.WorkflowFailed
+			savedWf.Status = bean3.WorkflowFailed
 			savedWf.Message = err.Error()
 			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 			if err1 != nil {

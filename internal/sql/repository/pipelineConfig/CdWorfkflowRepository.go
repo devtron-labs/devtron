@@ -20,12 +20,11 @@ package pipelineConfig
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+	bean2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -79,46 +78,12 @@ type CdWorkflowRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-type WorkflowStatus int
-
-const (
-	WF_UNKNOWN WorkflowStatus = iota
-	REQUEST_ACCEPTED
-	ENQUEUED
-	QUE_ERROR
-	WF_STARTED
-	DROPPED_STALE
-	DEQUE_ERROR
-	TRIGGER_ERROR
-)
-
-const (
-	WorkflowStarting           = "Starting"
-	WorkflowInQueue            = "Queued"
-	WorkflowInitiated          = "Initiating"
-	WorkflowInProgress         = "Progressing"
-	WorkflowAborted            = "Aborted"
-	WorkflowFailed             = "Failed"
-	WorkflowSucceeded          = "Succeeded"
-	WorkflowTimedOut           = "TimedOut"
-	WorkflowUnableToFetchState = "UnableToFetch"
-	WorkflowTypeDeploy         = "DEPLOY"
-	WorkflowTypePre            = "PRE"
-	WorkflowTypePost           = "POST"
-)
-
-var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, application.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}
-
-func (a WorkflowStatus) String() string {
-	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "WF_STARTED", "DROPPED_STALE", "DEQUE_ERROR", "TRIGGER_ERROR"}[a]
-}
-
 type CdWorkflow struct {
-	tableName        struct{}       `sql:"cd_workflow" pg:",discard_unknown_columns"`
-	Id               int            `sql:"id,pk"`
-	CiArtifactId     int            `sql:"ci_artifact_id"`
-	PipelineId       int            `sql:"pipeline_id"`
-	WorkflowStatus   WorkflowStatus `sql:"workflow_status,notnull"`
+	tableName        struct{}             `sql:"cd_workflow" pg:",discard_unknown_columns"`
+	Id               int                  `sql:"id,pk"`
+	CiArtifactId     int                  `sql:"ci_artifact_id"`
+	PipelineId       int                  `sql:"pipeline_id"`
+	WorkflowStatus   bean2.WorkflowStatus `sql:"workflow_status,notnull"`
 	Pipeline         *Pipeline
 	CiArtifact       *repository.CiArtifact
 	CdWorkflowRunner []CdWorkflowRunner
@@ -185,9 +150,9 @@ type CdWorkflowRunner struct {
 
 func (c *CdWorkflowRunner) IsExternalRun() bool {
 	var isExtCluster bool
-	if c.WorkflowType == WorkflowTypePre {
+	if c.WorkflowType == bean2.WorkflowTypePre {
 		isExtCluster = c.CdWorkflow.Pipeline.RunPreStageInEnv
-	} else if c.WorkflowType == WorkflowTypePost {
+	} else if c.WorkflowType == bean2.WorkflowTypePost {
 		isExtCluster = c.CdWorkflow.Pipeline.RunPostStageInEnv
 	}
 	return isExtCluster
@@ -510,7 +475,7 @@ func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner
 func (impl *CdWorkflowRepositoryImpl) UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) ([]*CdWorkflowRunner, error) {
 	var wfr []*CdWorkflowRunner
 	_, err := impl.dbConnection.Model(&wfr).
-		Set("status = ?", WorkflowFailed).
+		Set("status = ?", bean2.WorkflowFailed).
 		Set("finished_on = ?", time.Now()).
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", triggeredBy).
@@ -518,7 +483,7 @@ func (impl *CdWorkflowRepositoryImpl) UpdatePreviousQueuedRunnerStatus(cdWfrId, 
 		Where("workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("cd_workflow_id in (SELECT id from cd_workflow WHERE pipeline_id = ?)", pipelineId).
 		Where("id < ?", cdWfrId).
-		Where("status = ?", WorkflowInQueue).
+		Where("status = ?", bean2.WorkflowInQueue).
 		Update()
 	return wfr, err
 }
@@ -686,8 +651,8 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilt
 
 func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error) {
 	var wfrList []*CdWorkflowRunner
-	excludedStatusList := WfrTerminalStatusList
-	excludedStatusList = append(excludedStatusList, WorkflowInitiated, WorkflowInQueue, WorkflowStarting)
+	excludedStatusList := bean2.WfrTerminalStatusList
+	excludedStatusList = append(excludedStatusList, bean2.WorkflowInitiated, bean2.WorkflowInQueue, bean2.WorkflowStarting)
 	err := impl.dbConnection.
 		Model(&wfrList).
 		Column("cd_workflow_runner.*", "CdWorkflow.id", "CdWorkflow.pipeline_id", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_name", "CdWorkflow.Pipeline.deployment_app_type", "CdWorkflow.Pipeline.deleted", "CdWorkflow.Pipeline.Environment").
@@ -701,7 +666,7 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 			" INNER JOIN cd_workflow_runner on cd_workflow.id = cd_workflow_runner.cd_workflow_id"+
 			" WHERE cd_workflow_runner.status != ?"+
 			" GROUP BY cd_workflow.pipeline_id"+
-			" ORDER BY cd_workflow.pipeline_id desc)", WorkflowInQueue).
+			" ORDER BY cd_workflow.pipeline_id desc)", bean2.WorkflowInQueue).
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
 		Where("cd_workflow_runner.started_on > NOW() - INTERVAL '? hours'", getPipelineDeployedWithinHours).
 		Where("p.deleted=?", false).
