@@ -104,8 +104,9 @@ type CiPipelineRepository interface {
 	FindByAppId(appId int) (pipelines []*CiPipeline, err error)
 	FindCiPipelineByAppIdAndEnvIds(appId int, envIds []int) ([]*CiPipeline, error)
 	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
+	//find any pipeline by id, includes soft deleted as well
+	FindByIdIncludingInActive(id int) (pipeline *CiPipeline, err error)
 	//find non deleted pipeline
-	FindDeletedById(id int) (pipeline *CiPipeline, err error)
 	FindById(id int) (pipeline *CiPipeline, err error)
 	FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error)
 	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
@@ -309,7 +310,7 @@ func (impl CiPipelineRepositoryImpl) SaveCiPipelineScript(ciPipelineScript *CiPi
 	return tx.Insert(ciPipelineScript)
 }
 
-func (impl CiPipelineRepositoryImpl) FindDeletedById(id int) (pipeline *CiPipeline, err error) {
+func (impl CiPipelineRepositoryImpl) FindByIdIncludingInActive(id int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{Id: id}
 	err = impl.dbConnection.Model(pipeline).
 		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").

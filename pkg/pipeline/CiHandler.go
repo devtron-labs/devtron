@@ -1430,11 +1430,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
-	//todo gireesh material not deleted
-	ciPipeline, err := impl.ciPipelineRepository.FindById(ciArtifact.PipelineId)
-	if err == pg.ErrNoRows && ciArtifact.PipelineId > 0 {
-		ciPipeline, err = impl.ciPipelineRepository.FindDeletedById(ciArtifact.PipelineId)
-	}
+	ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(ciArtifact.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
 		return &types.GitTriggerInfoResponse{}, err
