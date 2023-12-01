@@ -944,6 +944,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			return nil, err
 		}
 		if createRequest.Artifact != nil {
+			//todo subhashish
 			createRequest.Artifact.PipelineId = ciPipeline.Id
 			_, err := impl.CiArtifactRepository.SaveAll([]*repository.CiArtifact{createRequest.Artifact})
 			if err != nil {

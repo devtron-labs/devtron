@@ -625,6 +625,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 		}
 		var dockerRegistryId string
 		if artifact.PipelineId != 0 {
+			//todo subhashish
 			ciPipeline, err := impl.CiPipelineRepository.FindById(artifact.PipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)

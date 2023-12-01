@@ -73,6 +73,7 @@ func (impl *ReleaseDataServiceImpl) TriggerEventForAllRelease(appId, environment
 			CiArtifactId:       release.CiArtifactId,
 		}
 		if len(ciPipelineMaterials) == 0 {
+			//todo Subhashish
 			ciPipelineMaterials, err = impl.ciPipelineMaterialRepository.GetByPipelineId(release.CiArtifact.PipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in getting pipeline materials ", "err", err)

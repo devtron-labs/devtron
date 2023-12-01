@@ -788,6 +788,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 		// TODO: need to migrate artifact.PipelineId for dataSource="CI_RUNNER" also to component_id
 		pipelineID = artifact.PipelineId
 	}
+	//todo subhashish
 	pipelines, err := impl.pipelineRepository.FindByParentCiPipelineId(pipelineID)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
@@ -2306,6 +2307,7 @@ func getCopiedArtifact(ciArtifact *repository.CiArtifact, pipelineId int, userId
 	return artifact
 }
 
+// todo subhashish
 func (impl *WorkflowDagExecutorImpl) saveArtifactsForLinkedCDPipelines(linkedCiPipelineIds []int, ciArtifact *repository.CiArtifact, triggeredBy int32) (map[int]*repository.CiArtifact, error) {
 
 	ciPipelineIdToArtifacts := make(map[int]*repository.CiArtifact)
@@ -3935,6 +3937,7 @@ func (impl *WorkflowDagExecutorImpl) WriteCDTriggerEvent(overrideRequest *bean.V
 		TriggerTime:        time.Now(),
 		CiArtifactId:       overrideRequest.CiArtifactId,
 	}
+	//todo subhashish
 	ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(artifact.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in ")
