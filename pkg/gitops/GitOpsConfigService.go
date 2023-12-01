@@ -314,14 +314,15 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 
 		}
 	}
-	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
+	switch strings.ToUpper(request.Provider) {
+	case GITHUB_PROVIDER:
 		orgUrl, err := impl.buildGithubOrgUrl(request.Host, request.GitHubOrgId)
 		if err != nil {
 			return nil, err
 		}
 		request.Host = orgUrl
-	}
-	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
+
+	case GITLAB_PROVIDER:
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
 		if err != nil {
 			return nil, err
@@ -332,8 +333,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		} else {
 			request.Host = fmt.Sprintf(request.Host+"/%s", groupName)
 		}
-	}
-	if strings.ToUpper(request.Provider) == BITBUCKET_PROVIDER {
+	case BITBUCKET_PROVIDER:
 		request.Host = util.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
 	}
 	operationComplete := false
@@ -721,6 +721,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 		Id:                    model.Id,
 		Username:              model.Username,
 		Provider:              model.Provider,
+		Host:                  model.Host,
 		GitHubOrgId:           model.GitHubOrgId,
 		GitLabGroupId:         model.GitLabGroupId,
 		Active:                model.Active,
@@ -929,6 +930,14 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(request.GitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
 		request.GitRepoURL = strings.ReplaceAll(request.GitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")
 		detailedErrorGitOpsConfigActions.StageErrorMap["Invalid repository URL format"] = fmt.Errorf("Please use '%s' instead.", request.GitRepoURL)
+	}
+	if activeGitOpsConfig.Provider == AZURE_DEVOPS_PROVIDER {
+		azureDevopsOrgName := activeGitOpsConfig.Host[strings.LastIndex(activeGitOpsConfig.Host, "/")+1:]
+		invalidBaseUrlFormat := fmt.Sprintf("://%s@%s", azureDevopsOrgName, "dev.azure.com/")
+		if invalidBaseUrlFormat != "" && strings.Contains(request.GitRepoURL, invalidBaseUrlFormat) {
+			request.GitRepoURL = strings.ReplaceAll(request.GitRepoURL, invalidBaseUrlFormat, "://dev.azure.com/")
+			detailedErrorGitOpsConfigActions.StageErrorMap["Invalid repository URL format"] = fmt.Errorf("Please use '%s' instead.", request.GitRepoURL)
+		}
 	}
 	if !strings.Contains(request.GitRepoURL, repoUrl) {
 		errorKey, errorMsg := impl.getValidationErrorForNonOrganisationalURL(activeGitOpsConfig)

@@ -325,8 +325,9 @@ func (impl GitAzureClient) GetCommits(repoName, projectName string) ([]*GitCommi
 func (impl GitAzureClient) GetCommitsCount(repoName, projectName string) (int, error) {
 	azureClient := *impl.client
 	getCommitsArgs := git.GetCommitsArgs{
-		RepositoryId: &repoName,
-		Project:      &projectName,
+		RepositoryId:   &repoName,
+		Project:        &projectName,
+		SearchCriteria: &git.GitQueryCommitsCriteria{},
 	}
 	gitCommits, err := azureClient.GetCommits(context.Background(), getCommitsArgs)
 	if err != nil {
