@@ -64,7 +64,7 @@ type EnvironmentRepository interface {
 	FindByName(name string) (*Environment, error)
 	FindByIdentifier(identifier string) (*Environment, error)
 	FindByNameOrIdentifier(name string, identifier string) (*Environment, error)
-	FindByEnvNameOrIdentifierOrNamespace(envName string, identifier string, namespace string) (*Environment, error)
+	FindByEnvNameOrIdentifierOrNamespace(clusterId int, envName string, identifier string, namespace string) (*Environment, error)
 	FindByClusterId(clusterId int) ([]*Environment, error)
 	FindByIds(ids []*int) ([]*Environment, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*Environment, error)
@@ -185,14 +185,15 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByNameOrIdentifier(name stri
 	return environment, err
 }
 
-func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvNameOrIdentifierOrNamespace(envName string, identifier string, namespace string) (*Environment, error) {
+func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvNameOrIdentifierOrNamespace(clusterId int, envName string, identifier string, namespace string) (*Environment, error) {
 	environment := &Environment{}
 	err := repositoryImpl.dbConnection.
 		Model(environment).
 		Where("active = ?", true).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			query = query.Where("environment_identifier = ?", identifier).WhereOr("environment_name = ?", envName).
-				WhereOr("namespace = ?", namespace)
+			query = query.Where("environment_identifier = ?", identifier).
+				WhereOr("environment_name = ?", envName).
+				WhereOr("cluster_id = ? AND namespace = ?", clusterId, namespace)
 			return query, nil
 		}).
 		Limit(1).

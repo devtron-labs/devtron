@@ -995,7 +995,7 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			//need this if the artifact's ciPipeline gets switched, then the previous ci-pipeline will be in deleted state
 			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(ciArtifacts[i].CiPipelineId)
 			if err != nil {
-				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
+				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciArtifacts[i].CiPipelineId, "error", err)
 				return nil, err
 			}
 			if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
