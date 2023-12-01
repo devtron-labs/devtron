@@ -105,6 +105,7 @@ type CiPipelineRepository interface {
 	FindCiPipelineByAppIdAndEnvIds(appId int, envIds []int) ([]*CiPipeline, error)
 	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
 	//find non deleted pipeline
+	FindDeletedById(id int) (pipeline *CiPipeline, err error)
 	FindById(id int) (pipeline *CiPipeline, err error)
 	FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error)
 	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
@@ -306,6 +307,15 @@ func (impl CiPipelineRepositoryImpl) FindCiScriptsByCiPipelineIds(ciPipelineIds 
 func (impl CiPipelineRepositoryImpl) SaveCiPipelineScript(ciPipelineScript *CiPipelineScript, tx *pg.Tx) error {
 	ciPipelineScript.Active = true
 	return tx.Insert(ciPipelineScript)
+}
+
+func (impl CiPipelineRepositoryImpl) FindDeletedById(id int) (pipeline *CiPipeline, err error) {
+	pipeline = &CiPipeline{Id: id}
+	err = impl.dbConnection.Model(pipeline).
+		Where("id = ?", id).
+		Where("deleted = ?", true).
+		Select()
+	return pipeline, err
 }
 
 func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err error) {
