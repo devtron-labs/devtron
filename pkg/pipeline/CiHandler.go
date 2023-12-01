@@ -1430,7 +1430,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
-	//todo subhashish
+	//todo gireesh material not deleted
 	ciPipeline, err := impl.ciPipelineRepository.FindById(ciArtifact.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
