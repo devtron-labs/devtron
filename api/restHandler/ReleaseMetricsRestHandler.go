@@ -109,7 +109,7 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAppEnvironment(w http.Res
 	}
 	//RBAC end
 
-	err = impl.ReleaseDataService.TriggerEventForAllRelease(req.AppId, req.EnvironmentId)x
+	err = impl.ReleaseDataService.TriggerEventForAllRelease(req.AppId, req.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("service err, ResetDataForAppEnvironment", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
