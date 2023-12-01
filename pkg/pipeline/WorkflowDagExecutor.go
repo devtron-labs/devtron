@@ -2318,7 +2318,7 @@ func (impl *WorkflowDagExecutorImpl) saveArtifactsForLinkedCDPipelines(linkedCiP
 
 	ciIdToExistingArtifact := make(map[int]repository.CiArtifact)
 	for _, artifact := range existingArtifacts {
-		if ciArtifact.ImageDigest == artifact.ImageDigest {
+		if ciArtifact.Image == artifact.Image {
 			ciIdToExistingArtifact[artifact.PipelineId] = artifact
 		}
 	}
