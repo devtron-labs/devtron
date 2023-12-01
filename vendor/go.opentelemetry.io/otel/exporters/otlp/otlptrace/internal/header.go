@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+package internal // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal"
 
-// Version is the current release version of the gRPC instrumentation.
-func Version() string {
-	return "0.42.0"
-	// This string is updated by the pre_release.sh script during release
-}
+import (
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+)
 
-// SemVersion is the semantic version to be supplied to tracer/meter creation.
-//
-// Deprecated: Use [Version] instead.
-func SemVersion() string {
-	return Version()
+// GetUserAgentHeader returns an OTLP header value form "OTel OTLP Exporter Go/{{ .Version }}"
+// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/protocol/exporter.md#user-agent
+func GetUserAgentHeader() string {
+	return "OTel OTLP Exporter Go/" + otlptrace.Version()
 }
