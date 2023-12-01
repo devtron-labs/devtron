@@ -522,6 +522,9 @@ func (impl *ScopedVariableServiceImpl) deduceVariables(scopedVariableDataList []
 	}
 
 	for _, data := range scopedVariableDataList {
+		for _, variable := range systemVariables {
+			varNameToData[variable.VariableName] = variable
+		}
 		value := data.VariableValue.Value
 		if utils.IsStringType(value) {
 			resolvedValue, err := resolveExpressionWithVariableValues(value.(string), varNameToData)

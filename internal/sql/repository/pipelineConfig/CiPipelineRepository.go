@@ -84,6 +84,7 @@ type CiPipelineScript struct {
 }
 
 type CiPipelineRepository interface {
+	sql.TransactionWrapper
 	Save(pipeline *CiPipeline, tx *pg.Tx) error
 	SaveCiEnvMapping(cienvmapping *CiEnvMapping, tx *pg.Tx) error
 	SaveExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error)
@@ -112,6 +113,7 @@ type CiPipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *CiPipeline, err error)
 	CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error)
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
+	FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error)
 
 	FetchParentCiPipelinesForDG() ([]*CiPipelinesMap, error)
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
@@ -125,16 +127,19 @@ type CiPipelineRepository interface {
 	FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error)
 	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
+	FindLinkedCiCount(ciPipelineId int) (int, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
+	*sql.TransactionUtilImpl
 }
 
 func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CiPipelineRepositoryImpl {
 	return &CiPipelineRepositoryImpl{
-		dbConnection: dbConnection,
-		logger:       logger,
+		dbConnection:        dbConnection,
+		logger:              logger,
+		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
 	}
 }
 
@@ -142,6 +147,16 @@ func (impl CiPipelineRepositoryImpl) FindByParentCiPipelineId(parentCiPipelineId
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&ciPipelines).
 		Where("parent_ci_pipeline = ?", parentCiPipelineId).
+		Where("active = ?", true).
+		Select()
+	return ciPipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error) {
+	var ciPipelines []*CiPipeline
+	err := impl.dbConnection.Model(&ciPipelines).
+		Where("parent_ci_pipeline = ?", parentCiPipelineId).
+		Where("ci_pipeline_type = ?", pipelineType).
 		Where("active = ?", true).
 		Select()
 	return ciPipelines, err
@@ -551,4 +566,16 @@ func (impl CiPipelineRepositoryImpl) FindCiPipelineByAppIdAndEnvIds(appId int, e
               AND pipeline.environment_id IN (?) AND ci_pipeline.deleted = false AND pipeline.deleted = false;`
 	_, err := impl.dbConnection.Query(&pipelines, query, appId, pg.In(envIds))
 	return pipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, error) {
+	pipeline := &CiPipeline{}
+	cnt, err := impl.dbConnection.Model(pipeline).
+		Where("parent_ci_pipeline = ?", ciPipelineId).
+		Where("deleted = ?", false).
+		Count()
+	if err == pg.ErrNoRows {
+		return 0, nil
+	}
+	return cnt, err
 }

@@ -93,7 +93,7 @@ If you select `GitAzureLab` as your git provider, please provide the information
 
 | Fields | Description |
 | --- | --- |
-| **Azure DevOps Organisation Url*** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://dev.azure.com/ for Azure. |
+| **Azure DevOps Organisation Url*** | This field displays the URL of the chosen Git provider. For Azure, the format would be `https://dev.azure.com/<org-name>`, where `<org-name>` represents the organization name <br> As an example, consider [https://dev.azure.com/devtron-test](https://dev.azure.com/devtron-test), where "devtron-test" is the organization name. |
 | **Azure DevOps Project Name** | Enter the Azure DevOps project name.<br>If you do not have one, create using [Azure DevOps Project Name](#how-to-create-azure-devops-project-name).</br> |
 | **Azure DevOps Username*** | Provide the username of your Azure DevOps account. |
 | **Azure DevOps Access Token*** | Provide your Azure DevOps access token. It is used as an alternate password to authenticate your Azure DevOps account.<br>If you do not have one, create a Azure DevOps access token [here](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page).</br> |
