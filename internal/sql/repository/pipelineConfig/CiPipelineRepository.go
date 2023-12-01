@@ -318,7 +318,6 @@ func (impl CiPipelineRepositoryImpl) FindByIdIncludingInActive(id int) (pipeline
 			return q.Where("(ci_pipeline_material.active=true)"), nil
 		}).
 		Where("ci_pipeline.id= ?", id).
-		Where("ci_pipeline.deleted =? ", true).
 		Select()
 
 	return pipeline, err
