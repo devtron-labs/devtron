@@ -865,19 +865,19 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 			artifactIds = append(artifactIds, ciArtifactBean.Id)
 		}
 	}
-
-	appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, artifactIds, referenceId, referenceType)
-	if err != nil {
-		// not returning error by choice
-		impl.logger.Errorw("error in fetching applied filters when this image was born", "stageType", stage, "pipelineId", pipelineId, "err", err)
-		return ciArtifactBeans
+	if len(artifactIds) > 0 {
+		appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, artifactIds, referenceId, referenceType)
+		if err != nil {
+			// not returning error by choice
+			impl.logger.Errorw("error in fetching applied filters when this image was born", "stageType", stage, "pipelineId", pipelineId, "err", err)
+			return ciArtifactBeans
+		}
+		for i, ciArtifactBean := range ciArtifactBeans {
+			ciArtifactBeans[i].AppliedFilters = appliedFiltersMap[ciArtifactBean.Id]
+			ciArtifactBeans[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[ciArtifactBean.Id]
+			ciArtifactBeans[i].AppliedFiltersState = resourceFilter.BLOCK
+		}
 	}
-	for i, ciArtifactBean := range ciArtifactBeans {
-		ciArtifactBeans[i].AppliedFilters = appliedFiltersMap[ciArtifactBean.Id]
-		ciArtifactBeans[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[ciArtifactBean.Id]
-		ciArtifactBeans[i].AppliedFiltersState = resourceFilter.BLOCK
-	}
-
 	return ciArtifactBeans
 }
 
@@ -989,7 +989,9 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			ciArtifacts[i].ImageComment = imageCommentResp
 		}
 
-		ciArtifacts[i].FilterState = impl.getFilerState(imageTaggingResp, filters, ciArtifacts[i].Image)
+		if len(filters) > 0 {
+			ciArtifacts[i].FilterState = impl.getFilerState(imageTaggingResp, filters, ciArtifacts[i].Image)
+		}
 
 		var dockerRegistryId string
 		if ciArtifacts[i].DataSource == repository.POST_CI || ciArtifacts[i].DataSource == repository.PRE_CD || ciArtifacts[i].DataSource == repository.POST_CD {
