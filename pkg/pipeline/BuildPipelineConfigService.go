@@ -1601,23 +1601,24 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "no ci pipeline found"}
 		return nil, err
 	}
-	parentCiPipelines, linkedCiPipelineIds, err := impl.ciPipelineRepository.FindParentCiPipelineMapByAppId(appId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("err", err)
-		return nil, err
-	}
-	pipelineParentCiMap := make(map[int]*pipelineConfig.CiPipeline)
-	for index, item := range parentCiPipelines {
-		pipelineParentCiMap[linkedCiPipelineIds[index]] = item
-	}
+	//parentCiPipelines, linkedCiPipelineIds, err := impl.ciPipelineRepository.FindParentCiPipelineMapByAppId(appId)
+	//if err != nil && !util.IsErrNoRows(err) {
+	//	impl.logger.Errorw("err", err)
+	//	return nil, err
+	//}
+	//pipelineParentCiMap := make(map[int]*pipelineConfig.CiPipeline)
+	//for index, item := range parentCiPipelines {
+	//	pipelineParentCiMap[linkedCiPipelineIds[index]] = item
+	//}
 
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
 		pipelineType := bean.NORMAL
 
-		if pipelineParentCiMap[pipeline.Id] != nil {
-			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
+		//if pipelineParentCiMap[pipeline.Id] != nil {
+		if pipeline.ParentCiPipeline > 0 && pipeline.PipelineType != string(bean.LINKED_CD) {
+			//parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
 			pipelineType = bean.LINKED
 		} else if pipeline.IsExternal == true {
 			pipelineType = bean.EXTERNAL

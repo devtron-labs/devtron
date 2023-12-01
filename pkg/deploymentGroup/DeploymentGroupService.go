@@ -486,7 +486,6 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 	var requests []*pipeline.BulkTriggerRequest
 	ciArtefactMapping := make(map[int]*repository.CiArtifact)
 	for _, ciArtefact := range ciArtifacts {
-		//todo subhashish safe
 		ciArtefactMapping[ciArtefact.PipelineId] = ciArtefact
 	}
 	for _, cdPipeline := range cdPipelines {

@@ -162,7 +162,6 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 				event.CdWorkflowRunnerId = wfr.Id
 				event.CiArtifactId = pipelineOverride.CiArtifactId
 
-				//todo Subhashish , done
 				material, err := impl.getCiMaterialInfo(pipelineOverride.CiArtifact.PipelineId, pipelineOverride.CiArtifactId)
 				if err != nil {
 					impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "material", material)

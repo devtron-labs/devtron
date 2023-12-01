@@ -788,7 +788,6 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 		// TODO: need to migrate artifact.PipelineId for dataSource="CI_RUNNER" also to component_id
 		pipelineID = artifact.PipelineId
 	}
-	//todo subhashish safe new artifact not stale
 	pipelines, err := impl.pipelineRepository.FindByParentCiPipelineId(pipelineID)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
@@ -3936,7 +3935,7 @@ func (impl *WorkflowDagExecutorImpl) WriteCDTriggerEvent(overrideRequest *bean.V
 		TriggerTime:        time.Now(),
 		CiArtifactId:       overrideRequest.CiArtifactId,
 	}
-	//todo subhashish safe because meterials not deleted
+
 	ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(artifact.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in ")

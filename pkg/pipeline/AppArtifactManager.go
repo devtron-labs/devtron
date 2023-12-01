@@ -628,7 +628,6 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 		}
 		var dockerRegistryId string
 		if artifact.PipelineId != 0 {
-			//todo subhashish - done gireesh
 			ciPipeline, err := impl.CiPipelineRepository.FindById(artifact.PipelineId)
 			if err == pg.ErrNoRows {
 				ciPipeline, err = impl.CiPipelineRepository.FindDeletedById(artifact.PipelineId)
