@@ -312,9 +312,14 @@ func (impl CiPipelineRepositoryImpl) SaveCiPipelineScript(ciPipelineScript *CiPi
 func (impl CiPipelineRepositoryImpl) FindDeletedById(id int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{Id: id}
 	err = impl.dbConnection.Model(pipeline).
-		Where("id = ?", id).
-		Where("deleted = ?", true).
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").
+		Relation("CiPipelineMaterials", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("(ci_pipeline_material.active=true)"), nil
+		}).
+		Where("ci_pipeline.id= ?", id).
+		Where("ci_pipeline.deleted =? ", true).
 		Select()
+
 	return pipeline, err
 }
 
