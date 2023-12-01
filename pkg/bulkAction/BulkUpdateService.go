@@ -1052,10 +1052,10 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			if deploymentHistory.Status == application.Progressing {
-				pipelineResponse[Skipped] = "Hibernation already in progress"
-			} else {
+			if deploymentHistory.Status == application.HIBERNATING {
 				pipelineResponse[Skipped] = "Application is already hibernated"
+			} else {
+				pipelineResponse[Skipped] = "Hibernation already in progress"
 			}
 			response[appKey] = pipelineResponse
 			continue
@@ -1208,10 +1208,10 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			if deploymentHistory.Status == application.Progressing {
-				pipelineResponse[Skipped] = "Un-hibernation already in progress"
-			} else {
+			if deploymentHistory.Status == application.Healthy {
 				pipelineResponse[Skipped] = "Application is already un-hibernated"
+			} else {
+				pipelineResponse[Skipped] = "Un-hibernation already in progress"
 			}
 			response[appKey] = pipelineResponse
 			continue
