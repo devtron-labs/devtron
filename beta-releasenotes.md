@@ -1,4 +1,5 @@
 ## Bugs
+- fix: not able to add env in global configuration (#4330)
 - fix: Message not updating for Ci (#4323)
 - fix: app-group page breaking for inactive users (#4315)
 - fix: limit ci build message length to 250 (#4300)
