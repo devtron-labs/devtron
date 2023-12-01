@@ -3077,6 +3077,7 @@ func (impl *WorkflowDagExecutorImpl) BuildManifestPushTemplate(overrideRequest *
 		AppId:                 overrideRequest.AppId,
 		ChartRefId:            valuesOverrideResponse.EnvOverride.Chart.ChartRefId,
 		EnvironmentId:         valuesOverrideResponse.EnvOverride.Environment.Id,
+		EnvironmentName:       valuesOverrideResponse.EnvOverride.Environment.Namespace,
 		UserId:                overrideRequest.UserId,
 		PipelineOverrideId:    valuesOverrideResponse.PipelineOverride.Id,
 		AppName:               overrideRequest.AppName,
@@ -3103,6 +3104,8 @@ func (impl *WorkflowDagExecutorImpl) BuildManifestPushTemplate(overrideRequest *
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
+		manifestPushTemplate.IsCustomGitRepository = valuesOverrideResponse.EnvOverride.Chart.IsCustomGitRepository
+		manifestPushTemplate.GitOpsRepoMigrationRequired = impl.CheckIfMonoRepoMigrationRequired(manifestPushTemplate)
 	}
 	return manifestPushTemplate, err
 }
@@ -4389,6 +4392,52 @@ func (impl *WorkflowDagExecutorImpl) autoscalingCheckBeforeTrigger(ctx context.C
 	}
 
 	return merged
+}
+
+// CheckIfMonoRepoMigrationRequired checks if gitOps repo name is changed
+func (impl *WorkflowDagExecutorImpl) CheckIfMonoRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
+	monoRepoMigrationRequired := false
+	if manifestPushTemplate.IsCustomGitRepository {
+		return false
+	}
+	var err error
+	gitOpsRepoName := util.GetGitRepoNameFromGitRepoUrl(manifestPushTemplate.RepoUrl)
+	if len(gitOpsRepoName) == 0 {
+		gitOpsRepoName, err = impl.GetGitOpsRepoName(manifestPushTemplate.AppName, manifestPushTemplate.EnvironmentName)
+		if err != nil {
+			return false
+		}
+	}
+	//here will set new git repo name if required to migrate
+	newGitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(manifestPushTemplate.AppName)
+	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
+	if newGitOpsRepoName != gitOpsRepoName {
+		monoRepoMigrationRequired = true
+	}
+	return monoRepoMigrationRequired
+}
+
+func (impl *WorkflowDagExecutorImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
+	gitOpsRepoName := ""
+	//this method should only call in case of argo-integration and gitops configured
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return "", err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
+	application, err := impl.acdClient.Get(ctx, &application3.ApplicationQuery{Name: &acdAppName})
+	if err != nil {
+		impl.logger.Errorw("no argo app exists", "acdAppName", acdAppName, "err", err)
+		return "", err
+	}
+	if application != nil {
+		gitOpsRepoUrl := application.Spec.Source.RepoURL
+		gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(gitOpsRepoUrl)
+	}
+	return gitOpsRepoName, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(appId int, pipelineName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (bool, error) {
