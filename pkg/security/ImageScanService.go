@@ -325,7 +325,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err
 		}
-		// TODO: subhashish
+		// TODO: subhashish- done by gireesh
 		ciPipeline, err := impl.ciPipelineRepository.FindById(ciArtifact.PipelineId)
 		if err == pg.ErrNoRows && ciArtifact.PipelineId > 0 {
 			ciPipeline, err = impl.ciPipelineRepository.FindDeletedById(ciArtifact.PipelineId)
