@@ -56,6 +56,7 @@ type AppCloneServiceImpl struct {
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	pipelineRepository      pipelineConfig.PipelineRepository
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
+	ciPipelineConfigService pipeline.CiPipelineConfigService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -69,7 +70,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository) *AppCloneServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository,
+	ciPipelineConfigService pipeline.CiPipelineConfigService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
@@ -85,6 +87,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		ciPipelineRepository:    ciPipelineRepository,
 		pipelineRepository:      pipelineRepository,
 		appWorkflowRepository:   appWorkflowRepository,
+		ciPipelineConfigService: ciPipelineConfigService,
 	}
 }
 
@@ -104,6 +107,7 @@ type CreateWorkflowMappingDto struct {
 	newWfId              int
 	gitMaterialMapping   map[int]int
 	externalCiPipelineId int
+	oldToNewCDPipelineId map[int]int
 }
 
 func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
@@ -592,6 +596,9 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 	}
 	impl.logger.Debugw("workflow found", "wf", refAppWFs)
 
+	createWorkflowMappingDtoResp := CreateWorkflowMappingDto{
+		oldToNewCDPipelineId: make(map[int]int),
+	}
 	for _, refAppWF := range refAppWFs {
 		thisWf := appWorkflow.AppWorkflowDto{
 			Id:                    0,
@@ -614,10 +621,11 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			}
 		}
 		createWorkflowMappingDto := CreateWorkflowMappingDto{
-			newAppId: newAppId,
-			oldAppId: oldAppId,
-			newWfId:  thisWf.Id,
-			userId:   userId,
+			newAppId:             newAppId,
+			oldAppId:             oldAppId,
+			newWfId:              thisWf.Id,
+			userId:               userId,
+			oldToNewCDPipelineId: createWorkflowMappingDtoResp.oldToNewCDPipelineId,
 		}
 		var externalCiPipelineId int
 		if isExternalCiPresent {
@@ -630,7 +638,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 		createWorkflowMappingDto.gitMaterialMapping = gitMaterialMapping
 		createWorkflowMappingDto.externalCiPipelineId = externalCiPipelineId
 
-		err = impl.createWfInstances(refAppWF.AppWorkflowMappingDto, createWorkflowMappingDto, ctx)
+		createWorkflowMappingDtoResp, err = impl.createWfInstances(refAppWF.AppWorkflowMappingDto, createWorkflowMappingDto, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating workflow mapping", "err", err)
 			return nil, err
@@ -648,7 +656,7 @@ func (impl *AppCloneServiceImpl) createExternalCiAndAppWorkflowMapping(createWor
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	externalCiPipelineId, err := impl.pipelineBuilder.CreateExternalCiAndAppWorkflowMapping(createWorkflowMappingDto.newAppId, createWorkflowMappingDto.newWfId, createWorkflowMappingDto.userId, tx)
+	externalCiPipelineId, _, err := impl.ciPipelineConfigService.CreateExternalCiAndAppWorkflowMapping(createWorkflowMappingDto.newAppId, createWorkflowMappingDto.newWfId, createWorkflowMappingDto.userId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
 		return 0, err
@@ -660,7 +668,7 @@ func (impl *AppCloneServiceImpl) createExternalCiAndAppWorkflowMapping(createWor
 	return externalCiPipelineId, nil
 }
 
-func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) error {
+func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) (CreateWorkflowMappingDto, error) {
 	impl.logger.Debugw("wf mapping cloning", "refWfMappings", refWfMappings)
 	var ciMapping []appWorkflow.AppWorkflowMappingDto
 	var cdMappings []appWorkflow.AppWorkflowMappingDto
@@ -673,14 +681,14 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 		} else if appWf.Type == appWorkflow2.WEBHOOK {
 			webhookMappings = append(webhookMappings, appWf)
 		} else {
-			return fmt.Errorf("unsupported wf type: %s", appWf.Type)
+			return createWorkflowMappingDto, fmt.Errorf("unsupported wf type: %s", appWf.Type)
 		}
 	}
 	sourceToNewPipelineIdMapping := make(map[int]int)
 	refApp, err := impl.pipelineBuilder.GetApp(createWorkflowMappingDto.oldAppId)
 	if err != nil {
 		impl.logger.Errorw("error in getting app from refAppId", "refAppId", createWorkflowMappingDto.oldAppId)
-		return err
+		return createWorkflowMappingDto, err
 	}
 	if len(webhookMappings) > 0 {
 		for _, refwebhookMappings := range cdMappings {
@@ -699,40 +707,41 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 			if err != nil {
 				impl.logger.Errorw("error in getting cd-pipeline", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
-				return err
+				return createWorkflowMappingDto, err
 			}
 		}
-		return nil
+		return createWorkflowMappingDto, nil
 	}
 
 	if len(ciMapping) == 0 {
 		impl.logger.Warn("no ci pipeline found")
-		return nil
+		return createWorkflowMappingDto, nil
 	} else if len(ciMapping) != 1 {
 		impl.logger.Warn("more than one ci pipeline not supported")
-		return nil
+		return createWorkflowMappingDto, nil
 	}
 
 	if err != nil {
-		return err
+		return createWorkflowMappingDto, err
 	}
 	var ci *bean.CiConfigRequest
 	for _, refCiMapping := range ciMapping {
 		impl.logger.Debugw("creating ci", "ref", refCiMapping)
 
 		cloneCiPipelineRequest := &cloneCiPipelineRequest{
-			refAppId:           createWorkflowMappingDto.oldAppId,
-			refCiPipelineId:    refCiMapping.ComponentId,
-			userId:             createWorkflowMappingDto.userId,
-			appId:              createWorkflowMappingDto.newAppId,
-			wfId:               createWorkflowMappingDto.newWfId,
-			gitMaterialMapping: createWorkflowMappingDto.gitMaterialMapping,
-			refAppName:         refApp.AppName,
+			refAppId:              createWorkflowMappingDto.oldAppId,
+			refCiPipelineId:       refCiMapping.ComponentId,
+			userId:                createWorkflowMappingDto.userId,
+			appId:                 createWorkflowMappingDto.newAppId,
+			wfId:                  createWorkflowMappingDto.newWfId,
+			gitMaterialMapping:    createWorkflowMappingDto.gitMaterialMapping,
+			refAppName:            refApp.AppName,
+			oldToNewIdForLinkedCD: createWorkflowMappingDto.oldToNewCDPipelineId,
 		}
 		ci, err = impl.CreateCiPipeline(cloneCiPipelineRequest)
 		if err != nil {
 			impl.logger.Errorw("error in creating ci pipeline, app clone", "err", err)
-			return err
+			return createWorkflowMappingDto, err
 		}
 		impl.logger.Debugw("ci created", "ci", ci)
 	}
@@ -751,8 +760,9 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 		pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
-			return err
+			return createWorkflowMappingDto, err
 		}
+		createWorkflowMappingDto.oldToNewCDPipelineId[refCdMapping.ComponentId] = pipeline.Pipelines[0].Id
 		impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 	}
 
@@ -761,17 +771,18 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 	//find cd
 	//save cd
 	//save mappings
-	return nil
+	return createWorkflowMappingDto, nil
 }
 
 type cloneCiPipelineRequest struct {
-	refAppId           int
-	refCiPipelineId    int
-	userId             int32
-	appId              int
-	wfId               int
-	gitMaterialMapping map[int]int
-	refAppName         string
+	refAppId              int
+	refCiPipelineId       int
+	userId                int32
+	appId                 int
+	wfId                  int
+	gitMaterialMapping    map[int]int
+	refAppName            string
+	oldToNewIdForLinkedCD map[int]int
 }
 
 func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (*bean.CiConfigRequest, error) {
@@ -833,6 +844,12 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 				impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
 				return nil, err
 			}
+
+			parentCiPipeline := refCiPipeline.ParentCiPipeline
+			if refCiPipeline.PipelineType == bean.LINKED_CD {
+				parentCiPipeline = req.oldToNewIdForLinkedCD[refCiPipeline.ParentCiPipeline]
+			}
+
 			ciPatchReq := &bean.CiPatchRequest{
 				CiPipeline: &bean.CiPipeline{
 					IsManual:                 refCiPipeline.IsManual,
@@ -849,7 +866,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					AfterDockerBuild:         refCiPipeline.AfterDockerBuild,
 					BeforeDockerBuildScripts: beforeDockerBuildScripts,
 					AfterDockerBuildScripts:  afterDockerBuildScripts,
-					ParentCiPipeline:         refCiPipeline.ParentCiPipeline,
+					ParentCiPipeline:         parentCiPipeline,
 					IsDockerConfigOverridden: refCiPipeline.IsDockerConfigOverridden,
 					PreBuildStage:            preStageDetail,
 					PostBuildStage:           postStageDetail,

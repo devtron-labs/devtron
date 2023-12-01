@@ -242,6 +242,8 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
+		pipeline.NewBuildPipelineSwitchServiceImpl,
+		wire.Bind(new(pipeline.BuildPipelineSwitchService), new(*pipeline.BuildPipelineSwitchServiceImpl)),
 		pipeline.NewCiPipelineConfigServiceImpl,
 		wire.Bind(new(pipeline.CiPipelineConfigService), new(*pipeline.CiPipelineConfigServiceImpl)),
 		pipeline.NewCiMaterialConfigServiceImpl,

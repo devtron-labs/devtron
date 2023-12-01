@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -228,6 +229,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	resp := &OverviewAppsByEnvironmentBean{}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
+		impl.Logger.Errorw("failed to fetch env", "err", err, "envId", envId)
 		return resp, err
 	}
 	resp.EnvironmentId = envId
@@ -242,18 +244,27 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		resp.Type = NonProduction
 	}
 	resp.Description = env.Description
-	createdBy, err := impl.userRepository.GetById(env.CreatedBy)
-	if err != nil {
-		return resp, err
+	createdBy, err := impl.userRepository.GetByIdIncludeDeleted(env.CreatedBy)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching user for app meta info", "error", err, "env.CreatedBy", env.CreatedBy)
+		return nil, err
 	}
-	resp.CreatedBy = createdBy.EmailId
+	if createdBy != nil && createdBy.Id > 0 {
+		if createdBy.Active {
+			resp.CreatedBy = fmt.Sprintf(createdBy.EmailId)
+		} else {
+			resp.CreatedBy = fmt.Sprintf("%s (inactive)", createdBy.EmailId)
+		}
+	}
 	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
 	if err != nil {
+		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
 		return resp, err
 	}
 	for _, envContainer := range envContainers {
 		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
 		if err != nil {
+			impl.Logger.Errorw("failed to fetch last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
 			return resp, err
 		}
 		if lastDeployed != nil {
@@ -939,7 +950,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
 			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
 			appDetailContainer.DockerRegistryId = *dockerRegistryId
-			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
+			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(bean2.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
