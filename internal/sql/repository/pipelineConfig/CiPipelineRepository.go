@@ -568,7 +568,7 @@ func (impl CiPipelineRepositoryImpl) GetCiPipelineByArtifactId(artifactId int) (
 	err := impl.dbConnection.Model(ciPipeline).
 		Column("ci_pipeline.*").
 		Join("INNER JOIN ci_artifact cia on cia.pipeline_id = ci_pipeline.id").
-		Where("ci_pipeline.deleted=?", false).
+		//Where("ci_pipeline.deleted=?", false).
 		Where("cia.id = ?", artifactId).
 		Select()
 	return ciPipeline, err
