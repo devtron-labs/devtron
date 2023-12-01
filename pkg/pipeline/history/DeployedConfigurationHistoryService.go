@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -18,6 +19,7 @@ type DeployedConfigurationHistoryService interface {
 	GetDeployedHistoryComponentDetail(ctx context.Context, pipelineId, id int, historyComponent, historyComponentName string, userHasAdminAccess bool) (*HistoryDetailDto, error)
 	GetAllDeployedConfigurationByPipelineIdAndLatestWfrId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*AllDeploymentConfigurationDetail, error)
 	GetAllDeployedConfigurationByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, userHasAdminAccess bool) (*AllDeploymentConfigurationDetail, error)
+	GetLatestDeployedArtifactByPipelineId(pipelineId int) (*repository2.CiArtifact, error)
 }
 
 type DeployedConfigurationHistoryServiceImpl struct {
@@ -41,6 +43,15 @@ func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
 		configMapHistoryService:          configMapHistoryService,
 		cdWorkflowRepository:             cdWorkflowRepository,
 	}
+}
+
+func (impl *DeployedConfigurationHistoryServiceImpl) GetLatestDeployedArtifactByPipelineId(pipelineId int) (*repository2.CiArtifact, error) {
+	wfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	if err != nil {
+		impl.logger.Infow("error in getting latest deploy stage wfr by pipelineId", "err", err, "pipelineId", pipelineId)
+		return nil, err
+	}
+	return wfr.CdWorkflow.CiArtifact, nil
 }
 
 func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByWfrId(pipelineId, wfrId int) ([]*DeploymentConfigurationDto, error) {
