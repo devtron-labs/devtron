@@ -349,6 +349,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndE
 }
 
 func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -395,7 +396,10 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		ok = isSuperAdmin
 	} else {
 		haveAppLevelAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
-		if !haveAppLevelAccess {
+
+		if patchRequest.IsLinkedCdRequest() || patchRequest.IsSwitchCiPipelineRequest() {
+			ok = haveAppLevelAccess
+		} else if !haveAppLevelAccess {
 			//user doesn't have app level access, then checking for branch change
 			hasBranchChangeAccess := handler.checkIfHasBranchChangeAccess(emailId, app.AppName, patchRequest.CiPipeline.Id)
 			//user does not have app create permission but has branch change permission and request.action is update_pipeline
@@ -410,6 +414,14 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
+	}
+
+	var cdPipeline *bean.CDPipelineConfigObject
+	if patchRequest.IsLinkedCdRequest() {
+		cdPipeline, err = handler.validateAndEnrichForLinkedCDRequest(w, &patchRequest, app, token)
+		if err != nil {
+			return
+		}
 	}
 
 	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
@@ -448,7 +460,110 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	if createResp != nil && app != nil {
 		createResp.AppName = app.AppName
 	}
+
+	if patchRequest.DeployEnvId > 0 {
+		err := handler.createCDPipeline(w, app, createResp, patchRequest, cdPipeline, ctx)
+		if err != nil {
+			return
+		}
+	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) createCDPipeline(w http.ResponseWriter, app *bean.CreateAppDTO, createResp *bean.CiConfigRequest, patchRequest bean.CiPatchRequest, cdPipeline *bean.CDPipelineConfigObject, ctx context.Context) error {
+
+	env, err := handler.envService.FindById(patchRequest.DeployEnvId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting env", "err", err, "envId", patchRequest.DeployEnvId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return err
+	}
+	triggerType := pipelineConfig.TRIGGER_TYPE_AUTOMATIC
+	if env.IsVirtualEnvironment {
+		triggerType = pipelineConfig.TRIGGER_TYPE_MANUAL
+	}
+	//RBAC
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return err
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	suggestedName := fmt.Sprintf("%s-%d-%s", "cd", app.Id, util2.Generate(4))
+	newCdPipeline := &bean.CdPipelines{
+		Pipelines: []*bean.CDPipelineConfigObject{{
+			Name:               suggestedName,
+			AppWorkflowId:      createResp.AppWorkflowId,
+			CiPipelineId:       createResp.CiPipelines[0].Id,
+			ParentPipelineType: "CI_PIPELINE",
+			ParentPipelineId:   createResp.CiPipelines[0].Id,
+			TriggerType:        triggerType,
+			EnvironmentId:      patchRequest.DeployEnvId,
+			Strategies:         cdPipeline.Strategies,
+		}},
+		AppId:  createResp.AppId,
+		UserId: createResp.UserId,
+	}
+
+	_, err = handler.pipelineBuilder.CreateCdPipelines(newCdPipeline, ctx)
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateCdPipelines", "err", err, "CreateCdPipelines", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return err
+	}
+	return nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) validateAndEnrichForLinkedCDRequest(w http.ResponseWriter, patchRequest *bean.CiPatchRequest, app *bean.CreateAppDTO, token string) (*bean.CDPipelineConfigObject, error) {
+	cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(patchRequest.ParentCDPipeline)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, err
+	}
+
+	var parentCi *bean.CiPipeline
+	if cdPipeline.CiPipelineId != 0 {
+		parentCi, err = handler.pipelineBuilder.GetCiPipelineById(cdPipeline.CiPipelineId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return nil, err
+		}
+
+		if parentCi.PipelineType == bean.LINKED_CD {
+			common.WriteJsonResp(w, fmt.Errorf("invalid operation"), "cannot use linked cd as source for workflow", http.StatusBadRequest)
+			return nil, fmt.Errorf("invalid operation")
+		}
+	}
+
+	object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, cdPipeline.EnvironmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return nil, fmt.Errorf("unauthorized user")
+	}
+
+	if patchRequest.DeployEnvId > 0 {
+		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, patchRequest.DeployEnvId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return nil, fmt.Errorf("unauthorized user")
+		}
+	}
+
+	suggestedName := fmt.Sprintf("%s-%d-%d-%s", "linked-cd", app.Id, patchRequest.ParentCDPipeline, util2.Generate(4))
+
+	var ciMaterial []*bean.CiMaterial
+	if parentCi != nil {
+		ciMaterial = parentCi.CiMaterial
+	}
+	patchRequest.CiPipeline = &bean.CiPipeline{
+		ParentCiPipeline: cdPipeline.Id,
+		PipelineType:     bean.LINKED_CD,
+		Name:             suggestedName,
+		CiMaterial:       ciMaterial,
+		DockerArgs:       make(map[string]string),
+	}
+	return cdPipeline, nil
 }
 
 func (handler PipelineConfigRestHandlerImpl) checkIfHasBranchChangeAccess(emailId, appName string, ciPipelineId int) bool {
