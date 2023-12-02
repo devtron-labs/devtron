@@ -664,6 +664,9 @@ func (handler AppStoreDeploymentRestHandlerImpl) FixCorruptedApps(w http.Respons
 					handler.Logger.Errorw("error in fetching active app store application version by id", "err", err)
 					continue
 				}
+				if activeAppStoreApplicationVersion == nil {
+					continue
+				}
 				handler.Logger.Infow(" migrating from old applicationVersionId  to new ", "oldApplicationVersionId", installedAppVersion.AppStoreApplicationVersionId, "newApplicationVersionId", activeAppStoreApplicationVersion.Id)
 				installedAppVersion.AppStoreApplicationVersionId = activeAppStoreApplicationVersion.Id
 				installedAppVersion, err = handler.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
