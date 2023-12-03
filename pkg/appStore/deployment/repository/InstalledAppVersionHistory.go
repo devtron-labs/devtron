@@ -2,7 +2,7 @@ package repository
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -89,7 +89,7 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetQueuedInstalledAppVersio
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_version_history.*").
 		Where("installed_app_version_history.id = ?", id).
-		Where("installed_app_version_history.status = ?", pipelineConfig.WorkflowInQueue).Select()
+		Where("installed_app_version_history.status = ?", bean.WorkflowInQueue).Select()
 	return model, err
 }
 
@@ -119,13 +119,13 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersion
 	}
 	var model []*InstalledAppVersionHistory
 	_, err = tx.Model(&model).
-		Set("status=?", pipelineConfig.WorkflowFailed).
+		Set("status=?", bean.WorkflowFailed).
 		Set("finished_on=?", time.Now()).
 		Set("updated_on=?", time.Now()).
 		Set("updated_by=?", triggeredBy).
 		Where("id < ?", installedAppVersionHistoryId).
 		Where("installed_app_version_id in (?)", pg.In(installedAppVersionIds)).
-		Where("status = ?", pipelineConfig.WorkflowInQueue).
+		Where("status = ?", bean.WorkflowInQueue).
 		Update()
 	return err
 
@@ -162,10 +162,12 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) UpdateLatestQueuedVersionHi
 		"where status=? " +
 		"and id=? " +
 		"and id = (select max(id) from installed_app_version_history " +
-		"where installed_app_version_history.installed_app_version_id in (SELECT iav.id FROM installed_app_versions iav WHERE iav.installed_app_id = ?))"
+		"where installed_app_version_history.installed_app_version_id = (SELECT max(iav.id) FROM installed_app_versions iav WHERE iav.installed_app_id = ?))"
 	var installedAppVersionHistory *InstalledAppVersionHistory
-	resp, err := impl.dbConnection.Query(installedAppVersionHistory, query, pipelineConfig.WorkflowInProgress, time.Now(), triggeredBy, pipelineConfig.WorkflowInQueue, installedAppVersionHistoryId, installedAppId)
-	fmt.Println(resp)
+	resp, err := impl.dbConnection.Query(installedAppVersionHistory, query, bean.WorkflowInProgress, time.Now(), triggeredBy, bean.WorkflowInQueue, installedAppVersionHistoryId, installedAppId)
+	if err != nil {
+		return 0, err
+	}
 	return resp.RowsAffected(), err
 }
 

@@ -392,3 +392,7 @@ func GetAppStatus(isSuccess bool) AppstoreDeploymentStatus {
 		return HELM_ERROR
 	}
 }
+
+func (impl InstallAppVersionDTO) IsAsyncMode() bool {
+	return !impl.IsBulkDeploy && impl.HelmInstallAsyncMode
+}

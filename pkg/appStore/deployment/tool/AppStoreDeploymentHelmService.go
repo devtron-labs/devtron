@@ -7,6 +7,7 @@ import (
 	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"time"
@@ -27,7 +28,7 @@ import (
 )
 
 type AppStoreDeploymentHelmService interface {
-	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
+	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error, bool)
 	GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
@@ -86,49 +87,18 @@ func (impl AppStoreDeploymentHelmServiceImpl) UpdateChartInfo(installAppVersionR
 	return nil
 }
 
-func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error, bool) {
 	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+	appStoreVersion := installAppVersionRequest.AppStoreVersion
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreVersion)
 	if err != nil {
-		impl.Logger.Errorw("fetching error", "err", err)
-		return installAppVersionRequest, err
+		impl.Logger.Errorw("error in fetching app store application version", "err", err, "appStoreVersion", appStoreVersion)
+		return installAppVersionRequest, err, false
 	}
-	var IsOCIRepo bool
-	var registryCredential *client.RegistryCredential
-	var chartRepository *client.ChartRepository
-	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
-	if dockerRegistryId != "" {
-		ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
-		if err != nil {
-			impl.Logger.Errorw("error in fetching oci registry config", "err", err)
-			return nil, err
-		}
-		var ociRegistryConfig *repository2.OCIRegistryConfig
-		for _, config := range ociRegistryConfigs {
-			if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
-				ociRegistryConfig = config
-				break
-			}
-		}
-		IsOCIRepo = true
-		registryCredential = &client.RegistryCredential{
-			RegistryUrl:  appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
-			Username:     appStoreAppVersion.AppStore.DockerArtifactStore.Username,
-			Password:     appStoreAppVersion.AppStore.DockerArtifactStore.Password,
-			AwsRegion:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
-			AccessKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
-			SecretKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
-			RegistryType: string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
-			RepoName:     appStoreAppVersion.AppStore.Name,
-			IsPublic:     ociRegistryConfig.IsPublic,
-		}
-	} else {
-		chartRepository = &client.ChartRepository{
-			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
-			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
-			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
-			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
-		}
+
+	registryCredential, chartRepository, IsOCIRepo, err := impl.getChartRepoAndOciCredentials(appStoreAppVersion)
+	if err != nil {
+		return installAppVersionRequest, err, false
 	}
 	installReleaseRequest := &client.InstallReleaseRequest{
 		ChartName:       appStoreAppVersion.Name,
@@ -145,28 +115,14 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 	}
 
 	// As bulk Deploy is already running in Async mode so skipping this
-	if installAppVersionRequest.HelmInstallAsyncMode && !installAppVersionRequest.IsBulkDeploy {
-		installHelmAsyncRequest := appStoreDeploymentFullMode.GetInstallHelmAsyncRequestPayload(installAppVersionRequest, true)
-		installHelmAsyncRequest.InstallReleaseRequest = installReleaseRequest
-		data, err := json.Marshal(&installHelmAsyncRequest)
-		if err != nil {
-			return nil, err
-		}
-		err = tx.Commit()
-		if err != nil {
-			return nil, err
-		}
-		err = impl.pubSubClient.Publish(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
-		if err != nil {
-			return nil, err
-		}
+	isTxCommit := false
+	if installAppVersionRequest.IsAsyncMode() {
+		err = impl.handleHelmAsyncDeploy(installAppVersionRequest, installReleaseRequest, tx, true)
+		isTxCommit = true
 	} else {
 		_, err = impl.helmAppService.InstallRelease(context.Background(), installAppVersionRequest.ClusterId, installReleaseRequest)
 	}
-	if err != nil {
-		return installAppVersionRequest, err
-	}
-	return installAppVersionRequest, nil
+	return installAppVersionRequest, err, isTxCommit
 }
 
 func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error) {
@@ -428,42 +384,9 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", installAppVersionRequest.AppStoreVersion, "err", err)
 		return err
 	}
-	var IsOCIRepo bool
-	var registryCredential *client.RegistryCredential
-	var chartRepository *client.ChartRepository
-	dockerRegistryId := appStoreApplicationVersion.AppStore.DockerArtifactStoreId
-	if dockerRegistryId != "" {
-		ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
-		if err != nil {
-			impl.Logger.Errorw("error in fetching oci registry config", "err", err)
-			return err
-		}
-		var ociRegistryConfig *repository2.OCIRegistryConfig
-		for _, config := range ociRegistryConfigs {
-			if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
-				ociRegistryConfig = config
-				break
-			}
-		}
-		IsOCIRepo = true
-		registryCredential = &client.RegistryCredential{
-			RegistryUrl:  appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryURL,
-			Username:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Username,
-			Password:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Password,
-			AwsRegion:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSRegion,
-			AccessKey:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
-			SecretKey:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
-			RegistryType: string(appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryType),
-			RepoName:     appStoreApplicationVersion.AppStore.Name,
-			IsPublic:     ociRegistryConfig.IsPublic,
-		}
-	} else {
-		chartRepository = &client.ChartRepository{
-			Name:     appStoreApplicationVersion.AppStore.ChartRepo.Name,
-			Url:      appStoreApplicationVersion.AppStore.ChartRepo.Url,
-			Username: appStoreApplicationVersion.AppStore.ChartRepo.UserName,
-			Password: appStoreApplicationVersion.AppStore.ChartRepo.Password,
-		}
+	registryCredential, chartRepository, IsOCIRepo, err := impl.getChartRepoAndOciCredentials(appStoreApplicationVersion)
+	if err != nil {
+		return err
 	}
 
 	updateReleaseRequest := &client.UpdateApplicationWithChartInfoRequestDto{
@@ -483,17 +406,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 		SourceAppType: client.SOURCE_HELM_APP,
 	}
 	if installAppVersionRequest.HelmInstallAsyncMode {
-		installHelmAsyncRequest := appStoreDeploymentFullMode.GetInstallHelmAsyncRequestPayload(installAppVersionRequest, false)
-		installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto = updateReleaseRequest
-		data, err := json.Marshal(&installHelmAsyncRequest)
-		if err != nil {
-			return err
-		}
-		err = tx.Commit()
-		if err != nil {
-			return err
-		}
-		err = impl.pubSubClient.Publish(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
+		err = impl.handleHelmAsyncDeploy(installAppVersionRequest, updateReleaseRequest.InstallReleaseRequest, tx, false)
 		if err != nil {
 			return err
 		}
@@ -527,4 +440,79 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledAppAndPipelineStat
 // RefreshAndUpdateACDApp this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
 func (impl *AppStoreDeploymentHelmServiceImpl) RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error {
 	return errors.New("this is not implemented")
+}
+
+func (impl AppStoreDeploymentHelmServiceImpl) getOciRegistryConfig(dockerRegistryId string) (*repository2.OCIRegistryConfig, error) {
+	ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching oci registry config", "err", err)
+		return nil, err
+	}
+	var ociRegistryConfig *repository2.OCIRegistryConfig
+	for _, config := range ociRegistryConfigs {
+		if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+			ociRegistryConfig = config
+			break
+		}
+	}
+	return ociRegistryConfig, nil
+}
+
+func (impl AppStoreDeploymentHelmServiceImpl) getChartRepoAndOciCredentials(appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (*client.RegistryCredential, *client.ChartRepository, bool, error) {
+	var IsOCIRepo bool
+	var registryCredential *client.RegistryCredential
+	var chartRepository *client.ChartRepository
+	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
+	if dockerRegistryId != "" {
+		ociRegistryConfig, err := impl.getOciRegistryConfig(dockerRegistryId)
+		if err != nil {
+			return nil, nil, false, err
+		}
+		IsOCIRepo = true
+		registryCredential = GetRegistryCredential(appStoreAppVersion.AppStore)
+		registryCredential.IsPublic = ociRegistryConfig.IsPublic
+	} else {
+		chartRepository = GetChartRepository(appStoreAppVersion.AppStore.ChartRepo)
+	}
+	return registryCredential, chartRepository, IsOCIRepo, nil
+}
+
+func (impl AppStoreDeploymentHelmServiceImpl) handleHelmAsyncDeploy(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installReleaseRequest *client.InstallReleaseRequest, tx *pg.Tx, isInstallRequest bool) error {
+	installHelmAsyncRequest := appStoreDeploymentFullMode.GetInstallHelmAsyncRequestPayload(installAppVersionRequest, isInstallRequest)
+	installHelmAsyncRequest.InstallReleaseRequest = installReleaseRequest
+	data, err := json.Marshal(&installHelmAsyncRequest)
+	if err != nil {
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	err = impl.pubSubClient.Publish(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, string(data))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetRegistryCredential(AppStore *appStoreDiscoverRepository.AppStore) *client.RegistryCredential {
+	return &client.RegistryCredential{
+		RegistryUrl:  AppStore.DockerArtifactStore.RegistryURL,
+		Username:     AppStore.DockerArtifactStore.Username,
+		Password:     AppStore.DockerArtifactStore.Password,
+		AwsRegion:    AppStore.DockerArtifactStore.AWSRegion,
+		AccessKey:    AppStore.DockerArtifactStore.AWSAccessKeyId,
+		SecretKey:    AppStore.DockerArtifactStore.AWSSecretAccessKey,
+		RegistryType: string(AppStore.DockerArtifactStore.RegistryType),
+		RepoName:     AppStore.Name,
+	}
+}
+
+func GetChartRepository(chartRepo *chartRepoRepository.ChartRepo) *client.ChartRepository {
+	return &client.ChartRepository{
+		Name:     chartRepo.Name,
+		Url:      chartRepo.Url,
+		Username: chartRepo.UserName,
+		Password: chartRepo.Password,
+	}
 }

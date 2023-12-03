@@ -530,13 +530,14 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error {
 	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, func(msg *pubsub_lib.PubSubMsg) {
-		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
+		impl.logger.Debug("received helm install status event - HELM_CHART_INSTALL_STATUS_TOPIC_NEW")
 		installHelmAsyncRequest := &InstallHelmAsyncRequest{}
 		err := json.Unmarshal([]byte(msg.Data), installHelmAsyncRequest)
 		if err != nil {
 			impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
 			return
 		}
+		impl.logger.Debugw("parsed helm install status event - HELM_CHART_INSTALL_STATUS_TOPIC_NEW", "InstalledAppId", installHelmAsyncRequest.InstalledAppId, "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId)
 		if installHelmAsyncRequest.Type == HELM_INSTALL_EVENT {
 			impl.CallBackForHelmInstall(installHelmAsyncRequest)
 		} else if installHelmAsyncRequest.Type == HELM_UPGRADE_EVENT {
@@ -544,7 +545,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error 
 		}
 	})
 	if err != nil {
-		impl.logger.Error(err)
+		impl.logger.Error("error in pub-sub subscribe", "err", err)
 		return err
 	}
 	return nil
@@ -557,8 +558,12 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(instal
 	defer cancel()
 
 	resp, err := impl.installedAppRepositoryHistory.UpdateLatestQueuedVersionHistory(installHelmAsyncRequest.InstalledAppVersionHistoryId, installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.UserId)
-	if err != nil || resp != 1 {
+	if err != nil {
 		impl.logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId, "err", err)
+		return
+	}
+	if resp != 1 {
+		impl.logger.Warnw("Installed app version history not found", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId, "err", err)
 		return
 	}
 	impl.UpdateReleaseContextForPipeline(installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.InstalledAppVersionHistoryId, cancel)
@@ -566,6 +571,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(instal
 	if err != nil {
 		impl.logger.Errorw("Error in Install Release in callback", "err", err)
 	}
+	// TODO check for message in case of failure
 	installAppVersion := getPostDbOperationPayload(installHelmAsyncRequest)
 	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersion, err)
 }
@@ -625,7 +631,11 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 	}
 	impl.UpdateReleaseContextForPipeline(installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.InstalledAppVersionHistoryId, cancel)
 
-	_, err = impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.InstalledApps.Environment.ClusterId, installHelmAsyncRequest.UpdateApplicationWithChartInfoRequestDto)
+	updateApplicationWithChartInfoRequestDto := &client.UpdateApplicationWithChartInfoRequestDto{
+		InstallReleaseRequest: installHelmAsyncRequest.InstallReleaseRequest,
+		SourceAppType:         client.SOURCE_HELM_APP,
+	}
+	_, err = impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.ClusterId, updateApplicationWithChartInfoRequestDto)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm application", "err", err)
 	}
