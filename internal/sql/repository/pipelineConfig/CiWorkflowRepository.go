@@ -82,8 +82,12 @@ type CiWorkflow struct {
 	CiPipeline              *CiPipeline
 }
 
-func (r *CiWorkflow) IsExternalRunInJobType() bool {
-	return r.EnvironmentId != 0
+func (ciWorkflow *CiWorkflow) InProgress() bool {
+	return ciWorkflow.Status == "Running" || ciWorkflow.Status == "Starting"
+}
+
+func (ciWorkflow *CiWorkflow) IsExternalRunInJobType() bool {
+	return ciWorkflow.EnvironmentId != 0
 }
 
 type WorkflowWithArtifact struct {

@@ -1,0 +1,1 @@
+ALTER TABLE public.ci_pipeline DROP CONSTRAINT ci_pipeline_parent_ci_pipeline_fkey;

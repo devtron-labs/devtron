@@ -272,7 +272,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		}
 	}
 	if len(pluginArtifacts) > 0 {
-		err = impl.ciArtifactRepository.SaveAll(pluginArtifacts)
+		_, err = impl.ciArtifactRepository.SaveAll(pluginArtifacts)
 		if err != nil {
 			impl.logger.Errorw("error while saving ci artifacts", "err", err)
 			return 0, err
@@ -307,7 +307,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 
 	impl.logger.Debugw("saving ci artifacts", "art", ciArtifactArr)
 	if len(ciArtifactArr) > 0 {
-		err = impl.ciArtifactRepository.SaveAll(ciArtifactArr)
+		_, err = impl.ciArtifactRepository.SaveAll(ciArtifactArr)
 		if err != nil {
 			impl.logger.Errorw("error while saving ci artifacts", "err", err)
 			return 0, err
