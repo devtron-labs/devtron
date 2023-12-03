@@ -20,8 +20,7 @@ package cluster
 import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"github.com/go-pg/pg"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"time"
 )
@@ -42,14 +41,14 @@ type ClusterDescriptionService interface {
 
 type ClusterDescriptionServiceImpl struct {
 	clusterDescriptionRepository repository.ClusterDescriptionRepository
-	userRepository               repository2.UserRepository
+	userService                  user.UserService
 	logger                       *zap.SugaredLogger
 }
 
-func NewClusterDescriptionServiceImpl(repository repository.ClusterDescriptionRepository, userRepository repository2.UserRepository, logger *zap.SugaredLogger) *ClusterDescriptionServiceImpl {
+func NewClusterDescriptionServiceImpl(repository repository.ClusterDescriptionRepository, userService user.UserService, logger *zap.SugaredLogger) *ClusterDescriptionServiceImpl {
 	clusterDescriptionService := &ClusterDescriptionServiceImpl{
 		clusterDescriptionRepository: repository,
-		userRepository:               userRepository,
+		userService:                  userService,
 		logger:                       logger,
 	}
 	return clusterDescriptionService
@@ -60,13 +59,13 @@ func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(clu
 	if err != nil {
 		return nil, err
 	}
-	clusterCreatedByUser, err := impl.userRepository.GetById(model.ClusterCreatedBy)
+	clusterCreatedByUser, err := impl.userService.GetUserEmailById(model.ClusterCreatedBy)
 	if err != nil {
 		impl.logger.Errorw("error in fetching user", "error", err)
 		return nil, err
 	}
-	noteUpdatedByUser, err := impl.userRepository.GetById(model.UpdatedBy)
-	if err != nil && err != pg.ErrNoRows {
+	noteUpdatedByUser, err := impl.userService.GetUserEmailById(model.UpdatedBy)
+	if err != nil {
 		impl.logger.Errorw("error in fetching user", "error", err)
 		return nil, err
 	}
@@ -75,14 +74,14 @@ func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(clu
 		ClusterName:      model.ClusterName,
 		Description:      model.ClusterDescription,
 		ServerUrl:        model.ServerUrl,
-		ClusterCreatedBy: clusterCreatedByUser.EmailId,
+		ClusterCreatedBy: clusterCreatedByUser,
 		ClusterCreatedOn: model.ClusterCreatedOn,
 	}
 	if model.NoteId > 0 {
 		clusterNote := &apiBean.GenericNoteResponseBean{
 			Id:          model.NoteId,
 			Description: model.Note,
-			UpdatedBy:   noteUpdatedByUser.EmailId,
+			UpdatedBy:   noteUpdatedByUser,
 			UpdatedOn:   model.UpdatedOn,
 		}
 		bean.ClusterNote = clusterNote

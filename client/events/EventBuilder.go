@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"github.com/satori/go.uuid"
@@ -49,7 +49,7 @@ type EventSimpleFactoryImpl struct {
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
-	userRepository               repository.UserRepository
+	userService                  user.UserService
 	ciArtifactRepository         repository2.CiArtifactRepository
 }
 
@@ -57,7 +57,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {
+	userService user.UserService, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
@@ -66,7 +66,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		ciPipelineRepository:         ciPipelineRepository,
 		pipelineRepository:           pipelineRepository,
-		userRepository:               userRepository,
+		userService:                  userService,
 		ciArtifactRepository:         ciArtifactRepository,
 	}
 }
@@ -152,12 +152,12 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	}
 
 	if event.UserId > 0 {
-		user, err := impl.userRepository.GetById(int32(event.UserId))
+		userEmailId, err := impl.userService.GetUserEmailById(int32(event.UserId))
 		if err != nil {
-			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
+			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "err", err)
 		}
 		payload = event.Payload
-		payload.TriggeredBy = user.EmailId
+		payload.TriggeredBy = userEmailId
 		event.Payload = payload
 	}
 	return event
@@ -186,12 +186,12 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *Mate
 	event.Payload.MaterialTriggerInfo = material
 
 	if event.UserId > 0 {
-		user, err := impl.userRepository.GetById(int32(event.UserId))
+		userEmailId, err := impl.userService.GetUserEmailById(int32(event.UserId))
 		if err != nil {
-			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
+			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "err", err)
 		}
 		payload = event.Payload
-		payload.TriggeredBy = user.EmailId
+		payload.TriggeredBy = userEmailId
 		event.Payload = payload
 	}
 	return event

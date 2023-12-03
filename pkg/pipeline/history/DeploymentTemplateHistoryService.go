@@ -274,7 +274,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 	var historiesDto []*DeploymentTemplateHistoryDto
 	for _, history := range histories {
 		if wfrIndex, ok := deploymentTimeStatusMap[history.DeployedOn]; ok {
-			user, err := impl.userService.GetById(history.DeployedBy)
+			userEmailId, err := impl.userService.GetUserEmailById(history.DeployedBy)
 			if err != nil {
 				impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
 				return nil, err
@@ -286,7 +286,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 				Deployed:         history.Deployed,
 				DeployedOn:       history.DeployedOn,
 				DeployedBy:       history.DeployedBy,
-				EmailId:          user.EmailId,
+				EmailId:          userEmailId,
 				DeploymentStatus: wfrList[wfrIndex].Status,
 				WfrId:            wfrList[wfrIndex].Id,
 				WorkflowType:     string(wfrList[wfrIndex].WorkflowType),

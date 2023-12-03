@@ -871,18 +871,12 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		Status:                        status,
 		LastDeployedBy:                bean4.ANONYMOUS_EMAIL_ID,
 	}
-	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
-	if err != nil && !util.IsErrNoRows(err) {
+	userEmailId, err := impl.userService.GetUserEmailById(installedAppVerison.AuditLog.UpdatedBy)
+	if err != nil {
 		impl.logger.Errorw("error fetching user info", "err", err)
 		return bean2.AppDetailContainer{}, err
 	}
-	if userInfo != nil {
-		deploymentContainer.LastDeployedBy = userInfo.EmailId
-		if !userInfo.Exist {
-			deploymentContainer.LastDeployedBy = fmt.Sprintf("%s (inactive)", userInfo.EmailId)
-		}
-	}
-	deploymentContainer.LastDeployedBy = userInfo.EmailId
+	deploymentContainer.LastDeployedBy = userEmailId
 	appDetail := bean2.AppDetailContainer{
 		DeploymentDetailContainer: deploymentContainer,
 	}

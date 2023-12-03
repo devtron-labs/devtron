@@ -48,7 +48,6 @@ import (
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -998,13 +997,10 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	}
 	workflow := impl.converterWFR(*workflowR)
 
-	triggeredByUser, err := impl.userService.GetById(workflow.TriggeredBy)
-	if err != nil && !util.IsErrNoRows(err) {
+	triggeredByUser, err := impl.userService.GetUserEmailById(workflow.TriggeredBy)
+	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
-	}
-	if triggeredByUser == nil {
-		triggeredByUser = &bean.UserInfo{EmailId: bean3.ANONYMOUS_EMAIL_ID}
 	}
 	ciArtifactId := workflow.CiArtifactId
 	if ciArtifactId > 0 {
@@ -1059,7 +1055,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		Namespace:            workflow.Namespace,
 		CiMaterials:          ciMaterialsArr,
 		TriggeredBy:          workflow.TriggeredBy,
-		TriggeredByEmail:     triggeredByUser.EmailId,
+		TriggeredByEmail:     triggeredByUser,
 		Artifact:             workflow.Image,
 		Stage:                workflow.WorkflowType,
 		GitTriggers:          gitTriggers,

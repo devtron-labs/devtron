@@ -482,7 +482,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if pipeline.CiTemplate.DockerBuildOptions == "" {
 		pipeline.CiTemplate.DockerBuildOptions = "{}"
 	}
-	user, err := impl.userService.GetById(trigger.TriggeredBy)
+	userEmailId, err := impl.userService.GetUserEmailById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
 		return nil, err
@@ -640,7 +640,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		PostCiSteps:                 postCiSteps,
 		RefPlugins:                  refPluginsData,
 		AppName:                     pipeline.App.AppName,
-		TriggerByAuthor:             user.EmailId,
+		TriggerByAuthor:             userEmailId,
 		CiBuildConfig:               ciBuildConfigBean,
 		CiBuildDockerMtuValue:       impl.config.CiRunnerDockerMTUValue,
 		IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,

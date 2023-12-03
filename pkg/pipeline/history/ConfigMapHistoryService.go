@@ -327,7 +327,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHisto
 	}
 	var historiesDto []*ConfigMapAndSecretHistoryDto
 	for _, history := range histories {
-		userInfo, err := impl.userService.GetById(history.DeployedBy)
+		userEmailId, err := impl.userService.GetUserEmailById(history.DeployedBy)
 		if err != nil {
 			impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
 			return nil, err
@@ -339,7 +339,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHisto
 			Deployed:   history.Deployed,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
-			EmailId:    userInfo.EmailId,
+			EmailId:    userEmailId,
 		}
 		historiesDto = append(historiesDto, historyDto)
 	}

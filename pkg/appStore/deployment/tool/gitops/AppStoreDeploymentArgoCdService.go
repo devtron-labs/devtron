@@ -27,7 +27,6 @@ import (
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -420,17 +419,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 			return result, err
 		}
 		for _, updateHistory := range versionHistory {
-			emailId := bean.ANONYMOUS_EMAIL_ID
-			user, err := impl.userService.GetByIdIncludeDeleted(updateHistory.CreatedBy)
-			if err != nil && !util.IsErrNoRows(err) {
+			emailId, err := impl.userService.GetUserEmailById(updateHistory.CreatedBy)
+			if err != nil {
 				impl.Logger.Errorw("error while fetching user Details", "error", err)
 				return result, err
-			}
-			if user != nil {
-				emailId = user.EmailId
-				if !user.Exist {
-					emailId = fmt.Sprintf("%s (inactive)", user.EmailId)
-				}
 			}
 			history = append(history, &client.HelmAppDeploymentDetail{
 				ChartMetadata: &client.ChartMetadata{

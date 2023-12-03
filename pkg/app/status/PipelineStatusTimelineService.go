@@ -183,7 +183,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	triggeredBy = wfr.TriggeredBy
 	wfrStatus = wfr.Status
 	deploymentAppType = wfr.CdWorkflow.Pipeline.DeploymentAppType
-	triggeredByUser, err := impl.userService.GetById(triggeredBy)
+	triggeredByUser, err := impl.userService.GetUserEmailById(triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in getting user detail by id", "err", err, "userId", triggeredBy)
 		return nil, err
@@ -230,7 +230,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
-		TriggeredBy:                triggeredByUser.EmailId,
+		TriggeredBy:                triggeredByUser,
 		DeploymentStartedOn:        deploymentStartedOn,
 		DeploymentFinishedOn:       deploymentFinishedOn,
 		Timelines:                  timelineDtos,
@@ -279,7 +279,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 	}
 	installedAppVersionHistoryStatus = installedAppVersionHistory.Status
 	deploymentAppType = installedAppVersion.InstalledApp.DeploymentAppType
-	triggeredByUser, err := impl.userService.GetById(installedAppVersionHistory.CreatedBy)
+	triggeredByUser, err := impl.userService.GetUserEmailById(installedAppVersionHistory.CreatedBy)
 	if err != nil {
 		impl.logger.Errorw("error in getting user detail by id", "err", err, "userId", installedAppVersionHistory.CreatedBy)
 		return nil, err
@@ -318,7 +318,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
-		TriggeredBy:                triggeredByUser.EmailId,
+		TriggeredBy:                triggeredByUser,
 		DeploymentStartedOn:        deploymentStartedOn,
 		DeploymentFinishedOn:       deploymentFinishedOn,
 		Timelines:                  timelineDtos,

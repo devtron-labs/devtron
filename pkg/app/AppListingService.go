@@ -27,7 +27,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	userrepository "github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
@@ -167,7 +167,7 @@ type AppListingServiceImpl struct {
 	chartRepository                chartRepoRepository.ChartRepository
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
-	userRepository                 userrepository.UserRepository
+	userService                    user.UserService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -178,7 +178,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
 	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository) *AppListingServiceImpl {
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userService user.UserService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -197,7 +197,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		chartRepository:                chartRepository,
 		ciPipelineRepository:           ciPipelineRepository,
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
-		userRepository:                 userRepository,
+		userService:                    userService,
 	}
 	return serviceImpl
 }
@@ -243,18 +243,12 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		resp.Type = NonProduction
 	}
 	resp.Description = env.Description
-	createdBy, err := impl.userRepository.GetByIdIncludeDeleted(env.CreatedBy)
-	if err != nil && err != pg.ErrNoRows {
+	createdBy, err := impl.userService.GetUserEmailById(env.CreatedBy)
+	if err != nil {
 		impl.Logger.Errorw("error in fetching user for app meta info", "error", err, "env.CreatedBy", env.CreatedBy)
 		return nil, err
 	}
-	if createdBy != nil && createdBy.Id > 0 {
-		if createdBy.Active {
-			resp.CreatedBy = fmt.Sprintf(createdBy.EmailId)
-		} else {
-			resp.CreatedBy = fmt.Sprintf("%s (inactive)", createdBy.EmailId)
-		}
-	}
+	resp.CreatedBy = createdBy
 	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)

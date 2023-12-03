@@ -783,7 +783,7 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
 		return hasAnyTriggered, err
 	}
-	user, err := impl.user.GetById(triggeredBy)
+	userEmailId, err := impl.user.GetUserEmailById(triggeredBy)
 	if err != nil {
 		return hasAnyTriggered, err
 	}
@@ -797,7 +797,7 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		}
 		projectObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetAppRBACByAppIdAndPipelineId(pipeline.AppId, pipeline.Id)
-		if !auth(user.EmailId, projectObject, envObject) {
+		if !auth(userEmailId, projectObject, envObject) {
 			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
 			return hasAnyTriggered, err
 		}
@@ -1002,12 +1002,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 
 	//in case of pre stage manual trigger auth is already applied
 	if applyAuth && triggeredBy != 1 {
-		user, err := impl.user.GetById(artifact.UpdatedBy)
+		userEmailId, err := impl.user.GetUserEmailById(artifact.UpdatedBy)
 		if err != nil {
 			impl.logger.Errorw("error in fetching user for auto pipeline", "UpdatedBy", artifact.UpdatedBy)
 			return nil
 		}
-		token := user.EmailId
+		token := userEmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
@@ -1974,12 +1974,12 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error {
 	//in case of manual ci RBAC need to apply, this method used for auto cd deployment
 	if applyAuth {
-		user, err := impl.user.GetById(triggeredBy)
+		userEmailId, err := impl.user.GetUserEmailById(triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in fetching user for auto pipeline", "UpdatedBy", artifact.UpdatedBy)
 			return nil
 		}
-		token := user.EmailId
+		token := userEmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {

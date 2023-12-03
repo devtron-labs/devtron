@@ -27,7 +27,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
-	"github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"regexp"
@@ -59,14 +59,14 @@ type AppCrudOperationServiceImpl struct {
 	logger                 *zap.SugaredLogger
 	appLabelRepository     pipelineConfig.AppLabelRepository
 	appRepository          appRepository.AppRepository
-	userRepository         repository.UserRepository
+	userService            user.UserService
 	installedAppRepository repository2.InstalledAppRepository
 	genericNoteService     genericNotes.GenericNoteService
 	gitMaterialRepository  pipelineConfig.MaterialRepository
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository,
+	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userService user.UserService,
 	installedAppRepository repository2.InstalledAppRepository,
 	genericNoteService genericNotes.GenericNoteService,
 	gitMaterialRepository pipelineConfig.MaterialRepository) *AppCrudOperationServiceImpl {
@@ -74,7 +74,7 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
 		appRepository:          appRepository,
-		userRepository:         userRepository,
+		userService:            userService,
 		installedAppRepository: installedAppRepository,
 		genericNoteService:     genericNoteService,
 		gitMaterialRepository:  gitMaterialRepository,
@@ -327,18 +327,10 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 		}
 	}
 
-	user, err := impl.userRepository.GetByIdIncludeDeleted(app.CreatedBy)
-	if err != nil && err != pg.ErrNoRows {
+	userEmailId, err := impl.userService.GetUserEmailById(app.CreatedBy)
+	if err != nil {
 		impl.logger.Errorw("error in fetching user for app meta info", "error", err)
 		return nil, err
-	}
-	userEmailId := ""
-	if user != nil && user.Id > 0 {
-		if user.Active {
-			userEmailId = fmt.Sprintf(user.EmailId)
-		} else {
-			userEmailId = fmt.Sprintf("%s (inactive)", user.EmailId)
-		}
 	}
 	appName := app.AppName
 	if app.AppType == helper.Job {
@@ -465,18 +457,10 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		}
 	}
 
-	user, err := impl.userRepository.GetByIdIncludeDeleted(app.CreatedBy)
-	if err != nil && err != pg.ErrNoRows {
+	userEmailId, err := impl.userService.GetUserEmailById(app.CreatedBy)
+	if err != nil {
 		impl.logger.Errorw("error in fetching user for app meta info", "error", err)
 		return nil, err
-	}
-	userEmailId := ""
-	if user != nil && user.Id > 0 {
-		if user.Active {
-			userEmailId = fmt.Sprintf(user.EmailId)
-		} else {
-			userEmailId = fmt.Sprintf("%s (inactive)", user.EmailId)
-		}
 	}
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
