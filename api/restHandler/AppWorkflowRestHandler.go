@@ -234,7 +234,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		return
 	}
 	workflows["isGitOpsRepoNotConfigured"] = isAppLevelGitOpsConfigured
-	common.WriteJsonResp(w, err, workflows, http.StatusOK)
+	common.WriteJsonResp(w, nil, workflows, http.StatusOK)
 }
 
 func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r *http.Request) {
