@@ -1714,10 +1714,13 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		return nil, err
 	}
 
-	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching latest chart for app by appId")
-		return nil, err
+	isAppLevelGitOpsConfigured := false
+	if len(dbPipelines) != 0 {
+		isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart for app by appId")
+			return nil, err
+		}
 	}
 
 	var pipelines []*bean.CDPipelineConfigObject
