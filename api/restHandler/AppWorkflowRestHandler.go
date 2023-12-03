@@ -228,7 +228,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		workflows["workflows"] = []appWorkflow.AppWorkflowDto{}
 	}
 	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
-	if err != nil {
+	if err != nil && util.IsErrNoRows(err) {
 		impl.Logger.Errorw("service err, IsGitOpsRepoConfiguredForDevtronApps", "appId", appId, "envIds", envIds, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
