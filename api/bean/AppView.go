@@ -118,6 +118,8 @@ type AppEnvironmentContainer struct {
 	PreStageStatus              *string                   `json:"preStageStatus"`
 	PostStageStatus             *string                   `json:"postStageStatus"`
 	LastDeployedTime            string                    `json:"lastDeployedTime,omitempty"`
+	LastDeployedImage           string                    `json:"lastDeployedImage,omitempty"`
+	LastDeployedBy              string                    `json:"lastDeployedBy,omitempty"`
 	LastSuccessDeploymentDetail DeploymentDetailContainer `json:"-"`
 	Default                     bool                      `json:"default"`
 	Deleted                     bool                      `json:"deleted"`
@@ -159,6 +161,7 @@ type DeploymentDetailContainer struct {
 	Deprecated                    bool            `json:"deprecated"`
 	K8sVersion                    string          `json:"k8sVersion"`
 	CiArtifactId                  int             `json:"ciArtifactId"`
+	ParentArtifactId              int             `json:"parentArtifactId"`
 	ClusterId                     int             `json:"clusterId"`
 	DeploymentAppType             string          `json:"deploymentAppType"`
 	CiPipelineId                  int             `json:"-"`

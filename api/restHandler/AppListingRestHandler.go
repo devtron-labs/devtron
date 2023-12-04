@@ -1594,6 +1594,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		if detail != nil && detail.ReleaseExist {
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			fmt.Println(resourceTree)
 			releaseStatus := util2.InterfaceToMapAdapter(detail.ReleaseStatus)
 			applicationStatus := detail.ApplicationStatus
 			resourceTree["releaseStatus"] = releaseStatus
