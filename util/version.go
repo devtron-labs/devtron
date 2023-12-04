@@ -42,6 +42,6 @@ func IsFullStack() bool {
 	return GetDevtronVersion().ServerMode == SERVER_MODE_FULL
 }
 
-func IsHelmApp(appOfferingMode string) bool {
+func IsHyperionMode(appOfferingMode string) bool {
 	return appOfferingMode == SERVER_MODE_HYPERION
 }
