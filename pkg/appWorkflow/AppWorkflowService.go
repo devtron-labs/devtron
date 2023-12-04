@@ -253,6 +253,7 @@ func (impl AppWorkflowServiceImpl) DeleteAppWorkflow(appWorkflowId int, userId i
 	}
 	if len(mappingForCI) > 0 {
 		return &util.ApiError{
+			Code:              "400",
 			InternalMessage:   "Workflow contains pipelines. First delete all pipelines in the workflow.",
 			UserDetailMessage: fmt.Sprintf("Workflow contains pipelines. First delete all pipelines in the workflow."),
 			UserMessage:       fmt.Sprintf("Workflow contains pipelines. First delete all pipelines in the workflow.")}

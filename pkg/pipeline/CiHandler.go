@@ -588,7 +588,11 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 	}
 	if !(string(v1alpha1.NodePending) == workflow.Status || string(v1alpha1.NodeRunning) == workflow.Status) {
 		impl.Logger.Warn("cannot cancel build, build not in progress")
-		return 0, errors.New("cannot cancel build, build not in progress")
+		return 0, &util.ApiError{
+			Code:            "400",
+			UserMessage:     "cannot cancel build, build not in progress",
+			InternalMessage: "cannot cancel build, build not in progress",
+		}
 	}
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
 	var env *repository3.Environment
