@@ -374,7 +374,7 @@ github.com/docker/distribution/reference
 # github.com/doublerebel/bellows v0.0.0-20160303004610-f177d92a03d3
 ## explicit
 github.com/doublerebel/bellows
-# github.com/elazarl/goproxy v0.0.0-20210110162100-a92cc753f88e
+# github.com/elazarl/goproxy v0.0.0-20230731152917-f99041a5c027
 ## explicit
 # github.com/emicklei/go-restful/v3 v3.9.0
 ## explicit; go 1.13
