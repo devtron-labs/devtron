@@ -410,14 +410,13 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 			if len(chart.GitRepoUrl) == 0 || chart.GitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED {
 				return nil, fmt.Errorf("GitOps repository is not configured for the app")
 			}
-		}
-		if gitOpsConfig.AllowCustomRepository && chart.IsCustomGitRepository {
 			// in this case user has already created an empty git repository and provided us gitRepoUrl
 			chartGitAttr = &util.ChartGitAttribute{
 				RepoUrl: chart.GitRepoUrl,
 			}
 			gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
-		} else if len(chart.GitRepoUrl) == 0 || chart.GitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED {
+		} else if !chart.IsCustomGitRepository &&
+			(len(chart.GitRepoUrl) == 0 || chart.GitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED) {
 			gitOpsRepoName, chartGitAttr, err = impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating git repo", "err", err)
