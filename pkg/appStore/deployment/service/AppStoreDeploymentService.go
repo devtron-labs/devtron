@@ -77,9 +77,8 @@ type AppStoreDeploymentService interface {
 }
 
 type DeploymentServiceTypeConfig struct {
-	IsInternalUse          bool `env:"IS_INTERNAL_USE" envDefault:"false"`
-	HelmInstallAsyncMode   bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"false"`
-	HelmInstallContextTime int  `env:"HELM_INSTALL_CONTEXT_TIME" envDefault:"5"`
+	IsInternalUse        bool `env:"IS_INTERNAL_USE" envDefault:"false"`
+	HelmInstallAsyncMode bool `env:"ENABLE_HELM_INSTALL_ASYNC_MODE" envDefault:"true"`
 }
 
 func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
@@ -1312,7 +1311,6 @@ func (impl *AppStoreDeploymentServiceImpl) updateDeploymentParametersInRequest(i
 	}
 	// Derive  context time from env
 	installAppVersionRequest.HelmInstallAsyncMode = impl.deploymentTypeConfig.HelmInstallAsyncMode
-	installAppVersionRequest.HelmInstallContextTime = impl.deploymentTypeConfig.HelmInstallContextTime
 }
 
 func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
