@@ -354,7 +354,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.7
+# github.com/devtron-labs/common-lib v0.0.8-0.20231128135204-b4a6d7fc9969
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/pubsub-lib
@@ -1013,61 +1013,58 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
-# go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.37.0
-## explicit; go 1.18
+# go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.44.0
+## explicit; go 1.19
 go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux
-# go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
+go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux/internal/semconvutil
+# go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.44.0
 ## explicit; go 1.19
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal
-# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.43.0
+# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.44.0
 ## explicit; go 1.19
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp/internal/semconvutil
-# go.opentelemetry.io/otel v1.17.0
-## explicit; go 1.19
+# go.opentelemetry.io/otel v1.18.0
+## explicit; go 1.20
 go.opentelemetry.io/otel
 go.opentelemetry.io/otel/attribute
 go.opentelemetry.io/otel/baggage
 go.opentelemetry.io/otel/codes
-go.opentelemetry.io/otel/exporters/otlp/internal
-go.opentelemetry.io/otel/exporters/otlp/internal/envconfig
 go.opentelemetry.io/otel/internal
 go.opentelemetry.io/otel/internal/attribute
 go.opentelemetry.io/otel/internal/baggage
 go.opentelemetry.io/otel/internal/global
 go.opentelemetry.io/otel/propagation
 go.opentelemetry.io/otel/semconv/internal
-go.opentelemetry.io/otel/semconv/v1.12.0
 go.opentelemetry.io/otel/semconv/v1.17.0
 go.opentelemetry.io/otel/semconv/v1.21.0
 go.opentelemetry.io/otel/semconv/v1.4.0
-# go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.16.0
-## explicit; go 1.19
-go.opentelemetry.io/otel/exporters/otlp/internal/retry
-# go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.16.0
-## explicit; go 1.19
+# go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.18.0
+## explicit; go 1.20
 go.opentelemetry.io/otel/exporters/otlp/otlptrace
-go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal
-go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/otlpconfig
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/tracetransform
-# go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.16.0
-## explicit; go 1.19
+# go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.18.0
+## explicit; go 1.20
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
-# go.opentelemetry.io/otel/metric v1.17.0
-## explicit; go 1.19
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/envconfig
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/otlpconfig
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/retry
+# go.opentelemetry.io/otel/metric v1.18.0
+## explicit; go 1.20
 go.opentelemetry.io/otel/metric
 go.opentelemetry.io/otel/metric/embedded
-# go.opentelemetry.io/otel/sdk v1.17.0
-## explicit; go 1.19
+# go.opentelemetry.io/otel/sdk v1.18.0
+## explicit; go 1.20
 go.opentelemetry.io/otel/sdk
 go.opentelemetry.io/otel/sdk/instrumentation
 go.opentelemetry.io/otel/sdk/internal
 go.opentelemetry.io/otel/sdk/internal/env
 go.opentelemetry.io/otel/sdk/resource
 go.opentelemetry.io/otel/sdk/trace
-# go.opentelemetry.io/otel/trace v1.17.0
-## explicit; go 1.19
+# go.opentelemetry.io/otel/trace v1.18.0
+## explicit; go 1.20
 go.opentelemetry.io/otel/trace
 # go.opentelemetry.io/proto/otlp v1.0.0
 ## explicit; go 1.17
@@ -1161,6 +1158,7 @@ golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.3.0
 ## explicit; go 1.17
 golang.org/x/sync/errgroup
+golang.org/x/sync/semaphore
 golang.org/x/sync/singleflight
 # golang.org/x/sys v0.13.0
 ## explicit; go 1.17
@@ -1224,24 +1222,24 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20230530153820-e85fd2cbaebc
+# google.golang.org/genproto v0.0.0-20230711160842-782d3b101e98
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/type/date
 google.golang.org/genproto/googleapis/type/expr
 google.golang.org/genproto/internal
 google.golang.org/genproto/protobuf/field_mask
-# google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc
+# google.golang.org/genproto/googleapis/api v0.0.0-20230711160842-782d3b101e98
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/code
 google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.56.3
-## explicit; go 1.17
+# google.golang.org/grpc v1.58.0
+## explicit; go 1.19
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
@@ -1285,6 +1283,7 @@ google.golang.org/grpc/internal/grpclog
 google.golang.org/grpc/internal/grpcrand
 google.golang.org/grpc/internal/grpcsync
 google.golang.org/grpc/internal/grpcutil
+google.golang.org/grpc/internal/idle
 google.golang.org/grpc/internal/metadata
 google.golang.org/grpc/internal/pretty
 google.golang.org/grpc/internal/resolver
