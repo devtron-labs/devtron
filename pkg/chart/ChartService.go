@@ -774,8 +774,7 @@ func (impl ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (bo
 		impl.logger.Errorw("error in fetching latest chart for app by appId")
 		return false, err
 	}
-	if latestChartConfiguredInApp.IsCustomGitRepository &&
-		util.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl) {
+	if util.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl) {
 		return false, nil
 	}
 	return true, nil
