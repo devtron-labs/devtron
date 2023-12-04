@@ -117,7 +117,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 	// As bulk Deploy is already running in Async mode so skipping this
 	isTxCommit := false
 	if installAppVersionRequest.IsAsyncMode() {
-		err = impl.handleHelmAsyncDeploy(installAppVersionRequest, installReleaseRequest, tx, true)
+		err = impl.handleHelmAsyncDeploy(installAppVersionRequest, installReleaseRequest, tx, true, 0)
 		isTxCommit = true
 	} else {
 		_, err = impl.helmAppService.InstallRelease(context.Background(), installAppVersionRequest.ClusterId, installReleaseRequest)
@@ -406,7 +406,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 		SourceAppType: client.SOURCE_HELM_APP,
 	}
 	if installAppVersionRequest.HelmInstallAsyncMode {
-		err = impl.handleHelmAsyncDeploy(installAppVersionRequest, updateReleaseRequest.InstallReleaseRequest, tx, false)
+		err = impl.handleHelmAsyncDeploy(installAppVersionRequest, updateReleaseRequest.InstallReleaseRequest, tx, false, installedApp.Environment.ClusterId)
 		if err != nil {
 			return err
 		}
@@ -477,8 +477,8 @@ func (impl AppStoreDeploymentHelmServiceImpl) getChartRepoAndOciCredentials(appS
 	return registryCredential, chartRepository, IsOCIRepo, nil
 }
 
-func (impl AppStoreDeploymentHelmServiceImpl) handleHelmAsyncDeploy(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installReleaseRequest *client.InstallReleaseRequest, tx *pg.Tx, isInstallRequest bool) error {
-	installHelmAsyncRequest := appStoreDeploymentFullMode.GetInstallHelmAsyncRequestPayload(installAppVersionRequest, isInstallRequest)
+func (impl AppStoreDeploymentHelmServiceImpl) handleHelmAsyncDeploy(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installReleaseRequest *client.InstallReleaseRequest, tx *pg.Tx, isInstallRequest bool, installedAppClusterId int) error {
+	installHelmAsyncRequest := appStoreDeploymentFullMode.GetInstallHelmAsyncRequestPayload(installAppVersionRequest, isInstallRequest, installedAppClusterId)
 	installHelmAsyncRequest.InstallReleaseRequest = installReleaseRequest
 	data, err := json.Marshal(&installHelmAsyncRequest)
 	if err != nil {

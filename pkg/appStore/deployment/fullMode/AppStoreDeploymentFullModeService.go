@@ -105,16 +105,15 @@ type HelmAppReleaseContextType struct {
 }
 
 type InstallHelmAsyncRequest struct {
-	InstallReleaseRequest                    *client.InstallReleaseRequest                    `json:"installReleaseRequest"`
-	UpdateApplicationWithChartInfoRequestDto *client.UpdateApplicationWithChartInfoRequestDto `json:"updateApplicationWithChartInfoRequestDto"`
-	Type                                     string                                           `json:"type"`
-	InstalledApps                            *repository4.InstalledApps                       `json:"installedApps"`
-	InstalledAppId                           int                                              `json:"installAppId"`
-	InstalledAppVersionId                    int                                              `json:"installAppVersionId"`
-	ContextTime                              int                                              `json:"contextTime"`
-	InstalledAppVersionHistoryId             int                                              `json:"installAppVersionHistoryId"`
-	ClusterId                                int                                              `json:"clusterId"`
-	UserId                                   int32                                            `json:"userId"`
+	InstallReleaseRequest        *client.InstallReleaseRequest `json:"installReleaseRequest"`
+	Type                         string                        `json:"type"`
+	InstalledAppId               int                           `json:"installAppId"`
+	InstalledAppVersionId        int                           `json:"installAppVersionId"`
+	ContextTime                  int                           `json:"contextTime"`
+	InstalledAppVersionHistoryId int                           `json:"installAppVersionHistoryId"`
+	ClusterId                    int                           `json:"clusterId"`
+	InstalledAppClusterId        int                           `json:"installedAppClusterId"`
+	UserId                       int32                         `json:"userId"`
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -625,8 +624,12 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 	defer cancel()
 
 	resp, err := impl.installedAppRepositoryHistory.UpdateLatestQueuedVersionHistory(installHelmAsyncRequest.InstalledAppVersionHistoryId, installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.UserId)
-	if err != nil || resp != 1 {
+	if err != nil {
 		impl.logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId, "err", err)
+		return
+	}
+	if resp != 1 {
+		impl.logger.Warnw("Installed app version history not found", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId, "err", err)
 		return
 	}
 	impl.UpdateReleaseContextForPipeline(installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.InstalledAppVersionHistoryId, cancel)
@@ -635,7 +638,7 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(instal
 		InstallReleaseRequest: installHelmAsyncRequest.InstallReleaseRequest,
 		SourceAppType:         client.SOURCE_HELM_APP,
 	}
-	_, err = impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.ClusterId, updateApplicationWithChartInfoRequestDto)
+	_, err = impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.InstalledAppClusterId, updateApplicationWithChartInfoRequestDto)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm application", "err", err)
 	}
@@ -653,7 +656,7 @@ func getPostDbOperationPayload(installHelmAsyncRequest *InstallHelmAsyncRequest)
 	}
 }
 
-func GetInstallHelmAsyncRequestPayload(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isInstallRequest bool) InstallHelmAsyncRequest {
+func GetInstallHelmAsyncRequestPayload(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isInstallRequest bool, installedAppClusterId int) InstallHelmAsyncRequest {
 	request := InstallHelmAsyncRequest{
 		InstalledAppId:               installAppVersionRequest.InstalledAppId,
 		InstalledAppVersionId:        installAppVersionRequest.InstalledAppVersionId,
@@ -661,6 +664,7 @@ func GetInstallHelmAsyncRequestPayload(installAppVersionRequest *appStoreBean.In
 		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 		ClusterId:                    installAppVersionRequest.ClusterId,
 		UserId:                       installAppVersionRequest.UserId,
+		InstalledAppClusterId:        installedAppClusterId,
 	}
 	if isInstallRequest {
 		request.Type = HELM_INSTALL_EVENT
