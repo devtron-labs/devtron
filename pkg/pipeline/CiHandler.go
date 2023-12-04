@@ -1726,7 +1726,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
 				// skip this and process for next ci workflow
 			}
-			err = impl.customTagService.DeactivateImagePathReservation(ciWorkflow.ImagePathReservationId)
+			err = impl.customTagService.DeactivateImagePathReservationByImageIds(ciWorkflow.ImagePathReservationIds)
 			if err != nil {
 				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
 			}
