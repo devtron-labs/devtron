@@ -2,7 +2,7 @@ package k8s
 
 import (
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	"github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
