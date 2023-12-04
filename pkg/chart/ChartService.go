@@ -1844,12 +1844,13 @@ func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsC
 		impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", appId)
 		return nil, err
 	}
-
-	appGitOpsConfigResponse := &AppGitOpsConfigResponse{}
+	appGitOpsConfigResponse := &AppGitOpsConfigResponse{
+		IsEditable: true,
+	}
 	isGitOpsRepoConfigured := !ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl)
 	if isGitOpsRepoConfigured {
 		appGitOpsConfigResponse.GitRepoURL = chart.GitRepoUrl
-		appGitOpsConfigResponse.IsEditable = true
+		appGitOpsConfigResponse.IsEditable = false
 		return appGitOpsConfigResponse, nil
 	}
 	return appGitOpsConfigResponse, nil
