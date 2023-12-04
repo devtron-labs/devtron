@@ -56,7 +56,7 @@ components:
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
-    image: "quay.io/devtron/dashboard:2c4be621-325-19784"
+    image: "quay.io/devtron/dashboard:5835f4a2-325-19789"
     imagePullPolicy: IfNotPresent
 
   devtron:
