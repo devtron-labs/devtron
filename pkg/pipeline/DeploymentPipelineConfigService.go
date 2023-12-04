@@ -407,22 +407,23 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		}
 		var gitOpsRepoName string
 		var chartGitAttr *util.ChartGitAttribute
-		if gitOpsConfig.AllowCustomRepository {
-			if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+		if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+			if gitOpsConfig.AllowCustomRepository || chart.IsCustomGitRepository {
 				return nil, fmt.Errorf("GitOps repository is not configured for the app")
 			}
-			// in this case user has already created an empty git repository and provided us gitRepoUrl
-			chartGitAttr = &util.ChartGitAttribute{
-				RepoUrl: chart.GitRepoUrl,
-			}
-			gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
-		} else if !chart.IsCustomGitRepository && ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 			gitOpsRepoName, chartGitAttr, err = impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating git repo", "err", err)
 				return nil, fmt.Errorf("Create GitOps repository error: %s", err.Error())
 			}
+		} else {
+			// in this case user has already created an empty git repository and provided us gitRepoUrl
+			chartGitAttr = &util.ChartGitAttribute{
+				RepoUrl: chart.GitRepoUrl,
+			}
+			gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
 		}
+
 		err = impl.RegisterInACD(gitOpsRepoName, chartGitAttr, pipelineCreateRequest.UserId, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in registering app in acd", "err", err)

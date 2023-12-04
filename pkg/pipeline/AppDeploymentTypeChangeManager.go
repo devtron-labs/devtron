@@ -454,18 +454,18 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 					impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", pipeline.AppId)
 				}
 				if chartServiceErr == nil {
-					if gitOpsConfig.AllowCustomRepository {
-						if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+					if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+						if gitOpsConfig.AllowCustomRepository || chart.IsCustomGitRepository {
 							gitOpsRepoNotFound = fmt.Errorf("GitOps repository is not configured for the app")
 						} else {
-							// in this case user has already created an empty git repository and provided us gitRepoUrl
-							chartGitAttr = &util.ChartGitAttribute{
-								RepoUrl: chart.GitRepoUrl,
-							}
-							gitopsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
+							gitopsRepoName, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
 						}
-					} else if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
-						gitopsRepoName, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+					} else {
+						// in this case user has already created an empty git repository and provided us gitRepoUrl
+						chartGitAttr = &util.ChartGitAttribute{
+							RepoUrl: chart.GitRepoUrl,
+						}
+						gitopsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
 					}
 				}
 				if gitOpsRepoNotFound != nil {

@@ -958,17 +958,9 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 			len(installedAppModel.GitOpsRepoUrl) != 0 &&
 			!util.IsValidUrl(installedAppModel.GitOpsRepoUrl) {
 			//as the installedApp.GitOpsRepoUrl is not a valid url OR empty string; installedApp.GitOpsRepoUrl is the GitOpsRepoName (earlier we were only storing the GitOpsRepoName)
-			gitRepoUrl, err := impl.appStoreDeploymentArgoCdService.GetGitRepoUrl(installedAppModel.GitOpsRepoUrl)
+			_, err := impl.handleGitOpsRepoUrlMigration(tx, installedAppModel, userId)
 			if err != nil {
 				impl.logger.Errorw("error in GitOps repository url migration", "err", err)
-				return false, err
-			}
-			installedAppModel.GitOpsRepoUrl = gitRepoUrl
-			installedAppModel.UpdatedOn = time.Now()
-			installedAppModel.UpdatedBy = userId
-			_, err = impl.installedAppRepository.UpdateInstalledApp(installedAppModel, tx)
-			if err != nil {
-				impl.logger.Errorw("error in updating installed app model", "err", err)
 				return false, err
 			}
 			installedApp.GitOpsRepoURL = installedAppModel.GitOpsRepoUrl
@@ -1654,6 +1646,48 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	return installAppVersionRequest, nil
 }
 
+func (impl AppStoreDeploymentServiceImpl) handleGitOpsRepoUrlMigration(tx *pg.Tx, installedApp *repository.InstalledApps, userId int32) (*repository.InstalledApps, error) {
+	var (
+		localTx *pg.Tx
+		err     error
+	)
+
+	if tx == nil {
+		dbConnection := impl.installedAppRepository.GetConnection()
+		localTx, err = dbConnection.Begin()
+		if err != nil {
+			return nil, err
+		}
+		// Rollback tx on error.
+		defer localTx.Rollback()
+	}
+
+	gitRepoUrl, err := impl.appStoreDeploymentArgoCdService.GetGitRepoUrl(installedApp.GitOpsRepoUrl)
+	if err != nil {
+		impl.logger.Errorw("error in GitOps repository url migration", "err", err)
+		return nil, err
+	}
+	installedApp.GitOpsRepoUrl = gitRepoUrl
+	installedApp.UpdatedOn = time.Now()
+	installedApp.UpdatedBy = userId
+	if localTx != nil {
+		_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, localTx)
+	} else {
+		_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in updating installed app model", "err", err)
+		return nil, err
+	}
+	if localTx != nil {
+		err = localTx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error while committing transaction to db", "error", err)
+			return nil, err
+		}
+	}
+	return installedApp, err
+}
 func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
 	if err != nil {
@@ -1669,31 +1703,8 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 		!util.IsValidUrl(app.InstalledApp.GitOpsRepoUrl) {
 		//as the installedApp.GitOpsRepoUrl is not a valid url OR empty string; installedApp.GitOpsRepoUrl is the GitOpsRepoName (earlier we were only storing the GitOpsRepoName)
 		// db operations
-		dbConnection := impl.installedAppRepository.GetConnection()
-		tx, err := dbConnection.Begin()
-		if err != nil {
-			return nil, err
-		}
-		// Rollback tx on error.
-		defer tx.Rollback()
-		gitRepoUrl, err := impl.appStoreDeploymentArgoCdService.GetGitRepoUrl(app.InstalledApp.GitOpsRepoUrl)
-		if err != nil {
-			impl.logger.Errorw("error in GitOps repository url migration", "err", err)
-			return nil, err
-		}
-		app.InstalledApp.GitOpsRepoUrl = gitRepoUrl
-		app.InstalledApp.UpdatedOn = time.Now()
-		app.InstalledApp.UpdatedBy = userId
-		_, err = impl.installedAppRepository.UpdateInstalledApp(&app.InstalledApp, tx)
-		if err != nil {
-			impl.logger.Errorw("error in updating installed app model", "err", err)
-			return nil, err
-		}
-		err = tx.Commit()
-		if err != nil {
-			impl.logger.Errorw("error while committing transaction to db", "error", err)
-			return nil, err
-		}
+		installedAppModel := &app.InstalledApp
+		impl.handleGitOpsRepoUrlMigration(nil, installedAppModel, userId)
 	}
 	// migration ends
 	installAppVersion := &appStoreBean.InstallAppVersionDTO{
