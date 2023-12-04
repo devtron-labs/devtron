@@ -46,6 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	bean4 "github.com/devtron-labs/devtron/pkg/user/bean"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -868,13 +869,14 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
 		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
 		Status:                        status,
+		LastDeployedBy:                bean4.ANONYMOUS_EMAIL_ID,
 	}
-	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
+	userEmailId, err := impl.userService.GetUserEmailById(installedAppVerison.AuditLog.UpdatedBy, false)
 	if err != nil {
 		impl.logger.Errorw("error fetching user info", "err", err)
 		return bean2.AppDetailContainer{}, err
 	}
-	deploymentContainer.LastDeployedBy = userInfo.EmailId
+	deploymentContainer.LastDeployedBy = userEmailId
 	appDetail := bean2.AppDetailContainer{
 		DeploymentDetailContainer: deploymentContainer,
 	}

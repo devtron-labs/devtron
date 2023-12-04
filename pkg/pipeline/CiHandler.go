@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	bean4 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -662,8 +663,8 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
 	}
-	triggeredByUser, err := impl.userService.GetById(workflow.TriggeredBy)
-	if err != nil && !util.IsErrNoRows(err) {
+	userEmailId, err := impl.userService.GetUserEmailById(workflow.TriggeredBy, false)
+	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
 	}
@@ -722,7 +723,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		GitTriggers:        workflow.GitTriggers,
 		CiMaterials:        ciMaterialsArr,
 		TriggeredBy:        workflow.TriggeredBy,
-		TriggeredByEmail:   triggeredByUser.EmailId,
+		TriggeredByEmail:   userEmailId,
 		Artifact:           ciArtifact.Image,
 		ArtifactId:         ciArtifact.Id,
 		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
@@ -1472,7 +1473,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 	}
 
 	ciMaterialsArr := make([]pipelineConfig.CiPipelineMaterialResponse, 0)
-	triggeredByUser := &bean2.UserInfo{}
+	triggeredByUser := bean4.ANONYMOUS_EMAIL_ID
 	//check workflow data only for non external builds
 	if !ciPipeline.IsExternal {
 		var workflow *pipelineConfig.CiWorkflow
@@ -1490,8 +1491,8 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			}
 		}
 
-		triggeredByUser, err = impl.userService.GetById(workflow.TriggeredBy)
-		if err != nil && !util.IsErrNoRows(err) {
+		triggeredByUser, err = impl.userService.GetUserEmailById(workflow.TriggeredBy, false)
+		if err != nil {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
 		}
@@ -1546,7 +1547,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 	gitTriggerInfoResponse := &types.GitTriggerInfoResponse{
 		//GitTriggers:      workflow.GitTriggers,
 		CiMaterials:      ciMaterialsArr,
-		TriggeredByEmail: triggeredByUser.EmailId,
+		TriggeredByEmail: triggeredByUser,
 		AppId:            ciPipeline.AppId,
 		AppName:          deployDetail.AppName,
 		EnvironmentId:    deployDetail.EnvironmentId,

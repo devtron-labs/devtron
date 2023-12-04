@@ -30,6 +30,7 @@ const (
 	ENTITY_APPS                                 = "apps"
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
+	ANONYMOUS_EMAIL_ID                 string   = "anonymous"
 )
 
 const (

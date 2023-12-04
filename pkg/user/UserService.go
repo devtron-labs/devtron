@@ -61,6 +61,7 @@ type UserService interface {
 	GetUserByToken(context context.Context, token string) (int32, string, error)
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
+	GetUserEmailById(id int32, activeOnly bool) (string, error)
 	UserExists(emailId string) bool
 	UpdateTriggerPolicyForTerminalAccess() (err error)
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
@@ -1363,8 +1364,34 @@ func (impl *UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, er
 	response := &bean.UserInfo{
 		Id:      model.Id,
 		EmailId: model.EmailId,
+		Exist:   model.Active,
 	}
 	return response, nil
+}
+
+func (impl *UserServiceImpl) GetUserEmailById(id int32, activeOnly bool) (string, error) {
+	if activeOnly {
+		model, err := impl.userRepository.GetById(id)
+		if err != nil {
+			impl.logger.Errorw("error while fetching user from db", "error", err)
+			return "", err
+		}
+		return model.EmailId, nil
+	}
+	userEmailId := bean2.ANONYMOUS_EMAIL_ID
+	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
+	if util.IsErrNoRows(err) {
+		return userEmailId, nil
+	}
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return "", err
+	}
+	userEmailId = model.EmailId
+	if !model.Active {
+		return fmt.Sprintf("%s (inactive)", model.EmailId), nil
+	}
+	return userEmailId, nil
 }
 
 func (impl *UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
