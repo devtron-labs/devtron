@@ -233,7 +233,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	workflows["isGitOpsRepoNotConfigured"] = isAppLevelGitOpsConfigured
+	workflows["isGitOpsRepoNotConfigured"] = !isAppLevelGitOpsConfigured
 	common.WriteJsonResp(w, nil, workflows, http.StatusOK)
 }
 
