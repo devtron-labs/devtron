@@ -327,7 +327,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 		}
 	}
 
-	userEmailId, err := impl.userService.GetUserEmailById(app.CreatedBy)
+	userEmailId, err := impl.userService.GetUserEmailById(app.CreatedBy, false)
 	if err != nil {
 		impl.logger.Errorw("error in fetching user for app meta info", "error", err)
 		return nil, err
@@ -457,7 +457,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		}
 	}
 
-	userEmailId, err := impl.userService.GetUserEmailById(app.CreatedBy)
+	userEmailId, err := impl.userService.GetUserEmailById(app.CreatedBy, false)
 	if err != nil {
 		impl.logger.Errorw("error in fetching user for app meta info", "error", err)
 		return nil, err

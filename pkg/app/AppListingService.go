@@ -243,7 +243,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		resp.Type = NonProduction
 	}
 	resp.Description = env.Description
-	createdBy, err := impl.userService.GetUserEmailById(env.CreatedBy)
+	createdBy, err := impl.userService.GetUserEmailById(env.CreatedBy, false)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching user for app meta info", "error", err, "env.CreatedBy", env.CreatedBy)
 		return nil, err

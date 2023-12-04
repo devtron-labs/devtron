@@ -59,12 +59,12 @@ func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(clu
 	if err != nil {
 		return nil, err
 	}
-	clusterCreatedByUser, err := impl.userService.GetUserEmailById(model.ClusterCreatedBy)
+	clusterCreatedByUser, err := impl.userService.GetUserEmailById(model.ClusterCreatedBy, false)
 	if err != nil {
 		impl.logger.Errorw("error in fetching user", "error", err)
 		return nil, err
 	}
-	noteUpdatedByUser, err := impl.userService.GetUserEmailById(model.UpdatedBy)
+	noteUpdatedByUser, err := impl.userService.GetUserEmailById(model.UpdatedBy, false)
 	if err != nil {
 		impl.logger.Errorw("error in fetching user", "error", err)
 		return nil, err

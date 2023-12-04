@@ -61,7 +61,7 @@ type UserService interface {
 	GetUserByToken(context context.Context, token string) (int32, string, error)
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
-	GetUserEmailById(id int32) (string, error)
+	GetUserEmailById(id int32, activeOnly bool) (string, error)
 	UserExists(emailId string) bool
 	UpdateTriggerPolicyForTerminalAccess() (err error)
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
@@ -1369,7 +1369,15 @@ func (impl *UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, er
 	return response, nil
 }
 
-func (impl *UserServiceImpl) GetUserEmailById(id int32) (string, error) {
+func (impl *UserServiceImpl) GetUserEmailById(id int32, activeOnly bool) (string, error) {
+	if activeOnly {
+		model, err := impl.userRepository.GetById(id)
+		if err != nil {
+			impl.logger.Errorw("error while fetching user from db", "error", err)
+			return "", err
+		}
+		return model.EmailId, nil
+	}
 	userEmailId := bean2.ANONYMOUS_EMAIL_ID
 	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
 	if util.IsErrNoRows(err) {

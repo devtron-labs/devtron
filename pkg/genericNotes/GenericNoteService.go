@@ -82,7 +82,7 @@ func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote,
 		impl.logger.Errorw("error in saving generic note history", "err", err, "clusterAudit", clusterAudit)
 		return nil, err
 	}
-	userEmailId, err := impl.userService.GetUserEmailById(req.UpdatedBy)
+	userEmailId, err := impl.userService.GetUserEmailById(req.UpdatedBy, false)
 	if err != nil {
 		impl.logger.Errorw("error in finding user by id", "userId", req.UpdatedBy, "err", err)
 		return nil, err
@@ -150,7 +150,7 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 		impl.logger.Errorw("error in saving generic note history", "auditObject", clusterAudit)
 		return nil, err
 	}
-	userEmailId, err := impl.userService.GetUserEmailById(model.UpdatedBy)
+	userEmailId, err := impl.userService.GetUserEmailById(model.UpdatedBy, false)
 	if err != nil {
 		impl.logger.Errorw("error in finding user by id", "userId", model.UpdatedBy, "err", err)
 		return nil, err

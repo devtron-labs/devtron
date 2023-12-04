@@ -997,7 +997,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	}
 	workflow := impl.converterWFR(*workflowR)
 
-	triggeredByUser, err := impl.userService.GetUserEmailById(workflow.TriggeredBy)
+	triggeredByUser, err := impl.userService.GetUserEmailById(workflow.TriggeredBy, false)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err

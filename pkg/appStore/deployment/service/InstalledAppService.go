@@ -871,7 +871,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		Status:                        status,
 		LastDeployedBy:                bean4.ANONYMOUS_EMAIL_ID,
 	}
-	userEmailId, err := impl.userService.GetUserEmailById(installedAppVerison.AuditLog.UpdatedBy)
+	userEmailId, err := impl.userService.GetUserEmailById(installedAppVerison.AuditLog.UpdatedBy, false)
 	if err != nil {
 		impl.logger.Errorw("error fetching user info", "err", err)
 		return bean2.AppDetailContainer{}, err

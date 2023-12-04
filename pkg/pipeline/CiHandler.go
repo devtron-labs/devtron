@@ -663,7 +663,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
 	}
-	userEmailId, err := impl.userService.GetUserEmailById(workflow.TriggeredBy)
+	userEmailId, err := impl.userService.GetUserEmailById(workflow.TriggeredBy, false)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
@@ -1491,7 +1491,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			}
 		}
 
-		triggeredByUser, err = impl.userService.GetUserEmailById(workflow.TriggeredBy)
+		triggeredByUser, err = impl.userService.GetUserEmailById(workflow.TriggeredBy, false)
 		if err != nil {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err

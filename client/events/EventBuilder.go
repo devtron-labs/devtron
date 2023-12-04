@@ -152,7 +152,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	}
 
 	if event.UserId > 0 {
-		userEmailId, err := impl.userService.GetUserEmailById(int32(event.UserId))
+		userEmailId, err := impl.userService.GetUserEmailById(int32(event.UserId), false)
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "err", err)
 		}
@@ -186,7 +186,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *Mate
 	event.Payload.MaterialTriggerInfo = material
 
 	if event.UserId > 0 {
-		userEmailId, err := impl.userService.GetUserEmailById(int32(event.UserId))
+		userEmailId, err := impl.userService.GetUserEmailById(int32(event.UserId), false)
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "err", err)
 		}

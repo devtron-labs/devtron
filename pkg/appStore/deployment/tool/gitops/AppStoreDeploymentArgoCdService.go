@@ -419,7 +419,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 			return result, err
 		}
 		for _, updateHistory := range versionHistory {
-			emailId, err := impl.userService.GetUserEmailById(updateHistory.CreatedBy)
+			emailId, err := impl.userService.GetUserEmailById(updateHistory.CreatedBy, false)
 			if err != nil {
 				impl.Logger.Errorw("error while fetching user Details", "error", err)
 				return result, err

@@ -783,7 +783,7 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
 		return hasAnyTriggered, err
 	}
-	userEmailId, err := impl.user.GetUserEmailById(triggeredBy)
+	userEmailId, err := impl.user.GetUserEmailById(triggeredBy, true)
 	if err != nil {
 		return hasAnyTriggered, err
 	}
@@ -1002,7 +1002,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 
 	//in case of pre stage manual trigger auth is already applied
 	if applyAuth && triggeredBy != 1 {
-		userEmailId, err := impl.user.GetUserEmailById(artifact.UpdatedBy)
+		userEmailId, err := impl.user.GetUserEmailById(artifact.UpdatedBy, true)
 		if err != nil {
 			impl.logger.Errorw("error in fetching user for auto pipeline", "UpdatedBy", artifact.UpdatedBy)
 			return nil
@@ -1974,7 +1974,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error {
 	//in case of manual ci RBAC need to apply, this method used for auto cd deployment
 	if applyAuth {
-		userEmailId, err := impl.user.GetUserEmailById(triggeredBy)
+		userEmailId, err := impl.user.GetUserEmailById(triggeredBy, true)
 		if err != nil {
 			impl.logger.Errorw("error in fetching user for auto pipeline", "UpdatedBy", artifact.UpdatedBy)
 			return nil
