@@ -389,7 +389,7 @@ func GetAppStatus(isSuccess bool) AppstoreDeploymentStatus {
 	case true:
 		return DEPLOY_SUCCESS
 	default:
-		return HELM_ERROR
+		return TRIGGER_ERROR
 	}
 }
 
