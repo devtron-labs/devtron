@@ -61,6 +61,7 @@ func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilt
 
 func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
 
+	//TODO: revisit this condition (cd_workflow.pipeline_id= %v and cd_workflow_runner.workflow_type = '%v' )
 	commonQuery := " from ci_artifact LEFT JOIN cd_workflow ON ci_artifact.id = cd_workflow.ci_artifact_id" +
 		" LEFT JOIN cd_workflow_runner ON cd_workflow_runner.cd_workflow_id=cd_workflow.id " +
 		" Where (((cd_workflow_runner.id in (select MAX(cd_workflow_runner.id) OVER (PARTITION BY cd_workflow.ci_artifact_id) FROM cd_workflow_runner inner join cd_workflow on cd_workflow.id=cd_workflow_runner.cd_workflow_id))" +

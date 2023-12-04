@@ -58,8 +58,8 @@ type AppRepository interface {
 	FindAppsByTeamName(teamName string) ([]App, error)
 	FindAll() ([]*App, error)
 	FindAppsByEnvironmentId(environmentId int) ([]App, error)
-	FindAllActiveAppsWithTeam() ([]*App, error)
-	FindAllActiveAppsWithTeamWithTeamId(teamID int) ([]*App, error)
+	FindAllActiveAppsWithTeam(appType helper.AppType) ([]*App, error)
+	FindAllActiveAppsWithTeamWithTeamId(teamID int, appType helper.AppType) ([]*App, error)
 	CheckAppExists(appNames []string) ([]*App, error)
 
 	FindByIds(ids []*int) ([]*App, error)
@@ -75,9 +75,10 @@ type AppRepository interface {
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
 	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
-	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*App, error)
+	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string, appType helper.AppType) ([]*App, error)
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
 	FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error)
+	FetchAppIdsByDisplaynames(names []string) (map[int]string, []int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -243,29 +244,29 @@ func (repo AppRepositoryImpl) FindAppsByEnvironmentId(environmentId int) ([]App,
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindAllActiveAppsWithTeam() ([]*App, error) {
+func (repo AppRepositoryImpl) FindAllActiveAppsWithTeam(appType helper.AppType) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Column("Team").
-		Where("app.active = ?", true).Where("app.app_type = ?", 0).
+		Where("app.active = ?", true).Where("app.app_type = ?", appType).
 		Select()
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamWithTeamId(teamID int) ([]*App, error) {
+func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamWithTeamId(teamID int, appType helper.AppType) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Column("Team").
 		Where("app.active = ?", true).
-		Where("app.app_type = ?", 0).
+		Where("app.app_type = ?", appType).
 		Where("app.team_id = ?", teamID).
 		Select()
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*App, error) {
+func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string, appType helper.AppType) ([]*App, error) {
 	var apps []*App
 	appNameLikeQuery := "app.app_name like '%" + appNameMatch + "%'"
 	err := repo.dbConnection.Model(&apps).Column("Team").
-		Where("app.active = ?", true).Where("app.app_type = ?", helper.CustomApp).Where(appNameLikeQuery).
+		Where("app.active = ?", true).Where("app.app_type = ?", appType).Where(appNameLikeQuery).
 		Select()
 	return apps, err
 }
@@ -433,6 +434,9 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 	if len(jobListingFilter.Teams) > 0 {
 		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
 	}
+	if len(jobListingFilter.AppIds) > 0 {
+		whereCondition += " and id in (" + helper.GetCommaSepratedString(jobListingFilter.AppIds) + ")"
+	}
 
 	if len(jobListingFilter.AppNameSearch) > 0 {
 		whereCondition += " and display_name like '%" + jobListingFilter.AppNameSearch + "%' "
@@ -455,6 +459,24 @@ func (repo AppRepositoryImpl) FindAppAndProjectByIdsIn(ids []int) ([]*App, error
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Column("app.*", "Team").Where("app.active = ?", true).Where("app.id in (?)", pg.In(ids)).Select()
 	return apps, err
+}
+func (repo AppRepositoryImpl) FetchAppIdsByDisplaynames(names []string) (map[int]string, []int, error) {
+	type App struct {
+		Id          int    `json:"id"`
+		DisplayName string `json:"display_name"`
+	}
+	var jobIdName []App
+	whereCondition := " where active = true and app_type = 2 "
+	whereCondition += " and display_name in (" + helper.GetCommaSepratedStringWithComma(names) + ");"
+	query := "select id, display_name from app " + whereCondition
+	_, err := repo.dbConnection.Query(&jobIdName, query)
+	appResp := make(map[int]string)
+	jobIds := make([]int, 0)
+	for _, id := range jobIdName {
+		appResp[id.Id] = id.DisplayName
+		jobIds = append(jobIds, id.Id)
+	}
+	return appResp, jobIds, err
 }
 
 func (repo AppRepositoryImpl) FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error) {

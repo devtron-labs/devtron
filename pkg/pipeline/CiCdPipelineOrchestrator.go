@@ -1236,7 +1236,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(bean3.APP_TYPE, app.AppName, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean3.APP_TYPE, app.AppName, tx, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
@@ -1369,7 +1369,7 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name, description string
 	displayName := name
 	appName := name
 	if appType == helper.Job {
-		appName = name + "/" + util2.Generate(8) + "J"
+		appName = name + "-" + util2.Generate(8) + "J" + bean2.UniquePlaceHolderForAppName
 	}
 	pg := &app2.App{
 		Active:      true,
