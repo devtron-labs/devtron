@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -453,19 +452,18 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 				if chartServiceErr != nil {
 					impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", pipeline.AppId)
 				}
-				if gitOpsConfig.AllowCustomRepository {
-					if len(chart.GitRepoUrl) == 0 || chart.GitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED {
-						gitOpsRepoNotFound = fmt.Errorf("GitOps repository is not configured for the app")
-					}
-				}
 				if chartServiceErr == nil {
-					if gitOpsConfig.AllowCustomRepository && chart.IsCustomGitRepository {
-						// in this case user has already created an empty git repository and provided us gitRepoUrl
-						chartGitAttr = &util.ChartGitAttribute{
-							RepoUrl: chart.GitRepoUrl,
+					if gitOpsConfig.AllowCustomRepository {
+						if util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+							gitOpsRepoNotFound = fmt.Errorf("GitOps repository is not configured for the app")
+						} else {
+							// in this case user has already created an empty git repository and provided us gitRepoUrl
+							chartGitAttr = &util.ChartGitAttribute{
+								RepoUrl: chart.GitRepoUrl,
+							}
+							gitopsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
 						}
-						gitopsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
-					} else if len(chart.GitRepoUrl) == 0 || chart.GitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED {
+					} else if util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 						gitopsRepoName, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
 					}
 				}

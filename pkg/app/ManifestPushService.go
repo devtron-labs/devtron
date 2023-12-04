@@ -73,8 +73,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 		return manifestPushResponse
 	}
 
-	if len(manifestPushTemplate.RepoUrl) == 0 ||
-		manifestPushTemplate.RepoUrl == bean2.GIT_REPO_NOT_CONFIGURED ||
+	if util.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) ||
 		manifestPushTemplate.GitOpsRepoMigrationRequired {
 		if !manifestPushTemplate.GitOpsRepoMigrationRequired && activeGlobalGitOpsConfig.AllowCustomRepository {
 			errMsg := fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")

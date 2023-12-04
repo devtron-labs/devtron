@@ -433,3 +433,7 @@ func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
 	}
 	return err
 }
+
+func IsGitOpsRepoNotConfigured(gitRepoUrl string) bool {
+	return len(gitRepoUrl) == 0 || gitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED
+}

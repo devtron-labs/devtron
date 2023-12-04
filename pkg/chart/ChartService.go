@@ -606,7 +606,7 @@ func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, appL
 		appMetrics = appLevelMetrics.AppMetrics
 	}
 	gitRepoUrl := ""
-	if chart.GitRepoUrl != bean.GIT_REPO_NOT_CONFIGURED {
+	if !util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 		gitRepoUrl = chart.GitRepoUrl
 	}
 	return &TemplateRequest{
@@ -775,7 +775,7 @@ func (impl ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (bo
 		return false, err
 	}
 	if latestChartConfiguredInApp.IsCustomGitRepository &&
-		(latestChartConfiguredInApp.GitRepoUrl == bean.GIT_REPO_NOT_CONFIGURED || len(latestChartConfiguredInApp.GitRepoUrl) == 0) {
+		util.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl) {
 		return false, nil
 	}
 	return true, nil
@@ -1754,7 +1754,7 @@ func (impl ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribu
 		return err
 	}
 	for _, ch := range charts {
-		if len(ch.GitRepoUrl) == 0 || ch.ChartRepoUrl == bean.GIT_REPO_NOT_CONFIGURED {
+		if util.IsGitOpsRepoNotConfigured(ch.GitRepoUrl) {
 			ch.GitRepoUrl = chartGitAttribute.RepoUrl
 			ch.ChartLocation = chartGitAttribute.ChartLocation
 			ch.UpdatedOn = time.Now()
@@ -1847,7 +1847,7 @@ func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsC
 
 	appGitOpsConfigResponse := &AppGitOpsConfigResponse{}
 	if activeGlobalGitOpsConfig.AllowCustomRepository {
-		appGitOpsConfigResponse.IsEditable = chart.GitRepoUrl == bean.GIT_REPO_NOT_CONFIGURED || len(chart.GitRepoUrl) == 0
+		appGitOpsConfigResponse.IsEditable = util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl)
 		appGitOpsConfigResponse.GitRepoURL = ""
 		return appGitOpsConfigResponse, nil
 	}
@@ -1860,7 +1860,7 @@ func (impl ChartServiceImpl) IsGitRepoUrlPresent(appId int) bool {
 		impl.logger.Errorw("error fetching git repo url from the latest chart")
 		return false
 	}
-	if len(fetchedChart.GitRepoUrl) == 0 || fetchedChart.GitRepoUrl == bean.GIT_REPO_NOT_CONFIGURED {
+	if util.IsGitOpsRepoNotConfigured(fetchedChart.GitRepoUrl) {
 		return false
 	}
 	return true
