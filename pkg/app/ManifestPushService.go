@@ -13,6 +13,7 @@ import (
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -73,7 +74,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 		return manifestPushResponse
 	}
 
-	if util.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) ||
+	if ChartsUtil.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) ||
 		manifestPushTemplate.GitOpsRepoMigrationRequired {
 		if !manifestPushTemplate.GitOpsRepoMigrationRequired && activeGlobalGitOpsConfig.AllowCustomRepository {
 			errMsg := fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")

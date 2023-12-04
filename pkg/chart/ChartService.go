@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/util/ChartsUtil"
 
 	"go.opentelemetry.io/otel"
 
@@ -606,7 +607,7 @@ func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, appL
 		appMetrics = appLevelMetrics.AppMetrics
 	}
 	gitRepoUrl := ""
-	if !util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+	if !ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 		gitRepoUrl = chart.GitRepoUrl
 	}
 	return &TemplateRequest{
@@ -774,7 +775,7 @@ func (impl ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (bo
 		impl.logger.Errorw("error in fetching latest chart for app by appId")
 		return false, err
 	}
-	if util.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl) {
+	if ChartsUtil.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl) {
 		return false, nil
 	}
 	return true, nil
@@ -1753,7 +1754,7 @@ func (impl ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribu
 		return err
 	}
 	for _, ch := range charts {
-		if util.IsGitOpsRepoNotConfigured(ch.GitRepoUrl) {
+		if ChartsUtil.IsGitOpsRepoNotConfigured(ch.GitRepoUrl) {
 			ch.GitRepoUrl = chartGitAttribute.RepoUrl
 			ch.ChartLocation = chartGitAttribute.ChartLocation
 			ch.UpdatedOn = time.Now()
@@ -1846,7 +1847,7 @@ func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsC
 
 	appGitOpsConfigResponse := &AppGitOpsConfigResponse{}
 	if activeGlobalGitOpsConfig.AllowCustomRepository {
-		appGitOpsConfigResponse.IsEditable = util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl)
+		appGitOpsConfigResponse.IsEditable = ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl)
 		appGitOpsConfigResponse.GitRepoURL = ""
 		return appGitOpsConfigResponse, nil
 	}
@@ -1859,7 +1860,7 @@ func (impl ChartServiceImpl) IsGitRepoUrlPresent(appId int) bool {
 		impl.logger.Errorw("error fetching git repo url from the latest chart")
 		return false
 	}
-	if util.IsGitOpsRepoNotConfigured(fetchedChart.GitRepoUrl) {
+	if ChartsUtil.IsGitOpsRepoNotConfigured(fetchedChart.GitRepoUrl) {
 		return false
 	}
 	return true

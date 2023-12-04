@@ -50,6 +50,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository3 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
@@ -407,7 +408,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		var gitOpsRepoName string
 		var chartGitAttr *util.ChartGitAttribute
 		if gitOpsConfig.AllowCustomRepository {
-			if util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+			if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 				return nil, fmt.Errorf("GitOps repository is not configured for the app")
 			}
 			// in this case user has already created an empty git repository and provided us gitRepoUrl
@@ -415,7 +416,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				RepoUrl: chart.GitRepoUrl,
 			}
 			gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
-		} else if !chart.IsCustomGitRepository && util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+		} else if !chart.IsCustomGitRepository && ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 			gitOpsRepoName, chartGitAttr, err = impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating git repo", "err", err)

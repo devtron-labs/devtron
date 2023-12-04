@@ -30,6 +30,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -454,7 +455,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 				}
 				if chartServiceErr == nil {
 					if gitOpsConfig.AllowCustomRepository {
-						if util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+						if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 							gitOpsRepoNotFound = fmt.Errorf("GitOps repository is not configured for the app")
 						} else {
 							// in this case user has already created an empty git repository and provided us gitRepoUrl
@@ -463,7 +464,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 							}
 							gitopsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
 						}
-					} else if util.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+					} else if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 						gitopsRepoName, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
 					}
 				}
