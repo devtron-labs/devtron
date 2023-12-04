@@ -20,6 +20,7 @@
 - fix: inducing overridden DockerRegistryId in case docker registry is overridden (#4178)
 - fix: cm cs handling for inheriting type in get sample workflow api (core app routers) (#4189)
 ## Enhancements
+- feat: Role based access control in JOBS (#4198)
 - feat: Bulk Hibernate (#4229)
 - feat: Helm async deploy Devtron Apps (#4045)
 - feat: copy container images (#4209)
