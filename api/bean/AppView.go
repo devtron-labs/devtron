@@ -70,6 +70,7 @@ type GenericNoteResponseBean struct {
 type JobContainer struct {
 	JobId          int                     `json:"jobId"`
 	JobName        string                  `json:"jobName""`
+	JobActualName  string                  `json:"appName""`
 	Description    GenericNoteResponseBean `json:"description"`
 	JobCiPipelines []JobCIPipeline         `json:"ciPipelines"'`
 }
@@ -88,6 +89,7 @@ type JobCIPipeline struct {
 type JobListingContainer struct {
 	JobId                        int       `sql:"job_id" json:"jobId"`
 	JobName                      string    `sql:"job_name" json:"jobName"`
+	JobActualName                string    `sql:"app_name" json:"appName"`
 	Description                  string    `sql:"description" json:"description"`
 	CiPipelineID                 int       `sql:"ci_pipeline_id" json:"ciPipelineID"`
 	CiPipelineName               string    `sql:"ci_pipeline_name" json:"ciPipelineName"`

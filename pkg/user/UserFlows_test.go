@@ -41,7 +41,7 @@ func BenchmarkCreateDefaultPoliciesForAllTypesV2(b *testing.B) {
 	action := fmt.Sprintf("manager")
 	b.Run(fmt.Sprintf("BenchmarkCreateDefaultPoliciesForAllTypesV2"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			userCommonService.CreateDefaultPoliciesForAllTypesV2(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, false)
+			userCommonService.CreateDefaultPoliciesForAllTypesV2(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, false, "")
 		}
 	})
 }

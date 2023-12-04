@@ -174,6 +174,7 @@ func GetAllSubjects() []string {
 
 func DeleteRoleForUser(user string, role string) bool {
 	user = strings.ToLower(user)
+	role = strings.ToLower(role)
 	var response bool
 	var err error
 	if isV2() {

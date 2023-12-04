@@ -212,13 +212,44 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	user, err := handler.userService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
+	if err != nil {
+		handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
+	}
+	var validAppIds []int
+	//for non super admin users
+	if !isSuperAdmin {
+		userEmailId := strings.ToLower(user.EmailId)
+		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.Job)
+		rbacObjectToAppIdMap := make(map[string]int)
+		rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
+		itr := 0
+		for appId, object := range rbacObjectsForAllAppsMap {
+			rbacObjects[itr] = object
+			rbacObjectToAppIdMap[object] = appId
+			itr++
+		}
+
+		result := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceJobs, casbin.ActionGet, rbacObjects)
+		//O(n) loop, n = len(rbacObjectsForAllAppsMap)
+		for object, ok := range result {
+			if ok {
+				validAppIds = append(validAppIds, rbacObjectToAppIdMap[object])
+			}
+		}
+
+		if len(validAppIds) == 0 {
+			handler.logger.Infow("user doesn't have access to any app", "userId", userId)
+			common.WriteJsonResp(w, err, bean.JobContainerResponse{}, http.StatusOK)
+			return
+		}
 	}
 	var fetchJobListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
@@ -228,6 +259,10 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	// fetching only those jobs whose access user has by setting valid app Ids.
+	fetchJobListingRequest.AppIds = validAppIds
+
 	jobs, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchJobs", "err", err, "payload", fetchJobListingRequest)
@@ -259,14 +294,6 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
 	vars := mux.Vars(r)
 	jobId, err := strconv.Atoi(vars["jobId"])
 	if err != nil {
@@ -274,6 +301,14 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(jobId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC ENDS
 	job, err := handler.pipeline.GetApp(jobId)
 	if err != nil || job == nil || job.AppType != helper.Job {
 		handler.logger.Errorw("Job with the given Id does not exist", "err", err, "jobId", jobId)
@@ -719,7 +754,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 	//for non super admin users
 	if !isActionUserSuperAdmin {
 		userEmailId := strings.ToLower(user.EmailId)
-		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps()
+		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.CustomApp)
 		rbacObjectToAppIdMap := make(map[string]int)
 		rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
 		itr := 0
@@ -1218,7 +1253,8 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -1291,7 +1327,8 @@ func (handler AppListingRestHandlerImpl) FetchMinDetailOtherEnvironment(w http.R
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
