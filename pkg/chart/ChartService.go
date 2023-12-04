@@ -1846,8 +1846,8 @@ func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsC
 	}
 
 	appGitOpsConfigResponse := &AppGitOpsConfigResponse{}
-	isAppLevelGitOpsRepoConfigured := ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl)
-	if isAppLevelGitOpsRepoConfigured {
+	isGitOpsRepoConfigured := !ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl)
+	if isGitOpsRepoConfigured {
 		appGitOpsConfigResponse.GitRepoURL = chart.GitRepoUrl
 		appGitOpsConfigResponse.IsEditable = true
 		return appGitOpsConfigResponse, nil
