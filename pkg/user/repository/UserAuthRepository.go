@@ -61,7 +61,7 @@ type UserAuthRepository interface {
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
 	GetRolesByEntityAccessTypeAndAction(entity, accessType, action string) ([]*RoleModel, error)
 	GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
-	GetConfigApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
+	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, []string, error)
 	GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error)
 }
 
