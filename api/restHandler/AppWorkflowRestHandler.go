@@ -19,7 +19,6 @@ package restHandler
 
 import (
 	"encoding/json"
-	bean2 "github.com/devtron-labs/devtron/api/restHandler/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -276,11 +275,11 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		if len(updatedWorkflowList) == 0 {
 			updatedWorkflowList = []appWorkflow.AppWorkflowDto{}
 		}
-		workflows[bean2.Workflows] = updatedWorkflowList
+		workflows[bean3.Workflows] = updatedWorkflowList
 	} else if len(workflowsList) > 0 {
-		workflows[bean2.Workflows] = workflowsList
+		workflows[bean3.Workflows] = workflowsList
 	} else {
-		workflows[bean2.Workflows] = []appWorkflow.AppWorkflowDto{}
+		workflows[bean3.Workflows] = []appWorkflow.AppWorkflowDto{}
 	}
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }
