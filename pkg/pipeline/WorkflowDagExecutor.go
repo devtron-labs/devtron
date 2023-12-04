@@ -2318,6 +2318,8 @@ func (impl *WorkflowDagExecutorImpl) saveArtifactsForLinkedCDPipelines(linkedCiP
 
 	ciIdToExistingArtifact := make(map[int]repository.CiArtifact)
 	for _, artifact := range existingArtifacts {
+		// need to compare image for idempotency
+		// Skopeo images will have same digest but different images
 		if ciArtifact.Image == artifact.Image {
 			ciIdToExistingArtifact[artifact.PipelineId] = artifact
 		}
