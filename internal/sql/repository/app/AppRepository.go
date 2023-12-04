@@ -452,7 +452,7 @@ func (repo AppRepositoryImpl) FetchAppIdsByDisplaynames(names []string) (map[int
 		DisplayName string `json:"display_name"`
 	}
 	var jobIdName []App
-	whereCondition := " where active = true and app_type = 2 "
+	whereCondition := fmt.Sprintf(" where active = true and app_type = %v ", helper.Job)
 	whereCondition += " and display_name in (" + helper.GetCommaSepratedStringWithComma(names) + ");"
 	query := "select id, display_name from app " + whereCondition
 	_, err := repo.dbConnection.Query(&jobIdName, query)
