@@ -1,4 +1,5 @@
 ## Bugs
+- fix: launch ephemeral containers targetting containers running with non root access (#4288)
 - fix: not able to add env in global configuration (#4330)
 - fix: Message not updating for Ci (#4323)
 - fix: app-group page breaking for inactive users (#4315)
