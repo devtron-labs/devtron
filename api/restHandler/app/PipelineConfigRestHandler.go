@@ -26,9 +26,9 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -65,7 +65,7 @@ import (
 )
 
 type PipelineRestHandlerEnvConfig struct {
-	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2"`
+	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2" envDefault:"true"`
 }
 
 type DevtronAppRestHandler interface {
@@ -232,26 +232,11 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionDelete)
+	if !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
-	}
-	if app.AppType == helper.Job {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else {
-		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
 	}
 	err = handler.pipelineBuilder.DeleteApp(appId, userId)
 	if err != nil {
@@ -358,16 +343,6 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if createRequest.AppType == helper.Job {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	}
 	handler.Logger.Infow("request payload, CreateApp", "CreateApp", createRequest)
 	err = handler.validator.Struct(createRequest)
 	if err != nil {
@@ -381,11 +356,20 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); !ok {
+	object := fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")
+	isAuthorised := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionCreate)
+	if !isAuthorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	// Validation For appName
+	if ok := strings.Contains(createRequest.AppName, bean3.UniquePlaceHolderForAppName); ok {
+		common.WriteJsonResp(w, err, "app creation failed due to validation on app-name as it contains not allowed place-holder in name", http.StatusBadRequest)
+		return
+	}
+
 	var createResp *bean.CreateAppDTO
 	err = nil
 	if createRequest.TemplateId == 0 {
@@ -438,7 +422,8 @@ func (handler PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *ht
 
 	//rbac implementation starts here
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -623,7 +608,8 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	handler.Logger.Infow("request payload, FetchAppWorkflowStatusForTriggerView", "appId", appId)
 	//RBAC CHECK
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -697,7 +683,8 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	}
 	suggestedName := fmt.Sprintf("%s-%d-%s", pType, appId, util2.Generate(4))
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}

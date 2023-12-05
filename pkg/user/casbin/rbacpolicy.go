@@ -54,6 +54,11 @@ const (
 	ActionAllPlaceHolder = "all"
 	ActionApprove        = "approve"
 
+	// ResourceJobs ,ResourceJobsEnv ,ResourceWorkflow these three resources are being used in jobs for rbac.
+	ResourceJobs     = "jobs"
+	ResourceJobsEnv  = "jobenv"
+	ResourceWorkflow = "workflow"
+
 	ClusterResourceRegex         = "%s/%s"    // {cluster}/{namespace}
 	ClusterObjectRegex           = "%s/%s/%s" // {groupName}/{kindName}/{objectName}
 	ClusterEmptyGroupPlaceholder = "k8sempty"

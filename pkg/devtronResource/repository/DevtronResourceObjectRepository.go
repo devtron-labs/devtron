@@ -34,7 +34,7 @@ type DevtronResourceObject struct {
 	DevtronResourceId       int      `sql:"devtron_resource_id"`
 	DevtronResourceSchemaId int      `sql:"devtron_resource_schema_id"`
 	ObjectData              string   `sql:"object_data"` //json string
-	Deleted                 bool     `sql:"deleted"`
+	Deleted                 bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -60,7 +60,8 @@ func (repo *DevtronResourceObjectRepositoryImpl) FindByOldObjectId(oldObjectId, 
 	var devtronResourceObject DevtronResourceObject
 	err := repo.dbConnection.Model(&devtronResourceObject).
 		Where("old_object_id =?", oldObjectId).Where("devtron_resource_id = ?", devtronResourceId).
-		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).Select()
+		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).
+		Where("deleted = ?", false).Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting devtronResourceSchema by oldObjectId", "err", err,
 			"oldObjectId", oldObjectId, "devtronResourceId", devtronResourceId, "devtronResourceSchemaId", devtronResourceSchemaId)
@@ -73,7 +74,8 @@ func (repo *DevtronResourceObjectRepositoryImpl) FindByObjectName(name string, d
 	var devtronResourceObject DevtronResourceObject
 	err := repo.dbConnection.Model(&devtronResourceObject).
 		Where("name =?", name).Where("devtron_resource_id = ?", devtronResourceId).
-		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).Select()
+		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).
+		Where("deleted = ?", false).Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting devtronResourceSchema by name", "err", err,
 			"name", name, "devtronResourceId", devtronResourceId, "devtronResourceSchemaId", devtronResourceSchemaId)
