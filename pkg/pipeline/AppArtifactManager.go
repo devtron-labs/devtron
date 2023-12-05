@@ -321,8 +321,8 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 			if deployedCiArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
 				dockerRegistryId = deployedCiArtifacts[i].CredentialsSourceValue
 			}
-		} else {
-			ciPipeline, err := impl.CiPipelineRepository.FindById(deployedCiArtifacts[i].CiPipelineId)
+		} else if deployedCiArtifacts[i].DataSource == repository.CI_RUNNER {
+			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(deployedCiArtifacts[i].CiPipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
 				return deployedCiArtifactsResponse, err
@@ -511,7 +511,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 		}
 		var dockerRegistryId string
 		if artifact.PipelineId != 0 {
-			ciPipeline, err := impl.CiPipelineRepository.FindById(artifact.PipelineId)
+			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(artifact.PipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
 				return nil, err
@@ -677,9 +677,10 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
 			}
 		} else if ciArtifacts[i].DataSource == repository.CI_RUNNER {
-			ciPipeline, err := impl.CiPipelineRepository.FindById(ciArtifacts[i].CiPipelineId)
+			//need this if the artifact's ciPipeline gets switched, then the previous ci-pipeline will be in deleted state
+			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(ciArtifacts[i].CiPipelineId)
 			if err != nil {
-				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
+				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciArtifacts[i].CiPipelineId, "error", err)
 				return nil, err
 			}
 			if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
