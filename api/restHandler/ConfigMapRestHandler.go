@@ -112,7 +112,8 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(configMapRequest.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionCreate)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -147,14 +148,18 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(configMapRequest.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionCreate)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	object2 := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(configMapRequest.AppId, configMapRequest.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
+		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionCreate, object2); !ok2 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 	//RBAC END
 
@@ -184,7 +189,8 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalFetch(w http.ResponseWriter, r *
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -220,7 +226,8 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalFetchForEdit(w http.ResponseWrit
 	}
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -262,7 +269,13 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentFetchForEdit(w http.Respons
 	}
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	object = handler.enforcerUtil.GetTeamEnvRBACNameByAppId(appId, envId)
+	if ok = handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -300,7 +313,8 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentFetch(w http.ResponseWriter
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -336,7 +350,8 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(configMapRequest.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionCreate)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -372,14 +387,18 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(configMapRequest.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionCreate)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(configMapRequest.AppId, configMapRequest.EnvironmentId, "")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
+		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionCreate, object2); !ok2 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 	//RBAC END
 
@@ -409,7 +428,8 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalFetch(w http.ResponseWriter, r *
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -447,7 +467,8 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetch(w http.ResponseWriter
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -487,7 +508,8 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r 
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionDelete)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -533,14 +555,18 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionDelete)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId, "")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
+		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionDelete, object2); !ok2 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
 	}
 	//RBAC END
 
@@ -578,7 +604,8 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r 
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionDelete)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -624,14 +651,18 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionDelete)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId, "")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
+		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionDelete, object2); !ok2 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
 	}
 	//RBAC END
 
@@ -669,7 +700,8 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalFetchForEdit(w http.ResponseWrit
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -715,14 +747,18 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetchForEdit(w http.Respons
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId, "")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
+		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionUpdate, object2); !ok2 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
 	}
 	//RBAC END
 
@@ -788,18 +824,7 @@ func (handler ConfigMapRestHandlerImpl) AddEnvironmentToJob(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	//AUTH - check from casbin db
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//AUTH
-
+	token := r.Header.Get("token")
 	var envOverrideRequest bean.CreateJobEnvOverridePayload
 	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
@@ -807,6 +832,15 @@ func (handler ConfigMapRestHandlerImpl) AddEnvironmentToJob(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	// RBAC ENFORCEMENT
+	resourceObject := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(envOverrideRequest.AppId, envOverrideRequest.EnvId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionCreate, resourceObject); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	// RBAC ENFORCEMENT ENDS
+
 	envOverrideRequest.UserId = userId
 	handler.Logger.Infow("request payload, AddEvironmentToJob", "payload", envOverrideRequest)
 	resp, err := handler.configMapService.ConfigSecretEnvironmentCreate(&envOverrideRequest)
@@ -827,17 +861,7 @@ func (handler ConfigMapRestHandlerImpl) RemoveEnvironmentFromJob(w http.Response
 		return
 	}
 
-	//AUTH - check from casbin db
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//AUTH
-
+	token := r.Header.Get("token")
 	var envOverrideRequest bean.CreateJobEnvOverridePayload
 	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
@@ -845,6 +869,15 @@ func (handler ConfigMapRestHandlerImpl) RemoveEnvironmentFromJob(w http.Response
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	// RBAC ENFORCEMENT
+	resourceObject := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(envOverrideRequest.AppId, envOverrideRequest.EnvId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionDelete, resourceObject); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	// RBAC ENFORCEMENT ENDS
+
 	envOverrideRequest.UserId = userId
 	handler.Logger.Infow("request payload, RemoveEnvironmentFromJob", "payload", envOverrideRequest)
 	resp, err := handler.configMapService.ConfigSecretEnvironmentDelete(&envOverrideRequest)
@@ -870,12 +903,10 @@ func (handler ConfigMapRestHandlerImpl) GetEnvironmentsForJob(w http.ResponseWri
 		return
 	}
 	//AUTH - check from casbin db
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//AUTH

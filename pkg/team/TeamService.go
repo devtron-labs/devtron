@@ -185,7 +185,7 @@ func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(bean.PROJECT_TYPE, deleteRequest.Name, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean.PROJECT_TYPE, deleteRequest.Name, tx, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err

@@ -228,6 +228,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	resp := &OverviewAppsByEnvironmentBean{}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
+		impl.Logger.Errorw("failed to fetch env", "err", err, "envId", envId)
 		return resp, err
 	}
 	resp.EnvironmentId = envId
@@ -242,18 +243,27 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		resp.Type = NonProduction
 	}
 	resp.Description = env.Description
-	createdBy, err := impl.userRepository.GetById(env.CreatedBy)
-	if err != nil {
-		return resp, err
+	createdBy, err := impl.userRepository.GetByIdIncludeDeleted(env.CreatedBy)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching user for app meta info", "error", err, "env.CreatedBy", env.CreatedBy)
+		return nil, err
 	}
-	resp.CreatedBy = createdBy.EmailId
+	if createdBy != nil && createdBy.Id > 0 {
+		if createdBy.Active {
+			resp.CreatedBy = fmt.Sprintf(createdBy.EmailId)
+		} else {
+			resp.CreatedBy = fmt.Sprintf("%s (inactive)", createdBy.EmailId)
+		}
+	}
 	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
 	if err != nil {
+		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
 		return resp, err
 	}
 	for _, envContainer := range envContainers {
 		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
 		if err != nil {
+			impl.Logger.Errorw("failed to fetch last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
 			return resp, err
 		}
 		if lastDeployed != nil {
@@ -307,6 +317,7 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
 		Environments:  fetchJobListingRequest.Environments,
+		AppIds:        fetchJobListingRequest.AppIds,
 	}
 	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {
@@ -571,6 +582,7 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 			val = bean.JobContainer{}
 			val.JobId = jobContainer.JobId
 			val.JobName = jobContainer.JobName
+			val.JobActualName = jobContainer.JobActualName
 		}
 
 		if len(val.JobCiPipelines) == 0 {
