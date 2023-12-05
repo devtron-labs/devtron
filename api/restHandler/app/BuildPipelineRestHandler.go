@@ -386,12 +386,12 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	appWorkflowName := ""
 	if patchRequest.AppWorkflowId != 0 {
-	appWorkflow, err := handler.appWorkflowService.FindAppWorkflowById(patchRequest.AppWorkflowId, app.Id)
-	if err != nil {
-		handler.Logger.Errorw("error in getting app workflow", "err", err, "workflowId", patchRequest.AppWorkflowId, "appId", app.Id)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+		appWorkflow, err := handler.appWorkflowService.FindAppWorkflowById(patchRequest.AppWorkflowId, app.Id)
+		if err != nil {
+			handler.Logger.Errorw("error in getting app workflow", "err", err, "workflowId", patchRequest.AppWorkflowId, "appId", app.Id)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 		appWorkflowName = appWorkflow.Name
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -2020,22 +2020,13 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		return
 	}
 
-	pipelineId, err := strconv.Atoi(vars["ciPipelineId"])
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
 	externalCi, ciPipelineId, appId, err := handler.extractCipipelineMetaForImageTags(artifactId)
 	if err != nil {
 		handler.Logger.Errorw("error occurred in fetching extractCipipelineMetaForImageTags by artifact Id ", "err", err, "artifactId", artifactId)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusInternalServerError)
 		return
 	}
-	if !externalCi && (ciPipelineId != pipelineId) {
-		common.WriteJsonResp(w, errors.New("ciPipelineId and artifactId sent in the request are not related"), nil, http.StatusBadRequest)
-		return
-	}
+
 	decoder := json.NewDecoder(r.Body)
 	req := &types.ImageTaggingRequestDTO{}
 	err = decoder.Decode(&req)

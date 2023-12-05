@@ -154,7 +154,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 
 	identifier := clusterBean.ClusterName + "__" + mappings.Namespace
 
-	model, err := impl.environmentRepository.FindByEnvNameOrIdentifierOrNamespace(mappings.Environment, identifier, mappings.Namespace)
+	model, err := impl.environmentRepository.FindByEnvNameOrIdentifierOrNamespace(mappings.ClusterId, mappings.Environment, identifier, mappings.Namespace)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err

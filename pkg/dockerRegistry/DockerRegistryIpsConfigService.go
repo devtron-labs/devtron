@@ -173,7 +173,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(
 		if ciPipeline.IsDockerConfigOverridden {
 			//set dockerRegistryId value with the DockerRegistryId of the overridden dockerRegistry
 			ciPipId := ciPipelineId
-			if ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(bean2.LINKED_CD){
+			if ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(bean2.LINKED_CD) {
 				ciPipId = ciPipeline.ParentCiPipeline
 			}
 			ciTemplateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipId)
