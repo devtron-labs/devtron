@@ -399,18 +399,17 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	}
 
 	// TODO: creating git repo for all apps irrespective of acd or helm
-	if isGitOpsConfigured && isGitOpsRequiredForCD {
+	if isGitOpsConfigured && isGitOpsRequiredForCD && !pipelineCreateRequest.IsCloneAppReq {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil {
 			impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", app.Id)
 			return nil, err
 		}
-		var chartGitAttr *util.ChartGitAttribute
 		if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 			if gitOpsConfig.AllowCustomRepository || chart.IsCustomGitRepository {
 				return nil, fmt.Errorf("GitOps repository is not configured for the app")
 			}
-			_, chartGitAttr, err = impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
+			_, chartGitAttr, err := impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating git repo", "err", err)
 				return nil, fmt.Errorf("Create GitOps repository error: %s", err.Error())
@@ -420,18 +419,12 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				impl.logger.Errorw("error in registering app in acd", "err", err)
 				return nil, err
 			}
-		} else {
-			// in this case user has already created an empty git repository and provided us gitRepoUrl
-			chartGitAttr = &util.ChartGitAttribute{
-				RepoUrl: chart.GitRepoUrl,
+			// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
+			err = impl.chartService.UpdateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+				return nil, err
 			}
-		}
-
-		// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
-		err = impl.chartService.UpdateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
-			return nil, err
 		}
 	}
 

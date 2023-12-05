@@ -31,6 +31,7 @@ type GitOpsPushService interface {
 type GitOpsManifestPushServiceImpl struct {
 	logger                        *zap.SugaredLogger
 	chartTemplateService          util.ChartTemplateService
+	chartDeploymentService        util.ChartDeploymentService
 	chartService                  chartService.ChartService
 	gitOpsConfigRepository        repository.GitOpsConfigRepository
 	gitFactory                    *GitFactory
@@ -41,6 +42,7 @@ type GitOpsManifestPushServiceImpl struct {
 func NewGitOpsManifestPushServiceImpl(
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
+	chartDeploymentService util.ChartDeploymentService,
 	chartService chartService.ChartService,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	gitFactory *GitFactory,
@@ -50,6 +52,7 @@ func NewGitOpsManifestPushServiceImpl(
 	return &GitOpsManifestPushServiceImpl{
 		logger:                        logger,
 		chartTemplateService:          chartTemplateService,
+		chartDeploymentService:        chartDeploymentService,
 		chartService:                  chartService,
 		gitOpsConfigRepository:        gitOpsConfigRepository,
 		gitFactory:                    gitFactory,
@@ -87,6 +90,14 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 		if err != nil {
 			impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 			errMsg := fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
+			manifestPushResponse.Error = errMsg
+			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
+			return manifestPushResponse
+		}
+		err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, manifestPushTemplate.UserId, ctx, false)
+		if err != nil {
+			impl.logger.Errorw("error in registering app in acd", "err", err)
+			errMsg := fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)
 			manifestPushResponse.Error = errMsg
 			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
 			return manifestPushResponse

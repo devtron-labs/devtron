@@ -50,6 +50,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
 	"github.com/pkg/errors"
@@ -1060,6 +1061,38 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	if err != nil {
 		return err
 	}
+
+	// custom gitops repo url validation --> Start
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsConfigRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting active GitOpsConfig", "err", err)
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+	if isGitOpsConfigured && gitOpsConfig.AllowCustomRepository {
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", appId)
+			return err
+		}
+		if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+			// if image vulnerable, update timeline status and return
+			runner.Status = pipelineConfig.WorkflowFailed
+			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
+			runner.FinishedOn = time.Now()
+			runner.UpdatedOn = time.Now()
+			runner.UpdatedBy = triggeredBy
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+			if err != nil {
+				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
+				return err
+			}
+			return fmt.Errorf("GitOps repository is not configured for the app '%s'", pipeline.Name)
+		}
+	}
+	// custom gitops repo url validation --> Ends
 
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, pipeline, ctx)

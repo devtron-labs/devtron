@@ -1013,9 +1013,10 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		cdPipeline.ParentPipelineId = refCdPipeline.ParentPipelineId
 	}
 	cdPipelineReq := &bean.CdPipelines{
-		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
-		AppId:     req.appId,
-		UserId:    req.userId,
+		Pipelines:     []*bean.CDPipelineConfigObject{cdPipeline},
+		AppId:         req.appId,
+		UserId:        req.userId,
+		IsCloneAppReq: true,
 	}
 	cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
 	return cdPipelineRes, err
