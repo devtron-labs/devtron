@@ -445,7 +445,6 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 			} else {
 				// Register app in ACD
 				var (
-					gitopsRepoName                                                         string
 					chartGitAttr                                                           *util.ChartGitAttribute
 					AcdRegisterErr, RepoURLUpdateErr, createGitRepoErr, gitOpsRepoNotFound error
 				)
@@ -458,14 +457,25 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						if gitOpsConfig.AllowCustomRepository || chart.IsCustomGitRepository {
 							gitOpsRepoNotFound = fmt.Errorf("GitOps repository is not configured for the app")
 						} else {
-							gitopsRepoName, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+							if createGitRepoErr == nil {
+								AcdRegisterErr = impl.cdPipelineConfigService.RegisterInACD(chartGitAttr, userId, ctx)
+								if AcdRegisterErr != nil {
+									impl.logger.Errorw("error in registering acd app", "err", AcdRegisterErr)
+								}
+								if AcdRegisterErr == nil {
+									RepoURLUpdateErr = impl.chartService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttr, userId)
+									if RepoURLUpdateErr != nil {
+										impl.logger.Errorw("error in updating git repo url in charts", "err", RepoURLUpdateErr)
+									}
+								}
+							}
 						}
 					} else {
 						// in this case user has already created an empty git repository and provided us gitRepoUrl
 						chartGitAttr = &util.ChartGitAttribute{
 							RepoUrl: chart.GitRepoUrl,
 						}
-						gitopsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
 					}
 				}
 				if gitOpsRepoNotFound != nil {
@@ -474,21 +484,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 				if createGitRepoErr != nil {
 					impl.logger.Errorw("error in creating git repo", "err", createGitRepoErr)
 				}
-				if createGitRepoErr == nil {
-					AcdRegisterErr = impl.cdPipelineConfigService.RegisterInACD(gitopsRepoName,
-						chartGitAttr,
-						userId,
-						ctx)
-					if AcdRegisterErr != nil {
-						impl.logger.Errorw("error in registering acd app", "err", AcdRegisterErr)
-					}
-					if AcdRegisterErr == nil {
-						RepoURLUpdateErr = impl.chartService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttr, userId)
-						if RepoURLUpdateErr != nil {
-							impl.logger.Errorw("error in updating git repo url in charts", "err", RepoURLUpdateErr)
-						}
-					}
-				}
+
 				if chartServiceErr != nil {
 					err = chartServiceErr
 				} else if gitOpsRepoNotFound != nil {

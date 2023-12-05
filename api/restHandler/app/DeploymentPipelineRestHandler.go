@@ -2664,7 +2664,17 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureGitOpsConfigurationForApp
 		return
 	}
 
-	detailedErrorGitOpsConfigResponse, err := handler.chartService.SaveAppLevelGitOpsConfiguration(appGitOpsConfigRequest, app.AppName)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "chartService.SaveAppLevelGitOpsConfiguration")
+	detailedErrorGitOpsConfigResponse, err := handler.chartService.SaveAppLevelGitOpsConfiguration(appGitOpsConfigRequest, app.AppName, ctx)
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, SaveAppLevelGitOpsConfiguration", "err", err, "request", appGitOpsConfigRequest)
 		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)

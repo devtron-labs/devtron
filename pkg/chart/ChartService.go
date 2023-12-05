@@ -100,7 +100,7 @@ type ChartService interface {
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error
-	SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error)
+	SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string, ctx context.Context) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error)
 	GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
 	IsGitRepoUrlPresent(appId int) bool
@@ -112,6 +112,7 @@ type ChartServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	repoRepository                   chartRepoRepository.ChartRepoRepository
 	chartTemplateService             util.ChartTemplateService
+	chartDeploymentService           util.ChartDeploymentService
 	pipelineGroupRepository          app.AppRepository
 	mergeUtil                        util.MergeUtil
 	repositoryService                repository.ServiceClient
@@ -134,6 +135,7 @@ type ChartServiceImpl struct {
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
+	chartDeploymentService util.ChartDeploymentService,
 	repoRepository chartRepoRepository.ChartRepoRepository,
 	pipelineGroupRepository app.AppRepository,
 	refChartDir chartRepoRepository.RefChartDir,
@@ -162,6 +164,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		chartRepository:                  chartRepository,
 		logger:                           logger,
 		chartTemplateService:             chartTemplateService,
+		chartDeploymentService:           chartDeploymentService,
 		repoRepository:                   repoRepository,
 		pipelineGroupRepository:          pipelineGroupRepository,
 		mergeUtil:                        mergeUtil,
@@ -1768,7 +1771,7 @@ func (impl ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribu
 	return nil
 }
 
-func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error) {
+func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string, ctx context.Context) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error) {
 	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
@@ -1804,14 +1807,26 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 	}
 
 	gitRepoUrl := appGitOpsRequest.GitOpsRepoURL
+
+	var chartGitAttr *util.ChartGitAttribute
 	if appGitOpsRequest.GitOpsRepoURL == bean.GIT_REPO_DEFAULT {
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(appName)
-		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, appGitOpsRequest.UserId)
+		chartGitAttr, err = impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, appGitOpsRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 			return detailedErrorGitOpsConfigResponse, err
 		}
 		gitRepoUrl = chartGitAttr.RepoUrl
+	} else {
+		// For custom GitOps repo url
+		chartGitAttr = &util.ChartGitAttribute{
+			RepoUrl: gitRepoUrl,
+		}
+	}
+	err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, appGitOpsRequest.UserId, ctx, false)
+	if err != nil {
+		impl.logger.Errorw("error while register git repo in argo", "err", err)
+		return detailedErrorGitOpsConfigResponse, err
 	}
 	for _, chart := range charts {
 		chart.GitRepoUrl = gitRepoUrl

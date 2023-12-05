@@ -110,7 +110,7 @@ type CdPipelineConfigService interface {
 	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	GetActiveGitopsConfig() (*repository.GitOpsConfig, error)
-	RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error
+	RegisterInACD(chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -405,30 +405,28 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 			impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", app.Id)
 			return nil, err
 		}
-		var gitOpsRepoName string
 		var chartGitAttr *util.ChartGitAttribute
 		if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 			if gitOpsConfig.AllowCustomRepository || chart.IsCustomGitRepository {
 				return nil, fmt.Errorf("GitOps repository is not configured for the app")
 			}
-			gitOpsRepoName, chartGitAttr, err = impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
+			_, chartGitAttr, err = impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating git repo", "err", err)
 				return nil, fmt.Errorf("Create GitOps repository error: %s", err.Error())
+			}
+			err = impl.RegisterInACD(chartGitAttr, pipelineCreateRequest.UserId, ctx)
+			if err != nil {
+				impl.logger.Errorw("error in registering app in acd", "err", err)
+				return nil, err
 			}
 		} else {
 			// in this case user has already created an empty git repository and provided us gitRepoUrl
 			chartGitAttr = &util.ChartGitAttribute{
 				RepoUrl: chart.GitRepoUrl,
 			}
-			gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(chartGitAttr.RepoUrl)
 		}
 
-		err = impl.RegisterInACD(gitOpsRepoName, chartGitAttr, pipelineCreateRequest.UserId, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in registering app in acd", "err", err)
-			return nil, err
-		}
 		// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
 		err = impl.chartService.UpdateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
 		if err != nil {
@@ -1624,30 +1622,13 @@ func (impl *CdPipelineConfigServiceImpl) ValidateCDPipelineRequest(pipelineCreat
 
 }
 
-func (impl *CdPipelineConfigServiceImpl) RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error {
+func (impl *CdPipelineConfigServiceImpl) RegisterInACD(chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error {
 
-	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx)
+	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, userId, ctx, false)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
-		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
-		if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
-			// - found empty repository, create some file in repository
-			err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
-			if err != nil {
-				impl.logger.Errorw("error in creating file in git repo", "err", err)
-				return err
-			}
-			// - retry register in argo
-			err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx)
-			if err != nil {
-				impl.logger.Errorw("error in re-try register in argo", "err", err)
-				return err
-			}
-		} else {
-			return err
-		}
+		return err
 	}
-
 	return nil
 }
 
