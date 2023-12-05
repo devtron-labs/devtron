@@ -19,6 +19,7 @@ package security
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -51,10 +52,10 @@ type VulnerabilityExposure struct {
 	AppId   int    `json:"appId"`
 	EnvId   int    `json:"envId"`
 	//ClusterId     int    `json:"clusterId"`
-	AppType       int  `json:"appType"`
-	Blocked       bool `json:"blocked"`
-	PipelineEnvId int  `json:"-"`
-	ChartEnvId    int  `json:"-"`
+	AppType       helper.AppType `json:"appType"`
+	Blocked       bool           `json:"blocked"`
+	PipelineEnvId int            `json:"-"`
+	ChartEnvId    int            `json:"-"`
 }
 
 type VulnerabilityExposureListingResponse struct {
