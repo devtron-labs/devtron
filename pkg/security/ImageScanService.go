@@ -590,7 +590,7 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 		item.EnvId = envId
 		item.EnvName = env.Environment
 		var appStore bool
-		appStore = item.AppType == int(helper.ChartStoreApp)
+		appStore = item.AppType == helper.ChartStoreApp
 		blockCveList, err := impl.policyService.GetBlockedCVEList(cveStores, env.ClusterId, envId, item.AppId, appStore)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching blocked list", "err", err)
