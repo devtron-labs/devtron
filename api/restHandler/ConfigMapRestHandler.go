@@ -290,10 +290,13 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentFetchForEdit(w http.Respons
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	object = handler.enforcerUtil.GetTeamEnvRBACNameByAppId(appId, envId)
-	if ok = handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
+	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	object2 := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(appId, envId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
+		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionGet, object2); !ok2 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 
 	name := vars["name"]
