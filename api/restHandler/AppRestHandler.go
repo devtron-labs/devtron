@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
@@ -90,7 +91,7 @@ func (handler AppRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
+	objects := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.CustomApp)
 	for _, label := range labels {
 		object := objects[label.AppId]
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
@@ -117,7 +118,8 @@ func (handler AppRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.
 	//rback implementation starts here
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -207,14 +209,16 @@ func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Reque
 
 	// check for existing project/app permission
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.Id)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
+	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
 	// check for request project/app permission
 	object = handler.enforcerUtil.GetAppRBACNameByTeamIdAndAppId(request.TeamId, request.Id)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+	ok = handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
+	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -372,7 +376,8 @@ func (handler AppRestHandlerImpl) UpdateAppNote(w http.ResponseWriter, r *http.R
 
 	// check for existing project/app permission
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(bean.Identifier)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
+	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
