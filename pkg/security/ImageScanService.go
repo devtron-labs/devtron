@@ -581,15 +581,17 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 	cveStores = append(cveStores, cveStore)
 	for _, item := range vulnerabilityExposureList {
 		envId := 0
-		if item.AppType {
+		if item.AppType == 1 {
 			envId = item.ChartEnvId
-		} else {
+		} else if item.AppType == 0 {
 			envId = item.PipelineEnvId
 		}
 		env := envMap[envId]
 		item.EnvId = envId
 		item.EnvName = env.Environment
-		blockCveList, err := impl.policyService.GetBlockedCVEList(cveStores, env.ClusterId, envId, item.AppId, item.AppType)
+		var appStore bool
+		appStore = item.AppType == int(helper.ChartStoreApp)
+		blockCveList, err := impl.policyService.GetBlockedCVEList(cveStores, env.ClusterId, envId, item.AppId, appStore)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching blocked list", "err", err)
 			return nil, err
