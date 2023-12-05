@@ -16,13 +16,13 @@ Only one application group would exist for each [environment](../reference/gloss
 
     ![Figure 1: Application Group (Beta)](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-group-tab.jpg)
 
-2. You will get a list of environments. Select the environment to view the application group.
+2. You will see a list of environments. Select the environment to view the application group.
 
     ![Figure 2: List of Environments](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-groups.jpg)
 
 3. The application group would contain the applications meant for deployment in the chosen environment.
 
-    ![Figure 3: Sample Application Group](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-group-overview.jpg)
+    ![Figure 3: Sample Application Group](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-group-overview-1.jpg)
 
 As you can see, it has similar options as available under [Applications](./applications.md):
 * Overview
@@ -41,11 +41,11 @@ First, we will walk you through the [key features](#key-features) of Application
 
 ## Key Features
 
-### Building Images
+### Building Application Images
 
 The **Build & Deploy** tab of your application group enables you to trigger the [CI builds](../reference/glossary.md#image) of one or more applications in bulk.
 
-1. Select the applications using the checkbox and click the **Build Image** button present at the bottom.
+1. Select the applications using the checkboxes and click the **Build Image** button present at the bottom.
 
     ![Figure 4: Build Option](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-app.jpg)
 
@@ -79,7 +79,7 @@ As shown below, you can handle the configurations of more than one application f
 ![Figure 8: Configurations of each App](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/configurations.jpg)
 
 {% hint style="info" %}
-Users need to have [Manager role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to change their configuration
+Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to change their configuration
 {% endhint %}
 
 
@@ -87,11 +87,11 @@ Users need to have [Manager role](../user-guide/global-configurations/authorizat
 
 The **Build & Deploy** tab of your application group helps you deploy one or more applications in bulk.
 
-1. Select the applications using the checkbox and click the **Deploy** button present at the bottom.
+1. Select the applications using the checkboxes and click the **Deploy** button present at the bottom.
 
     ![Figure 9: Deploy Option](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-app-deploy.jpg)
 
-2. Select the application and the CI build (image) for which you want to trigger the deployment.
+2. Select the desired container image that you want to deploy for respective application.
 
     ![Figure 10: Selecting Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-image-1.jpg)
 
@@ -115,36 +115,100 @@ Users need to have [Build and deploy permission](../user-guide/global-configurat
 
 ## Additional Features
 
+### Hibernating and Unhibernating Apps
+
+Since every application comes with an option to hibernate, the same is true for application groups. Using application group, you can hibernate one or more applications belonging to the same environment if you do not want them to consume resources (replica count will be set to 0). 
+
+In other words, you can hibernate running applications or unhibernate hibernated applications as per your requirement.
+
+#### Hibernation Process
+
+1. In the `Overview` page of your application group, use the checkboxes to choose the applications you wish to hibernate, and click the **Hibernate** button.
+
+    ![Figure 14a: Selecting Apps to Hibernate](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/hibernate-apps.jpg)
+
+2. Confirm the hibernation.
+
+    ![Figure 14b: Confirming Hibernation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/confirm-hibernation.jpg)
+
+3. Hibernation will initiate as shown below. You may close the window. 
+
+    ![Figure 14c: Initiation Status of Hibernation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/initiated-hibernation.jpg)
+
+Your applications pods would be scaled down and would stop incurring costs.
+
+#### Unhibernation Process
+
+1. In the same `Overview` page, you can use the checkboxes to choose the hibernated applications you wish to unhibernate, and click the **Unhibernate** button.
+
+    ![Figure 15a: Selecting Hibernated Apps to Unhibernate](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/unhibernate-apps.jpg)
+
+2. Confirm the unhibernation.
+
+    ![Figure 15b: Confirming Unhibernation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/confirm-unhibernation.jpg)
+
+3. Unhibernation will initiate as shown below. You may close the window. 
+
+    ![Figure 15c: Initiation Status of Unhibernation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/initiated-unhibernation.jpg)
+
+Your applications would be up and running in some time.
+
 ### Filtering Applications
 
-Assume you have multiple applications (maybe 10, 50, 100, or more) showing up in an application group. If you want to restrict your operations (build/deploy/other) to a few applications and not all, the filter feature will help you narrow it down. Thus, you will see only those applications you select from the filter (be it on the `Overview` page, `Build & Deploy` page, and so on.)
+Assume you have multiple applications (maybe 10, 50, 100, or more) showing up in an application group. If you want to limit your operations (build/deploy/other) to a specific set of applications, the filter feature will help you narrow down the list. Thus, you will see only those applications you select from the filter (be it on the `Overview` page, `Build & Deploy` page, and so on.)
 
 1. Click the filter next to the application group as shown below.
 
-    ![Figure 14: Filter Option](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-1.jpg)
+    ![Figure 16: Filter Option](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-1.jpg)
 
 2. The filter will show all the applications present in the group. Click to select the relevant ones.
 
-    ![Figure 15: All Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-2.jpg)
+    ![Figure 17: All Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-2.jpg)
 
 3. The filter narrows down the list of applications as shown below.
 
-    ![Figure 16: Filtered Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-3.jpg)
+    ![Figure 18: Filtered Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-3.jpg)
 
 4. (Optional) If required, you can save the filter for future use by clicking **Save selection as filter**.
 
-    ![Figure 17: Saving a Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter.jpg)
+    ![Figure 19: Saving a Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter.jpg)
 
 5. Add a name and description to the filter to help you know its purpose, and click **Save**.
 
-    ![Figure 18: Naming a Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter-2.jpg)
+    ![Figure 20: Naming a Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter-2.jpg)
 
 Now when you access the application group, your saved filter will be visible on top.
 
-![Figure 19: Saved Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter-3.jpg)
+![Figure 21: Saved Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter-3.jpg)
 
 {% hint style="info" %}
-All users with [View only permission](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) and above can use an existing filter. Users need to have `Manager` role or above to create, edit, or delete a filter.
+
+### Permissions
+
+#### 1. Creating a filter
+
+Users can create a filter if they have Admin/Manager access on all selected applications.
+
+* **Case 1**: User has Admin/Manager access on all selected applications
+
+    User will be able to create a filter with all selected applications.
+
+* **Case 2**: User does not have Admin/Manager access on all selected applications
+
+    User will not be able to create a filter.
+
+* **Case 3**: User selected 4 applications but has Admin/Manager access for only 2 of them
+
+    User should be able to create filter with these 2 applications.
+
+#### 2. Editing a saved filter
+
+Users can edit a saved filter if they have Admin/Manager access on all applications in the saved filter.
+
+#### 3. Deleting a saved filter
+
+Users can delete a saved filter if they have Admin/Manager access on all applications in the saved filter.
+
 {% endhint %}
 
 
@@ -156,10 +220,10 @@ Assume you have a few applications whose [build pipelines](../reference/glossary
 
     ![Figure 20: Changing Branch](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/change-branch.jpg)
 
-2. Enter the new branch name (*or the new regular expression if you are using branch regex*) and click **Update Branch**.
+2. Enter the new branch name. If your build pipeline has `Branch Regex` as the Source Type, you must ensure your new branch name matches the regex (regular expression) provided in that build pipeline. Once done, click **Update Branch**.
 
     ![Figure 21: Updating Branch Name](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/update-branch.jpg)
 
 {% hint style="info" %}
-Users need to have [Manager role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to update their branch
+Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to update their branch
 {% endhint %}
