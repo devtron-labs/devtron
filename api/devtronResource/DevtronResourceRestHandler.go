@@ -111,9 +111,9 @@ func (handler *DevtronResourceRestHandlerImpl) UpdateResourceObject(w http.Respo
 	reqBean.DevtronResourceObjectDescriptorBean.Kind = kind
 	reqBean.DevtronResourceObjectDescriptorBean.SubKind = subKind
 	reqBean.DevtronResourceObjectDescriptorBean.Version = versionVar
-	err = handler.devtronResourceService.UpdateResourceObject(&reqBean)
+	err = handler.devtronResourceService.CreateOrUpdateResourceObject(&reqBean)
 	if err != nil {
-		handler.logger.Errorw("service error, UpdateResourceObject", "err", err, "request", reqBean)
+		handler.logger.Errorw("service error, CreateOrUpdateResourceObject", "err", err, "request", reqBean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

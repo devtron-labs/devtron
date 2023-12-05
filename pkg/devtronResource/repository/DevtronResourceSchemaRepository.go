@@ -32,7 +32,7 @@ type DevtronResourceSchema struct {
 	DevtronResourceId int      `sql:"devtron_resource_id"`
 	Version           string   `sql:"version"`
 	Schema            string   `sql:"schema"`
-	Latest            bool     `sql:"latest"`
+	Latest            bool     `sql:"latest,notnull"`
 	sql.AuditLog
 }
 
