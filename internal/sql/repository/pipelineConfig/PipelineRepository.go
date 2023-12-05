@@ -447,6 +447,7 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pi
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
 		Where("environment_id = ?", envId).
 		Where("deleted = ?", false).
+		Where("deployment_app_delete_request = ?", false).
 		Select()
 	return pipelines, err
 }
