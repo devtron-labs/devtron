@@ -386,12 +386,12 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	appWorkflowName := ""
 	if patchRequest.AppWorkflowId != 0 {
-	appWorkflow, err := handler.appWorkflowService.FindAppWorkflowById(patchRequest.AppWorkflowId, app.Id)
-	if err != nil {
-		handler.Logger.Errorw("error in getting app workflow", "err", err, "workflowId", patchRequest.AppWorkflowId, "appId", app.Id)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+		appWorkflow, err := handler.appWorkflowService.FindAppWorkflowById(patchRequest.AppWorkflowId, app.Id)
+		if err != nil {
+			handler.Logger.Errorw("error in getting app workflow", "err", err, "workflowId", patchRequest.AppWorkflowId, "appId", app.Id)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 		appWorkflowName = appWorkflow.Name
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)

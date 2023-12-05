@@ -758,7 +758,7 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalFetchForEdit(w http.ResponseWrit
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
-	if !ok{
+	if !ok {
 		object2 := handler.enforcerUtil.GetTeamNoEnvRBACNameByAppId(appId)
 		ok = handler.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object2)
 	}
@@ -815,10 +815,11 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetchForEdit(w http.Respons
 
 	object = handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok && !configApprover {
-		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionUpdate, object); !ok2{
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}}
+		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionUpdate, object); !ok2 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
+	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
 	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId, "")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok && !configApprover {
