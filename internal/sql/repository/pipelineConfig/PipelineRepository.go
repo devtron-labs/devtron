@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -28,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"strconv"
 	"time"
 )
@@ -138,6 +140,8 @@ type PipelineRepository interface {
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
+	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error)
+	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 }
 
 type CiArtifactDTO struct {
@@ -148,6 +152,12 @@ type CiArtifactDTO struct {
 	MaterialInfo string `json:"materialInfo"` //git material metadata json array string
 	DataSource   string `json:"dataSource"`
 	WorkflowId   *int   `json:"workflowId"`
+}
+
+type DeploymentObject struct {
+	DeploymentType models.DeploymentType `sql:"deployment_type"`
+	PipelineId     int                   `sql:"pipeline_id"`
+	Status         string                `sql:"status"`
 }
 
 type PipelineRepositoryImpl struct {
@@ -697,4 +707,38 @@ func (impl PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cd
 		pipelineIdsMap[pipelineId] = true
 	}
 	return pipelineIdsMap, nil
+}
+
+func (impl PipelineRepositoryImpl) FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error) {
+
+	pipelineIdsMap := make(map[int]DeploymentObject)
+
+	var deploymentType []DeploymentObject
+	query := "with pcos as(select max(id) as id from pipeline_config_override where pipeline_id in (?) " +
+		"group by pipeline_id) select pco.deployment_type,pco.pipeline_id, aps.status from pipeline_config_override " +
+		"pco inner join pcos on pcos.id=pco.id" +
+		" inner join pipeline p on p.id=pco.pipeline_id left join app_status aps on aps.app_id=p.app_id " +
+		"and aps.env_id=p.environment_id;"
+
+	_, err := impl.dbConnection.Query(&deploymentType, query, pg.In(cdPipelineIds), true)
+	if err != nil {
+		return pipelineIdsMap, err
+	}
+
+	for _, v := range deploymentType {
+		pipelineIdsMap[v.PipelineId] = v
+	}
+
+	return pipelineIdsMap, nil
+}
+
+func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error {
+	newCiPipId := pointer.Int(newCiPipelineId)
+	if newCiPipelineId == 0 {
+		newCiPipId = nil
+	}
+	_, err := tx.Model((*Pipeline)(nil)).Set("ci_pipeline_id = ?", newCiPipId).
+		Where("ci_pipeline_id = ? ", oldCiPipelineId).
+		Where("deleted = ?", false).Update()
+	return err
 }

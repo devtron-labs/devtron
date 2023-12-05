@@ -608,7 +608,7 @@ func (impl *ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]
 
 func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int) []string {
 	var approvers []string
-	application, err := impl.appRepo.FindById(appId)
+	application, err := impl.appRepo.FindAppAndTeamByAppId(appId)
 	if err != nil {
 		return approvers
 	}
@@ -622,7 +622,7 @@ func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int) []str
 		}
 		envIdentifier = env.EnvironmentIdentifier
 	}
-	approvers, err = impl.userService.GetConfigApprovalUsersByEnv(appName, envIdentifier)
+	approvers, err = impl.userService.GetConfigApprovalUsersByEnv(appName, envIdentifier, application.Team.Name)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching config approval emails, so sending empty approvers list", "err", err)
 	}

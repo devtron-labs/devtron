@@ -407,8 +407,8 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 			if deployedCiArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
 				dockerRegistryId = deployedCiArtifacts[i].CredentialsSourceValue
 			}
-		} else {
-			ciPipeline, err := impl.CiPipelineRepository.FindById(deployedCiArtifacts[i].CiPipelineId)
+		} else if deployedCiArtifacts[i].DataSource == repository.CI_RUNNER {
+			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(deployedCiArtifacts[i].CiPipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
 				return deployedCiArtifactsResponse, err
@@ -625,7 +625,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 		}
 		var dockerRegistryId string
 		if artifact.PipelineId != 0 {
-			ciPipeline, err := impl.CiPipelineRepository.FindById(artifact.PipelineId)
+			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(artifact.PipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
 				return nil, err
@@ -858,19 +858,19 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 			artifactIds = append(artifactIds, ciArtifactBean.Id)
 		}
 	}
-
-	appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, artifactIds, referenceId, referenceType)
-	if err != nil {
-		// not returning error by choice
-		impl.logger.Errorw("error in fetching applied filters when this image was born", "stageType", stage, "pipelineId", pipelineId, "err", err)
-		return ciArtifactBeans
+	if len(artifactIds) > 0 {
+		appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, artifactIds, referenceId, referenceType)
+		if err != nil {
+			// not returning error by choice
+			impl.logger.Errorw("error in fetching applied filters when this image was born", "stageType", stage, "pipelineId", pipelineId, "err", err)
+			return ciArtifactBeans
+		}
+		for i, ciArtifactBean := range ciArtifactBeans {
+			ciArtifactBeans[i].AppliedFilters = appliedFiltersMap[ciArtifactBean.Id]
+			ciArtifactBeans[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[ciArtifactBean.Id]
+			ciArtifactBeans[i].AppliedFiltersState = resourceFilter.BLOCK
+		}
 	}
-	for i, ciArtifactBean := range ciArtifactBeans {
-		ciArtifactBeans[i].AppliedFilters = appliedFiltersMap[ciArtifactBean.Id]
-		ciArtifactBeans[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[ciArtifactBean.Id]
-		ciArtifactBeans[i].AppliedFiltersState = resourceFilter.BLOCK
-	}
-
 	return ciArtifactBeans
 }
 
@@ -982,7 +982,9 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			ciArtifacts[i].ImageComment = imageCommentResp
 		}
 
-		ciArtifacts[i].FilterState = impl.getFilerState(imageTaggingResp, filters, ciArtifacts[i].Image)
+		if len(filters) > 0 {
+			ciArtifacts[i].FilterState = impl.getFilerState(imageTaggingResp, filters, ciArtifacts[i].Image)
+		}
 
 		var dockerRegistryId string
 		if ciArtifacts[i].DataSource == repository.POST_CI || ciArtifacts[i].DataSource == repository.PRE_CD || ciArtifacts[i].DataSource == repository.POST_CD {
@@ -990,9 +992,10 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
 			}
 		} else if ciArtifacts[i].DataSource == repository.CI_RUNNER {
-			ciPipeline, err := impl.CiPipelineRepository.FindById(ciArtifacts[i].CiPipelineId)
+			//need this if the artifact's ciPipeline gets switched, then the previous ci-pipeline will be in deleted state
+			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(ciArtifacts[i].CiPipelineId)
 			if err != nil {
-				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
+				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciArtifacts[i].CiPipelineId, "error", err)
 				return nil, err
 			}
 			if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {

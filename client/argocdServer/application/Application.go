@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/restHandler/bean"
+	k8sObjectUtils "github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"strings"
 	"time"
@@ -99,12 +99,15 @@ type ResourceTreeResponse struct {
 }
 
 type PodMetadata struct {
-	Name                string                         `json:"name"`
-	UID                 string                         `json:"uid"`
-	Containers          []*string                      `json:"containers"`
-	InitContainers      []*string                      `json:"initContainers"`
-	IsNew               bool                           `json:"isNew"`
-	EphemeralContainers []*bean.EphemeralContainerData `json:"ephemeralContainers"`
+	Name           string    `json:"name"`
+	UID            string    `json:"uid"`
+	Containers     []*string `json:"containers"`
+	InitContainers []*string `json:"initContainers"`
+	IsNew          bool      `json:"isNew"`
+	// EphemeralContainers are set for Pod kind manifest response only
+	// will always contain running ephemeral containers
+	// +optional
+	EphemeralContainers []*k8sObjectUtils.EphemeralContainerData `json:"ephemeralContainers"`
 }
 
 type Manifests struct {
