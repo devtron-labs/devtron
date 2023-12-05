@@ -141,10 +141,12 @@ func (app *App) checkAndSetupStatsviz() {
 		mux := http.NewServeMux()
 		statsviz.Register(mux)
 		go func() {
+			app.Logger.Infow("statsviz server starting", "port", statsvizPort)
 			err := http.ListenAndServe(fmt.Sprintf(":%s", statsvizPort), mux)
 			if err != nil {
 				app.Logger.Errorw("error occurred while starting statsviz server", "err", err)
 			}
+
 		}()
 	}
 }
