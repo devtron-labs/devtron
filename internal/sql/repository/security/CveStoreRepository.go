@@ -51,7 +51,7 @@ type VulnerabilityExposure struct {
 	AppId   int    `json:"appId"`
 	EnvId   int    `json:"envId"`
 	//ClusterId     int    `json:"clusterId"`
-	AppStore      bool `json:"appStore"`
+	AppType       bool `json:"appType"`
 	Blocked       bool `json:"blocked"`
 	PipelineEnvId int  `json:"-"`
 	ChartEnvId    int  `json:"-"`
