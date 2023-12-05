@@ -581,9 +581,9 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 	cveStores = append(cveStores, cveStore)
 	for _, item := range vulnerabilityExposureList {
 		envId := 0
-		if item.AppType == 1 {
+		if item.AppType == helper.ChartStoreApp {
 			envId = item.ChartEnvId
-		} else if item.AppType == 0 {
+		} else if item.AppType == helper.CustomApp {
 			envId = item.PipelineEnvId
 		}
 		env := envMap[envId]
