@@ -54,7 +54,7 @@ type UserAuthService interface {
 
 	CreateRole(roleData *bean.RoleData) (bool, error)
 	AuthVerification(r *http.Request) (bool, error)
-	DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string) error
+	DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) error
 }
 
 type UserAuthServiceImpl struct {
@@ -476,7 +476,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 	//TODO - extends for other purpose
 	return true, nil
 }
-func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string) (err error) {
+func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) (err error) {
 	var roleModels []*repository2.RoleModel
 	switch entityType {
 	case bean2.PROJECT_TYPE:
@@ -487,6 +487,8 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		roleModels, err = impl.userAuthRepository.GetRolesForApp(entityName)
 	case bean2.CHART_GROUP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForChartGroup(entityName)
+	case bean2.WorkflowType:
+		roleModels, err = impl.userAuthRepository.GetRolesForWorkflow(workflowName, entityName)
 	}
 	if err != nil {
 		impl.logger.Errorw(fmt.Sprintf("error in getting roles by %s", entityType), "err", err, "name", entityName)

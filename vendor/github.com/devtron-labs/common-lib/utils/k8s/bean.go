@@ -2,9 +2,11 @@ package k8s
 
 import (
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -84,6 +86,28 @@ type ApplyResourcesResponse struct {
 
 type ManifestResponse struct {
 	Manifest unstructured.Unstructured `json:"manifest,omitempty"`
+	// EphemeralContainers are set for Pod kind manifest response only.
+	// will only contain ephemeral containers which are in running state
+	// +optional
+	EphemeralContainers []*k8sObjectsUtil.EphemeralContainerData `json:"ephemeralContainers,omitempty"`
+}
+
+// SetRunningEphemeralContainers will extract out all the running ephemeral containers of the given pod manifest and sets in manifestResponse.EphemeralContainers
+// if given manifest is not of pod kind
+func (manifestResponse *ManifestResponse) SetRunningEphemeralContainers() error {
+	if manifestResponse != nil {
+		if podManifest := manifestResponse.Manifest; k8sObjectsUtil.IsPod(podManifest.GetKind(), podManifest.GroupVersionKind().Group) {
+			pod := v1.Pod{}
+			// Convert the unstructured object to a Pod object
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(podManifest.Object, &pod)
+			if err != nil {
+				return err
+			}
+			runningEphemeralContainers := k8sObjectsUtil.ExtractEphemeralContainers([]v1.Pod{pod})
+			manifestResponse.EphemeralContainers = runningEphemeralContainers[pod.Name]
+		}
+	}
+	return nil
 }
 
 type ResourceKey struct {
