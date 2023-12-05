@@ -149,6 +149,7 @@ func GetAllSubjects() []string {
 
 func DeleteRoleForUser(user string, role string) bool {
 	user = strings.ToLower(user)
+	role = strings.ToLower(role)
 	response := e.DeleteRoleForUser(user, role)
 	enforcerImplRef.InvalidateCache(user)
 	return response

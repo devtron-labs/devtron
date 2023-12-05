@@ -325,7 +325,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err
 		}
-		ciPipeline, err := impl.ciPipelineRepository.FindById(ciArtifact.PipelineId)
+		ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(ciArtifact.PipelineId)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err

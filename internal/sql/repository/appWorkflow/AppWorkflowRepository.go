@@ -63,6 +63,7 @@ type AppWorkflowRepository interface {
 	FindMappingByAppIds(appIds []int) ([]*AppWorkflowMapping, error)
 	UpdateParentComponentDetails(tx *pg.Tx, oldComponentId int, oldComponentType string, newComponentId int, newComponentType string) error
 	FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error)
+	FindByComponentId(componentId int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -487,4 +488,14 @@ func (impl AppWorkflowRepositoryImpl) UpdateParentComponentDetails(tx *pg.Tx, ol
 		Where("active = true").
 		Update()
 	return err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByComponentId(componentId int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&appWorkflowsMapping).Column("app_workflow_mapping.*", "AppWorkflow").
+		Where("app_workflow_mapping.component_id= ?", componentId).
+		Where("app_workflow.active = ?", true).
+		Where("app_workflow_mapping.active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
 }
