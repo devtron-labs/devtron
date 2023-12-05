@@ -24,9 +24,11 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	userrepository "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
@@ -166,6 +168,7 @@ type AppListingServiceImpl struct {
 	chartRepository                chartRepoRepository.ChartRepository
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
+	userRepository                 userrepository.UserRepository
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -176,7 +179,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
 	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppListingServiceImpl {
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -195,6 +198,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		chartRepository:                chartRepository,
 		ciPipelineRepository:           ciPipelineRepository,
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
+		userRepository:                 userRepository,
 	}
 	return serviceImpl
 }
@@ -207,23 +211,66 @@ type OverviewAppsByEnvironmentBean struct {
 	EnvironmentName string                          `json:"environmentName"`
 	Namespace       string                          `json:"namespace"`
 	ClusterName     string                          `json:"clusterName"`
+	ClusterId       int                             `json:"clusterId"`
+	Type            string                          `json:"environmentType"`
+	Description     string                          `json:"description"`
 	AppCount        int                             `json:"appCount"`
 	Apps            []*bean.AppEnvironmentContainer `json:"apps"`
+	CreatedOn       string                          `json:"createdOn"`
+	CreatedBy       string                          `json:"createdBy"`
 }
+
+const (
+	Production    = "Production"
+	NonProduction = "Non-Production"
+)
 
 func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error) {
 	resp := &OverviewAppsByEnvironmentBean{}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
+		impl.Logger.Errorw("failed to fetch env", "err", err, "envId", envId)
 		return resp, err
 	}
 	resp.EnvironmentId = envId
 	resp.EnvironmentName = env.Name
 	resp.ClusterName = env.Cluster.ClusterName
+	resp.ClusterId = env.ClusterId
 	resp.Namespace = env.Namespace
+	resp.CreatedOn = env.CreatedOn.String()
+	if env.Default {
+		resp.Type = Production
+	} else {
+		resp.Type = NonProduction
+	}
+	resp.Description = env.Description
+	createdBy, err := impl.userRepository.GetByIdIncludeDeleted(env.CreatedBy)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching user for app meta info", "error", err, "env.CreatedBy", env.CreatedBy)
+		return nil, err
+	}
+	if createdBy != nil && createdBy.Id > 0 {
+		if createdBy.Active {
+			resp.CreatedBy = fmt.Sprintf(createdBy.EmailId)
+		} else {
+			resp.CreatedBy = fmt.Sprintf("%s (inactive)", createdBy.EmailId)
+		}
+	}
 	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
 	if err != nil {
+		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
 		return resp, err
+	}
+	for _, envContainer := range envContainers {
+		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
+		if err != nil {
+			impl.Logger.Errorw("failed to fetch last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
+			return resp, err
+		}
+		if lastDeployed != nil {
+			envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
+			envContainer.LastDeployedBy = lastDeployed.LastDeployedBy
+		}
 	}
 	resp.Apps = envContainers
 	return resp, err
@@ -271,6 +318,7 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
 		Environments:  fetchJobListingRequest.Environments,
+		AppIds:        fetchJobListingRequest.AppIds,
 	}
 	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {
@@ -536,6 +584,7 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 			val = bean.JobContainer{}
 			val.JobId = jobContainer.JobId
 			val.JobName = jobContainer.JobName
+			val.JobActualName = jobContainer.JobActualName
 		}
 
 		if len(val.JobCiPipelines) == 0 {
@@ -901,7 +950,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
 			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
 			appDetailContainer.DockerRegistryId = *dockerRegistryId
-			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
+			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(bean2.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")

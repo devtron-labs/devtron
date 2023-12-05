@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -192,10 +194,11 @@ const (
 )
 
 const (
-	NORMAL   PipelineType = "NORMAL"
-	LINKED   PipelineType = "LINKED"
-	EXTERNAL PipelineType = "EXTERNAL"
-	CI_JOB   PipelineType = "CI_JOB"
+	NORMAL    PipelineType = "NORMAL"
+	LINKED    PipelineType = "LINKED"
+	EXTERNAL  PipelineType = "EXTERNAL"
+	CI_JOB    PipelineType = "CI_JOB"
+	LINKED_CD PipelineType = "LINKED_CD"
 )
 
 const (
@@ -284,6 +287,22 @@ type CiPatchRequest struct {
 	UserId        int32       `json:"-"`
 	IsJob         bool        `json:"-"`
 	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
+
+	ParentCDPipeline int `json:"parentCDPipeline"`
+	DeployEnvId      int `json:"deployEnvId"`
+
+	SwitchFromCiPipelineId         int          `json:"switchFromCiPipelineId"`
+	SwitchFromExternalCiPipelineId int          `json:"switchFromExternalCiPipelineId"`
+	SwitchFromCiPipelineType       PipelineType `json:"-"`
+	SwitchToCiPipelineType         PipelineType `json:"-"`
+}
+
+func (ciPatchRequest CiPatchRequest) IsLinkedCdRequest() bool {
+	return ciPatchRequest.ParentCDPipeline > 0
+}
+
+func (ciPatchRequest CiPatchRequest) IsSwitchCiPipelineRequest() bool {
+	return (ciPatchRequest.SwitchFromCiPipelineId != 0 || ciPatchRequest.SwitchFromExternalCiPipelineId != 0)
 }
 
 type CiRegexPatchRequest struct {
@@ -361,6 +380,9 @@ type CiConfigRequest struct {
 	IsJob             bool                    `json:"-"`
 	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
 	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
+	Artifact          *repository3.CiArtifact `json:"-"`
+
+	AppWorkflowMapping *appWorkflow.AppWorkflowMapping `json:"-"`
 }
 
 type CiPipelineMinResponse struct {
@@ -577,6 +599,12 @@ type CDPipelineConfigObject struct {
 	CustomTagObject               *CustomTagData                         `json:"customTag"`
 	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage"`
 	EnableCustomTag               bool                                   `json:"enableCustomTag"`
+	IsProdEnv                     bool                                   `json:"isProdEnv"`
+	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
+}
+
+func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
+	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0
 }
 
 type PreStageConfigMapSecretNames struct {

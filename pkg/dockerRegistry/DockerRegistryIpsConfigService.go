@@ -23,6 +23,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
@@ -161,7 +162,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(
 		if artifact.CredentialsSourceType == repository3.GLOBAL_CONTAINER_REGISTRY {
 			dockerRegistryId = artifact.CredentialSourceValue
 		}
-	} else {
+	} else if artifact.DataSource == repository3.CI_RUNNER {
 		// if image is created by ci build
 		dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
 		if len(dockerRegistryId) == 0 {
@@ -172,7 +173,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(
 		if ciPipeline.IsDockerConfigOverridden {
 			//set dockerRegistryId value with the DockerRegistryId of the overridden dockerRegistry
 			ciPipId := ciPipelineId
-			if ciPipeline.ParentCiPipeline != 0 {
+			if ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(bean2.LINKED_CD) {
 				ciPipId = ciPipeline.ParentCiPipeline
 			}
 			ciTemplateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipId)
