@@ -455,7 +455,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 				if chartServiceErr == nil {
 					if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 						if gitOpsConfig.AllowCustomRepository || chart.IsCustomGitRepository {
-							gitOpsRepoNotFound = fmt.Errorf("GitOps repository is not configured for the app")
+							gitOpsRepoNotFound = fmt.Errorf(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED)
 						} else {
 							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
 							if createGitRepoErr == nil {

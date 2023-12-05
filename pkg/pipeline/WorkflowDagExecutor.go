@@ -997,6 +997,42 @@ func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.
 	return CDArtifacts, nil
 }
 
+func (impl *WorkflowDagExecutorImpl) handleCustomGitOpsRepoValidation(runner *pipelineConfig.CdWorkflowRunner, pipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
+	if !util.IsAcdApp(pipeline.DeploymentAppName) {
+		return nil
+	}
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsConfigRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting active GitOpsConfig", "err", err)
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+	if isGitOpsConfigured && gitOpsConfig.AllowCustomRepository {
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", pipeline.AppId)
+			return err
+		}
+		if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+			// if image vulnerable, update timeline status and return
+			runner.Status = pipelineConfig.WorkflowFailed
+			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
+			runner.FinishedOn = time.Now()
+			runner.UpdatedOn = time.Now()
+			runner.UpdatedBy = triggeredBy
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+			if err != nil {
+				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
+				return err
+			}
+			return fmt.Errorf(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED)
+		}
+	}
+	return nil
+}
+
 func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, triggeredBy int32, applyAuth bool, refCdWorkflowRunnerId int) error {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
@@ -1063,34 +1099,10 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 
 	// custom gitops repo url validation --> Start
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsConfigRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error while getting active GitOpsConfig", "err", err)
-	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
-	}
-	if isGitOpsConfigured && gitOpsConfig.AllowCustomRepository {
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", appId)
-			return err
-		}
-		if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
-			// if image vulnerable, update timeline status and return
-			runner.Status = pipelineConfig.WorkflowFailed
-			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
-			runner.FinishedOn = time.Now()
-			runner.UpdatedOn = time.Now()
-			runner.UpdatedBy = triggeredBy
-			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if err != nil {
-				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
-				return err
-			}
-			return fmt.Errorf("GitOps repository is not configured for the app '%s'", pipeline.Name)
-		}
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
 	}
 	// custom gitops repo url validation --> Ends
 
@@ -1310,6 +1322,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			return err
 		}
 	}
+
+	// custom gitops repo url validation --> Start
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
+	}
+	// custom gitops repo url validation --> Ends
+
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(cdWf.CiArtifact, pipeline, context.Background())
 	if err != nil {
