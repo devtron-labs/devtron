@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.25-rc.0"
+  release: "v0.6.25"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
@@ -25,7 +25,7 @@ components:
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:d16595b5-280-19558"
+    image: "quay.io/devtron/hyperion:9a1d738d-280-19820"
     cicdImage: "quay.io/devtron/devtron:9a1d738d-434-19816"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:560e6867-138-19679"
