@@ -18,7 +18,7 @@ func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilt
 		remainingQuery := " FROM ci_artifact cia" +
 			" INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id or (cp.id=cia.component_id and cia.data_source='post_ci' ) )" +
 			" INNER JOIN pipeline p ON (p.ci_pipeline_id = cp.id and p.id=%v )" +
-			" WHERE "
+			" WHERE cia.image != '' and "
 		remainingQuery = fmt.Sprintf(remainingQuery, listingFilterOpts.PipelineId)
 		if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
 			remainingQuery += fmt.Sprintf("cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
