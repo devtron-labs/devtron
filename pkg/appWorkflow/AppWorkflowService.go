@@ -617,7 +617,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 	if len(request.ResourceIds) > 0 {
 		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.ParentResourceId, request.ResourceIds)
 	} else {
-		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.ParentResourceId)
+		pipelines, err = impl.pipelineRepository.FindActivePipelineByEnvId(request.ParentResourceId)
 	}
 	if err != nil {
 		impl.Logger.Errorw("error in fetching pipelines", "envId", request.ParentResourceId, "err", err)
