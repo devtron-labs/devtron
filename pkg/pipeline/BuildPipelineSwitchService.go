@@ -271,23 +271,7 @@ func (impl *BuildPipelineSwitchServiceImpl) deleteBuildPipeline(tx *pg.Tx, ciPip
 		impl.logger.Errorw("error in deleting ci pipeline and its env mappings", "pipelineId", ciPipeline.Id, "err", err)
 		return err
 	}
-	materials, err := impl.DeleteCiMaterial(tx, ciPipeline)
-	if err != nil {
-		return err
-	}
-	if !ciPipeline.IsDockerConfigOverridden {
-		err = impl.ciCdPipelineOrchestrator.SaveHistoryOfBaseTemplate(userId, ciPipeline, materials)
-		if err != nil {
-			impl.logger.Errorw("error in saving history of base template", "pipelineId", ciPipeline.Id, "err", err)
-			return err
-		}
-	} else if ciPipeline.ParentCiPipeline == 0 {
-		err = impl.saveHistoryOfOverriddenTemplate(ciPipeline, userId, materials)
-		if err != nil {
-			impl.logger.Errorw("error in saving history for overridden template", "pipelineId", ciPipeline.Id, "err", err)
-			return err
-		}
-	}
+	//not deleting ciPipeline material or template override as these can be useful for artifact built from the old ciPipeline
 	return err
 }
 
