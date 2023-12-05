@@ -36,6 +36,7 @@ type EnterpriseEnforcerConfig struct {
 	EnterpriseEnforcerEnabled bool `env:"ENTERPRISE_ENFORCER_ENABLED" envDefault:"true"`
 	UseCustomEnforcer         bool `env:"USE_CUSTOM_ENFORCER" envDefault:"true"`
 	UseCasbinV2               bool `env:"USE_CASBIN_V2" envDefault:"false"`
+	CustomRoleCacheAllowed    bool `env:"CUSTOM_ROLE_CACHE_ALLOWED" envDefault:"false"`
 }
 
 func NewEnterpriseEnforcerImpl(enforcer *casbin.SyncedEnforcer, enforcerV2 *casbinv2.SyncedEnforcer,
@@ -257,8 +258,7 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCasbin(subject string, 
 
 func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCustom(subject string, resource string, action string, resourceItems []string, enforcedModel CustomEnforcedModel) (resultArr []bool) {
 	defer casbin2.HandlePanic()
-	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel.getPolicy("p"), enforcedModel.getCustomRM("g"))
-
+	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel.getPolicy("p"), enforcedModel.getCustomRM("g", e.Config.CustomRoleCacheAllowed))
 	for _, resourceItem := range resourceItems {
 		rVals := e.getRvalCustom(subject, resource, action, strings.ToLower(resourceItem))
 		result := false
@@ -325,12 +325,14 @@ func (model CustomEnforcedModel) getPolicy(tokenKey string) [][]string {
 	}
 }
 
-func (model CustomEnforcedModel) getCustomRM(tokenKey string) CustomRoleManager {
+func (model CustomEnforcedModel) getCustomRM(tokenKey string, customRoleCacheAllowed bool) CustomRoleManager {
 	switch model.version {
 	case casbin2.CasbinV2:
 		return CustomRoleManager{
-			rmV2:    model.modelV2[tokenKey][tokenKey].RM,
-			version: casbin2.CasbinV2,
+			rmV2:                   model.modelV2[tokenKey][tokenKey].RM,
+			version:                casbin2.CasbinV2,
+			roles:                  make(map[string]bool),
+			customRoleCacheAllowed: customRoleCacheAllowed,
 		}
 	default:
 		return CustomRoleManager{
@@ -341,18 +343,51 @@ func (model CustomEnforcedModel) getCustomRM(tokenKey string) CustomRoleManager 
 }
 
 type CustomRoleManager struct {
-	rmV1    rbac.RoleManager
-	rmV2    rbac2.RoleManager
-	version casbin2.Version
+	customRoleCacheAllowed bool
+	roles                  map[string]bool
+	rolesUpdated           bool
+	rmV1                   rbac.RoleManager
+	rmV2                   rbac2.RoleManager
+	version                casbin2.Version
 }
 
-func (rm CustomRoleManager) hasLink(subject string, role string) (bool, error) {
+func (rm *CustomRoleManager) hasLink(subject string, role string) (bool, error) {
 	switch rm.version {
 	case casbin2.CasbinV2:
+		if rm.rolesUpdated {
+			_, ok := rm.roles[role]
+			return ok, nil
+		}
 		return rm.rmV2.HasLink(subject, role)
 	default:
 		return rm.rmV1.HasLink(subject, role)
 	}
+}
+
+func (rm *CustomRoleManager) checkAndUpdateSubjectRolesCache(subject string) {
+	if !rm.customRoleCacheAllowed {
+		return
+	}
+	roles, err := rm.rmV2.GetRoles(subject)
+	if err != nil {
+		return
+	}
+	result := rm.updateRolesCache(roles)
+	rm.rolesUpdated = result
+}
+
+func (rm *CustomRoleManager) updateRolesCache(roles []string) bool {
+	for _, role := range roles {
+		rm.roles[role] = true
+		roles1, err := rm.rmV2.GetRoles(role)
+		if err != nil {
+			return false
+		}
+		if result := rm.updateRolesCache(roles1); !result {
+			return false
+		}
+	}
+	return true
 }
 
 func (e *EnterpriseEnforcerImpl) EvaluateDefinitions(t DefinitionType, pVals, rVals []string) bool {
@@ -386,12 +421,12 @@ func (e *EnterpriseEnforcerImpl) getRvalCustom(rVal ...string) []string {
 
 func (e *EnterpriseEnforcerImpl) GetFilteredPolicies(subject string, resource string, action string, policies [][]string, rm CustomRoleManager) [][]string {
 	var filteredPolicies [][]string
+	rm.checkAndUpdateSubjectRolesCache(subject)
 	for _, policy := range policies {
 		role := policy[0]
 		policyResource := policy[1]
 		policyAction := policy[2]
 		hasLink, _ := rm.hasLink(subject, role)
-		e.Logger.Debugw("casbin version in use", "version", rm.version)
 		if hasLink {
 			if !casbin2.MatchKeyByPart(action, policyAction) {
 				continue
