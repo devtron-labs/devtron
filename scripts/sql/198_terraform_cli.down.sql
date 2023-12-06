@@ -4,3 +4,4 @@ DELETE from plugin_stage_mapping where plugin_id=(SELECT id from plugin_metadata
 DELETE from pipeline_stage_step_variable where pipeline_stage_step_id =(select pipeline_stage_id from pipeline_stage_step where name='Terraform Cli');
 DELETE from pipeline_stage_step where name ='Terraform Cli';
 DELETE from plugin_metadata where name='Terraform Cli';
+DELETE from plugin_pipeline_script where id=15;
