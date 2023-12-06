@@ -1,4 +1,5 @@
 ## Bugs
+- fix:rbac is not in sync with Actual application status  (#4237)
 - fix: cm-env override (#4350)
 - fix: launch ephemeral containers targetting containers running with non root access (#4288)
 - fix: not able to add env in global configuration (#4330)
