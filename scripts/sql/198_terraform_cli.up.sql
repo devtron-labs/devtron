@@ -20,12 +20,11 @@ fi
 
 
 # exporting all the env variables 
-echo "$ADDITIONALPARAMS" > devtron-custom-values.tfvars
-export ARGS="${ARGS} -var-file devtron-custom-values.tfvars"
+echo "$ADDITIONALPARAMS" > devtron-custom-values.env
 
 # RUNNING Terraform command 
-echo "docker run -v $PWD:$PWD -w $PWD/$WORKINGDIR -e HTTP_PROXY=$HTTP_PROXY -e HTTPS_PROXY=$HTTPS_PROXY -e NO_PROXY=$NO_PROXY $DEFAULT_TF_IMAGE $ARGS"
-docker run -v $PWD:$PWD -w $PWD/$WORKINGDIR -e HTTP_PROXY=$HTTP_PROXY -e HTTPS_PROXY=$HTTPS_PROXY -e NO_PROXY=$NO_PROXY $DEFAULT_TF_IMAGE $ARGS','SHELL','f','now()',1,'now()',1);
+echo "docker run -v $PWD:$PWD -w $PWD/$WORKINGDIR --env-file devtron-custom-values.env -e HTTP_PROXY=$HTTP_PROXY -e HTTPS_PROXY=$HTTPS_PROXY -e NO_PROXY=$NO_PROXY $DEFAULT_TF_IMAGE $ARGS"
+docker run -v $PWD:$PWD -w $PWD/$WORKINGDIR  --env-file devtron-custom-values.env -e HTTP_PROXY=$HTTP_PROXY -e HTTPS_PROXY=$HTTPS_PROXY -e NO_PROXY=$NO_PROXY $DEFAULT_TF_IMAGE $ARGS','SHELL','f','now()',1,'now()',1);
 
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Terraform Cli'),'Step 1','Step 1 - Terraform Cli','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
