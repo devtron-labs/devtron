@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'Ansible Runner','Ansible Runner allows running the Ansible Playbooks using the ansible-runner tool.','PRESET','null',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Ansible Runner','Ansible Runner allows running the Ansible Playbooks using the ansible-runner tool.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/ansible-runner.jpg',false,'now()',1,'now()',1);
 
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Ansible Runner'),'Step 1','Step 1 - Ansible Runner','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
