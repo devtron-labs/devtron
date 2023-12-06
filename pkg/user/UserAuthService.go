@@ -503,6 +503,7 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		var casbinDeleteFailed []bool
 		var roleIds []int
 		var roles []string
+		// deleting all user_role mapping from casbin by getting all users mapped to the role
 		for _, roleModel := range roleModels {
 			roleIds = append(roleIds, roleModel.Id)
 			roles = append(roles, roleModel.Role)
@@ -544,6 +545,7 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 			return err
 		}
 	}
+
 	casbin2.LoadPolicy()
 	return nil
 }
