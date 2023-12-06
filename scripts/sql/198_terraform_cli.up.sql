@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'Terraform CLI','The ], is integrated with Devtron, empowers users to effortlessly execute Terraform scripts, streamlining and enhancing the efficiency of infrastructure provisioning and management.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/terraform-cli.svg',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Terraform CLI','The is integrated with Devtron, empowers users to effortlessly execute Terraform scripts, streamlining and enhancing the efficiency of infrastructure provisioning and management.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/terraform-cli.svg',false,'now()',1,'now()',1);
 
 
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
