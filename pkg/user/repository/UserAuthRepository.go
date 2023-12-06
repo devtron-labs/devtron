@@ -822,7 +822,7 @@ func (impl UserAuthRepositoryImpl) GetRolesForProject(teamName string) ([]*RoleM
 func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel, error) {
 	var roles []*RoleModel
 	err := impl.dbConnection.Model(&roles).
-		Where("(entity is NULL) OR (entity = ? AND access_type = ?) OR (entity = ?)", bean2.ENTITY_APPS, bean2.DEVTRON_APP, bean2.ENTITY_JOBS).
+		Where("(entity is NULL) OR (entity = ? AND access_type = ?) OR (entity = ?)", bean2.ENTITY_APPS, bean2.DEVTRON_APP, bean2.EntityJobs).
 		Where("entity_name = ?", appName).
 		Select()
 	if err != nil {
