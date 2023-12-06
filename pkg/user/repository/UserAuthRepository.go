@@ -836,8 +836,10 @@ func (impl UserAuthRepositoryImpl) GetRolesForProject(teamName string) ([]*RoleM
 
 func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel, error) {
 	var roles []*RoleModel
-	err := impl.dbConnection.Model(&roles).Where("(entity ='apps' and access_type='devtron-app') OR (entity ='jobs' and access_type='')").
-		Where("entity_name = ?", appName).Select()
+	err := impl.dbConnection.Model(&roles).
+		Where("(entity is NULL) OR (entity = ? AND access_type = ?) OR (entity = ?)", bean2.ENTITY_APPS, bean2.DEVTRON_APP, bean2.EntityJobs).
+		Where("entity_name = ?", appName).
+		Select()
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for app", "err", err, "appName", appName)
 		return nil, err
