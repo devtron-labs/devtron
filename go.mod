@@ -7,6 +7,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/argoproj/argo-cd/v2 v2.5.2
 	github.com/argoproj/argo-workflows/v3 v3.4.3
+	github.com/arl/statsviz v0.6.0
 	github.com/aws/aws-sdk-go v1.44.105
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0
 	github.com/caarlos0/env v3.5.0+incompatible
