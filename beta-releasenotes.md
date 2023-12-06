@@ -1,4 +1,5 @@
 ## Bugs
+- fix: added missing clusterConfig in releaseIdentifier request (#4359)
 - fix: Inconsistent behaviour on deploying application from application group v/s devtron cli tool after changing deploymentType  (#4353)
 - fix:rbac is not in sync with Actual application status  (#4237)
 - fix: cm-env override (#4350)
