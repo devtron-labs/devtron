@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Inconsistent behaviour on deploying application from application group v/s devtron cli tool after changing deploymentType  (#4353)
 - fix:rbac is not in sync with Actual application status  (#4237)
 - fix: cm-env override (#4350)
 - fix: launch ephemeral containers targetting containers running with non root access (#4288)
