@@ -1,0 +1,14 @@
+DELETE FROM plugin_step_variable WHERE name = 'SonarqubeProjectPrefixName';
+DELETE FROM plugin_step_variable WHERE name = 'SonarqubeBranchName';
+DELETE FROM plugin_step_variable WHERE name = 'SonarqubeProjectKey';
+DELETE FROM plugin_step_variable WHERE name = 'CheckForSonarAnalysisReport';
+DELETE FROM plugin_step_variable WHERE name = 'AbortPipelineOnPolicyCheckFailed';
+DELETE FROM plugin_step_variable WHERE name = 'GIT_MATERIAL_REQUEST';
+DELETE FROM plugin_step_variable WHERE name = 'UsePropertiesFileFromProject';
+DELETE FROM plugin_step_variable WHERE name = 'SonarqubeEndpoint';
+DELETE FROM plugin_step_variable WHERE name = 'CheckoutPath';
+DELETE FROM plugin_step_variable WHERE name = 'SonarqubeApiKey';
+DELETE FROM plugin_step_variable WHERE name = 'TotalSonarqubeIssues';
+DELETE FROM plugin_step_variable WHERE name = 'SonarqubeHighHotspots';
+DELETE FROM plugin_step_variable WHERE name = 'SonarqubeProjectStatus';
+DELETE FROM plugin_step_variable WHERE name = 'SonarqubeVulnerabilities';
