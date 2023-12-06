@@ -155,6 +155,8 @@ components:
     metrics:
       image: quay.io/devtron/prometheus-nats-exporter:0.9.0
       imagePullPolicy: IfNotPresent
+    persistence:
+      storage: 5Gi
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
