@@ -30,6 +30,7 @@ type ChartRefRestHandler interface {
 	ChartRefAutocomplete(w http.ResponseWriter, r *http.Request)
 	ChartRefAutocompleteForApp(w http.ResponseWriter, r *http.Request)
 	ChartRefAutocompleteForEnv(w http.ResponseWriter, r *http.Request)
+	SpecificChartRefAutocomplete(w http.ResponseWriter, r *http.Request)
 }
 
 type ChartRefRestHandlerImpl struct {
@@ -88,6 +89,24 @@ func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteForEnv(w http.Respons
 	result, err := handler.chartService.ChartRefAutocompleteForAppOrEnv(appId, environmentId)
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocompleteForEnv", "err", err, "appId", appId, "environmentId", environmentId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (handler ChartRefRestHandlerImpl) SpecificChartRefAutocomplete(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	if err != nil {
+		handler.logger.Errorw("request err, ChartRefAutocompleteForEnv", "err", err, "appId", chartRefId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	result, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	if err != nil {
+		handler.logger.Errorw("service err, ChartRefAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
