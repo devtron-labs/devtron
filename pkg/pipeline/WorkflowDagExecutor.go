@@ -2477,9 +2477,9 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
 			err1 := impl.updatePreviousDeploymentStatus(releaseErr, runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
 			span.End()
-			if err1 != nil {
+			if releaseErr != nil || err1 != nil {
 				impl.logger.Errorw("error while update previous cd workflow runners, ManualCdTrigger", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
-				return 0, err1
+				return 0, releaseErr
 			}
 		}
 
@@ -3011,7 +3011,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.Value
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
 			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
-			return releaseNo, manifest, err
+			return releaseNo, manifest, manifestPushResponse.Error
 		}
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
@@ -3030,10 +3030,10 @@ func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.Value
 	}
 
 	if triggerEvent.PerformDeploymentOnCluster {
-		err = impl.DeployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
-		if err != nil {
+		releaseErr := impl.DeployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
+		if releaseErr != nil {
 			impl.logger.Errorw("error in deploying app", "err", err)
-			return releaseNo, manifest, err
+			return releaseNo, manifest, releaseErr
 		}
 	}
 
