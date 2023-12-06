@@ -1,4 +1,7 @@
 alter table devtron_resource
+    add column description text;
+
+alter table devtron_resource
     add column is_exposed bool not null default true;
 
 update devtron_resource
