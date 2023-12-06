@@ -221,6 +221,11 @@ github.com/argoproj/pkg/json
 github.com/argoproj/pkg/rand
 github.com/argoproj/pkg/sync
 github.com/argoproj/pkg/time
+# github.com/arl/statsviz v0.6.0
+## explicit; go 1.20
+github.com/arl/statsviz
+github.com/arl/statsviz/internal/plot
+github.com/arl/statsviz/internal/static
 # github.com/aws/aws-sdk-go v1.44.105
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws

@@ -31,7 +31,7 @@ type DevtronResource struct {
 	DisplayName  string   `sql:"displayName"`
 	Icon         string   `sql:"icon"`
 	ParentKindId int      `sql:"parent_kind_id"`
-	Deleted      bool     `sql:"deleted"`
+	Deleted      bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
