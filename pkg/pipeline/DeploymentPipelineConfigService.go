@@ -1169,6 +1169,11 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			}
 			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
 		}
+		isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(dbPipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart details for app by appId")
+			return nil, err
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -1193,6 +1198,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			PostDeployStage:               dbPipeline.PostDeployStage,
 			CustomTagObject:               customTag,
 			CustomTagStage:                &customTagStage,
+			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
