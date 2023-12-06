@@ -22,6 +22,9 @@ data:
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
   RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS: "true"
+  ENABLE_ASYNC_INSTALL_DEVTRON_CHART: "true"
+  DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT: "6"
+  CONSUMER_CONFIG_JSON: '{"DEVTRON-CHART-INSTALL-DURABLE":{"natsMsgProcessingBatchSize":1}}'
 {{- if $.Values.configs }}
 {{- if or ($.Values.minio.enabled) ($.Values.configs.BLOB_STORAGE_PROVIDER) }}
   BLOB_STORAGE_ENABLED: "true"
