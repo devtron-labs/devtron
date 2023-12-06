@@ -494,6 +494,11 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		impl.logger.Errorw(fmt.Sprintf("error in getting roles by %s", entityType), "err", err, "name", entityName)
 		return err
 	}
+
+	// deleting policies in casbin and roles
+	var casbinDeleteFailed []bool
+	casbin2.LoadPolicy()
+
 	if len(roleModels) > 0 {
 		// deleting policies in casbin and roles
 		var casbinDeleteFailed []bool
@@ -503,12 +508,27 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 			roleIds = append(roleIds, roleModel.Id)
 			roles = append(roles, roleModel.Role)
 		}
-
 		success, err := casbin2.RemovePoliciesByRoles(roles)
 		if !success || err != nil {
 			impl.logger.Warnw("error in deleting casbin policy for roles", "roles", roles, "err", err)
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
 		}
+
+		for _, roleModel := range roleModels {
+			allUsersMappedToRoles, err := casbin2.GetUserByRole(roleModel.Role)
+			if err != nil {
+				impl.logger.Errorw("error in getting all users by roles", "err", err, "role", roleModel.Role)
+				return err
+			}
+			for _, rl := range allUsersMappedToRoles {
+				success = casbin2.DeleteRoleForUser(rl, roleModel.Role)
+				if !success {
+					impl.logger.Warnw("error in deleting casbin policy for role", "role", roleModel.Role)
+					casbinDeleteFailed = append(casbinDeleteFailed, success)
+				}
+			}
+		}
+
 		//deleting user_roles for this role_id (foreign key constraint)
 		err = impl.userAuthRepository.DeleteUserRoleByRoleIds(roleIds, tx)
 		if err != nil {
@@ -528,5 +548,6 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 			return err
 		}
 	}
+	casbin2.LoadPolicy()
 	return nil
 }
