@@ -1027,6 +1027,14 @@ func (impl *InstalledAppServiceImpl) FindNotesForNonHelmApplication(installedApp
 			},
 		}
 
+		clusterId := installedAppVerison.InstalledApp.Environment.ClusterId
+		config, err := impl.helmAppService.GetClusterConf(clusterId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
+			return "", appName, err
+		}
+		installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+
 		notes, err = impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("error in fetching notes", "err", err)
