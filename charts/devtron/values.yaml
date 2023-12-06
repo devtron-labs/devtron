@@ -146,6 +146,15 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+  nats:
+    image: nats:2.9.3-alpine
+    imagePullPolicy: IfNotPresent
+    reloader:
+      image: quay.io/devtron/nats-server-config-reloader:0.6.2
+      imagePullPolicy: IfNotPresent
+    metrics:
+      image: quay.io/devtron/prometheus-nats-exporter:0.9.0
+      imagePullPolicy: IfNotPresent
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
