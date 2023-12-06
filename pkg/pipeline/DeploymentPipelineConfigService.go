@@ -400,7 +400,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	// TODO: creating git repo for all apps irrespective of acd or helm
 	if isGitOpsConfigured && isGitOpsRequiredForCD && !pipelineCreateRequest.IsCloneAppReq {
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+		chart, err := impl.chartService.FindLatestChartForAppByAppId(app.Id)
 		if err != nil {
 			impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", app.Id)
 			return nil, err
