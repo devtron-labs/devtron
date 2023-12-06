@@ -120,6 +120,7 @@ type PipelineRepository interface {
 	GetConnection() *pg.DB
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
+	FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindActiveByEnvIds(envId []int) (pipelines []*Pipeline, err error)
 	FindActiveByInFilter(envId int, appIdIncludes []int) (pipelines []*Pipeline, err error)
 	FindActiveByNotFilter(envId int, appIdExcludes []int) (pipelines []*Pipeline, err error)
@@ -475,6 +476,15 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pi
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
 		Where("environment_id = ?", envId).
 		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
+		Where("environment_id = ?", envId).
+		Where("deleted = ?", false).
+		Where("deployment_app_delete_request = ?", false).
 		Select()
 	return pipelines, err
 }
