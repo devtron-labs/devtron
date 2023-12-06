@@ -34,6 +34,7 @@
 - feat: pre-postcd trigger with plugin (#4176)
 - feat: upload and download logs/artifact from blob storage configured in external cluster (#4138)
 ## Documentation
+- doc: Added Application Groups Doc (#4275)
 - doc: Update gitops.md for Azure DevOps Integration (#4328)
 - docs: img size fix (#4301)
 - docs: App Configuration Corrections + Structuring (#4235)
