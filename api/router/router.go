@@ -47,6 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
@@ -133,6 +134,7 @@ type MuxRouter struct {
 	ciTriggerCron                      cron.CiTriggerCron
 	resourceFilterRouter               ResourceFilterRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
+	lockConfigurationRouter            lockConfiguation.LockConfigurationRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -166,7 +168,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
 	scopedVariableRouter ScopedVariableRouter, ciTriggerCron cron.CiTriggerCron,
 	resourceFilterRouter ResourceFilterRouter,
-	devtronResourceRouter devtronResource.DevtronResourceRouter) *MuxRouter {
+	devtronResourceRouter devtronResource.DevtronResourceRouter,
+	lockConfigurationRouter lockConfiguation.LockConfigurationRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -244,6 +247,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		resourceProtectionRouter:           resourceProtectionRouter,
 		resourceFilterRouter:               resourceFilterRouter,
 		devtronResourceRouter:              devtronResourceRouter,
+		lockConfigurationRouter:            lockConfigurationRouter,
 	}
 	return r
 }
@@ -458,6 +462,10 @@ func (r MuxRouter) Init() {
 	// global-tags router
 	globalTagSubRouter := r.Router.PathPrefix("/orchestrator/global-tag").Subrouter()
 	r.globalTagRouter.InitGlobalTagRouter(globalTagSubRouter)
+
+	// lock configuration
+	lockConfigurationRouter := r.Router.PathPrefix("/orchestrator/lock-config").Subrouter()
+	r.lockConfigurationRouter.InitLockConfigurationRouter(lockConfigurationRouter)
 
 	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()
 	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)

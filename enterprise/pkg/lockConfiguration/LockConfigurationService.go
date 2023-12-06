@@ -10,7 +10,7 @@ import (
 
 type LockConfigurationService interface {
 	GetLockConfiguration() (*bean.LockConfigResponse, error)
-	SaveLockConfiguration(*bean.LockConfigResponse, int32) error
+	SaveLockConfiguration(*bean.LockConfigRequest, int32) error
 }
 
 type LockConfigurationServiceImpl struct {
@@ -40,7 +40,7 @@ func (impl LockConfigurationServiceImpl) GetLockConfiguration() (*bean.LockConfi
 	return lockConfig, nil
 }
 
-func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.LockConfigResponse, createdBy int32) error {
+func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.LockConfigRequest, createdBy int32) error {
 	lockConfigDto, err := impl.lockConfigurationRepository.GetActiveLockConfig()
 	if err != nil && err != pg.ErrNoRows {
 		return err
@@ -63,8 +63,8 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 		}
 	}
 
-	newLockConfigDto := lockConfig.ConvertResponseToDBDto()
+	newLockConfigDto := lockConfig.ConvertRequestToDBDto()
 	newLockConfigDto.AuditLog = sql.NewDefaultAuditLog(createdBy)
 
-	return tx.Insert(newLockConfigDto)
+	return impl.lockConfigurationRepository.Create(newLockConfigDto, tx)
 }
