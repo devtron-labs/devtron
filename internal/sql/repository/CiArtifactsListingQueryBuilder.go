@@ -107,9 +107,9 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 	joinCondition1 := " ci_artifact.id = latest_cdwrs.ci_artifact_id "
 
 	//CiPipelineId might be 0 if the current pipeline's build pipeline was an external-ci/webhook
-	if listingFilterOptions.CiPipelineId != 0 {
-		joinCondition1 = fmt.Sprintf("(%s AND ci_artifact.pipeline_id = %d)", joinCondition1, listingFilterOptions.CiPipelineId)
-	}
+	//if listingFilterOptions.CiPipelineId != 0 {
+	//	joinCondition1 = fmt.Sprintf("(%s AND ci_artifact.pipeline_id = %d)", joinCondition1, listingFilterOptions.CiPipelineId)
+	//}
 	joinCondition2 := fmt.Sprintf(" ((ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ))", listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
 	fromQuery := " FROM ci_artifact" +
 		" INNER JOIN latest_cdwrs " +
