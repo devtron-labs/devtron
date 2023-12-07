@@ -104,7 +104,6 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 		"           )"+
 		"      )   ) ", listingFilterOptions.PipelineId, listingFilterOptions.ParentId, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType)
 
-	selectQuery := " SELECT DISTINCT(ci_artifact.id) , count(*) over() as total_count "
 	joinCondition1 := " ci_artifact.id = latest_cdwrs.ci_artifact_id "
 
 	//CiPipelineId might be 0 if the current pipeline's build pipeline was an external-ci/webhook
@@ -119,12 +118,15 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 
 	whereQuery := fmt.Sprintf(" WHERE ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
 	if isApprovalNode {
-		whereQuery = whereQuery + fmt.Sprintf(" AND ( latest_cdwrs.ci_artifact_id NOT IN (SELECT DISTINCT dar.ci_artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = %d AND dar.active=true AND dar.artifact_deployment_triggered = false))", listingFilterOptions.PipelineId)
+		whereQuery = whereQuery + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (SELECT DISTINCT dar.ci_artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = %d AND dar.active=true AND dar.artifact_deployment_triggered = false))", listingFilterOptions.PipelineId)
 	} else if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
-		whereQuery = whereQuery + fmt.Sprintf(" AND ( latest_cdwrs.ci_artifact_id NOT IN (%s))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
+		whereQuery = whereQuery + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (%s))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
 	}
 
-	finalQuery := withQuery + selectQuery + fromQuery + whereQuery
+	countQuery := " SELECT count(DISTINCT ci_artifact.id) " + fromQuery + whereQuery
+	selectQuery := fmt.Sprintf(" SELECT DISTINCT(ci_artifact.id) ,(%s) as total_count ", countQuery)
+	ordeyByAndPaginated := fmt.Sprintf(" ORDER BY ci_artifact.id DESC LIMIT %d OFFSET %d ", listingFilterOptions.Limit, listingFilterOptions.Offset)
+	finalQuery := withQuery + selectQuery + fromQuery + whereQuery + ordeyByAndPaginated
 	return finalQuery
 }
 
