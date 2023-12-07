@@ -1,3 +1,5 @@
+## v0.6.25
+
 ## Bugs
 - fix:Not able to change Authentication Type for Prometheus. (#4284)
 - fix:cve search  (#4347)
@@ -63,3 +65,6 @@
 - chore: resource sql migration script (#4175)
 - chore: refactored few type objects (#4171)
 - chore: struct type refactored (#4180)
+
+
+
