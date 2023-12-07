@@ -55,6 +55,12 @@ func (impl LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r *ht
 		return
 	}
 
+	resp, err := impl.lockConfigurationService.GetLockConfiguration()
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
 func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r *http.Request) {

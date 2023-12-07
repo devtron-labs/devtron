@@ -66,5 +66,16 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 	newLockConfigDto := lockConfig.ConvertRequestToDBDto()
 	newLockConfigDto.AuditLog = sql.NewDefaultAuditLog(createdBy)
 
-	return impl.lockConfigurationRepository.Create(newLockConfigDto, tx)
+	err = impl.lockConfigurationRepository.Create(newLockConfigDto, tx)
+	if err != nil {
+		impl.logger.Errorw("error while saving global tags", "error", err)
+		return err
+	}
+
+	// commit TX
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return err
 }

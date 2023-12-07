@@ -26,10 +26,10 @@ func (impl RepositoryImpl) GetConnection() *pg.DB {
 }
 
 func (impl RepositoryImpl) GetLockConfig(id int) (*bean.LockConfiguration, error) {
-	var lockConfig *bean.LockConfiguration
+	lockConfig := &bean.LockConfiguration{}
 	err := impl.dbConnection.Model(lockConfig).
-		Where("id=?", id).
-		Where("active=?", true).
+		Where("id = ?", id).
+		Where("active = ?", true).
 		Select()
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (impl RepositoryImpl) GetLockConfig(id int) (*bean.LockConfiguration, error
 }
 
 func (impl RepositoryImpl) GetActiveLockConfig() (*bean.LockConfiguration, error) {
-	var lockConfig *bean.LockConfiguration
+	lockConfig := &bean.LockConfiguration{}
 	err := impl.dbConnection.Model(lockConfig).Where("active=?", true).Select()
 	if err != nil {
 		return nil, err
