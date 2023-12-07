@@ -50,7 +50,6 @@ import (
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/tidwall/gjson"
-	"k8s.io/apimachinery/pkg/version"
 	"net/http"
 	"regexp"
 	"sync"
@@ -948,7 +947,23 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 			return notes, appName, err
 		}
-		installReleaseRequest := setInstallReleaseRequest(appStoreAppVersion, installedAppVerison, k8sServerVersion)
+
+		installReleaseRequest := &client.InstallReleaseRequest{
+			ChartName:    appStoreAppVersion.Name,
+			ChartVersion: appStoreAppVersion.Version,
+			ValuesYaml:   installedAppVerison.ValuesYaml,
+			K8SVersion:   k8sServerVersion.String(),
+			ChartRepository: &client.ChartRepository{
+				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
+				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
+				Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
+				Password: appStoreAppVersion.AppStore.ChartRepo.Password,
+			},
+			ReleaseIdentifier: &client.ReleaseIdentifier{
+				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
+				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
+			},
+		}
 
 		clusterId := installedAppVerison.InstalledApp.Environment.ClusterId
 		config, err := impl.helmAppService.GetClusterConf(clusterId)
@@ -971,29 +986,6 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 	}
 
 	return notes, appName, nil
-}
-
-func setInstallReleaseRequest(appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion, installedAppVerison *repository2.InstalledAppVersions, k8sServerVersion *version.Info) *client.InstallReleaseRequest {
-	installReleaseRequest := &client.InstallReleaseRequest{
-		ChartName:    appStoreAppVersion.Name,
-		ChartVersion: appStoreAppVersion.Version,
-		ValuesYaml:   installedAppVerison.ValuesYaml,
-		K8SVersion:   k8sServerVersion.String(),
-		ChartRepository: &client.ChartRepository{
-			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
-			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
-			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
-			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
-		},
-		ReleaseIdentifier: &client.ReleaseIdentifier{
-			ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
-			ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
-			ClusterConfig: &client.ClusterConfig{
-				ClusterId: int32(installedAppVerison.InstalledApp.Environment.ClusterId),
-			},
-		},
-	}
-	return installReleaseRequest
 }
 
 func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error) {
