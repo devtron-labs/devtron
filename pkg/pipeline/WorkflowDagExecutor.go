@@ -4077,22 +4077,22 @@ func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.Value
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
 		return err
 	}
-	//timeline := &pipelineConfig.PipelineStatusTimeline{
-	//	CdWorkflowRunnerId: overrideRequest.WfrId,
-	//	StatusTime:         time.Now(),
-	//	AuditLog: sql.AuditLog{
-	//		CreatedBy: 1,
-	//		CreatedOn: time.Now(),
-	//		UpdatedBy: 1,
-	//		UpdatedOn: time.Now(),
-	//	},
-	//	Status:       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-	//	StatusDetail: "argocd sync completed",
-	//}
-	//_, err, _ = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline.Status, timeline, false)
-	//if err != nil {
-	//	impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-	//}
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		CdWorkflowRunnerId: overrideRequest.WfrId,
+		StatusTime:         time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: 1,
+			CreatedOn: time.Now(),
+			UpdatedBy: 1,
+			UpdatedOn: time.Now(),
+		},
+		Status:       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+		StatusDetail: "argocd sync completed",
+	}
+	_, err, _ = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline.Status, timeline, false)
+	if err != nil {
+		impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+	}
 	if updateAppInArgocd {
 		impl.logger.Debug("argo-cd successfully updated")
 	} else {
@@ -5124,11 +5124,11 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(pipeline *pipelineConfig
 		//	impl.logger.Debugw("pipeline update req ", "res", patchReq)
 		//}
 		// manual sync argocd app
-		//err2 := impl.argoClientWrapperService.SyncArgoCDApplication(ctx, argoAppName)
-		//if err2 != nil {
-		//	impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipeline.Name)
-		//	return true, fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err2.Error())
-		//}
+		err2 := impl.argoClientWrapperService.SyncArgoCDApplication(ctx, argoAppName)
+		if err2 != nil {
+			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipeline.Name)
+			return true, fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err2.Error())
+		}
 		return true, nil
 	} else if appStatus.Code() == codes.NotFound {
 		impl.logger.Errorw("argo app not found", "app", argoAppName, "pipeline", pipeline.Name)
